@@ -133,7 +133,7 @@ void FullLikeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
                           int8_t,
@@ -144,7 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           float,

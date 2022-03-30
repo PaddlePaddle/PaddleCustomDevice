@@ -366,9 +366,6 @@ void Pool2dGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    pool2d, Ascend910, ALL_LAYOUT, custom_kernel::Pool2dKernel, float) {}
-PD_REGISTER_PLUGIN_KERNEL(pool2d_grad,
-                          Ascend910,
-                          ALL_LAYOUT,
-                          custom_kernel::Pool2dGradKernel,
-                          float) {}
+    pool2d, ascend, ALL_LAYOUT, custom_kernel::Pool2dKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    pool2d_grad, ascend, ALL_LAYOUT, custom_kernel::Pool2dGradKernel, float) {}

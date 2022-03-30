@@ -108,7 +108,7 @@ void MaxKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(max_raw,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
                           int32_t,
@@ -117,7 +117,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
                           int32_t,

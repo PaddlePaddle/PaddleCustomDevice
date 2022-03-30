@@ -192,7 +192,7 @@ void ReshapeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::ReshapeWithXShapeKernel,
                           phi::dtype::float16,
@@ -204,7 +204,7 @@ PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
                           int64_t,
                           bool) {}
 PD_REGISTER_PLUGIN_KERNEL(reshape_grad,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::ReshapeGradKernel,
                           phi::dtype::float16,

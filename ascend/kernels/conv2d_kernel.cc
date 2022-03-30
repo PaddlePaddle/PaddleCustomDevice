@@ -239,9 +239,6 @@ void Conv2dGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    conv2d, Ascend910, ALL_LAYOUT, custom_kernel::Conv2dKernel, float) {}
-PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
-                          Ascend910,
-                          ALL_LAYOUT,
-                          custom_kernel::Conv2dGradKernel,
-                          float) {}
+    conv2d, ascend, ALL_LAYOUT, custom_kernel::Conv2dKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    conv2d_grad, ascend, ALL_LAYOUT, custom_kernel::Conv2dGradKernel, float) {}

@@ -340,8 +340,8 @@ void InitPlugin(CustomRuntimeParams *params) {
     return;
   }
 
-  params->device_type = "Ascend910";
-  params->sub_device_type = "V100";
+  params->device_type = "ascend";
+  params->sub_device_type = "910";
   params->version.major = PADDLE_CUSTOM_RUNTIME_MAJOR_VERSION;
   params->version.minor = PADDLE_CUSTOM_RUNTIME_MINOR_VERSION;
   params->version.patch = PADDLE_CUSTOM_RUNTIME_PATCH_VERSION;

@@ -100,7 +100,7 @@ void SumKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sum_raw,
-                          Ascend910,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::SumRawKernel,
                           int32_t,

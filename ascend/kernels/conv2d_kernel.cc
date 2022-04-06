@@ -112,12 +112,14 @@ void Conv2dKernel(const Context& dev_ctx,
   std::vector<int> strides_vec(4, 1);
   std::vector<int> dilations_vec(4, 1);
 
-  phi::DenseTensor input_tensor, output_tensor;
-  input_tensor.ShareDataWith(input);
-  output_tensor.ShareDataWith(*output);
+  phi::DenseTensor input_tensor(input), output_tensor(*output);
   if (channel_last) {
-    input_tensor.set_layout(phi::DataLayout::kNHWC);
-    output_tensor.set_layout(phi::DataLayout::kNHWC);
+    phi::DenseTensorMeta input_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_meta = {
+        output->dtype(), output->dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_meta);
+    output_tensor.set_meta(output_meta);
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
     dilations_vec[1] = dilations[0];
@@ -182,12 +184,14 @@ void Conv2dGradKernel(const Context& dev_ctx,
   std::vector<int> strides_vec(4, 1);
   std::vector<int> dilations_vec(4, 1);
 
-  phi::DenseTensor input_tensor, output_grad_tensor;
-  input_tensor.ShareDataWith(input);
-  output_grad_tensor.ShareDataWith(output_grad);
+  phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
   if (channel_last) {
-    input_tensor.set_layout(phi::DataLayout::kNHWC);
-    output_grad_tensor.set_layout(phi::DataLayout::kNHWC);
+    phi::DenseTensorMeta input_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_grad_meta = {
+        output_grad.dtype(), output_grad.dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_meta);
+    output_grad_tensor.set_meta(output_grad_meta);
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
     dilations_vec[1] = dilations[0];
@@ -219,10 +223,11 @@ void Conv2dGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(input_grad);
     std::vector<int> input_shape_vec = phi::vectorize<int>(input.dims());
 
-    phi::DenseTensor input_grad_tensor;
-    input_grad_tensor.ShareDataWith(*input_grad);
+    phi::DenseTensor input_grad_tensor(*input_grad);
     if (channel_last) {
-      input_grad_tensor.set_layout(phi::DataLayout::kNHWC);
+      phi::DenseTensorMeta input_grad_meta = {
+          input_grad->dtype(), input_grad->dims(), phi::DataLayout::kNHWC};
+      input_grad_tensor.set_meta(input_grad_meta);
     }
     const auto& runner = NpuOpRunner("Conv2DBackpropInputD",
                                      {filter, output_grad_tensor},

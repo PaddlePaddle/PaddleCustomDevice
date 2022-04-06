@@ -48,16 +48,16 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
   // ones
   phi::DenseTensor ones;
-  phi::DenseTensorMeta meta_1 = {grad.dtype(), x_grad->dims()};
-  ones.set_meta(meta_1);
+  phi::DenseTensorMeta ones_meta = {grad.dtype(), x_grad->dims()};
+  ones.set_meta(ones_meta);
   dev_ctx.template Alloc<T>(&ones);
   const auto& runner_ones = NpuOpRunner("OnesLike", {*x_grad}, {ones}, {});
   runner_ones.Run(stream);
 
   // means
   phi::DenseTensor mean_tensor;
-  phi::DenseTensorMeta meta_2 = {grad.dtype(), {1}};
-  mean_tensor.set_meta(meta_2);
+  phi::DenseTensorMeta mean_meta = {grad.dtype(), {1}};
+  mean_tensor.set_meta(mean_meta);
   dev_ctx.template Alloc<T>(&mean_tensor);
   FillNpuTensorWithConstant<T>(
       &mean_tensor,
@@ -66,8 +66,8 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
   // means mul ones
   phi::DenseTensor mean_ma;
-  phi::DenseTensorMeta meta_3 = {grad.dtype(), x_grad->dims()};
-  mean_ma.set_meta(meta_3);
+  phi::DenseTensorMeta mean_ma_meta = {grad.dtype(), x_grad->dims()};
+  mean_ma.set_meta(mean_ma_meta);
   dev_ctx.template Alloc<T>(&mean_ma);
 
   const auto& runner_mul_1 =
@@ -81,16 +81,16 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(mean_all,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::MeanAllKernel,
-                          float,
-                          phi::dtype::bfloat16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::MeanAllGradKernel,
-                          float,
-                          phi::dtype::bfloat16) {}
+// PD_REGISTER_PLUGIN_KERNEL(mean_all,
+//                           ascend,
+//                           ALL_LAYOUT,
+//                           custom_kernel::MeanAllKernel,
+//                           float,
+//                           phi::dtype::bfloat16) {}
+//
+// PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,
+//                           ascend,
+//                           ALL_LAYOUT,
+//                           custom_kernel::MeanAllGradKernel,
+//                           float,
+//                           phi::dtype::bfloat16) {}

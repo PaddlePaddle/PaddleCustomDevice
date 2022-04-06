@@ -48,7 +48,7 @@ void MinRawKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<bool>(out);
     }
   } else {
-    out->ShareDataWith(cast_out);
+    *out = cast_out;
   }
 
   NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};

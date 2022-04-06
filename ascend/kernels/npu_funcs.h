@@ -44,7 +44,12 @@ inline void TensorCopy(const Context& dev_ctx,
           << dst_place_;
 
   dst->Resize(src.dims());
-  auto dst_ptr = dst->mutable_data(dst_place_, src.dtype());
+  void* dst_ptr = nullptr;
+  if (dst_place_.GetType() != phi::AllocationType::CPU) {
+    dst_ptr = dev_ctx.Alloc(dst, src.dtype());
+  } else {
+    dst_ptr = dev_ctx.HostAlloc(dst, src.dtype());
+  }
 
   if (src_ptr == dst_ptr) {
     VLOG(3) << "Skip copy the same data async from " << src_place << " to "
@@ -92,7 +97,8 @@ inline void TensorCopy(const Context& dev_ctx,
  * CPU -> NPU
 */
 template <typename T>
-inline void TensorFromVector(const std::vector<T>& src,
+inline void TensorFromVector(const phi::CustomContext& ctx,
+                             const std::vector<T>& src,
                              const phi::CustomContext& dev_ctx,
                              phi::DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
@@ -115,7 +121,8 @@ inline void TensorFromVector(const std::vector<T>& src,
 }
 
 template <>
-inline void TensorFromVector<bool>(const std::vector<bool>& src,
+inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
+                                   const std::vector<bool>& src,
                                    const phi::CustomContext& dev_ctx,
                                    phi::DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
@@ -128,12 +135,14 @@ inline void TensorFromVector<bool>(const std::vector<bool>& src,
  * CPU -> NPU
 */
 template <typename T>
-inline void TensorFromVector(const std::vector<T>& src,
+inline void TensorFromVector(const phi::CustomContext& ctx,
+                             const std::vector<T>& src,
                              const phi::CPUContext& dev_ctx,
                              phi::DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
   auto src_ptr = static_cast<const void*>(src.data());
-  auto dst_ptr = dst->mutable_data<T>({src.size()}, dst_place);
+  dst->Resize({src.size()});
+  auto dst_ptr = ctx.template HostAlloc<T>(dst);
   auto size = src.size() * sizeof(T);
   if (UNLIKELY(size == 0)) return;
 
@@ -150,7 +159,8 @@ inline void TensorFromVector(const std::vector<T>& src,
 }
 
 template <>
-inline void TensorFromVector<bool>(const std::vector<bool>& src,
+inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
+                                   const std::vector<bool>& src,
                                    const phi::CPUContext& dev_ctx,
                                    phi::DenseTensor* dst) {
   auto dst_place = dev_ctx.GetPlace();
@@ -167,7 +177,7 @@ inline void FillNpuTensorWithConstant(phi::DenseTensor* dst,
                                       T val) {
   int numel = dst->numel();
   std::vector<T> src(numel, static_cast<T>(val));
-  TensorFromVector(src, dev_ctx, dst);
+  TensorFromVector(dev_ctx, src, dev_ctx, dst);
 }
 
 // src - broadcast -> transformed_src
@@ -181,8 +191,7 @@ inline void NpuBroadcast(const Context& dev_ctx,
 
   // 1. expand the axis with dim 1
   auto src_dims = src->dims();
-  phi::DenseTensor tmp_src;
-  tmp_src.ShareDataWith(*src);
+  phi::DenseTensor tmp_src(*src);
   tmp_src.Resize(src_dims);
   for (int i = 0; i < src_dims.size(); ++i) {
     if (src_dims[i] == 1 && dst_dims[i + axis] > 1) {
@@ -198,7 +207,7 @@ inline void NpuBroadcast(const Context& dev_ctx,
                       {{"axis", static_cast<int64_t>(i)},
                        {"tiles", static_cast<int64_t>(dst_dims[i + axis])}});
       runner.Run(stream);
-      tmp_src.ShareDataWith(tmp_tensor);
+      tmp_src = tmp_tensor;
       tmp_src.Resize(tmp_tensor_dims);
     }
   }
@@ -216,7 +225,7 @@ inline void NpuBroadcast(const Context& dev_ctx,
                     {tmp_tensor},
                     {{"shape", phi::vectorize<int64_t>(tmp_tensor_dims)}});
     runner.Run(stream);
-    tmp_src.ShareDataWith(tmp_tensor);
+    tmp_src = tmp_tensor;
     tmp_src.Resize(tmp_tensor_dims);
   } else {
     tmp_src.Resize(phi::slice_ddim(dst_dims, 0, axis + src_dims.size()));
@@ -240,7 +249,7 @@ inline void NpuBroadcast(const Context& dev_ctx,
                     {{"axis", static_cast<int64_t>(axis + src_dims.size())},
                      {"tiles", static_cast<int64_t>(post)}});
     runner.Run(stream);
-    tmp_src.ShareDataWith(tmp_tensor);
+    tmp_src = tmp_tensor;
   }
   tmp_src.Resize(dst_dims);
   TensorCopy(dev_ctx, tmp_src, false, transformed_src);

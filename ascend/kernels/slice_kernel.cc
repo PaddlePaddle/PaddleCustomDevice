@@ -52,8 +52,8 @@ template <typename T, typename Context>
 void SliceRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const std::vector<int64_t>& axes_t,
-                    const phi::ScalarArray& starts_array,
-                    const phi::ScalarArray& ends_array,
+                    const phi::IntArray& starts_array,
+                    const phi::IntArray& ends_array,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
                     phi::DenseTensor* out) {
@@ -83,8 +83,8 @@ void SliceGradRawKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& out_grad,
                         const std::vector<int64_t>& axes_t,
-                        const phi::ScalarArray& starts_array,
-                        const phi::ScalarArray& ends_array,
+                        const phi::IntArray& starts_array,
+                        const phi::IntArray& ends_array,
                         const std::vector<int64_t>& infer_flags,
                         const std::vector<int64_t>& decrease_axis,
                         phi::DenseTensor* x_grad) {
@@ -108,8 +108,7 @@ void SliceGradRawKernel(const Context& dev_ctx,
     paddings[i][1] = static_cast<int64_t>(in_dims[i] - size[i] - offsets[i]);
   }
 
-  phi::DenseTensor tmp_dout;
-  tmp_dout.ShareDataWith(out_grad);
+  phi::DenseTensor tmp_dout(out_grad);
   auto out_dims = out_grad.dims();
 
   auto decrease_size = decrease_axis.size();

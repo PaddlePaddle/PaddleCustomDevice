@@ -15,7 +15,7 @@
 #include "npu_funcs.h"
 #include "npu_op_runner.h"
 
-#include "paddle/phi/common/scalar_array.h"
+#include "paddle/phi/common/int_array.h"
 #include "paddle/phi/core/meta_tensor.h"
 
 namespace custom_kernel {
@@ -162,12 +162,12 @@ void InferMetaFromVecValue(const phi::MetaTensor& x,
 template <typename T, typename Context>
 void ReshapeWithXShapeKernel(const Context& dev_ctx,
                              const phi::DenseTensor& x,
-                             const phi::ScalarArray& shape,
+                             const phi::IntArray& shape,
                              phi::DenseTensor* xshape,
                              phi::DenseTensor* out) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
-  if (x.initialized() && x.Holder() == out->Holder()) {
+  if (x.initialized() && x.IsSharedWith(*out)) {
     dev_ctx.Alloc(out, x.dtype());
     return;
   }

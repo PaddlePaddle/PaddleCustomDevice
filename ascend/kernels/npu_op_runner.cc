@@ -210,9 +210,11 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(std::vector<int32_t> &&dims) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   std::vector<int32_t> &&dims) {
   phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(dims, phi::CPUContext(), &host_tensor);
+  custom_kernel::TensorFromVector(
+      dev_ctx, dims, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
 
   // create aclTensorDesc
@@ -223,9 +225,11 @@ NpuOpRunner &NpuOpRunner::AddInput(std::vector<int32_t> &&dims) {
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(std::vector<int64_t> &&dims) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   std::vector<int64_t> &&dims) {
   phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(dims, phi::CPUContext(), &host_tensor);
+  custom_kernel::TensorFromVector(
+      dev_ctx, dims, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
 
   // create aclTensorDesc
@@ -236,9 +240,11 @@ NpuOpRunner &NpuOpRunner::AddInput(std::vector<int64_t> &&dims) {
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(std::vector<float> &&values) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   std::vector<float> &&values) {
   phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(values, phi::CPUContext(), &host_tensor);
+  custom_kernel::TensorFromVector(
+      dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
 
   // create aclTensorDesc
@@ -249,9 +255,11 @@ NpuOpRunner &NpuOpRunner::AddInput(std::vector<float> &&values) {
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(std::vector<double> &&values) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   std::vector<double> &&values) {
   phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(values, phi::CPUContext(), &host_tensor);
+  custom_kernel::TensorFromVector(
+      dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
 
   // create aclTensorDesc
@@ -381,8 +389,8 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
 
 aclDataBuffer *NpuOpRunner::CreateDataBuffer(phi::DenseTensor tensor) {
   void *ptr = tensor.data();
-  VLOG(4) << "NPU ptr: " << ptr << ", size: " << tensor.memory_size();
-  auto *buffer = aclCreateDataBuffer(ptr, tensor.memory_size());
+  VLOG(4) << "NPU ptr: " << ptr << ", size: " << tensor.capacity();
+  auto *buffer = aclCreateDataBuffer(ptr, tensor.capacity());
   PADDLE_ENFORCE_NOT_NULL(
       buffer, phi::errors::External("Call aclCreateDataBuffer failed."));
   return buffer;

@@ -47,8 +47,9 @@ void WhereGradKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
 
-  phi::DenseTensor tensor_zeros(out_grad.dtype());
-  tensor_zeros.Resize(out_grad.dims());
+  phi::DenseTensor tensor_zeros;
+  phi::DenseTensorMeta zeros_meta = {out_grad.dtype(), out_grad.dims()};
+  tensor_zeros.set_meta(zeros_meta);
   dev_ctx.template Alloc<T>(&tensor_zeros);
 
   const auto& runner = NpuOpRunner("ZerosLike", {out_grad}, {tensor_zeros}, {});

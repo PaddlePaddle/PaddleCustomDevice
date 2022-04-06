@@ -41,8 +41,9 @@ void TopkKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(indices);
 
-  phi::DenseTensor indices_int32(paddle::experimental::DataType::INT32);
-  indices_int32.Resize(output_dims);
+  phi::DenseTensor indices_int32;
+  phi::DenseTensorMeta indices_int32_meta = {phi::DataType::INT32, output_dims};
+  indices_int32.set_meta(indices_int32_meta);
   dev_ctx.template Alloc<int32_t>(&indices_int32);
 
   auto npu_stream = dev_ctx.stream();
@@ -50,7 +51,7 @@ void TopkKernel(const Context& dev_ctx,
   NpuOpRunner npu_op_runner_topkv2;
   npu_op_runner_topkv2.SetType("TopKV2")
       .AddInput(x)
-      .AddInput(std::vector<int32_t>{k})
+      .AddInput(dev_ctx, std::vector<int32_t>{k})
       .AddOutput(*out)
       .AddOutput(indices_int32)
       .AddAttr("sorted", sorted)
@@ -59,7 +60,7 @@ void TopkKernel(const Context& dev_ctx,
       .Run(npu_stream);
 
   // Cast 'indices_int32' to 'indices', from INT32 to INT64
-  auto dst_dtype = ConvertToNpuDtype(indices->type());
+  auto dst_dtype = ConvertToNpuDtype(indices->dtype());
   const auto& npu_op_runner_cast =
       NpuOpRunner("Cast",
                   {indices_int32},

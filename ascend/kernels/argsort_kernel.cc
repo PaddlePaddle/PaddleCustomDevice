@@ -27,7 +27,7 @@ static void TranposeNPU(const phi::CustomContext& dev_ctx,
   NpuOpRunner runner;
   runner.SetType("Transpose")
       .AddInput(in)
-      .AddInput(std::move(*perm))
+      .AddInput(dev_ctx, std::move(*perm))
       .AddOutput(*out)
       .Run(stream);
 }
@@ -70,16 +70,22 @@ void ArgsortKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
 
-  phi::DenseTensor indices_tmp(phi::DataType::INT32);
-  indices_tmp.Resize(indices->dims());
+  phi::DenseTensor indices_tmp;
+  phi::DenseTensorMeta indices_tmp_meta = {phi::DataType::INT32,
+                                           indices->dims()};
+  indices_tmp.set_meta(indices_tmp_meta);
 
   if (input.dtype() == phi::DataType::INT64) {
-    phi::DenseTensor input_fp32(phi::DataType::FLOAT32);
-    input_fp32.Resize(input.dims());
+    phi::DenseTensor input_fp32;
+    phi::DenseTensorMeta input_fp32_meta = {phi::DataType::FLOAT32,
+                                            input.dims()};
+    input_fp32.set_meta(input_fp32_meta);
     CastToFP32(dev_ctx, stream, input, &input_fp32);
 
-    phi::DenseTensor output_fp32(phi::DataType::FLOAT32);
-    output_fp32.Resize(output->dims());
+    phi::DenseTensor output_fp32;
+    phi::DenseTensorMeta output_fp32_meta = {phi::DataType::FLOAT32,
+                                             output->dims()};
+    output_fp32.set_meta(output_fp32_meta);
 
     if (axis == -1 || axis + 1 == in_dims.size()) {
       dev_ctx.template Alloc<float>(&output_fp32);
@@ -106,15 +112,19 @@ void ArgsortKernel(const Context& dev_ctx,
       }
       auto trans_dims = phi::make_ddim(shape);
 
-      phi::DenseTensor trans_input(input_fp32.dtype());
-      trans_input.Resize(trans_dims);
+      phi::DenseTensor trans_input;
+      phi::DenseTensorMeta trans_input_meta = {input_fp32.dtype(), trans_dims};
+      trans_input.set_meta(trans_input_meta);
       TranposeNPU<float>(dev_ctx, stream, &perm, input_fp32, &trans_input);
 
-      phi::DenseTensor trans_output(input_fp32.dtype());
-      phi::DenseTensor trans_indices(phi::DataType::INT32);
-      trans_output.Resize(trans_dims);
+      phi::DenseTensor trans_output;
+      phi::DenseTensorMeta trans_output_meta = {input_fp32.dtype(), trans_dims};
+      trans_output.set_meta(trans_output_meta);
       dev_ctx.template Alloc<float>(&trans_output);
-      trans_indices.Resize(trans_dims);
+      phi::DenseTensor trans_indices;
+      phi::DenseTensorMeta trans_indices_meta = {phi::DataType::INT32,
+                                                 trans_dims};
+      trans_indices.set_meta(trans_indices_meta);
       dev_ctx.template Alloc<int32_t>(&trans_indices);
 
       NpuOpRunner runner;
@@ -157,15 +167,20 @@ void ArgsortKernel(const Context& dev_ctx,
       }
       auto trans_dims = phi::make_ddim(shape);
 
-      phi::DenseTensor trans_input(input.dtype());
-      trans_input.Resize(trans_dims);
+      phi::DenseTensor trans_input;
+      phi::DenseTensorMeta trans_input_meta = {input.dtype(), trans_dims};
+      trans_input.set_meta(trans_input_meta);
       TranposeNPU<T>(dev_ctx, stream, &perm, input, &trans_input);
 
-      phi::DenseTensor trans_output(input.dtype());
-      phi::DenseTensor trans_indices(phi::DataType::INT32);
-      trans_output.Resize(trans_dims);
+      phi::DenseTensor trans_output;
+      phi::DenseTensorMeta trans_output_meta = {input.dtype(), trans_dims};
+      trans_output.set_meta(trans_output_meta);
       dev_ctx.template Alloc<T>(&trans_output);
-      trans_indices.Resize(trans_dims);
+
+      phi::DenseTensor trans_indices;
+      phi::DenseTensorMeta trans_indices_meta = {phi::DataType::INT32,
+                                                 trans_dims};
+      trans_indices.set_meta(trans_indices_meta);
       dev_ctx.template Alloc<int32_t>(&trans_indices);
 
       NpuOpRunner runner;

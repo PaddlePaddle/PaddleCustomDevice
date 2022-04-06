@@ -32,7 +32,7 @@ inline void UniformRealDistribution(T* data,
 
 template <typename T, typename Context>
 void UniformRandomRawKernel(const Context& dev_ctx,
-                            const phi::ScalarArray& shape,
+                            const phi::IntArray& shape,
                             phi::DataType dtype,
                             float min,
                             float max,
@@ -47,9 +47,10 @@ void UniformRandomRawKernel(const Context& dev_ctx,
   auto size = out->numel();
 
   // 1. CPU implement
-  phi::DenseTensor cpu_out(out->dtype());
-  cpu_out.Resize(out->dims());
-  T* cpu_data = cpu_out.mutable_data<T>(phi::CPUPlace());
+  phi::DenseTensor cpu_out;
+  phi::DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
+  cpu_out.set_meta(cpu_out_meta);
+  T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 
   std::shared_ptr<std::mt19937_64> engine;
   if (seed) {
@@ -83,7 +84,7 @@ void UniformRandomRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UniformRandomKernel(const Context& dev_ctx,
-                         const phi::ScalarArray& shape,
+                         const phi::IntArray& shape,
                          phi::DataType dtype,
                          float min,
                          float max,

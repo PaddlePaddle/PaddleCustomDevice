@@ -40,7 +40,7 @@ void WhereIndexKernel(const Context& dev_ctx,
                     {{"dst_type", static_cast<int32_t>(bool_type)}});
     booled_runner.Run(stream, true);
   } else {
-    booled_cond.ShareDataWith(condition);
+    booled_cond = condition;
   }
 
   phi::DenseTensor casted_cond;
@@ -64,7 +64,7 @@ void WhereIndexKernel(const Context& dev_ctx,
   for (int i = 0; i < dims.size(); ++i) {
     axes_vec.push_back(i);
   }
-  custom_kernel::TensorFromVector(axes_vec, dev_ctx, &cond_axes);
+  custom_kernel::TensorFromVector(dev_ctx, axes_vec, dev_ctx, &cond_axes);
   const auto& sum_runner = NpuOpRunner("ReduceSum",
                                        {casted_cond, cond_axes},
                                        {sumed_true_num},
@@ -82,7 +82,9 @@ void WhereIndexKernel(const Context& dev_ctx,
     return;
   }
 
-  out->set_layout(paddle::experimental::DataLayout::kAnyLayout);
+  phi::DenseTensorMeta out_meta = {
+      out->dtype(), out->dims(), phi::DataLayout::kAnyLayout};
+  out->set_meta(out_meta);
   NpuOpRunner runner{"Where", {condition}, {*out}};
   runner.Run(stream);
 }

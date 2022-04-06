@@ -21,7 +21,7 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void FullKernel(const Context& dev_ctx,
-                const phi::ScalarArray& shape,
+                const phi::IntArray& shape,
                 const phi::Scalar& val,
                 phi::DenseTensorMeta::DataType dtype,
                 phi::DenseTensor* out) {
@@ -45,7 +45,7 @@ void FullKernel(const Context& dev_ctx,
         .Run(stream);
 #else
     runner.SetType("Fill")
-        .AddInput(std::vector<int64_t>(shape_vec))
+        .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
         .AddInput(tensor_value)
         .AddOutput(*out)
         .Run(stream);
@@ -63,7 +63,7 @@ void FullKernel(const Context& dev_ctx,
 
       NpuOpRunner runner;
       runner.SetType("Fill")
-          .AddInput(std::vector<int64_t>(shape_vec))
+          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
           .AddInput(tensor_value)
           .AddOutput(outputs[0])
           .Run(dev_ctx.stream());
@@ -89,7 +89,6 @@ void FullLikeKernel(const Context& dev_ctx,
       typename std::conditional<std::is_same<T, phi::dtype::float16>::value,
                                 float,
                                 T>::type>::type;
-  // out->mutable_data<T>(context.GetPlace());
   dev_ctx.template Alloc<T>(out);
   auto value = val.to<float>();
 
@@ -114,9 +113,9 @@ void FullLikeKernel(const Context& dev_ctx,
                     false,
                     phi::errors::InvalidArgument("The filled value is NaN."));
 
-  phi::DenseTensor tensor_tmp(dtype);
-  tensor_tmp.Resize({1});
-  // tensor_tmp.mutable_data<T>({1}, context.GetPlace());
+  phi::DenseTensor tensor_tmp;
+  phi::DenseTensorMeta tensor_tmp_meta = {dtype, {1}};
+  tensor_tmp.set_meta(tensor_tmp_meta);
   FillNpuTensorWithConstant<T>(&tensor_tmp, dev_ctx, static_cast<T>(value));
 
   auto stream = dev_ctx.stream();
@@ -124,7 +123,7 @@ void FullLikeKernel(const Context& dev_ctx,
   auto shape = out->dims();
   NpuOpRunner runner;
   runner.SetType("Fill")
-      .AddInput(phi::vectorize(shape))
+      .AddInput(dev_ctx, phi::vectorize(shape))
       .AddInput(tensor_tmp)
       .AddOutput(*out)
       .Run(stream);

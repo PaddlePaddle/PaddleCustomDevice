@@ -53,7 +53,7 @@ void MomentumKernel(const Context& dev_ctx,
         NpuOpRunner("Add", {regularized_grad, grad}, {regularized_grad}, {});
     runner2.Run(dev_ctx.stream());
   } else {
-    regularized_grad.ShareDataWith(grad);
+    regularized_grad = grad;
   }
   TensorCopy(dev_ctx, param, false, param_out);
   TensorCopy(dev_ctx, velocity, false, velocity_out);

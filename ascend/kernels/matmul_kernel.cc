@@ -111,9 +111,7 @@ void MatmulKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp, y_temp;
-  x_temp.ShareDataWith(x);
-  y_temp.ShareDataWith(y);
+  phi::DenseTensor x_temp(x), y_temp(y);
   if (x_ndim == 1) {
     x_dims.insert(x_dims.begin(), 1);
     out_dims.insert(out_dims.end() - 1, 1);
@@ -177,9 +175,11 @@ void MatmulKernel(const Context& dev_ctx,
   std::copy(x_dims.end() - 2, x_dims.end(), x_broadcast_dims.end() - 2);
   std::copy(y_dims.end() - 2, y_dims.end(), y_broadcast_dims.end() - 2);
 
-  phi::DenseTensor x_temp_brd(x.dtype());
+  phi::DenseTensor x_temp_brd;
+  phi::DenseTensorMeta x_temp_brd_meta = {x.dtype(), {}};
+  x_temp_brd.set_meta(x_temp_brd_meta);
   if (x_dims == x_broadcast_dims) {
-    x_temp_brd.ShareDataWith(x);
+    x_temp_brd = x;
     x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
   } else {
     x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
@@ -187,14 +187,16 @@ void MatmulKernel(const Context& dev_ctx,
     NpuOpRunner runner_brd;
     runner_brd.SetType("BroadcastTo")
         .AddInput(x_temp)
-        .AddInput(std::move(x_broadcast_dims))
+        .AddInput(dev_ctx, std::move(x_broadcast_dims))
         .AddOutput(x_temp_brd)
         .Run(stream);
   }
 
-  phi::DenseTensor y_temp_brd(y.dtype());
+  phi::DenseTensor y_temp_brd;
+  phi::DenseTensorMeta y_temp_brd_meta = {y.dtype(), {}};
+  y_temp_brd.set_meta(y_temp_brd_meta);
   if (y_dims == y_broadcast_dims) {
-    y_temp_brd.ShareDataWith(y);
+    y_temp_brd = y;
     y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
   } else {
     y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
@@ -202,7 +204,7 @@ void MatmulKernel(const Context& dev_ctx,
     NpuOpRunner runner_brd;
     runner_brd.SetType("BroadcastTo")
         .AddInput(y_temp)
-        .AddInput(std::move(y_broadcast_dims))
+        .AddInput(dev_ctx, std::move(y_broadcast_dims))
         .AddOutput(y_temp_brd)
         .Run(stream);
   }
@@ -230,13 +232,14 @@ void MatmulGradKernel(const Context& dev_ctx,
 
   // Case 1: [K] x [K] = [1]
   if (x_ndim == 1 && y_ndim == 1) {
-    phi::DenseTensor dout_temp(dout.dtype());
-    dout_temp.Resize(x.dims());
+    phi::DenseTensor dout_temp;
+    phi::DenseTensorMeta dout_temp_meta = {dout.dtype(), x.dims()};
+    dout_temp.set_meta(dout_temp_meta);
     dev_ctx.template Alloc<T>(&dout_temp);
     NpuOpRunner runner;
     runner.SetType("BroadcastTo")
         .AddInput(dout)
-        .AddInput(std::move(x_dims))
+        .AddInput(dev_ctx, std::move(x_dims))
         .AddOutput(dout_temp)
         .Run(stream);
 
@@ -254,10 +257,7 @@ void MatmulGradKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp, y_temp, dout_temp;
-  x_temp.ShareDataWith(x);
-  y_temp.ShareDataWith(y);
-  dout_temp.ShareDataWith(dout);
+  phi::DenseTensor x_temp(x), y_temp(y), dout_temp(dout);
   if (x_ndim == 1) {
     x_dims.insert(x_dims.begin(), 1);
     out_dims.insert(out_dims.end() - 1, 1);
@@ -333,9 +333,11 @@ void MatmulGradKernel(const Context& dev_ctx,
   std::copy(x_dims.end() - 2, x_dims.end(), x_broadcast_dims.end() - 2);
   std::copy(y_dims.end() - 2, y_dims.end(), y_broadcast_dims.end() - 2);
 
-  phi::DenseTensor x_temp_brd(x.dtype());
+  phi::DenseTensor x_temp_brd;
+  phi::DenseTensorMeta x_temp_brd_meta = {x.dtype(), {}};
+  x_temp_brd.set_meta(x_temp_brd_meta);
   if (x_dims == x_broadcast_dims) {
-    x_temp_brd.ShareDataWith(x);
+    x_temp_brd = x;
     x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
   } else {
     x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
@@ -343,14 +345,16 @@ void MatmulGradKernel(const Context& dev_ctx,
     NpuOpRunner runner_brd;
     runner_brd.SetType("BroadcastTo")
         .AddInput(x_temp)
-        .AddInput(std::move(x_broadcast_dims))
+        .AddInput(dev_ctx, std::move(x_broadcast_dims))
         .AddOutput(x_temp_brd)
         .Run(stream);
   }
 
-  phi::DenseTensor y_temp_brd(y.dtype());
+  phi::DenseTensor y_temp_brd;
+  phi::DenseTensorMeta y_temp_brd_meta = {y.dtype(), {}};
+  y_temp_brd.set_meta(y_temp_brd_meta);
   if (y_dims == y_broadcast_dims) {
-    y_temp_brd.ShareDataWith(y);
+    y_temp_brd = y;
     y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
   } else {
     y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
@@ -358,7 +362,7 @@ void MatmulGradKernel(const Context& dev_ctx,
     NpuOpRunner runner_brd;
     runner_brd.SetType("BroadcastTo")
         .AddInput(y_temp)
-        .AddInput(std::move(y_broadcast_dims))
+        .AddInput(dev_ctx, std::move(y_broadcast_dims))
         .AddOutput(y_temp_brd)
         .Run(stream);
   }
@@ -373,8 +377,10 @@ void MatmulGradKernel(const Context& dev_ctx,
             dev_ctx, stream, dout_temp, y_temp_brd, dx, false, !transpose_y);
       }
     } else {
-      phi::DenseTensor dx_temp(x.dtype());
-      dx_temp.Resize(phi::make_ddim(x_broadcast_dims));
+      phi::DenseTensor dx_temp;
+      phi::DenseTensorMeta dx_temp_meta = {x.dtype(),
+                                           phi::make_ddim(x_broadcast_dims)};
+      dx_temp.set_meta(dx_temp_meta);
       if (transpose_x) {
         MatMulND<T>(dev_ctx,
                     stream,
@@ -405,8 +411,10 @@ void MatmulGradKernel(const Context& dev_ctx,
             dev_ctx, stream, x_temp_brd, dout_temp, dy, !transpose_x, false);
       }
     } else {
-      phi::DenseTensor dy_temp(y.dtype());
-      dy_temp.Resize(phi::make_ddim(y_broadcast_dims));
+      phi::DenseTensor dy_temp;
+      phi::DenseTensorMeta dy_temp_meta = {y.dtype(),
+                                           phi::make_ddim(y_broadcast_dims)};
+      dy_temp.set_meta(dy_temp_meta);
       if (transpose_y) {
         MatMulND<T>(dev_ctx,
                     stream,

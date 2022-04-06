@@ -39,7 +39,6 @@ if (WITH_KERNELS)
     set(CORE_LIB ":core_noavx.so")
   endif()
 
-  add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)   # for NPU
   add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)  # for out CustomContext
   add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)  # for out fluid seperate
 endif()

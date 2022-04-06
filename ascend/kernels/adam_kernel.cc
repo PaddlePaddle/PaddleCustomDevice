@@ -73,24 +73,25 @@ void AdamKernel(const Context& dev_ctx,
   const phi::DenseTensor* beta2_tensor = nullptr;
   const phi::DenseTensor* epsilon_tensor = nullptr;
 
-  phi::DenseTensor beta1_tmp(paddle::experimental::DataType::FLOAT32);
-  phi::DenseTensor beta2_tmp(paddle::experimental::DataType::FLOAT32);
-  phi::DenseTensor epsilon_tmp(paddle::experimental::DataType::FLOAT32);
+  phi::DenseTensor beta1_tmp;
+  phi::DenseTensor beta2_tmp;
+  phi::DenseTensor epsilon_tmp;
+  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
+  beta1_tmp.set_meta(meta);
+  beta2_tmp.set_meta(meta);
+  epsilon_tmp.set_meta(meta);
 
   T beta1 = beta1_in.to<T>();
-  beta1_tmp.Resize({1});
   dev_ctx.template Alloc<T>(&beta1_tmp);
   FillNpuTensorWithConstant<T>(&beta1_tmp, dev_ctx, beta1);
   beta1_tensor = &beta1_tmp;
 
   T beta2 = beta2_in.to<T>();
-  beta2_tmp.Resize({1});
   dev_ctx.template Alloc<T>(&beta2_tmp);
   FillNpuTensorWithConstant<T>(&beta2_tmp, dev_ctx, beta2);
   beta2_tensor = &beta2_tmp;
 
   T epsilon = epsilon_in.to<T>();
-  epsilon_tmp.Resize({1});
   dev_ctx.template Alloc<T>(&epsilon_tmp);
   FillNpuTensorWithConstant<T>(&epsilon_tmp, dev_ctx, epsilon);
   epsilon_tensor = &epsilon_tmp;

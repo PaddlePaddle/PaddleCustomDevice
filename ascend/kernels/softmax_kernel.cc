@@ -49,11 +49,11 @@ void SoftmaxGradKernel(const Context& dev_ctx,
     sec_dim *= dims[i];
   }
 
-  phi::DenseTensor tmp_out;
-  tmp_out.ShareDataWith(out).Resize({first_dim, sec_dim});
+  phi::DenseTensor tmp_out(out);
+  tmp_out.Resize({first_dim, sec_dim});
 
-  phi::DenseTensor tmp_out_grad;
-  tmp_out_grad.ShareDataWith(out_grad).Resize({first_dim, sec_dim});
+  phi::DenseTensor tmp_out_grad(out_grad);
+  tmp_out_grad.Resize({first_dim, sec_dim});
 
   x_grad->Resize(phi::make_ddim({first_dim, sec_dim}));
   dev_ctx.template Alloc<T>(x_grad);

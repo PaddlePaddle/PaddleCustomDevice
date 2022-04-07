@@ -14,6 +14,7 @@
 
 include(ExternalProject)
 
+set(GIT_URL "https://github.com")
 set(THIRD_PARTY_PATH  "${CMAKE_BINARY_DIR}/third_party" CACHE STRING
     "A path setting third party libraries download & build directories.")
 
@@ -33,4 +34,3 @@ IF(WITH_TESTING)
 ENDIF()
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})
-

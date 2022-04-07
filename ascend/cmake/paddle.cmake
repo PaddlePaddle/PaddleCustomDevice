@@ -40,4 +40,3 @@ ADD_LIBRARY(core_lib SHARED IMPORTED GLOBAL)
 SET_PROPERTY(TARGET core_lib PROPERTY IMPORTED_LOCATION ${paddle_lib})
 
 add_custom_target(paddle_install DEPENDS core_lib)
-

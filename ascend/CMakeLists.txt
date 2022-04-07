@@ -4,6 +4,7 @@ project(paddle-ascend CXX C)
 
 option(WITH_TESTING    "compile plugin with unit testing"        OFF)
 option(WITH_KERNELS    "build custom kernels"                    OFF)
+option(WITH_ARM        "compile with arm support"                OFF)
 
 set(PLUGIN_NAME        "paddle_ascend")
 set(PLUGIN_VERSION     "0.0.1")
@@ -13,7 +14,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(PLUGIN_SRCS runtime/runtime.cc)
 include_directories(${CMAKE_SOURCE_DIR}/runtime)
 
-include(ascend)
+# ascend_cl
+include(external/ascend)
 
 if (WITH_KERNELS)
   # kernel source files
@@ -24,7 +26,6 @@ if (WITH_KERNELS)
   include(paddle)
 
   # third_party
-  set(GIT_URL "https://github.com")
   include(third_party)
 
   # configures
@@ -40,8 +41,8 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE ${ascendcl_lib})
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${acl_op_compiler_lib})
 
 if (WITH_KERNELS)
- add_dependencies(${PLUGIN_NAME} paddle_install third_party)
- target_link_libraries(${PLUGIN_NAME} PRIVATE ${paddle_lib})
+  add_dependencies(${PLUGIN_NAME} paddle_install third_party)
+  target_link_libraries(${PLUGIN_NAME} PRIVATE ${paddle_lib})
 endif()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in

@@ -75,4 +75,3 @@ endif()
 
 find_ascend_toolkit_version(${ASCEND_TOOLKIT_DIR}/ascend_toolkit_install.info)
 find_ascend_driver_version(${ASCEND_DIR}/driver/version.info)
-

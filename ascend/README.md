@@ -4,22 +4,11 @@
 
 ## 源码同步
 ```
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice.git
-
-git submodule
--8fb8fa4109592c49b995be9b246c30d40bce6935 Paddle
-
-git submodule init
-Submodule 'Paddle' (https://github.com/PaddlePaddle/Paddle) registered for path 'Paddle'
-
-git submodule update
-Cloning into '/workspace/PaddleCustomDevice/Paddle'...
-Submodule path 'Paddle': checked out '8fb8fa4109592c49b995be9b246c30d40bce6935'
-```
-或使用：
-```
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice.git --recursive
-
+git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
+cd PaddleCustomDevice
+# if you are updating an existing checkout
+git submodule sync
+git submodule update --init --recursive --jobs 0
 ```
 
 ## 编译安装

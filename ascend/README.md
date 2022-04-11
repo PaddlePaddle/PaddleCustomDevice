@@ -6,9 +6,9 @@
 ```
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-# if you are updating an existing checkout
+# 请执行以下命令，以保证checkout最新的Paddle源码
 git submodule sync
-git submodule update --init --recursive --jobs 0
+git submodule update --remote --init --recursive
 ```
 
 ## 编译安装

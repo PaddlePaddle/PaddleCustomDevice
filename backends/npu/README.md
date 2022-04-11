@@ -25,11 +25,17 @@ pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu
 
 # 创建编译目录并编译
 mkdir build && cd build
-cmake .. -DWITH_KERNELS=ON # 如果是ARM环境添加 -DWITH_ARM=ON
+
+# X86_64环境编译
+cmake .. -DWITH_KERNELS=ON
 make -j8
 
+# Aarch64环境编译
+cmake .. -DWITH_KERNELS=ON -DWITH_ARM=ON
+make TARGET=ARMV8 -j8
+
 # 编译产出在dist路径下，使用pip安装
-pip install dist/paddle_ascend*.whl
+pip install dist/paddle-custom-npu*.whl
 ```
 
 ## 三、功能验证

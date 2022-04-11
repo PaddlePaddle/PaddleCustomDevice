@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(paddle-ascend CXX C)
+project(paddle-custom-npu CXX C)
 
 option(WITH_TESTING    "compile plugin with unit testing"        OFF)
 option(WITH_KERNELS    "build custom kernels"                    OFF)
 option(WITH_ARM        "compile with arm support"                OFF)
 
-set(PLUGIN_NAME        "paddle_ascend")
+set(PLUGIN_NAME        "paddle-custom-npu")
 set(PLUGIN_VERSION     "0.0.1")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

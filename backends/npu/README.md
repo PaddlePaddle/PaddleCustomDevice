@@ -35,7 +35,7 @@ cmake .. -DWITH_KERNELS=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
 # 编译产出在dist路径下，使用pip安装
-pip install dist/paddle-custom-npu*.whl
+pip install dist/paddle_custom_npu*.whl
 ```
 
 ## 三、功能验证

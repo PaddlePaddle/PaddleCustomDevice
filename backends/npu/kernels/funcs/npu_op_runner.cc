@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "npu_op_runner.h"
+#include "kernels/funcs/npu_op_runner.h"
 
 #include <map>
 #include "acl/acl_op_compiler.h"
 
-#include "npu_enforce.h"
-#include "npu_funcs.h"
+#include "kernels/funcs/npu_enforce.h"
+#include "kernels/funcs/npu_funcs.h"
 
 static std::map<paddle::experimental::DataType, aclDataType> DTYPE_2_ACL_DTYPE =
     {

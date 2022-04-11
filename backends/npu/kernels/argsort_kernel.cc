@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "npu_op_runner.h"
+#include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/backends/custom/custom_context.h"
 
 namespace custom_kernel {

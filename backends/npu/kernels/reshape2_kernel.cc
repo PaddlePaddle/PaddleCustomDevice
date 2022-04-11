@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "npu_funcs.h"
-#include "npu_op_runner.h"
+#include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/npu_op_runner.h"
 
 #include "paddle/phi/common/int_array.h"
 #include "paddle/phi/core/meta_tensor.h"

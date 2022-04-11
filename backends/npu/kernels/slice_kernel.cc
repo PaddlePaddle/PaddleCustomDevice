@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "npu_op_runner.h"
+#include "kernels/funcs/npu_op_runner.h"
 
 void UpdateAttr(const phi::DDim& in_dims,
                 const std::vector<int> axes,

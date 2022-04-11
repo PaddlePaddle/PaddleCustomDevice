@@ -1,0 +1,71 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(paddle-custom-npu CXX C)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
+include(paddle)
+include(external/ascend)
+include_directories(${CMAKE_SOURCE_DIR})
+
+option(WITH_TESTING    "compile with unit testing"        OFF)
+option(WITH_KERNELS    "compile custom kernels"           OFF)
+option(WITH_ARM        "compile with arm support"         OFF)
+
+set(CUSTOM_NPU_NAME        "paddle-custom-npu")
+set(CUSTOM_NPU_VERSION     "0.0.1")
+
+message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
+        "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
+        "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
+message(STATUS "AR tools: ${CMAKE_AR}")
+
+# custom runtime
+set(CUSTOM_NPU_SRCS runtime/runtime.cc)
+add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
+
+# custom kernels
+if (WITH_KERNELS)
+  # third_party
+  include(third_party)
+
+  # kernel source files
+  file(GLOB_RECURSE CUSTOM_KERNEL_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc)
+  list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
+
+  # configures
+  add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)   # for inference
+  add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
+endif()
+
+####### build shared library
+add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
+add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib})
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
+
+if (WITH_KERNELS)
+  add_dependencies(${CUSTOM_NPU_NAME} paddle_install third_party)
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${paddle_lib})
+endif()
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
+    ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
+
+####### packing wheel package
+add_custom_command(TARGET ${CUSTOM_NPU_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lib${CUSTOM_NPU_NAME}.so ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    COMMENT "Creating custom device dirrectories------>>>"
+)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
+    COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
+    DEPENDS ${CUSTOM_NPU_NAME}
+    COMMENT "Packing whl packages------>>>"
+)
+
+add_custom_target(python_package ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)

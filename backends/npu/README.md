@@ -2,36 +2,7 @@
 
 请参考以下步骤进行硬件后端(昇腾NPU)的编译安装与验证
 
-## 一、环境准备
-
-编译与验证前需要先安装适合昇腾NPU后端使用的Paddle WHL包，当前支持通过源码编译方式获取
-
-```bash
-# 克隆代码
-git clone https://github.com/PaddlePaddle/Paddle.git
-
-# 进入Paddle目录
-cd Paddle
-
-# 创建编译目录并编译
-mkdir build && cd build
-
-# X86_64环境编译
-cmake .. -DPY_VERSION=3.7 -DWITH_CUSTOM_DEVICE=ON -DWITH_GPU=OFF -DWITH_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
--DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_PSCORE=OFF -DWITH_MKL=OFF -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0
-make -j$(nproc)
-
-# Aarch64环境编译
-pip install patchelf # Paddle内部使用patchelf来修改动态库的rpath
-cmake .. -DPY_VERSION=3.7 -DWITH_ARM=ON -DWITH_CUSTOM_DEVICE=ON -DWITH_GPU=OFF -DWITH_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
--DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_PSCORE=OFF -DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0
-make TARGET=ARMV8 -j$(nproc)
-
-# 编译产出在python/dist路径下，使用pip安装
-pip install python/dist/paddlepaddle*.whl
-```
-
-## 二、源码同步
+## 一、源码同步
 
 ```bash
 # 克隆代码
@@ -43,11 +14,14 @@ git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## 三、编译安装
+## 二、编译安装
 
 ```bash
 # 进入硬件后端(昇腾NPU)目录
 cd backends/npu
+
+# 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
+pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 创建编译目录并编译
 mkdir build && cd build
@@ -64,15 +38,16 @@ make TARGET=ARMV8 -j8
 pip install dist/paddle_custom_npu*.whl
 ```
 
-## 四、功能验证
+## 三、功能验证
 
 ```bash
 # 列出可用硬件后端
 python -c "import paddle; paddle.device.get_all_custom_device_type()"
 # 期待输出以下结果
 ['ascend']
+
 # 运行简单模型
-python ../tests/test_MNIST_model.py 
+python ../tests/test_MNIST_model.py
 # 期待输出以下类似结果
 ... ...
 Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875

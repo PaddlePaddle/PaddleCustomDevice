@@ -5,12 +5,15 @@ project(paddle-custom-npu CXX C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include(paddle)
+include(generic)
 include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
+option(WITH_MKLDNN     "compile with MKLDNN support"      ON)
 option(WITH_TESTING    "compile with unit testing"        OFF)
 option(WITH_KERNELS    "compile custom kernels"           OFF)
 option(WITH_ARM        "compile with arm support"         OFF)
+option(ON_INFER        "compile with inference support"   OFF)
 
 set(CUSTOM_NPU_NAME        "paddle-custom-npu")
 set(CUSTOM_NPU_VERSION     "0.0.1")
@@ -35,7 +38,11 @@ if (WITH_KERNELS)
   list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
 
   # configures
-  add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)   # for inference
+  if (ON_INFER)
+    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
+  else()
+    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
+  endif()
   add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
 endif()
 

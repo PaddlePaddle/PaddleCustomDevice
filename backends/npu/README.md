@@ -44,5 +44,20 @@ pip install dist/paddle_custom_npu*.whl
 # 列出可用硬件后端
 python -c "import paddle; paddle.device.get_all_custom_device_type()"
 # 期待输出以下结果
-['Ascend910']
+['ascend']
+
+# 运行简单模型
+python ../tests/test_MNIST_model.py
+# 期待输出以下类似结果
+... ...
+Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
+Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
+Epoch 0 step 200, Loss = [2.002725], Accuracy = 0.453125
+Epoch 0 step 300, Loss = [1.912869], Accuracy = 0.546875
+Epoch 0 step 400, Loss = [1.9169667], Accuracy = 0.5625
+Epoch 0 step 500, Loss = [1.9007692], Accuracy = 0.5625
+Epoch 0 step 600, Loss = [1.8512673], Accuracy = 0.625
+Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
+Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
+Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
 ```

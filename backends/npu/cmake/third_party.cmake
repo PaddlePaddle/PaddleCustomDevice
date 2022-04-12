@@ -28,9 +28,14 @@ include(external/boost)     # download boost
 include(external/eigen)     # download eigen3
 list(APPEND third_party_deps extern_gflags extern_glog extern_boost extern_eigen3)
 
-IF(WITH_TESTING)
+if (WITH_TESTING)
     include(external/gtest)     # download, build, install gtest
     list(APPEND third_party_deps extern_gtest)
-ENDIF()
+endif()
+
+if (WITH_MKLDNN AND NOT WITH_ARM)
+    include(external/mkldnn)    # download, build, install mkldnn
+    list(APPEND third_party_deps extern_mkldnn)
+endif()
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})

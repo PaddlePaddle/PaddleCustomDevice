@@ -5,9 +5,11 @@ project(paddle-custom-npu CXX C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include(paddle)
+include(generic)
 include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
+option(WITH_MKLDNN     "compile with MKLDNN support"      ON)
 option(WITH_TESTING    "compile with unit testing"        OFF)
 option(WITH_KERNELS    "compile custom kernels"           OFF)
 option(WITH_ARM        "compile with arm support"         OFF)

@@ -51,7 +51,7 @@ void MeanKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MeanRawGradKernel(const Context& dev_ctx,
+void MeanGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& out_grad,
                        const std::vector<int64_t>& axes,
@@ -104,18 +104,6 @@ void MeanRawGradKernel(const Context& dev_ctx,
   runner2.Run(stream);
 }
 
-template <typename T, typename Context>
-void MeanGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
-                    const std::vector<int64_t>& dims,
-                    bool keep_dim,
-                    bool reduce_all,
-                    phi::DenseTensor* out) {
-  custom_kernel::MeanRawGradKernel<T>(
-      dev_ctx, x, out_grad, dims, keep_dim, reduce_all, out);
-}
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
@@ -123,11 +111,6 @@ PD_REGISTER_PLUGIN_KERNEL(
 
 PD_REGISTER_PLUGIN_KERNEL(
     mean, ascend, ALL_LAYOUT, custom_kernel::MeanKernel, float) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(mean_raw_grad,
-//                          ascend,
-//                          ALL_LAYOUT,
-//                          custom_kernel::MeanRawGradKernel, float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
     mean_grad, ascend, ALL_LAYOUT, custom_kernel::MeanGradKernel, float) {}

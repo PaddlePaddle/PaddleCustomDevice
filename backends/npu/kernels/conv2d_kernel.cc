@@ -145,9 +145,9 @@ void Conv2dKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Conv2dGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& output_grad,
                       const phi::DenseTensor& input,
                       const phi::DenseTensor& filter,
+                      const phi::DenseTensor& output_grad,
                       const std::vector<int>& strides_t,
                       const std::vector<int>& paddings_t,
                       const std::string& padding_algorithm,

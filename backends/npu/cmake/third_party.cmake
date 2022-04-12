@@ -33,7 +33,7 @@ if (WITH_TESTING)
     list(APPEND third_party_deps extern_gtest)
 endif()
 
-if (WITH_MKLDNN)
+if (WITH_MKLDNN AND NOT WITH_ARM)
     include(external/mkldnn)    # download, build, install mkldnn
     list(APPEND third_party_deps extern_mkldnn)
 endif()

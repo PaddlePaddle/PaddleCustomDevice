@@ -55,7 +55,7 @@ function custom_npu_test() {
     fi
     pip install dist/*.whl
 
-    # test
+    # simple test now
     ut_total_startTime_s=`date +%s`
     cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu/tests
     python test_MNIST_model.py 

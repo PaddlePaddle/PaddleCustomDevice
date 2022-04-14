@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/backends/custom/custom_context.h"
 
@@ -60,11 +61,15 @@ static void CastToFP32(const phi::CustomContext& dev_ctx,
 
 template <typename T, typename Context>
 void ArgsortKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& input,
+                   const phi::DenseTensor& in,
                    int axis,
                    bool descending,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
+  // NOTE: Sort may change the input data !
+  phi::DenseTensor input;
+  TensorCopy(dev_ctx, in, false, &input);
+
   auto in_dims = input.dims();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
 

@@ -40,8 +40,8 @@ void FlattenKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FlattenGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out_grad,
                        const phi::DenseTensor& xshape,
+                       const phi::DenseTensor& out_grad,
                        phi::DenseTensor* x_grad) {
   auto xshape_dims = xshape.dims();
   auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());

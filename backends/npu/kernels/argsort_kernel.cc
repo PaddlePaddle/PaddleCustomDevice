@@ -66,7 +66,8 @@ void ArgsortKernel(const Context& dev_ctx,
                    bool descending,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
-  // NOTE: Sort may change the input data !
+  // TODO(Aganlengzi): Sort may change the input data !
+  // Here we make a deepcopy to workaround before it is fixed.
   phi::DenseTensor input;
   TensorCopy(dev_ctx, in, false, &input);
 

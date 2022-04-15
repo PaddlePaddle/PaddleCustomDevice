@@ -81,16 +81,16 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-// PD_REGISTER_PLUGIN_KERNEL(mean_all,
-//                           ascend,
-//                           ALL_LAYOUT,
-//                           custom_kernel::MeanAllKernel,
-//                           float,
-//                           phi::dtype::bfloat16) {}
-//
-// PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,
-//                           ascend,
-//                           ALL_LAYOUT,
-//                           custom_kernel::MeanAllGradKernel,
-//                           float,
-//                           phi::dtype::bfloat16) {}
+PD_REGISTER_PLUGIN_KERNEL(mean_all,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanAllKernel,
+                          float,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanAllGradKernel,
+                          float,
+                          phi::dtype::bfloat16) {}

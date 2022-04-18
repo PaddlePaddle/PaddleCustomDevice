@@ -10,10 +10,10 @@ include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
 option(WITH_MKLDNN     "compile with MKLDNN support"      ON)
+option(WITH_KERNELS    "compile with custom kernels"      ON)
 option(WITH_TESTING    "compile with unit testing"        OFF)
-option(WITH_KERNELS    "compile custom kernels"           OFF)
 option(WITH_ARM        "compile with arm support"         OFF)
-option(ON_INFER        "compile with inference support"   OFF)
+option(ON_INFER        "compile with inference c++ lib"   OFF)
 
 set(CUSTOM_NPU_NAME        "paddle-custom-npu")
 set(CUSTOM_NPU_VERSION     "0.0.1")
@@ -27,40 +27,37 @@ message(STATUS "AR tools: ${CMAKE_AR}")
 # custom runtime
 set(CUSTOM_NPU_SRCS runtime/runtime.cc)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
+# TODO(qiil93): avoid compile error, to be removed
+add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
 
 # custom kernels
 if (WITH_KERNELS)
-  # third_party
-  include(third_party)
-
-  # kernel source files
   file(GLOB_RECURSE CUSTOM_KERNEL_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc)
   list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
-
-  # configures
-  if (ON_INFER)
-    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
-  else()
-    add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
-  endif()
-  add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
 endif()
 
-####### build shared library
+# C++ infer lib need to compatiable with CXX11
+if(ON_INFER)
+  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
+else()
+  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
+endif()
+
+# build shared library
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
-if (WITH_KERNELS)
-  add_dependencies(${CUSTOM_NPU_NAME} paddle_install third_party)
-  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${paddle_lib})
-endif()
+# link paddle shared library
+include(third_party)
+add_dependencies(${CUSTOM_NPU_NAME} third_party)
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
     ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 
-####### packing wheel package
+# packing wheel package
 add_custom_command(TARGET ${CUSTOM_NPU_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/

@@ -27,11 +27,11 @@ pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu
 mkdir build && cd build
 
 # X86_64环境编译
-cmake .. -DWITH_KERNELS=ON
+cmake ..
 make -j8
 
 # Aarch64环境编译
-cmake .. -DWITH_KERNELS=ON -DWITH_ARM=ON
+cmake .. -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
 # 编译产出在dist路径下，使用pip安装
@@ -42,7 +42,7 @@ pip install dist/paddle_custom_npu*.whl
 
 ```bash
 # 列出可用硬件后端
-python -c "import paddle; paddle.device.get_all_custom_device_type()"
+python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 期待输出以下结果
 ['ascend']
 

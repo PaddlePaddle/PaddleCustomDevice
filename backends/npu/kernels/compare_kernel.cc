@@ -35,7 +35,7 @@ void NotEqualKernel(const Context& dev_ctx,
                     int axis,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("Equal", {x, y}, {*out}, {});
+  const auto& runner = NpuOpRunner("NotEqual", {x, y}, {*out}, {});
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }

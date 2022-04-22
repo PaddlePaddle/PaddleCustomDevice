@@ -44,7 +44,7 @@ function custom_npu_test() {
 
     # custom_npu install
     cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
-    mkdir build && cd build
+    mkdir -p build && cd build
     cmake .. -DWITH_TESTING=ON -DWITH_KERNELS=ON
     if [[ "$?" != "0" ]];then
         exit 7;

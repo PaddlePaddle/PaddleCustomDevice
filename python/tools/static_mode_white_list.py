@@ -1,0 +1,1 @@
+../../Paddle/tools/static_mode_white_list.py

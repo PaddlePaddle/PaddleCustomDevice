@@ -42,10 +42,10 @@ function custom_npu_test() {
     pip install hypothesis
     pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
 
-    # custom_npu install
+    # custom_npu build and install
     cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
     mkdir build && cd build
-    cmake .. -DWITH_TESTING=ON -DWITH_KERNELS=ON
+    cmake .. -DWITH_TESTING=ON
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
@@ -55,10 +55,9 @@ function custom_npu_test() {
     fi
     pip install dist/*.whl
 
-    # simple test now
+    # run ut
     ut_total_startTime_s=`date +%s`
-    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu/tests
-    python test_MNIST_model.py 
+    ctest --output-on-failure
     EXIT_CODE=$?
     ut_total_endTime_s=`date +%s`
     echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"

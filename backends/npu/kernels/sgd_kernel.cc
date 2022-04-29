@@ -22,7 +22,10 @@ void SGDKernel(const Context& dev_ctx,
                const phi::DenseTensor& param_var,
                const phi::DenseTensor& learning_rate,
                const phi::DenseTensor& grad_var,
-               phi::DenseTensor* param_out) {
+               paddle::optional<const phi::DenseTensor&> master_param,
+               bool multi_precision,
+               phi::DenseTensor* param_out,
+               phi::DenseTensor* master_param_out) {
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
   dev_ctx.template Alloc<T>(param_out);
 

@@ -1,58 +1,56 @@
-# PaddlePaddle Custom Device Implementaion for Ascend NPU
+# 飞桨自定义接入硬件后端(昇腾NPU)
 
-English | [简体中文](./README_cn.md)
+简体中文 | [English](./README.md)
 
-Please refer to the following steps to compile, install and verify the custom device implementaion for Ascend NPU.
+请参考以下步骤进行硬件后端(昇腾NPU)的编译安装与验证
 
-## Get Sources
+## 一、源码同步
 
 ```bash
-# clone source 
+# 克隆代码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# get the latest submodule source code
+# 请执行以下命令，以保证checkout最新的Paddle源码
 git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## Compile and Install
+## 二、编译安装
 
 ```bash
-# navigate to implementaion for Ascend NPU
+# 进入硬件后端(昇腾NPU)目录
 cd backends/npu
 
-# before compiling, ensure that Paddle is installed, you can run the following command
+# 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# create the build directory and navigate in
+# 创建编译目录并编译
 mkdir build && cd build
 
-# compile in X86_64 environment
+# X86_64环境编译
 cmake ..
 make -j8
 
-# compile in Aarch64 environment
+# Aarch64环境编译
 cmake .. -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
-# using pip to install the output
+# 编译产出在dist路径下，使用pip安装
 pip install dist/paddle_custom_npu*.whl
 ```
 
-## Verification
+## 三、功能验证
 
 ```bash
-# list available hardware backends
+# 列出可用硬件后端
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-
-# expected output
+# 期待输出以下结果
 ['ascend']
 
-# run a simple model
+# 运行简单模型
 python ../tests/test_MNIST_model.py
-
-# expected similar output 
+# 期待输出以下类似结果
 ... ...
 Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
 Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375

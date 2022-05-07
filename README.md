@@ -6,7 +6,7 @@ PaddlePaddle custom device implementaion.
 
 ## User Guides
 
-To follow up on latest features of custom device in PaddlePaddle, please refer to [Custom Device Guide](https://www.paddlepaddle.org.cn/documentation/docs/en/develop/dev_guides/custom_device_docs/index_cn.html)
+To follow up on latest features of custom device in PaddlePaddle, please refer to [Custom Device Guide](https://www.paddlepaddle.org.cn/documentation/docs/en/develop/dev_guides/custom_device_docs/index_en.html)
 
 ## Hardware Backends
 

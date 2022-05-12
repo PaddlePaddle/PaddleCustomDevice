@@ -137,10 +137,13 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           custom_kernel::FullKernel,
                           int8_t,
                           int32_t,
+#if (CANN_VERSION_CODE < 503003)
                           int64_t,
+#endif
                           float,
                           double,
-                          bool) {}
+                          bool) {
+}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
                           ascend,
@@ -150,7 +153,9 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           double,
                           int16_t,
                           int,
+#if (CANN_VERSION_CODE < 503003)
                           int64_t,
+#endif
                           bool,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);

@@ -37,19 +37,28 @@ void FullKernel(const Context& dev_ctx,
     tensor_value.Resize(phi::make_ddim({1}));
     FillNpuTensorWithConstant<T>(&tensor_value, dev_ctx, value);
     NpuOpRunner runner;
+    if (dtype != phi::DenseTensorMeta::DataType::INT64 &&
+        dtype != phi::DenseTensorMeta::DataType::FP64) {
 #if (CANN_VERSION_CODE >= 503003)
-    runner.SetType("FillD")
-        .AddInput(tensor_value)
-        .AddOutput(*out)
-        .AddAttrs({{"dims", shape_vec}})
-        .Run(stream);
+      runner.SetType("FillD")
+          .AddInput(tensor_value)
+          .AddOutput(*out)
+          .AddAttrs({{"dims", shape_vec}})
+          .Run(stream);
 #else
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
-        .AddInput(tensor_value)
-        .AddOutput(*out)
-        .Run(stream);
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
+          .AddInput(tensor_value)
+          .AddOutput(*out)
+          .Run(stream);
 #endif
+    } else {
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
+          .AddInput(tensor_value)
+          .AddOutput(*out)
+          .Run(stream);
+    }
   } else {
     auto op_func = [&shape_vec, &value](
         const std::vector<phi::DenseTensor>& inputs,
@@ -137,13 +146,10 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           custom_kernel::FullKernel,
                           int8_t,
                           int32_t,
-#if (CANN_VERSION_CODE < 503003)
                           int64_t,
-#endif
                           float,
                           double,
-                          bool) {
-}
+                          bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
                           ascend,
@@ -153,9 +159,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           double,
                           int16_t,
                           int,
-#if (CANN_VERSION_CODE < 503003)
                           int64_t,
-#endif
                           bool,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);

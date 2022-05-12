@@ -38,7 +38,7 @@ void FullKernel(const Context& dev_ctx,
     FillNpuTensorWithConstant<T>(&tensor_value, dev_ctx, value);
     NpuOpRunner runner;
     if (dtype != phi::DenseTensorMeta::DataType::INT64 &&
-        dtype != phi::DenseTensorMeta::DataType::FP64) {
+        dtype != phi::DenseTensorMeta::DataType::FLOAT64) {
 #if (CANN_VERSION_CODE >= 503003)
       runner.SetType("FillD")
           .AddInput(tensor_value)

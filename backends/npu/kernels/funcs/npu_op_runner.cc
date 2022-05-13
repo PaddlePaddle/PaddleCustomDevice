@@ -211,7 +211,7 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   std::vector<int32_t> &&dims) {
+                                   const std::vector<int32_t> &&dims) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, dims, phi::CPUContext(), &host_tensor);
@@ -226,7 +226,7 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   std::vector<int64_t> &&dims) {
+                                   const std::vector<int64_t> &&dims) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, dims, phi::CPUContext(), &host_tensor);
@@ -241,7 +241,7 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   std::vector<float> &&values) {
+                                   const std::vector<float> &&values) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
@@ -256,7 +256,7 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   std::vector<double> &&values) {
+                                   const std::vector<double> &&values) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);

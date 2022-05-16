@@ -63,3 +63,66 @@ Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
 Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
 Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
 ```
+
+## 四、使用PaddleInference
+
+重新编译插件
+
+```bash
+# 编译PaddleInference
+git clone https://github.com/PaddlePaddle/Paddle.git
+git clone https://github.com/ronny1996/Paddle-Inference-Demo.git
+
+mkdir -p Paddle/build
+pushd Paddle/build
+
+cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_ARM=ON -DWITH_ASCEND=OFF -DWITH_ASCEND_CL=ON -DWITH_TESTING=ON -DWITH_DISTRIBUTE=ON -DCMAKE_BUILD_TYPE=Release -DON_INFER=ON -DWITH_XBYAK=OFF -DPYTHON_INCLUDE_DIR=`python3 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())"` -DWITH_CUSTOM_DEVICE=ON -DWITH_ASCEND_CXX11=ON
+
+make TARGET=ARMV8 -j8 # or make -j8
+
+popd
+cp -R Paddle/build/paddle_inference_install_dir Paddle-Inference-Demo/c++/lib/paddle_inference
+export PADDLE_INFERENCE_LIB_DIR=$(realpath Paddle-Inference-Demo/c++/lib/paddle_inference/paddle/lib)
+
+# 编译插件
+mkdir -p PaddleCustomDevice/backends/npu/build
+pushd PaddleCustomDevice/backends/npu/build
+
+# X86_64环境编译
+cmake .. -DON_INFER=ON -DPADDLE_INFERENCE_LIB_DIR=${PADDLE_INFERENCE_LIB_DIR}
+make -j8
+
+# Aarch64环境编译
+cmake .. -DWITH_ARM=ON -DON_INFER=ON -DPADDLE_INFERENCE_LIB_DIR=${PADDLE_INFERENCE_LIB_DIR}
+make TARGET=ARMV8 -j8
+
+# 指定插件路径
+export CUSTOM_DEVICE_ROOT=$PWD
+popd
+```
+
+使用 PaddleInference
+
+```bash
+pushd Paddle-Inference-Demo/c++/resnet50
+
+# 修改 resnet50_test.cc，使用 config.EnableCustomDevice("ascend", 0) 接口替换 config.EnableUseGpu(100, 0)
+  
+bash run.sh
+```
+
+期待输出以下类似结果
+
+```bash
+I0516 14:40:56.197255 114531 resnet50_test.cc:74] run avg time is 115421 ms
+I0516 14:40:56.197389 114531 resnet50_test.cc:89] 0 : 2.67648e-43
+I0516 14:40:56.197425 114531 resnet50_test.cc:89] 100 : 1.98479e-37
+I0516 14:40:56.197445 114531 resnet50_test.cc:89] 200 : 2.05547e-33
+I0516 14:40:56.197463 114531 resnet50_test.cc:89] 300 : 5.06149e-42
+I0516 14:40:56.197474 114531 resnet50_test.cc:89] 400 : 1.58719e-35
+I0516 14:40:56.197484 114531 resnet50_test.cc:89] 500 : 7.00649e-45
+I0516 14:40:56.197494 114531 resnet50_test.cc:89] 600 : 1.00972e-19
+I0516 14:40:56.197504 114531 resnet50_test.cc:89] 700 : 1.92904e-23
+I0516 14:40:56.197512 114531 resnet50_test.cc:89] 800 : 3.80365e-25
+I0516 14:40:56.197522 114531 resnet50_test.cc:89] 900 : 1.46266e-30
+```

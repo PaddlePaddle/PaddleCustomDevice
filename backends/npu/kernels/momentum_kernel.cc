@@ -23,6 +23,7 @@ void MomentumKernel(const Context& dev_ctx,
                     const phi::DenseTensor& grad,
                     const phi::DenseTensor& velocity,
                     const phi::DenseTensor& learning_rate,
+                    paddle::optional<const phi::DenseTensor&> master_param,
                     float mu_f,
                     bool use_nesterov,
                     const std::string& regularization_method,
@@ -30,7 +31,8 @@ void MomentumKernel(const Context& dev_ctx,
                     bool multi_precision,
                     float rescale_grad,
                     phi::DenseTensor* param_out,
-                    phi::DenseTensor* velocity_out) {
+                    phi::DenseTensor* velocity_out,
+                    phi::DenseTensor* master_param_out) {
   auto mu = static_cast<T>(mu_f);
 
   dev_ctx.template Alloc<T>(param_out);
@@ -43,7 +45,7 @@ void MomentumKernel(const Context& dev_ctx,
 
   phi::DenseTensor regularized_grad;
   if (regularization_method == "l2_decay") {
-    regularized_grad.Resize({1});
+    regularized_grad.Resize(grad.dims());
     dev_ctx.template Alloc<T>(&regularized_grad);
 
     const auto& runner1 = NpuOpRunner(

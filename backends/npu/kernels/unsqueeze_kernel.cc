@@ -1,0 +1,130 @@
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "paddle/phi/kernels/unsqueeze_kernel.h"
+#include "paddle/phi/kernels/impl/unsqueeze_grad_kernel_impl.h"
+#include "paddle/phi/kernels/impl/unsqueeze_kernel_impl.h"
+#include "paddle/phi/kernels/unsqueeze_grad_kernel.h"
+
+#include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/npu_op_runner.h"
+
+namespace custom_kernel {
+
+inline DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
+                              const phi::DDim& in_dims) {
+  int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
+  int cur_output_size = in_dims.size();
+  std::vector<int64_t> output_shape(output_size, 0);
+
+  // Validity Check: rank range.
+  PADDLE_ENFORCE_LE(
+      output_size,
+      6,
+      phi::errors::InvalidArgument("The output "
+                                   "tensor's rank should be less than 6."));
+
+  for (int axis : unsqz_dims) {
+    int cur = axis < 0 ? axis + cur_output_size + 1 : axis;
+    // Vaildity Check: the axis bound
+    PADDLE_ENFORCE_GE(
+        cur,
+        0,
+        phi::errors::InvalidArgument("The insert dimension value should "
+                                     "not be less than 0"));
+    PADDLE_ENFORCE_LE(cur,
+                      cur_output_size,
+                      phi::errors::InvalidArgument(
+                          "The insert dimension value shoule not be larger "
+                          "than the dimension size of input tensor"));
+    // Move old axis, and insert new axis
+    for (int i = cur_output_size; i >= cur; --i) {
+      if (output_shape[i] == 1) {
+        // Move axis
+        output_shape[i + 1] = 1;
+        output_shape[i] = 0;
+      }
+    }
+    output_shape[cur] = 1;
+    // Add the output size.
+    cur_output_size++;
+  }
+
+  // Make output shape
+  for (int in_idx = 0, out_idx = 0; out_idx < output_size; ++out_idx) {
+    if (output_shape[out_idx] == 0) {
+      output_shape[out_idx] = in_dims[in_idx++];
+    }
+  }
+
+  return phi::make_ddim(output_shape);
+}
+
+template <typename T, typename Context>
+void UnsqueezeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& axes,
+                     phi::DenseTensor* xshape,
+                     phi::DenseTensor* out) {
+  auto x_dims = x.dims();
+  auto out_dims = out->dims();
+  if (axes.FromTensor()) {
+    std::vector<int32_t> tmp;
+    tmp.reserve(axes.GetData().size());
+    std::for_each(axes.GetData().begin(),
+                  axes.GetData().end(),
+                  [&tmp](const int64_t& t) { tmp.push_back(t); });
+    out_dims = GetUnsqueezeShape(tmp, x_dims);
+  }
+  out->Resize(out_dims);
+  dev_ctx.template Alloc<T>(out);
+  TensorCopy(dev_ctx, x, false, out);
+  out->Resize(out_dims);  // copy will reset the dims.
+}
+
+template <typename T, typename Context>
+void UnsqueezeGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x_shape,
+                         const phi::DenseTensor& dout,
+                         phi::DenseTensor* dx) {
+  auto xshape_dims = x_shape.dims();
+  auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());
+  dev_ctx.template Alloc<T>(dx);
+  TensorCopy(dev_ctx, dout, false, dx);
+  dx->Resize(x_dims);
+}
+
+}  // namespace custom_kernel
+
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::UnsqueezeKernel,
+                          bool,
+                          int,
+                          int8_t,
+                          int64_t,
+                          float,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::UnsqueezeGradKernel,
+                          bool,
+                          int,
+                          int8_t,
+                          int64_t,
+                          float,
+                          double) {}

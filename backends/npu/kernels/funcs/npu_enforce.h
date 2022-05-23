@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <boost/variant.hpp>
+
 #include "paddle/phi/core/enforce.h"
 
 #include "acl/acl.h"

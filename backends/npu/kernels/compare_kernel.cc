@@ -41,6 +41,19 @@ void NotEqualKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void LessEqualKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     int axis,
+                     phi::DenseTensor* out) {
+  dev_ctx.template Alloc<bool>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("LessEqual", {x, y}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void LessThanKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
@@ -87,6 +100,7 @@ PD_REGISTER_PLUGIN_KERNEL(equal,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal,
@@ -98,6 +112,19 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(less_equal,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::LessEqualKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          int64_t,
+                          float,
+                          phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(less_than,
@@ -109,6 +136,7 @@ PD_REGISTER_PLUGIN_KERNEL(less_than,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_equal,
@@ -120,6 +148,7 @@ PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_than,
@@ -131,4 +160,5 @@ PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}

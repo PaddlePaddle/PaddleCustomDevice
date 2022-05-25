@@ -70,16 +70,16 @@ class NpuOpRunner {
   NpuOpRunner &AddInput(const phi::DenseTensor &tensor, aclMemType mem_type);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        std::vector<int32_t> &&dims);
+                        const std::vector<int32_t> &&dims);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        std::vector<int64_t> &&dims);
+                        const std::vector<int64_t> &&dims);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        std::vector<float> &&values);
+                        const std::vector<float> &&values);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        std::vector<double> &&values);
+                        const std::vector<double> &&values);
 
   NpuOpRunner &AddOutput(const phi::DenseTensor &tensor);
 

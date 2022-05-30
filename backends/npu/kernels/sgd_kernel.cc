@@ -22,7 +22,7 @@ void SGDKernel(const Context& dev_ctx,
                const phi::DenseTensor& param_var,
                const phi::DenseTensor& learning_rate,
                const phi::DenseTensor& grad_var,
-               paddle::optional<const phi::DenseTensor&> master_param,
+               const paddle::optional<phi::DenseTensor>& master_param,
                bool multi_precision,
                phi::DenseTensor* param_out,
                phi::DenseTensor* master_param_out) {

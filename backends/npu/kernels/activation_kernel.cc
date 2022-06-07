@@ -135,6 +135,43 @@ void SqrtGradKernel(const Context& dev_ctx,
   runner.Run(stream);
 }
 
+template <typename T, typename Context>
+void SquareKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Square", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SquareGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& dout,
+                      phi::DenseTensor* dx) {
+  auto stream = dev_ctx.stream();
+
+  auto factor = static_cast<float>(2.0);
+
+  // Step 1: Compute x_muls_factor = factor * x
+  phi::DenseTensor x_muls_factor;
+  phi::DenseTensorMeta x_muls_factor_meta = {x.dtype(), x.dims()};
+  x_muls_factor.set_meta(x_muls_factor_meta);
+  dev_ctx.template Alloc<T>(&x_muls_factor);
+
+  const auto& runner_muls_1 =
+      NpuOpRunner("Muls", {x}, {x_muls_factor}, {{"value", factor}});
+  runner_muls_1.Run(stream);
+
+  // Step 2: Compute dx = dout * factor * x
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner_mul_2 =
+      NpuOpRunner("Mul", {dout, x_muls_factor}, {*dx}, {});
+  runner_mul_2.Run(stream);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
@@ -198,6 +235,22 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::SqrtGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(square,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SquareKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(square_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SquareGradKernel,
                           float,
                           phi::dtype::float16,
                           double) {}

@@ -41,6 +41,45 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void LogKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  LOG(WARNING) << "!!!!!!!!!!!!!!! here !!!!!!!!!!!!!!!";
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor one;
+  phi::DenseTensorMeta one_meta = {x.dtype(), x.dims()};
+  one.set_meta(one_meta);
+  dev_ctx.template Alloc<T>(&one);
+  const auto& runner_one = NpuOpRunner("OnesLike", {x}, {one}, {});
+  runner_one.Run(stream);
+
+  phi::DenseTensor sub;
+  phi::DenseTensorMeta sub_meta = {x.dtype(), x.dims()};
+  sub.set_meta(sub_meta);
+  dev_ctx.template Alloc<T>(&sub);
+  const auto& runner_sub = NpuOpRunner("Sub", {x, one}, {sub}, {});
+  runner_sub.Run(stream);
+
+  const auto& runner_out = NpuOpRunner("Log1p", {sub}, {*out}, {});
+  runner_out.Run(stream);
+}
+
+template <typename T, typename Context>
+void LogGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  LOG(WARNING) << "!!!!!!!!!!!!!!! here !!!!!!!!!!!!!!!";
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("DivNoNan", {dout, x}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DenseTensor* out) {
@@ -143,6 +182,22 @@ PD_REGISTER_PLUGIN_KERNEL(
 PD_REGISTER_PLUGIN_KERNEL(
     exp_grad, ascend, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {
 }
+
+PD_REGISTER_PLUGIN_KERNEL(log,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::LogKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::LogGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
     relu, ascend, ALL_LAYOUT, custom_kernel::ReluKernel, float, double) {}

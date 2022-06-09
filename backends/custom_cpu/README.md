@@ -1,51 +1,53 @@
-# 飞桨自定义接入硬件后端(Custom CPU)
+# PaddlePaddle Custom Device Implementaion for Custom CPU
 
-简体中文 | [English](./README.md)
+English | [简体中文](./README_cn.md)
 
-请参考以下步骤进行硬件后端(Custom CPU)的编译安装与验证
+Please refer to the following steps to compile, install and verify the custom device implementaion for Custom CPU.
 
-## 一、源码同步
+## Get Sources
 
 ```bash
-# 克隆代码
+# clone source 
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# 请执行以下命令，以保证checkout最新的Paddle源码
+# get the latest submodule source code
 git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## 二、编译安装
+## Compile and Install
 
 ```bash
-# 进入硬件后端(Custom CPU)目录
+# navigate to implementaion for Custom CPU
 cd backends/custom_cpu
 
-# 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
+# before compiling, ensure that Paddle is installed, you can run the following command
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# 创建编译目录并编译
+# create the build directory and navigate in
 mkdir build && cd build
 
 cmake ..
 make -j8
 
-# 编译产出在dist路径下，使用pip安装
+# using pip to install the output
 pip install dist/paddle_custom_cpu*.whl
 ```
 
-## 三、功能验证
+## Verification
 
 ```bash
-# 列出可用硬件后端
+# list available hardware backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-# 期待输出以下结果
+
+# expected output
 ['custom_cpu']
 
-# 运行简单模型
+# run a simple model
 python ../tests/test_MNIST_model.py
-# 期待输出以下类似结果
+
+# expected similar output 
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125

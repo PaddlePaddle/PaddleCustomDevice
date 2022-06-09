@@ -14,8 +14,8 @@
 
 #include "paddle/phi/core/custom_phi_kernel.h"
 
-#include "kernels/kernels.h"
-#include "kernels/phi_funcs.h"
+#include "kernels.h"
+#include "phi_funcs.h"
 
 namespace custom_kernel {
 

@@ -400,7 +400,7 @@ class TestMoveAxis(unittest.TestCase):
             x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype='float64')
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
-            exe = paddle.static.Executor()
+            exe = paddle.static.Executor(paddle.CustomPlace('custom_cpu', 0))
             out_np = exe.run(feed={"x": x_np}, fetch_list=[out])[0]
 
         self.assertEqual(np.array_equal(out_np, expected), True)
@@ -420,7 +420,7 @@ class TestMoveAxis(unittest.TestCase):
             x = paddle.static.data("x", shape=[2, 3, 5], dtype='float64')
             out = x.moveaxis(-2, -1)
 
-            exe = paddle.static.Executor()
+            exe = paddle.static.Executor(paddle.CustomPlace('custom_cpu', 0))
             out_np = exe.run(feed={"x": x_np}, fetch_list=[out])[0]
 
         self.assertEqual(np.array_equal(out_np, expected), True)

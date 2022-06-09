@@ -25,7 +25,7 @@ set(PLUGIN_VERSION     "0.0.1")
 
 include(paddle)
 
-include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR})
+include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels)
 link_directories(${PADDLE_LIB_DIR})
 
 add_definitions(-std=c++14)

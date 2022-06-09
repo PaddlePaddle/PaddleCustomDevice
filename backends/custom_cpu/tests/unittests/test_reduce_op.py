@@ -804,8 +804,6 @@ class API_TestSumOp(unittest.TestCase):
             np_axis = attr_axis
 
         places = [fluid.CustomPlace('custom_cpu', 0)]
-        if core.is_compiled_with_cuda():
-            places.append(fluid.CustomPlace('custom_cpu', 0))
         for place in places:
             with fluid.program_guard(fluid.Program(), fluid.Program()):
                 data = fluid.data("data", shape=shape, dtype=x_dtype)
@@ -856,7 +854,7 @@ class API_TestSumOp(unittest.TestCase):
 
     def test_dygraph(self):
         np_x = np.random.random([2, 3, 4]).astype('int32')
-        with fluid.dygraph.guard():
+        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
             x = fluid.dygraph.to_variable(np_x)
             out0 = paddle.sum(x).numpy()
             out1 = paddle.sum(x, axis=0).numpy()

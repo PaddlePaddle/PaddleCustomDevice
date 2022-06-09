@@ -24,6 +24,8 @@ from paddle.fluid import compiler, Program, program_guard
 from op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
 from paddle.fluid.framework import _test_eager_guard
 
+paddle.enable_static()
+
 
 def get_places(self):
     return [paddle.CustomPlace('custom_cpu', 0)]
@@ -121,20 +123,6 @@ class TestCastOpError(unittest.TestCase):
             x1 = fluid.create_lod_tensor(
                 np.array([[-1]]), [[1]], fluid.CustomPlace('custom_cpu', 0))
             self.assertRaises(TypeError, fluid.layers.cast, x1, 'int32')
-
-
-class TestCastOpEager(unittest.TestCase):
-    def test_eager(self):
-        with paddle.fluid.dygraph.base.guard():
-            with _test_eager_guard():
-                x = paddle.ones([2, 2], dtype="float16")
-                x.stop_gradient = False
-                out = paddle.cast(x, "float32")
-                self.assertTrue(
-                    np.array_equal(out, np.ones([2, 2]).astype("float32")))
-                out.backward()
-                self.assertTrue(np.array_equal(x.gradient(), x.numpy()))
-                self.assertTrue(x.gradient().dtype == np.float16)
 
 
 if __name__ == '__main__':

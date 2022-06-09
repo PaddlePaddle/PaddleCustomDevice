@@ -14,8 +14,8 @@
 
 #include <cstring>
 
-#include "kernels/phi_funcs.h"
 #include "paddle/phi/core/custom_phi_kernel.h"
+#include "phi_funcs.h"
 
 namespace custom_kernel {
 

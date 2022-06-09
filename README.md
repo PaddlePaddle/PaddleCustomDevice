@@ -13,6 +13,7 @@ To follow up on latest features of custom device in PaddlePaddle, please refer t
 PaddleCustomDevice has supported the following backends:
 
 - [PaddlePaddle Custom Device Implementaion for Ascend NPU](backends/npu/README.md)
+- [PaddlePaddle Custom Device Implementaion for Custom CPU](backends/custom_cpu/README.md)
 
 
 ## Copyright and License

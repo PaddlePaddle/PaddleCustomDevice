@@ -21,7 +21,6 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 from tests.op_test import OpTest
-from test_gaussian_random_op import TestGaussianRandomOp
 
 paddle.enable_static()
 

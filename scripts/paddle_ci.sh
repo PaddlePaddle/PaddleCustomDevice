@@ -26,6 +26,7 @@ function print_usage() {
 
     echo -e "\nOptions:
     custom_npu: run custom_npu tests
+    custom_cpu: run custom_cpu tests
     "
 }
 
@@ -66,12 +67,43 @@ function custom_npu_test() {
     fi
 }
 
+function custom_cpu_test() {
+    # paddle install
+    pip install hypothesis
+    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+
+    # custom_cpu build and install
+    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/custom_cpu
+    mkdir build && cd build
+    cmake .. -DWITH_TESTING=ON
+    if [[ "$?" != "0" ]];then
+        exit 7;
+    fi
+    make -j8
+    if [[ "$?" != "0" ]];then
+        exit 7;
+    fi
+    pip install dist/*.whl
+
+    # run ut
+    ut_total_startTime_s=`date +%s`
+    ctest --output-on-failure
+    EXIT_CODE=$?
+    ut_total_endTime_s=`date +%s`
+    echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"
+    if [[ "$EXIT_CODE" != "0" ]];then
+        exit 8;
+    fi
+}
+
 function main() {
     local CMD=$1 
     init
     case $CMD in
       custom_npu)
         custom_npu_test
+      custom_cpu)
+        custom_cpu_test
         ;;
       *)
         print_usage

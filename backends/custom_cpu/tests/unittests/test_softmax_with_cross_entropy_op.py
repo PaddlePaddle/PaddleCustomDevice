@@ -579,49 +579,6 @@ class TestSoftmaxWithCrossEntropyOpAxisDimEqualOne(
         self.use_softmax = True
 
 
-# class TestSoftmaxWithCrossEntropyOpNoCudnnFp16Axis1(
-#         TestSoftmaxWithCrossEntropyOpNoCudnnFp16):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.axis = 0
-#         self.ignore_index = -1
-#         self.dtype = np.float16
-#         self.use_softmax = True
-
-# class TestSoftmaxWithCrossEntropyOpNoCudnnFp16Axis2(
-#         TestSoftmaxWithCrossEntropyOpNoCudnnFp16):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.axis = 1
-#         self.ignore_index = -1
-#         self.dtype = np.float16
-#         self.use_softmax = True
-
-# class TestSoftmaxWithCrossEntropyOpNoCudnnFp16Axis3(
-#         TestSoftmaxWithCrossEntropyOpNoCudnnFp16):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.axis = 2
-#         self.ignore_index = -1
-#         self.dtype = np.float16
-#         self.use_softmax = True
-
-
 class TestSoftmaxWithCrossEntropyOpSoftLabelAxis1(
         TestSoftmaxWithCrossEntropyOp2):
     def initParams(self):
@@ -680,63 +637,6 @@ class TestSoftmaxWithCrossEntropyOpSoftLabelAxis4(
         self.ignore_index = -1
         self.dtype = np.float64
         self.use_softmax = True
-
-
-# class TestSoftmaxWithCrossEntropyOpIgnoreIndexNoCudnnAxis1(
-#         TestSoftmaxWithCrossEntropyOp3):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.ignore_index = 1
-#         self.axis = 0
-#         self.dtype = np.float64
-#         self.use_softmax = True
-
-# class TestSoftmaxWithCrossEntropyOpIgnoreIndexNoCudnnAxis2(
-#         TestSoftmaxWithCrossEntropyOp3):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.ignore_index = 0
-#         self.axis = 1
-#         self.dtype = np.float64
-#         self.use_softmax = True
-
-# class TestSoftmaxWithCrossEntropyOpIgnoreIndexNoCudnnAxis3(
-#         TestSoftmaxWithCrossEntropyOp3):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.ignore_index = 3
-#         self.axis = 2
-#         self.dtype = np.float64
-#         self.use_softmax = True
-
-# class TestSoftmaxWithCrossEntropyOpIgnoreIndexNoCudnnAxis4(
-#         TestSoftmaxWithCrossEntropyOp3):
-#     def initParams(self):
-#         self.op_type = "softmax_with_cross_entropy"
-#         self.python_api = python_api
-#         self.python_out_sig = ["Loss", "Softmax"]
-#         self.numeric_stable_mode = True
-#         self.soft_label = False
-#         self.shape = [3, 5, 7, 11]
-#         self.ignore_index = 3
-#         self.axis = 3
-#         self.dtype = np.float64
-#         self.use_softmax = True
 
 
 class TestSoftmaxWithCrossEntropyOpBoundary0(TestSoftmaxWithCrossEntropyOp):

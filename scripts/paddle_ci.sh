@@ -102,6 +102,7 @@ function main() {
     case $CMD in
       custom_npu)
         custom_npu_test
+        ;;
       custom_cpu)
         custom_cpu_test
         ;;

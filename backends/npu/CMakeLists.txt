@@ -37,7 +37,7 @@ if (WITH_KERNELS)
 endif()
 
 # C++ infer lib need to compatiable with CXX11
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0")
 if (ON_INFER)
 link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()

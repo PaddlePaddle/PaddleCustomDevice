@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/custom_phi_kernel.h"
-
 #include "kernels.h"
+#include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
 namespace custom_kernel {

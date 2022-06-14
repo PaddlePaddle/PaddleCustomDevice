@@ -82,8 +82,7 @@ void WhereIndexKernel(const Context& dev_ctx,
     return;
   }
 
-  phi::DenseTensorMeta out_meta = {
-      out->dtype(), out->dims(), phi::DataLayout::kAnyLayout};
+  phi::DenseTensorMeta out_meta = {out->dtype(), out->dims(), out->layout()};
   out->set_meta(out_meta);
   NpuOpRunner runner{"Where", {condition}, {*out}};
   runner.Run(stream);

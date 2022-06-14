@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include "paddle/phi/core/custom_phi_kernel.h"
+#include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
 namespace custom_kernel {
@@ -25,7 +25,7 @@ void AssignValueKernel(const phi::Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  auto template_dtype = phi::CppTypeToPDType<T>::Type();
+  auto template_dtype = phi::capi::CppTypeToPDType<T>::Type();
   PD_CHECK(dtype == template_dtype,
            "Argument dtype mismatch for kernel dtype, "
            "argument dtype is %s, kernel dtype is %s.",

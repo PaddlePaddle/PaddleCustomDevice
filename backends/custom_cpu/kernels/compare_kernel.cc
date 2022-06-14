@@ -14,7 +14,7 @@
 
 #include <cmath>
 
-#include "paddle/phi/core/custom_phi_kernel.h"
+#include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
 namespace custom_kernel {

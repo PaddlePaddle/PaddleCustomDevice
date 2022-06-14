@@ -19,7 +19,7 @@
 #include <numeric>
 #include <sstream>
 
-#include "paddle/phi/core/custom_phi_kernel.h"
+#include "paddle/phi/capi/all.h"
 
 namespace phi {
 

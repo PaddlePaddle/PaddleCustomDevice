@@ -241,9 +241,250 @@ void Conv2dGradKernel(const Context& dev_ctx,
     runner.Run(stream);
   }
 }
+
+template <typename T, typename Context>
+void DepthwiseConvKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& input,
+                         const phi::DenseTensor& filter,
+                         const std::vector<int>& strides_t,
+                         const std::vector<int>& paddings_t,
+                         const std::string& padding_algorithm,
+                         int groups,
+                         const std::vector<int>& dilations_t,
+                         const std::string& data_format,
+                         bool use_addto,
+                         int workspace_size_MB,
+                         bool exhaustive_search,
+                         bool fuse_relu,
+                         phi::DenseTensor* output) {
+  dev_ctx.template Alloc<T>(output);
+  auto stream = dev_ctx.stream();
+
+  auto stride = strides_t;
+  auto padding = paddings_t;
+  auto dilation = dilations_t;
+
+  const bool channel_last = data_format == "NHWC";
+  if (channel_last) {
+    PADDLE_ENFORCE_EQ(
+        output->dims()[output->dims().size() - 1],
+        input.dims()[input.dims().size() - 1],
+        phi::errors::InvalidArgument(
+            "ShapeError: The output channels must be equal to the "
+            "input channels. But receivced output channel number is %d "
+            "and input channel number is %d",
+            output->dims()[output->dims().size() - 1],
+            input.dims()[input.dims().size() - 1]));
+  } else {
+    PADDLE_ENFORCE_EQ(
+        output->dims()[1],
+        input.dims()[1],
+        phi::errors::InvalidArgument(
+            "ShapeError: The output channels must be equal to the "
+            "input channels. But receivced output channel number is %d "
+            "and input channel number is %d",
+            output->dims()[1],
+            input.dims()[1]));
+  }
+
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  UpdatePaddingAndDilation(
+      &padding, &dilation, padding_algorithm, in_data_dims, stride, ksize);
+
+  std::vector<int> strides(4, 1);
+  std::vector<int> dilations(4, 1);
+
+  phi::DenseTensor input_tensor(input), output_tensor(*output);
+  if (channel_last) {
+    phi::DenseTensorMeta input_tensor_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_tensor_meta = {
+        output->dtype(), output->dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_tensor_meta);
+    output_tensor.set_meta(output_tensor_meta);
+    strides[1] = stride[0];
+    strides[2] = stride[1];
+    dilations[1] = dilation[0];
+    dilations[2] = dilation[1];
+  } else {
+    strides[2] = stride[0];
+    strides[3] = stride[1];
+    dilations[2] = dilation[0];
+    dilations[3] = dilation[1];
+  }
+
+  // Transform filter (n, 1, h, w) --> (1, n, h, w)
+  phi::DenseTensorMeta transformed_filter_meta = {
+      filter.dtype(),
+      {filter.dims()[1], filter.dims()[0], filter.dims()[2], filter.dims()[3]}};
+  phi::DenseTensor transformed_filter;
+  transformed_filter.set_meta(transformed_filter_meta);
+  dev_ctx.template Alloc<T>(&transformed_filter);
+  std::vector<int> perm = {1, 0, 2, 3};
+  const auto& runner_trans = NpuOpRunner(
+      "TransposeD", {filter}, {transformed_filter}, {{"perm", perm}});
+  runner_trans.Run(stream);
+
+  const auto& runner = NpuOpRunner("DepthwiseConv2D",
+                                   {input_tensor, transformed_filter},
+                                   {output_tensor},
+                                   {{"strides", strides},
+                                    {"dilations", dilations},
+                                    {"pads", padding},
+                                    {"data_format", data_format}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void DepthwiseConvGradKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& input,
+                             const phi::DenseTensor& filter,
+                             const phi::DenseTensor& output_grad,
+                             const std::vector<int>& strides_t,
+                             const std::vector<int>& paddings_t,
+                             const std::string& padding_algorithm,
+                             int groups,
+                             const std::vector<int>& dilations_t,
+                             const std::string& data_format,
+                             bool use_addto,
+                             int workspace_size_MB,
+                             bool exhaustive_search,
+                             bool fuse_relu,
+                             phi::DenseTensor* input_grad,
+                             phi::DenseTensor* filter_grad) {
+  auto stream = dev_ctx.stream();
+
+  auto stride = strides_t;
+  auto padding = paddings_t;
+  auto dilation = dilations_t;
+  const bool channel_last = data_format == "NHWC";
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  UpdatePaddingAndDilation(
+      &padding, &dilation, padding_algorithm, in_data_dims, stride, ksize);
+
+  // Transform filter (n, 1, h, w) --> (1, n, h, w)
+  phi::DenseTensorMeta transformed_filter_meta = {
+      filter.dtype(),
+      {filter.dims()[1], filter.dims()[0], filter.dims()[2], filter.dims()[3]}};
+  phi::DenseTensor transformed_filter;
+  transformed_filter.set_meta(transformed_filter_meta);
+  dev_ctx.template Alloc<T>(&transformed_filter);
+  std::vector<int> perm = {1, 0, 2, 3};
+  const auto& runner_trans = NpuOpRunner(
+      "TransposeD", {filter}, {transformed_filter}, {{"perm", perm}});
+  runner_trans.Run(stream);
+
+  // construct NPU attr
+  std::vector<int> strides(4, 1);
+  std::vector<int> dilations(4, 1);
+
+  phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
+  if (channel_last) {
+    phi::DenseTensorMeta input_tensor_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_grad_tensor_meta = {
+        output_grad.dtype(), output_grad.dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_tensor_meta);
+    output_grad_tensor.set_meta(output_grad_tensor_meta);
+    strides[1] = stride[0];
+    strides[2] = stride[1];
+    dilations[1] = dilation[0];
+    dilations[2] = dilation[1];
+  } else {
+    strides[2] = stride[0];
+    strides[3] = stride[1];
+    dilations[2] = dilation[0];
+    dilations[3] = dilation[1];
+  }
+
+  if (filter_grad) {
+    dev_ctx.template Alloc<T>(filter_grad);
+
+    PADDLE_ENFORCE_EQ(
+        (dilations[2] == 1 && dilations[3] == 1),
+        true,
+        phi::errors::InvalidArgument(
+            "dilation_h and dilation_w in DepthwiseConv2DBackpropFilterD "
+            "must be equal to 1, but got dilation_h %d, dilation_w %d",
+            dilation[2],
+            dilation[3]));
+
+    NpuOpRunner runner;
+    runner.SetType("DepthwiseConv2DBackpropFilterD")
+        .AddInput(input_tensor)
+        .AddInput(output_grad_tensor)
+        .AddOutput(*filter_grad)
+        .AddAttr("filter_size", phi::vectorize(transformed_filter.dims()))
+        .AddAttr("strides", strides)
+        .AddAttr("dilations", dilations)
+        .AddAttr("pads", padding)
+        .AddAttr("data_format", data_format)
+        .Run(stream);
+  }
+  if (input_grad) {
+    dev_ctx.template Alloc<T>(input_grad);
+    phi::DenseTensor input_grad_tensor(*input_grad);
+    if (channel_last) {
+      phi::DenseTensorMeta input_grad_tensor_meta = {
+          input_grad->dtype(), input_grad->dims(), phi::DataLayout::kNHWC};
+      input_grad_tensor.set_meta(input_grad_tensor_meta);
+    }
+    NpuOpRunner runner;
+    runner.SetType("DepthwiseConv2DBackpropInputD")
+        .AddInput(transformed_filter)
+        .AddInput(output_grad_tensor)
+        .AddOutput(input_grad_tensor)
+        .AddAttr("input_size", phi::vectorize(input.dims()))
+        .AddAttr("strides", strides)
+        .AddAttr("dilations", dilations)
+        .AddAttr("pads", padding)
+        .AddAttr("data_format", data_format)
+        .Run(stream);
+  }
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
     conv2d, ascend, ALL_LAYOUT, custom_kernel::Conv2dKernel, float) {}
 PD_REGISTER_PLUGIN_KERNEL(
     conv2d_grad, ascend, ALL_LAYOUT, custom_kernel::Conv2dGradKernel, float) {}
+
+PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::DepthwiseConvKernel,
+                          float,
+                          phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::DepthwiseConvGradKernel,
+                          float,
+                          phi::dtype::float16) {}

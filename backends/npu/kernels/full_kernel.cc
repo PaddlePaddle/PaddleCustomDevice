@@ -14,7 +14,6 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
@@ -61,10 +60,10 @@ void FullKernel(const Context& dev_ctx,
     }
   } else {
     auto op_func = [&shape_vec, &value](
-        const std::vector<phi::DenseTensor>& inputs,
-        const std::vector<phi::DenseTensor>& outputs,
-        const NPUAttributeMap& attrs,
-        const Context& dev_ctx) {
+                       const std::vector<phi::DenseTensor>& inputs,
+                       const std::vector<phi::DenseTensor>& outputs,
+                       const NPUAttributeMap& attrs,
+                       const Context& dev_ctx) {
       phi::DenseTensor tensor_value;
       tensor_value.Resize(phi::make_ddim({1}));
       FillNpuTensorWithConstant<uint8_t>(
@@ -123,8 +122,7 @@ void FullLikeKernel(const Context& dev_ctx,
                     phi::errors::InvalidArgument("The filled value is NaN."));
 
   phi::DenseTensor tensor_tmp;
-  phi::DenseTensorMeta tensor_tmp_meta = {dtype, {1}};
-  tensor_tmp.set_meta(tensor_tmp_meta);
+  tensor_tmp.Resize(phi::make_ddim({1}));
   FillNpuTensorWithConstant<T>(&tensor_tmp, dev_ctx, static_cast<T>(value));
 
   auto stream = dev_ctx.stream();

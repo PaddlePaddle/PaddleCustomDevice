@@ -26,7 +26,7 @@ namespace custom_kernel {
  * CPU -> NPU
  * NPU -> CPU
  * NPU -> NPU
-*/
+ */
 template <typename Context>
 inline void TensorCopy(const Context& dev_ctx,
                        const phi::DenseTensor& src,
@@ -95,7 +95,7 @@ inline void TensorCopy(const Context& dev_ctx,
 
 /**
  * CPU -> NPU
-*/
+ */
 template <typename T>
 inline void TensorFromVector(const phi::CustomContext& ctx,
                              const std::vector<T>& src,
@@ -133,7 +133,7 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
 /**
  * CPU -> CPU
  * CPU -> NPU
-*/
+ */
 template <typename T>
 inline void TensorFromVector(const phi::CustomContext& ctx,
                              const std::vector<T>& src,
@@ -170,7 +170,7 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
 
 /**
  * NPU -> CPU
-*/
+ */
 template <typename T>
 inline void TensorToVector(const phi::CustomContext& ctx,
                            const phi::DenseTensor& src,
@@ -197,14 +197,31 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
                                  const phi::DenseTensor& src,
                                  const phi::CustomContext& dev_ctx,
                                  std::vector<bool>* dst) {
-  auto src_place = dev_ctx.GetPlace();
-  PADDLE_THROW(phi::errors::Unimplemented(
-      "TensorToVector on %s is not supported.", src_place));
+  auto src_ptr = static_cast<const void*>(src.data<bool>());
+  auto size = src.numel() * sizeof(bool);
+
+  bool* array = new bool[src.numel()];
+
+  phi::CPUPlace dst_place;
+  dst->resize(src.numel());
+  auto dst_ptr = static_cast<void*>(array);
+
+  auto src_place = src.place();
+  if (src_place.GetType() == phi::AllocationType::CUSTOM) {
+    MemCpyD2H(nullptr, dst_ptr, src_ptr, size);
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorToVector on %s is not supported.", src_place));
+  }
+  for (unsigned int i = 0; i < src.numel(); i++) {
+    (*dst)[i] = static_cast<bool>(array[i]);
+  }
+  delete[] array;
 }
 
 /**
  * CPU -> NPU
-*/
+ */
 template <typename T>
 inline void FillNpuTensorWithConstant(phi::DenseTensor* dst,
                                       const phi::CustomContext& dev_ctx,

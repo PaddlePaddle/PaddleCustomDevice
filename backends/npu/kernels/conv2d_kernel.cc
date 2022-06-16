@@ -14,10 +14,37 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 #include "paddle/utils/optional.h"
 
 namespace custom_kernel {
+
+template <typename Context>
+static void CastToFP16(const Context& dev_ctx,
+                       const phi::DenseTensor& in,
+                       phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<phi::dtype::float16>(out);
+  NpuOpRunner runner;
+  runner.SetType("Cast")
+      .AddInput(in)
+      .AddOutput(*out)
+      .AddAttr("dst_type", ACL_FLOAT16)
+      .Run(stream);
+}
+
+template <typename Context>
+static void CastToFP32(const Context& dev_ctx,
+                       const phi::DenseTensor& in,
+                       phi::DenseTensor* out) {
+  dev_ctx.template Alloc<float>(out);
+  auto stream = dev_ctx.stream();
+  NpuOpRunner runner;
+  runner.SetType("Cast")
+      .AddInput(in)
+      .AddOutput(*out)
+      .AddAttr("dst_type", ACL_FLOAT)
+      .Run(stream);
+}
 
 template <typename T = int>
 inline void UpdatePaddingAndDilation(std::vector<T>* paddings,
@@ -208,9 +235,19 @@ void Conv2dGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(filter_grad);
     std::vector<int> filter_shape_vec = phi::vectorize<int>(filter.dims());
 
+    phi::DenseTensor filter_grad_fp32;
+    phi::DenseTensorMeta filter_grad_fp32_meta = {phi::DataType::FLOAT32,
+                                                  filter_grad->dims()};
+    filter_grad_fp32.set_meta(filter_grad_fp32_meta);
+
+    if (input.dtype() == phi::DataType::FLOAT16) {
+      CastToFP32<Context>(dev_ctx, *filter_grad, &filter_grad_fp32);
+    } else {
+      filter_grad_fp32 = *filter_grad;
+    }
     const auto& runner = NpuOpRunner("Conv2DBackpropFilterD",
                                      {input_tensor, output_grad_tensor},
-                                     {*filter_grad},
+                                     {filter_grad_fp32},
                                      {{"filter_size", filter_shape_vec},
                                       {"strides", strides_vec},
                                       {"pads", paddings},
@@ -218,6 +255,10 @@ void Conv2dGradKernel(const Context& dev_ctx,
                                       {"groups", groups},
                                       {"data_format", data_format}});
     runner.Run(stream);
+
+    if (input.dtype() == phi::DataType::FLOAT16) {
+      CastToFP16<Context>(dev_ctx, filter_grad_fp32, filter_grad);
+    }
   }
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);
@@ -243,7 +284,15 @@ void Conv2dGradKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    conv2d, ascend, ALL_LAYOUT, custom_kernel::Conv2dKernel, float) {}
-PD_REGISTER_PLUGIN_KERNEL(
-    conv2d_grad, ascend, ALL_LAYOUT, custom_kernel::Conv2dGradKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(conv2d,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv2dKernel,
+                          float,
+                          phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv2dGradKernel,
+                          float,
+                          phi::dtype::float16) {}

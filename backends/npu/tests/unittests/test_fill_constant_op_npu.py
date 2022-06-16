@@ -152,7 +152,7 @@ class TestFillConstantWithPlaceType(OpTest):
         self.init_dtype()
 
         self.inputs = {}
-        self.attrs = {'shape': [123, 92], 'value': 3.8, 'place_type': 4}
+        self.attrs = {'shape': [123, 92], 'value': 3.8, 'place_type': 0}
         self.outputs = {'Out': np.full((123, 92), 3.8)}
 
     def set_npu(self):

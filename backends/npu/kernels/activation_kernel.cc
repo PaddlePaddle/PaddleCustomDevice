@@ -18,6 +18,29 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void AtanKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Atan", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AtanGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("AtanGrad", {x, dout}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ExpKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -170,9 +193,113 @@ void SquareGradKernel(const Context& dev_ctx,
   const auto& runner_mul_2 =
       NpuOpRunner("Mul", {dout, x_muls_factor}, {*dx}, {});
   runner_mul_2.Run(stream);
+
+void SwishKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 float beta,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& muls_runner = NpuOpRunner("Muls", {x}, {*out}, {{"value", beta}});
+  muls_runner.Run(stream);
+
+  const auto& sigmoid_runner = NpuOpRunner("Sigmoid", {*out}, {*out}, {});
+  sigmoid_runner.Run(stream);
+
+  const auto& mul_runner = NpuOpRunner("Mul", {x, *out}, {*out});
+  mul_runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SwishGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& dout,
+                     float beta,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor beta_x, sigmoid_out, swish_out;
+  phi::DenseTensorMeta beta_x_meta = {x.dtype(), x.dims()};
+  beta_x.set_meta(beta_x_meta);
+  dev_ctx.template Alloc<T>(&beta_x);
+  phi::DenseTensorMeta sigmoid_out_meta = {x.dtype(), x.dims()};
+  sigmoid_out.set_meta(sigmoid_out_meta);
+  dev_ctx.template Alloc<T>(&sigmoid_out);
+  phi::DenseTensorMeta swish_out_meta = {x.dtype(), x.dims()};
+  swish_out.set_meta(swish_out_meta);
+  dev_ctx.template Alloc<T>(&swish_out);
+
+  const auto& muls_runner =
+      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", beta}});
+  muls_runner.Run(stream);
+
+  const auto& sigmoid_runner =
+      NpuOpRunner("Sigmoid", {beta_x}, {sigmoid_out}, {});
+  sigmoid_runner.Run(stream);
+
+  const auto& mul_runner =
+      NpuOpRunner("Mul", {sigmoid_out, x}, {swish_out}, {});
+  mul_runner.Run(stream);
+  const auto& muls_runner2 =
+      NpuOpRunner("Muls", {swish_out}, {swish_out}, {{"value", beta}});
+  muls_runner2.Run(stream);
+
+  const auto& mul_runner1 =
+      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*dx}, {});
+  mul_runner1.Run(stream);
+
+  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *dx}, {*dx}, {});
+  sub_runner.Run(stream);
+
+  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *dx}, {*dx}, {});
+  add_runner.Run(stream);
+
+  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *dx}, {*dx}, {});
+  mul_runner2.Run(stream);
+}
+
+template <typename T, typename Context>
+void TanhKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Tanh", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void TanhGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("TanhGrad", {out, dout}, {*dx}, {});
+  runner.Run(stream);
 }
 
 }  // namespace custom_kernel
+
+PD_REGISTER_PLUGIN_KERNEL(atan,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(atan_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
     exp, ascend, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}
@@ -243,14 +370,40 @@ PD_REGISTER_PLUGIN_KERNEL(square,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::SquareKernel,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::SquareGradKernel,
+
+PD_REGISTER_PLUGIN_KERNEL(swish,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(swish_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhGradKernel,
                           float,
                           phi::dtype::float16,
                           double) {}

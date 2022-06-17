@@ -90,6 +90,62 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void GeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                bool approximate,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Gelu", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void GeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out_grad,
+                    bool approximate,
+                    phi::DenseTensor* x_grad) {
+  dev_ctx.template Alloc<T>(x_grad);
+  auto stream = dev_ctx.stream();
+
+  // NOTE(pangyoki): In the original implementation of GeluGrad op, the input
+  // is {*dout, *x, out}, where out = Gelu(x). However, we find that variable
+  // `out` was not actually used. In order to improve performance, the
+  // useless GELU operation was deleted.
+  // We directly use `*dout` as a placeholder to replace `out`, it will not
+  // be used in calculations.
+  const auto& runner_dx =
+      NpuOpRunner("GeluGrad", {out_grad, x, out_grad}, {*x_grad}, {});
+  runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void TanhKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Tanh", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void TanhGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& out_grad,
+                    phi::DenseTensor* x_grad) {
+  dev_ctx.template Alloc<T>(x_grad);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner_dx =
+      NpuOpRunner("TanhGrad", {out, out_grad}, {*x_grad}, {});
+  runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
 void SigmoidKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
@@ -181,15 +237,21 @@ PD_REGISTER_PLUGIN_KERNEL(
     exp_grad, ascend, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {
 }
 
-PD_REGISTER_PLUGIN_KERNEL(
-    relu, ascend, ALL_LAYOUT, custom_kernel::ReluKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(relu,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::ReluKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::ReluGradKernel,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(leaky_relu,
                           ascend,
@@ -206,6 +268,34 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
                           float,
                           phi::dtype::float16,
                           double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(gelu,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid,
                           ascend,

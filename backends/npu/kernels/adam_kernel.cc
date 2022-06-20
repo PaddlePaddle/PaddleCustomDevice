@@ -41,6 +41,31 @@ void AdamKernel(const Context& dev_ctx,
                 phi::DenseTensor* beta1_pow_out,
                 phi::DenseTensor* beta2_pow_out,
                 phi::DenseTensor* master_param_out) {
+  bool skip_update_ = false;
+  if (skip_update.is_initialized()) {
+    PADDLE_ENFORCE_EQ(skip_update->numel(),
+                      1,
+                      phi::errors::InvalidArgument(
+                          "Input(SkipUpdate) size must be 1, but get %d",
+                          skip_update->numel()));
+    std::vector<bool> skip_update_vec;
+    custom_kernel::TensorToVector(
+        dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
+    skip_update_ = skip_update_vec[0];
+  }
+
+  // skip_update=true, just copy input to output, and TensorCopy will call
+  // mutable_data
+  if (skip_update_) {
+    VLOG(4) << "Adam skip update";
+    TensorCopy(dev_ctx, param, false, param_out);
+    TensorCopy(dev_ctx, moment1, false, moment1_out);
+    TensorCopy(dev_ctx, moment2, false, moment2_out);
+    TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
+    TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+    return;
+  }
+
   phi::DenseTensor* beta1_pow = const_cast<phi::DenseTensor*>(&beta1_pow_in);
   phi::DenseTensor* beta2_pow = const_cast<phi::DenseTensor*>(&beta2_pow_in);
 
@@ -115,7 +140,9 @@ void AdamKernel(const Context& dev_ctx,
                                        grad,
                                    },
                                    {
-                                       *param_out, *moment1_out, *moment2_out,
+                                       *param_out,
+                                       *moment1_out,
+                                       *moment2_out,
                                    },
                                    {});
   runner.Run(stream);
@@ -143,12 +170,125 @@ void AdamKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void AdamwKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& param,
+                 const phi::DenseTensor& grad,
+                 const phi::DenseTensor& learning_rate,
+                 const phi::DenseTensor& moment1,
+                 const phi::DenseTensor& moment2,
+                 const phi::DenseTensor& beta1_pow,
+                 const phi::DenseTensor& beta2_pow,
+                 const paddle::optional<phi::DenseTensor>& master_param,
+                 const paddle::optional<phi::DenseTensor>& skip_update,
+                 const phi::Scalar& beta1,
+                 const phi::Scalar& beta2,
+                 const phi::Scalar& epsilon,
+                 float lr_ratio,
+                 float coeff,
+                 bool with_decay,
+                 bool lazy_mode,
+                 int64_t min_row_size_to_use_multithread,
+                 bool multi_precision,
+                 bool use_global_beta_pow,
+                 phi::DenseTensor* param_out,
+                 phi::DenseTensor* moment1_out,
+                 phi::DenseTensor* moment2_out,
+                 phi::DenseTensor* beta1_pow_out,
+                 phi::DenseTensor* beta2_pow_out,
+                 phi::DenseTensor* master_param_outs) {
+  bool skip_update_ = false;
+  if (skip_update.is_initialized()) {
+    PADDLE_ENFORCE_EQ(skip_update->numel(),
+                      1,
+                      phi::errors::InvalidArgument(
+                          "Input(SkipUpdate) size must be 1, but get %d",
+                          skip_update->numel()));
+    std::vector<bool> skip_update_vec;
+    custom_kernel::TensorToVector(
+        dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
+    skip_update_ = skip_update_vec[0];
+  }
+
+  VLOG(3) << "Skip update" << skip_update_;
+
+  if (!skip_update_ && with_decay) {
+    phi::DenseTensor one;
+    phi::DenseTensor decay;
+    phi::DenseTensor tmp;
+    phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
+    one.set_meta(meta);
+    decay.set_meta(meta);
+    tmp.set_meta(meta);
+
+    dev_ctx.template Alloc<float>(&tmp);
+    dev_ctx.template Alloc<float>(&one);
+    dev_ctx.template Alloc<float>(&decay);
+
+    FillNpuTensorWithConstant<float>(&one, dev_ctx, 1.0f);
+    NPUAttributeMap attr_input = {{"value", coeff}};
+
+    auto stream = dev_ctx.stream();
+
+    const auto& runner1 =
+        NpuOpRunner("Muls", {learning_rate}, {tmp}, attr_input);
+    runner1.Run(stream);
+
+    const auto& runner2 = NpuOpRunner("Sub", {one, tmp}, {decay}, {});
+    runner2.Run(stream);
+
+    // Master Parma is not supported on npu
+    if (master_param.is_initialized()) {
+      PADDLE_THROW(
+          phi::errors::Unimplemented("Master Parma is not supported on npu"));
+    } else {
+      dev_ctx.template Alloc<T>(param_out);
+
+      const auto& runner = NpuOpRunner(
+          "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
+      runner.Run(stream);
+    }
+  }
+
+  custom_kernel::AdamKernel<T, Context>(dev_ctx,
+                                        param,
+                                        grad,
+                                        learning_rate,
+                                        moment1,
+                                        moment2,
+                                        beta1_pow,
+                                        beta2_pow,
+                                        master_param,
+                                        skip_update,
+                                        beta1,
+                                        beta2,
+                                        epsilon,
+                                        lazy_mode,
+                                        min_row_size_to_use_multithread,
+                                        multi_precision,
+                                        use_global_beta_pow,
+                                        param_out,
+                                        moment1_out,
+                                        moment2_out,
+                                        beta1_pow_out,
+                                        beta2_pow_out,
+                                        master_param_outs);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(adam,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::AdamKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(adamw,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AdamwKernel,
                           phi::dtype::float16,
                           float,
                           double) {}

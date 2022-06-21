@@ -50,7 +50,6 @@ class MNIST(paddle.nn.Layer):
         self.output_weight = self.create_parameter([self.shape, self.size])
         self.accuracy = paddle.metric.Accuracy()
 
-    @paddle.jit.to_static()
     def forward(self, inputs, label=None):
         x = inputs.reshape([-1, self.shape])
         x = paddle.matmul(x, self.output_weight)

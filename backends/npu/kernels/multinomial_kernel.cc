@@ -23,13 +23,14 @@ void MultinomialKernel(const Context& dev_ctx,
                        int num_samples,
                        bool replacement,
                        phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<int64_t>(out);
   auto stream = dev_ctx.stream();
   const auto& runner =
       NpuOpRunner("MultinomialWithReplacementD",
                   {x},
                   {*out},
-                  {{"num_samples", num_samples}, {"replacement", replacement}});
+                  {{"num_samples", static_cast<int64_t>(num_samples)},
+                   {"replacement", replacement}});
   runner.Run(stream);
 }
 

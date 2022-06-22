@@ -192,6 +192,124 @@ void SqrtGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void LogKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor one;
+  phi::DenseTensorMeta one_meta = {x.dtype(), x.dims()};
+  one.set_meta(one_meta);
+  dev_ctx.template Alloc<T>(&one);
+  const auto& runner_one = NpuOpRunner("OnesLike", {x}, {one}, {});
+  runner_one.Run(stream);
+
+  phi::DenseTensor sub;
+  phi::DenseTensorMeta sub_meta = {x.dtype(), x.dims()};
+  sub.set_meta(sub_meta);
+  dev_ctx.template Alloc<T>(&sub);
+  const auto& runner_sub = NpuOpRunner("Sub", {x, one}, {sub}, {});
+  runner_sub.Run(stream);
+
+  const auto& runner_out = NpuOpRunner("Log1p", {sub}, {*out}, {});
+  runner_out.Run(stream);
+}
+
+template <typename T, typename Context>
+void LogGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("DivNoNan", {dout, x}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void PowKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::Scalar& factor_scalar,
+               phi::DenseTensor* out) {
+  auto factor = factor_scalar.to<float>();
+  dev_ctx.template Alloc<T>(out);
+
+  const auto& runner = NpuOpRunner("Power",
+                                   {x},
+                                   {*out},
+                                   {{"power", factor},
+                                    {"scale", static_cast<float>(1.0)},
+                                    {"shift", static_cast<float>(0.0)}});
+  auto stream = dev_ctx.stream();
+
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void PowGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   const phi::Scalar& factor_scalar,
+                   phi::DenseTensor* dx) {
+  auto factor = factor_scalar.to<float>();
+
+  auto x_dims = x.dims();
+
+  auto stream = dev_ctx.stream();
+
+  // dx = dout * factor * x.pow(factor-1)
+
+  // Step1: Compute x_pow = x.pow(factor-1)
+  phi::DenseTensor x_pow;
+  phi::DenseTensorMeta x_pow_meta = {x.dtype(), x_dims};
+  x_pow.set_meta(x_pow_meta);
+  dev_ctx.template Alloc<T>(&x_pow);
+
+  const auto& runner_pow = NpuOpRunner(
+      "Power", {x}, {x_pow}, {{"power", factor - static_cast<float>(1)}});
+  runner_pow.Run(stream);
+
+  // Step 2: Construct a broadcast factor, which has the same shape with x.
+
+  // 2.1 Get a factor tensor with shape [1].
+  phi::DenseTensor factor_tensor;
+  phi::DenseTensorMeta factor_tensor_meta = {phi::DataType::FLOAT32, {1}};
+  factor_tensor.set_meta(factor_tensor_meta);
+  dev_ctx.template Alloc<T>(&factor_tensor);
+
+  FillNpuTensorWithConstant<float>(&factor_tensor, dev_ctx, factor);
+
+  // 2.2 Get the factor which has the shape with x and the same value with
+  // factor.
+  phi::DenseTensor factor_bc_tensor;
+  phi::DenseTensorMeta factor_bc_tensor_meta = {phi::DataType::FLOAT32, x_dims};
+  factor_bc_tensor.set_meta(factor_bc_tensor_meta);
+  dev_ctx.template Alloc<float>(&factor_bc_tensor);
+  const auto& runner_bc = NpuOpRunner("FillD",
+                                      {factor_tensor},
+                                      {factor_bc_tensor},
+                                      {{"dims", phi::vectorize(x_dims)}});
+  runner_bc.Run(stream);
+
+  // Step 3: Compute x_power_mul_factor = factor * x.pow(factor-1)
+  phi::DenseTensor x_power_mul_factor;
+  phi::DenseTensorMeta x_power_mul_factor_meta = {x.dtype(), x_dims};
+  x_power_mul_factor.set_meta(x_power_mul_factor_meta);
+  dev_ctx.template Alloc<T>(&x_power_mul_factor);
+  const auto& runner_mul_1 =
+      NpuOpRunner("Mul", {factor_bc_tensor, x_pow}, {x_power_mul_factor}, {});
+  runner_mul_1.Run(stream);
+
+  // Step 4: Compute dx = dout * factor * x.pow(factor-1)
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner_mul_2 =
+      NpuOpRunner("Mul", {dout, x_power_mul_factor}, {*dx}, {});
+  runner_mul_2.Run(stream);
+}
+
+template <typename T, typename Context>
 void SquareKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
@@ -268,6 +386,34 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
                           float,
                           phi::dtype::float16,
                           double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(pow,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::PowKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(pow_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::PowGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::LogKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::LogGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu,
                           ascend,

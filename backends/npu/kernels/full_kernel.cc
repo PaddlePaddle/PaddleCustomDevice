@@ -38,7 +38,7 @@ void FullKernel(const Context& dev_ctx,
     NpuOpRunner runner;
     if (dtype != phi::DenseTensorMeta::DataType::INT64 &&
         dtype != phi::DenseTensorMeta::DataType::FLOAT64) {
-#if (CANN_VERSION_CODE >= 503003)
+#if (CANN_VERSION_CODE >= 503003 && CANN_VERSION_CODE < 504000)
       runner.SetType("FillD")
           .AddInput(tensor_value)
           .AddOutput(*out)
@@ -162,11 +162,9 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
                           bool,
-                          int8_t,
                           int,
                           int64_t,
                           float,
-                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
@@ -174,11 +172,9 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           bool,
-                          int16_t,
                           int,
                           int64_t,
                           float,
-                          double,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
@@ -187,11 +183,8 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::FullBatchSizeLikeKernel,
-                          bool,
                           int,
-                          int64_t,
                           float,
-                          double,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }

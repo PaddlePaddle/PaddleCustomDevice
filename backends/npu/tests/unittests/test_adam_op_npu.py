@@ -273,7 +273,6 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
-@unittest.skip("skip net ut because of other ops.")
 class TestNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()
@@ -334,7 +333,6 @@ class TestNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss, rtol=1e-3))
 
 
-@unittest.skip("skip net ut because of other ops.")
 class TestNetWithEpsilonTensor(unittest.TestCase):
     def _test(self,
               place,

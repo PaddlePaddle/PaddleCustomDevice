@@ -275,18 +275,18 @@ void PowGradKernel(const Context& dev_ctx,
 
   // 2.1 Get a factor tensor with shape [1].
   phi::DenseTensor factor_tensor;
-  phi::DenseTensorMeta factor_tensor_meta = {phi::DataType::FLOAT32, {1}};
+  phi::DenseTensorMeta factor_tensor_meta = {x.dtype(), {1}};
   factor_tensor.set_meta(factor_tensor_meta);
   dev_ctx.template Alloc<T>(&factor_tensor);
 
-  FillNpuTensorWithConstant<float>(&factor_tensor, dev_ctx, factor);
+  FillNpuTensorWithConstant<T>(&factor_tensor, dev_ctx, static_cast<T>(factor));
 
   // 2.2 Get the factor which has the shape with x and the same value with
   // factor.
   phi::DenseTensor factor_bc_tensor;
-  phi::DenseTensorMeta factor_bc_tensor_meta = {phi::DataType::FLOAT32, x_dims};
+  phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
   factor_bc_tensor.set_meta(factor_bc_tensor_meta);
-  dev_ctx.template Alloc<float>(&factor_bc_tensor);
+  dev_ctx.template Alloc<T>(&factor_bc_tensor);
   const auto& runner_bc = NpuOpRunner("FillD",
                                       {factor_tensor},
                                       {factor_bc_tensor},

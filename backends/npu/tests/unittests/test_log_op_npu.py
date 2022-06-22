@@ -80,7 +80,6 @@ class TestLogFp16(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
-@unittest.skip("skip net ut because of other ops.")
 class TestLogNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()

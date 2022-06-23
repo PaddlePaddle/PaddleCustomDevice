@@ -51,14 +51,11 @@ class MNIST(paddle.nn.Layer):
         self.accuracy = paddle.metric.Accuracy()
 
     def forward(self, inputs, label=None):
-        x = paddle.reshape(inputs, shape=[-1, self.shape])
+        x = inputs.reshape([-1, self.shape])
         x = paddle.matmul(x, self.output_weight)
         x = paddle.nn.functional.softmax(x)
         if label is not None:
-            self.accuracy.reset()
-            correct = self.accuracy.compute(x, label)
-            self.accuracy.update(correct)
-            acc = self.accuracy.accumulate()
+            acc = paddle.metric.accuracy(x, label)
             return x, acc
         else:
             return x
@@ -82,6 +79,6 @@ for epoch in range(epoch_num):
 
         if batch_id % 100 == 0:
             print("Epoch {} step {}, Loss = {:}, Accuracy = {:}".format(
-                epoch, batch_id, avg_loss.numpy(), acc))
+                epoch, batch_id, avg_loss.numpy(), acc.numpy()))
 model_dict = mnist.state_dict()
 paddle.save(model_dict, "mnist.pdparams")

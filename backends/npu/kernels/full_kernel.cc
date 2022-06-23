@@ -22,7 +22,7 @@ template <typename T, typename Context>
 void FullKernel(const Context& dev_ctx,
                 const phi::IntArray& shape,
                 const phi::Scalar& val,
-                phi::DenseTensorMeta::DataType dtype,
+                phi::DataType dtype,
                 phi::DenseTensor* out) {
   auto shape_vec = shape.GetData();
   out->ResizeAndAllocate(phi::make_ddim(shape_vec));
@@ -38,7 +38,7 @@ void FullKernel(const Context& dev_ctx,
     NpuOpRunner runner;
     if (dtype != phi::DenseTensorMeta::DataType::INT64 &&
         dtype != phi::DenseTensorMeta::DataType::FLOAT64) {
-#if (CANN_VERSION_CODE >= 503003)
+#if (CANN_VERSION_CODE >= 503003 && CANN_VERSION_CODE < 504000)
       runner.SetType("FillD")
           .AddInput(tensor_value)
           .AddOutput(*out)
@@ -136,29 +136,55 @@ void FullLikeKernel(const Context& dev_ctx,
       .Run(stream);
 }
 
+template <typename T, typename Context>
+void FullBatchSizeLikeKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const std::vector<int>& shape,
+                             const phi::Scalar& val,
+                             phi::DataType dtype,
+                             int x_batch_size_dim,
+                             int out_batch_size_dim,
+                             phi::DenseTensor* out) {
+  if (x.lod().size() && x_batch_size_dim == 0) {
+    // set the correct batch size for the LoDTensor.
+    auto odims = out->dims();
+    odims[out_batch_size_dim] = static_cast<int>(x.lod().back().size()) - 1;
+    custom_kernel::FullKernel<T, Context>(
+        dev_ctx, phi::vectorize(odims), val, dtype, out);
+  }
+  custom_kernel::FullLikeKernel<T, Context>(dev_ctx, x, val, dtype, out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
-                          int8_t,
-                          int32_t,
+                          bool,
+                          int,
                           int64_t,
                           float,
-                          double,
-                          bool) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
-                          float,
-                          double,
-                          int16_t,
+                          bool,
                           int,
                           int64_t,
-                          bool,
+                          float,
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::FullBatchSizeLikeKernel,
+                          int,
+                          float,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }

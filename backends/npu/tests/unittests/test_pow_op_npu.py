@@ -1,4 +1,4 @@
-# Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 from __future__ import print_function
 
 import numpy as np
-from scipy import special
 import unittest
 import sys
 
@@ -27,24 +26,19 @@ paddle.enable_static()
 SEED = 2021
 
 
-def np_gelu(x):
-    y = 0.5 * x * (1 + special.erf(x / np.sqrt(2)))
-    return y
-
-
-class TestGelu(OpTest):
+class TestPow(OpTest):
     def setUp(self):
         self.set_npu()
-        self.op_type = "gelu"
+        self.op_type = "pow"
         self.place = paddle.CustomPlace('ascend', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
-        out = np_gelu(x)
+        out = np.power(x, 3)
 
         self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.attrs = {}
+        self.attrs = {'factor': 3.0}
         self.outputs = {'Out': out}
 
     def set_npu(self):
@@ -54,26 +48,25 @@ class TestGelu(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], 'Out', max_relative_error=0.007)
+        self.check_grad_with_place(self.place, ['X'], 'Out')
 
 
-class TestGeluFp16(OpTest):
+class TestPowFp16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.op_type = "gelu"
+        self.op_type = "pow"
         self.place = paddle.CustomPlace('ascend', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
         x = np.random.uniform(1, 2, [3, 4]).astype(self.dtype)
-        out = np_gelu(x)
+        out = np.power(x, 2)
 
         self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.attrs = {}
+        self.attrs = {'factor': 2.0}
         self.outputs = {'Out': out}
 
     def set_npu(self):
@@ -84,10 +77,10 @@ class TestGeluFp16(OpTest):
         self.dtype = np.float16
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
+        self.check_output_with_place(self.place, atol=1e-5)
 
 
-class TestGeluNet(unittest.TestCase):
+class TestPowNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()
@@ -105,11 +98,11 @@ class TestGeluNet(unittest.TestCase):
             label = paddle.static.data(
                 name="label", shape=[32, 1], dtype='int64')
 
-            c = paddle.multiply(a, b)
+            sum = paddle.add(a, b)
+            z = paddle.pow(sum, 2.0)
 
-            fc_1 = fluid.layers.fc(input=c, size=128)
-            fc_1_gelu = fluid.layers.gelu(fc_1)
-            prediction = fluid.layers.fc(input=fc_1_gelu, size=2, act='softmax')
+            fc_1 = fluid.layers.fc(input=z, size=128)
+            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
 
             cost = fluid.layers.cross_entropy(input=prediction, label=label)
             loss = fluid.layers.reduce_mean(cost)
@@ -143,8 +136,8 @@ class TestGeluNet(unittest.TestCase):
         cpu_pred, cpu_loss = self._test(False)
         npu_pred, npu_loss = self._test(True)
 
-        self.assertTrue(np.allclose(npu_pred, cpu_pred, atol=1e-3))
-        self.assertTrue(np.allclose(npu_loss, cpu_loss, atol=1e-3))
+        self.assertTrue(np.allclose(npu_pred, cpu_pred))
+        self.assertTrue(np.allclose(npu_loss, cpu_loss))
 
 
 if __name__ == '__main__':

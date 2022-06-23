@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include "paddle/phi/backends/device_ext.h"
+#include <CL/sycl.hpp>
 
 #define MEMORY_FRACTION 0.5f
 

@@ -141,8 +141,7 @@ class TestElementwiseMaxOp_int32(TestElementwiseMaxOp):
         pass
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skip("Scalar not meet 100 elements limitation in OpTest")
 class TestElementwiseMaxOp_scalar(TestElementwiseMaxOp):
     def init_input_output(self):
         self.x = np.random.random_integers(-5, 5, [2, 3, 20]).astype(self.dtype)

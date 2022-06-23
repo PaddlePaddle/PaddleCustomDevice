@@ -17,7 +17,7 @@ import paddle
 from paddle.nn import Conv2D, MaxPool2D, ReLU
 from paddle.optimizer import SGD
 
-paddle.set_device('custom_cpu')
+paddle.set_device('intel_gpu')
 
 BATCH_SIZE = 64
 

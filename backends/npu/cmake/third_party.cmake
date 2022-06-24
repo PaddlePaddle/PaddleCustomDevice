@@ -26,6 +26,8 @@ include(external/gflags)    # download, build, install gflags
 include(external/glog)      # download, build, install glog
 include(external/boost)     # download boost
 include(external/eigen)     # download eigen3
+include(external/pybind11)
+
 list(APPEND third_party_deps extern_gflags extern_glog extern_boost extern_eigen3)
 
 if (WITH_TESTING)

@@ -57,6 +57,11 @@ else()
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
 endif()
 
+find_package(PythonInterp ${PY_VERSION} REQUIRED)
+find_package(PythonLibs ${PY_VERSION} REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIR})
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
+
 # testing
 if (WITH_TESTING)
   set(PYTHON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../python")

@@ -140,28 +140,21 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
-                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
-                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::AddGradKernel,
-                          int,
-                          int64_t,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}

@@ -116,7 +116,7 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           int,
                           int64_t,
                           float,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           ascend,
@@ -125,4 +125,4 @@ PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           int,
                           int64_t,
                           float,
-                          double) {}
+                          phi::dtype::float16) {}

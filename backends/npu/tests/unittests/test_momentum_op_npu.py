@@ -274,7 +274,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Runtime AddCallback is not supported")
 class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
     def __update_params(self, momentum, linear):
         for i in range(10):

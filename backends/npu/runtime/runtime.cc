@@ -169,6 +169,7 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  if (dst == nullptr && size == 0) return C_SUCCESS;
   ACL_CHECK(aclrtMemcpy(dst, size, src, size, ACL_MEMCPY_HOST_TO_DEVICE));
   return C_SUCCESS;
 }

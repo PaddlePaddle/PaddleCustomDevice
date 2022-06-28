@@ -85,9 +85,8 @@ template <typename T, typename Context>
 void SqueezeKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const std::vector<int>& axes,
-                   phi::DenseTensor* xshape,
-                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+                   phi::DenseTensor* out,
+                   phi::DenseTensor* xshape) {
   auto stream = dev_ctx.stream();
 
   auto x_dims = x.dims();
@@ -104,7 +103,6 @@ void SqueezeGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& dout,
                        const std::vector<int>& axes,
                        phi::DenseTensor* dx) {
-  dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
   auto xshape_dims = xshape.dims();

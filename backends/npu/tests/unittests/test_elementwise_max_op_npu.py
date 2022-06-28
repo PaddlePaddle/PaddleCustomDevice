@@ -141,6 +141,7 @@ class TestElementwiseMaxOp_int32(TestElementwiseMaxOp):
         pass
 
 
+# TODO(windstamp)
 @unittest.skip("Scalar not meet 100 elements limitation in OpTest")
 class TestElementwiseMaxOp_scalar(TestElementwiseMaxOp):
     def init_input_output(self):

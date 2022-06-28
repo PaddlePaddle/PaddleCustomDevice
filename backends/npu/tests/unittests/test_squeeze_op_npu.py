@@ -74,12 +74,14 @@ class TestSqueeze2Op2(TestSqueeze2Op):
         self.axes = ()
         self.new_shape = (20, 5)
 
-# Correct: Just part of axes be squeezed.
 
+# Correct: Just part of axes be squeezed.
+class TestSqueeze2Op3(TestSqueeze2Op):
     def init_test_case(self):
         self.ori_shape = (6, 1, 5, 1, 4, 1)
         self.axes = (1, -1)
         self.new_shape = (6, 5, 1, 4)
+
 
 if __name__ == "__main__":
     unittest.main()

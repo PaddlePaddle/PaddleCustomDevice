@@ -101,8 +101,9 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
 
 void GPUAlloc(void **ptr, size_t size) {
 
-  // *ptr= sycl::aligned_alloc_device(64, size, getQ());
-  *ptr = malloc_device<int>(size, getQ());
+  *ptr= sycl::aligned_alloc_device(64, size, getQ());
+  // *ptr = malloc_device<char>(size, getQ());
+  show("GPUAlloc ptr=" << *ptr << " size="<< size);
 }
 
 
@@ -122,19 +123,19 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   auto data = malloc(size);
   if (data) {
     *ptr = data;
-    
-     show("Allocate " << size << "bytes  ptr="<< ptr);     
+
+     show("Allocate " << size << "bytes  ptr="<< ptr);
     return C_SUCCESS;
   } else {
     *ptr = nullptr;
   }
- 
+
   return C_FAILED;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
- 
- GPUDealloc(ptr);	
+
+ GPUDealloc(ptr);
 // free(ptr);
   return C_SUCCESS;
 }
@@ -205,12 +206,65 @@ C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
   return C_SUCCESS;
 }
 
+
+C_Status MemoryCopyH2D(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size) {
+
+show("MemoryCopyH2D size=" << size << " dst="<< dst << " src="<< src);
+getQ().submit([&](sycl::handler &h) {
+// copy hostArray to deviceArray
+h.memcpy(dst, src, size);
+});
+getQ().wait();
+
+//  memcpy(dst, src, size);
+  return C_SUCCESS;
+}
+
+C_Status MemoryCopyD2H(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size) {
+
+show("MemoryCopyD2H size=" << size << " dst="<< dst << " src="<< src);
+getQ().submit([&](sycl::handler &h) {
+// copy hostArray to deviceArray
+h.memcpy(dst, src, size);
+});
+getQ().wait();
+
+//  memcpy(dst, src, size);
+  return C_SUCCESS;
+}
+
+
+C_Status MemoryCopyD2D(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size) {
+
+show("MemoryCopyD2D size=" << size << " dst="<< dst << " src="<< src);
+getQ().submit([&](sycl::handler &h) {
+// copy hostArray to deviceArray
+h.memcpy(dst, src, size);
+});
+getQ().wait();
+
+//  memcpy(dst, src, size);
+  return C_SUCCESS;
+}
+
+
+
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "intel_gpu";
   params->sub_device_type = "v0.1";
   show("INIT PLUGIN");
-  show("INFO DEVICE: " << getQ().get_device().get_info<sycl::info::device::name>()); 
+  show("INFO DEVICE: " << getQ().get_device().get_info<sycl::info::device::name>());
   memset(reinterpret_cast<void *>(params->interface),
          0,
          sizeof(C_DeviceInterface));
@@ -235,9 +289,14 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->synchronize_event = SyncEvent;
   params->interface->stream_wait_event = StreamWaitEvent;
 
-  params->interface->memory_copy_h2d = MemCpy;
-  params->interface->memory_copy_d2d = MemCpy;
-  params->interface->memory_copy_d2h = MemCpy;
+  // params->interface->memory_copy_h2d = MemCpy;
+  params->interface->memory_copy_h2d = MemoryCopyH2D;
+  // params->interface->memory_copy_d2d = MemCpy;
+  params->interface->memory_copy_d2d = MemoryCopyD2D;
+
+  params->interface->memory_copy_d2h = MemoryCopyD2H;
+
+
   params->interface->memory_copy_p2p = MemCpyP2P;
   params->interface->async_memory_copy_h2d = AsyncMemCpy;
   params->interface->async_memory_copy_d2d = AsyncMemCpy;

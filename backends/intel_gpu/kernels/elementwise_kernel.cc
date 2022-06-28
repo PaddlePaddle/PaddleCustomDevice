@@ -23,6 +23,8 @@ void MultiplyRawKernel(const phi::Context& dev_ctx,
                        const phi::DenseTensor& y,
                        int axis,
                        phi::DenseTensor* out) {
+
+  const auto& stream = dev_ctx.stream();
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -48,7 +50,70 @@ void MultiplyKernel(const phi::Context& dev_ctx,
   MultiplyRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
+
+
+template <typename T>
+void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
+
+  std::cout << "=== MultiplyRawKernelGPU :==== x="<< x.data<T>() << " y=" << y.data<T>() << std::endl;
+
+
+  auto x_dims = x.dims();
+  auto y_dims = y.dims();
+
+
+
+  auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
+  phi::DenseTensor tmp_x, tmp_y;
+  phi::BroadcastTo<T>(dev_ctx, x, dst_dims, axis, &tmp_x);
+  phi::BroadcastTo<T>(dev_ctx, y, dst_dims, axis, &tmp_y);
+
+  auto x_data = tmp_x.data<T>();
+  auto y_data = tmp_y.data<T>();
+  auto out_data = dev_ctx.template Alloc<T>(out);
+  auto numel = out->numel();
+  for (auto i = 0; i < numel; ++i) {
+    out_data[i] = x_data[i] * y_data[i];
+  }
+}
+
+template <typename T>
+void MultiplyKernelGPU(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  int axis = -1;
+  MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
+}
+
+
+
+
 }  // namespace custom_kernel
+
+
+PD_BUILD_PHI_KERNEL(multiply_raw,
+                    intel_gpu,
+                    ALL_LAYOUT,
+                    custom_kernel::MultiplyRawKernelGPU,
+                    int32_t,
+                    int64_t,
+                    float,
+                    double) {}
+
+PD_BUILD_PHI_KERNEL(multiply,
+                    intel_gpu,
+                    ALL_LAYOUT,
+                    custom_kernel::MultiplyKernelGPU,
+                    int32_t,
+                    int64_t,
+                    float,
+                    double) {}
+
 
 PD_BUILD_PHI_KERNEL(multiply_raw,
                     custom_cpu,

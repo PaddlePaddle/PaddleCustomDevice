@@ -17,16 +17,26 @@ cmake_minimum_required(VERSION 3.10)
 project(paddle-custom-intel-gpu CXX C)
 
 ##########################################
-set(ONEAPI_PATH "/opt/intel/oneapi")
+set(ONEAPI_PATH "/home/pawel/intel/oneapi")
+set(CND_ENV "dev")
+set(PADDLE_BUILD_DIR "/backup/work/Paddle/build_gcc_Release")
+
+if(DEFINED ENV{CONDA_DEFAULT_ENV})
+	message(STATUS "OVERRIDE CND_ENV ")
+	set(CND_ENV "$ENV{CONDA_DEFAULT_ENV}")
+endif()
+message(STATUS "CND_ENV => ${CND_ENV}")
+
+#############################
 set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
 set(DPCPP_COMPIER_PATH "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/bin/dpcpp")
 set(ONEAPI_SYCL_INCLUDE "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/include/sycl/")
 set(ONEAPI_SYCL_LIBDIR "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/lib/")
 set(CMAKE_CXX_COMPILER "${DPCPP_COMPIER_PATH}")
 ##########################################
-set(PADDLE_BUILD_DIR "/backup/work/Paddle/build_gcc_Release")
+#set(PADDLE_BUILD_DIR "/backup/work/Paddle/build_gcc_Release")
 #set(CND_PYTHON "/opt/conda/lib/python3.7")
-set(CND_PYTHON "/home/pablo/miniconda3/envs/cpu/lib/python3.9")
+set(CND_PYTHON "/home/pablo/miniconda3/envs/${CND_ENV}/lib/python3.9")
 set(ONEDNN_INC "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/include")
 set(ONEDNN_LIB "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/lib")
 ##########################################

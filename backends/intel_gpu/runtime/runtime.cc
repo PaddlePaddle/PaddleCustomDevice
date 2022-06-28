@@ -19,7 +19,7 @@
 
 #include "paddle/phi/backends/device_ext.h"
 #include <CL/sycl.hpp>
-
+#define show(x) std::cout << "[SHOW]: " <<  x << std::endl;
 #define MEMORY_FRACTION 0.5f
 
 C_Status Init() {
@@ -30,6 +30,13 @@ C_Status Init() {
   std::cout << "gcc\n";
 #endif
   return C_SUCCESS;
+}
+
+
+
+static sycl::queue& getQ() {
+   static sycl::queue q{sycl::gpu_selector{}};
+   return q;
 }
 
 C_Status InitDevice(const C_Device device) { return C_SUCCESS; }
@@ -91,19 +98,44 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
   return C_SUCCESS;
 }
 
+
+void GPUAlloc(void **ptr, size_t size) {
+
+  // *ptr= sycl::aligned_alloc_device(64, size, getQ());
+  *ptr = malloc_device<int>(size, getQ());
+}
+
+
+void GPUDealloc(void *ptr) {
+
+	sycl::free(ptr,getQ());
+	show("GPUDealloc ptr" << ptr);
+}
+
+
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
+
+  GPUAlloc(ptr,size);
+  return C_SUCCESS;
+
+
   auto data = malloc(size);
   if (data) {
     *ptr = data;
+    
+     show("Allocate " << size << "bytes  ptr="<< ptr);     
     return C_SUCCESS;
   } else {
     *ptr = nullptr;
   }
+ 
   return C_FAILED;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  free(ptr);
+ 
+ GPUDealloc(ptr);	
+// free(ptr);
   return C_SUCCESS;
 }
 
@@ -177,7 +209,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "intel_gpu";
   params->sub_device_type = "v0.1";
-
+  show("INIT PLUGIN");
+  show("INFO DEVICE: " << getQ().get_device().get_info<sycl::info::device::name>()); 
   memset(reinterpret_cast<void *>(params->interface),
          0,
          sizeof(C_DeviceInterface));

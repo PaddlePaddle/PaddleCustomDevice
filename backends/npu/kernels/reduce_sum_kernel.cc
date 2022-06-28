@@ -17,7 +17,7 @@
 
 namespace custom_kernel {
 
-static phi::DDim GetOutputShape(const std::vector<long int> unsqz_dims,
+static phi::DDim GetOutputShape(const std::vector<int64_t> unsqz_dims,
                                 const phi::DDim& in_dims) {
   int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
   int cur_output_size = in_dims.size();
@@ -87,12 +87,12 @@ void SumRawKernel(const Context& dev_ctx,
   phi::DenseTensor cast_x;
   phi::DenseTensor cast_out;
   // NOTE: ReduceSumD only supports fp32 and fp16
-  if (x.dtype() != phi::DenseTensorMeta::DataType::FLOAT32 &&
-      x.dtype() != phi::DenseTensorMeta::DataType::FLOAT16) {
+  if (x.dtype() != phi::DataType::FLOAT32 &&
+      x.dtype() != phi::DataType::FLOAT16) {
     cast_x.Resize(x.dims());
-    dev_ctx.template Alloc<T>(&cast_x);
+    dev_ctx.template Alloc<float>(&cast_x);
     cast_out.Resize(out->dims());
-    dev_ctx.template Alloc<T>(&cast_out);
+    dev_ctx.template Alloc<float>(&cast_out);
 
     const auto& runner_cast = NpuOpRunner(
         "Cast", {x}, {cast_x}, {{"dst_type", static_cast<int>(ACL_FLOAT)}});
@@ -123,9 +123,9 @@ void SumRawKernel(const Context& dev_ctx,
     runner.Run(stream);
   }
 
-  if (x.dtype() != phi::DenseTensorMeta::DataType::FLOAT32 &&
-      x.dtype() != phi::DenseTensorMeta::DataType::FLOAT16) {
-    auto dst_dtype = ConvertToNpuDtype(out_dtype);
+  if (x.dtype() != phi::DataType::FLOAT32 &&
+      x.dtype() != phi::DataType::FLOAT16) {
+    auto dst_dtype = ConvertToNpuDtype(out->dtype());
     const auto& runner_cast =
         NpuOpRunner("Cast",
                     {cast_out},

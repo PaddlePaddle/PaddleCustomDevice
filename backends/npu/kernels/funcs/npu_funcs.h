@@ -125,9 +125,32 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
                                    const std::vector<bool>& src,
                                    const phi::CustomContext& dev_ctx,
                                    phi::DenseTensor* dst) {
+  // vector<bool> has no data() member, use array instead.
+  // See details:
+  // https://stackoverflow.com/questions/46115669/why-does-stdvectorbool-have-no-data/46115714
+  bool* array = new bool[src.size()];
+  for (unsigned int i = 0; i < src.size(); i++) {
+    array[i] = static_cast<bool>(src[i]);
+  }
+
   auto dst_place = dev_ctx.GetPlace();
-  PADDLE_THROW(phi::errors::Unimplemented(
-      "TensorFromVector on %s is not supported.", dst_place));
+  auto src_ptr = static_cast<const void*>(array);
+  dst->Resize({static_cast<int64_t>(src.size())});
+  auto dst_ptr = static_cast<void*>(dev_ctx.template Alloc<bool>(dst));
+  auto size = src.size() * sizeof(bool);
+  if (UNLIKELY(size == 0)) return;
+
+  if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    AsyncMemCpyH2D(nullptr,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   src_ptr,
+                   size);
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorFromVector on %s is not supported.", dst_place));
+  }
+  delete[] array;
 }
 
 /**

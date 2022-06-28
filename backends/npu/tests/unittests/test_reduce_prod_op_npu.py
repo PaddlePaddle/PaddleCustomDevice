@@ -113,7 +113,7 @@ class TestReduceAll(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 class TestNPUReduceProdWithOutDtype_bool(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -129,7 +129,7 @@ class TestNPUReduceProdWithOutDtype_bool(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 class TestNPUReduceProdWithOutDtype_int16(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -145,7 +145,7 @@ class TestNPUReduceProdWithOutDtype_int16(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 class TestNPUReduceProdWithOutDtype_int32(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -161,7 +161,7 @@ class TestNPUReduceProdWithOutDtype_int32(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 class TestNPUReduceProdWithOutDtype_int64(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -177,7 +177,7 @@ class TestNPUReduceProdWithOutDtype_int64(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 class TestNPUReduceProdWithOutDtype_fp16(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -224,7 +224,7 @@ class TestNPUReduceProdWithOutDtype_fp64(TestNPUReduceProd):
 
 
 # TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Phi reduce_prod does not support different dtypes")
 @skip_check_grad_ci(reason="right now not implement grad op")
 class TestNPUReduceProdWithOutDtype_fp32_2(TestNPUReduceProd):
     def setUp(self):

@@ -74,8 +74,6 @@ class TestElementwiseDiv(OpTest):
             self.place, ['X'], 'Out', no_grad_set=set("Y"))
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestElementwiseDivFp16(OpTest):
     def setUp(self):
         self.set_npu()
@@ -106,8 +104,6 @@ class TestElementwiseDivFp16(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestElementwiseDivNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()
@@ -177,8 +173,7 @@ class TestElementwiseDivNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss))
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@unittest.skipIf(True, "Unimplemented before phi supports")
 class TestFloatStatus(unittest.TestCase):
     def test_overflow(self):
         paddle.disable_static()

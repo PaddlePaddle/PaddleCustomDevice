@@ -25,8 +25,6 @@ paddle.enable_static()
 SEED = 2021
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestNPUSigmoid(OpTest):
     def setUp(self):
         self.op_type = "sigmoid"
@@ -55,8 +53,6 @@ class TestNPUSigmoid(OpTest):
         self.dtype = np.float32
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestNPUSigmoidFp16(TestNPUSigmoid):
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)

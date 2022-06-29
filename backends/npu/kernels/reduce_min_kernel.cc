@@ -24,32 +24,8 @@ void MinRawKernel(const Context& dev_ctx,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
-  phi::DenseTensor cast_out;
   auto dims = axes;
-  cast_out.Resize(out->dims());
-  dev_ctx.template Alloc<T>(&cast_out);
-
-  auto cast_out_dtype = x.dtype();
-
-  if (x.dtype() != cast_out_dtype) {
-    if (cast_out_dtype == phi::DenseTensorMeta::DataType::FLOAT32) {
-      dev_ctx.template Alloc<float>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::FLOAT16) {
-      dev_ctx.template Alloc<float>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::INT16) {
-      dev_ctx.template Alloc<int16_t>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::INT32) {
-      dev_ctx.template Alloc<int32_t>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::INT64) {
-      dev_ctx.template Alloc<int64_t>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::FLOAT64) {
-      dev_ctx.template Alloc<double>(out);
-    } else if (cast_out_dtype == phi::DenseTensorMeta::DataType::BOOL) {
-      dev_ctx.template Alloc<bool>(out);
-    }
-  } else {
-    *out = cast_out;
-  }
+  dev_ctx.template Alloc<T>(out);
 
   NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};
 
@@ -73,25 +49,15 @@ void MinRawKernel(const Context& dev_ctx,
     };
 
     NpuOpRunner::TypeAdapter({x},
-                             {cast_out},
+                             {*out},
                              attr_input,
                              dev_ctx,
                              op_func,
                              {phi::DenseTensorMeta::DataType::INT32},
                              {phi::DenseTensorMeta::DataType::INT32});
   } else {
-    const auto& runner = NpuOpRunner("ReduceMinD", {x}, {cast_out}, attr_input);
+    const auto& runner = NpuOpRunner("ReduceMinD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
-  }
-
-  if (x.dtype() != cast_out_dtype) {
-    auto dst_dtype = ConvertToNpuDtype(cast_out_dtype);
-    const auto& runner_cast =
-        NpuOpRunner("Cast",
-                    {cast_out},
-                    {*out},
-                    {{"dst_type", static_cast<int>(dst_dtype)}});
-    runner_cast.Run(dev_ctx.stream());
   }
 }
 

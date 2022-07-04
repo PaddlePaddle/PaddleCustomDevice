@@ -16,7 +16,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
-
+#include <unistd.h>
 #include "paddle/phi/backends/device_ext.h"
 #include <CL/sycl.hpp>
 #define show(x) std::cout << "[SHOW]: " <<  x << std::endl;
@@ -141,7 +141,9 @@ C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  stream = nullptr;
+ // stream = nullptr;
+  *stream = reinterpret_cast<C_Stream>( &getQ() );
+  // show("CreateStream " << *stream << "    " << &getQ() );
   return C_SUCCESS;
 }
 
@@ -229,6 +231,8 @@ C_Status MemoryCopyD2H(const C_Device device,
                 size_t size) {
 
 show("MemoryCopyD2H size=" << size << " dst="<< dst << " src="<< src);
+
+//sleep(1);
 getQ().submit([&](sycl::handler &h) {
 // copy hostArray to deviceArray
 h.memcpy(dst, src, size);

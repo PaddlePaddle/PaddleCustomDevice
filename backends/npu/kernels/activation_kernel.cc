@@ -18,6 +18,70 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CosKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Cos", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void CosGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor sin_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  sin_out.set_meta(meta);
+  dev_ctx.template Alloc<T>(&sin_out);
+
+  const auto& runner = NpuOpRunner("Sin", {x}, {sin_out}, {});
+  runner.Run(stream);
+
+  const auto& runner_dx = NpuOpRunner("Mul", {dout, sin_out}, {*dx}, {});
+  runner_dx.Run(stream);
+
+  phi::DenseTensor tmp;
+  phi::DenseTensorMeta tmp_meta = {x.dtype(), {1, 1}};
+  tmp.set_meta(tmp_meta);
+  dev_ctx.template Alloc<T>(&tmp);
+  float factor = -1.;
+  FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(factor));
+
+  const auto& runner_dx_ = NpuOpRunner("Xdivy", {*dx, tmp}, {*dx}, {});
+  runner_dx_.Run(stream);
+}
+
+template <typename T, typename Context>
+void AtanKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Atan", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AtanGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("AtanGrad", {x, dout}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ExpKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -347,6 +411,38 @@ void SquareGradKernel(const Context& dev_ctx,
 }
 
 }  // namespace custom_kernel
+
+PD_REGISTER_PLUGIN_KERNEL(cos,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::CosKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(cos_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::CosGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(atan,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(atan_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
     exp, ascend, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}

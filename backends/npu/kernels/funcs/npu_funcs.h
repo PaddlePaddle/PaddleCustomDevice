@@ -191,6 +191,30 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
       "TensorFromVector on %s is not supported.", dst_place));
 }
 
+template <typename T>
+void TensorFromArray(const phi::CustomContext& ctx,
+                     const T* src,
+                     const size_t& array_size,
+                     const phi::CustomContext& dev_ctx,
+                     phi::DenseTensor* dst) {
+  auto dst_place = dev_ctx.GetPlace();
+  auto src_ptr = static_cast<const void*>(src);
+  dst->Resize({static_cast<int64_t>(array_size)});
+  auto dst_ptr = static_cast<void*>(dev_ctx.template Alloc<T>(dst));
+  auto size = array_size * sizeof(T);
+
+  if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    AsyncMemCpyH2D(nullptr,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   src_ptr,
+                   size);
+  } else {  // NOLINT
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorFromArray on %s is not supported.", dst_place));
+  }
+}
+
 /**
  * NPU -> CPU
  */

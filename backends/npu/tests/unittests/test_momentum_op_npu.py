@@ -273,8 +273,6 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
                 exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Runtime AddCallback is not supported")
 class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
     def __update_params(self, momentum, linear):
         for i in range(10):

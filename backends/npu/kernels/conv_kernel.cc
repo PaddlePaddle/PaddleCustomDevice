@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/conv_util.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-#include "paddle/utils/optional.h"
 
 namespace custom_kernel {
 
@@ -44,58 +44,6 @@ static void CastToFP32(const Context& dev_ctx,
       .AddOutput(*out)
       .AddAttr("dst_type", ACL_FLOAT)
       .Run(stream);
-}
-
-template <typename T = int>
-inline void UpdatePaddingAndDilation(std::vector<T>* paddings,
-                                     std::vector<T>* dilation,
-                                     const std::string padding_algorithm,
-                                     const phi::DDim data_dims,
-                                     const std::vector<T>& strides,
-                                     const std::vector<T>& ksize) {
-  // set padding size == data_dims.size() * 2
-  auto data_shape = phi::vectorize<T>(data_dims);
-  if (static_cast<int>(paddings->size()) == data_dims.size()) {
-    for (int i = 0; i < data_dims.size(); ++i) {
-      T copy_pad = *(paddings->begin() + 2 * i);
-      paddings->insert(paddings->begin() + 2 * i + 1, copy_pad);
-    }
-  } else {
-    PADDLE_ENFORCE_EQ(
-        data_dims.size() * 2,
-        paddings->size(),
-        phi::errors::InvalidArgument(
-            "Attribute padding's size should be the same or twice as the "
-            "input's dimension. "
-            "But recieved: padding's size is %d, padding is [%s]; input's "
-            "dimension is %d, input's shape is [%s].",
-            paddings->size(),
-            phi::make_ddim(*paddings),
-            data_dims.size(),
-            data_dims));
-  }
-
-  // when padding_algorithm is "VALID" or "SAME"
-  if (padding_algorithm == "SAME") {
-    for (int i = 0; i < data_dims.size(); ++i) {
-      T out_size = (data_dims[i] + strides[i] - 1) / strides[i];
-      T pad_sum =
-          std::max((out_size - 1) * strides[i] + ksize[i] - data_shape[i],
-                   static_cast<T>(0));
-      T pad_0 = pad_sum / 2;
-      T pad_1 = pad_sum - pad_0;
-      *(paddings->begin() + i * 2) = pad_0;
-      *(paddings->begin() + i * 2 + 1) = pad_1;
-
-      // dilation
-      *(dilation->begin() + i) = 1;
-    }
-
-  } else if (padding_algorithm == "VALID") {
-    for (auto it = paddings->begin(); it != paddings->end(); it++) {
-      *it = 0;
-    }
-  }
 }
 
 template <typename T, typename Context>
@@ -133,7 +81,7 @@ void Conv2dKernel(const Context& dev_ctx,
   filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
 
   std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
-  UpdatePaddingAndDilation(
+  custom_kernel::UpdatePaddingAndDilation(
       &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
   std::vector<int> strides_vec(4, 1);
@@ -205,7 +153,7 @@ void Conv2dGradKernel(const Context& dev_ctx,
   filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
 
   std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
-  UpdatePaddingAndDilation(
+  custom_kernel::UpdatePaddingAndDilation(
       &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
   std::vector<int> strides_vec(4, 1);
@@ -282,6 +230,215 @@ void Conv2dGradKernel(const Context& dev_ctx,
     runner.Run(stream);
   }
 }
+
+template <typename T, typename Context>
+void Conv3dKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& input,
+                  const phi::DenseTensor& filter,
+                  const std::vector<int>& strides,
+                  const std::vector<int>& padding,
+                  const std::string& padding_algorithm,
+                  int groups,
+                  const std::vector<int>& dilation,
+                  const std::string& data_format,
+                  bool use_addto,
+                  int workspace_size_MB,
+                  bool exhaustive_search,
+                  phi::DenseTensor* out) {
+  auto paddings = padding;
+  auto dilations = dilation;
+
+  PADDLE_ENFORCE_EQ(data_format,
+                    "NCDHW",
+                    phi::errors::Unimplemented(
+                        "the data_format must be NCDHW in "
+                        "the npu kernel of conv3d, but got data_format "
+                        "= [%s]",
+                        data_format));
+
+  PADDLE_ENFORCE_EQ(
+      groups,
+      1,
+      phi::errors::Unimplemented("the groups must be 1 in "
+                                 "the npu kernel of conv3d, but got groups "
+                                 "= [%d]",
+                                 groups));
+
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor input_tensor(input);
+  phi::DenseTensor filter_tensor(filter);
+  phi::DenseTensor output_tensor(*out);
+
+  phi::DenseTensorMeta input_meta = {
+      input_tensor.dtype(), input_tensor.dims(), phi::DataLayout::kNCDHW};
+  input_tensor.set_meta(input_meta);
+
+  phi::DenseTensorMeta filter_meta = {
+      filter_tensor.dtype(), filter_tensor.dims(), phi::DataLayout::kNCDHW};
+  filter_tensor.set_meta(filter_meta);
+
+  phi::DenseTensorMeta output_meta = {
+      output_tensor.dtype(), output_tensor.dims(), phi::DataLayout::kNCDHW};
+  output_tensor.set_meta(output_meta);
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  custom_kernel::UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
+
+  std::vector<int> strides_vec(5, 1);
+  std::vector<int> dilations_vec(5, 1);
+
+  strides_vec[2] = strides[0];
+  strides_vec[3] = strides[1];
+  strides_vec[4] = strides[2];
+  dilations_vec[2] = dilations[0];
+  dilations_vec[3] = dilations[1];
+  dilations_vec[4] = dilations[2];
+
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Conv3D",
+                                   {input_tensor, filter_tensor},
+                                   {output_tensor},
+                                   {{"strides", strides_vec},
+                                    {"pads", paddings},
+                                    {"dilations", dilations_vec},
+                                    {"groups", groups},
+                                    {"data_format", data_format}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Conv3dGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const phi::DenseTensor& filter,
+                      const phi::DenseTensor& out_grad,
+                      const std::vector<int>& strides,
+                      const std::vector<int>& padding,
+                      const std::string& padding_algorithm,
+                      int groups,
+                      const std::vector<int>& dilation,
+                      const std::string& data_format,
+                      bool use_addto,
+                      int workspace_size_MB,
+                      bool exhaustive_search,
+                      phi::DenseTensor* input_grad,
+                      phi::DenseTensor* filter_grad) {
+  auto paddings = padding;
+  auto dilations = dilation;
+
+  PADDLE_ENFORCE_EQ(data_format,
+                    "NCDHW",
+                    phi::errors::Unimplemented(
+                        "the data_format must be NCDHW in "
+                        "the npu kernel of conv3d, but got data_format "
+                        "= [%s]",
+                        data_format));
+
+  PADDLE_ENFORCE_EQ(
+      groups,
+      1,
+      phi::errors::Unimplemented("the groups must be 1 in "
+                                 "the npu kernel of conv3d, but got groups "
+                                 "= [%d]",
+                                 groups));
+
+  phi::DenseTensor input_tensor(input);
+  phi::DenseTensor filter_tensor(filter);
+  phi::DenseTensor output_grad_tensor(out_grad);
+
+  phi::DenseTensorMeta input_meta = {
+      input_tensor.dtype(), input_tensor.dims(), phi::DataLayout::kNCDHW};
+  input_tensor.set_meta(input_meta);
+
+  phi::DenseTensorMeta filter_meta = {
+      filter_tensor.dtype(), filter_tensor.dims(), phi::DataLayout::kNCDHW};
+  filter_tensor.set_meta(filter_meta);
+
+  phi::DenseTensorMeta output_meta = {output_grad_tensor.dtype(),
+                                      output_grad_tensor.dims(),
+                                      phi::DataLayout::kNCDHW};
+  output_grad_tensor.set_meta(output_meta);
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  custom_kernel::UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
+
+  std::vector<int> strides_vec(5, 1);
+  std::vector<int> dilations_vec(5, 1);
+
+  strides_vec[2] = strides[0];
+  strides_vec[3] = strides[1];
+  strides_vec[4] = strides[2];
+  dilations_vec[2] = dilations[0];
+  dilations_vec[3] = dilations[1];
+  dilations_vec[4] = dilations[2];
+
+  auto stream = dev_ctx.stream();
+
+  if (filter_grad) {
+    dev_ctx.template Alloc<T>(filter_grad);
+    std::vector<int> filter_shape_vec = phi::vectorize<int>(filter.dims());
+
+    phi::DenseTensor filter_grad_tensor(*filter_grad);
+    phi::DenseTensorMeta filter_grad_meta = {filter_grad_tensor.dtype(),
+                                             filter_grad_tensor.dims(),
+                                             phi::DataLayout::kNCDHW};
+    filter_grad_tensor.set_meta(filter_grad_meta);
+
+    const auto& runner = NpuOpRunner("Conv3DBackpropFilterD",
+                                     {input_tensor, output_grad_tensor},
+                                     {filter_grad_tensor},
+                                     {{"filter_size", filter_shape_vec},
+                                      {"strides", strides_vec},
+                                      {"pads", paddings},
+                                      {"dilations", dilations_vec},
+                                      {"groups", groups},
+                                      {"data_format", data_format}});
+    runner.Run(stream);
+  }
+
+  if (input_grad) {
+    dev_ctx.template Alloc<T>(input_grad);
+    std::vector<int> input_shape_vec = phi::vectorize<int>(input.dims());
+
+    phi::DenseTensor input_grad_tensor(*input_grad);
+    phi::DenseTensorMeta input_grad_meta = {input_grad_tensor.dtype(),
+                                            input_grad_tensor.dims(),
+                                            phi::DataLayout::kNCDHW};
+    input_grad_tensor.set_meta(input_grad_meta);
+
+    const auto& runner = NpuOpRunner("Conv3DBackpropInputD",
+                                     {filter_tensor, output_grad_tensor},
+                                     {input_grad_tensor},
+                                     {{"input_size", input_shape_vec},
+                                      {"strides", strides_vec},
+                                      {"pads", paddings},
+                                      {"dilations", dilations_vec},
+                                      {"groups", groups},
+                                      {"data_format", data_format}});
+    runner.Run(stream);
+  }
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d,
@@ -290,9 +447,24 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d,
                           custom_kernel::Conv2dKernel,
                           float,
                           phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(conv3d,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv3dKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Conv3dGradKernel,
                           float,
                           phi::dtype::float16) {}

@@ -21,8 +21,8 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "pybind11/pybind11.h"
 
-static std::map<paddle::experimental::DataType, aclDataType> DTYPE_2_ACL_DTYPE =
-    {
+static std::map<paddle::experimental::DataType, aclDataType>  //
+    DTYPE_2_ACL_DTYPE = {
         {paddle::experimental::DataType::BOOL, ACL_BOOL},
         {paddle::experimental::DataType::UINT8, ACL_UINT8},
         {paddle::experimental::DataType::INT8, ACL_INT8},
@@ -38,6 +38,8 @@ static std::map<paddle::experimental::DataLayout, aclFormat>
     DATA_LAYOUT_2_ACL_FORMAT = {
         {paddle::experimental::DataLayout::NCHW, ACL_FORMAT_NCHW},
         {paddle::experimental::DataLayout::NHWC, ACL_FORMAT_NHWC},
+        {paddle::experimental::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
+        {paddle::experimental::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
         {paddle::experimental::DataLayout::ANY, ACL_FORMAT_ND},
 };
 

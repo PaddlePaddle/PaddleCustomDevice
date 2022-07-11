@@ -67,4 +67,6 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           int16_t,
                           int32_t,
                           int64_t,
-                          bool) {}
+                          bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

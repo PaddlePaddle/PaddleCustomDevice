@@ -322,8 +322,9 @@ C_Status AddCallback(const C_Device device,
                      C_Stream stream,
                      C_Callback callback,
                      void* user_data) {
-  ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
-  return C_SUCCESS;
+  C_Status ret = C_SUCCESS;
+  callback(device, stream, user_data, &ret);
+  return ret;
 }
 
 C_Status DeviceMemStats(const C_Device device,

@@ -127,6 +127,30 @@ void ReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void Relu6Kernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 float attr,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
+
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Relu6GradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     float attr,
+                     phi::DenseTensor* dx) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner = NpuOpRunner("Relu6Grad", {dout, out}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void LeakyReluKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      float alpha,
@@ -463,6 +487,22 @@ PD_REGISTER_PLUGIN_KERNEL(relu_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::ReluGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(relu6,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6Kernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6GradKernel,
                           float,
                           double,
                           phi::dtype::float16) {}

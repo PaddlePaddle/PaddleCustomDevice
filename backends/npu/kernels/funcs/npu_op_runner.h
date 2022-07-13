@@ -14,12 +14,11 @@
 
 #pragma once
 
-#include "paddle/phi/extension.h"
-
+#include "acl/acl.h"
 #include "boost/config.hpp"
 #include "boost/variant.hpp"
-
-#include "acl/acl.h"
+#include "glog/logging.h"
+#include "paddle/phi/extension.h"
 
 aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
 aclFormat ConvertToNpuFormat(paddle::experimental::DataLayout layout);

@@ -38,12 +38,30 @@ void AssignValueKernel(const phi::Context& dev_ctx,
   out->Resize(std::vector<int64_t>(shape.cbegin(), shape.cend()));
 }
 
+template <typename T>
+void AssignKernel(const phi::Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  phi::DenseTensor* out) {
+  auto out_data = dev_ctx.template Alloc<T>(out);
+  auto x_data = x.data<T>();
+  std::memcpy(out_data, x_data, sizeof(T) * x.numel());
+}
+
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(assign_value,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::AssignValueKernel,
+                    int,
+                    int64_t,
+                    float,
+                    double) {}
+
+PD_BUILD_PHI_KERNEL(assign,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::AssignKernel,
                     int,
                     int64_t,
                     float,

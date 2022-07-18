@@ -16,12 +16,10 @@
 
 #include <string>
 
-#include <boost/variant.hpp>
-
-#include "paddle/phi/core/enforce.h"
-
 #include "acl/acl.h"
 #include "hccl/hccl_types.h"
+#include "paddle/phi/core/enforce.h"
+#include "paddle/utils/variant.h"
 
 namespace custom_kernel {
 
@@ -48,12 +46,12 @@ DEFINE_NPU_STATUS_TYPE(HcclResult, HCCL_SUCCESS);
                                   __OutputTypePtr,                           \
                                   __OutputType>::type {                      \
     try {                                                                    \
-      return boost::get<OutputType>(input);                                  \
-    } catch (boost::bad_get&) {                                              \
+      return paddle::get<OutputType>(input);                                 \
+    } catch (paddle::bad_variant_access const&) {                            \
       HANDLE_THE_ERROR                                                       \
       throw ::phi::enforce::EnforceNotMet(                                   \
           phi::errors::InvalidArgument(                                      \
-              "boost::get failed, cannot get value "                         \
+              "paddle::get failed, cannot get value "                        \
               "(%s) by type %s, its type is %s.",                            \
               expression,                                                    \
               phi::enforce::demangle(typeid(OutputType).name()),             \

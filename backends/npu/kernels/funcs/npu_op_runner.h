@@ -15,27 +15,27 @@
 #pragma once
 
 #include "acl/acl.h"
-#include "boost/config.hpp"
-#include "boost/variant.hpp"
 #include "glog/logging.h"
 #include "paddle/phi/extension.h"
+#include "paddle/utils/blank.h"
+#include "paddle/utils/variant.h"
 
 aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
 aclFormat ConvertToNpuFormat(paddle::experimental::DataLayout layout);
 
-using NPUAttribute = boost::variant<boost::blank,
-                                    int,
-                                    float,
-                                    std::string,
-                                    std::vector<int>,
-                                    std::vector<float>,
-                                    std::vector<std::string>,
-                                    bool,
-                                    std::vector<bool>,
-                                    int64_t,
-                                    std::vector<int64_t>,
-                                    std::vector<double>,
-                                    std::vector<std::vector<int64_t>>>;
+using NPUAttribute = paddle::variant<paddle::blank,
+                                     int,
+                                     float,
+                                     std::string,
+                                     std::vector<int>,
+                                     std::vector<float>,
+                                     std::vector<std::string>,
+                                     bool,
+                                     std::vector<bool>,
+                                     int64_t,
+                                     std::vector<int64_t>,
+                                     std::vector<double>,
+                                     std::vector<std::vector<int64_t>>>;
 
 using NPUAttributeMap = std::unordered_map<std::string, NPUAttribute>;
 

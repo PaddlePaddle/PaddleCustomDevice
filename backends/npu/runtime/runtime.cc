@@ -324,6 +324,15 @@ C_Status StreamWaitEvent(const C_Device device,
   return C_SUCCESS;
 }
 
+C_Status AddCallback(const C_Device device,
+                     C_Stream stream,
+                     C_Callback callback,
+                     void* user_data) {
+  C_Status ret = C_SUCCESS;
+  callback(device, stream, user_data, &ret);
+  return ret;
+}
+
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
@@ -554,6 +563,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->synchronize_stream = SyncStream;
   params->interface->synchronize_event = SyncEvent;
   params->interface->stream_wait_event = StreamWaitEvent;
+  params->interface->stream_add_callback = AddCallback;
 
   params->interface->memory_copy_h2d = MemCpyH2D;
   params->interface->memory_copy_d2d = MemCpyD2D;

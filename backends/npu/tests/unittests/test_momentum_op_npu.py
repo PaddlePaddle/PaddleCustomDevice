@@ -286,7 +286,6 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             linear.clear_gradients()
 
     def __test_vs(self, place=paddle.CustomPlace('ascend', 0)):
-        paddle.disable_static(place=place)
         linear_old = paddle.nn.Linear(
             2,
             2,
@@ -319,7 +318,9 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             'the param weight updated by two Momentum optimizers should equal')
 
     def test_vs(self, place=paddle.CustomPlace('ascend', 0)):
+        paddle.disable_static()
         self.__test_vs(place=place)
+        paddle.enable_static()
 
 
 class TestMomentumV2Group(TestMomentumV2):

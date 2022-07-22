@@ -85,8 +85,7 @@ template <typename T, typename Context>
 void SqueezeKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const std::vector<int>& axes,
-                   phi::DenseTensor* out,
-                   phi::DenseTensor* xshape) {
+                   phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
 
   auto x_dims = x.dims();
@@ -95,6 +94,15 @@ void SqueezeKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, x, false, out);
 
   out->Resize(out_dims);
+}
+
+template <typename T, typename Context>
+void SqueezeWithXShapeKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const std::vector<int>& axes,
+                             phi::DenseTensor* out,
+                             phi::DenseTensor* xshape) {
+  custom_kernel::SqueezeKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
@@ -118,6 +126,19 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::SqueezeKernel,
+                          bool,
+                          int,
+                          uint8_t,
+                          int8_t,
+                          int64_t,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(squeeze_with_xshape,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SqueezeWithXShapeKernel,
                           bool,
                           int,
                           uint8_t,

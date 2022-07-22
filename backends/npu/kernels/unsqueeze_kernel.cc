@@ -70,8 +70,7 @@ template <typename T, typename Context>
 void UnsqueezeNPUKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::IntArray& axes,
-                        phi::DenseTensor* out,
-                        phi::DenseTensor* xshape) {
+                        phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
@@ -86,6 +85,15 @@ void UnsqueezeNPUKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   custom_kernel::TensorCopy(dev_ctx, x, false, out);
   out->Resize(out_dims);  // copy will reset the dims.
+}
+
+template <typename T, typename Context>
+void UnsqueezeWithXShapeNPUKernel(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  const phi::IntArray& axes,
+                                  phi::DenseTensor* out,
+                                  phi::DenseTensor* xshape) {
+  custom_kernel::UnsqueezeNPUKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
@@ -107,6 +115,22 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeNPUKernel,
+                          float,
+                          double,
+                          phi::dtype::bfloat16,
+                          bool,
+                          int,
+                          int16_t,
+                          uint8_t,
+                          int8_t,
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::UnsqueezeWithXShapeNPUKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,

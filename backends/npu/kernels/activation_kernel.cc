@@ -434,6 +434,192 @@ void SquareGradKernel(const Context& dev_ctx,
   runner_mul_2.Run(stream);
 }
 
+template <typename T, typename Context>
+void HardSigmoidKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       float slope,
+                       float offset,
+                       phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  NPUAttributeMap attr_input = {{"alpha", slope}, {"beta", offset}};
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("HardSigmoid", {x}, {*out}, attr_input);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSigmoidGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& out,
+                           const phi::DenseTensor& dout,
+                           float slope,
+                           float offset,
+                           phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+
+  NPUAttributeMap attr_input = {{"alpha", slope}, {"beta", offset}};
+
+  auto stream = dev_ctx.stream();
+  const auto& runner_dx =
+      NpuOpRunner("HardSigmoidGrad", {dout, out}, {*dx}, attr_input);
+  runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     float threshold,
+                     float scale,
+                     float offset,
+                     phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
+  phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
+  phi::DenseTensor tensor_offset;
+  tensor_offset.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_offset);
+  FillNpuTensorWithConstant<T>(&tensor_offset, dev_ctx, static_cast<T>(offset));
+
+  phi::DenseTensor add_offset_val;
+  add_offset_val.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&add_offset_val);
+  const auto& runner_add =
+      NpuOpRunner("AddV2", {x, tensor_offset}, {add_offset_val});
+  runner_add.Run(stream);
+
+  phi::DenseTensor tensor_threshold;
+  tensor_threshold.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_threshold);
+  FillNpuTensorWithConstant<T>(
+      &tensor_threshold, dev_ctx, static_cast<T>(threshold));
+
+  phi::DenseTensor tensor_zero;
+  tensor_zero.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_zero);
+  FillNpuTensorWithConstant<T>(&tensor_zero, dev_ctx, static_cast<T>(0.0));
+
+  phi::DenseTensor clip_val;
+  clip_val.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&clip_val);
+  const auto& runner_clip =
+      NpuOpRunner("ClipByValue",
+                  {add_offset_val, tensor_zero, tensor_threshold},
+                  {clip_val});
+  runner_clip.Run(stream);
+
+  phi::DenseTensor tensor_scale_tmp;
+  tensor_scale_tmp.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_scale_tmp);
+  FillNpuTensorWithConstant<T>(
+      &tensor_scale_tmp, dev_ctx, static_cast<T>(scale));
+  phi::DenseTensor tensor_scale;
+  tensor_scale.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tensor_scale);
+  const auto& runner_fill = NpuOpRunner("FillD",
+                                        {tensor_scale_tmp},
+                                        {tensor_scale},
+                                        {{"dims", phi::vectorize(x.dims())}});
+  runner_fill.Run(stream);
+
+  phi::DenseTensor div_val;
+  div_val.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&div_val);
+  const auto& runner_div =
+      NpuOpRunner("Div", {clip_val, tensor_scale}, {div_val});
+  runner_div.Run(stream);
+
+  const auto& runner_mul = NpuOpRunner("Mul", {x, div_val}, {*out});
+  runner_mul.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSwishGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& dout,
+                         float threshold,
+                         float scale,
+                         float offset,
+                         phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
+  phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
+  phi::DenseTensor tensor_offset;
+  tensor_offset.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_offset);
+  FillNpuTensorWithConstant<T>(&tensor_offset, dev_ctx, static_cast<T>(offset));
+
+  phi::DenseTensor add_offset_val;
+  add_offset_val.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&add_offset_val);
+  const auto& runner_add =
+      NpuOpRunner("AddV2", {x, tensor_offset}, {add_offset_val});
+  runner_add.Run(stream);
+
+  phi::DenseTensor tmp1;
+  tmp1.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tmp1);
+  const auto& runner_pow1 =
+      NpuOpRunner("Power", {x}, {tmp1}, {{"scale", 2.0f}, {"shift", offset}});
+  runner_pow1.Run(stream);
+
+  phi::DenseTensor tmp2;
+  tmp2.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tmp2);
+  const auto& runner_ht_grad =
+      NpuOpRunner("HardtanhGrad",
+                  {add_offset_val, tmp1},
+                  {tmp2},
+                  {{"min_val", 0.0f}, {"max_val", threshold}});
+  runner_ht_grad.Run(stream);
+
+  phi::DenseTensor tmp3;
+  tmp3.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tmp3);
+  const auto& runner_pow2 = NpuOpRunner(
+      "Power", {tmp2}, {tmp3}, {{"scale", 1.0f / scale}, {"shift", 1.0f}});
+  runner_pow2.Run(stream);
+
+  phi::DenseTensor tensor_threshold_tmp;
+  tensor_threshold_tmp.set_meta(meta_1);
+  dev_ctx.template Alloc<T>(&tensor_threshold_tmp);
+  FillNpuTensorWithConstant<T>(
+      &tensor_threshold_tmp, dev_ctx, static_cast<T>(threshold));
+  phi::DenseTensor tensor_threshold;
+  tensor_threshold.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tensor_threshold);
+  const auto& runner_fill = NpuOpRunner("FillD",
+                                        {tensor_threshold_tmp},
+                                        {tensor_threshold},
+                                        {{"dims", phi::vectorize(x.dims())}});
+  runner_fill.Run(stream);
+
+  phi::DenseTensor tmp_bool;
+  phi::DenseTensorMeta meta_tmp = {phi::DataType::BOOL, x.dims()};
+  tmp_bool.set_meta(meta_tmp);
+  dev_ctx.template Alloc<bool>(&tmp_bool);
+  const auto& runner_less =
+      NpuOpRunner("Less", {add_offset_val, tensor_threshold}, {tmp_bool});
+  runner_less.Run(stream);
+  phi::DenseTensor tmp4;
+  tmp4.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tmp4);
+  auto dst_dtype = ConvertToNpuDtype(x.dtype());
+  const auto& runner_cast = NpuOpRunner(
+      "Cast", {tmp_bool}, {tmp4}, {{"dst_type", static_cast<int>(dst_dtype)}});
+  runner_cast.Run(stream);
+
+  phi::DenseTensor tmp5;
+  tmp5.set_meta(meta_x);
+  dev_ctx.template Alloc<T>(&tmp5);
+  const auto& runner_sub = NpuOpRunner("Sub", {tmp3, tmp4}, {tmp5});
+  runner_sub.Run(stream);
+
+  const auto& runner_final = NpuOpRunner("Mul", {tmp5, dout}, {*dx});
+  runner_final.Run(stream);
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
@@ -626,3 +812,31 @@ PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           float,
                           phi::dtype::float16,
                           double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSigmoidKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSigmoidGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_swish,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSwishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSwishGradKernel,
+                          float,
+                          phi::dtype::float16) {}

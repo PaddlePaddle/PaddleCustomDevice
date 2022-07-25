@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <set>
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
@@ -156,6 +158,18 @@ void SumGradKernel(const Context& dev_ctx,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto keep_dims = keep_dim;
+
+  // The dims has full dim, set the reduce_all is True
+  const auto& input_dim_size = x.dims().size();
+  std::set<int> dims_set(dims.begin(), dims.end());
+  bool full_dim = true;
+  for (auto i = 0; i < input_dim_size; i++) {
+    if (dims_set.find(i) == dims_set.end()) {
+      full_dim = false;
+      break;
+    }
+  }
+  reduce_all = (reduce_all || full_dim);
 
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();

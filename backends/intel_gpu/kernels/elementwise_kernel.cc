@@ -15,6 +15,7 @@
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 #include <CL/sycl.hpp>
+#include "oneapi/dnnl/dnnl.hpp"
 namespace custom_kernel {
 
 template <typename T>

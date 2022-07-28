@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <CL/sycl.hpp>
+
+#include "oneapi/dnnl/dnnl_sycl.hpp"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include <CL/sycl.hpp>
-#include "oneapi/dnnl/dnnl.hpp"
+#include "dnn_support.hpp"
+
 namespace custom_kernel {
 
 template <typename T>
@@ -61,6 +64,8 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
                        phi::DenseTensor* out) {
 
   std::cout << "=== MultiplyRawKernelGPU :==== x="<< x.data<T>() << " y=" << y.data<T>() << "out->numel="<< out->numel() << std::endl;
+
+
   void *stream = const_cast< void* >(dev_ctx.stream());
   std::cout << "got stream "<< std::endl;
 
@@ -99,18 +104,8 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
 
   sycl::free(gpu_mem, *q);
 
-
-
-
-
   // std::cout << "stream = " << stream << std::endl;
   // std::cout << "Out_data="<< out_data << std::endl;
-
-
-
-
-
-
 
 /*
   auto x_dims = x.dims();
@@ -138,52 +133,167 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
 
 template <typename T>
 void MultiplyKernelGPU(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out) {
   int axis = -1;
   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
 }
 
+template <typename T>
+void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& y,
+                          int axis,
+                          phi::DenseTensor* out) {
+  std::cout << "====OneDNN MultiplyOneDNNRawKernel kernel ====" << std::endl;
+  //void* stream = const_cast<void*>(dev_ctx.stream());
+  auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
+
+  if (!q) {
+
+  }
+
+  using namespace dnnl;
+  using tag = memory::format_tag;
+  using dt = memory::data_type;
+
+  auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
+  auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
+
+  dnnl::memory::dims common_dims = {out->numel()};
+  auto common_md = memory::desc(common_dims, dnn_support::toDnnType<T>::type, tag::a);
+
+  auto x_mem = memory(common_md, eng, x.data<T>());
+  auto y_mem = memory(common_md, eng, y.data<T>());
+  // out = dev_ctx.Alloc<T>(out->numel());
+
+  std::cout << "==begin====>" << std::endl;
+  auto out_data = dev_ctx.template Alloc<T>(out);
+  std::cout << "===end===> out_data="<< out_data << std::endl;
+
+  auto out_mem = memory(common_md, eng, out_data);
+
+  auto oper_desc =
+      binary::desc(algorithm::binary_mul, common_md, common_md, common_md);
+  auto prim_desc = binary::primitive_desc(oper_desc, eng);
+  auto prim = binary(prim_desc);
+
+  std::unordered_map<int, memory> binary_args;
+  binary_args.insert({DNNL_ARG_SRC_0, x_mem});
+  binary_args.insert({DNNL_ARG_SRC_1, y_mem});
+  binary_args.insert({DNNL_ARG_DST, out_mem});
+
+  prim.execute(eng, binary_args);
+  engine_stream.wait();
+
+  //  auto y_md = memory::desc(common_dims, toDnnType<CoreType>::type, tag::a);
+  //  auto xy_md = memory::desc(common_dims, toDnnType<CoreType>::type, tag::a);
+}
+
+template <typename T>
+void MultiplyOneDNNKernel(const phi::Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& y,
+                            phi::DenseTensor* out) {
+  int axis = -1;
+  MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
+}
+
+
+
+  // template <typename T>
+  // void MultiplyKernelGPU(const phi::Context& dev_ctx,
+  //                        const phi::DenseTensor& x,
+  //                        const phi::DenseTensor& y,
+  //                        phi::DenseTensor* out) {
+  //   int axis = -1;
+  //   if constexpr (std::is_same<T, float>::value ||
+  //                 std::is_same<T, int>::value) {
+  //     MultiplyOneDNNKernel<T>(dev_ctx, x, y, axis, out);
+  //   } else {
+  //     MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
+  //   }
+  // }
+
+template <typename T>
+void MultiplyMainRaw(const phi::Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     int axis,
+                     phi::DenseTensor* out) {
+  // if constexpr (std::is_same<T, float>::value ||
+  //               std::is_same<T, int>::value) {
+  //   MultiplyOneDNNKernel<T>(dev_ctx, x, y, axis, out);
+  // } else {
+  //   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
+  // }
+
+  if constexpr (std::is_same<T, float>::value
+               || std::is_same<T, int32_t>::value
+               //|| std::is_same <T,double>::value
+                 ) {
+    MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
+  } else {
+    MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
+  }
+}
+  template <typename T>
+  void MultiplyMain(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+
+      int axis = -1;
+      MultiplyMainRaw<T>(dev_ctx, x, y, axis, out);
+
+
+  }
 
 
 
 }  // namespace custom_kernel
 
 
-PD_BUILD_PHI_KERNEL(multiply_raw,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MultiplyRawKernelGPU,
-                    int32_t,
-                    int64_t,
-                    float,
-                    double) {}
-
-PD_BUILD_PHI_KERNEL(multiply,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MultiplyKernelGPU,
-                    int32_t,
-                    int64_t,
-                    float,
-                    double) {}
 
 
-PD_BUILD_PHI_KERNEL(multiply_raw,
-                    custom_cpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MultiplyRawKernel,
-                    int32_t,
-                    int64_t,
-                    float,
-                    double) {}
 
-PD_BUILD_PHI_KERNEL(multiply,
-                    custom_cpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MultiplyKernel,
-                    int32_t,
-                    int64_t,
-                    float,
-                    double) {}
+
+
+             PD_BUILD_PHI_KERNEL(multiply_raw,
+                                 intel_gpu,
+                                 ALL_LAYOUT,
+                                 // custom_kernel::MultiplyRawKernelGPU,
+                                 custom_kernel::MultiplyMainRaw,
+                                 int32_t,
+                                 int64_t,
+                                 float,
+                                 double) {}
+
+             PD_BUILD_PHI_KERNEL(multiply,
+                                 intel_gpu,
+                                 ALL_LAYOUT,
+                                 //  custom_kernel::MultiplyKernelGPU,
+                                 custom_kernel::MultiplyMain,
+                                 int32_t,
+                                 int64_t,
+                                 float,
+                                 double) {}
+
+             // PD_BUILD_PHI_KERNEL(multiply_raw,
+             //                     custom_cpu,
+             //                     ALL_LAYOUT,
+             //                     custom_kernel::MultiplyRawKernel,
+             //                     int32_t,
+             //                     int64_t,
+             //                     float,
+             //                     double) {}
+
+             // PD_BUILD_PHI_KERNEL(multiply,
+             //                     custom_cpu,
+             //                     ALL_LAYOUT,
+             //                     custom_kernel::MultiplyKernel,
+             //                     int32_t,
+             //                     int64_t,
+             //                     float,
+             //                     double) {}

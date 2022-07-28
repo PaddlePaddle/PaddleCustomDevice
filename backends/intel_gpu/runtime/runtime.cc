@@ -264,7 +264,19 @@ C_Status AsyncMemCpy(const C_Device device,
                      void *dst,
                      const void *src,
                      size_t size) {
-  memcpy(dst, src, size);
+
+  auto &dev_stream = reg_dev[device->id].getStream();
+  std::cout << "Async MEMCPY dst="<< dst << " src=" << src <<"  !!!!! "<< &dev_stream << " =="<< stream << std::endl;
+
+   dev_stream.submit([&](sycl::handler &h) {
+     // copy hostArray to deviceArray
+    h.memcpy(dst, src, size);
+   });
+   dev_stream.wait();
+
+ // memcpy(dst, src, size);
+
+
   return C_SUCCESS;
 }
 
@@ -418,7 +430,8 @@ C_Status DeviceMemStats(const C_Device device,
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
-  *size = 512;
+ // *size = 512;
+ *size=4;
   return C_SUCCESS;
 }
 

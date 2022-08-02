@@ -52,12 +52,12 @@ void MeanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out_grad,
-                       const std::vector<int64_t>& axes,
-                       bool keep_dim,
-                       bool reduce_all,
-                       phi::DenseTensor* x_grad) {
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out_grad,
+                    const std::vector<int64_t>& axes,
+                    bool keep_dim,
+                    bool reduce_all,
+                    phi::DenseTensor* x_grad) {
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
   auto reduce_dims = axes;
   auto input_dims_vec = phi::vectorize(x.dims());
@@ -77,13 +77,9 @@ void MeanGradKernel(const Context& dev_ctx,
     reduce_numel *= input_dims_vec[d];
   }
 
-  auto tmp = input_dims_vec;
-  const auto& runner = NpuOpRunner(
-      "FillV2D",
-      {},
-      {*x_grad},
-      {{"value", 1.0f / static_cast<float>(reduce_numel)}, {"dims", tmp}});
-  runner.Run(stream);
+  FillNpuTensorWithConstant<T>(
+      x_grad, dev_ctx, static_cast<T>(1.0f / static_cast<float>(reduce_numel)));
+  x_grad->Resize(x.dims());
 
   phi::DenseTensor transformed_x_grad, transformed_out_grad;
   phi::DenseTensor tmp_out_grad;

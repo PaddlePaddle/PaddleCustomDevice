@@ -95,10 +95,12 @@ void ConcatGradKernel(const Context& dev_ctx,
           sizes.push_back(ins[j]->dims()[dim]);
         }
       }
-      const auto& runner = NpuOpRunner("SliceD",
-                                       {dout},
-                                       {*outs[j]},
-                                       {{"offsets", offsets}, {"size", sizes}});
+      NpuOpRunner runner;
+      runner.SetType("Slice")
+          .AddInput(dout)
+          .AddInput(dev_ctx, std::move(offsets))
+          .AddInput(dev_ctx, std::move(sizes))
+          .AddOutput(*outs[j]);
       runner.Run(stream);
     }
     if (ins[j]->numel() != 0UL) {

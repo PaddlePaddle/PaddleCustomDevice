@@ -247,8 +247,12 @@ void SliceRawKernel(const Context& dev_ctx,
   custom_kernel::UpdateAttr(in_dims, axes, starts, ends, &offsets, &size);
 
   auto stream = static_cast<aclrtStream>(dev_ctx.stream());
-  const auto& runner = NpuOpRunner(
-      "SliceD", {x}, {*out}, {{"offsets", offsets}, {"size", size}});
+  NpuOpRunner runner;
+  runner.SetType("Slice")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(offsets))
+      .AddInput(dev_ctx, std::move(size))
+      .AddOutput(*out);
   runner.Run(stream);
 }
 

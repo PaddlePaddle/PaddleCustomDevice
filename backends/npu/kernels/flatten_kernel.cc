@@ -14,11 +14,20 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 #include "paddle/phi/core/tensor_meta.h"
-#include "paddle/phi/kernels/funcs/common_shape.h"
 
 namespace custom_kernel {
+
+inline void SetXShape(const phi::DenseTensor& x, phi::DenseTensor* xshape) {
+  const auto& in_dims = x.meta().dims;
+  std::vector<int64_t> xshape_dims(in_dims.size() + 1);
+  xshape_dims[0] = 0;
+  for (int i = 0; i < in_dims.size(); ++i) {
+    xshape_dims[i + 1] = in_dims[i];
+  }
+  xshape->ResizeAndAllocate(phi::make_ddim(xshape_dims));
+  xshape->ResetLoD(x.meta().lod);
+}
 
 template <typename T, typename Context>
 void FlattenKernel(const Context& dev_ctx,
@@ -59,7 +68,7 @@ void FlattenWithXShape(const Context& dev_ctx,
                        phi::DenseTensor* xshape) {
   custom_kernel::FlattenKernel<T, Context>(
       dev_ctx, x, start_axis, stop_axis, out);
-  phi::funcs::SetXShape(x, xshape);
+  SetXShape(x, xshape);
 }
 
 }  // namespace custom_kernel

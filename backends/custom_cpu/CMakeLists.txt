@@ -55,8 +55,10 @@ add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
     COMMENT "Creating plugin dirrectories------>>>"
 )
 
+find_package(Python COMPONENTS Interpreter REQUIRED)
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
-    COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
     DEPENDS ${PLUGIN_NAME}
     COMMENT "Packing whl packages------>>>"
 )

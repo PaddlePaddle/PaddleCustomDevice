@@ -235,12 +235,11 @@ void UpdateLossScaling(const Context& dev_ctx,
                        int decr_every_n_nan_or_inf,
                        float incr_ratio,
                        float decr_ratio,
-                       bool stop_update,
+                       const phi::Scalar& stop_update,
+                       std::vector<phi::DenseTensor*> outs,
                        phi::DenseTensor* updated_loss_scaling,
                        phi::DenseTensor* good_out,
-                       phi::DenseTensor* bad_out,
-                       std::vector<phi::DenseTensor*> outs,
-                       std::vector<phi::DenseTensor*> stop_update_vec) {
+                       phi::DenseTensor* bad_out) {
   auto* found_inf = &t_found_inf;
   PADDLE_ENFORCE_EQ(
       found_inf->numel(),
@@ -252,7 +251,8 @@ void UpdateLossScaling(const Context& dev_ctx,
 
   LazyZerosNPU<Context, T>{}(dev_ctx, found_inf_vec, xs, outs);
 
-  if (stop_update) {
+  auto stop_update_val = stop_update.to<bool>();
+  if (stop_update_val) {
     return;
   }
 

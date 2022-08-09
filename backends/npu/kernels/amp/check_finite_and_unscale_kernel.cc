@@ -21,14 +21,26 @@ template <typename T, typename Context>
 void CheckFiniteAndUnscale(const Context& dev_ctx,
                            const std::vector<const phi::DenseTensor*>& xs,
                            const phi::DenseTensor& t_scale,
-                           const phi::DenseTensor& t_float_status, /* npu */
                            std::vector<phi::DenseTensor*> outs,
                            phi::DenseTensor* found_inf) {
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor tmp_float_status;
+  tmp_float_status.Resize({8});
+  dev_ctx.template Alloc<T>(&tmp_float_status);
+
+  const auto& runner_alloc_float_status =
+      NpuOpRunner("NPUAllocFloatStatus", {}, {tmp_float_status});
+  runner_alloc_float_status.Run(stream);
+
+  const auto& runner_clear_float_status = NpuOpRunner(
+      "NPUClearFloatStatus", {tmp_float_status}, {tmp_float_status});
+  runner_clear_float_status.Run(stream);
+
+  auto float_status = &tmp_float_status;
   auto scale = &t_scale;
-  auto float_status = &t_float_status;
 
   dev_ctx.template Alloc<T>(found_inf);
-  auto stream = dev_ctx.stream();
 
   // step1: inverse scale
   phi::DenseTensor const_tensor;

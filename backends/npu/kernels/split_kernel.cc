@@ -40,7 +40,7 @@ void SplitKernel(const Context& dev_ctx,
     }
   }
 
-  auto sections = num_or_sections.GetData();
+  int axis = axis_scalar.to<int>();
 
   std::vector<phi::DenseTensor> outputs;
   for (size_t j = 0; j < outs.size(); ++j) {
@@ -48,14 +48,24 @@ void SplitKernel(const Context& dev_ctx,
     outputs.push_back(*outs[j]);
   }
 
-  int axis = axis_scalar.to<int>();
-  NpuOpRunner runner;
-  runner.SetType("SplitVD").AddInput(x).AddOutputs(outputs).AddAttrs(
-      {{"size_splits", sections},
-       {"split_dim", axis},
-       {"num_split", static_cast<int32_t>(sections.size())}});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  auto sections = num_or_sections.GetData();
+
+  if (sections.size() == 1) {
+    NpuOpRunner runner;
+    runner.SetType("SplitD").AddInput(x).AddOutputs(outputs).AddAttrs(
+        {{"split_dim", axis},
+         {"num_split", static_cast<int32_t>(sections[0])}});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  } else {
+    NpuOpRunner runner;
+    runner.SetType("SplitVD").AddInput(x).AddOutputs(outputs).AddAttrs(
+        {{"size_splits", sections},
+         {"split_dim", axis},
+         {"num_split", static_cast<int32_t>(sections.size())}});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel

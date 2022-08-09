@@ -19,7 +19,7 @@ function(py_test_modules TARGET_NAME)
     cmake_parse_arguments(py_test_modules "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     add_test(NAME ${TARGET_NAME}
-        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH} ${py_test_modules_ENVS}
+        COMMAND ${CMAKE_COMMAND} -E env CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle-plugins/ PYTHONPATH=${PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH} ${py_test_modules_ENVS}
         python ${PYTHON_SOURCE_DIR}/tools/test_runner.py ${py_test_modules_MODULES}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 

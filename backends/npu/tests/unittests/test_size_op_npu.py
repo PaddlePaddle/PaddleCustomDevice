@@ -1,4 +1,4 @@
-#   Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+#   Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ import unittest
 import numpy as np
 import sys
 
-sys.path.append("..")
 import paddle
 import paddle.fluid as fluid
 from tests.op_test import OpTest

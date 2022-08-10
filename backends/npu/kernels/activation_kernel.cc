@@ -105,6 +105,83 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SinKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Sin", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+// Swish = x * sigmoid(beta * x)
+template <typename T, typename Context>
+void SwishKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 float beta,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& muls_runner = NpuOpRunner("Muls", {x}, {*out}, {{"value", beta}});
+  muls_runner.Run(stream);
+
+  const auto& sigmoid_runner = NpuOpRunner("Sigmoid", {*out}, {*out}, {});
+  sigmoid_runner.Run(stream);
+
+  const auto& mul_runner = NpuOpRunner("Mul", {x, *out}, {*out});
+  mul_runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SwishGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& dout,
+                     float beta,
+                     phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor beta_x, sigmoid_out, swish_out;
+  beta_x.Resize(x.dims());
+  sigmoid_out.Resize(x.dims());
+  swish_out.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&beta_x);
+  dev_ctx.template Alloc<T>(&sigmoid_out);
+  dev_ctx.template Alloc<T>(&swish_out);
+
+  const auto& muls_runner =
+      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", beta}});
+  muls_runner.Run(stream);
+
+  const auto& sigmoid_runner =
+      NpuOpRunner("Sigmoid", {beta_x}, {sigmoid_out}, {});
+  sigmoid_runner.Run(stream);
+
+  const auto& mul_runner =
+      NpuOpRunner("Mul", {sigmoid_out, x}, {swish_out}, {});
+  mul_runner.Run(stream);
+
+  const auto& muls_runner2 =
+      NpuOpRunner("Muls", {swish_out}, {swish_out}, {{"value", beta}});
+  muls_runner2.Run(stream);
+
+  const auto& mul_runner1 =
+      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*out}, {});
+  mul_runner1.Run(stream);
+
+  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *out}, {*out}, {});
+  sub_runner.Run(stream);
+
+  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *out}, {*out}, {});
+  add_runner.Run(stream);
+
+  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *out}, {*out}, {});
+  mul_runner2.Run(stream);
+}
+
+template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DenseTensor* out) {
@@ -660,6 +737,28 @@ PD_REGISTER_PLUGIN_KERNEL(
 PD_REGISTER_PLUGIN_KERNEL(
     exp_grad, ascend, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {
 }
+
+PD_REGISTER_PLUGIN_KERNEL(sin,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SinKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(swish,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(swish_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu,
                           ascend,

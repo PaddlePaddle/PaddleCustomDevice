@@ -1,0 +1,58 @@
+# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+cmake_minimum_required(VERSION 3.10)
+
+project(paddle-gpu-profiler CXX C)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
+set(PLUGIN_NAME        "paddle-gpu-profiler")
+set(PLUGIN_VERSION     "0.0.1")
+
+include(paddle)
+
+include_directories(/usr/local/cuda-10.1/extras/CUPTI/include/ 
+                    /usr/local/cuda-10.1/include 
+                    ${PADDLE_INC_DIR} 
+                    ${CMAKE_SOURCE_DIR})
+
+link_directories(/usr/local/cuda-10.1/lib64/ 
+                /usr/local/cuda-10.1/extras/CUPTI/lib64/ 
+                ${PADDLE_LIB_DIR})
+
+add_library(${PLUGIN_NAME} SHARED runtime.cc process_data.cc os_info.cc)
+target_link_libraries(${PLUGIN_NAME} cudart cupti ${PADDLE_CORE_LIB})
+
+# packing wheel package
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
+    ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
+
+add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    COMMENT "Creating plugin dirrectories------>>>"
+)
+
+find_package(Python COMPONENTS Interpreter REQUIRED)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
+    DEPENDS ${PLUGIN_NAME}
+    COMMENT "Packing whl packages------>>>"
+)
+
+add_custom_target(python_package ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)

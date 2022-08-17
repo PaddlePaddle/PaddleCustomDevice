@@ -300,7 +300,7 @@ void NearestInterpGradKernel(
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(nearest_interp_v2,
+PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
@@ -308,7 +308,7 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp_v2,
                           phi::dtype::float16,
                           double) {}
 
-PD_REGISTER_PLUGIN_KERNEL(nearest_interp_v2_grad,
+PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,

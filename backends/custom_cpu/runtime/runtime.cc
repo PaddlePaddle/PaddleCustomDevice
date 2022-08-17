@@ -216,14 +216,9 @@ C_Status XcclCommInitRank(size_t ranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
-  auto sig = sem_open(static_cast<char *>(unique_id->data),
-                      O_CREAT,
-                      0644,
-                      0);
-  auto sig_2 = sem_open(static_cast<char *>(unique_id->data) + 1,
-                        O_CREAT,
-                        0644,
-                        0);
+  auto sig = sem_open(static_cast<char *>(unique_id->data), O_CREAT, 0644, 0);
+  auto sig_2 =
+      sem_open(static_cast<char *>(unique_id->data) + 1, O_CREAT, 0644, 0);
   *comm =
       new C_CCLComm_st({rank,
                         ranks,
@@ -288,6 +283,26 @@ C_Status XcclBroadcast(void *buf,
   return C_SUCCESS;
 }
 
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t start_ns,
+                             void *user_data) {
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "custom_cpu";
@@ -343,4 +358,11 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_destroy_comm = XcclDestroyComm;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;
+
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
 }

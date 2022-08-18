@@ -172,7 +172,7 @@ class TestNearestInterpOp(OpTest):
         self.input_shape = [2, 3, 4, 5]
         self.out_h = 2
         self.out_w = 2
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([3, 3]).astype("int32")
         self.align_corners = False
 
@@ -188,7 +188,7 @@ class TestNearestNeighborInterpCase1(TestNearestInterpOp):
         self.input_shape = [4, 1, 7, 8]
         self.out_h = 1
         self.out_w = 1
-        self.scale = 0.
+        self.scale = []
         self.align_corners = False
 
 
@@ -198,7 +198,7 @@ class TestNearestNeighborInterpCase2(TestNearestInterpOp):
         self.input_shape = [3, 3, 9, 6]
         self.out_h = 12
         self.out_w = 12
-        self.scale = 0.
+        self.scale = []
         self.align_corners = False
 
 
@@ -208,7 +208,7 @@ class TestNearestNeighborInterpCase3(TestNearestInterpOp):
         self.input_shape = [1, 1, 32, 64]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 0.
+        self.scale = []
         self.align_corners = False
 
 
@@ -218,7 +218,7 @@ class TestNearestNeighborInterpCase4(TestNearestInterpOp):
         self.input_shape = [4, 1, 7, 8]
         self.out_h = 1
         self.out_w = 1
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([2, 2]).astype("int32")
         self.align_corners = False
 
@@ -229,7 +229,7 @@ class TestNearestNeighborInterpCase5(TestNearestInterpOp):
         self.input_shape = [3, 3, 9, 6]
         self.out_h = 12
         self.out_w = 12
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([11, 11]).astype("int32")
         self.align_corners = False
 
@@ -240,7 +240,7 @@ class TestNearestNeighborInterpCase6(TestNearestInterpOp):
         self.input_shape = [1, 1, 32, 64]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([65, 129]).astype("int32")
         self.align_corners = False
 
@@ -251,7 +251,7 @@ class TestNearestNeighborInterpSame(TestNearestInterpOp):
         self.input_shape = [2, 3, 32, 64]
         self.out_h = 32
         self.out_w = 64
-        self.scale = 0.
+        self.scale = []
         self.align_corners = False
 
 
@@ -261,7 +261,7 @@ class TestNearestNeighborInterpActualShape(TestNearestInterpOp):
         self.input_shape = [3, 2, 32, 16]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([66, 40]).astype("int32")
         self.align_corners = False
 
@@ -272,7 +272,7 @@ class TestNearestNeighborInterpScale1(TestNearestInterpOp):
         self.input_shape = [3, 2, 7, 5]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 2.
+        self.scale = 2.0
         self.out_size = None
         self.align_corners = False
 
@@ -371,7 +371,7 @@ class TestNearestInterpOp_attr_tensor(OpTest):
         self.input_shape = [2, 5, 4, 4]
         self.out_h = 3
         self.out_w = 3
-        self.scale = 0.
+        self.scale = []
         self.out_size = [3, 3]
         self.align_corners = False
 
@@ -383,7 +383,7 @@ class TestNearestInterp_attr_tensor_Case1(TestNearestInterpOp_attr_tensor):
         self.input_shape = [3, 3, 9, 6]
         self.out_h = 12
         self.out_w = 12
-        self.scale = 0.
+        self.scale = []
         self.out_size = [8, 12]
         self.align_corners = False
 
@@ -395,7 +395,7 @@ class TestNearestInterp_attr_tensor_Case2(TestNearestInterpOp_attr_tensor):
         self.input_shape = [3, 2, 32, 16]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 0.
+        self.scale = []
         self.out_size = np.array([66, 40]).astype("int32")
         self.align_corners = False
         self.shape_by_1Dtensor = True
@@ -408,7 +408,7 @@ class TestNearestInterp_attr_tensor_Case3(TestNearestInterpOp_attr_tensor):
         self.input_shape = [3, 2, 32, 16]
         self.out_h = 64
         self.out_w = 32
-        self.scale = 2.0
+        self.scale = []
         self.out_size = None
         self.align_corners = False
         self.scale_by_1Dtensor = True

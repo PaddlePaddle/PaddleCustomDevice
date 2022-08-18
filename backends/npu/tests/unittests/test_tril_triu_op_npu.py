@@ -1,4 +1,4 @@
-#   Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+#   Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -187,7 +187,6 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                                    fetch_list=[triu_out])
 
 
-# @skip_check_grad_ci(reason="[NPU does not support grad right now.")
 class TestNPUTrilTriu_bool(TestNPUTrilTriu):
     def test_check_output(self):
         self.check_output_with_place(self.place)

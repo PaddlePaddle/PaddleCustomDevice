@@ -72,18 +72,6 @@ void TrilTriuKernel(const Context& dev_ctx,
   }
 }
 
-// template <typename T, typename Context>
-// DenseTensor TrilTriu(const Context& ctx,
-//                      const phi::DenseTensor& x,
-//                      int diagonal,
-//                      bool lower) {
-//     phi::DenseTensor dense_out;
-//     phi::MetaTensor meta_out(&dense_out);
-//     phi::TrilTriuInferMeta(x, diagonal, lower, &meta_out);
-//     TrilTriuKernel<T, Context>(ctx, x, diagonal, lower, &dense_out);
-//     return dense_out;
-// }
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(tril_triu,

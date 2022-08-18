@@ -47,7 +47,6 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
 
   // broadcast out_grad
   phi::DenseTensor broadcasted_out_grad;
-  // broadcasted_out_grad.mutable_data<T>(x_grad.dims(), place);
   phi::DenseTensorMeta broadcasted_meta = {x_grad->dtype(), x_grad->dims()};
   broadcasted_out_grad.set_meta(broadcasted_meta);
   dev_ctx.template Alloc<T>(&broadcasted_out_grad);
@@ -59,7 +58,6 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
   broadcast_runner.Run(stream);
   // mul x
   phi::DenseTensor tmp_x_grad;
-  // tmp_x_grad.mutable_data<T>(x_grad.dims(), place);
   phi::DenseTensorMeta tmp_meta = {x_grad->dtype(), x_grad->dims()};
   tmp_x_grad.set_meta(tmp_meta);
   dev_ctx.template Alloc<T>(&tmp_x_grad);
@@ -68,21 +66,16 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
   mul_x_runner.Run(stream);
   // mul coefficient:2
   phi::DenseTensor coefficient;
-  // coefficient.mutable_data<T>({1}, place);
   phi::DenseTensorMeta coefficient_meta = {x_grad->dtype(), {1}};
   coefficient.set_meta(coefficient_meta);
   dev_ctx.template Alloc<T>(&coefficient);
   FillNpuTensorWithConstant<T>(&coefficient, dev_ctx, static_cast<T>(2.0));
-  // x_grad->mutable_data<T>(place);
   dev_ctx.template Alloc<T>(x_grad);
   const auto& mul_coefficient_runner =
       NpuOpRunner("Mul", {tmp_x_grad, coefficient}, {*x_grad}, {});
   mul_coefficient_runner.Run(stream);
 }
 }  // namespace custom_kernel
-
-// namespace ops = paddle::operators;
-// namespace plat = paddle::platform;
 
 PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm,
                           ascend,

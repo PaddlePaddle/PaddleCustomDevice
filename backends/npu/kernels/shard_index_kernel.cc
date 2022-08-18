@@ -56,17 +56,15 @@ void SharedIndexKernel(const Context& dev_ctx,
   int shard_size = (index_num + nshards - 1) / nshards;
 
   out->Resize(x.dims());
-  // out->set_lod(x.lod());
   phi::DenseTensor tmp0;
   phi::DenseTensorMeta lod_meta = {x.dtype(), x.dims()};
   tmp0.set_meta(lod_meta);
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor tmp;  // x.dtype()
+  phi::DenseTensor tmp;
   phi::DenseTensorMeta tmp_meta = {x.dtype(), {1}};
   tmp.set_meta(tmp_meta);
   dev_ctx.template Alloc<T>(&tmp);
-  // FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(shard_size));
   FillNpuTensorWithConstant<T>(&tmp, dev_ctx, shard_size);
 
   phi::DenseTensor condition;
@@ -92,7 +90,6 @@ void SharedIndexKernel(const Context& dev_ctx,
   const auto& runner1 = NpuOpRunner("FloorDiv", {x, tmp}, {tmp3}, {});
   runner1.Run(stream);
 
-  // FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(shard_id));
   FillNpuTensorWithConstant<T>(&tmp, dev_ctx, shard_id);
 
   const auto& runner2 = NpuOpRunner("Equal", {tmp3, tmp}, {condition}, {});
@@ -102,7 +99,6 @@ void SharedIndexKernel(const Context& dev_ctx,
   phi::DenseTensorMeta tmp4_meta = {x.dtype(), x.dims()};
   tmp4.set_meta(tmp4_meta);
   dev_ctx.template Alloc<T>(&tmp4);
-  // FillNpuTensorWithConstant<T>(&tmp4, dev_ctx, static_cast<T>(ignore_value));
   FillNpuTensorWithConstant<T>(&tmp4, dev_ctx, ignore_value);
 
   tmp4.Resize(x.dims());

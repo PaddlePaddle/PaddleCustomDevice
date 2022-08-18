@@ -24,23 +24,9 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                            std::vector<phi::DenseTensor*> outs,
                            phi::DenseTensor* found_inf) {
   auto stream = dev_ctx.stream();
-
-  phi::DenseTensor tmp_float_status;
-  tmp_float_status.Resize({8});
-  dev_ctx.template Alloc<T>(&tmp_float_status);
-
-  const auto& runner_alloc_float_status =
-      NpuOpRunner("NPUAllocFloatStatus", {}, {tmp_float_status});
-  runner_alloc_float_status.Run(stream);
-
-  const auto& runner_clear_float_status = NpuOpRunner(
-      "NPUClearFloatStatus", {tmp_float_status}, {tmp_float_status});
-  runner_clear_float_status.Run(stream);
-
-  auto float_status = &tmp_float_status;
   auto scale = &t_scale;
 
-  dev_ctx.template Alloc<T>(found_inf);
+  dev_ctx.template Alloc<bool>(found_inf);
 
   // step1: inverse scale
   phi::DenseTensor const_tensor;
@@ -58,28 +44,52 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
-  // NOTE(zhiqiu):
-  phi::DenseTensor tmp;
-  tmp.Resize({8});
-  dev_ctx.template Alloc<float>(&tmp);
-  // NOTE(zhiqiu): NPUGetFloatStatus updates data on input in-place.
-  // tmp is only placeholder.
-  const auto& runner_float_status =
-      NpuOpRunner("NPUGetFloatStatus",
-                  {*float_status},
-                  {tmp},
-                  {{"message", std::string("check_nan_and_inf")}});
-  runner_float_status.Run(stream);
-
   phi::DenseTensor sum;
   sum.Resize({1});
-  dev_ctx.template Alloc<float>(&sum);
-  const auto& runner_reduce_sum =
-      NpuOpRunner("ReduceSumD",
-                  {*float_status},
-                  {sum},
-                  {{"axes", std::vector<int>{0}}, {"keep_dims", true}});
-  runner_reduce_sum.Run(stream);
+  dev_ctx.template Alloc<T>(&sum);
+  FillNpuTensorWithConstant<T>(&sum, dev_ctx, static_cast<T>(0.0));
+
+  phi::DenseTensor tmp;
+  tmp.Resize({1});
+  dev_ctx.template Alloc<T>(&tmp);
+
+  for (const auto& xs_item : xs) {
+    std::vector<int> axes;
+    phi::DenseTensor xs_is_finite, xs_is_finite_f;
+    xs_is_finite.Resize(xs_item->dims());
+    dev_ctx.template Alloc<bool>(&xs_is_finite);
+    xs_is_finite_f.Resize(xs_item->dims());
+    dev_ctx.template Alloc<T>(&xs_is_finite_f);
+
+    for (auto i = 0; i < xs_item->dims().size(); ++i) {
+      axes.push_back(i);
+    }
+
+    const auto& runner_check_finite =
+        NpuOpRunner("IsFinite", {*xs_item}, {xs_is_finite}, {});
+    runner_check_finite.Run(stream);
+
+    const auto& runner_logical_not =
+        NpuOpRunner("LogicalNot", {xs_is_finite}, {xs_is_finite}, {});
+    runner_logical_not.Run(stream);
+
+    const auto& runner_cast = NpuOpRunner(
+        "Cast",
+        {xs_is_finite},
+        {xs_is_finite_f},
+        {{"dst_type", static_cast<int>(cpp_type_to_acl_dtype<T>::value())}});
+    runner_cast.Run(stream);
+
+    const auto& runner_reduce_sum =
+        NpuOpRunner("ReduceSumD",
+                    {xs_is_finite_f},
+                    {tmp},
+                    {{"axes", axes}, {"keep_dims", false}});
+    runner_reduce_sum.Run(stream);
+
+    const auto& runner_add = NpuOpRunner("Add", {tmp, sum}, {sum}, {});
+    runner_add.Run(stream);
+  }
 
   const auto& runner_greater =
       NpuOpRunner("GreaterEqual", {sum, const_tensor}, {*found_inf}, {});

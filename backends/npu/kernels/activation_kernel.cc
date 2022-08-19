@@ -697,6 +697,27 @@ void HardSwishGradKernel(const Context& dev_ctx,
   const auto& runner_final = NpuOpRunner("Mul", {tmp5, dout}, {*dx});
   runner_final.Run(stream);
 }
+
+template <typename T, typename Context>
+void ReciprocalKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Reciprocal", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ReciprocalGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& out,
+                          const phi::DenseTensor& dout,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
+  runner.Run(stream);
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
@@ -938,4 +959,20 @@ PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
                           float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(reciprocal,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::ReciprocalKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(reciprocal_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::ReciprocalGradKernel,
+                          float,
+                          double,
                           phi::dtype::float16) {}

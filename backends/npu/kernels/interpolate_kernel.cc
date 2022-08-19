@@ -994,14 +994,14 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_v2,
+PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_v2_grad,
+PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,

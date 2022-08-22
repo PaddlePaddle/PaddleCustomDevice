@@ -178,3 +178,16 @@ class NpuOpRunner {
   std::vector<phi::DenseTensor> host_tensors_;
   aclopAttr *attr_{nullptr};
 };
+
+template <typename T>
+struct cpp_type_to_acl_dtype;
+
+template <>
+struct cpp_type_to_acl_dtype<float> {
+  static const aclDataType value() { return ACL_FLOAT; }
+};
+
+template <>
+struct cpp_type_to_acl_dtype<double> {
+  static const aclDataType value() { return ACL_DOUBLE; }
+};

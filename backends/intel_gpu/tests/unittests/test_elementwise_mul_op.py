@@ -27,7 +27,7 @@ from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places
@@ -60,14 +60,14 @@ class ElementwiseMulOp(OpTest):
         self.check_grad(
             ['X', 'Y'], 'Out', check_dygraph=(self.use_mkldnn == False))
 
-    def test_check_grad_ingore_x(self):
+    def test_check_grad_ignore_x(self):
         self.check_grad(
             ['Y'],
             'Out',
             no_grad_set=set("X"),
             check_dygraph=(self.use_mkldnn == False))
 
-    def test_check_grad_ingore_y(self):
+    def test_check_grad_ignore_y(self):
         self.check_grad(
             ['X'],
             'Out',
@@ -237,10 +237,10 @@ class TestElementwiseMulOpError(unittest.TestCase):
             # the input of elementwise_mul must be Variable.
             x1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                fluid.CustomPlace('custom_cpu', 0))
+                fluid.CustomPlace('intel_gpu', 0))
             y1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                fluid.CustomPlace('custom_cpu', 0))
+                fluid.CustomPlace('intel_gpu', 0))
             self.assertRaises(TypeError, fluid.layers.elementwise_mul, x1, y1)
 
             # the input dtype of elementwise_mul must be float16 or float32 or float64 or int32 or int64

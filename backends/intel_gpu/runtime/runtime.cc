@@ -64,7 +64,14 @@ struct DeviceCtx {
   sycl::device _dev;
   std::vector<sycl::queue> _streams;
   bool _def_stream;
-  DeviceCtx(sycl::device dev) : _dev{std::move(dev)}, _def_stream{true} {}
+  size_t allocated_mem;
+  size_t _dev_memory_size;
+  DeviceCtx(sycl::device dev)
+      : _dev{std::move(dev)},
+        _def_stream{true},
+        allocated_mem{0},
+        _dev_memory_size(_dev.get_info<sycl::info::device::global_mem_size>()) {
+  }
 
   sycl::queue* create_stream() {
     _streams.push_back(sycl::queue(_dev));
@@ -90,8 +97,16 @@ struct DeviceCtx {
   }
 
   size_t getMemorySize() {
-    return _dev.get_info < sycl::info::device::global_mem_size> ();
+    return _dev_memory_size;
  }
+
+ size_t getFreeMemorySize() { return getMemorySize() - allocated_mem; }
+
+ void  alloc_mem(size_t _size) {
+    allocated_mem += _size;
+ }
+
+ void free_mem(size_t _size) { allocated_mem -= _size; }
 };
 
 std::vector<DeviceCtx> reg_dev;
@@ -318,40 +333,59 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 
    //GPUAlloc(ptr,size);
-   auto mem = reg_dev[device->id].getMemorySize();
-   show("Allocate size=" << size << " device_id=" << device->id << " globMemSize="<< mem);
+
+   if (size > reg_dev[device->id].getFreeMemorySize())
+   {
+     show("#### No free memory INTERNAL ERROR OUT OF MEMORY requested size="
+          << size << " left=" << reg_dev[device->id].getFreeMemorySize()
+          << " #####");
+     return C_FAILED;
+   }
+
+   //  auto mem = reg_dev[device->id].getMemorySize();
+   //show("Allocate size=" << size << " device_id=" << device->id << " globMemSize="<< mem);
    auto& stream = reg_dev[device->id].getStream();
 
    *ptr = sycl::aligned_alloc_device(64, size, stream);
-   mem = reg_dev[device->id].getMemorySize();
-   show("Allocate size=" << size << " device_id=" << device->id
-                         << " globMemSize=" << mem);
+
+  // mem = reg_dev[device->id].getMemorySize();
+
+  // show("Allocate size=" << size << " device_id=" << device->id
+  //                       << " globMemSize=" << mem);
 
    if(!ptr)
    {
     return C_FAILED;
    }
 
+   reg_dev[device->id].alloc_mem(size);
+
+   show("### Allocation success size="
+        << size << " left="
+        << reg_dev[device->id].getFreeMemorySize());
+
+
+
    return C_SUCCESS;
 
-  //  auto data = malloc(size);
-  //  if (data) {
-  //    *ptr = data;
+   //  auto data = malloc(size);
+   //  if (data) {
+   //    *ptr = data;
 
-  //    show("Allocate " << size << "bytes  ptr="<< ptr);
-  //   return C_SUCCESS;
-  // } else {
-  //   *ptr = nullptr;
-  // }
+   //    show("Allocate " << size << "bytes  ptr="<< ptr);
+   //   return C_SUCCESS;
+   // } else {
+   //   *ptr = nullptr;
+   // }
 
-  return C_FAILED;
+   return C_FAILED;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
   show("Deallocate size=" << size);
   auto &stream = reg_dev[device->id].getStream();
   sycl::free(ptr, stream);
-
+  reg_dev[device->id].free_mem(size);
   //GPUDealloc(ptr);
   // free(ptr);
   return C_SUCCESS;
@@ -370,7 +404,16 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
 show("Destroy stream device->id="<< device->id << " stream=" << stream);
-  return C_SUCCESS;
+
+  auto& _streams = reg_dev[device->id]._streams;
+  auto it = std::find_if(_streams.begin(),_streams.end(),[stream](auto& single_stream){
+       return &single_stream == reinterpret_cast<sycl::queue*>(stream);
+   });
+
+   if(it!=_streams.end())
+       _streams.erase(it);
+
+    return C_SUCCESS;
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
@@ -385,9 +428,25 @@ C_Status DestroyEvent(const C_Device device, C_Event event) {
   return C_SUCCESS;
 }
 
-C_Status SyncDevice(const C_Device device) { return C_SUCCESS; }
+C_Status SyncDevice(const C_Device device) {
+
+     auto& dev_ctx = reg_dev[device->id];
+
+     for (auto &stream : dev_ctx._streams)
+     {
+             stream.wait();
+     }
+      return C_SUCCESS;
+ }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
+
+  auto &dev_ctx = reg_dev[device->id];
+
+  for (auto &stream : dev_ctx._streams) {
+    stream.wait();
+  }
+
   return C_SUCCESS;
 }
 
@@ -396,6 +455,8 @@ C_Status SyncEvent(const C_Device device, C_Event event) { return C_SUCCESS; }
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
+
+
   return C_SUCCESS;
 }
 
@@ -405,26 +466,28 @@ C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
 
-  auto mem = reg_dev[device->id].getMemorySize();
-  show("DeviceMemStats device="<< device->id << " Mem="<< mem);
+  auto& dev_ctx = reg_dev[device->id];
+  *total_memory = dev_ctx.getMemorySize();
+  *free_memory = dev_ctx.getFreeMemorySize();
+  show("DeviceMemStats device="<< device->id << " TotalMemory="<< *total_memory << " FreeMemory=" << *free_memory);
 
-      float memusage;
-  FILE *fp;
-  char buffer[1024];
-  size_t byte_read;
-  char *pos;
+  //     float memusage;
+  // FILE *fp;
+  // char buffer[1024];
+  // size_t byte_read;
+  // char *pos;
 
-  fp = fopen("/proc/meminfo", "r");
-  byte_read = fread(buffer, 1, sizeof(buffer), fp);
-  fclose(fp);
-  buffer[byte_read] = '\0';
-  pos = strstr(buffer, "MemTotal:");
-  sscanf(pos, "MemTotal: %lu kB", total_memory);
-  pos = strstr(pos, "MemFree:");
-  sscanf(pos, "MemFree: %lu kB", free_memory);
-  *total_memory = *total_memory * 1024;
-  *free_memory = *free_memory * 1024;
-  *free_memory = *free_memory * MEMORY_FRACTION;
+  // fp = fopen("/proc/meminfo", "r");
+  // byte_read = fread(buffer, 1, sizeof(buffer), fp);
+  // fclose(fp);
+  // buffer[byte_read] = '\0';
+  // pos = strstr(buffer, "MemTotal:");
+  // sscanf(pos, "MemTotal: %lu kB", total_memory);
+  // pos = strstr(pos, "MemFree:");
+  // sscanf(pos, "MemFree: %lu kB", free_memory);
+  // *total_memory = *total_memory * 1024;
+  // *free_memory = *free_memory * 1024;
+  // *free_memory = *free_memory * MEMORY_FRACTION;
 
   return C_SUCCESS;
 }

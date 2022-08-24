@@ -97,9 +97,23 @@ struct DeviceCtx {
     return *(_streams[index]);
   }
 
-  size_t getMemorySize() {
+  sycl::queue& getStream(C_Stream stream)
+  {
+       auto it = std::find_if(
+        _streams.begin(), _streams.end(), [stream](auto &single_stream) {
+          return single_stream.get() == reinterpret_cast<sycl::queue *>(stream);
+        });
+
+       if(it==_streams.end())
+       {
+          show("***FATAL ERROR STREAM not found***");
+       }
+       return **it;
+  }
+
+      size_t getMemorySize() {
     return _dev_memory_size;
- }
+  }
 
  size_t getFreeMemorySize() { return getMemorySize() - allocated_mem; }
 
@@ -266,11 +280,9 @@ C_Status AsyncMemCpy(const C_Device device,
                      const void *src,
                      size_t size) {
 
-  auto &dev_stream = reg_dev[device->id].getStream();
+  auto &dev_stream = reg_dev[device->id].getStream(stream);
   std::cout << "Async MEMCPY dst="<< dst << " src=" << src <<"  !!!!! "<< &dev_stream << " =="<< stream << std::endl;
-
    dev_stream.submit([&](sycl::handler &h) {
-     // copy hostArray to deviceArray
     h.memcpy(dst, src, size);
    });
 
@@ -389,16 +401,9 @@ C_Status SyncDevice(const C_Device device) {
  }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
-  auto &_streams = reg_dev[device->id]._streams;
-  auto it = std::find_if(
-      _streams.begin(), _streams.end(), [stream](auto &single_stream) {
-        return single_stream.get() == reinterpret_cast<sycl::queue *>(stream);
-      });
 
-   if(it!=_streams.end())
-   {
-       (*it)->wait(); // ????
-   }
+   auto ret_stream = reg_dev[device->id].getStream(stream);
+   ret_stream.wait();
 
   return C_SUCCESS;
 }

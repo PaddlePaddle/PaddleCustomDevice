@@ -84,9 +84,11 @@ phi::DDim GetOutputShape(const std::vector<int> squeeze_dims,
 template <typename T, typename Context>
 void SqueezeKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
-                   const std::vector<int>& axes,
+                   const phi::IntArray& axes_int_array,
                    phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
+  std::vector<int32_t> axes(axes_int_array.GetData().begin(),
+                            axes_int_array.GetData().end());
 
   auto x_dims = x.dims();
   auto out_dims = custom_kernel::GetOutputShape(axes, x_dims, true);
@@ -99,17 +101,17 @@ void SqueezeKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SqueezeWithXShapeKernel(const Context& dev_ctx,
                              const phi::DenseTensor& x,
-                             const std::vector<int>& axes,
+                             const phi::IntArray& axes_int_array,
                              phi::DenseTensor* out,
                              phi::DenseTensor* xshape) {
-  custom_kernel::SqueezeKernel<T, Context>(dev_ctx, x, axes, out);
+  custom_kernel::SqueezeKernel<T, Context>(dev_ctx, x, axes_int_array, out);
 }
 
 template <typename T, typename Context>
 void SqueezeGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& xshape,
                        const phi::DenseTensor& dout,
-                       const std::vector<int>& axes,
+                       const phi::IntArray& axes_int_array,
                        phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
 

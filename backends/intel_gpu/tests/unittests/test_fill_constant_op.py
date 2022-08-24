@@ -27,7 +27,7 @@ from paddle.fluid import compiler, Program, program_guard
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places

@@ -13,17 +13,56 @@
 // limitations under the License.
 
 #include "paddle/phi/capi/all.h"
-
+#include <CL/sycl.hpp>
 namespace custom_kernel {
 
 template <typename T, typename VType>
 void FullValue(const phi::Context& dev_ctx,
                phi::DenseTensor* tensor,
                VType val) {
-  auto t = dev_ctx.template Alloc<T>(tensor);
+ /*
+      	auto t = dev_ctx.template Alloc<T>(tensor);
   for (auto i = 0; i < tensor->numel(); ++i) {
     t[i] = val;
   }
+
+ */
+
+
+
+  std::cout << "custom_intel FullValue" << std::endl;
+  auto t = dev_ctx.template Alloc<T>(tensor);
+
+  void* stream = static_cast<void*>(dev_ctx.stream());
+  auto* q =  static_cast<sycl::queue*>(stream);
+  auto ile = tensor->numel();
+
+  q->submit([&](sycl::handler& h) {
+    h.parallel_for(ile, [=](auto& i){
+        t[i] = val;
+    });
+  });
+  q-> wait();
+
+/*
+  T* gpu_mem = sycl::malloc_device<T>(ile, *q);
+
+  q->submit([&](sycl::handler& h) {
+    h.parallel_for(ile, [=](auto& i){           
+        gpu_mem[i] = val;
+    });
+  });
+  q-> wait();  
+
+  q->submit([&](sycl::handler &h){
+    h.memcpy(t, gpu_mem, sizeof(T)*ile);
+  });
+  q->wait();
+  sycl::free(gpu_mem, *q);  
+
+*/	
+
+
 }
 
 template <typename T>
@@ -39,7 +78,7 @@ void FullKernel(const phi::Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(full,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::FullKernel,
                     float,

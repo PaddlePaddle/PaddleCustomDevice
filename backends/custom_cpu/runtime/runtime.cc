@@ -91,6 +91,8 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
+  
+  std::cout << "Allocate size=" << size << std::endl;	
   auto data = malloc(size);
   if (data) {
     *ptr = data;
@@ -102,7 +104,9 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  free(ptr);
+
+  std::cout << "Dealloc size=" << size << std::endl;	
+      	free(ptr);
   return C_SUCCESS;
 }
 

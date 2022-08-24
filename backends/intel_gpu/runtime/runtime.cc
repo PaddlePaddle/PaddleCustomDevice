@@ -329,6 +329,7 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 
    if(!ptr)
    {
+    show("#### Error : Can't allocate memory size=" << size << " ####");
     return C_FAILED;
    }
 
@@ -427,7 +428,6 @@ C_Status DeviceMemStats(const C_Device device,
   auto& dev_ctx = reg_dev[device->id];
   *total_memory = dev_ctx.getMemorySize();
   *free_memory = dev_ctx.getFreeMemorySize();
-  show("DeviceMemStats device="<< device->id << " TotalMemory="<< *total_memory << " FreeMemory=" << *free_memory);
 
   //     float memusage;
   // FILE *fp;
@@ -446,6 +446,9 @@ C_Status DeviceMemStats(const C_Device device,
   // *total_memory = *total_memory * 1024;
   // *free_memory = *free_memory * 1024;
   // *free_memory = *free_memory * MEMORY_FRACTION;
+  show("DeviceMemStats device=" << device->id
+                                << " TotalMemory=" << *total_memory
+                                << " FreeMemory=" << *free_memory);
 
   return C_SUCCESS;
 }
@@ -466,12 +469,9 @@ C_Status MemoryCopyH2D(const C_Device device,
 
   show("MemoryCopyH2D size=" << size << " dst=" << dst << " src=" << src);
   stream.submit([&](sycl::handler &h) {
-    // copy hostArray to deviceArray
     h.memcpy(dst, src, size);
   });
   stream.wait();
-
-  //  memcpy(dst, src, size);
   return C_SUCCESS;
 }
 
@@ -482,14 +482,10 @@ C_Status MemoryCopyD2H(const C_Device device,
   auto &stream = reg_dev[device->id].getStream();
   show("MemoryCopyD2H size=" << size << " dst=" << dst << " src=" << src);
 
-  // sleep(1);
   stream.submit([&](sycl::handler &h) {
-    // copy hostArray to deviceArray
     h.memcpy(dst, src, size);
   });
   stream.wait();
-
-  //  memcpy(dst, src, size);
   return C_SUCCESS;
 }
 
@@ -503,12 +499,10 @@ C_Status MemoryCopyD2D(const C_Device device,
 
   show("MemoryCopyD2D size=" << size << " dst=" << dst << " src=" << src);
   stream.submit([&](sycl::handler &h) {
-    // copy hostArray to deviceArray
     h.memcpy(dst, src, size);
   });
   stream.wait();
 
-  //  memcpy(dst, src, size);
   return C_SUCCESS;
 }
 

@@ -14,6 +14,7 @@
 
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
+#include <CL/sycl.hpp>
 
 namespace custom_kernel {
 
@@ -25,11 +26,19 @@ void MeanAllKernel(const phi::Context& dev_ctx,
   auto x_data = x.data<T>();
   auto numel = x.numel();
 
-  *out_data = 0;
-  for (auto i = 0; i < numel; ++i) {
-    *out_data += x_data[i];
-  }
-  *out_data /= static_cast<T>(numel);
+  auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
+
+  std::cout << "*** MeanAll *** size="<< numel << std::endl;
+
+  auto e1 = q->fill(out_data, static_cast<T>(0), 1);
+  q->single_task(e1, [=](){
+    for (auto i = 0; i < numel; ++i) {
+      *out_data += x_data[i];
+    };
+    *out_data /= static_cast<T>(numel);
+  });
+
+  q->wait();
 }
 
 template <typename T>
@@ -44,22 +53,28 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   auto x_grad_data = dev_ctx.template Alloc<T>(x_grad);
   auto out_grad_data = out_grad.data<T>();
   auto numel = x_grad->numel();
-  for (auto i = 0; i < numel; ++i) {
-    x_grad_data[i] = *out_grad_data / static_cast<T>(numel);
-  }
+  auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
+
+  std::cout << "*** MeanAllGrad *** size="<< numel << std::endl;
+  q->submit([&](sycl::handler& h) {
+    h.parallel_for(numel, [=](auto& i){
+        x_grad_data[i] = *out_grad_data / static_cast<T>(numel);
+    });
+  });
+  q->wait();
 }
 
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(mean_all,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::MeanAllKernel,
                     float,
                     double) {}
 
 PD_BUILD_PHI_KERNEL(mean_all_grad,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::MeanAllGradKernel,
                     float,

@@ -327,7 +327,7 @@ C_Status StreamWaitEvent(const C_Device device,
 C_Status AddCallback(const C_Device device,
                      C_Stream stream,
                      C_Callback callback,
-                     void* user_data) {
+                     void *user_data) {
   C_Status ret = C_SUCCESS;
   callback(device, stream, user_data, &ret);
   return ret;
@@ -450,6 +450,7 @@ C_Status XcclReduce(void *send_buf,
                     size_t count,
                     C_DataType data_type,
                     C_CCLReduceOp op,
+                    size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
   LOG(ERROR) << "xccl_reduce is not supported  on ascend device.";

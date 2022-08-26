@@ -63,18 +63,15 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
 
-  std::cout << "=== MultiplyRawKernelGPU :==== x="<< x.data<T>() << " y=" << y.data<T>() << "out->numel="<< out->numel() << std::endl;
+  show_kernel("ElementWise-SYCL-MUL");
 
 
   void *stream = const_cast< void* >(dev_ctx.stream());
-  std::cout << "got stream "<< std::endl;
+
 
   // T* out_data = dev_ctx.Alloc<T>(out,out->numel() * sizeof(T));
 
   T* out_data = dev_ctx.HostAlloc<T>(out);
-
-  std::cout << "Out_data= "<< out_data << std::endl;
-
 
   auto NOUT = out->numel();
 
@@ -146,7 +143,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
                           const phi::DenseTensor& y,
                           int axis,
                           phi::DenseTensor* out) {
-  std::cout << "====OneDNN MultiplyOneDNNRawKernel kernel ====" << std::endl;
+  show_kernel("ElementWise-ONEDNN");
   //void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
 
@@ -166,11 +163,9 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
 
   auto x_mem = memory(common_md, eng, x.data<T>());
   auto y_mem = memory(common_md, eng, y.data<T>());
-  // out = dev_ctx.Alloc<T>(out->numel());
 
-  std::cout << "==begin====>" << std::endl;
   auto out_data = dev_ctx.template Alloc<T>(out);
-  std::cout << "===end===> out_data="<< out_data << std::endl;
+
 
   auto out_mem = memory(common_md, eng, out_data);
 
@@ -187,8 +182,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   prim.execute(eng, binary_args);
   engine_stream.wait();
 
-  //  auto y_md = memory::desc(common_dims, toDnnType<CoreType>::type, tag::a);
-  //  auto xy_md = memory::desc(common_dims, toDnnType<CoreType>::type, tag::a);
+
 }
 
 template <typename T>
@@ -231,7 +225,7 @@ void MultiplyMainRaw(const phi::Context& dev_ctx,
 
   if constexpr (std::is_same<T, float>::value
                || std::is_same<T, int32_t>::value
-               //|| std::is_same <T,double>::value
+             //  || std::is_same<T,double>::value
                  ) {
     MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
   } else {

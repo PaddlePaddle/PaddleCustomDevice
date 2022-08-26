@@ -19,11 +19,10 @@
 #include <unistd.h>
 #include "paddle/phi/backends/device_ext.h"
 #include <CL/sycl.hpp>
-#include <vector>
-#include <thread>
-#define show(x)                                                    \
-  std::cout << "[SHOW][" << std::hex << std::this_thread::get_id() \
-            << std::dec << "]: " << x << std::endl;
+#include "dnn_support.hpp"
+
+
+
 #define MEMORY_FRACTION 0.5f
 
 C_Status Init() {

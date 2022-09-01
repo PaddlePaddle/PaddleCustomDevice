@@ -40,6 +40,12 @@ C_Status Init() {
 template<class T>
 using up_t = std::unique_ptr<T>;
 
+DeviceConfigPtr devconf;
+std::mutex mx;
+
+
+
+
 template <class C, class F>
 auto next_correct(C &c, F f, int dev = 0) -> decltype(c.begin()) {
   auto b = c.begin();
@@ -204,6 +210,7 @@ std::vector<DeviceCtx> reg_dev;
 
 
 C_Status InitDevice(const C_Device device) {
+  InitializeDevConf();
   show("InitDevice : device->id=" << device->id);
 
   return C_SUCCESS;
@@ -234,25 +241,25 @@ C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
 
- if(!reg_dev.size())
- {
- auto devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+  if (!reg_dev.size()) {
+    InitializeDevConf();
+    auto devices = sycl::device::get_devices(sycl::info::device_type::gpu);
 
- std::copy_if(
-     devices.begin(), devices.end(), std::back_inserter(reg_dev), intel_match);
+    std::copy_if(devices.begin(),
+                 devices.end(),
+                 std::back_inserter(reg_dev),
+                 intel_match);
 
- if(!reg_dev.size())
- {
-    show("No Intel GPUs found");
-    return C_FAILED;
- }
+    if (!reg_dev.size()) {
+      show("No Intel GPUs found");
+      return C_FAILED;
+    }
+  }
 
- }
+  *count = reg_dev.size();
+  show("GetDevicesCount() count=" << *count);
 
- *count = reg_dev.size();
- show("GetDevicesCount() count=" << *count);
-
- return C_SUCCESS;
+  return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
@@ -280,7 +287,7 @@ C_Status AsyncMemCpy(const C_Device device,
                      size_t size) {
 
   auto &dev_stream = reg_dev[device->id].getStream(stream);
-  std::cout << "Async MEMCPY dst="<< dst << " src=" << src <<"  !!!!! "<< &dev_stream << " =="<< stream << std::endl;
+  show( "Async MEMCPY dst="<< dst << " src=" << src <<"  !!!!! "<< &dev_stream << " =="<< stream );
    dev_stream.submit([&](sycl::handler &h) {
     h.memcpy(dst, src, size);
    });
@@ -454,7 +461,12 @@ C_Status DeviceMemStats(const C_Device device,
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
  // *size = 512;
- *size=4;
+ InitializeDevConf();
+
+// *size=4;
+
+ *size = devconf->chunk_size;
+
   return C_SUCCESS;
 }
 

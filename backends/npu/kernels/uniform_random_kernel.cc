@@ -34,8 +34,8 @@ template <typename T, typename Context>
 void UniformRandomRawKernel(const Context& dev_ctx,
                             const phi::IntArray& shape,
                             phi::DataType dtype,
-                            float min,
-                            float max,
+                            const phi::Scalar& min,
+                            const phi::Scalar& max,
                             int seed,
                             int diag_num,
                             int diag_step,
@@ -59,7 +59,8 @@ void UniformRandomRawKernel(const Context& dev_ctx,
   } else {
     engine = dev_ctx.GetGenerator()->GetCPUEngine();
   }
-  UniformRealDistribution<T>(cpu_data, size, min, max, engine);
+  UniformRealDistribution<T>(
+      cpu_data, size, min.to<float>(), max.to<float>(), engine);
   if (diag_num > 0) {
     PADDLE_ENFORCE_GT(
         size,
@@ -86,8 +87,8 @@ template <typename T, typename Context>
 void UniformRandomKernel(const Context& dev_ctx,
                          const phi::IntArray& shape,
                          phi::DataType dtype,
-                         float min,
-                         float max,
+                         const phi::Scalar& min,
+                         const phi::Scalar& max,
                          int seed,
                          phi::DenseTensor* out) {
   custom_kernel::UniformRandomRawKernel<T>(

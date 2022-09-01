@@ -19,11 +19,13 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void EyeKernel(const Context& dev_ctx,
-               int64_t num_rows,
-               int64_t num_columns,
+               const phi::Scalar& rows,
+               const phi::Scalar& columns,
                phi::DataType dtype,
                phi::DenseTensor* out) {
   auto npu_dtype = ConvertToNpuDtype(dtype);
+  auto num_columns = columns.to<int64_t>();
+  auto num_rows = rows.to<int64_t>();
   if (num_columns == -1) num_columns = num_rows;
 
   NPUAttributeMap attr_input = {{"num_rows", num_rows},

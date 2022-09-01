@@ -71,12 +71,12 @@ static phi::DDim GetOutputShape(const std::vector<int64_t> unsqz_dims,
 template <typename T, typename Context>
 void SumRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& axes,
+                  const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensorMeta::DataType out_dtype,
                   phi::DenseTensor* out) {
-  auto dims = axes;
+  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
   // special case
@@ -140,11 +140,14 @@ void SumRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
-               const std::vector<int64_t>& dims,
+               const phi::IntArray& dims,
                phi::DenseTensorMeta::DataType out_dtype,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
+  if (dims.size() == 0) {
+    reduce_all = true;
+  }
   custom_kernel::SumRawKernel<T>(
       dev_ctx, x, dims, keep_dim, reduce_all, out_dtype, out);
 }
@@ -153,11 +156,13 @@ template <typename T, typename Context>
 void SumGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& out_grad,
-                   const std::vector<int64_t>& dims,
+                   const phi::IntArray& dims_array,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto keep_dims = keep_dim;
+
+  auto dims = dims_array.GetData();
 
   // The dims has full dim, set the reduce_all is True
   const auto& input_dim_size = x.dims().size();

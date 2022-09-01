@@ -17,42 +17,74 @@ cmake_minimum_required(VERSION 3.10)
 project(paddle-custom-intel-gpu CXX C)
 
 ##########################################
-set(ONEAPI_PATH "/home/pawel/intel/oneapi")
-set(CND_ENV "dev")
-set(PADDLE_BUILD_DIR "/backup/work/Paddle/build_gcc_Release")
 
-if(DEFINED ENV{CONDA_DEFAULT_ENV})
-	message(STATUS "OVERRIDE CND_ENV ")
-	set(CND_ENV "$ENV{CONDA_DEFAULT_ENV}")
+
+if(NOT DEFINED ONEAPI_PATH)
+set(ONEAPI_PATH "$ENV{HOME}/intel/oneapi")
 endif()
-message(STATUS "CND_ENV => ${CND_ENV}")
+
+if(NOT EXISTS "${ONEAPI_PATH}")
+message(FATAL_ERROR "Can't find openapi directory ${ONEAPI_PATH}")
+endif()
+
+message(STATUS "OneAPI DIR : ${ONEAPI_PATH}")
+
+if(NOT DEFINED ONEAPI_COMPILER_DIR)
+set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
+endif()
+
+if(NOT EXISTS "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
+message(FATAL_ERROR "Can't find directory ${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
+endif()
+
+if(NOT DEFINED ENV{CONDA_PREFIX_1})
+message(FATAL_ERROR "Please install python miniconda ")
+endif()
+
+if(NOT DEFINED CND_INSTALL_DIR)
+    set(CND_INSTALL_DIR "$ENV{CONDA_PREFIX_1}")
+endif()
+
+if(NOT EXISTS "${CND_INSTALL_DIR}")
+ message(FATAL_ERROR "Can't find conda directory ${CND_INSTALL_DIR}")
+endif()
+
+message(STATUS "Conda DIR : ${CND_INSTALL_DIR}")
+
+if(NOT DEFINED CND_ENV)
+set(CND_ENV "$ENV{CONDA_DEFAULT_ENV}")
+endif()
+
+message(STATUS "CONDA default env => ${CND_ENV}")
+
+set(CND_PYTHON "${CND_INSTALL_DIR}/envs/${CND_ENV}/lib/python3.9")
+
+if(NOT EXISTS "${CND_PYTHON}")
+   message(FATAL_ERROR "Can't find conda python directory ${CND_PYTHON}" )
+endif()
+
+
 
 #############################
-set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
+
 set(DPCPP_COMPIER_PATH "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/bin/dpcpp")
 set(ONEAPI_SYCL_INCLUDE "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/include/sycl/")
 set(ONEAPI_SYCL_LIBDIR "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/lib/")
 set(CMAKE_CXX_COMPILER "${DPCPP_COMPIER_PATH}")
 ##########################################
-#set(PADDLE_BUILD_DIR "/backup/work/Paddle/build_gcc_Release")
-#set(CND_PYTHON "/opt/conda/lib/python3.7")
-set(CND_PYTHON "/home/pablo/miniconda3/envs/${CND_ENV}/lib/python3.9")
+
+
 set(ONEDNN_INC "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/include")
 set(ONEDNN_LIB "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/lib")
 ##########################################
 set(PADDLE_PLUGIN_DIR  "${CND_PYTHON}/site-packages/paddle-plugins/")
 set(PADDLE_INC_DIR     "${CND_PYTHON}/site-packages/paddle/include/")
 set(PADDLE_LIB_DIR     "${CND_PYTHON}/site-packages/paddle/fluid/")
-set(BOOST_INC_DIR      "${PADDLE_BUILD_DIR}/third_party/boost/src/extern_boost")
-set(GFLAGS_INC_DIR     "${PADDLE_BUILD_DIR}/third_party/install/gflags/include")
-set(GLOG_INC_DIR       "${PADDLE_BUILD_DIR}/third_party/install/glog/include")
-set(THREAD_INC_DIR     "${PADDLE_BUILD_DIR}/third_party/threadpool/src/extern_threadpool")
-set(THIRD_PARTY_INC_DIR ${BOOST_INC_DIR} ${GFLAGS_INC_DIR} ${GLOG_INC_DIR} ${THREAD_INC_DIR})
 
-include_directories( ${ONEAPI_SYCL_INCLUDE} ${THIRD_PARTY_INC_DIR} ${ONEDNN_INC})
+
+include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
 
 ###########################################
-
 
 
 

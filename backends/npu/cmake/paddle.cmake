@@ -24,8 +24,12 @@ if(NOT EXISTS ${PADDLE_DIR})
     message (FATAL_ERROR "NO Installed Paddle Found in ${PADDLE_DIR}")
 endif()
 
+if (NOT PADDLE_INC_DIR)
 set(PADDLE_INC_DIR     "${PADDLE_DIR}/include/")
+endif()
+if (NOT PADDLE_LIB_DIR)
 set(PADDLE_LIB_DIR     "${PADDLE_DIR}/fluid/")
+endif()
 
 INCLUDE_DIRECTORIES(${PADDLE_INC_DIR})
 

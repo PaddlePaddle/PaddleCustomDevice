@@ -61,7 +61,7 @@ void ModuloKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(modulo,
+PD_REGISTER_PLUGIN_KERNEL(remainder,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::ModuloKernel,
@@ -70,7 +70,7 @@ PD_REGISTER_PLUGIN_KERNEL(modulo,
                           float,
                           double,
                           phi::dtype::float16) {}
-PD_REGISTER_PLUGIN_KERNEL(modulo_raw,
+PD_REGISTER_PLUGIN_KERNEL(remainder_raw,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::ModuloRawKernel,

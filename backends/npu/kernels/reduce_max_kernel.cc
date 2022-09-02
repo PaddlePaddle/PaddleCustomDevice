@@ -20,11 +20,11 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MaxRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& axes,
+                  const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
-  auto dims = axes;
+  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
   NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};
@@ -64,7 +64,7 @@ void MaxRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void MaxKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
-               const std::vector<int64_t>& dims,
+               const phi::IntArray& dims,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
@@ -76,11 +76,11 @@ void MaxGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& out,
                    const phi::DenseTensor& out_grad,
-                   const std::vector<int64_t>& reduce_dims_in,
+                   const phi::IntArray& reduce_dims_in,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
-  auto reduce_dims = reduce_dims_in;
+  auto reduce_dims = reduce_dims_in.GetData();
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();
 

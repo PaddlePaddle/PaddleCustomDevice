@@ -62,12 +62,15 @@ static void CumsumImp(const Tensor& input,
 template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  int axis,
+                  // int axis,
+                  const phi::Scalar& axis_scalar,
                   bool flatten,
                   bool exclusive,
                   bool reverse,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
+
+  auto axis = axis_scalar.to<int>();
 
   NPUAttributeMap attr_input = {
       {"axis", axis}, {"exclusive", exclusive}, {"reverse", reverse}};

@@ -52,7 +52,7 @@ const std::map<std::string, cnnlInterpBackwardMode_t> MLUInterpBackwardModeMap =
      {"trilinear", CNNL_INTERP_BACKWARD_TRILINEAR},
      {"bicubic", CNNL_INTERP_BACKWARD_BICUBIC}};
 
-inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string reduce_name) {
+inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string& reduce_name) {
   auto iter = MLUReduceOpMap.find(reduce_name);
   if (iter != MLUReduceOpMap.end()) {
     return iter->second;
@@ -61,7 +61,7 @@ inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string reduce_name) {
       "Not support reduce op type of MLU Device: %s", reduce_name));
 }
 
-inline cnnlInterpMode_t GetMLUCnnlInterpMode(const std::string interp_mode) {
+inline cnnlInterpMode_t GetMLUCnnlInterpMode(const std::string& interp_mode) {
   auto iter = MLUInterpModeMap.find(interp_mode);
   if (iter != MLUInterpModeMap.end()) {
     return iter->second;
@@ -71,7 +71,7 @@ inline cnnlInterpMode_t GetMLUCnnlInterpMode(const std::string interp_mode) {
 }
 
 inline cnnlInterpBackwardMode_t GetMLUCnnlInterpBackwardMode(
-    const std::string interp_mode) {
+    const std::string& interp_mode) {
   auto iter = MLUInterpBackwardModeMap.find(interp_mode);
   if (iter != MLUInterpBackwardModeMap.end()) {
     return iter->second;
@@ -1463,7 +1463,7 @@ class MLUCnnl {
                             void* output);
 
   static void CropAndResize(const Context& ctx,
-                            const std::string method_name,
+                            const std::string& method_name,
                             const float extrapolation_value,
                             const cnnlTensorDescriptor_t image_desc,
                             const void* image,
@@ -1476,7 +1476,7 @@ class MLUCnnl {
 
   static void CropAndResizeBackwardImage(
       const Context& ctx,
-      const std::string method_name,
+      const std::string& method_name,
       const cnnlTensorDescriptor_t image_desc,
       const void* image,
       const cnnlTensorDescriptor_t boxes_desc,

@@ -21,10 +21,12 @@ template <typename T, typename Context>
 void PadKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const std::vector<int>& paddings,
-               float pad_value,
+               const phi::Scalar& pad_value_scalar,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
+
+  auto pad_value = pad_value_scalar.to<float>();
 
   PADDLE_ENFORCE_LT(abs(pad_value),
                     1e-5,

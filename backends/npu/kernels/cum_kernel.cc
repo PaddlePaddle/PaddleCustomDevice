@@ -62,7 +62,6 @@ static void CumsumImp(const Tensor& input,
 template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  // int axis,
                   const phi::Scalar& axis_scalar,
                   bool flatten,
                   bool exclusive,

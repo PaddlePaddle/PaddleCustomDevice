@@ -20,7 +20,7 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void ArgMinKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  int64_t axis,
+                  const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
                   int dtype,
@@ -30,7 +30,7 @@ void ArgMinKernel(const Context& dev_ctx,
   NpuOpRunner runner;
   runner.SetType("ArgMin")
       .AddInput(x)
-      .AddInput(dev_ctx, std::vector<int64_t>{axis})
+      .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
       .AddOutput(*out)
       .AddAttr("dtype", dtype);
 
@@ -41,7 +41,7 @@ void ArgMinKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void ArgMaxKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  int64_t axis,
+                  const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
                   int dtype,
@@ -58,7 +58,7 @@ void ArgMaxKernel(const Context& dev_ctx,
   runner.SetType("ArgMaxD")
       .AddInput(transformed_x)
       .AddOutput(*out)
-      .AddAttr("dimension", axis)
+      .AddAttr("dimension", axis.to<int64_t>())
       .AddAttrDataType("dtype", dtype)
       .Run(stream);
 }

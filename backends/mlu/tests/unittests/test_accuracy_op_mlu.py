@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import sys
 
 from tests.op_test import OpTest
 import paddle
@@ -31,7 +30,6 @@ class TestAccuracyOp(OpTest):
         self.op_type = "accuracy"
         self.place = paddle.CustomPlace('CustomMLU', 0)
         self.__class__.use_custom_device = True
-        self.__class__.use_mlu = True
         self.dtype = np.float32
         self.init_dtype()
         n = 8192

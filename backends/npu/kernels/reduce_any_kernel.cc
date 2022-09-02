@@ -18,35 +18,22 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void EyeKernel(const Context& dev_ctx,
-               const phi::Scalar& rows,
-               const phi::Scalar& columns,
-               phi::DataType dtype,
+void AnyKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const std::vector<int64_t>& dims,
+               bool keep_dim,
                phi::DenseTensor* out) {
-  auto npu_dtype = ConvertToNpuDtype(dtype);
-  auto num_columns = columns.to<int64_t>();
-  auto num_rows = rows.to<int64_t>();
-  if (num_columns == -1) num_columns = num_rows;
-
-  NPUAttributeMap attr_input = {{"num_rows", num_rows},
-                                {"num_columns", num_columns},
-                                {"dtype", npu_dtype}};
-
   dev_ctx.template Alloc<T>(out);
 
-  const auto& runner = NpuOpRunner("Eye", {}, {*out}, attr_input);
+  // set attr
+  NPUAttributeMap attr = {{"keep_dims", keep_dim}, {"axes", dims}};
+
+  const auto& runner = NpuOpRunner("ReduceAnyD", {x}, {*out}, attr);
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(eye,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::EyeKernel,
-                          int,
-                          int64_t,
-                          float,
-                          double,
-                          phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    any, ascend, ALL_LAYOUT, custom_kernel::AnyKernel, bool) {}

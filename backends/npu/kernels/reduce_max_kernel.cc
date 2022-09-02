@@ -68,6 +68,9 @@ void MaxKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
+  if (dims.size() == 0) {
+    reduce_all = true;
+  }
   custom_kernel::MaxRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 

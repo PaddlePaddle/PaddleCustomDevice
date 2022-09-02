@@ -20,11 +20,11 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MeanRawKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
-                   const std::vector<int64_t>& axes,
+                   const phi::IntArray& axes,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* out) {
-  auto dims = axes;
+  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
   auto input_dims_vec = phi::vectorize(x.dims());
@@ -43,7 +43,7 @@ void MeanRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void MeanKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
-                const std::vector<int64_t>& dims,
+                const phi::IntArray& dims,
                 bool keep_dim,
                 phi::DenseTensor* out) {
   bool reduce_all = false;
@@ -52,14 +52,14 @@ void MeanKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& out_grad,
-                       const std::vector<int64_t>& axes,
-                       bool keep_dim,
-                       bool reduce_all,
-                       phi::DenseTensor* x_grad) {
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out_grad,
+                    const phi::IntArray& axes,
+                    bool keep_dim,
+                    bool reduce_all,
+                    phi::DenseTensor* x_grad) {
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-  auto reduce_dims = axes;
+  auto reduce_dims = axes.GetData();
   auto input_dims_vec = phi::vectorize(x.dims());
   dev_ctx.template Alloc<T>(x_grad);
 

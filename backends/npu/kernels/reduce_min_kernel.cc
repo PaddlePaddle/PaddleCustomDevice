@@ -20,11 +20,11 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MinRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& axes,
+                  const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
-  auto dims = axes;
+  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
   NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};
@@ -64,7 +64,7 @@ void MinRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void MinKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
-               const std::vector<int64_t>& dims,
+               const phi::IntArray& dims,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;

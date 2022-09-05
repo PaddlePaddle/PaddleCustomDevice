@@ -21,14 +21,14 @@ template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       const paddle::optional<phi::DenseTensor>& seed_tensor,
-                      float p,
+                      const phi::Scalar& p,
                       bool is_test,
                       const std::string& mode,
                       int seed,
                       bool fix_seed,
                       phi::DenseTensor* out,
                       phi::DenseTensor* mask) {
-  auto dropout_prob = p;
+  auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();

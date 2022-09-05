@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
+#include <CL/sycl.hpp>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
-#include <unistd.h>
-#include "paddle/phi/backends/device_ext.h"
-#include <CL/sycl.hpp>
+
 #include "dnn_support.hpp"
-
-
+#include "paddle/phi/backends/device_ext.h"
 
 #define MEMORY_FRACTION 0.5f
 
@@ -35,35 +35,17 @@ C_Status Init() {
   return C_SUCCESS;
 }
 
-
 // **** Types *****
-template<class T>
+template <class T>
 using up_t = std::unique_ptr<T>;
 
 DeviceConfigPtr devconf;
 std::mutex mx;
 
-
-
-
-template <class C, class F>
-auto next_correct(C &c, F f, int dev = 0) -> decltype(c.begin()) {
-  auto b = c.begin();
-  auto e = c.end();
-  ++dev;
-  while (b != e) {
-    if (f(*b) && !(--dev)) return b;
-    ++b;
-  }
-  return b;
-}
-
-auto intel_match
-  = [](sycl::device &dev) -> bool {
-   const auto name = dev.template get_info<sycl::info::device::name>();
-   return (name.find("Intel(R) Graphics") != std::string::npos) ? true : false;
- };
-
+auto intel_match = [](sycl::device &dev) -> bool {
+  const auto name = dev.template get_info<sycl::info::device::name>();
+  return (name.find("Intel(R) Graphics") != std::string::npos) ? true : false;
+};
 
 struct DeviceCtx {
   sycl::device _dev;
@@ -78,55 +60,55 @@ struct DeviceCtx {
         _dev_memory_size(_dev.get_info<sycl::info::device::global_mem_size>()) {
   }
 
-  sycl::queue* create_stream() {
-     auto u_ptr=std::make_unique<sycl::queue>(_dev);
-     _streams.push_back(std::move(u_ptr));
+  sycl::queue *create_stream() {
+    auto u_ptr = std::make_unique<sycl::queue>(_dev);
+    _streams.push_back(std::move(u_ptr));
 
-   return  &(*(*(_streams.rbegin())));
+    return &(*(*(_streams.rbegin())));
   }
 
-  sycl::queue* getDefaultOrCreate() {
+  sycl::queue *getDefaultOrCreate() {
+    if (_def_stream && _streams.size()) {
+      _def_stream = false;
+      return _streams[0].get();
+    }
 
-      if(_def_stream && _streams.size())
-      {
-        _def_stream=false;
-         return _streams[0].get();
-      }
-
-      return create_stream();
+    return create_stream();
   }
 
-  sycl::queue& getStream(size_t index=0) {
-    if(!_streams.size())
-            create_stream();
+  sycl::queue &getStream(size_t index = 0) {
+    if (!_streams.size()) create_stream();
     return *(_streams[index]);
   }
 
-  sycl::queue& getStream(C_Stream stream)
-  {
-       auto it = std::find_if(
+  void copy(sycl::queue &q, void *dst, const void *src, size_t size) {
+    q.submit([&](sycl::handler &h) { h.memcpy(dst, src, size); });
+    q.wait();
+  }
+
+  void copy(void *dst, const void *src, size_t size) {
+    copy(getStream(), dst, src, size);
+  }
+
+  sycl::queue &getStream(C_Stream stream) {
+    auto it = std::find_if(
         _streams.begin(), _streams.end(), [stream](auto &single_stream) {
           return single_stream.get() == reinterpret_cast<sycl::queue *>(stream);
         });
 
-       if(it==_streams.end())
-       {
-          show("***FATAL ERROR STREAM not found***");
-       }
-       return **it;
+    if (it == _streams.end()) {
+      show("*FATAL ERROR STREAM not found*");
+    }
+    return **it;
   }
 
-      size_t getMemorySize() {
-    return _dev_memory_size;
-  }
+  size_t getMemorySize() { return _dev_memory_size; }
 
- size_t getFreeMemorySize() { return (getMemorySize() - allocated_mem)/8; }
+  size_t getFreeMemorySize() { return (getMemorySize() - allocated_mem) / 8; }
 
- void  alloc_mem(size_t _size) {
-    allocated_mem += _size;
- }
+  void alloc_mem(size_t _size) { allocated_mem += _size; }
 
- void free_mem(size_t _size) { allocated_mem -= _size; }
+  void free_mem(size_t _size) { allocated_mem -= _size; }
 };
 
 std::vector<DeviceCtx> reg_dev;
@@ -140,8 +122,9 @@ std::vector<DeviceCtx> reg_dev;
 //   // sycl::malloc_shared<T>(N,getQ()) , &sycl_delete<T>  );
 //   // return std::unique_ptr<T[],decltype(&sycl_delete<T>)>(
 //   // sycl::malloc_shared<T>(N,getQ()) , &sycl_delete<T>  );
-//   T *ptr = reinterpret_cast<T *>(sycl::aligned_alloc_device(64, N * sizeof(T), getQ()));
-//   return std::unique_ptr<T[], decltype(&sycl_delete<T>)>(ptr, &sycl_delete<T>);
+//   T *ptr = reinterpret_cast<T *>(sycl::aligned_alloc_device(64, N *
+//   sizeof(T), getQ())); return std::unique_ptr<T[],
+//   decltype(&sycl_delete<T>)>(ptr, &sycl_delete<T>);
 //   // sycl::aligned_alloc_device(64, size, getQ());
 // }
 
@@ -151,7 +134,6 @@ std::vector<DeviceCtx> reg_dev;
 //   sycl::free(v, getQ());
 //   show("FreeGPU memory");
 // }
-
 
 // struct Stream_t {
 
@@ -186,61 +168,53 @@ std::vector<DeviceCtx> reg_dev;
 //    return " ";
 //   }
 
-//  // const std::string getName() const { return q->get_device().get_info<sycl::info::device::name>(); }
+//  // const std::string getName() const { return
+//  q->get_device().get_info<sycl::info::device::name>(); }
 
 //   const std::string getName() const {
 //   // auto a = getDevProp<sycl::info::device::name>();
 //     return "  "; }
 
-//   bool is_gpu() const { return q->get_device().get_info<sycl::info::device::device_type>() == sycl::info::device_type::gpu; }
+//   bool is_gpu() const { return
+//   q->get_device().get_info<sycl::info::device::device_type>() ==
+//   sycl::info::device_type::gpu; }
 // };
-
 
 // template <class K, class V>
 // using map_t = std::unordered_map<K, std::set<V>>;
 
 // map_t<int,Stream_t> gmap;
 
-
 // static sycl::queue& getQ() {
 //    static sycl::queue q{sycl::gpu_selector{}};
 //    return q;
 // }
 
-
-
 C_Status InitDevice(const C_Device device) {
   InitializeDevConf();
-  show("InitDevice : device->id=" << device->id);
-
+  show("init-device : device->id=" << device->id);
   return C_SUCCESS;
- }
+}
 
 C_Status SetDevice(const C_Device device) {
-
-   show("SetDevice : device->id=" << device->id);
-   return C_SUCCESS;
-
- }
+  show("set-device : device->id=" << device->id);
+  return C_SUCCESS;
+}
 
 C_Status GetDevice(const C_Device device) {
-  show("GetDevicePre : device->id=" << device->id);
   device->id = 0;
-  show("SetDeviceAfter : device->id=" << device->id);
+  show("get-device() : device->id=" << device->id);
   return C_SUCCESS;
 }
 
 C_Status DestroyDevice(const C_Device device) {
-  show("DestroyDevice : device->id=" << device->id);
-
+  show("destroy-device() : device->id=" << device->id);
   return C_SUCCESS;
-
-  }
+}
 
 C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
-
   if (!reg_dev.size()) {
     InitializeDevConf();
     auto devices = sycl::device::get_devices(sycl::info::device_type::gpu);
@@ -257,17 +231,15 @@ C_Status GetDevicesCount(size_t *count) {
   }
 
   *count = reg_dev.size();
-  show("GetDevicesCount() count=" << *count);
+  show("getdevicescount() count=" << *count);
 
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
+  show("getdeviceList() fill=" << reg_dev.size());
 
-
-  show("GetDeviceList() fill="<< reg_dev.size());
-  for(size_t i=0;i<reg_dev.size();++i)
-  devices[i]=static_cast<int>(i);
+  for (size_t i = 0; i < reg_dev.size(); ++i) devices[i] = static_cast<int>(i);
 
   return C_SUCCESS;
 }
@@ -285,15 +257,13 @@ C_Status AsyncMemCpy(const C_Device device,
                      void *dst,
                      const void *src,
                      size_t size) {
+  show("async-memcpy  dst=" << dst << " src=" << src << " size=" << size);
 
-  auto &dev_stream = reg_dev[device->id].getStream(stream);
-  show( "Async MEMCPY dst="<< dst << " src=" << src <<"  !!!!! "<< &dev_stream << " =="<< stream );
-   dev_stream.submit([&](sycl::handler &h) {
-    h.memcpy(dst, src, size);
-   });
+  auto &dev_ctx = reg_dev[device->id];
 
-   dev_stream.wait();
+  auto &dev_stream = dev_ctx.getStream(stream);
 
+  dev_ctx.copy(dev_stream, dst, src, size);
 
   return C_SUCCESS;
 }
@@ -303,6 +273,8 @@ C_Status MemCpyP2P(const C_Device dst_device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  show("memcpy-p2p  memcpy() dst=" << dst << " src=" << src
+                                   << " size=" << size);
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -313,44 +285,40 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  show("async-memcpy-p2p  memcpy() dst=" << dst << " src=" << src
+                                         << " size=" << size);
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
 
-
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
+  if (size > reg_dev[device->id].getFreeMemorySize()) {
+    show("#### No free memory INTERNAL ERROR OUT OF MEMORY requested size="
+         << size << " left=" << reg_dev[device->id].getFreeMemorySize()
+         << " #####");
+    return C_FAILED;
+  }
 
+  auto &stream = reg_dev[device->id].getStream();
 
-   if (size > reg_dev[device->id].getFreeMemorySize())
-   {
-     show("#### No free memory INTERNAL ERROR OUT OF MEMORY requested size="
-          << size << " left=" << reg_dev[device->id].getFreeMemorySize()
-          << " #####");
-     return C_FAILED;
-   }
-
-   auto& stream = reg_dev[device->id].getStream();
-
-   *ptr = sycl::aligned_alloc_device(64, size, stream);
+  *ptr = sycl::aligned_alloc_device(64, size, stream);
   // *ptr = sycl::aligned_alloc_shared(64, size, stream);
 
-   if (!*ptr) {
-     show("#### Error : Can't allocate memory size=" << size << " ####");
-     return C_FAILED;
-   }
+  if (!*ptr) {
+    show("#### Error : Can't allocate memory size=" << size << " ####");
+    return C_FAILED;
+  }
 
-   reg_dev[device->id].alloc_mem(size);
+  reg_dev[device->id].alloc_mem(size);
 
-   show("### Allocation success size="
-        << size << " left="
-        << reg_dev[device->id].getFreeMemorySize());
+  show("alloc ok size=" << size
+                        << " left=" << reg_dev[device->id].getFreeMemorySize());
 
-   return C_SUCCESS;
-
+  return C_SUCCESS;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  show("Deallocate size=" << size);
+  show("deallocate size=" << size);
 
   auto &stream = reg_dev[device->id].getStream();
 
@@ -358,80 +326,87 @@ C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
 
   reg_dev[device->id].free_mem(size);
 
-   return C_SUCCESS;
+  return C_SUCCESS;
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
+  show("create-stream for device=" << device->id);
 
-  show("CreateStream for device="<< device->id);
-
-  *stream = reinterpret_cast<C_Stream>(reg_dev[device->id].getDefaultOrCreate());
+  *stream =
+      reinterpret_cast<C_Stream>(reg_dev[device->id].getDefaultOrCreate());
 
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
-show("Destroy stream device->id="<< device->id << " stream=" << stream);
+  show("destroy-stream device->id=" << device->id << " stream=" << stream);
 
-  auto& _streams = reg_dev[device->id]._streams;
-  auto it = std::find_if(_streams.begin(),_streams.end(),[stream](auto& single_stream){
-       return single_stream.get() == reinterpret_cast<sycl::queue*>(stream);
-   });
+  auto &_streams = reg_dev[device->id]._streams;
+  auto it = std::find_if(
+      _streams.begin(), _streams.end(), [stream](auto &single_stream) {
+        return single_stream.get() == reinterpret_cast<sycl::queue *>(stream);
+      });
 
-   if(it!=_streams.end())
-       _streams.erase(it);
+  if (it != _streams.end()) _streams.erase(it);
 
-    return C_SUCCESS;
+  return C_SUCCESS;
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
+  show("create-event devid=" << device->id);
   return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
+  show("record-event devid=" << device->id);
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
+  show("destroy-event devid=" << device->id);
   return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
+  show("sync-device devid=" << device->id);
+  auto &dev_ctx = reg_dev[device->id];
 
-     auto& dev_ctx = reg_dev[device->id];
-
-     for (auto &stream : dev_ctx._streams)
-     {
-             stream->wait(); // ???????
-     }
-      return C_SUCCESS;
- }
+  for (auto &stream : dev_ctx._streams) {
+    stream->wait();  // ???????
+  }
+  return C_SUCCESS;
+}
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
-
-   auto ret_stream = reg_dev[device->id].getStream(stream);
-   ret_stream.wait();
+  show("sync-stream devid=" << device->id);
+  auto ret_stream = reg_dev[device->id].getStream(stream);
+  ret_stream.wait();
 
   return C_SUCCESS;
 }
 
-C_Status SyncEvent(const C_Device device, C_Event event) { return C_SUCCESS; }
+C_Status SyncEvent(const C_Device device, C_Event event) {
+  show("sync-event devid=" << device->id);
+  return C_SUCCESS;
+}
 
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-
+  show("stream-wait-event devid=" << device->id);
 
   return C_SUCCESS;
 }
 
-C_Status VisibleDevices(size_t *devices) { return C_SUCCESS; }
+C_Status VisibleDevices(size_t *devices) {
+  show("visible-devices devices=" << *devices);
+  return C_SUCCESS;
+}
 
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
-
-  auto& dev_ctx = reg_dev[device->id];
+  auto &dev_ctx = reg_dev[device->id];
   *total_memory = dev_ctx.getMemorySize();
   *free_memory = dev_ctx.getFreeMemorySize();
 
@@ -452,87 +427,64 @@ C_Status DeviceMemStats(const C_Device device,
   // *total_memory = *total_memory * 1024;
   // *free_memory = *free_memory * 1024;
   // *free_memory = *free_memory * MEMORY_FRACTION;
-  show("DeviceMemStats device=" << device->id
-                                << " TotalMemory=" << *total_memory
-                                << " FreeMemory=" << *free_memory);
+  show("device-mem-stat device=" << device->id
+                                 << " TotalMemory=" << *total_memory
+                                 << " FreeMemory=" << *free_memory);
 
   return C_SUCCESS;
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
- // *size = 512;
- InitializeDevConf();
-
-// *size=4;
-
- *size = devconf->chunk_size;
-
+  show("device-min-chunk-size device=" << device->id);
+  InitializeDevConf();
+  *size = devconf->chunk_size;
   return C_SUCCESS;
 }
 
-
 C_Status MemoryCopyH2D(const C_Device device,
-                void *dst,
-                const void *src,
-                size_t size) {
+                       void *dst,
+                       const void *src,
+                       size_t size) {
+  show("memory-copy-h2d dst=" << dst << " src=" << src << " size=" << size);
 
-  auto &stream = reg_dev[device->id].getStream();
+  reg_dev[device->id].copy(dst, src, size);
 
-  show("MemoryCopyH2D size=" << size << " dst=" << dst << " src=" << src);
-  stream.submit([&](sycl::handler &h) {
-    h.memcpy(dst, src, size);
-  });
-  stream.wait();
   return C_SUCCESS;
 }
 
 C_Status MemoryCopyD2H(const C_Device device,
-                void *dst,
-                const void *src,
-                size_t size) {
-  auto &stream = reg_dev[device->id].getStream();
-  show("MemoryCopyD2H size=" << size << " dst=" << dst << " src=" << src);
+                       void *dst,
+                       const void *src,
+                       size_t size) {
+  show("memory-copy-d2h size=" << size << " dst=" << dst << " src=" << src);
 
-  stream.submit([&](sycl::handler &h) {
-    h.memcpy(dst, src, size);
-  });
-  stream.wait();
+  reg_dev[device->id].copy(dst, src, size);
+
   return C_SUCCESS;
 }
-
 
 C_Status MemoryCopyD2D(const C_Device device,
-                void *dst,
-                const void *src,
-                size_t size) {
+                       void *dst,
+                       const void *src,
+                       size_t size) {
+  show("memory-copy-d2d size=" << size << " dst=" << dst << " src=" << src);
 
-  auto &stream = reg_dev[device->id].getStream();
-
-  show("MemoryCopyD2D size=" << size << " dst=" << dst << " src=" << src);
-  stream.submit([&](sycl::handler &h) {
-    h.memcpy(dst, src, size);
-  });
-  stream.wait();
+  reg_dev[device->id].copy(dst, src, size);
 
   return C_SUCCESS;
 }
-
-
-
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "intel_gpu";
   params->sub_device_type = "v0.1";
-  show("INIT PLUGIN");
-  show("++++++++++++");
-  // show("INFO DEVICE: " << getQ().get_device().get_info<sycl::info::device::name>());
-
-  // for (auto dev : sycl::device::get_devices(sycl::info::device_type::gpu)) {
+  show("init-plugin " << params->device_type);
+  // show("INFO DEVICE: " <<
+  // getQ().get_device().get_info<sycl::info::device::name>()); for (auto dev :
+  // sycl::device::get_devices(sycl::info::device_type::gpu)) {
   //   const auto name = dev.get_info<sycl::info::device::name>();
   //  show("NameList " << name);
   // }
-  show("++++++++++++");
 
   memset(reinterpret_cast<void *>(params->interface),
          0,
@@ -581,4 +533,4 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_device_list = GetDevicesList;
   params->interface->device_memory_stats = DeviceMemStats;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
-  }
+}

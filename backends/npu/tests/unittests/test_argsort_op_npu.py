@@ -25,6 +25,8 @@ import paddle.fluid.core as core
 
 paddle.enable_static()
 
+SEED = 2022
+
 
 class TestArgsortOp(OpTest):
     def setUp(self):
@@ -37,7 +39,7 @@ class TestArgsortOp(OpTest):
         # Sort npu kernel don't support the fp32,
         # Here, we set the random seed to avoid the indices error
         # when two numbers of one demension are too close.
-        np.random.seed(2022)
+        np.random.seed(SEED)
         self.x = np.random.random(self.input_shape).astype(self.dtype)
         self.inputs = {"X": self.x}
         self.attrs = {"axis": self.axis, "descending": self.descending}
@@ -218,6 +220,7 @@ class TestArgsortOpAxis0NPUINT64(TestArgsortOp):
         self.init_axis()
         self.init_direction()
 
+        np.random.seed(SEED)
         self.x = np.random.randint(
             low=-100, high=100, size=self.input_shape,
             dtype=self.dtype).astype(self.dtype)

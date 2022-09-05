@@ -140,11 +140,11 @@ template <typename T, typename Context>
 void DropoutGradRawKernel(const Context& dev_ctx,
                           const phi::DenseTensor& mask,
                           const phi::DenseTensor& dout,
-                          float p,
+                          const phi::Scalar& p,
                           bool is_test,
                           const std::string& mode,
                           phi::DenseTensor* dx) {
-  auto dropout_prob = p;
+  auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();

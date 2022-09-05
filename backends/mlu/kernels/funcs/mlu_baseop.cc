@@ -356,6 +356,7 @@ MLUCnnlRandomGeneratorDesc::MLUCnnlRandomGeneratorDesc(const Context& ctx,
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlRandGetMTGP32StateSize(mlu_generator, &workspace_size));
 
+  mlu_state.Resize({static_cast<int64_t>(workspace_size)});
   void* mlu_state_ptr = ctx.Alloc(&mlu_state, DataType::INT8, workspace_size);
 
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
@@ -758,6 +759,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetConcatWorkspaceSize(handle, pack_num, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlConcat(handle,
@@ -786,6 +788,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, in0_desc, in1_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDiv_v2(handle,
@@ -840,6 +843,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_quant_desc, output_desc, local_size, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   const cnnlLrnMode_t mode = CNNL_LRN_CROSS_CHANNEL;
@@ -875,6 +879,7 @@ MLURNNDesc::~MLURNNDesc() {
 
   // use ctx allocate interface for profiling purpose
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   const cnnlQuantizeMode_t mode =
@@ -1349,6 +1354,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, in0_desc, in1_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBatchMatMulBCast(handle,
@@ -1401,6 +1407,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, a_desc, b_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlOpTensor(handle,
@@ -1430,6 +1437,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetAxWorkspaceSize(handle, alpha_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlAx_v2(handle,
@@ -1548,6 +1556,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetSplitWorkspaceSize(handle, split_num, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlSplit(handle,
@@ -1662,6 +1671,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlLogicOp(handle,
@@ -1692,6 +1702,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, condition_desc, then_desc, else_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlSelectV2(handle,
@@ -1734,6 +1745,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBatch2space(handle,
@@ -1871,6 +1883,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, pool_mode, output_w, output_h, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlPoolingForward_v2(handle,
@@ -1924,6 +1937,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, pool_mode, output_shape[2], output_shape[1], &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlPoolingForward(handle,
@@ -1975,6 +1989,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, data_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlUnsortedSegmentSum(handle,
@@ -2062,6 +2077,7 @@ MLURNNDesc::~MLURNNDesc() {
                                              &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlConvolutionForward(handle,
@@ -2135,6 +2151,7 @@ MLURNNDesc::~MLURNNDesc() {
   size_t workspace_size = 0;
   void* workspace_ptr = nullptr;
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   if (need_workspace) {
     PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetReduceOpWorkspaceSize(
         handle, input_desc, output_desc, reduction_desc, &workspace_size));
@@ -2169,6 +2186,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlFloorDiv_v2(handle,
@@ -2196,6 +2214,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlFloorMod(handle,
@@ -2222,6 +2241,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetMaximumWorkspaceSize(handle, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlMaximum(handle,
@@ -2248,6 +2268,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetMinimumWorkspaceSize(handle, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlMinimum(handle,
@@ -2275,6 +2296,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlPow(handle,
@@ -2303,6 +2325,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlPowR_v2(handle,
@@ -2331,6 +2354,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDivNoNan_v2(handle,
@@ -2359,6 +2383,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlSquaredDifference(handle,
@@ -2624,6 +2649,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetDynamicStitchWorkspaceSize(handle, size, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDynamicStitch(handle,
@@ -2641,7 +2667,7 @@ MLURNNDesc::~MLURNNDesc() {
 
 /* static */ void MLUCnnl::CropAndResize(
     const Context& ctx,
-    const std::string method_name,
+    const std::string& method_name,
     const float extrapolation_value,
     const cnnlTensorDescriptor_t image_desc,
     const void* image,
@@ -2673,7 +2699,7 @@ MLURNNDesc::~MLURNNDesc() {
 
 /* static */ void MLUCnnl::CropAndResizeBackwardImage(
     const Context& ctx,
-    const std::string method_name,
+    const std::string& method_name,
     const cnnlTensorDescriptor_t grads_desc,
     const void* grads,
     const cnnlTensorDescriptor_t boxes_desc,
@@ -2881,6 +2907,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetNmsWorkspaceSize_v2(handle, confidence_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlNms_v2(handle,
@@ -2928,6 +2955,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   cnnlSpaceBatchParam_t param = {static_cast<uint32_t>(block_shape[0]),
@@ -3101,6 +3129,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetLayerNormOpWorkspaceSize(handle, axis, x_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlLayerNormForward(handle,
@@ -3171,6 +3200,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetQuantizeParamWorkspaceSize(handle, input_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlQuantizeParam(handle,
@@ -3235,6 +3265,7 @@ MLURNNDesc::~MLURNNDesc() {
                                              &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlQuantizeConvolutionForward(handle,
@@ -3376,6 +3407,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlMakeFusedOpsPlan(handle, fusion_plan, cparam_pack, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   if (workspace_size > 0) {
@@ -3439,6 +3471,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                   &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlConvolutionBackwardData(handle,
@@ -3503,6 +3536,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                   &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(
@@ -3561,6 +3595,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                     &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlConvolutionBackwardFilter(handle,
@@ -3627,6 +3662,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                     &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(
@@ -3679,6 +3715,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                             &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDCNForward(handle,
@@ -3735,6 +3772,7 @@ MLURNNDesc::~MLURNNDesc() {
                                           &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDCNBackwardData(handle,
@@ -3789,6 +3827,7 @@ MLURNNDesc::~MLURNNDesc() {
                                             &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDCNBackwardWeight(handle,
@@ -3859,6 +3898,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, matmul_desc, a_desc, b_desc, output_desc, algo, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   // Compute
@@ -3945,6 +3985,7 @@ MLURNNDesc::~MLURNNDesc() {
                                               &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   // Compute
@@ -4047,6 +4088,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                    &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   // Compute
@@ -4096,6 +4138,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, perm_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlTranspose_v2(handle,
@@ -4161,6 +4204,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetWhereWorkspaceSize(handle, num_true_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlWhere_v2(handle,
@@ -4235,6 +4279,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input1_desc, input2_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBitCompute_v2(handle,
@@ -4263,6 +4308,7 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlGetQRWorkspaceSize(handle, a_desc, some, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlQR(handle,
@@ -4305,6 +4351,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, weight_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBceLoss(handle,
@@ -4341,6 +4388,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, target_desc, weight_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBceLossBackward(handle,
@@ -4419,6 +4467,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, diff_desc, output_desc, scale_grad_by_freq, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlEmbeddingBackward(handle,
@@ -4465,6 +4514,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, rnn_desc, x_desc, &workspace_size, &reservespace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlRNNForwardTraining(handle,
@@ -4525,6 +4575,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, rnn_desc, x_desc, &workspace_size, &reservespace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlRNNBackwardData(handle,
@@ -4589,6 +4640,7 @@ MLURNNDesc::~MLURNNDesc() {
                                                         &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlMasked_v3(handle,
@@ -4626,6 +4678,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, weight_desc, pos_weight_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   const cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
@@ -4668,6 +4721,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, target_desc, weight_desc, pos_weight_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBceWithLogitsBackward(handle,
@@ -4774,6 +4828,7 @@ MLURNNDesc::~MLURNNDesc() {
       handle, input_desc, grid_desc, output_desc, &workspace_size));
 
   Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlGridSampleForward(handle,

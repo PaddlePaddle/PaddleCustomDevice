@@ -20,10 +20,11 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MultinomialKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
-                       int num_samples,
+                       const phi::Scalar& num,
                        bool replacement,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<int64_t>(out);
+  auto num_samples = num.to<int>();
   auto stream = dev_ctx.stream();
   const auto& runner =
       NpuOpRunner("MultinomialWithReplacementD",

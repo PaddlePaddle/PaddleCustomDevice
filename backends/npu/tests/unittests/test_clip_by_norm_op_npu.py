@@ -19,7 +19,6 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 from tests.op_test import OpTest
-import time
 
 paddle.enable_static()
 

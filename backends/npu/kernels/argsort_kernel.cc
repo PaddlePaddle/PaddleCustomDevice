@@ -33,6 +33,21 @@ static void TranposeNPU(const phi::CustomContext& dev_ctx,
       .Run(stream);
 }
 
+template <typename T>
+static void TranposeDNPU(const phi::CustomContext& dev_ctx,
+                         const aclrtStream& stream,
+                         const std::vector<int64_t>& perm,
+                         const phi::DenseTensor& in,
+                         phi::DenseTensor* out) {
+  dev_ctx.Alloc<T>(out);
+  NpuOpRunner runner;
+  runner.SetType("TransposeD")
+      .AddInput(in)
+      .AddOutput(*out)
+      .AddAttr({"perm", perm})
+      .Run(stream);
+}
+
 static void CastToInt64(const phi::CustomContext& dev_ctx,
                         const aclrtStream& stream,
                         const phi::DenseTensor& in,
@@ -121,7 +136,7 @@ void ArgsortKernel(const Context& dev_ctx,
       phi::DenseTensor trans_input;
       phi::DenseTensorMeta trans_input_meta = {input_fp32.dtype(), trans_dims};
       trans_input.set_meta(trans_input_meta);
-      TranposeNPU<float>(dev_ctx, stream, &perm, input_fp32, &trans_input);
+      TranposeDNPU<float>(dev_ctx, stream, &perm, input_fp32, &trans_input);
 
       phi::DenseTensor trans_output;
       phi::DenseTensorMeta trans_output_meta = {input_fp32.dtype(), trans_dims};
@@ -142,8 +157,9 @@ void ArgsortKernel(const Context& dev_ctx,
           .AddAttr("descending", descending)
           .Run(stream);
 
-      TranposeNPU<float>(dev_ctx, stream, &perm, trans_output, &output_fp32);
-      TranposeNPU<int32_t>(dev_ctx, stream, &perm, trans_indices, &indices_tmp);
+      TranposeDNPU<float>(dev_ctx, stream, &perm, trans_output, &output_fp32);
+      TranposeDNPU<int32_t>(
+          dev_ctx, stream, &perm, trans_indices, &indices_tmp);
 
       CastToInt64(dev_ctx, stream, output_fp32, output);
     }
@@ -176,7 +192,7 @@ void ArgsortKernel(const Context& dev_ctx,
       phi::DenseTensor trans_input;
       phi::DenseTensorMeta trans_input_meta = {input.dtype(), trans_dims};
       trans_input.set_meta(trans_input_meta);
-      TranposeNPU<T>(dev_ctx, stream, &perm, input, &trans_input);
+      TranposeDNPU<T>(dev_ctx, stream, &perm, input, &trans_input);
 
       phi::DenseTensor trans_output;
       phi::DenseTensorMeta trans_output_meta = {input.dtype(), trans_dims};
@@ -198,8 +214,9 @@ void ArgsortKernel(const Context& dev_ctx,
           .AddAttr("descending", descending)
           .Run(stream);
 
-      TranposeNPU<T>(dev_ctx, stream, &perm, trans_output, output);
-      TranposeNPU<int32_t>(dev_ctx, stream, &perm, trans_indices, &indices_tmp);
+      TranposeDNPU<T>(dev_ctx, stream, &perm, trans_output, output);
+      TranposeDNPU<int32_t>(
+          dev_ctx, stream, &perm, trans_indices, &indices_tmp);
     }
   }
 

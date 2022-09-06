@@ -154,11 +154,11 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   using namespace dnnl;
   using tag = memory::format_tag;
   using dt = memory::data_type;
-
+  show_debug("X.dims() = " << x.dims() << " Y.dims() =" << y.dims() << " OutDims()=" << out->dims() );
   auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
   auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
 
-  dnnl::memory::dims common_dims = {out->numel()};
+      dnnl::memory::dims common_dims = {out->numel()};
   auto common_md = memory::desc(common_dims, dnn_support::toDnnType<T>::type, tag::a);
 
   auto x_mem = memory(common_md, eng, x.data<T>());

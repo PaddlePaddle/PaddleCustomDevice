@@ -158,19 +158,23 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
   auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
 
-      dnnl::memory::dims common_dims = {out->numel()};
-  auto common_md = memory::desc(common_dims, dnn_support::toDnnType<T>::type, tag::a);
+  dnnl::memory::dims dims_x = x.dims();
+  dnnl::memory::dims dims_y = {out->numel()};
+  dnnl::memory::dims dims_out = {out->numel()};
 
-  auto x_mem = memory(common_md, eng, x.data<T>());
-  auto y_mem = memory(common_md, eng, y.data<T>());
+  auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, tag::a);
+  auto md_y = memory::desc(dims_y, dnn_support::toDnnType<T>::type, tag::a);
+  auto md_out = memory::desc(dims_out, dnn_support::toDnnType<T>::type, tag::a);
+
+  auto x_mem = memory(md_x, eng, x.data<T>());
+  auto y_mem = memory(md_y, eng, y.data<T>());
 
   auto out_data = dev_ctx.template Alloc<T>(out);
 
-
-  auto out_mem = memory(common_md, eng, out_data);
+  auto out_mem = memory(md_out, eng, out_data);
 
   auto oper_desc =
-      binary::desc(algorithm::binary_mul, common_md, common_md, common_md);
+      binary::desc(algorithm::binary_mul, md_x, md_y, md_out);
   auto prim_desc = binary::primitive_desc(oper_desc, eng);
   auto prim = binary(prim_desc);
 

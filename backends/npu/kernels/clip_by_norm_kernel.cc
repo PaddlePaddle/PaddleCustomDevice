@@ -18,6 +18,17 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void SqrtKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Sqrt", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ClipByNormKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       float max_norm,
@@ -40,19 +51,21 @@ void ClipByNormKernel(const Context& dev_ctx,
   const auto& square_sum_runner = NpuOpRunner(
       "SquareSumV1", {x}, {square_sum}, {{"axis", axis}, {"keep_dims", false}});
   square_sum_runner.Run(stream);
+
+  // sqrt
   phi::DenseTensor x_norm;
   phi::DenseTensorMeta x_norm_meta = {x.dtype(), phi::DDim({1})};
   x_norm.set_meta(x_norm_meta);
   dev_ctx.template Alloc<T>(&x_norm);
   const auto& x_norm_runner = NpuOpRunner("Sqrt", {square_sum}, {x_norm}, {});
   x_norm_runner.Run(stream);
+  dev_ctx.Wait();
+
   phi::DenseTensor x_norm_t;
-  phi::DenseTensorMeta x_norm_t_meta = {
-      x_norm.dtype(), x_norm.dims(), x_norm.layout()};
-  x_norm_t.set_meta(x_norm_t_meta);
-  // Sync
+  // sync copy
   TensorCopy(dev_ctx, x_norm, true, &x_norm_t, phi::CPUPlace());
   auto x_norm_v = static_cast<float>(*(x_norm_t.data<T>()));
+
   if (x_norm_v <= max_norm) {
     TensorCopy(dev_ctx, x, false, out);
   } else {

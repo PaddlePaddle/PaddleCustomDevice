@@ -37,12 +37,12 @@ if(NOT EXISTS "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
 message(FATAL_ERROR "Can't find directory ${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
 endif()
 
-if(NOT DEFINED ENV{CONDA_PREFIX_1})
+if(NOT DEFINED ENV{CONDA_PREFIX})
 message(FATAL_ERROR "Please install python miniconda ")
 endif()
 
 if(NOT DEFINED CND_INSTALL_DIR)
-    set(CND_INSTALL_DIR "$ENV{CONDA_PREFIX_1}")
+    set(CND_INSTALL_DIR "$ENV{CONDA_PREFIX}")
 endif()
 
 if(NOT EXISTS "${CND_INSTALL_DIR}")
@@ -51,16 +51,18 @@ endif()
 
 message(STATUS "Conda DIR : ${CND_INSTALL_DIR}")
 
-if(NOT DEFINED CND_ENV)
-set(CND_ENV "$ENV{CONDA_DEFAULT_ENV}")
-endif()
+# if(NOT DEFINED CND_ENV)
+# set(CND_ENV "$ENV{CONDA_DEFAULT_ENV}")
+# endif()
 
-message(STATUS "CONDA default env => ${CND_ENV}")
+# message(STATUS "CONDA default env => ${CND_ENV}")
 
-set(CND_PYTHON "${CND_INSTALL_DIR}/envs/${CND_ENV}/lib/python3.9")
+#set(CND_PYTHON "${CND_INSTALL_DIR}/envs/${CND_ENV}/lib/python3.9")
+set(CND_PYTHON "${CND_INSTALL_DIR}/lib/python3.9")
+
 
 if(NOT EXISTS "${CND_PYTHON}")
-   message(FATAL_ERROR "Can't find conda python directory ${CND_PYTHON}" )
+   message(FATAL_ERROR "Can't find conda python directory ${CND_PYTHON}, python3.9 required!" )
 endif()
 
 

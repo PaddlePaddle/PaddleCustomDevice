@@ -84,19 +84,19 @@ class TestClipByNormOpFp16(TestClipByNormOp):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
-class TestClipByNormOpFp16Case1(TestClipByNormOp):
+class TestClipByNormOpFp16Case1(TestClipByNormOpFp16):
     def initTestCase(self):
         self.shape = (100, )
         self.max_norm = 1e20
 
 
-class TestClipByNormOpFp16Case2(TestClipByNormOp):
+class TestClipByNormOpFp16Case2(TestClipByNormOpFp16):
     def initTestCase(self):
         self.shape = (16, 16)
         self.max_norm = 0.1
 
 
-class TestClipByNormOpFp16Case3(TestClipByNormOp):
+class TestClipByNormOpFp16Case3(TestClipByNormOpFp16):
     def initTestCase(self):
         self.shape = (4, 8, 16)
         self.max_norm = 1.0

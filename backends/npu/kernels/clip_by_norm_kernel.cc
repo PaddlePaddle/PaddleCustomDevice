@@ -18,17 +18,6 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SqrtKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-
-  const auto& runner = NpuOpRunner("Sqrt", {x}, {*out}, {});
-  runner.Run(stream);
-}
-
-template <typename T, typename Context>
 void ClipByNormKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       float max_norm,
@@ -62,6 +51,9 @@ void ClipByNormKernel(const Context& dev_ctx,
   dev_ctx.Wait();
 
   phi::DenseTensor x_norm_t;
+  phi::DenseTensorMeta x_norm_t_meta = {
+      x_norm.dtype(), x_norm.dims(), x_norm.layout()};
+  x_norm_t.set_meta(x_norm_t_meta);
   // sync copy
   TensorCopy(dev_ctx, x_norm, true, &x_norm_t, phi::CPUPlace());
   auto x_norm_v = static_cast<float>(*(x_norm_t.data<T>()));

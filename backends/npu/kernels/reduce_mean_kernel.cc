@@ -29,7 +29,7 @@ void MeanRawKernel(const Context& dev_ctx,
 
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-#if (CANN_VERSION_CODE == 512000)
+#if (CANN_VERSION_CODE >= 512000)
   auto input_dims = x.dims();
   if (reduce_all) {
     dims.clear();
@@ -82,7 +82,7 @@ void MeanGradKernel(const Context& dev_ctx,
 
   int reduce_numel = 1;
 
-#if (CANN_VERSION_CODE == 512000)
+#if (CANN_VERSION_CODE >= 512000)
   auto input_dims = x.dims();
 
   if (reduce_all) {

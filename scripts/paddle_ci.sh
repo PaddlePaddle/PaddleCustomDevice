@@ -143,7 +143,7 @@ function custom_npu_test() {
                         done
 
                     if [[ "$one_card_retry" != "" ]]; then
-                        ctest -R test_abs_op_npu --output-on-failure | tee $tmpfile;
+                        ctest one_card_retry --output-on-failure | tee $tmpfile;
                     fi
                     exec_times=$[$exec_times+1]
                     failed_test_lists=''

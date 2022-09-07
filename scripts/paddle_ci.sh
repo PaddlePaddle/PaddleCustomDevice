@@ -57,21 +57,21 @@ function init() {
 
 function custom_npu_test() {
     # paddle install
-    # pip install hypothesis
-    # pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+    pip install hypothesis
+    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
 
-    # # custom_npu build and install
-    # cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
-    # mkdir build && cd build
-    # cmake .. -DWITH_TESTING=ON
-    # if [[ "$?" != "0" ]];then
-    #     exit 7;
-    # fi
-    # make -j8
-    # if [[ "$?" != "0" ]];then
-    #     exit 7;
-    # fi
-    # pip install dist/*.whl
+    # custom_npu build and install
+    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
+    mkdir build && cd build
+    cmake .. -DWITH_TESTING=ON
+    if [[ "$?" != "0" ]];then
+        exit 7;
+    fi
+    make -j8
+    if [[ "$?" != "0" ]];then
+        exit 7;
+    fi
+    pip install dist/*.whl
 
     # run ut
     ut_total_startTime_s=`date +%s`

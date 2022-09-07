@@ -77,7 +77,7 @@ function custom_npu_test() {
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-    ctest -R test_abs_op_npu --output-on-failure | tee $tmpfile;
+    ctest --output-on-failure | tee $tmpfile;
     collect_failed_tests
 
     # add unit test retry for NPU

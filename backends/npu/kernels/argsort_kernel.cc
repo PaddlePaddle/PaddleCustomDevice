@@ -36,7 +36,7 @@ static void TranposeNPU(const phi::CustomContext& dev_ctx,
 template <typename T>
 static void TranposeDNPU(const phi::CustomContext& dev_ctx,
                          const aclrtStream& stream,
-                         const std::vector<int64_t>& perm,
+                         std::vector<int64_t>* perm,
                          const phi::DenseTensor& in,
                          phi::DenseTensor* out) {
   dev_ctx.Alloc<T>(out);
@@ -44,7 +44,7 @@ static void TranposeDNPU(const phi::CustomContext& dev_ctx,
   runner.SetType("TransposeD")
       .AddInput(in)
       .AddOutput(*out)
-      .AddAttr({"perm", perm})
+      .AddAttr("perm", *perm)
       .Run(stream);
 }
 

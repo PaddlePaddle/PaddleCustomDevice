@@ -137,6 +137,46 @@ void MultiplyKernelGPU(const phi::Context& dev_ctx,
   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
 }
 
+dnnl::memory::format_tag dims2Tag(const dnnl::memory::dims& d) {
+  switch(d.size())
+  {
+    case 1:
+      return dnnl::memory::format_tag::a;
+    case 2:
+      return dnnl::memory::format_tag::ab;
+     case 3:
+       return dnnl::memory::format_tag::abc;
+     case 4:
+       return dnnl::memory::format_tag::abcd;
+
+    default:
+      show_error("This size is not supported size=" << d.size());
+  }
+    return dnnl::memory::format_tag::a;
+}
+
+void inline align_broadcast(std::vector<int64_t>& from,
+                            std::vector<int64_t>& to, int axis) {
+  std::vector<int64_t> tmp(from.size(), 1);
+  std::copy(to.begin(),
+            to.end(),
+            tmp.begin() + ((axis == -1) ? (from.size() - to.size()) : axis));
+  to = std::move(tmp);
+ }
+
+void update_broadcast(std::vector<int64_t>& x, std::vector<int64_t>& y, int axis) {
+
+   if(x.size()==y.size()) return;
+
+   if(x.size()>y.size())
+   {
+     align_broadcast(x,y,axis);
+   } else {
+     align_broadcast(y,x,axis);
+   }
+}
+
+
 template <typename T>
 void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
                           const phi::DenseTensor& x,
@@ -154,38 +194,42 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   using namespace dnnl;
   using tag = memory::format_tag;
   using dt = memory::data_type;
-  show_debug("X.dims() = " << x.dims() << " Y.dims() =" << y.dims() << " OutDims()=" << out->dims() );
+
   auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
   auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
 
   dnnl::memory::dims dims_x = x.dims();
-  dnnl::memory::dims dims_y = {out->numel()};
-  dnnl::memory::dims dims_out = {out->numel()};
+  dnnl::memory::dims dims_y = y.dims();
+  dnnl::memory::dims dims_out = out->dims();
 
-  auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, tag::a);
-  auto md_y = memory::desc(dims_y, dnn_support::toDnnType<T>::type, tag::a);
-  auto md_out = memory::desc(dims_out, dnn_support::toDnnType<T>::type, tag::a);
+  update_broadcast(dims_x,dims_y,axis);
 
-  auto x_mem = memory(md_x, eng, x.data<T>());
-  auto y_mem = memory(md_y, eng, y.data<T>());
 
-  auto out_data = dev_ctx.template Alloc<T>(out);
+ auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, dims2Tag(dims_x));
 
-  auto out_mem = memory(md_out, eng, out_data);
+ auto md_y =
+     memory::desc(dims_y, dnn_support::toDnnType<T>::type, dims2Tag(dims_y));
+ auto md_out =
+     memory::desc(dims_out, dnn_support::toDnnType<T>::type, dims2Tag(dims_out));
 
-  auto oper_desc =
-      binary::desc(algorithm::binary_mul, md_x, md_y, md_out);
-  auto prim_desc = binary::primitive_desc(oper_desc, eng);
-  auto prim = binary(prim_desc);
+ auto x_mem = memory(md_x, eng, x.data<T>());
+ auto y_mem = memory(md_y, eng, y.data<T>());
 
-  std::unordered_map<int, memory> binary_args;
-  binary_args.insert({DNNL_ARG_SRC_0, x_mem});
-  binary_args.insert({DNNL_ARG_SRC_1, y_mem});
-  binary_args.insert({DNNL_ARG_DST, out_mem});
+ auto out_data = dev_ctx.template Alloc<T>(out);
 
-  prim.execute(eng, binary_args);
-  engine_stream.wait();
+ auto out_mem = memory(md_out, eng, out_data);
 
+ auto oper_desc = binary::desc(algorithm::binary_mul, md_x, md_y, md_out);
+ auto prim_desc = binary::primitive_desc(oper_desc, eng);
+ auto prim = binary(prim_desc);
+
+ std::unordered_map<int, memory> binary_args;
+ binary_args.insert({DNNL_ARG_SRC_0, x_mem});
+ binary_args.insert({DNNL_ARG_SRC_1, y_mem});
+ binary_args.insert({DNNL_ARG_DST, out_mem});
+
+ prim.execute(eng, binary_args);
+ engine_stream.wait();
 
 }
 

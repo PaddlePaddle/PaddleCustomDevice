@@ -56,7 +56,8 @@ class ElementwiseMulOp(OpTest):
         self.attrs = {'axis': self.axis, 'use_mkldnn': self.use_mkldnn}
 
     def test_check_output(self):
-        self.check_output(check_dygraph=(self.use_mkldnn == False))
+        #self.check_output(check_dygraph=(self.use_mkldnn == False))
+        self.check_output(check_dygraph=False)
 
     def test_check_grad_normal(self):
         pass

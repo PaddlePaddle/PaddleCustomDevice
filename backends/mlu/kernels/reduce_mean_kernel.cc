@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/reduce_op.h"
 
 namespace custom_kernel {
@@ -20,17 +19,18 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void MeanRawKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
-                   const std::vector<int64_t>& axes,
+                   const phi::IntArray& axes,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* out) {
-  MLUReduceOp<T>(dev_ctx, x, axes, keep_dim, reduce_all, "reduce_mean", out);
+  MLUReduceOp<T>(
+      dev_ctx, x, axes.GetData(), keep_dim, reduce_all, "reduce_mean", out);
 }
 
 template <typename T, typename Context>
 void MeanKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
-                const std::vector<int64_t>& dims,
+                const phi::IntArray& dims,
                 bool keep_dim,
                 phi::DenseTensor* out) {
   bool reduce_all = false;
@@ -41,13 +41,13 @@ template <typename T, typename Context>
 void MeanGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& out_grad,
-                    const std::vector<int64_t>& axes,
+                    const phi::IntArray& axes,
                     bool keep_dim,
                     bool reduce_all,
                     phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 
-  auto reduce_dims = axes;
+  auto reduce_dims = axes.GetData();
   auto input_dims = phi::vectorize(x.dims());
 
   int reduce_numel = 1;

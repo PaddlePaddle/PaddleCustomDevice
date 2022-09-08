@@ -20,6 +20,23 @@
 
 set -ex
 
+failed_test_lists=''
+tmp_dir=`mktemp -d`
+
+function collect_failed_tests() {
+    for file in `ls $tmp_dir`; do
+        exit_code=0
+        grep -q 'The following tests FAILED:' $tmp_dir/$file||exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+            failuretest=''
+        else
+            failuretest=`grep -A 10000 'The following tests FAILED:' $tmp_dir/$file | sed 's/The following tests FAILED://g'|sed '/^$/d'`
+            failed_test_lists="${failed_test_lists}
+            ${failuretest}"
+        fi
+    done
+}
+
 function print_usage() {
     echo -e "\nUsage:
     ./paddle_ci.sh [OPTION]"
@@ -58,8 +75,90 @@ function custom_npu_test() {
 
     # run ut
     ut_total_startTime_s=`date +%s`
-    ctest --output-on-failure
+    tmpfile_rand=`date +%s%N`
+    tmpfile=$tmp_dir/$tmpfile_rand
+    ctest --output-on-failure | tee $tmpfile;
+    collect_failed_tests
+
+    # add unit test retry for NPU
+    rm -f $tmp_dir/*
+    exec_times=0
+    retry_unittests_record=''
+    retry_time=4
+    exec_time_array=('first' 'second' 'third' 'fourth')
+    parallel_failed_tests_exec_retry_threshold=120
+    exec_retry_threshold=30
+    is_retry_execuate=0
+    rerun_ut_startTime_s=`date +%s`
+    if [ -n "$failed_test_lists" ];then
+        if [ ${TIMEOUT_DEBUG_HELP:-OFF} == "ON" ];then
+            bash $PADDLE_ROOT/tools/timeout_debug_help.sh "$failed_test_lists"    # cat logs for tiemout uts which killed by ctest
+        fi
+        need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        need_retry_ut_arr=(${need_retry_ut_str})
+        need_retry_ut_count=${#need_retry_ut_arr[@]}
+        retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        while ( [ $exec_times -lt $retry_time ] )
+            do
+                if [[ "${exec_times}" == "0" ]] ;then
+                    if [ $need_retry_ut_count -lt $parallel_failed_tests_exec_retry_threshold ];then
+                        is_retry_execuate=0
+                    else
+                        is_retry_execuate=1
+                    fi
+                elif [[ "${exec_times}" == "1" ]] ;then
+                    need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                    need_retry_ut_arr=(${need_retry_ut_str})
+                    need_retry_ut_count=${#need_retry_ut_arr[@]} 
+                    if [ $need_retry_ut_count -lt $exec_retry_threshold ];then
+                        is_retry_execuate=0
+                    else
+                        is_retry_execuate=1
+                    fi
+                fi
+                if [[ "$is_retry_execuate" == "0" ]];then
+                    set +e
+                    retry_unittests_record="$retry_unittests_record$failed_test_lists"
+                    failed_test_lists_ult=`echo "${failed_test_lists}" |grep -Po '[^ ].*$'`
+                    set -e
+                    if [[ "${exec_times}" == "1" ]] || [[ "${exec_times}" == "3" ]];then
+                        if [[ "${failed_test_lists}" == "" ]];then
+                            break
+                        else
+                            retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                        fi
+                    fi
+                    echo "========================================="
+                    echo "This is the ${exec_time_array[$exec_times]} time to re-run"
+                    echo "========================================="
+                    echo "The following unittest will be re-run:"
+                    echo "${retry_unittests}"                    
+                    for line in ${retry_unittests[@]} ;
+                        do
+                            if [[ "$one_card_retry" == "" ]]; then
+                                one_card_retry="^$line$"
+                            else
+                                one_card_retry="$one_card_retry|^$line$"
+                            fi
+                        done
+
+                    if [[ "$one_card_retry" != "" ]]; then
+                        ctest -R "$one_card_retry" --output-on-failure | tee $tmpfile;
+                    fi
+                    exec_times=$[$exec_times+1]
+                    failed_test_lists=''
+                    collect_failed_tests
+                    rm -f $tmp_dir/*
+                    one_card_retry=''
+                else 
+                    break
+                fi
+
+            done
+    fi
     EXIT_CODE=$?
+    rerun_ut_endTime_s=`date +%s` 
+    echo "Rerun TestCases Total Time: $[ $rerun_ut_endTime_s - $rerun_ut_startTime_s ]s" 
     ut_total_endTime_s=`date +%s`
     echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"
     if [[ "$EXIT_CODE" != "0" ]];then

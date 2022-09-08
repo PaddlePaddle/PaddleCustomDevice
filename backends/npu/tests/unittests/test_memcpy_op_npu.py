@@ -71,7 +71,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
         self.__class__.use_custom_device = True
         main_program, npu_var, cpu_var = self.get_prog()
         main_program.global_block().append_op(
-            type='memcpy_d2h',
+            type='memcpy',
             inputs={'X': npu_var},
             outputs={'Out': cpu_var},
             attrs={'dst_place_type': 0})
@@ -87,7 +87,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
         self.__class__.use_custom_device = True
         main_program, npu_var, cpu_var = self.get_prog()
         main_program.global_block().append_op(
-            type='memcpy_h2d',
+            type='memcpy',
             inputs={'X': cpu_var},
             outputs={'Out': npu_var},
             attrs={'dst_place_type': 4})

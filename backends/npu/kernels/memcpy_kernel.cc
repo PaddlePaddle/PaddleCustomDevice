@@ -18,6 +18,26 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void MemcpyKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  int dst_place_type,
+                  phi::DenseTensor* out) {
+  if (!x.initialized()) {
+    return;
+  }
+  dev_ctx.template Alloc<T>(out);
+  if (dst_place_type == 0) {  // CPU
+    TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+  } else if (dst_place_type == 4) {  // NPU
+    TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "memcpy dst_place_type: %d is not supported yet.", dst_place_type));
+  }
+  dev_ctx.Wait();
+}
+
+template <typename T, typename Context>
 void MemcpyH2DKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
@@ -72,9 +92,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           double,
                           int,
                           int64_t,
-                          bool) {
-  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
-}
+                          bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           ascend,
@@ -85,14 +103,23 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           double,
                           int,
                           int64_t,
-                          bool) {
-  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
-}
+                          bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyD2HMultiIOKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(memcpy,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::MemcpyKernel,
                           phi::dtype::float16,
                           float,
                           double,

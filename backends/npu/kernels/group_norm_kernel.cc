@@ -142,19 +142,6 @@ phi::DenseTensor ReduceMeanToNG(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void myPrintTensor(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const std::string& name) {
-  std::vector<T> meta_data;
-  printf("%s: ", name.c_str());
-  custom_kernel::TensorToVector<T>(dev_ctx, x, dev_ctx, &meta_data);
-  for (auto item : meta_data) {
-    printf(" %f,", item);
-  }
-  printf("\n");
-}
-
-template <typename T, typename Context>
 void GroupNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const paddle::optional<phi::DenseTensor>& scale,
@@ -176,7 +163,6 @@ void GroupNormKernel(const Context& dev_ctx,
   if (data_layout_data != phi::DataLayout::kNCHW) {
     xnorm.Resize({x.dims()[0], x.dims()[3], x.dims()[1], x.dims()[2]});
     Transpose<Context>(dev_ctx, &x, &xnorm, std::vector<int>{0, 3, 1, 2});
-    myPrintTensor<T, Context>(dev_ctx, xnorm, " op x");
   } else {
     TensorCopy(dev_ctx, x, false, &xnorm, phi::NPUPlace());
   }

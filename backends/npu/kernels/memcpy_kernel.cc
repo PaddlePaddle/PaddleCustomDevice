@@ -25,10 +25,13 @@ void MemcpyKernel(const Context& dev_ctx,
   if (!x.initialized()) {
     return;
   }
-  dev_ctx.template Alloc<T>(out);
+  // The dst_place_type is defined in paddle/fluid/operators/memcpy.h:
+  // CPU = 0, CUDA = 1, CUDA_PINNED = 2,
+  // XPU = 3, NPU = 4, NPU_PINNED = 5,
+  // CUSTOM_DEVICE = 6
   if (dst_place_type == 0) {  // CPU
     TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
-  } else if (dst_place_type == 4) {  // NPU
+  } else if (dst_place_type == 6) {  // custom_device
     TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
@@ -42,7 +45,6 @@ void MemcpyH2DKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
   TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
   dev_ctx.Wait();
 }
@@ -53,7 +55,6 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
   TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
   dev_ctx.Wait();
 }

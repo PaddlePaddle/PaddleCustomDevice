@@ -90,7 +90,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             type='memcpy',
             inputs={'X': cpu_var},
             outputs={'Out': npu_var},
-            attrs={'dst_place_type': 4})
+            attrs={'dst_place_type': 6})
         place = paddle.CustomPlace('ascend', 0)
         exe = fluid.Executor(place)
         npu_, cpu_ = exe.run(main_program,

@@ -228,7 +228,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
  binary_args.insert({DNNL_ARG_SRC_1, y_mem});
  binary_args.insert({DNNL_ARG_DST, out_mem});
 
- prim.execute(eng, binary_args);
+ prim.execute(engine_stream, binary_args);
  engine_stream.wait();
 
 }

@@ -56,6 +56,18 @@ void SumGradKernel(const Context& dev_ctx,
   auto reduce_dims = dims_array.GetData();
   dev_ctx.template Alloc<T>(x_grad);
 
+  // The reduce_dims has full dim, set the reduce_all is True
+  const auto& input_dim_size = x.dims().size();
+  std::set<int> dims_set(reduce_dims.begin(), reduce_dims.end());
+  bool full_dim = true;
+  for (auto i = 0; i < input_dim_size; i++) {
+    if (dims_set.find(i) == dims_set.end()) {
+      full_dim = false;
+      break;
+    }
+  }
+  reduce_all = (reduce_all || reduce_dims.size() == 0 || full_dim);
+
   auto in_dims = phi::vectorize(x.dims());
   if (reduce_all) {
     reduce_dims.clear();
@@ -77,9 +89,8 @@ void SumGradKernel(const Context& dev_ctx,
   tmp_out = out_grad;
   tmp_out.Resize(phi::make_ddim(tmp_output_dims));
 
-  MLUCnnlTensorDesc out_desc(tmp_out, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
-  MLUCnnlTensorDesc in_grad_desc(
-      *x_grad, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
+  MLUCnnlTensorDesc out_desc(tmp_out);
+  MLUCnnlTensorDesc in_grad_desc(*x_grad);
 
   MLUCnnl::BroadcastTo(dev_ctx,
                        out_desc.get(),

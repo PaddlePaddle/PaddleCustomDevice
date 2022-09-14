@@ -24,8 +24,8 @@ void ClipKernel(const Context& dev_ctx,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  auto min_val = min.to<float>();
-  auto max_val = max.to<float>();
+  auto min_val = min.to<T>();
+  auto max_val = max.to<T>();
 
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);
@@ -46,8 +46,8 @@ void ClipGradKernel(const Context& dev_ctx,
                     phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
-  auto min_val = min.to<float>();
-  auto max_val = max.to<float>();
+  auto min_val = min.to<T>();
+  auto max_val = max.to<T>();
 
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc dx_desc(*dx);

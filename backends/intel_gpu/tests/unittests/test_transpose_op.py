@@ -37,13 +37,13 @@ class TestTransposeOp(OpTest):
         self.init_op_type()
         self.initTestCase()
         self.python_api = paddle.transpose
-        self.inputs = {'X': np.random.random(self.shape).astype("float64")}
+        self.inputs = {'X': np.random.random(self.shape).astype("float32")}
         self.attrs = {
             'axis': list(self.axis),
             'use_mkldnn': self.use_mkldnn,
         }
         self.outputs = {
-            'XShape': np.random.random(self.shape).astype("float64"),
+            'XShape': np.random.random(self.shape).astype("float32"),
             'Out': self.inputs['X'].transpose(self.axis)
         }
 
@@ -220,7 +220,7 @@ class TestTransposeOpError(unittest.TestCase):
     def test_errors(self):
         paddle.enable_static()
         with program_guard(Program(), Program()):
-            x = fluid.layers.data(name='x', shape=[10, 5, 3], dtype='float64')
+            x = fluid.layers.data(name='x', shape=[10, 5, 3], dtype='float32')
 
             def test_x_Variable_check():
                 # the Input(x)'s type must be Variable
@@ -229,7 +229,7 @@ class TestTransposeOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_x_Variable_check)
 
             def test_x_dtype_check():
-                # the Input(x)'s dtype must be one of [bool, float16, float32, float64, int32, int64]
+                # the Input(x)'s dtype must be one of [bool, float16, float32, float32, int32, int64]
                 x1 = fluid.layers.data(
                     name='x1', shape=[10, 5, 3], dtype='int8')
                 fluid.layers.transpose(x1, perm=[1, 0, 2])
@@ -295,37 +295,37 @@ class TestTransposeApi(unittest.TestCase):
 class TestTAPI(unittest.TestCase):
     def test_out(self):
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10], dtype="float64", name="data")
+            data = fluid.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
-            data_np = np.random.random([10]).astype("float64")
+            data_np = np.random.random([10]).astype("float32")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10, 5], dtype="float64", name="data")
+            data = fluid.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
-            data_np = np.random.random([10, 5]).astype("float64")
+            data_np = np.random.random([10, 5]).astype("float32")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[1, 5], dtype="float64", name="data")
+            data = fluid.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
-            data_np = np.random.random([1, 5]).astype("float64")
+            data_np = np.random.random([1, 5]).astype("float32")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
         with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
-            np_x = np.random.random([10]).astype("float64")
+            np_x = np.random.random([10]).astype("float32")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
@@ -333,7 +333,7 @@ class TestTAPI(unittest.TestCase):
         self.assertEqual((np_z == z_expected).all(), True)
 
         with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
-            np_x = np.random.random([10, 5]).astype("float64")
+            np_x = np.random.random([10, 5]).astype("float32")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
@@ -341,7 +341,7 @@ class TestTAPI(unittest.TestCase):
         self.assertEqual((np_z == z_expected).all(), True)
 
         with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
-            np_x = np.random.random([1, 5]).astype("float64")
+            np_x = np.random.random([1, 5]).astype("float32")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
@@ -350,7 +350,7 @@ class TestTAPI(unittest.TestCase):
 
     def test_errors(self):
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data(name='x', shape=[10, 5, 3], dtype='float64')
+            x = fluid.data(name='x', shape=[10, 5, 3], dtype='float32')
 
             def test_x_dimension_check():
                 paddle.t(x)
@@ -364,7 +364,7 @@ class TestMoveAxis(unittest.TestCase):
         expected = np.moveaxis(x_np, [0, 4, 3, 2], [1, 3, 2, 0])
         paddle.enable_static()
         with paddle.static.program_guard(fluid.Program()):
-            x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype='float64')
+            x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype='float32')
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
             exe = paddle.static.Executor(paddle.CustomPlace('intel_gpu', 0))
@@ -384,7 +384,7 @@ class TestMoveAxis(unittest.TestCase):
         expected = np.moveaxis(x_np, -2, -1)
         paddle.enable_static()
         with paddle.static.program_guard(fluid.Program()):
-            x = paddle.static.data("x", shape=[2, 3, 5], dtype='float64')
+            x = paddle.static.data("x", shape=[2, 3, 5], dtype='float32')
             out = x.moveaxis(-2, -1)
 
             exe = paddle.static.Executor(paddle.CustomPlace('intel_gpu', 0))

@@ -80,6 +80,12 @@ const T* shortPath(const T* p) {
 #define show_memory(x) show_msg("mem", 2, x)
 #define show_kernel(x) show_msg("kernel", 4, x)
 #define show_error(x) show_msg("error", config::vError, x)
+#define rise_error(x)                                         \
+  {                                                           \
+    std::stringstream ss;                                     \
+    ss << "["<< shortPath(__FILE__)<< ":"<< __LINE__ <<"] :" << x; \
+    throw std::runtime_error(ss.str());                       \
+  }
 
 template <class T>
 std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
@@ -92,7 +98,7 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
   return o;
 }
 
-    namespace dnn_support {
+  namespace dnn_support {
   template <class T>
   struct toDnnType {};
 
@@ -111,6 +117,99 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
     const static dnnl::memory::data_type type = dnnl::memory::data_type::bf16;
   };
 
+  template <class T = dnnl::memory::dims>
+  dnnl::memory::format_tag dims2Tag(const T& d) {
+    switch (d.size()) {
+      case 1:
+        return dnnl::memory::format_tag::a;
+      case 2:
+        return dnnl::memory::format_tag::ab;
+      case 3:
+        return dnnl::memory::format_tag::abc;
+      case 4:
+        return dnnl::memory::format_tag::abcd;
+
+      default:
+        show_error("This size is not supported size=" << d.size());
+    }
+    return dnnl::memory::format_tag::a;
+  }
+
+  template <class T = std::vector<int>>
+  dnnl::memory::format_tag axis2Tag(const T& d) {
+    switch (d.size()) {
+      case 1:
+        return dnnl::memory::format_tag::a;
+      case 2:
+        if( d == T{1,0})
+        {
+          return dnnl::memory::format_tag::ba;
+        }
+        return dnnl::memory::format_tag::ab;
+
+      case 3:
+
+        if(d == T{0,2,1})
+        {
+           return dnnl::memory::format_tag::acb;
+        }
+
+        if( d == T{1,0,2})
+        {
+          return dnnl::memory::format_tag::bac;
+        }
+
+        if( d== T{2,1,0})
+        {
+          return dnnl::memory::format_tag::cba;
+        }
+
+        if( d == T{0,1,2})
+        {
+          return dnnl::memory::format_tag::abc;
+        }
+
+        rise_error("Can't convert tag for " << d);
+
+      case 4:
+
+        if (d == T{0,1,3,2}) {
+          return dnnl::memory::format_tag::abdc;
+        }
+
+        if (d == T{0,3,1,2}) {
+          return dnnl::memory::format_tag::adbc;
+        }
+
+        if (d == T{0,2,1,3}) {
+          return dnnl::memory::format_tag::acbd;
+        }
+
+        if( d == T{0,1,2,3})
+        {
+          return dnnl::memory::format_tag::abcd;
+        }
+        rise_error("Can't convert tag for " << d);
+
+
+      case 5:
+
+        if (d == T{0, 1, 2, 3, 4}) {
+          return dnnl::memory::format_tag::abcde;
+        }
+
+        // if (d == T{4,2,3,1,0}) {
+        //   return dnnl::memory::format_tag::ecdba;
+        // }
+
+        rise_error("Can't convert tag for " << d);
+
+      default:
+        show_error("This size is not supported size=" << d.size());
+        rise_error("Lack of support " << d);
+    }
+    return dnnl::memory::format_tag::a;
+  }
   /*
   template <>
   struct toDnnType<double> {

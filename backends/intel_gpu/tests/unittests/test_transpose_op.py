@@ -26,7 +26,7 @@ paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places
@@ -263,7 +263,7 @@ class TestTransposeApi(unittest.TestCase):
             x = paddle.static.data(name='x', shape=[2, 3, 4], dtype='float32')
             x_trans1 = paddle.transpose(x, perm=[1, 0, 2])
             x_trans2 = paddle.transpose(x, perm=(2, 1, 0))
-            place = paddle.CustomPlace('custom_cpu', 0)
+            place = paddle.CustomPlace('intel_gpu', 0)
             exe = paddle.static.Executor(place)
             x_np = np.random.random([2, 3, 4]).astype("float32")
             result1, result2 = exe.run(feed={"x": x_np},
@@ -277,7 +277,7 @@ class TestTransposeApi(unittest.TestCase):
     def test_dygraph_out(self):
         # This is an old test before 2.0 API so we need to disable static
         # to trigger dygraph
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         x = paddle.randn([2, 3, 4])
         x_trans1 = paddle.transpose(x, perm=[1, 0, 2])
         x_trans2 = paddle.transpose(x, perm=(2, 1, 0))
@@ -297,7 +297,7 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = fluid.data(shape=[10], dtype="float64", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace('custom_cpu', 0)
+            place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([10]).astype("float64")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
@@ -307,7 +307,7 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = fluid.data(shape=[10, 5], dtype="float64", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace('custom_cpu', 0)
+            place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([10, 5]).astype("float64")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
@@ -317,14 +317,14 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = fluid.data(shape=[1, 5], dtype="float64", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace('custom_cpu', 0)
+            place = fluid.CustomPlace('intel_gpu', 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([1, 5]).astype("float64")
             result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             np_x = np.random.random([10]).astype("float64")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
@@ -332,7 +332,7 @@ class TestTAPI(unittest.TestCase):
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             np_x = np.random.random([10, 5]).astype("float64")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
@@ -340,7 +340,7 @@ class TestTAPI(unittest.TestCase):
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             np_x = np.random.random([1, 5]).astype("float64")
             data = fluid.dygraph.to_variable(np_x)
             z = paddle.t(data)
@@ -367,12 +367,12 @@ class TestMoveAxis(unittest.TestCase):
             x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype='float64')
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
-            exe = paddle.static.Executor(paddle.CustomPlace('custom_cpu', 0))
+            exe = paddle.static.Executor(paddle.CustomPlace('intel_gpu', 0))
             out_np = exe.run(feed={"x": x_np}, fetch_list=[out])[0]
 
         self.assertEqual(np.array_equal(out_np, expected), True)
 
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         x = paddle.to_tensor(x_np)
         out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
         self.assertEqual(out.shape, [4, 2, 5, 7, 3])
@@ -387,12 +387,12 @@ class TestMoveAxis(unittest.TestCase):
             x = paddle.static.data("x", shape=[2, 3, 5], dtype='float64')
             out = x.moveaxis(-2, -1)
 
-            exe = paddle.static.Executor(paddle.CustomPlace('custom_cpu', 0))
+            exe = paddle.static.Executor(paddle.CustomPlace('intel_gpu', 0))
             out_np = exe.run(feed={"x": x_np}, fetch_list=[out])[0]
 
         self.assertEqual(np.array_equal(out_np, expected), True)
 
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         x = paddle.to_tensor(x_np)
         out = x.moveaxis(-2, -1)
         self.assertEqual(out.shape, [2, 5, 3])
@@ -400,7 +400,7 @@ class TestMoveAxis(unittest.TestCase):
         paddle.enable_static()
 
     # def test_moveaxis3(self):
-    #     paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+    #     paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
     #     x = paddle.to_tensor(
     #         [[1 + 1j, -1 - 1j], [1 + 1j, -1 - 1j], [1 + 1j, -1 - 1j]])
     #     out = x.moveaxis(0, 1)

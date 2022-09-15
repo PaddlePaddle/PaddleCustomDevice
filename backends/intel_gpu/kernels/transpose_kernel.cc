@@ -14,7 +14,7 @@
 
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-
+#include "dnn_support.hpp"
 namespace custom_kernel {
 
 template <typename T>
@@ -27,6 +27,10 @@ void TransposeKernel(const phi::Context& ctx,
 
   auto x_data = x.data<T>();
   auto out_data = ctx.template Alloc<T>(out);
+  show_kernel("TransposeKernel");
+  show_debug("x{dims}=" << x.dims() << " x{rank}=" << x_dims.size()
+                        << " out{dims}=" << out->dims());
+
   if (out->numel() == 0) {
     return;
   }
@@ -64,6 +68,82 @@ void TransposeKernel(const phi::Context& ctx,
   }
 }
 
+template <typename T>
+void TransposeKernelGPU(const phi::Context& ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out) {
+  show_kernel("TransposeKernelGPU ");
+
+  using namespace dnnl;
+  using tag = memory::format_tag;
+  using dt = memory::data_type;
+  auto* q = static_cast<sycl::queue*>(const_cast<void*>(ctx.stream()));
+
+  if (!q) {
+  }
+
+  auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
+  auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
+
+  auto x_dims = x.dims();
+  auto out_dims = out->dims();
+
+  auto x_data = x.data<T>();
+  auto out_data = ctx.template Alloc<T>(out);
+  show_debug( "x{dims}="<< x.dims() <<  " x{rank}="<< x_dims.size() << " out{dims}="<< out->dims() << " axis="<< axis ) ;
+  if (out->numel() == 0) {
+    return;
+  }
+  auto rank = x_dims.size();
+  if (rank == 1) {
+  //  memcpy(out_data, x_data, x.numel() * sizeof(T));
+  auto total_cpy_bytes = x.numel() * sizeof(T);
+  q->submit([&](sycl::handler& h) {
+    h.memcpy(out_data, x_data, total_cpy_bytes);
+  });
+  q->wait();
+   return;
+  }
+
+  PD_CHECK(axis.size() == rank,
+           "axis.size (%d) must be equal the rank of input (%d).",
+           axis.size(),
+           rank);
+
+  dnnl::memory::dims dims_src = x.dims();
+  dnnl::memory::dims dims_dst = out->dims();
+
+  auto md_src = memory::desc(dims_src,
+                             dnn_support::toDnnType<T>::type,
+                             dnn_support::dims2Tag(dims_src));
+  auto md_dst = memory::desc(dims_src,
+                             dnn_support::toDnnType<T>::type,
+                             dnn_support::axis2Tag(axis));
+
+  auto mem_src = memory(md_src, eng, x_data);
+  auto mem_dst = memory(md_dst, eng, out_data);
+
+  auto reorder_pd =
+      reorder::primitive_desc(eng, md_src, eng, md_dst);
+
+  // Create the primitive.
+  auto reorder_prim = reorder(reorder_pd);
+
+  std::unordered_map<int, memory> reorder_args;
+  reorder_args.insert({DNNL_ARG_SRC, mem_src});
+  reorder_args.insert({DNNL_ARG_DST, mem_dst});
+
+  // Primitive execution: reorder with scaled sum.
+  reorder_prim.execute(engine_stream, reorder_args);
+  engine_stream.wait();
+
+}
+
+
+
+
+
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(transpose,
@@ -78,3 +158,23 @@ PD_BUILD_PHI_KERNEL(transpose,
                     int16_t,
                     int32_t,
                     int64_t) {}
+/*
+PD_BUILD_PHI_KERNEL(transpose,
+                    intel_gpu,
+                    ALL_LAYOUT,
+                    custom_kernel::TransposeKernelGPU,
+                    bool,
+                    float,
+                    double,
+                    uint8_t,
+                    int8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t) {}
+*/
+
+PD_BUILD_PHI_KERNEL(transpose,
+                    intel_gpu,
+                    ALL_LAYOUT,
+                    custom_kernel::TransposeKernelGPU,
+                    float  ) {}

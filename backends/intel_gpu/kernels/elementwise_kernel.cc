@@ -137,23 +137,7 @@ void MultiplyKernelGPU(const phi::Context& dev_ctx,
   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
 }
 
-dnnl::memory::format_tag dims2Tag(const dnnl::memory::dims& d) {
-  switch(d.size())
-  {
-    case 1:
-      return dnnl::memory::format_tag::a;
-    case 2:
-      return dnnl::memory::format_tag::ab;
-     case 3:
-       return dnnl::memory::format_tag::abc;
-     case 4:
-       return dnnl::memory::format_tag::abcd;
 
-    default:
-      show_error("This size is not supported size=" << d.size());
-  }
-    return dnnl::memory::format_tag::a;
-}
 
 void inline align_broadcast(std::vector<int64_t>& from,
                             std::vector<int64_t>& to, int axis) {
@@ -205,12 +189,13 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   update_broadcast(dims_x,dims_y,axis);
 
 
- auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, dims2Tag(dims_x));
+ auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, dnn_support::dims2Tag(dims_x));
 
- auto md_y =
-     memory::desc(dims_y, dnn_support::toDnnType<T>::type, dims2Tag(dims_y));
- auto md_out =
-     memory::desc(dims_out, dnn_support::toDnnType<T>::type, dims2Tag(dims_out));
+ auto md_y = memory::desc(
+     dims_y, dnn_support::toDnnType<T>::type, dnn_support::dims2Tag(dims_y));
+ auto md_out = memory::desc(dims_out,
+                            dnn_support::toDnnType<T>::type,
+                            dnn_support::dims2Tag(dims_out));
 
  auto x_mem = memory(md_x, eng, x.data<T>());
  auto y_mem = memory(md_y, eng, y.data<T>());

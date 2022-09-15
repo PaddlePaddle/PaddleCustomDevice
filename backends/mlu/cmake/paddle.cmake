@@ -29,8 +29,8 @@ set(PADDLE_LIB_DIR     "${PADDLE_DIR}/fluid/")
 
 INCLUDE_DIRECTORIES(${PADDLE_INC_DIR})
 
-if (EXISTS "${PADDLE_LIB_DIR}/paddle_core.so")
-    set(paddle_lib_name  paddle_core.so)
+if (EXISTS "${PADDLE_LIB_DIR}/libpaddle.so")
+    set(paddle_lib_name  libpaddle.so)
 elseif (EXISTS "${PADDLE_LIB_DIR}/core_avx.so")
     set(paddle_lib_name  core_avx.so)
 else()

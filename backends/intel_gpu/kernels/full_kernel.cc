@@ -14,6 +14,7 @@
 
 #include "paddle/phi/capi/all.h"
 #include <CL/sycl.hpp>
+#include "dnn_support.hpp"
 namespace custom_kernel {
 
 template <typename T, typename VType>
@@ -21,12 +22,12 @@ void FullValue(const phi::Context& dev_ctx,
                phi::DenseTensor* tensor,
                VType val) {
 
-
+  show_kernel("FullValue");
   auto t = dev_ctx.template Alloc<T>(tensor);
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
   auto num = tensor->numel();
-  std::cout << "*** FullValue *** size="<< num << " sizeof(T)="<< sizeof(T) << std::endl;
-  q->submit([&](sycl::handler& h) {
+  show_debug("FullValue size="<< num << " sizeof(T)="<< sizeof(T) );
+ auto e =  q->submit([&](sycl::handler& h) {
     h.fill(t, val, num );
   });
   q-> wait();

@@ -191,3 +191,24 @@ class AscendProfiler {
 
   bool start_ = false;
 };
+
+C_Status graph_engine_initialize(const C_Device device, const C_Stream stream);
+
+C_Status graph_engine_finalize(const C_Device device, const C_Stream stream);
+
+C_Status graph_engine_prepare(const C_Device device,
+                              const C_Stream stream,
+                              const C_Graph graph,
+                              char **init_tensor_name,
+                              void **init_tensor_data,
+                              size_t init_tensor_num);
+
+C_Status graph_engine_execute_graph(const C_Device device,
+                                    const C_Stream stream,
+                                    const C_Graph graph,
+                                    char **feed_tensor_name,
+                                    void **feed_tensor_data,
+                                    size_t feed_num,
+                                    char **fetch_tensor_name,
+                                    void **fetch_tensor_data,
+                                    size_t fetch_num);

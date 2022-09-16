@@ -21,6 +21,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "graph/graph_adapter_registry.h"
+// NOLINT
+
 #include "glog/logging.h"
 
 class AlignnedAllocator {
@@ -657,4 +660,10 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+
+  // graph
+  params->interface->graph_engine_initialize = graph_engine_initialize;
+  params->interface->graph_engine_finalize = graph_engine_finalize;
+  params->interface->graph_engine_prepare = graph_engine_prepare;
+  params->interface->graph_engine_execute_graph = graph_engine_execute_graph;
 }

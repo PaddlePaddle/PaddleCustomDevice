@@ -55,6 +55,27 @@ function init() {
     export FLAGS_call_stack_level=2
 }
 
+function show_ut_retry_result() {
+    SYSTEM=`uname -s`
+    retry_unittests_ut_name=$(echo "$retry_unittests_record" | grep -oEi "\-.+\(" | sed 's/(//' | sed 's/- //' )
+    retry_unittests_record_judge=$(echo ${retry_unittests_ut_name}| tr ' ' '\n' | sort | uniq -c | awk '{if ($1 >=4) {print $2}}')
+    if [ -z "${retry_unittests_record_judge}" ];then
+        echo "========================================"
+        echo "There are failed tests, which have been successful after re-run:"
+        echo "========================================"
+        echo "The following tests have been re-ran:"
+        echo "${retry_unittests_record}"
+    else
+        failed_ut_re=$(echo "${retry_unittests_record_judge}" | awk BEGIN{RS=EOF}'{gsub(/\n/,"|");print}')
+        echo "========================================"
+        echo "There are failed tests, which have been executed re-run,but success rate is less than 50%:"
+        echo "Summary Failed Tests... "
+        echo "========================================"
+        echo "The following tests FAILED: "
+        echo "${retry_unittests_record}" | sort -u | grep -E "$failed_ut_re"
+        exit 8;
+    fi
+}
 function custom_npu_test() {
     # paddle install
     pip install hypothesis
@@ -79,7 +100,7 @@ function custom_npu_test() {
     tmpfile=$tmp_dir/$tmpfile_rand
     ctest --output-on-failure | tee $tmpfile;
     collect_failed_tests
-
+set +x
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0
@@ -156,14 +177,14 @@ function custom_npu_test() {
 
             done
     fi
-    EXIT_CODE=$?
     rerun_ut_endTime_s=`date +%s` 
     echo "Rerun TestCases Total Time: $[ $rerun_ut_endTime_s - $rerun_ut_startTime_s ]s" 
     ut_total_endTime_s=`date +%s`
     echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"
     if [[ "$EXIT_CODE" != "0" ]];then
-        exit 8;
+        show_ut_retry_result
     fi
+set -ex
 }
 
 function custom_cpu_test() {

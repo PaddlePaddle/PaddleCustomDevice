@@ -28,17 +28,13 @@ paddle.enable_static()
 
 class TestBatchNorm(unittest.TestCase):
     def test_name(self):
-        places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            places.append(paddle.CustomPlace('CustomMLU', 0))
+        places = [paddle.CustomPlace('CustomMLU', 0)]
         for p in places:
             with fluid.dygraph.guard(p):
                 batch_norm1d = paddle.nn.BatchNorm1D(1, name="test")
 
     def test_error(self):
-        places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            places.append(paddle.CustomPlace('CustomMLU', 0))
+        places = [paddle.CustomPlace('CustomMLU', 0)]
         for p in places:
             #paddle.disable_static()
             x_data_4 = np.random.random(size=(2, 1, 3, 3)).astype('float32')
@@ -83,9 +79,7 @@ class TestBatchNorm(unittest.TestCase):
                 self.assertRaises(ValueError, error3d_dataformat)
 
     def test_dygraph(self):
-        places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            places.append(paddle.CustomPlace('CustomMLU', 0))
+        places = [paddle.CustomPlace('CustomMLU', 0)]
         for p in places:
             shape = [4, 10, 4, 4]
 
@@ -135,9 +129,7 @@ class TestBatchNorm(unittest.TestCase):
             np.testing.assert_allclose(y3, y4)
 
     def test_static(self):
-        places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            places.append(paddle.CustomPlace('CustomMLU', 0))
+        places = [paddle.CustomPlace('CustomMLU', 0)]
         for p in places:
             exe = fluid.Executor(p)
             shape = [4, 10, 16, 16]
@@ -173,9 +165,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
     def setUp(self):
         self.original_dtyep = paddle.get_default_dtype()
         paddle.set_default_dtype("float32")
-        self.places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            self.places.append(paddle.CustomPlace('CustomMLU', 0))
+        self.places = [paddle.CustomPlace('CustomMLU', 0)]
 
     def tearDown(self):
         paddle.set_default_dtype(self.original_dtyep)
@@ -233,9 +223,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
 
 class TestBatchNormUseGlobalStats(unittest.TestCase):
     def setUp(self):
-        self.places = [fluid.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            self.places.append(paddle.CustomPlace('CustomMLU', 0))
+        self.places = [paddle.CustomPlace('CustomMLU', 0)]
         self.init_test()
 
     ### train mode

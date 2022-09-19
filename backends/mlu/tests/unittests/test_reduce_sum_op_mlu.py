@@ -135,6 +135,10 @@ class TestKeepDim8DReduce(TestMLUReduceSumOp):
         self.axis = (3, 4, 5)
         self.keep_dim = True
 
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ['X'], 'Out', max_relative_error=0.03)
+
 
 class TestReduceAll(TestMLUReduceSumOp):
     def initTestCase(self):

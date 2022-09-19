@@ -2168,11 +2168,11 @@ MLURNNDesc::~MLURNNDesc() {
   size_t workspace_size = 0;
   void* workspace_ptr = nullptr;
   Tensor workspace;
-  workspace.Resize({static_cast<int64_t>(workspace_size)});
   if (need_workspace) {
     PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetReduceOpWorkspaceSize(
         handle, input_desc, output_desc, reduction_desc, &workspace_size));
-    void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+    workspace.Resize({static_cast<int64_t>(workspace_size)});
+    workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
   }
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlReduce(handle,

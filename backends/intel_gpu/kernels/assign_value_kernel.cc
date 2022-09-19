@@ -52,7 +52,7 @@ void AssignValueKernel(const phi::Context& dev_ctx,
       h.copy(a_in, out_data);
     });
   }
-  // q-> wait();  needed, runtime does sync ??
+  q-> wait();  //needed, runtime does sync ??
   out->Resize(std::vector<int64_t>(shape.cbegin(), shape.cend()));
 }
 

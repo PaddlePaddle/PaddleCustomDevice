@@ -21,8 +21,7 @@ template <typename T, typename VType>
 void FullValue(const phi::Context& dev_ctx,
                phi::DenseTensor* tensor,
                VType val) {
-
-  show_kernel("FullValue");
+  show_kernel("FullValue type=" << dnn_support::type2String<T>::name());
   auto t = dev_ctx.template Alloc<T>(tensor);
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
   auto num = tensor->numel();

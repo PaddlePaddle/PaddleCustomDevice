@@ -139,9 +139,11 @@ class GEGraph {
 
   void AddInput(ge::Operator in) { inputs_.push_back(in); }
 
-  void AddFeedInput(std::string name, ge::Operator in) {
-    feed_inputs_.push_back(name);
-    std::cout << feed_inputs_.size() << std::endl;
+  void AddFeedInput(std::string name, ge::Operator in, int col) {
+    if (feed_inputs_.size() <= col) {
+      feed_inputs_.resize(col + 1);
+    }
+    feed_inputs_[col] = name;
     AddInput(in);
   }
 
@@ -168,10 +170,14 @@ class GEGraph {
   }
 
   ge::Operator& AddOp(const std::string& op, ge::Operator ge_op) {
-    std::cout << "add " << op << " into context " << this << std::endl;
-    ge_ops_[op] = ge_op;
+    RecordNode(op, ge_op);
     ge_graph_->AddOp(ge_op);
     return ge_ops_[op];
+  }
+
+  ge::Operator& RecordNode(const std::string& op, ge::Operator ge_op) {
+    std::cout << "record " << op << " in context " << this << std::endl;
+    ge_ops_[op] = ge_op;
   }
 
   ge::Graph* Graph() { return ge_graph_; }

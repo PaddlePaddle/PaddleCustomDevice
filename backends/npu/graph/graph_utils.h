@@ -78,18 +78,18 @@ inline ge::DataType string_to_ge_dtype(const std::string& data_type_str) {
 template <typename T>
 struct cpp_type_to_pd_dtype;
 
-#define REG_CPP_TYPE_TO_GE_DTYPE(cpp_type, pd_dtype)             \
+#define REG_CPP_TYPE_TO_PD_DTYPE(cpp_type, pd_dtype)             \
   template <>                                                    \
   struct cpp_type_to_pd_dtype<cpp_type> {                        \
     static const paddle::framework::proto::VarType::Type value = \
         paddle::framework::proto::VarType::pd_dtype;             \
   };
 
-REG_CPP_TYPE_TO_GE_DTYPE(int16_t, INT16);
-REG_CPP_TYPE_TO_GE_DTYPE(int32_t, INT32);
-REG_CPP_TYPE_TO_GE_DTYPE(int64_t, INT64);
-REG_CPP_TYPE_TO_GE_DTYPE(float, FP32);
-REG_CPP_TYPE_TO_GE_DTYPE(double, FP64);
+REG_CPP_TYPE_TO_PD_DTYPE(int16_t, INT16);
+REG_CPP_TYPE_TO_PD_DTYPE(int32_t, INT32);
+REG_CPP_TYPE_TO_PD_DTYPE(int64_t, INT64);
+REG_CPP_TYPE_TO_PD_DTYPE(float, FP32);
+REG_CPP_TYPE_TO_PD_DTYPE(double, FP64);
 
 inline ge::DataType pd_dtype_to_ge_dtype(
     paddle::framework::proto::VarType::Type var_type) {

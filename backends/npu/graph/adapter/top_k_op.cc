@@ -46,25 +46,11 @@ class TopKV2Adapter : public custom_graph::OpAdapter {
                       .set_attr_dim(axis)
                       .set_attr_largest(largest);
 
-      auto out_node = ge::op::Variable();
-      out_node.update_output_desc_y(ge::TensorDesc(
-          ge::Shape(std::vector<int64_t>(out_dim.begin(), out_dim.end())),
-          ge::Format::FORMAT_NCHW,
-          graph::utils::pd_dtype_to_ge_dtype(out->dtype())));
-
-      auto indices_node = ge::op::Variable();
-      indices_node.update_output_desc_y(
-          ge::TensorDesc(ge::Shape(std::vector<int64_t>(indices_dim.begin(),
-                                                        indices_dim.end())),
-                         ge::Format::FORMAT_NCHW,
-                         graph::utils::pd_dtype_to_ge_dtype(indices->dtype())));
-
-      auto assign_op1 =
-          ge::op::Assign().set_input_ref(out_node).set_input_value(node,
-                                                                   "values");
-      auto assign_op2 = ge::op::Assign()
-                            .set_input_ref(indices_node)
-                            .set_input_value(node, "indices");
+      auto indices_int32 = graph::funcs::get_output_by_name<int32_t>(
+          node, indices_dim, "indices");
+      auto indices_node = graph::funcs::cast(indices_int32, indices->dtype());
+      auto out_node = graph::funcs::get_output_by_name(
+          node, out_dim, out->dtype(), "values");
 
       graph->AddOp(out->Name(), out_node);
       graph->AddOp(indices->Name(), indices_node);
@@ -78,25 +64,11 @@ class TopKV2Adapter : public custom_graph::OpAdapter {
                       .set_attr_dim(axis)
                       .set_attr_largest(largest);
 
-      auto out_node = ge::op::Variable();
-      out_node.update_output_desc_y(ge::TensorDesc(
-          ge::Shape(std::vector<int64_t>(out_dim.begin(), out_dim.end())),
-          ge::Format::FORMAT_NCHW,
-          graph::utils::pd_dtype_to_ge_dtype(out->dtype())));
-
-      auto indices_node = ge::op::Variable();
-      indices_node.update_output_desc_y(
-          ge::TensorDesc(ge::Shape(std::vector<int64_t>(indices_dim.begin(),
-                                                        indices_dim.end())),
-                         ge::Format::FORMAT_NCHW,
-                         graph::utils::pd_dtype_to_ge_dtype(indices->dtype())));
-
-      auto assign_op1 =
-          ge::op::Assign().set_input_ref(out_node).set_input_value(node,
-                                                                   "values");
-      auto assign_op2 = ge::op::Assign()
-                            .set_input_ref(indices_node)
-                            .set_input_value(node, "indices");
+      auto indices_int32 = graph::funcs::get_output_by_name<int32_t>(
+          node, indices_dim, "indices");
+      auto indices_node = graph::funcs::cast(indices_int32, indices->dtype());
+      auto out_node = graph::funcs::get_output_by_name(
+          node, out_dim, out->dtype(), "values");
 
       graph->AddOp(out->Name(), out_node);
       graph->AddOp(indices->Name(), indices_node);

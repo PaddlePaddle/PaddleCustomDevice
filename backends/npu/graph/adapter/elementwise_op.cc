@@ -25,10 +25,44 @@ class ElementwiseAddAdapter : public custom_graph::OpAdapter {
     auto out = ctx.Output("Out");
     auto x = ctx.Input("X");
     auto y = ctx.Input("Y");
-    auto ge_op = ge::op::Add(ge::AscendString(out->Name().c_str()))
-                     .set_input_x1(graph->GetOp(x->Name()))
-                     .set_input_x2(graph->GetOp(y->Name()));
-    graph->AddOp(out->Name(), ge_op);
+    auto x_dims = x->dims();
+    auto y_dims = y->dims();
+
+    auto axis = ctx.Attr<int>("axis");
+    axis = (axis == -1 ? std::abs(static_cast<int>(x_dims.size()) -
+                                  static_cast<int>(y_dims.size()))
+                       : axis);
+
+    if (x_dims.size() >= y_dims.size() &&
+        y_dims.size() + axis < x_dims.size()) {
+      auto y_dims_tmp = y_dims;
+      for (auto i = 0; i < x_dims.size() - y_dims.size() - axis; ++i) {
+        y_dims_tmp.push_back(1);
+      }
+      auto reshape_y =
+          graph::funcs::reshape(graph->GetOp(y->Name()), y_dims_tmp);
+      auto ge_op = ge::op::Add(ge::AscendString(out->Name().c_str()))
+                       .set_input_x1(graph->GetOp(x->Name()))
+                       .set_input_x2(reshape_y);
+      graph->AddOp(out->Name(), ge_op);
+    } else if (x_dims.size() < y_dims.size() &&
+               x_dims.size() + axis < y_dims.size()) {
+      auto x_dims_tmp = x_dims;
+      for (auto i = 0; i < y_dims.size() - x_dims.size() - axis; ++i) {
+        x_dims_tmp.push_back(1);
+      }
+      auto reshape_x =
+          graph::funcs::reshape(graph->GetOp(x->Name()), x_dims_tmp);
+      auto ge_op = ge::op::Add(ge::AscendString(out->Name().c_str()))
+                       .set_input_x1(reshape_x)
+                       .set_input_x2(graph->GetOp(y->Name()));
+      graph->AddOp(out->Name(), ge_op);
+    } else {
+      auto ge_op = ge::op::Add(ge::AscendString(out->Name().c_str()))
+                       .set_input_x1(graph->GetOp(x->Name()))
+                       .set_input_x2(graph->GetOp(y->Name()));
+      graph->AddOp(out->Name(), ge_op);
+    }
   }
 };
 
@@ -39,9 +73,9 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
   void run(const paddle::framework::ir::OpNode& ctx,
            custom_graph::GEGraph* graph) override {
     auto x = ctx.Input("X");
-    auto x_dim = x->dims();
+    auto x_dims = x->dims();
     auto y = ctx.Input("Y");
-    auto y_dim = y->dims();
+    auto y_dims = y->dims();
     auto out_grad = ctx.Input("Out@GRAD");
     auto out_grad_dim = out_grad->dims();
     auto x_grad = ctx.Output("X@GRAD");
@@ -50,32 +84,32 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
     auto y_grad_dim = y_grad->dims();
 
     int axis = ctx.Attr<int>("axis");
-    axis = (axis == -1 ? std::abs(static_cast<int>(x_dim.size()) -
-                                  static_cast<int>(y_dim.size()))
+    axis = (axis == -1 ? std::abs(static_cast<int>(x_dims.size()) -
+                                  static_cast<int>(y_dims.size()))
                        : axis);
 
     if (x_grad) {
-      if (x_dim.size() == out_grad_dim.size() &&
-          std::equal(x_dim.begin(), x_dim.end(), out_grad_dim.begin())) {
-        auto var_dims = x_grad->dims();
-        ge::TensorDesc var_desc(
-            ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
-            ge::Format::FORMAT_NCHW,
-            graph::utils::pd_dtype_to_ge_dtype(x_grad->dtype()));
-        var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
-
-        auto var =
-            ge::op::Variable(ge::AscendString((x->Name() + "_grad").c_str()));
-        var.update_output_desc_y(var_desc);
-        auto assign_op = ge::op::Assign().set_input_ref(var).set_input_value(
-            graph->GetOp(out_grad->Name()));
-        graph->AddOp(x_grad->Name(), var);
-        graph->AddInput(graph->GetOp(x_grad->Name()));
+      if (x_dims == out_grad_dim) {
+        graph->RecordNode(x_grad->Name(), graph->GetOp(out_grad->Name()));
       } else {
         std::vector<int64_t> reduce_axes;
+        for (auto i = 0; i < x_dims.size(); ++i) {
+          if (x_dims[i] == 1 && out_grad_dim[i - axis] > 1) {
+            reduce_axes.push_back(i - axis);
+          }
+        }
+        if (reduce_axes.size() > 0) {
+          auto ge_op = ge::op::ReduceSumD(
+                           ge::AscendString((x->Name() + "_grad").c_str()))
+                           .set_input_x(graph->GetOp(out_grad->Name()))
+                           .set_attr_axes(reduce_axes)
+                           .set_attr_keep_dims(true);
+          graph->AddOp(x_grad->Name(), ge_op);
+        }
+
+        reduce_axes.clear();
         for (auto i = 0; i < out_grad_dim.size(); ++i) {
-          if (i < axis || i > axis + x_dim.size() ||
-              (x_dim[i] == 1 && out_grad_dim[i] > 1)) {
+          if (i < axis || i >= axis + x_dims.size()) {
             reduce_axes.push_back(i);
           }
         }
@@ -86,33 +120,31 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
                            .set_attr_axes(reduce_axes)
                            .set_attr_keep_dims(false);
           graph->AddOp(x_grad->Name(), ge_op);
-        } else {
-          // error
         }
       }
     }
     if (y_grad) {
-      if (y_dim.size() == out_grad_dim.size() &&
-          std::equal(y_dim.begin(), y_dim.end(), out_grad_dim.begin())) {
-        auto var_dims = y_grad->dims();
-        ge::TensorDesc var_desc(
-            ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
-            ge::Format::FORMAT_NCHW,
-            graph::utils::pd_dtype_to_ge_dtype(y_grad->dtype()));
-        var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
-
-        auto var =
-            ge::op::Variable(ge::AscendString((y->Name() + "_grad").c_str()));
-        var.update_output_desc_y(var_desc);
-        auto assign_op = ge::op::Assign().set_input_ref(var).set_input_value(
-            graph->GetOp(out_grad->Name()));
-        graph->AddOp(y_grad->Name(), var);
-        graph->AddInput(graph->GetOp(y_grad->Name()));
+      if (y_dims == out_grad_dim) {
+        graph->RecordNode(y_grad->Name(), graph->GetOp(out_grad->Name()));
       } else {
         std::vector<int64_t> reduce_axes;
+        for (auto i = 0; i < y_dims.size(); ++i) {
+          if (y_dims[i] == 1 && out_grad_dim[i - axis] > 1) {
+            reduce_axes.push_back(i - axis);
+          }
+        }
+        if (reduce_axes.size() > 0) {
+          auto ge_op = ge::op::ReduceSumD(
+                           ge::AscendString((y->Name() + "_grad").c_str()))
+                           .set_input_x(graph->GetOp(out_grad->Name()))
+                           .set_attr_axes(reduce_axes)
+                           .set_attr_keep_dims(true);
+          graph->AddOp(y_grad->Name(), ge_op);
+        }
+
+        reduce_axes.clear();
         for (auto i = 0; i < out_grad_dim.size(); ++i) {
-          if (i < axis || i > axis + y_dim.size() ||
-              (y_dim[i] == 1 && out_grad_dim[i] > 1)) {
+          if (i < axis || i >= axis + y_dims.size()) {
             reduce_axes.push_back(i);
           }
         }
@@ -123,8 +155,6 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
                            .set_attr_axes(reduce_axes)
                            .set_attr_keep_dims(false);
           graph->AddOp(y_grad->Name(), ge_op);
-        } else {
-          // error
         }
       }
     }

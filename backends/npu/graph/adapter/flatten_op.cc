@@ -46,6 +46,13 @@ class FlattenContiguousRangeGradAdapter : public custom_graph::OpAdapter {
     auto out_grad = ctx.Input("Out@GRAD");
     auto xshape_dims = ctx.Input("XShape")->dims();
     auto x_dims = slice_ddim(xshape_dims, 1, xshape_dims.size());
+    std::cout << "x_grad=" << paddle::framework::ir::to_string(x_grad->dims())
+              << std::endl;
+    std::cout << "out_grad="
+              << paddle::framework::ir::to_string(out_grad->dims())
+              << std::endl;
+    std::cout << "x_dims=" << paddle::framework::ir::to_string(x_dims)
+              << std::endl;
 
     // ge::TensorDesc shape_tensor_desc(
     //     ge::Shape(std::vector<int64_t>({x_dims.size()})),
@@ -59,11 +66,13 @@ class FlattenContiguousRangeGradAdapter : public custom_graph::OpAdapter {
     // auto constant_op = ge::op::Constant().set_attr_value(shape_tensor);
     // constant_op.update_output_desc_y(shape_tensor_desc);
 
-    auto constant_op = graph::funcs::constant({x_dims.size()}, x_dims);
+    // auto constant_op = graph::funcs::constant({x_dims.size()}, x_dims);
 
-    auto ge_op = ge::op::Reshape()
-                     .set_input_x(graph->GetOp(out_grad->Name()))
-                     .set_input_shape(constant_op);
+    // auto ge_op = ge::op::Reshape()
+    //                  .set_input_x(graph->GetOp(out_grad->Name()))
+    //                  .set_input_shape(constant_op);
+
+    auto ge_op = graph::funcs::reshape(graph->GetOp(out_grad->Name()), x_dims);
     graph->AddOp(x_grad->Name(), ge_op);
   }
 };

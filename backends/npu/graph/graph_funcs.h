@@ -136,6 +136,34 @@ inline ge::Operator get_output_by_name(
   }
 }
 
+inline ge::Operator get_output_by_name(
+    ge::Operator& node,
+    const std::vector<int>& dim,
+    paddle::framework::proto::VarType::Type dtype,
+    const std::string& output_name,
+    ge::Format format = ge::Format::FORMAT_NCHW,
+    const std::string& name = "") {
+  ge::TensorDesc tensor_desc(
+      ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
+      format,
+      graph::utils::pd_dtype_to_ge_dtype(dtype));
+  tensor_desc.SetRealDimCnt(tensor_desc.GetShape().GetDimNum());
+
+  if (name.size() == 0) {
+    auto variable = ge::op::Variable();
+    variable.update_output_desc_y(tensor_desc);
+    auto assign_op = ge::op::Assign().set_input_ref(variable).set_input_value(
+        node, output_name);
+    return variable;
+  } else {
+    auto variable = ge::op::Variable(ge::AscendString(name.c_str()));
+    variable.update_output_desc_y(tensor_desc);
+    auto assign_op = ge::op::Assign().set_input_ref(variable).set_input_value(
+        node, output_name);
+    return variable;
+  }
+}
+
 inline ge::Operator reshape(ge::Operator& node,
                             const std::vector<int>& dim,
                             const std::string& name = "") {
@@ -166,6 +194,46 @@ inline ge::Operator cast(ge::Operator& node, const std::string& name = "") {
             .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<T>::value);
     return cast_op;
   }
+}
+
+inline ge::Operator cast(ge::Operator& node,
+                         paddle::framework::proto::VarType::Type dtype,
+                         const std::string& name = "") {
+  if (name.size() == 0) {
+    auto cast_op = ge::op::Cast().set_input_x(node).set_attr_dst_type(
+        graph::utils::pd_dtype_to_ge_dtype(dtype));
+    return cast_op;
+  } else {
+    auto cast_op =
+        ge::op::Cast(ge::AscendString(name.c_str()))
+            .set_input_x(node)
+            .set_attr_dst_type(graph::utils::pd_dtype_to_ge_dtype(dtype));
+    return cast_op;
+  }
+}
+
+inline void update_input_format(ge::Operator& node,
+                                const std::string& input_name,
+                                const std::string& format) {
+  ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
+  if (format == "NCHW") {
+    desc.SetFormat(ge::Format::FORMAT_NCHW);
+  } else {
+    desc.SetFormat(ge::Format::FORMAT_NHWC);
+  }
+  node.UpdateInputDesc(input_name.c_str(), desc);
+}
+
+inline void update_output_format(ge::Operator& node,
+                                 const std::string& output_name,
+                                 const std::string& format) {
+  ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
+  if (format == "NCHW") {
+    desc.SetFormat(ge::Format::FORMAT_NCHW);
+  } else {
+    desc.SetFormat(ge::Format::FORMAT_NHWC);
+  }
+  node.UpdateOutputDesc(output_name.c_str(), desc);
 }
 
 }  // namespace funcs

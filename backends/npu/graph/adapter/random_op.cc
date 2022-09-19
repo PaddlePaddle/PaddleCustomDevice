@@ -26,6 +26,7 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     auto out_dims = out->dims();
     auto min_value = ctx.Attr<float>("min");
     auto max_value = ctx.Attr<float>("max");
+    auto seed = ctx.Attr<int>("seed");
     std::cout << "min_value=" << min_value << std::endl;
     std::cout << "max_value=" << max_value << std::endl;
 
@@ -39,22 +40,25 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
         out_dims.begin(), out_dims.end(), 1, std::multiplies<int>());
     auto bytesize = size;
 
+    auto engine = std::make_shared<std::mt19937_64>();
+    engine->seed(seed);
+
     uint8_t* data_value = nullptr;
     if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+      std::uniform_real_distribution<float> dist(static_cast<float>(min_value),
+                                                 static_cast<float>(max_value));
       auto ptr = new float[size];
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<float>(((rand_r() % 10000) / 1.0 / 10000) *
-                                        (max_value - min_value) -
-                                    min_value);
+        ptr[i] = static_cast<float>(dist(*engine));
       }
       bytesize = size * sizeof(float);
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
+      std::uniform_real_distribution<double> dist(
+          static_cast<double>(min_value), static_cast<double>(max_value));
       auto ptr = new double[size];
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<double>(((rand_r() % 10000) / 1.0 / 10000) *
-                                         (max_value - min_value) -
-                                     min_value);
+        ptr[i] = static_cast<double>(dist(*engine));
       }
       bytesize = size * sizeof(double);
       data_value = reinterpret_cast<uint8_t*>(ptr);

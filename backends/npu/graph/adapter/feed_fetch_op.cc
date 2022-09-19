@@ -29,9 +29,15 @@ class FeedAdapter : public custom_graph::OpAdapter {
               << ", dims: " << paddle::framework::ir::to_string(out_dims)
               << std::endl;
     auto ge_op =
-        ge::op::Data(ge::AscendString(ctx.Name().c_str())).set_attr_index(col);
+        ge::op::Data(ge::AscendString(out->Name().c_str())).set_attr_index(col);
+    ge::TensorDesc desc = ge_op.GetOutputDescByName("y");
+    desc.SetShape(
+        ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())));
+    desc.SetRealDimCnt(desc.GetShape().GetDimNum());
+    ge_op.UpdateOutputDesc("y", desc);
+
     graph->AddOp(out->Name(), ge_op);
-    graph->AddFeedInput(out->Name(), ge_op);
+    graph->AddFeedInput(out->Name(), ge_op, col);
   }
 };
 

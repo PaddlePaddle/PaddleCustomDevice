@@ -15,7 +15,7 @@
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 #include <CL/sycl.hpp>
-
+#include "dnn_support.hpp"
 namespace custom_kernel {
 
 template <typename T>
@@ -26,9 +26,10 @@ void MeanAllKernel(const phi::Context& dev_ctx,
   auto x_data = x.data<T>();
   auto numel = x.numel();
 
+  show_kernel("Mean-Sycl");
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  std::cout << "*** MeanAll *** size="<< numel << std::endl;
+  show_debug("Mean numel="<< numel );
 
   auto e1 = q->fill(out_data, static_cast<T>(0), 1);
   q->single_task(e1, [=](){
@@ -55,7 +56,8 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   auto numel = x_grad->numel();
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  std::cout << "*** MeanAllGrad *** size="<< numel << std::endl;
+  show_kernel("MeanAllGrad-Sycl");
+
   q->submit([&](sycl::handler& h) {
     h.parallel_for(numel, [=](auto& i){
         x_grad_data[i] = *out_grad_data / static_cast<T>(numel);

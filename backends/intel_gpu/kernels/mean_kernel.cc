@@ -26,7 +26,7 @@ void MeanAllKernel(const phi::Context& dev_ctx,
   auto x_data = x.data<T>();
   auto numel = x.numel();
 
-  show_kernel("Mean-Sycl");
+  show_kernel("Mean-Sycl type=" << dnn_support::type2String<T>::name());
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
   show_debug("Mean numel="<< numel );
@@ -56,7 +56,7 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   auto numel = x_grad->numel();
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  show_kernel("MeanAllGrad-Sycl");
+  show_kernel("MeanAllGrad-Sycl type=" << dnn_support::type2String<T>::name());
 
   q->submit([&](sycl::handler& h) {
     h.parallel_for(numel, [=](auto& i){

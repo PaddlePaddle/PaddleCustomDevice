@@ -63,7 +63,7 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
 
-  show_kernel("ElementWise-SYCL-MUL");
+  show_kernel("ElementWise-SYCL-MUL type=" << dnn_support::type2String<T>::name() );
 
 
   void *stream = const_cast< void* >(dev_ctx.stream());
@@ -167,7 +167,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
                           const phi::DenseTensor& y,
                           int axis,
                           phi::DenseTensor* out) {
-  show_kernel("ElementWise-ONEDNN");
+  show_kernel("ElementWise-ONEDNN type=" << dnn_support::type2String<T>::name());
   //void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
 

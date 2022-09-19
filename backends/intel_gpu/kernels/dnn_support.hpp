@@ -217,4 +217,45 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
   };
 
   */
+
+
+template<class T>
+struct type2String;
+
+template<>
+struct type2String<double> {
+  constexpr static const char* name() { return "double"; }
+};
+
+template <>
+struct type2String<float> {
+  constexpr static const char* name() { return "float"; }
+};
+
+template <>
+struct type2String<int32_t> {
+  constexpr static const char* name() { return "int32_t"; }
+};
+
+template <>
+struct type2String<int64_t> {
+  constexpr static const char* name() { return "int64_t"; }
+};
+
+template <>
+struct type2String<bool> {
+  constexpr static const char* name() { return "bool"; }
+};
+
+template <>
+struct type2String<unsigned char> {
+  constexpr static const char* name() { return "uchar"; }
+};
+
+template <>
+struct type2String<short> {
+  constexpr static const char* name() { return "short"; }
+};
+
+
 }

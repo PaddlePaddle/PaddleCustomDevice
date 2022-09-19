@@ -69,7 +69,7 @@ class MNIST(paddle.nn.Layer):
 mnist = MNIST()
 sgd = SGD(learning_rate=0.01, parameters=mnist.parameters())
 
-epoch_num = 1
+epoch_num = 5
 for epoch in range(epoch_num):
     for batch_id, data in enumerate(train_reader()):
         img = data[0]

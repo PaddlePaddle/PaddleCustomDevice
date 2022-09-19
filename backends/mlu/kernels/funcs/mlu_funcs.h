@@ -285,4 +285,71 @@ static inline int SizeOutAxis(const int axis, phi::DDim dims) {
   return size;
 }
 
+inline phi::DataLayout StringToDataLayout(const std::string& str) {
+  std::string s(str);
+  for (size_t i = 0; i < s.size(); ++i) {
+    s[i] = toupper(s[i]);
+  }
+
+  if (s == "NHWC") {
+    return phi::DataLayout::kNHWC;
+  } else if (s == "NCHW") {
+    return phi::DataLayout::kNCHW;
+  } else if (s == "ANYLAYOUT") {
+    return phi::DataLayout::kAnyLayout;
+  } else if (s == "MKLDNNLAYOUT") {
+    return phi::DataLayout::kMKLDNN;
+  } else if (s == "SPARSE_COO") {
+    return phi::DataLayout::SPARSE_COO;
+  } else if (s == "SPARSE_CSR") {
+    return phi::DataLayout::SPARSE_CSR;
+  } else {
+  }
+}
+
+inline void ExtractNCDWH(const phi::DDim& dims,
+                         const phi::DataLayout& data_layout,
+                         int* N,
+                         int* C,
+                         int* D,
+                         int* H,
+                         int* W) {
+  *N = dims[0];
+
+  if (dims.size() == 3) {
+    *C = data_layout == phi::DataLayout::kNCHW ? dims[1] : dims[2];
+    *D = 1;
+    *H = 1;
+    *W = data_layout == phi::DataLayout::kNCHW ? dims[2] : dims[1];
+  } else if (dims.size() == 4) {
+    *C = data_layout == phi::DataLayout::kNCHW ? dims[1] : dims[3];
+    *D = 1;
+    *H = data_layout == phi::DataLayout::kNCHW ? dims[2] : dims[1];
+    *W = data_layout == phi::DataLayout::kNCHW ? dims[3] : dims[2];
+  } else {
+    *C = data_layout == phi::DataLayout::kNCHW ? dims[1] : dims[4];
+    *D = data_layout == phi::DataLayout::kNCHW ? dims[2] : dims[1];
+    *H = data_layout == phi::DataLayout::kNCHW ? dims[3] : dims[2];
+    *W = data_layout == phi::DataLayout::kNCHW ? dims[4] : dims[3];
+  }
+}
+
+template <typename T>
+inline std::vector<T> get_new_data_from_tensor(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor* new_data_tensor) {
+  std::vector<T> vec_new_data;
+  auto place = new_data_tensor->place();
+  phi::DenseTensor cpu_starts_tensor;
+  cpu_starts_tensor.Resize(new_data_tensor->dims());
+  T* new_data = dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
+  if (place.GetType() == phi::AllocationType::CUSTOM) {
+    TensorCopy(
+        dev_ctx, *new_data_tensor, true, &cpu_starts_tensor, phi::CPUPlace());
+    new_data = cpu_starts_tensor.data<T>();
+  }
+  vec_new_data = std::vector<T>(new_data, new_data + cpu_starts_tensor.numel());
+  return vec_new_data;
+}
+
 }  // namespace custom_kernel

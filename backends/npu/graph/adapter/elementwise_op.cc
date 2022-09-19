@@ -61,7 +61,7 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
         ge::TensorDesc var_desc(
             ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
             ge::Format::FORMAT_NCHW,
-            graph::traits::pd_dtype_to_ge_dtype(x_grad->dtype()));
+            graph::utils::pd_dtype_to_ge_dtype(x_grad->dtype()));
         var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
 
         auto var =
@@ -98,7 +98,7 @@ class ElementwiseAddGradAdapter : public custom_graph::OpAdapter {
         ge::TensorDesc var_desc(
             ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
             ge::Format::FORMAT_NCHW,
-            graph::traits::pd_dtype_to_ge_dtype(y_grad->dtype()));
+            graph::utils::pd_dtype_to_ge_dtype(y_grad->dtype()));
         var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
 
         auto var =

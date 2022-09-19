@@ -30,7 +30,7 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
         ge::Format::FORMAT_NCHW,
-        graph::traits::pd_dtype_to_ge_dtype(out->dtype()));
+        graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
     out_tensor_desc.SetRealDimCnt(out_tensor_desc.GetShape().GetDimNum());
 
     auto size = std::accumulate(
@@ -69,7 +69,7 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
       ge::TensorDesc var_desc(
           ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
           ge::Format::FORMAT_NCHW,
-          graph::traits::pd_dtype_to_ge_dtype(out->dtype()));
+          graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
       var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
 
       auto ge_op = ge::op::Variable();

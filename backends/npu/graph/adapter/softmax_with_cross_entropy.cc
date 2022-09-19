@@ -83,7 +83,7 @@ class SoftmaxWithCrossEntropyAdapter : public custom_graph::OpAdapter {
     loss_node.update_output_desc_y(ge::TensorDesc(
         ge::Shape(std::vector<int64_t>(loss_dims.begin(), loss_dims.end())),
         ge::Format::FORMAT_NCHW,
-        graph::traits::pd_dtype_to_ge_dtype(loss->dtype())));
+        graph::utils::pd_dtype_to_ge_dtype(loss->dtype())));
     auto assign_op1 = ge::op::Assign().set_input_ref(loss_node).set_input_value(
         softmax_cross_entropy_with_logits, "loss");
 
@@ -93,7 +93,7 @@ class SoftmaxWithCrossEntropyAdapter : public custom_graph::OpAdapter {
     backprop_node.update_output_desc_y(
         ge::TensorDesc(ge::Shape(std::vector<int64_t>(n, d)),
                        ge::Format::FORMAT_NCHW,
-                       graph::traits::pd_dtype_to_ge_dtype(loss->dtype())));
+                       graph::utils::pd_dtype_to_ge_dtype(loss->dtype())));
     auto assign_op2 =
         ge::op::Assign()
             .set_input_ref(backprop_node)

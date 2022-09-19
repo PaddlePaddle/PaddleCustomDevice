@@ -38,17 +38,17 @@ class AccuracyAdapter : public custom_graph::OpAdapter {
     auto indices_int =
         ge::op::Cast()
             .set_input_x(graph->GetOp(indices->Name()))
-            .set_attr_dst_type(graph::traits::cpp_type_to_ge_dtype<int>::value);
+            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
     auto label_int =
         ge::op::Cast()
             .set_input_x(graph->GetOp(label->Name()))
-            .set_attr_dst_type(graph::traits::cpp_type_to_ge_dtype<int>::value);
+            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
 
     auto equal =
         ge::op::Equal().set_input_x1(indices_int).set_input_x2(label_int);
 
     auto equal_float = ge::op::Cast().set_input_x(equal).set_attr_dst_type(
-        graph::traits::cpp_type_to_ge_dtype<float>::value);
+        graph::utils::cpp_type_to_ge_dtype<float>::value);
 
     auto reduce_max = ge::op::ReduceMaxD()
                           .set_input_x(equal_float)
@@ -63,7 +63,7 @@ class AccuracyAdapter : public custom_graph::OpAdapter {
     auto reduce_sum_int =
         ge::op::Cast()
             .set_input_x(reduce_sum)
-            .set_attr_dst_type(graph::traits::cpp_type_to_ge_dtype<int>::value);
+            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
 
     graph->AddOp(correct->Name(), reduce_sum_int);
 

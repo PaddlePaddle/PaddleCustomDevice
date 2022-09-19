@@ -50,14 +50,14 @@ class TopKV2Adapter : public custom_graph::OpAdapter {
       out_node.update_output_desc_y(ge::TensorDesc(
           ge::Shape(std::vector<int64_t>(out_dim.begin(), out_dim.end())),
           ge::Format::FORMAT_NCHW,
-          graph::traits::pd_dtype_to_ge_dtype(out->dtype())));
+          graph::utils::pd_dtype_to_ge_dtype(out->dtype())));
 
       auto indices_node = ge::op::Variable();
-      indices_node.update_output_desc_y(ge::TensorDesc(
-          ge::Shape(
-              std::vector<int64_t>(indices_dim.begin(), indices_dim.end())),
-          ge::Format::FORMAT_NCHW,
-          graph::traits::pd_dtype_to_ge_dtype(indices->dtype())));
+      indices_node.update_output_desc_y(
+          ge::TensorDesc(ge::Shape(std::vector<int64_t>(indices_dim.begin(),
+                                                        indices_dim.end())),
+                         ge::Format::FORMAT_NCHW,
+                         graph::utils::pd_dtype_to_ge_dtype(indices->dtype())));
 
       auto assign_op1 =
           ge::op::Assign().set_input_ref(out_node).set_input_value(node,
@@ -82,14 +82,14 @@ class TopKV2Adapter : public custom_graph::OpAdapter {
       out_node.update_output_desc_y(ge::TensorDesc(
           ge::Shape(std::vector<int64_t>(out_dim.begin(), out_dim.end())),
           ge::Format::FORMAT_NCHW,
-          graph::traits::pd_dtype_to_ge_dtype(out->dtype())));
+          graph::utils::pd_dtype_to_ge_dtype(out->dtype())));
 
       auto indices_node = ge::op::Variable();
-      indices_node.update_output_desc_y(ge::TensorDesc(
-          ge::Shape(
-              std::vector<int64_t>(indices_dim.begin(), indices_dim.end())),
-          ge::Format::FORMAT_NCHW,
-          graph::traits::pd_dtype_to_ge_dtype(indices->dtype())));
+      indices_node.update_output_desc_y(
+          ge::TensorDesc(ge::Shape(std::vector<int64_t>(indices_dim.begin(),
+                                                        indices_dim.end())),
+                         ge::Format::FORMAT_NCHW,
+                         graph::utils::pd_dtype_to_ge_dtype(indices->dtype())));
 
       auto assign_op1 =
           ge::op::Assign().set_input_ref(out_node).set_input_value(node,

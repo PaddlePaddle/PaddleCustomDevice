@@ -104,11 +104,14 @@ void Pad3dGradKernel(const Context& dev_ctx,
     if (data_format == "NDHWC") {
       offsets = {0, pad_front, pad_top, pad_left, 0};
     }
-    const auto& runner = NpuOpRunner("SliceD",
-                                     {out_grad},
-                                     {*x_grad},
-                                     {{"offsets", offsets}, {"size", size}});
-    runner.Run(stream);
+
+    NpuOpRunner runner;
+    runner.SetType("Slice")
+        .AddInput(out_grad)
+        .AddInput(dev_ctx, std::move(offsets))
+        .AddInput(dev_ctx, std::move(size))
+        .AddOutput(*x_grad)
+        .Run(stream);
   }
 }
 

@@ -66,6 +66,44 @@ void AssignKernel(const phi::Context& dev_ctx,
   std::memcpy(out_data, x_data, sizeof(T) * x.numel());
 }
 
+template <typename T>
+void AssignRawKernel(const phi::Context& dev_ctx,
+                     const paddle::optional<phi::DenseTensor>& x,
+                     phi::DenseTensor* out) {
+  show_kernel("AssignRaw-SYCL");
+  if (x) {
+    if (!x->initialized()) {
+      return;
+    }
+    auto x_data = x->data<T>();
+    auto out_data = dev_ctx.template Alloc<T>(out);
+
+    auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
+    q->copy(x_data, out_data, x->numel());
+    q->wait();
+  }
+}
+
+// template <typename T>
+// void AssignArrayKernel(const phi::Context& dev_ctx,
+//                        const std::vector<const phi::DenseTensor*>& x,
+//                        std::vector<phi::DenseTensor*> out) {
+//   show_kernel("AssignArray-SYCL");
+//   // for (size_t i = 0; i < x.size(); ++i) {
+//     // custom_kernel::AssignKernel<T, Context>(dev_ctx, *x[i], out.at(i));
+//   // }
+  
+//   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
+
+//   for (size_t i = 0; i < x.size(); ++i) {
+//     auto x_data = *x[i]->data<T>();
+//     auto out_data = dev_ctx.template Alloc<T>(out[i]);
+//     q->copy(out_data, x_data, x[i]->numel());
+//   }
+//   q-> wait();
+
+// }
+
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(assign_value,
@@ -79,11 +117,21 @@ PD_BUILD_PHI_KERNEL(assign_value,
                     double
                     ) {}
 
-PD_BUILD_PHI_KERNEL(assign,
+PD_BUILD_PHI_KERNEL(assign_raw,
                     intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::AssignKernel,
+                    custom_kernel::AssignRawKernel,
                     int,
                     int64_t,
                     float,
                     double) {}
+
+// PD_BUILD_PHI_KERNEL(assign_array,
+//                     intel_gpu,
+//                     ALL_LAYOUT,
+//                     custom_kernel::AssignArrayKernel,
+//                     // int,
+//                     // int64_t,
+//                     // float,
+//                     double
+//                     ) {}

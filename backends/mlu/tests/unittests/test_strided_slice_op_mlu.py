@@ -14,13 +14,44 @@
 
 
 from tests.op_test import OpTest
-from test_strided_slice_op import strided_slice_native_forward
 import numpy as np
 import unittest
 import paddle.fluid as fluid
 import paddle
 
 paddle.enable_static()
+
+def strided_slice_native_forward(input, axes, starts, ends, strides):
+    dim = input.ndim
+    start = []
+    end = []
+    stride = []
+    for i in range(dim):
+        start.append(0)
+        end.append(input.shape[i])
+        stride.append(1)
+
+    for i in range(len(axes)):
+        start[axes[i]] = starts[i]
+        end[axes[i]] = ends[i]
+        stride[axes[i]] = strides[i]
+
+    result = {
+        1: lambda input, start, end, stride: input[start[0]:end[0]:stride[0]],
+        2: lambda input, start, end, stride: input[start[0]:end[0]:stride[0], \
+                start[1]:end[1]:stride[1]],
+        3: lambda input, start, end, stride: input[start[0]:end[0]:stride[0], \
+                start[1]:end[1]:stride[1], start[2]:end[2]:stride[2]],
+        4: lambda input, start, end, stride: input[start[0]:end[0]:stride[0], \
+                start[1]:end[1]:stride[1], start[2]:end[2]:stride[2], start[3]:end[3]:stride[3]],
+        5: lambda input, start, end, stride: input[start[0]:end[0]:stride[0], \
+                start[1]:end[1]:stride[1], start[2]:end[2]:stride[2], start[3]:end[3]:stride[3], start[4]:end[4]:stride[4]],
+        6: lambda input, start, end, stride: input[start[0]:end[0]:stride[0], \
+                start[1]:end[1]:stride[1], start[2]:end[2]:stride[2], start[3]:end[3]:stride[3], \
+                start[4]:end[4]:stride[4], start[5]:end[5]:stride[5]]
+    }[dim](input, start, end, stride)
+
+    return result
 
 
 class TestStrideSliceOp(OpTest):

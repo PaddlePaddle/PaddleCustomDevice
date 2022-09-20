@@ -27,10 +27,24 @@ void CastKernel(const Context& dev_ctx,
     return;
   }
 
-  PADDLE_ENFORCE_EQ(MLUSupportsCast(x.dtype(), dtype),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "MLU not support cast [%d] to [%d]", x.dtype(), dtype));
+  if (!MLUSupportsCast(x.dtype(), dtype)) {
+    // fallback to cpu
+    VLOG(3) << "MLU not support cast " << x.dtype() << " to " << dtype
+            << ". Fallback to cpu.";
+    Tensor x_cpu;
+    Tensor out_cpu;
+    TensorCopy(dev_ctx, x, false, &x_cpu, phi::CPUPlace());
+    dev_ctx.Wait();
+    phi::CPUContext dev_ctx_cpu;
+    dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
+    dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
+    out_cpu.Resize(out->dims());
+    phi::CastKernel<T, phi::CPUContext>(dev_ctx_cpu, x_cpu, dtype, &out_cpu);
+    TensorCopy(dev_ctx, out_cpu, true, out);
+
+    return;
+  }
+
   dev_ctx.Alloc(out, dtype);
 
   MLUCnnlTensorDesc x_desc(x);

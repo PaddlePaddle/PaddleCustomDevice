@@ -114,6 +114,23 @@ class TestCastOpInt32ToFp32(OpTest):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
+class TestCastOpInt64ToInt8(OpTest):
+    def setUp(self):
+        ipt = np.random.randint(1000, size=[10, 10])
+        self.inputs = {'X': ipt.astype('int64')}
+        self.outputs = {'Out': ipt.astype('int8')}
+        self.attrs = {
+            'in_dtype': int(core.VarDesc.VarType.INT64),
+            'out_dtype': int(core.VarDesc.VarType.INT8)
+        }
+        self.op_type = 'cast'
+        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
 class TestCastOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):

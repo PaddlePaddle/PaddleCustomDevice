@@ -22,6 +22,12 @@ template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
+  auto rank = x.dims().size();
+  if (rank == 0) {  // scalar
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  }
+
   MLUReduceOp<T>(dev_ctx, x, {}, false, true, "reduce_mean", out);
 }
 

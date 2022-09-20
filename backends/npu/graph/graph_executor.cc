@@ -14,15 +14,6 @@
 
 #include "graph/graph_executor.h"
 
-void update_op_format(ge::Operator op, ge::Format format) {
-  ge::TensorDesc tensor_desc_x = op.GetInputDescByName("x");
-  ge::TensorDesc tensor_desc_y = op.GetInputDescByName("y");
-  tensor_desc_x.SetFormat(format);
-  tensor_desc_y.SetFormat(format);
-  op.UpdateInputDesc("x", tensor_desc_x);
-  op.UpdateOutputDesc("y", tensor_desc_y);
-}
-
 // static std::shared_ptr<ge::Session> session; // process hang, if no delete it
 ge::Session* session = nullptr;
 static std::unordered_map<C_Graph,
@@ -64,6 +55,9 @@ C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
   if (session) {
     delete session;
     session = nullptr;
+    ctx_graph_map.clear();
+    ir_graph_map.clear();
+    ge_graph_map.clear();
   }
 }
 
@@ -165,6 +159,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
 
   for (auto i = 0; i < feed_tensor_num; ++i) {
     std::string tensor_name = global_graph.feed_inputs_[i];
+    std::cout << "feed " << tensor_name << std::endl;
     auto var_node = ir_graph.Var(tensor_name);
     auto var_dims = var_node->dims();
     int numel = std::accumulate(

@@ -48,8 +48,10 @@ class FetchV2Adapter : public custom_graph::OpAdapter {
   void run(const paddle::framework::ir::OpNode& ctx,
            custom_graph::GEGraph* graph) override {
     auto x = ctx.Input("X");
+    auto col = ctx.Attr<int>("col");
+
     std::cout << "fetch var " << x->Name() << std::endl;
-    graph->AddFetchOutput(x->Name(), graph->GetOp(x->Name()));
+    graph->AddFetchOutput(x->Name(), graph->GetOp(x->Name()), col);
   }
 };
 

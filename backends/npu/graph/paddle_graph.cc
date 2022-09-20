@@ -436,6 +436,11 @@ const std::vector<int>& VarNode::dims() const {
   return dims_;
 }
 
+int VarNode::numel() const {
+  return std::accumulate(
+      dims_.cbegin(), dims_.cend(), 1, std::multiplies<int>());
+}
+
 /// Graph
 
 IRGraph::IRGraph(C_Graph graph)

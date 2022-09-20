@@ -181,6 +181,23 @@ inline ge::Operator reshape(ge::Operator& node,
   }
 }
 
+inline ge::Operator broadcast_to(ge::Operator& node,
+                                 const std::vector<int>& dim,
+                                 const std::string& name = "") {
+  auto shape = graph::funcs::constant({dim.size()}, dim);
+
+  if (name.size() == 0) {
+    auto broadcast_to_op =
+        ge::op::BroadcastTo().set_input_x(node).set_input_shape(shape);
+    return broadcast_to_op;
+  } else {
+    auto broadcast_to_op = ge::op::BroadcastTo(ge::AscendString(name.c_str()))
+                               .set_input_x(node)
+                               .set_input_shape(shape);
+    return broadcast_to_op;
+  }
+}
+
 template <typename T>
 inline ge::Operator cast(ge::Operator& node, const std::string& name = "") {
   if (name.size() == 0) {

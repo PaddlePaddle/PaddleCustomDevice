@@ -32,6 +32,11 @@
 
 namespace paddle {
 namespace framework {
+
+inline std::string GradVarName(const std::string& var_name) {
+  return var_name + "@GRAD";
+}
+
 namespace ir {
 
 class VarNode;
@@ -125,11 +130,13 @@ class OpNode : public Node {
   }
 
   bool HasInput(const std::string& input) const {
-    return inputs_.find(input) != inputs_.cend();
+    return inputs_.find(input) != inputs_.cend() &&
+           inputs_.at(input).size() > 0;
   }
 
   bool HasOutput(const std::string& output) const {
-    return outputs_.find(output) != outputs_.cend();
+    return outputs_.find(output) != outputs_.cend() &&
+           outputs_.at(output).size() > 0;
   }
 
   bool HasAttribute(const std::string& attr) const {
@@ -137,28 +144,28 @@ class OpNode : public Node {
   }
 
   std::vector<VarNode*> MultiInput(const std::string& input) const {
-    if (HasInput(input) && inputs_.at(input).size() > 0) {
+    if (HasInput(input)) {
       return inputs_.at(input);
     }
     return std::vector<VarNode*>();
   }
 
   std::vector<VarNode*> MultiOutput(const std::string& output) const {
-    if (HasOutput(output) && outputs_.at(output).size() > 0) {
+    if (HasOutput(output)) {
       return outputs_.at(output);
     }
     return std::vector<VarNode*>();
   }
 
   VarNode* Input(const std::string& input) const {
-    if (HasInput(input) && inputs_.at(input).size() > 0) {
+    if (HasInput(input)) {
       return inputs_.at(input).at(0);
     }
     return nullptr;
   }
 
   VarNode* Output(const std::string& output) const {
-    if (HasOutput(output) && outputs_.at(output).size() > 0) {
+    if (HasOutput(output)) {
       return outputs_.at(output).at(0);
     }
     return nullptr;
@@ -242,6 +249,8 @@ class VarNode : public Node {
   paddle::framework::proto::VarType::Type dtype() const { return data_type_; }
 
   const std::vector<int>& dims() const;
+
+  int numel() const;
 
   std::string to_string() const override;
 

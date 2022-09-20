@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 #include "graph/graph_funcs.h"
 #include "graph/graph_utils.h"
 #include "graph/paddle_graph.h"
@@ -128,6 +130,14 @@ inline std::vector<T> slice_ddim(const std::vector<T>& dim,
   return std::vector<T>(dim.cbegin() + begin, dim.cbegin() + end);
 }
 
+inline std::string GEGradVarName(const std::string var_name) {
+  if (var_name.find("@GRAD") != std::string::npos) {
+    return var_name.substr(0, var_name.find("@GRAD")) + "_grad";
+  } else {
+    return var_name + "_grad";
+  }
+}
+
 class GEGraph {
  public:
   GEGraph(const std::string& ge_graph_name,
@@ -149,8 +159,11 @@ class GEGraph {
 
   void AddOutput(ge::Operator out) { outputs_.push_back(out); }
 
-  void AddFetchOutput(std::string name, ge::Operator out) {
-    fetch_outputs_.push_back(name);
+  void AddFetchOutput(std::string name, ge::Operator out, int col) {
+    if (fetch_outputs_.size() <= col) {
+      fetch_outputs_.resize(col + 1);
+    }
+    fetch_outputs_[col] = name;
     std::cout << fetch_outputs_.size() << std::endl;
     AddOutput(out);
   }
@@ -245,7 +258,7 @@ class OpAdapter {
 template <typename AdapterT>
 class Registrar {
  public:
-  Registrar(const std::string& ir) {
+  explicit Registrar(const std::string& ir) {
     adapter_creator_t adapter_creator = []() -> std::shared_ptr<OpAdapter> {
       return std::make_shared<AdapterT>();
     };

@@ -79,7 +79,42 @@ class SoftmaxWithCrossEntropyAdapter : public custom_graph::OpAdapter {
 
     auto backprop_node = graph::funcs::get_output_by_name(
         softmax_cross_entropy_with_logits, {n, d}, loss->dtype(), "backprop");
-    graph->AddOp(loss->Name() + "_backprop", loss_node);
+    graph->AddOp(GEGradVarName(loss->Name()) + "_backprop", backprop_node);
+  }
+};
+
+class SoftmaxWithCrossEntropyGradAdapter : public custom_graph::OpAdapter {
+ public:
+  using OpAdapter::OpAdapter;
+
+  void run(const paddle::framework::ir::OpNode& ctx,
+           custom_graph::GEGraph* graph) override {
+    // auto* backprop = ctx.Input("Backprop");
+    auto* loss_grad = ctx.Input(paddle::framework::GradVarName("Loss"));
+    auto* logits_grad = ctx.Output(paddle::framework::GradVarName("Logits"));
+
+    // PADDLE_ENFORCE_NOT_NULL(backprop,
+    //                         platform::errors::PreconditionNotMet(
+    //                             "backprop should not be null in NPU kernel of
+    //                             " "softmax_with_cross_entropy_grad."));
+
+    // int logits_dims = logits_grad->dims();
+    // int axis = ctx.Attr<int>("axis");
+    // axis = axis < 0 ? axis + logits_dims.size() : axis;
+    // int n = std::accumulate(logits_dims.begin(),
+    //                         logits_dims.begin() + axis,
+    //                         1,
+    //                         std::multiplies<int>());
+    // int d = std::accumulate(logits_dims.begin() + axis,
+    //                         logits_dims.end(),
+    //                         1,
+    //                         std::multiplies<int>());
+
+    auto ge_op = ge::op::Mul()
+                     .set_input_x1(graph->GetOp(loss_grad->Name()))
+                     .set_input_x2(graph->GetOp(
+                         GEGradVarName(loss_grad->Name()) + "_backprop"));
+    graph->AddOp(logits_grad->Name(), ge_op);
   }
 };
 
@@ -87,3 +122,5 @@ class SoftmaxWithCrossEntropyAdapter : public custom_graph::OpAdapter {
 
 REG_OP_ADAPTER(softmax_with_cross_entropy,
                custom_graph::SoftmaxWithCrossEntropyAdapter);
+REG_OP_ADAPTER(softmax_with_cross_entropy_grad,
+               custom_graph::SoftmaxWithCrossEntropyGradAdapter);

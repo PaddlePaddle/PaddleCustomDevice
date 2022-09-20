@@ -25,9 +25,9 @@ class FeedAdapter : public custom_graph::OpAdapter {
     auto out = ctx.Output("Out");
     auto out_dims = out->dims();
     auto col = ctx.Attr<int>("col");
-    std::cout << "feed var " << out->Name()
-              << ", dims: " << paddle::framework::ir::to_string(out_dims)
-              << std::endl;
+    graph::utils::log() << "[INFO] feed var " << out->Name() << ", dims: "
+                        << paddle::framework::ir::to_string(out_dims)
+                        << std::endl;
     auto ge_op =
         ge::op::Data(ge::AscendString(out->Name().c_str())).set_attr_index(col);
     ge::TensorDesc desc = ge_op.GetOutputDescByName("y");
@@ -50,7 +50,7 @@ class FetchV2Adapter : public custom_graph::OpAdapter {
     auto x = ctx.Input("X");
     auto col = ctx.Attr<int>("col");
 
-    std::cout << "fetch var " << x->Name() << std::endl;
+    graph::utils::log() << "[INFO] fetch var " << x->Name() << std::endl;
     graph->AddFetchOutput(x->Name(), graph->GetOp(x->Name()), col);
   }
 };

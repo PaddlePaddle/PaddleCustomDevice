@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -96,7 +97,7 @@ class OpNode : public Node {
  public:
   std::string to_string() const override;
 
-  explicit OpNode(paddle::framework::proto::OpDesc* op_desc);
+  OpNode(paddle::framework::proto::OpDesc* op_desc, std::fstream& ofs);
 
   bool IsInputNode() const override;
 
@@ -193,9 +194,10 @@ class OpNode : public Node {
   OpNode& operator=(const OpNode&);
   OpNode& operator=(OpNode&&);
 
-  void build_from_op_desc(paddle::framework::proto::OpDesc* op_desc);
+  void build_from_op_desc(paddle::framework::proto::OpDesc* op_desc,
+                          std::fstream& ofs);
   paddle::any build_attribute_from_op_desc_attr(
-      paddle::framework::proto::OpDesc_Attr* attr);
+      paddle::framework::proto::OpDesc_Attr* attr, std::fstream& ofs);
   void add_input_node(const std::string& parameter, VarNode* node) {
     inputs_[parameter].emplace_back(node);
   }
@@ -222,7 +224,7 @@ class OpNode : public Node {
 
 class VarNode : public Node {
  public:
-  explicit VarNode(paddle::framework::proto::VarDesc* var_desc);
+  VarNode(paddle::framework::proto::VarDesc* var_desc, std::fstream& ofs);
 
   bool IsInputNode() const override { return inputs_.size() == 0; }
 
@@ -276,9 +278,10 @@ class VarNode : public Node {
   VarNode& operator=(const VarNode&);
   VarNode& operator=(VarNode&&);
 
-  void build_from_var_desc(paddle::framework::proto::VarDesc* var_desc);
+  void build_from_var_desc(paddle::framework::proto::VarDesc* var_desc,
+                           std::fstream& ofs);
   paddle::any build_attribute_from_var_desc_attr(
-      paddle::framework::proto::VarDesc_Attr* attr);
+      paddle::framework::proto::VarDesc_Attr* attr, std::fstream& ofs);
   void add_input_node(OpNode* node) { inputs_.emplace_back(node); }
   void add_output_node(OpNode* node) { outputs_.emplace_back(node); }
   void add_input_nodes(std::vector<OpNode*> nodes) {
@@ -349,7 +352,8 @@ class IRGraph {
   }
 
  private:
-  void build_from_block_desc(paddle::framework::proto::BlockDesc* block);
+  void build_from_block_desc(paddle::framework::proto::BlockDesc* block,
+                             std::fstream& ofs);
 
   paddle::framework::proto::ProgramDesc* prog_;
   std::vector<std::unique_ptr<OpNode>> op_nodes_;

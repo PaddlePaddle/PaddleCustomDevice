@@ -14,6 +14,11 @@
 
 #include "graph/paddle_graph.h"
 
+#include <sys/syscall.h>
+#include <unistd.h>
+
+#define gettid() syscall(SYS_gettid)
+
 namespace paddle {
 namespace framework {
 namespace ir {
@@ -173,12 +178,12 @@ int GetTypeSize(const std::string& type_string) {
   }
 }
 
-OpNode::OpNode(paddle::framework::proto::OpDesc* op_desc)
+OpNode::OpNode(paddle::framework::proto::OpDesc* op_desc, std::fstream& ofs)
     : Node(GetUniqueOpName(op_desc->type().c_str()), op_desc->type().c_str()) {
-  std::cout << "Build OpNode: " << this << ", type: " << Type()
-            << ", name: " << Name() << " from op_desc " << op_desc << std::endl;
-  build_from_op_desc(op_desc);
-  std::cout << "Build OpNode " << this << " finished\n";
+  ofs << "Build OpNode: " << this << ", type: " << Type()
+      << ", name: " << Name() << " from op_desc " << op_desc << std::endl;
+  build_from_op_desc(op_desc, ofs);
+  ofs << "Build OpNode " << this << " finished\n";
 }
 
 std::string OpNode::to_string() const {
@@ -243,7 +248,8 @@ bool OpNode::IsOutputNode() const {
   return true;
 }
 
-void OpNode::build_from_op_desc(paddle::framework::proto::OpDesc* op_desc) {
+void OpNode::build_from_op_desc(paddle::framework::proto::OpDesc* op_desc,
+                                std::fstream& ofs) {
   is_target_ = op_desc->has_is_target() && op_desc->is_target();
 
   auto& inputs = op_desc->inputs();
@@ -262,12 +268,12 @@ void OpNode::build_from_op_desc(paddle::framework::proto::OpDesc* op_desc) {
   for (auto& attr : attrs) {
     std::string attr_name(attr.name().c_str());
     attributes_[attr_name] = build_attribute_from_op_desc_attr(
-        const_cast<paddle::framework::proto::OpDesc_Attr*>(&attr));
+        const_cast<paddle::framework::proto::OpDesc_Attr*>(&attr), ofs);
   }
 }
 
 paddle::any OpNode::build_attribute_from_op_desc_attr(
-    paddle::framework::proto::OpDesc_Attr* attr) {
+    paddle::framework::proto::OpDesc_Attr* attr, std::fstream& ofs) {
   if (attr->type() == paddle::framework::proto::AttrType::INT) {
     return paddle::any(static_cast<int>(attr->i()));
   } else if (attr->type() == paddle::framework::proto::AttrType::INTS) {
@@ -324,17 +330,17 @@ paddle::any OpNode::build_attribute_from_op_desc_attr(
 
 /// VarNode
 
-VarNode::VarNode(paddle::framework::proto::VarDesc* var_desc)
+VarNode::VarNode(paddle::framework::proto::VarDesc* var_desc, std::fstream& ofs)
     : Node(var_desc->name().c_str(),
            ProtoVarTypeToString(var_desc->type().type())) {
-  std::cout << "Build VarNode: " << this << ", type: " << Type()
-            << ", name: " << Name() << " from var_desc " << var_desc
-            << std::endl;
-  build_from_var_desc(var_desc);
-  std::cout << "Build VarNode " << this << " finished\n";
+  ofs << "Build VarNode: " << this << ", type: " << Type()
+      << ", name: " << Name() << " from var_desc " << var_desc << std::endl;
+  build_from_var_desc(var_desc, ofs);
+  ofs << "Build VarNode " << this << " finished\n";
 }
 
-void VarNode::build_from_var_desc(paddle::framework::proto::VarDesc* var_desc) {
+void VarNode::build_from_var_desc(paddle::framework::proto::VarDesc* var_desc,
+                                  std::fstream& ofs) {
   persistable_ = (var_desc->has_persistable() && var_desc->persistable());
   is_parameter_ = (var_desc->has_is_parameter() && var_desc->is_parameter());
   stop_gradient_ = (var_desc->has_stop_gradient() && var_desc->stop_gradient());
@@ -343,7 +349,7 @@ void VarNode::build_from_var_desc(paddle::framework::proto::VarDesc* var_desc) {
   var_type_ = var.type();
   if (var_type_ == paddle::framework::proto::VarType::LOD_TENSOR) {
     data_type_ = var.lod_tensor().tensor().data_type();
-    std::cout << "datatype is " << data_type_ << std::endl;
+    ofs << "datatype is " << data_type_ << std::endl;
     auto dims = var.lod_tensor().tensor().dims();
     for (auto& dim : dims) {
       dims_.emplace_back(dim);
@@ -351,7 +357,7 @@ void VarNode::build_from_var_desc(paddle::framework::proto::VarDesc* var_desc) {
   } else if (var_type_ == paddle::framework::proto::VarType::FEED_MINIBATCH ||
              var_type_ == paddle::framework::proto::VarType::FETCH_LIST) {
   } else {
-    std::cerr << "[ERROR] VarType " << Type() << " is not supported\n";
+    ofs << "[ERROR] VarType " << Type() << " is not supported\n";
     exit(-1);
   }
 
@@ -359,12 +365,12 @@ void VarNode::build_from_var_desc(paddle::framework::proto::VarDesc* var_desc) {
   for (auto& attr : attrs) {
     std::string attr_name(attr.name().c_str());
     attributes_[attr_name] = build_attribute_from_var_desc_attr(
-        const_cast<paddle::framework::proto::VarDesc_Attr*>(&attr));
+        const_cast<paddle::framework::proto::VarDesc_Attr*>(&attr), ofs);
   }
 }
 
 paddle::any VarNode::build_attribute_from_var_desc_attr(
-    paddle::framework::proto::VarDesc_Attr* attr) {
+    paddle::framework::proto::VarDesc_Attr* attr, std::fstream& ofs) {
   if (attr->type() == paddle::framework::proto::AttrType::INT) {
     return paddle::any(static_cast<int>(attr->i()));
   } else if (attr->type() == paddle::framework::proto::AttrType::INTS) {
@@ -445,23 +451,31 @@ int VarNode::numel() const {
 
 IRGraph::IRGraph(C_Graph graph)
     : prog_(reinterpret_cast<paddle::framework::proto::ProgramDesc*>(graph)) {
-  std::cout << "Build Graph: " << prog_ << " blocks_size is "
-            << prog_->blocks_size() << " from prog_desc " << graph;
+  std::stringstream ss;
+  ss << "pd_graph"
+     << ".pid_" << static_cast<uint64_t>(getpid()) << ".tid_"
+     << static_cast<uint64_t>(gettid()) << ".graph_" << std::hex
+     << reinterpret_cast<uint64_t>(graph) << ".txt";
+
+  std::fstream ofs(ss.str().c_str(), std::ios::out);
+
+  ofs << "Build Graph: " << prog_ << " blocks_size is " << prog_->blocks_size()
+      << " from prog_desc " << graph;
   auto block = prog_->blocks(0);
-  build_from_block_desc(&block);
-  std::cout << "Graph " << this << " has Vars: " << var_nodes_.size()
-            << ", Ops: " << op_nodes_.size() << std::endl;
-  std::cout << "Build Graph " << this << " finished\n";
+  build_from_block_desc(&block, ofs);
+  ofs << "Graph " << this << " has Vars: " << var_nodes_.size()
+      << ", Ops: " << op_nodes_.size() << std::endl;
+  ofs << "Build Graph " << this << " finished\n";
 }
 
-void IRGraph::build_from_block_desc(
-    paddle::framework::proto::BlockDesc* block) {
+void IRGraph::build_from_block_desc(paddle::framework::proto::BlockDesc* block,
+                                    std::fstream& ofs) {
   auto ops = block->ops();
   auto vars = block->vars();
 
   for (auto i = 0; i < vars.size(); ++i) {
     std::string var_name(vars[i].name().c_str());
-    var_nodes_.emplace_back(new VarNode(&vars[i]));
+    var_nodes_.emplace_back(new VarNode(&vars[i], ofs));
   }
 
   for (auto i = 0; i < ops.size(); ++i) {
@@ -476,18 +490,17 @@ void IRGraph::build_from_block_desc(
       continue;
     }
 
-    op_nodes_.emplace_back(new OpNode(&ops[i]));
+    op_nodes_.emplace_back(new OpNode(&ops[i], ofs));
 
     // build link
-    std::cout << "Build the link of OpNode " << op_nodes_.back().get()
-              << std::endl;
+    ofs << "Build the link of OpNode " << op_nodes_.back().get() << std::endl;
     auto& inputs = ops[i].inputs();
     for (auto j = 0; j < inputs.size(); ++j) {
       std::string parameter(inputs[j].parameter().c_str());
       for (auto k = 0; k < inputs[j].arguments_size(); ++k) {
         std::string argument(inputs[j].arguments(k).c_str());
-        std::cout << "\tlink VarNode " << argument << " -> "
-                  << "OpNode " << op_nodes_.back()->Name() << std::endl;
+        ofs << "\tlink VarNode " << argument << " -> "
+            << "OpNode " << op_nodes_.back()->Name() << std::endl;
         op_nodes_.back()->add_input_node(parameter, GetVar(argument));
         GetVar(argument)->add_output_node(op_nodes_.back().get());
       }
@@ -498,23 +511,23 @@ void IRGraph::build_from_block_desc(
       std::string parameter(outputs[j].parameter().c_str());
       for (auto k = 0; k < outputs[j].arguments_size(); ++k) {
         std::string argument(outputs[j].arguments(k).c_str());
-        std::cout << "\tlink OpNode " << op_nodes_.back()->Name() << " -> "
-                  << "VarNode " << argument << std::endl;
+        ofs << "\tlink OpNode " << op_nodes_.back()->Name() << " -> "
+            << "VarNode " << argument << std::endl;
         op_nodes_.back()->add_output_node(parameter, GetVar(argument));
         GetVar(argument)->add_input_node(op_nodes_.back().get());
       }
     }
 
-    std::cout << "Build link for OpNode " << &op_nodes_.back() << " finished"
-              << std::endl;
+    ofs << "Build link for OpNode " << &op_nodes_.back() << " finished"
+        << std::endl;
   }
 
   for (auto& node : var_nodes_) {
-    std::cout << node->to_string() << std::endl;
+    ofs << node->to_string() << std::endl;
   }
 
   for (auto& node : op_nodes_) {
-    std::cout << node->to_string() << std::endl;
+    ofs << node->to_string() << std::endl;
   }
 
   // remove unused var
@@ -523,7 +536,7 @@ void IRGraph::build_from_block_desc(
   //   for (auto i = 0; i < var_nodes_.size(); ++i) {
   //     auto& var = var_nodes_[i];
   //     if (var->inputs().size() == 0 && var->outputs().size() == 0) {
-  //       std::cout << "VarNode " << var->name() << " is unused, remove
+  //       ofs << "VarNode " << var->name() << " is unused, remove
   //       it.\n"; std::remove(
   //           var_nodes_.begin(), var_nodes_.end(), var_nodes_.begin() + i);
   //       has_unused_var = true;

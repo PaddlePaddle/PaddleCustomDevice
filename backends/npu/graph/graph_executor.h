@@ -164,16 +164,17 @@ class GEGraph {
       fetch_outputs_.resize(col + 1);
     }
     fetch_outputs_[col] = name;
-    std::cout << fetch_outputs_.size() << std::endl;
     AddOutput(out);
   }
 
   ge::Operator& GetOp(const std::string& op) {
     if (ge_ops_.find(op) == ge_ops_.end()) {
-      std::cerr << "not found " << op << " in context " << this << std::endl;
+      graph::utils::log() << "[ERROR] not found " << op << " in context "
+                          << this << std::endl;
       exit(-1);
     } else {
-      std::cout << "found " << op << " in context " << this << std::endl;
+      graph::utils::log() << "[INFO] found " << op << " in context " << this
+                          << std::endl;
     }
     return ge_ops_[op];
   }
@@ -189,7 +190,8 @@ class GEGraph {
   }
 
   ge::Operator& RecordNode(const std::string& op, ge::Operator ge_op) {
-    std::cout << "record " << op << " in context " << this << std::endl;
+    graph::utils::log() << "[INFO] record " << op << " in context " << this
+                        << std::endl;
     ge_ops_[op] = ge_op;
   }
 
@@ -206,19 +208,19 @@ class GEGraph {
     auto ret = ge::aclgrphDumpGraph(
         *ge_graph_, ge_graph_name_.c_str(), ge_graph_name_.size());
     if (ret != ge::SUCCESS) {
-      std::cout << "Save graph  " << ge_graph_id_ << ": " << ge_graph_name_
-                << " failed.\n";
+      graph::utils::log() << "[ERROR] save graph  " << ge_graph_id_ << ": "
+                          << ge_graph_name_ << " failed.\n";
     } else {
-      std::cout << "Save graph " << ge_graph_id_ << ": " << ge_graph_name_
-                << " success.\n";
+      graph::utils::log() << "[INFO] save graph " << ge_graph_id_ << ": "
+                          << ge_graph_name_ << " success.\n";
     }
     ret = session->AddGraph(ge_graph_id_, *ge_graph_);
     if (ret != ge::SUCCESS) {
-      std::cout << "Add graph  " << ge_graph_id_ << ": " << ge_graph_name_
-                << " failed.\n";
+      graph::utils::log() << "[ERROR] add graph  " << ge_graph_id_ << ": "
+                          << ge_graph_name_ << " failed.\n";
     } else {
-      std::cout << "Add graph " << ge_graph_id_ << ": " << ge_graph_name_
-                << " success.\n";
+      graph::utils::log() << "[INFO] add graph " << ge_graph_id_ << ": "
+                          << ge_graph_name_ << " success.\n";
     }
   }
 

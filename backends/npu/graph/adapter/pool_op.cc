@@ -72,7 +72,7 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                   ksize);
 
     if (adaptive) {
-      std::cerr << "unsupport adaptive pooling\n";
+      graph::utils::log() << "[ERROR] unsupport adaptive pooling\n";
       exit(-1);
     } else {
       if (pooling_type == "max") {

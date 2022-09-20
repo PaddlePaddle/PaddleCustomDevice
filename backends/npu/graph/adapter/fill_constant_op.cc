@@ -25,7 +25,8 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
     auto out = ctx.Output("Out");
     auto out_dims = out->dims();
     auto fill_constant_value = ctx.Attr<float>("value");
-    std::cout << "fill_constant_value=" << fill_constant_value << std::endl;
+    graph::utils::log() << "[INFO] fill_constant_value=" << fill_constant_value
+                        << std::endl;
 
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
@@ -53,7 +54,8 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
       bytesize = size * sizeof(double);
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
-      std::cerr << "fill_constant unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
 
@@ -84,9 +86,10 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
     graph->AddInput(graph->GetOp(out->Name()));
     // graph->Graph()->AddOp(assign_op);
 
-    std::cout << "fill constant tensor: " << out->Name()
-              << ", dims: " << paddle::framework::ir::to_string(out->dims())
-              << std::endl;
+    graph::utils::log() << "[INFO] fill constant tensor: " << out->Name()
+                        << ", dims: "
+                        << paddle::framework::ir::to_string(out->dims())
+                        << std::endl;
 
     if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
@@ -95,7 +98,8 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
       auto ptr = reinterpret_cast<double*>(data_value);
       delete[] ptr;
     } else {
-      std::cerr << "fill_constant unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR]  fill_constant unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
   }

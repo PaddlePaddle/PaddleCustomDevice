@@ -46,3 +46,5 @@ USE_OP_ADAPTER(softmax_with_cross_entropy);
 USE_OP_ADAPTER(softmax_with_cross_entropy_grad);
 USE_OP_ADAPTER(sgd);
 USE_OP_ADAPTER(adam);
+USE_OP_ADAPTER(batch_norm);
+USE_OP_ADAPTER(batch_norm_grad);

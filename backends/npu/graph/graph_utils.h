@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <unistd.h>
+
 #include "graph/paddle_graph.h"
 // NOLINT
 #include "all_ops.h"
@@ -27,6 +29,13 @@
 
 namespace graph {
 namespace utils {
+
+static std::ostream& log() {
+  static std::fstream ofs(
+      "pd_ge.pid_" + std::to_string(static_cast<uint64_t>(getpid())) + ".txt",
+      std::ios::out);
+  return ofs;
+}
 
 template <typename T>
 struct cpp_type_to_ge_dtype;
@@ -69,8 +78,8 @@ inline ge::DataType string_to_ge_dtype(const std::string& data_type_str) {
   } else if (data_type_str == "float32") {
     return ge::DataType::DT_DOUBLE;
   } else {
-    std::cerr << "string_to_ge_dtype unknown data type: " << data_type_str
-              << std::endl;
+    graph::utils::log() << "[ERROR] string_to_ge_dtype unknown data type: "
+                        << data_type_str << std::endl;
     exit(-1);
   }
 }
@@ -120,8 +129,9 @@ inline ge::DataType pd_dtype_to_ge_dtype(
   } else if (var_type == paddle::framework::proto::VarType::COMPLEX128) {
     return ge::DataType::DT_COMPLEX128;
   } else {
-    std::cerr << "proto_var_type_to_ge_dtype unknown var_type: " << var_type
-              << std::endl;
+    graph::utils::log()
+        << "[ERROR] proto_var_type_to_ge_dtype unknown var_type: " << var_type
+        << std::endl;
     exit(-1);
   }
 }
@@ -154,8 +164,9 @@ inline int get_pd_dtype_size(paddle::framework::proto::VarType::Type var_type) {
   } else if (var_type == paddle::framework::proto::VarType::COMPLEX128) {
     return sizeof(uint64_t) * 2;
   } else {
-    std::cerr << "proto_var_type_to_ge_dtype unknown var_type: " << var_type
-              << std::endl;
+    graph::utils::log()
+        << "[ERROR] proto_var_type_to_ge_dtype unknown var_type: " << var_type
+        << std::endl;
     exit(-1);
   }
 }

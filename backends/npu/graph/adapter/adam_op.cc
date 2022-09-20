@@ -44,7 +44,7 @@ class AdamAdapter : public custom_graph::OpAdapter {
     // skip_update=true, just copy input to output, and TensorCopy will call
     // mutable_data
     if (skip_update) {
-      std::cerr << "skip_update=true is not supported.\n";
+      graph::utils::log() << "[ERROR] skip_update=true is not supported.\n";
       exit(1);
       return;
     }
@@ -95,23 +95,24 @@ class AdamAdapter : public custom_graph::OpAdapter {
                        .set_attr_use_nesterov(false);
 
     if (param_out->Name() != param->Name()) {
-      std::cerr << "param_out != param\n";
+      graph::utils::log() << "[ERROR] param_out != param\n";
       exit(1);
     }
     if (mom1_out->Name() != mom1->Name()) {
-      std::cerr << "mom1_out != mom1\n";
+      graph::utils::log() << "[ERROR] mom1_out != mom1\n";
       exit(1);
     }
     if (mom2_out->Name() != mom2->Name()) {
-      std::cerr << "mom2_out != mom2\n";
+      graph::utils::log() << "[ERROR] mom2_out != mom2\n";
       exit(1);
     }
 
     if (!use_global_beta_pow) {
       if (beta1_pow_out->Name() != beta1_pow->Name() ||
           beta2_pow_out->Name() != beta2_pow->Name()) {
-        std::cerr << "beta1_pow_out->Name() != beta1_pow->Name() || "
-                     "beta2_pow_out->Name() != beta2_pow->Name()\n";
+        graph::utils::log()
+            << "[ERROR] beta1_pow_out->Name() != beta1_pow->Name() || "
+               "beta2_pow_out->Name() != beta2_pow->Name()\n";
         exit(1);
       }
       auto beta1_pow_out_node =

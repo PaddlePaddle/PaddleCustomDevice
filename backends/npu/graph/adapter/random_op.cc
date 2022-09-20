@@ -27,8 +27,8 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     auto min_value = ctx.Attr<float>("min");
     auto max_value = ctx.Attr<float>("max");
     auto seed = ctx.Attr<int>("seed");
-    std::cout << "min_value=" << min_value << std::endl;
-    std::cout << "max_value=" << max_value << std::endl;
+    graph::utils::log() << "[INFO] min_value=" << min_value << std::endl;
+    graph::utils::log() << "[INFO] max_value=" << max_value << std::endl;
 
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
@@ -63,7 +63,8 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
       bytesize = size * sizeof(double);
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
-      std::cerr << "fill_constant unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
 
@@ -78,9 +79,10 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
                          .set_input_value(constant_op);
     graph->AddInput(graph->GetOp(out->Name()));
     // graph->Graph()->AddOp(assign_op);
-    std::cout << "uniform random tensor: " << out->Name()
-              << ", dims: " << paddle::framework::ir::to_string(out->dims())
-              << std::endl;
+    graph::utils::log() << "[ERROR] uniform random tensor: " << out->Name()
+                        << ", dims: "
+                        << paddle::framework::ir::to_string(out->dims())
+                        << std::endl;
 
     if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
@@ -89,7 +91,8 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
       auto ptr = reinterpret_cast<double*>(data_value);
       delete[] ptr;
     } else {
-      std::cerr << "uniform_random unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
   }
@@ -106,8 +109,8 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
     auto mean_value = ctx.Attr<float>("mean");
     auto std_value = ctx.Attr<float>("std");
     auto seed = ctx.Attr<int>("seed");
-    std::cout << "mean_value=" << mean_value << std::endl;
-    std::cout << "std_value=" << std_value << std::endl;
+    graph::utils::log() << "[INFO] mean_value=" << mean_value << std::endl;
+    graph::utils::log() << "[INFO] std_value=" << std_value << std::endl;
 
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
@@ -143,7 +146,8 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
       bytesize = size * sizeof(double);
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
-      std::cerr << "fill_constant unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
 
@@ -158,9 +162,10 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
                          .set_input_value(constant_op);
     graph->AddInput(graph->GetOp(out->Name()));
     // graph->Graph()->AddOp(assign_op);
-    std::cout << "gaussian random tensor: " << out->Name()
-              << ", dims: " << paddle::framework::ir::to_string(out->dims())
-              << std::endl;
+    graph::utils::log() << "[INFO] gaussian random tensor: " << out->Name()
+                        << ", dims: "
+                        << paddle::framework::ir::to_string(out->dims())
+                        << std::endl;
 
     if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
@@ -169,7 +174,8 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
       auto ptr = reinterpret_cast<double*>(data_value);
       delete[] ptr;
     } else {
-      std::cerr << "uniform_random unsupported datatype " << out->dtype();
+      graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
+                          << out->dtype();
       exit(-1);
     }
   }

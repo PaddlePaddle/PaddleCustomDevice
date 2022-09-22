@@ -27,8 +27,8 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     auto min_value = ctx.Attr<float>("min");
     auto max_value = ctx.Attr<float>("max");
     auto seed = ctx.Attr<int>("seed");
-    graph::utils::log() << "[INFO] min_value=" << min_value << std::endl;
-    graph::utils::log() << "[INFO] max_value=" << max_value << std::endl;
+    // graph::utils::log() << "[INFO] min_value=" << min_value << std::endl;
+    // graph::utils::log() << "[INFO] max_value=" << max_value << std::endl;
 
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
@@ -64,7 +64,7 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype();
+                          << out->dtype() << std::endl;
       exit(-1);
     }
 
@@ -79,7 +79,7 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
                          .set_input_value(constant_op);
     graph->AddInput(graph->GetOp(out->Name()));
     // graph->Graph()->AddOp(assign_op);
-    graph::utils::log() << "[ERROR] uniform random tensor: " << out->Name()
+    graph::utils::log() << "[INFO] uniform random tensor: " << out->Name()
                         << ", dims: "
                         << paddle::framework::ir::to_string(out->dims())
                         << std::endl;
@@ -92,7 +92,7 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
       delete[] ptr;
     } else {
       graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
-                          << out->dtype();
+                          << out->dtype() << std::endl;
       exit(-1);
     }
   }
@@ -147,7 +147,7 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype();
+                          << out->dtype() << std::endl;
       exit(-1);
     }
 
@@ -175,7 +175,7 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
       delete[] ptr;
     } else {
       graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
-                          << out->dtype();
+                          << out->dtype() << std::endl;
       exit(-1);
     }
   }

@@ -33,6 +33,9 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
 
     std::string data_layout = ctx.Attr<std::string>("data_layout");
 
+    graph::utils::log() << "[INFO] batch_norm data_layout: " << data_layout
+                        << std::endl;
+
     auto *running_mean = ctx.Input("Mean");
     auto *running_var = ctx.Input("Variance");
     auto *scale = ctx.Input("Scale");
@@ -49,11 +52,6 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
     //         x_dims.size()));
     auto *y = ctx.Output("Y");
 
-    if (data_layout == "NHWC") {
-      graph::utils::log() << "[ERROR] data_layout NHWC is not supported.\n";
-      exit(1);
-    }
-
     if (!training) {
       auto bn_infer = ge::op::BNInfer()
                           .set_input_x(graph->GetOp(x->Name()))
@@ -62,6 +60,13 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
                           .set_input_mean(graph->GetOp(running_mean->Name()))
                           .set_input_variance(graph->GetOp(running_var->Name()))
                           .set_attr_epsilon(epsilon);
+      graph::funcs::update_input_format(bn_infer, data_layout, "x");
+      graph::funcs::update_input_format(bn_infer, data_layout, "scale");
+      graph::funcs::update_input_format(bn_infer, data_layout, "offset");
+      graph::funcs::update_input_format(bn_infer, data_layout, "mean");
+      graph::funcs::update_input_format(bn_infer, data_layout, "variance");
+      graph::funcs::update_output_format(bn_infer, data_layout, "y");
+
       graph->AddOp(y->Name(), bn_infer);
     } else {
       auto *mean_out = ctx.Output("MeanOut");
@@ -72,16 +77,21 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
       // if MomentumTensor is set, use MomentumTensor value, momentum
       // is only used in this training branch
       if (ctx.HasInput("MomentumTensor")) {
-        graph::utils::log() << "[ERROR] MomentumTensor is not supported.\n";
+        graph::utils::log()
+            << "[ERROR] MomentumTensor is not supported." << std::endl;
         exit(1);
       }
 
-      // framework::Tensor sum, square_sum;
-      // sum.mutable_data<float>(running_mean->dims(), ctx.GetPlace());
-      // square_sum.mutable_data<float>(running_mean->dims(), ctx.GetPlace());
-
-      auto bn_training_reduce =
-          ge::op::BNTrainingReduce().set_input_x(graph->GetOp(x->Name()));
+      auto bn_training_reduce = ge::op::BNTrainingReduce()
+                                    .set_input_x(graph->GetOp(x->Name()))
+                                    .SetAttr("epsilon", epsilon);
+      graph::funcs::update_input_format(bn_training_reduce, data_layout, "x");
+      graph::funcs::update_output_format(bn_training_reduce, "NCHW", "sum");
+      graph::funcs::update_output_format(
+          bn_training_reduce, "NCHW", "square_sum");
+      auto x_desc = bn_training_reduce.GetInputDescByName("x");
+      std::cout << "format=" << ge::GetFormatName(x_desc.GetFormat())
+                << std::endl;
 
       auto bn_training_update =
           ge::op::BNTrainingUpdate()
@@ -94,6 +104,22 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
               .set_input_variance(graph->GetOp(running_var->Name()))
               .set_attr_epsilon(epsilon)
               .set_attr_factor(momentum);
+      graph::funcs::update_input_format(bn_training_update, data_layout, "x");
+      graph::funcs::update_input_format(bn_training_update, "NCHW", "sum");
+      graph::funcs::update_input_format(
+          bn_training_update, "NCHW", "square_sum");
+      graph::funcs::update_input_format(bn_training_update, "NCHW", "scale");
+      graph::funcs::update_input_format(bn_training_update, "NCHW", "offset");
+      graph::funcs::update_input_format(bn_training_update, "NCHW", "mean");
+      graph::funcs::update_input_format(bn_training_update, "NCHW", "variance");
+      graph::funcs::update_output_format(bn_training_update, data_layout, "y");
+      graph::funcs::update_output_format(bn_training_update, "NCHW", "mean");
+      graph::funcs::update_output_format(
+          bn_training_update, "NCHW", "variance");
+      graph::funcs::update_output_format(
+          bn_training_update, "NCHW", "batch_mean");
+      graph::funcs::update_output_format(
+          bn_training_update, "NCHW", "batch_variance");
 
       auto y_node = graph::funcs::get_output_by_name(
           bn_training_update, y->dims(), y->dtype(), "y");
@@ -138,10 +164,6 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
     auto *d_bias = ctx.Output(paddle::framework::GradVarName("Bias"));
 
     use_global_stats = is_test || use_global_stats;
-    if (data_layout == "NHWC") {
-      graph::utils::log() << "[ERROR] data_layout NHWC is not supported.\n";
-      exit(1);
-    }
 
     if (d_scale && d_bias) {
       if (use_global_stats) {
@@ -156,6 +178,10 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(running_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "grads");
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "x");
 
         graph->AddOp(d_scale->Name(),
                      graph::funcs::get_output_by_name(bn_training_update_grad,
@@ -176,6 +202,10 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(saved_inv_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "grads");
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "x");
 
         graph->AddOp(d_scale->Name(),
                      graph::funcs::get_output_by_name(bn_training_update_grad,
@@ -198,10 +228,13 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_scale(graph->GetOp(scale->Name()))
                 .set_input_batch_variance(graph->GetOp(running_var->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_format(bn_infer_grad, data_layout, "grads");
+        graph::funcs::update_output_format(
+            bn_infer_grad, data_layout, "x_backprop");
 
         graph->AddOp(d_x->Name(), bn_infer_grad);
       } else {
-        auto bn_infer_grad =
+        auto bn_training_update_grad =
             ge::op::BNTrainingReduceGrad()
                 .set_input_grads(graph->GetOp(d_y->Name()))
                 .set_input_x(graph->GetOp(x->Name()))
@@ -212,8 +245,14 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(saved_inv_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "grads");
+        graph::funcs::update_input_format(
+            bn_training_update_grad, data_layout, "x");
+        graph::funcs::update_output_format(
+            bn_training_update_grad, data_layout, "y");
 
-        graph->AddOp(d_x->Name(), bn_infer_grad);
+        graph->AddOp(d_x->Name(), bn_training_update_grad);
       }
     }
   }

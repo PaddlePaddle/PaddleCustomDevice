@@ -72,7 +72,7 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                   ksize);
 
     if (adaptive) {
-      graph::utils::log() << "[ERROR] unsupport adaptive pooling\n";
+      graph::utils::log() << "[ERROR] unsupport adaptive pooling" << std::endl;
       exit(-1);
     } else {
       if (pooling_type == "max") {
@@ -91,6 +91,9 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                          .set_attr_data_format(data_format)
                          .set_attr_global_pooling(global_pooling)
                          .set_attr_ceil_mode(ceil_mode);
+        graph::funcs::update_input_format(ge_op, data_format, "x");
+        graph::funcs::update_output_format(ge_op, data_format, "y");
+
         graph->AddOp(out->Name(), ge_op);
       } else {
         auto ge_op = ge::op::AvgPoolV2()
@@ -104,6 +107,9 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                          .set_attr_global_pooling(global_pooling)
                          .set_attr_ceil_mode(ceil_mode)
                          .set_attr_exclusive(exclusive);
+        graph::funcs::update_input_format(ge_op, data_format, "x");
+        graph::funcs::update_output_format(ge_op, data_format, "y");
+
         graph->AddOp(out->Name(), ge_op);
       }
     }

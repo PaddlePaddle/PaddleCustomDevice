@@ -664,6 +664,5 @@ void InitPlugin(CustomRuntimeParams *params) {
   // graph
   params->interface->graph_engine_initialize = graph_engine_initialize;
   params->interface->graph_engine_finalize = graph_engine_finalize;
-  params->interface->graph_engine_prepare = graph_engine_prepare;
   params->interface->graph_engine_execute_graph = graph_engine_execute_graph;
 }

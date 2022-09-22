@@ -30,7 +30,7 @@
 namespace graph {
 namespace utils {
 
-static std::ostream& log() {
+inline std::ostream& log() {
   static std::fstream ofs(
       "pd_ge.pid_" + std::to_string(static_cast<uint64_t>(getpid())) + ".txt",
       std::ios::out);

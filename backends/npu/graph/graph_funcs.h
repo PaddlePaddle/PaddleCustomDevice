@@ -235,9 +235,12 @@ inline void update_input_format(ge::Operator& node,
   ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
   if (format == "NCHW") {
     desc.SetFormat(ge::Format::FORMAT_NCHW);
+    desc.SetOriginFormat(ge::Format::FORMAT_NCHW);
   } else {
     desc.SetFormat(ge::Format::FORMAT_NHWC);
+    desc.SetOriginFormat(ge::Format::FORMAT_NHWC);
   }
+
   node.UpdateInputDesc(input_name.c_str(), desc);
 }
 
@@ -247,9 +250,12 @@ inline void update_output_format(ge::Operator& node,
   ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
   if (format == "NCHW") {
     desc.SetFormat(ge::Format::FORMAT_NCHW);
+    desc.SetOriginFormat(ge::Format::FORMAT_NCHW);
   } else {
     desc.SetFormat(ge::Format::FORMAT_NHWC);
+    desc.SetOriginFormat(ge::Format::FORMAT_NHWC);
   }
+
   node.UpdateOutputDesc(output_name.c_str(), desc);
 }
 

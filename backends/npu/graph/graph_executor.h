@@ -19,6 +19,8 @@
 #include "graph/paddle_graph.h"
 
 // NOLINT
+#include "acl/acl_base.h"
+#include "acl/acl_rt.h"
 #include "all_ops.h"
 #include "ge/ge_api.h"
 #include "ge/ge_api_types.h"
@@ -173,8 +175,8 @@ class GEGraph {
                           << this << std::endl;
       exit(-1);
     } else {
-      graph::utils::log() << "[INFO] found " << op << " in context " << this
-                          << std::endl;
+      // graph::utils::log() << "[INFO] found " << op << " in context " << this
+      //                     << std::endl;
     }
     return ge_ops_[op];
   }
@@ -209,18 +211,18 @@ class GEGraph {
         *ge_graph_, ge_graph_name_.c_str(), ge_graph_name_.size());
     if (ret != ge::SUCCESS) {
       graph::utils::log() << "[ERROR] save graph  " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " failed.\n";
+                          << ge_graph_name_ << " failed." << std::endl;
     } else {
       graph::utils::log() << "[INFO] save graph " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " success.\n";
+                          << ge_graph_name_ << " success." << std::endl;
     }
     ret = session->AddGraph(ge_graph_id_, *ge_graph_);
     if (ret != ge::SUCCESS) {
       graph::utils::log() << "[ERROR] add graph  " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " failed.\n";
+                          << ge_graph_name_ << " failed." << std::endl;
     } else {
       graph::utils::log() << "[INFO] add graph " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " success.\n";
+                          << ge_graph_name_ << " success." << std::endl;
     }
   }
 

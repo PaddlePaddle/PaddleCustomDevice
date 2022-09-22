@@ -55,7 +55,7 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
       data_value = reinterpret_cast<uint8_t*>(ptr);
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype();
+                          << out->dtype() << std::endl;
       exit(-1);
     }
 
@@ -98,8 +98,8 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
       auto ptr = reinterpret_cast<double*>(data_value);
       delete[] ptr;
     } else {
-      graph::utils::log() << "[ERROR]  fill_constant unsupported datatype "
-                          << out->dtype();
+      graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
+                          << out->dtype() << std::endl;
       exit(-1);
     }
   }

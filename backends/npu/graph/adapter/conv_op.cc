@@ -72,6 +72,7 @@ class Conv2dAdapter : public custom_graph::OpAdapter {
                      .set_attr_groups(groups)
                      .set_attr_data_format(data_format);
     graph::funcs::update_input_format(ge_op, "x", data_format);
+    graph::funcs::update_input_format(ge_op, "filter", data_format);
     graph::funcs::update_output_format(ge_op, "y", data_format);
 
     graph->AddOp(output->Name(), ge_op);

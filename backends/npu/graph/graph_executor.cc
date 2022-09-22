@@ -14,62 +14,51 @@
 
 #include "graph/graph_executor.h"
 
-// static std::shared_ptr<ge::Session> session; // process hang, if no delete it
-ge::Session* session = nullptr;
-static std::unordered_map<C_Graph,
-                          std::pair<uint32_t, std::shared_ptr<ge::Graph>>>
-    ge_graph_map;
-static std::unordered_map<C_Graph,
-                          std::shared_ptr<paddle::framework::ir::IRGraph>>
-    ir_graph_map;
-static std::unordered_map<C_Graph, std::shared_ptr<custom_graph::GEGraph>>
-    ctx_graph_map;
+static std::unordered_map<C_Scope, std::shared_ptr<ge::Session>> session_cache;
+
+struct GraphWrapper {
+  uint32_t id;
+  std::shared_ptr<ge::Graph> ge_graph;
+  std::shared_ptr<custom_graph::GEGraph> ctx_graph;
+  std::shared_ptr<paddle::framework::ir::IRGraph> ir_graph;
+};
+
+static std::unordered_map<C_Graph, GraphWrapper> graph_cache;
 
 bool ge_initialized = false;
 
 C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
   if (!ge_initialized) {
+    auto soc_name = aclrtGetSocName();
     std::map<ge::AscendString, ge::AscendString> config = {
         {"ge.exec.deviceId", "0"},
-        {"ge.graphRunMode", "1"},
-        {"ge.exec.precision_mode", "allow_fp32_to_fp16"}};
+        {"ge.graphRunMode", "0"},
+        {"ge.exec.precision_mode", "allow_fp32_to_fp16"},
+        {"ge.graphMemoryMaxSize", "1048576"},
+        {"ge.socVersion", ge::AscendString(soc_name)},
+        {"ge.opSelectImplmode", "high_performance"}};
+    // {"ge.exec.reuseZeroCopyMemory", "1"},
+    // {"GE_USE_STATIC_MEMORY", "2"}
     ge::Status ret = ge::GEInitialize(config);
     if (ret != ge::SUCCESS) {
-      graph::utils::log() << "[ERROR] graph_engine_initialize failed.\n";
+      graph::utils::log() << "[ERROR] graph_engine_initialize failed."
+                          << std::endl;
       return C_FAILED;
     }
-    graph::utils::log() << "[INFO] graph_engine_initialize success.\n";
+    graph::utils::log() << "[INFO] graph_engine_initialize success."
+                        << std::endl;
   }
-
-  // session = std::make_shared<ge::Session>(options);
-  if (!session) {
-    std::map<ge::AscendString, ge::AscendString> options;
-    session = new ge::Session(options);
-  }
-
-  // session->RegisterCallBackFunc("Save", CallBack);
   return C_SUCCESS;
 }
 
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
-  if (session) {
-    delete session;
-    session = nullptr;
-    ctx_graph_map.clear();
-    ir_graph_map.clear();
-    ge_graph_map.clear();
-  }
+  session_cache.clear();
+  graph_cache.clear();
 }
-
-C_Status graph_engine_prepare(const C_Device device,
-                              const C_Stream stream,
-                              const C_Graph graph,
-                              char** init_tensor_name,
-                              void** init_tensor_data,
-                              size_t init_tensor_num) {}
 
 C_Status graph_engine_execute_graph(const C_Device device,
                                     const C_Stream stream,
+                                    const C_Scope scope,
                                     const C_Graph graph,
                                     char** feed_tensor_name,
                                     void** feed_tensor_data,
@@ -79,25 +68,34 @@ C_Status graph_engine_execute_graph(const C_Device device,
                                     size_t fetch_tensor_num) {
   ge::Status ret = ge::SUCCESS;
 
+  graph::utils::log() << "[INFO] scope=" << scope << ", graph=" << graph
+                      << std::endl;
+
+  if (session_cache.find(scope) == session_cache.end()) {
+    std::map<ge::AscendString, ge::AscendString> options;
+    session_cache[scope] = std::make_shared<ge::Session>(options);
+  }
+  auto session = session_cache[scope].get();
+
   // 1. Get or create a ge_graph
   bool add_ge_graph = false;
-  if (ge_graph_map.find(graph) == ge_graph_map.end()) {
-    uint32_t id = static_cast<uint32_t>(ge_graph_map.size());
-    std::string name = "ge_graph." + std::to_string(id);
-    ge_graph_map[graph] = {id, std::make_shared<ge::Graph>(name)};
-    ir_graph_map[graph] =
-        std::make_shared<paddle::framework::ir::IRGraph>(graph);
-    ctx_graph_map[graph] = std::make_shared<custom_graph::GEGraph>(
-        name, id, ge_graph_map[graph].second.get());
 
+  if (graph_cache.find(graph) == graph_cache.end()) {
     add_ge_graph = true;
+    auto id = static_cast<uint32_t>(graph_cache.size());
+    std::string name = "ge_graph." + std::to_string(id);
+    graph_cache[graph].id = id;
+    graph_cache[graph].ge_graph = std::make_shared<ge::Graph>(name);
+    graph_cache[graph].ir_graph =
+        std::make_shared<paddle::framework::ir::IRGraph>(graph);
+    graph_cache[graph].ctx_graph = std::make_shared<custom_graph::GEGraph>(
+        name, id, graph_cache[graph].ge_graph.get());
   }
-  auto& ir_graph = *ir_graph_map[graph];
-  uint32_t ge_graph_id = ge_graph_map[graph].first;
-  std::string ge_graph_name = "ge_graph." + std::to_string(ge_graph_id);
-  auto& ge_graph = ge_graph_map[graph].second;
 
-  custom_graph::GEGraph& global_graph = *ctx_graph_map[graph];
+  auto& ir_graph = *graph_cache[graph].ir_graph;
+  auto ge_graph_id = graph_cache[graph].id;
+  std::string ge_graph_name = "ge_graph." + std::to_string(ge_graph_id);
+  auto& global_graph = *graph_cache[graph].ctx_graph;
 
   if (add_ge_graph) {
     // 2. Get or create variable and constant
@@ -129,13 +127,14 @@ C_Status graph_engine_execute_graph(const C_Device device,
     for (auto& op_node : ir_graph.Ops()) {
       if (custom_graph::OpAdapter::Factory().find(op_node->Type()) !=
           custom_graph::OpAdapter::Factory().end()) {
-        graph::utils::log() << "[INFO] run " << op_node->Type() << " adapter\n";
+        graph::utils::log()
+            << "[INFO] run " << op_node->Type() << " adapter" << std::endl;
         auto& creator = custom_graph::OpAdapter::Factory()[op_node->Type()];
         auto adaper = creator();
         adaper->run(*op_node, &global_graph);
       } else {
-        graph::utils::log()
-            << "[ERROR] op " << op_node->Type() << " is not supported.\n";
+        graph::utils::log() << "[ERROR] op " << op_node->Type()
+                            << " is not supported." << std::endl;
         exit(-1);
       }
     }
@@ -149,7 +148,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
                              "global_graph.fetch_outputs_size(): "
                           << global_graph.fetch_outputs_.size()
                           << " != fetch_tensor_num: " << fetch_tensor_num
-                          << "\n";
+                          << std::endl;
       return C_FAILED;
     }
 
@@ -183,11 +182,12 @@ C_Status graph_engine_execute_graph(const C_Device device,
                           << std::endl;
       return C_FAILED;
     }
-    // graph::utils::log() << "feed tensor_name: " << tensor_name << ", ptr=" <<
-    // data_ptr
-    //           << ", size="
-    //           << numel * graph::utils::get_pd_dtype_size(var_node->dtype())
-    //           << std::endl;
+    graph::utils::log() << "feed " << tensor_name << ", dims="
+                        << paddle::framework::ir::to_string(var_dims)
+                        << ", ptr=" << data_ptr << ", size="
+                        << numel * graph::utils::get_pd_dtype_size(
+                                       var_node->dtype())
+                        << std::endl;
     input_tensors.push_back(
         ge::Tensor(tensor_desc,
                    reinterpret_cast<uint8_t*>(data_ptr),
@@ -197,16 +197,17 @@ C_Status graph_engine_execute_graph(const C_Device device,
   ret = session->RunGraph(ge_graph_id, input_tensors, output_tensors);
   if (ret != ge::SUCCESS) {
     graph::utils::log() << "[ERROR] run graph  " << ge_graph_id << ": "
-                        << ge_graph_name << " failed.\n";
+                        << ge_graph_name << " failed." << std::endl;
   } else {
-    graph::utils::log() << "[ERROR] run graph " << ge_graph_id << ": "
-                        << ge_graph_name << " success.\n";
+    graph::utils::log() << "[INFO] run graph " << ge_graph_id << ": "
+                        << ge_graph_name << " success." << std::endl;
   }
 
   if (output_tensors.size() != fetch_tensor_num) {
     graph::utils::log() << "[ERROR] output_tensors.size(): "
                         << output_tensors.size()
-                        << " != fetch_tensor_num: " << fetch_tensor_num << "\n";
+                        << " != fetch_tensor_num: " << fetch_tensor_num
+                        << std::endl;
     return C_FAILED;
   }
 
@@ -229,8 +230,9 @@ C_Status graph_engine_execute_graph(const C_Device device,
       graph::utils::log() << "[ERROR] not found fetch_tensor " << tensor_name
                           << std::endl;
       return C_FAILED;
+    } else {
+      std::memcpy(data_ptr, out_data, out.GetSize());
     }
-    std::memcpy(data_ptr, out_data, out.GetSize());
   }
 
   return C_SUCCESS;

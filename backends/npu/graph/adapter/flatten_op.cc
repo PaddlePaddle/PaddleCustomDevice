@@ -46,15 +46,15 @@ class FlattenContiguousRangeGradAdapter : public custom_graph::OpAdapter {
     auto out_grad = ctx.Input("Out@GRAD");
     auto xshape_dims = ctx.Input("XShape")->dims();
     auto x_dims = slice_ddim(xshape_dims, 1, xshape_dims.size());
-    graph::utils::log() << "[INFO] x_grad="
-                        << paddle::framework::ir::to_string(x_grad->dims())
-                        << std::endl;
-    graph::utils::log() << "[INFO] out_grad="
-                        << paddle::framework::ir::to_string(out_grad->dims())
-                        << std::endl;
-    graph::utils::log() << "[INFO] x_dims="
-                        << paddle::framework::ir::to_string(x_dims)
-                        << std::endl;
+    // graph::utils::log() << "[INFO] x_grad="
+    //                     << paddle::framework::ir::to_string(x_grad->dims())
+    //                     << std::endl;
+    // graph::utils::log() << "[INFO] out_grad="
+    //                     << paddle::framework::ir::to_string(out_grad->dims())
+    //                     << std::endl;
+    // graph::utils::log() << "[INFO] x_dims="
+    //                     << paddle::framework::ir::to_string(x_dims)
+    //                     << std::endl;
 
     // ge::TensorDesc shape_tensor_desc(
     //     ge::Shape(std::vector<int64_t>({x_dims.size()})),

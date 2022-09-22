@@ -19,25 +19,20 @@ git submodule update --remote --init --recursive
 ## Compile and Install
 
 ```bash
-# navigate to implementaion for Ascend NPU
+# go to ascend npu directory
 cd backends/npu
 
-# before compiling, ensure that Paddle is installed, you can run the following command
+# install paddlepaddle, propose to use cpu version
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# create the build directory and navigate in
-mkdir build && cd build
+# compile options, whether to compile with unit testing, default is OFF
+export WITH_TESTING=OFF
 
-# compile in X86_64 environment
-cmake ..
-make -j8
+# execute compile script
+bash tools/compile.sh
 
-# compile in Aarch64 environment
-cmake .. -DWITH_ARM=ON
-make TARGET=ARMV8 -j8
-
-# using pip to install the output
-pip install dist/paddle_custom_npu*.whl
+# generated package is under build/dist directory
+pip install build/dist/paddle_custom_npu*.whl
 ```
 
 ## Verification
@@ -50,7 +45,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 ['ascend']
 
 # run a simple model
-python ../tests/test_MNIST_model.py
+python tests/test_MNIST_model.py
 
 # expected similar output 
 ... ...

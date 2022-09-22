@@ -19,6 +19,7 @@ project(paddle-custom-cpu CXX C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_TESTING    "compile with unit testing"        ON)
+option(ON_INFER        "compile with inference c++ lib"   OFF)
 
 set(PLUGIN_NAME        "paddle-custom-cpu")
 set(PLUGIN_VERSION     "0.0.1")
@@ -35,7 +36,12 @@ list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
-target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})  # special name
+if (ON_INFER)
+target_link_directories(${PLUGIN_NAME} PRIVATE ${PADDLE_INFERENCE_LIB_DIR})
+target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference)
+else()
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
+endif()
 
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
@@ -49,8 +55,10 @@ add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
     COMMENT "Creating plugin dirrectories------>>>"
 )
 
+find_package(Python COMPONENTS Interpreter REQUIRED)
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
-    COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
     DEPENDS ${PLUGIN_NAME}
     COMMENT "Packing whl packages------>>>"
 )

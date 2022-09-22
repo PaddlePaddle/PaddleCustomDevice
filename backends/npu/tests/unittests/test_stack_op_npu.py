@@ -115,8 +115,7 @@ class TestStackOpINT64(TestStackOpBase):
     def init_dtype(self):
         self.dtype = np.int64
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+
 class TestStackAPIWithLoDTensorArray(unittest.TestCase):
     """
     Test stack api when the input(x) is a LoDTensorArray.
@@ -152,8 +151,7 @@ class TestStackAPIWithLoDTensorArray(unittest.TestCase):
                 res[0], np.stack(
                     [self.x] * self.iter_num, axis=self.axis)))
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+
 class TestTensorStackAPIWithLoDTensorArray(unittest.TestCase):
     """
     Test stack api when the input(x) is a LoDTensorArray.
@@ -189,8 +187,7 @@ class TestTensorStackAPIWithLoDTensorArray(unittest.TestCase):
                 res[0], np.stack(
                     [self.x] * self.iter_num, axis=self.axis)))
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+
 class API_test(unittest.TestCase):
     def test_out(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
@@ -216,8 +213,7 @@ class API_test(unittest.TestCase):
             x = paddle.rand([2, 3])
             self.assertRaises(TypeError, paddle.stack, x)
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+
 class API_DygraphTest(unittest.TestCase):
     def test_out(self):
         data1 = np.array([[1.0, 2.0]])

@@ -11,7 +11,7 @@
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# 请执行以下命令，以保证checkout最新的Paddle源码
+# 请执行以下命令，以保证 checkout 最新的 Paddle 源码
 git submodule sync
 git submodule update --remote --init --recursive
 ```
@@ -22,22 +22,17 @@ git submodule update --remote --init --recursive
 # 进入硬件后端(昇腾NPU)目录
 cd backends/npu
 
-# 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
+# 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# 创建编译目录并编译
-mkdir build && cd build
+# 编译选项，是否打开单元测试编译，默认值为 OFF
+export WITH_TESTING=OFF
 
-# X86_64环境编译
-cmake ..
-make -j8
+# 执行编译脚本
+bash tools/compile.sh
 
-# Aarch64环境编译
-cmake .. -DWITH_ARM=ON
-make TARGET=ARMV8 -j8
-
-# 编译产出在dist路径下，使用pip安装
-pip install dist/paddle_custom_npu*.whl
+# 编译产出在 build/dist 路径下，使用 pip 安装
+pip install build/dist/paddle_custom_npu*.whl
 ```
 
 ## 三、功能验证
@@ -49,7 +44,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 ['ascend']
 
 # 运行简单模型
-python ../tests/test_MNIST_model.py
+python tests/test_MNIST_model.py
 # 期待输出以下类似结果
 ... ...
 Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875

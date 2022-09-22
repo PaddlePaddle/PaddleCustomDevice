@@ -14,20 +14,20 @@
 
 #include <cmath>
 
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
 template <typename T>
 void MeanRawKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
-                   const std::vector<int64_t>& dims,
+                   const phi::IntArray& dims,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* out) {
   auto x_dims = x.dims();
-  auto reduce_dims = dims;
+  auto reduce_dims = dims.GetData();
   if (reduce_all) {
     reduce_dims.clear();
     for (auto i = 0; i < x_dims.size(); ++i) {
@@ -67,15 +67,25 @@ void MeanRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
+void MeanKernel(const phi::Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::IntArray& dims,
+                bool keep_dim,
+                phi::DenseTensor* out) {
+  bool reduce_all = false;
+  MeanRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
+}
+
+template <typename T>
 void SumRawKernel(const phi::Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& dims,
+                  const phi::IntArray& dims,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DataType out_dtype,
                   phi::DenseTensor* out) {
   auto x_dims = x.dims();
-  auto reduce_dims = dims;
+  auto reduce_dims = dims.GetData();
   if (reduce_all) {
     reduce_dims.clear();
     for (auto i = 0; i < x_dims.size(); ++i) {
@@ -114,14 +124,25 @@ void SumRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
+void SumKernel(const phi::Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& dims,
+               phi::DataType out_dtype,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  bool reduce_all = false;
+  SumRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out_dtype, out);
+}
+
+template <typename T>
 void MinRawKernel(const phi::Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& dims,
+                  const phi::IntArray& dims,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
   auto x_dims = x.dims();
-  auto reduce_dims = dims;
+  auto reduce_dims = dims.GetData();
   if (reduce_all) {
     reduce_dims.clear();
     for (auto i = 0; i < x_dims.size(); ++i) {
@@ -165,14 +186,24 @@ void MinRawKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
+void MinKernel(const phi::Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& dims,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  bool reduce_all = false;
+  MinRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
+}
+
+template <typename T>
 void MaxRawKernel(const phi::Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& dims,
+                  const phi::IntArray& dims,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
   auto x_dims = x.dims();
-  auto reduce_dims = dims;
+  auto reduce_dims = dims.GetData();
   if (reduce_all) {
     reduce_dims.clear();
     for (auto i = 0; i < x_dims.size(); ++i) {
@@ -214,6 +245,16 @@ void MaxRawKernel(const phi::Context& dev_ctx,
   }
 }
 
+template <typename T>
+void MaxKernel(const phi::Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& dims,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  bool reduce_all = false;
+  MaxRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
+}
+
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(mean_raw,
@@ -223,12 +264,18 @@ PD_BUILD_PHI_KERNEL(mean_raw,
                     float,
                     double) {}
 
+PD_BUILD_PHI_KERNEL(
+    mean, custom_cpu, ALL_LAYOUT, custom_kernel::MeanKernel, float, double) {}
+
 PD_BUILD_PHI_KERNEL(sum_raw,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::SumRawKernel,
                     float,
                     double) {}
+
+PD_BUILD_PHI_KERNEL(
+    sum, custom_cpu, ALL_LAYOUT, custom_kernel::SumKernel, float, double) {}
 
 PD_BUILD_PHI_KERNEL(min_raw,
                     custom_cpu,
@@ -239,10 +286,28 @@ PD_BUILD_PHI_KERNEL(min_raw,
                     float,
                     double) {}
 
+PD_BUILD_PHI_KERNEL(min,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::MinKernel,
+                    int32_t,
+                    int64_t,
+                    float,
+                    double) {}
+
 PD_BUILD_PHI_KERNEL(max_raw,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::MaxRawKernel,
+                    int32_t,
+                    int64_t,
+                    float,
+                    double) {}
+
+PD_BUILD_PHI_KERNEL(max,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::MaxKernel,
                     int32_t,
                     int64_t,
                     float,

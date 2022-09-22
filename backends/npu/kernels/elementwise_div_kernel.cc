@@ -56,7 +56,7 @@ void DivideGradKernel(const Context& dev_ctx,
     phi::DenseTensor tensor_one;
     phi::DenseTensorMeta tensor_one_meta = {y.dtype(), phi::make_ddim({1})};
     tensor_one.set_meta(tensor_one_meta);
-    dev_ctx.template Alloc<T>(&tensor_one);
+    dev_ctx.template Alloc<float>(&tensor_one);
     FillNpuTensorWithConstant<float>(
         &tensor_one, dev_ctx, static_cast<float>(1.0));
 
@@ -178,21 +178,18 @@ PD_REGISTER_PLUGIN_KERNEL(divide_raw,
                           ALL_LAYOUT,
                           custom_kernel::DivideRawKernel,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::DivideKernel,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::DivideGradKernel,
                           float,
-                          phi::dtype::float16,
-                          double) {}
+                          phi::dtype::float16) {}

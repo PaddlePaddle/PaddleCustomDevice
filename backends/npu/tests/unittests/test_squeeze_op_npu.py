@@ -27,8 +27,6 @@ paddle.enable_static()
 
 
 # Correct: General.
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestSqueeze2Op(OpTest):
     def setUp(self):
         self.set_npu()
@@ -62,8 +60,6 @@ class TestSqueeze2Op(OpTest):
 
 
 # Correct: There is mins axis.
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestSqueeze2Op1(TestSqueeze2Op):
     def init_test_case(self):
         self.ori_shape = (1, 20, 1, 5)
@@ -72,8 +68,6 @@ class TestSqueeze2Op1(TestSqueeze2Op):
 
 
 # Correct: No axes input.
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestSqueeze2Op2(TestSqueeze2Op):
     def init_test_case(self):
         self.ori_shape = (1, 20, 1, 5)
@@ -82,8 +76,6 @@ class TestSqueeze2Op2(TestSqueeze2Op):
 
 
 # Correct: Just part of axes be squeezed.
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestSqueeze2Op3(TestSqueeze2Op):
     def init_test_case(self):
         self.ori_shape = (6, 1, 5, 1, 4, 1)

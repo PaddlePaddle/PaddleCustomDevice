@@ -1,4 +1,4 @@
-#  Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 import sys
+
 from tests.op_test import OpTest
 import paddle
 import paddle.fluid as fluid
@@ -63,7 +64,7 @@ class TestReduceSum(OpTest):
 
     def initTestCase(self):
         self.shape = (5, 6)
-        self.axis = (0, )  # self.axis = (0) will failed
+        self.axis = (0, )
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -81,8 +82,6 @@ class TestReduceSum2(OpTest):
         self.dtype = np.int32
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestReduceSumNet(unittest.TestCase):
     def set_reduce_sum_function(self, x):
         # keep_dim = False
@@ -148,16 +147,12 @@ class TestReduceSumNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss))
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestReduceSumNet2(TestReduceSumNet):
     def set_reduce_sum_function(self, x):
         # keep_dim = True
         return paddle.fluid.layers.reduce_sum(x, dim=-1, keep_dim=True)
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestReduceSumNet3(TestReduceSumNet):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()

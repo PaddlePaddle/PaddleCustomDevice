@@ -15,13 +15,15 @@
 #pragma once
 
 #include <acl/acl.h>
+#include <hccl/hccl.h>
+#include <hccl/hccl_types.h>
 
 #include "paddle/phi/extension.h"
 
-#define ACL_CHECK(func)                                                       \
+#define RUNTIME_CHECK(func, success)                                          \
   do {                                                                        \
     auto acl_ret = func;                                                      \
-    if (acl_ret != ACL_ERROR_NONE) {                                          \
+    if (acl_ret != success) {                                                 \
       std::cerr << "Call " << #func << " failed : " << acl_ret << " at file " \
                 << __FILE__ << " line " << __LINE__ << std::endl;             \
       {                                                                       \
@@ -36,6 +38,9 @@
       exit(-1);                                                               \
     }                                                                         \
   } while (0)
+
+#define ACL_CHECK(func) RUNTIME_CHECK(func, ACL_ERROR_NONE)
+#define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
 
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,

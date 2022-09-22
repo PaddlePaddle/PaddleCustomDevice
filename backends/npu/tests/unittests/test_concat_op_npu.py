@@ -88,8 +88,6 @@ class TestConcatOp3(TestConcatOp):
         pass
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 @skip_check_grad_ci(
     reason="This test will meet fetch error when there is a null grad. The detailed information is in PR#17015."
 )
@@ -97,9 +95,6 @@ class TestConcatOp4(TestConcatOp):
     def init_test_data(self):
         self.x0 = np.random.random((2, 3, 4, 5)).astype(self.dtype)
         self.x1 = np.random.random((2, 3, 4, 5)).astype(self.dtype)
-        # TODO(windstamp)
-        # (0, 3, 4, 5) => (2, 3, 4, 5) will success
-        # (0, 3, 4, 5) => (1, 3, 4, 5) will success
         self.x2 = np.random.random((0, 3, 4, 5)).astype(self.dtype)
         self.axis = 0
 
@@ -126,13 +121,11 @@ def create_test_fp16(parent):
     globals()[cls_name] = TestConcatFp16
 
 
-# TODO(windstamp)
-# @unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-# create_test_fp16(TestConcatOp)
-# create_test_fp16(TestConcatOp2)
-# create_test_fp16(TestConcatOp3)
-# create_test_fp16(TestConcatOp4)
-# create_test_fp16(TestConcatOp5)
+create_test_fp16(TestConcatOp)
+create_test_fp16(TestConcatOp2)
+create_test_fp16(TestConcatOp3)
+create_test_fp16(TestConcatOp4)
+create_test_fp16(TestConcatOp5)
 
 
 #----------------Concat Int64----------------
@@ -156,8 +149,6 @@ create_test_int64(TestConcatOp4)
 create_test_int64(TestConcatOp5)
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestConcatAPIWithLoDTensorArray(unittest.TestCase):
     """
     Test concat api when the input(x) is a LoDTensorArray.

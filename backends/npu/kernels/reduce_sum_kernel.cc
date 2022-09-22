@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <set>
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
 
-static phi::DDim GetOutputShape(const std::vector<long int> unsqz_dims,
+static phi::DDim GetOutputShape(const std::vector<int64_t> unsqz_dims,
                                 const phi::DDim& in_dims) {
   int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
   int cur_output_size = in_dims.size();
@@ -69,12 +71,12 @@ static phi::DDim GetOutputShape(const std::vector<long int> unsqz_dims,
 template <typename T, typename Context>
 void SumRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
-                  const std::vector<int64_t>& axes,
+                  const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensorMeta::DataType out_dtype,
                   phi::DenseTensor* out) {
-  auto dims = axes;
+  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
   // special case
@@ -87,12 +89,12 @@ void SumRawKernel(const Context& dev_ctx,
   phi::DenseTensor cast_x;
   phi::DenseTensor cast_out;
   // NOTE: ReduceSumD only supports fp32 and fp16
-  if (x.dtype() != phi::DenseTensorMeta::DataType::FLOAT32 &&
-      x.dtype() != phi::DenseTensorMeta::DataType::FLOAT16) {
+  if (x.dtype() != phi::DataType::FLOAT32 &&
+      x.dtype() != phi::DataType::FLOAT16) {
     cast_x.Resize(x.dims());
-    dev_ctx.template Alloc<T>(&cast_x);
+    dev_ctx.template Alloc<float>(&cast_x);
     cast_out.Resize(out->dims());
-    dev_ctx.template Alloc<T>(&cast_out);
+    dev_ctx.template Alloc<float>(&cast_out);
 
     const auto& runner_cast = NpuOpRunner(
         "Cast", {x}, {cast_x}, {{"dst_type", static_cast<int>(ACL_FLOAT)}});
@@ -123,9 +125,9 @@ void SumRawKernel(const Context& dev_ctx,
     runner.Run(stream);
   }
 
-  if (x.dtype() != phi::DenseTensorMeta::DataType::FLOAT32 &&
-      x.dtype() != phi::DenseTensorMeta::DataType::FLOAT16) {
-    auto dst_dtype = ConvertToNpuDtype(out_dtype);
+  if (x.dtype() != phi::DataType::FLOAT32 &&
+      x.dtype() != phi::DataType::FLOAT16) {
+    auto dst_dtype = ConvertToNpuDtype(out->dtype());
     const auto& runner_cast =
         NpuOpRunner("Cast",
                     {cast_out},
@@ -138,11 +140,14 @@ void SumRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
-               const std::vector<int64_t>& dims,
+               const phi::IntArray& dims,
                phi::DenseTensorMeta::DataType out_dtype,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
+  if (dims.size() == 0) {
+    reduce_all = true;
+  }
   custom_kernel::SumRawKernel<T>(
       dev_ctx, x, dims, keep_dim, reduce_all, out_dtype, out);
 }
@@ -151,11 +156,25 @@ template <typename T, typename Context>
 void SumGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& out_grad,
-                   const std::vector<int64_t>& dims,
+                   const phi::IntArray& dims_array,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto keep_dims = keep_dim;
+
+  auto dims = dims_array.GetData();
+
+  // The dims has full dim, set the reduce_all is True
+  const auto& input_dim_size = x.dims().size();
+  std::set<int> dims_set(dims.begin(), dims.end());
+  bool full_dim = true;
+  for (auto i = 0; i < input_dim_size; i++) {
+    if (dims_set.find(i) == dims_set.end()) {
+      full_dim = false;
+      break;
+    }
+  }
+  reduce_all = (reduce_all || full_dim);
 
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();

@@ -112,72 +112,7 @@ class TestReduceAll(TestNPUReduceProd):
         self.outputs = {'Out': self.inputs['X'].prod()}
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-class TestNPUReduceProdWithOutDtype_bool(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.BOOL)}
-        self.outputs = {
-            'Out':
-            self.inputs['X'].prod(axis=tuple(self.attrs['dim'])).astype(np.bool)
-        }
-
-
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-class TestNPUReduceProdWithOutDtype_int16(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.INT16)}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(
-                axis=tuple(self.attrs['dim'])).astype(np.int16)
-        }
-
-
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-class TestNPUReduceProdWithOutDtype_int32(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.INT32)}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(
-                axis=tuple(self.attrs['dim'])).astype(np.int32)
-        }
-
-
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-class TestNPUReduceProdWithOutDtype_int64(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.INT64)}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(
-                axis=tuple(self.attrs['dim'])).astype(np.int64)
-        }
-
-
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
+@skip_check_grad_ci(reason="right now not implement grad op")
 class TestNPUReduceProdWithOutDtype_fp16(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"
@@ -194,6 +129,9 @@ class TestNPUReduceProdWithOutDtype_fp16(TestNPUReduceProd):
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
 
+    def init_dtype(self):
+        self.dtype = np.float16
+
 
 class TestNPUReduceProdWithOutDtype_fp32(TestNPUReduceProd):
     def setUp(self):
@@ -207,40 +145,6 @@ class TestNPUReduceProdWithOutDtype_fp32(TestNPUReduceProd):
             'Out': self.inputs['X'].prod(
                 axis=tuple(self.attrs['dim'])).astype(np.float32)
         }
-
-
-class TestNPUReduceProdWithOutDtype_fp64(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.FP64)}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(
-                axis=tuple(self.attrs['dim'])).astype(np.float64)
-        }
-
-
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
-@skip_check_grad_ci(reason="right now not implement grad op")
-class TestNPUReduceProdWithOutDtype_fp32_2(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {'dim': [0], 'out_dtype': int(core.VarDesc.VarType.FP32)}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(
-                axis=tuple(self.attrs['dim'])).astype(np.float32)
-        }
-
-    def init_dtype(self):
-        self.dtype = np.float16
 
 
 if __name__ == '__main__':

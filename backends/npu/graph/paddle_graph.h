@@ -27,7 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "framework.pb.h"
+#include "graph/framework.pb.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/utils/any.h"
 

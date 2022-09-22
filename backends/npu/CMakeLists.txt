@@ -23,6 +23,7 @@ message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
         "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "AR tools: ${CMAKE_AR}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing -Wno-terminate -Wno-write-strings -Wno-return-type")
 
 # custom runtime
 set(CUSTOM_NPU_SRCS runtime/runtime.cc)
@@ -39,7 +40,7 @@ endif()
 # C++ infer lib need to compatiable with CXX11
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 if (ON_INFER)
-link_directories(${PADDLE_INFERENCE_LIB_DIR})
+  link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
 
 # build shared library
@@ -52,9 +53,9 @@ target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 include(third_party)
 add_dependencies(${CUSTOM_NPU_NAME} third_party)
 if (ON_INFER)
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE paddle_inference)
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE paddle_inference)
 else()
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
 endif()
 
 find_package(PythonInterp ${PY_VERSION} REQUIRED)

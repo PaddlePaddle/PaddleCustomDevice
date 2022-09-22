@@ -48,8 +48,8 @@ function print_usage() {
 }
 
 function init() {
-    WORKSPACE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../../" && pwd )"
-    export WORKSPACE_ROOT
+    REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
+    export REPO_ROOT
 
     # For paddle easy debugging
     export FLAGS_call_stack_level=2
@@ -77,22 +77,20 @@ function show_ut_retry_result() {
     fi
 }
 function custom_npu_test() {
-    # paddle install
+    # install paddlepaddle daily build cpu version
     pip install hypothesis
-    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
 
     # custom_npu build and install
-    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
-    mkdir build && cd build
-    cmake .. -DWITH_TESTING=ON
+    cd ${REPO_ROOT}/backends/npu
+    export WITH_TESTING=ON
+    bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
-    make -j8
-    if [[ "$?" != "0" ]];then
-        exit 7;
-    fi
-    pip install dist/*.whl
+    cd ${REPO_ROOT}/backends/npu
+    pip install build/dist/*.whl
 
     # run ut
     ut_total_startTime_s=`date +%s`
@@ -190,10 +188,11 @@ set -ex
 function custom_cpu_test() {
     # paddle install
     pip install hypothesis
-    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
 
     # custom_cpu build and install
-    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/custom_cpu
+    cd ${REPO_ROOT}/backends/custom_cpu
     mkdir build && cd build
     cmake .. -DWITH_TESTING=ON
     if [[ "$?" != "0" ]];then

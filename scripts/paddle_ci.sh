@@ -89,7 +89,7 @@ function custom_npu_test() {
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
-    cd ${REPO_ROOT}/backends/npu/build
+    cd ${REPO_ROOT}/backends/npu
     pip install build/dist/*.whl
 
     # run ut

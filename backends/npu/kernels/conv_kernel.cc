@@ -684,7 +684,6 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
                           float,
                           phi::dtype::float16) {}
 
-#if (CANN_VERSION_CODE < 504000)
 PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d,
                           ascend,
                           ALL_LAYOUT,
@@ -698,7 +697,6 @@ PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
                           custom_kernel::DepthwiseConv2dGradKernel,
                           float,
                           phi::dtype::float16) {}
-#endif
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d,
                           ascend,

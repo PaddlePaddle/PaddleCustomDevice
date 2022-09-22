@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "glog/logging.h"
+
 class AlignnedAllocator {
  public:
   void *Alloc(size_t size, size_t align) {
@@ -104,7 +106,11 @@ inline size_t get_current_device_id() {
   return dev_id;
 }
 
-inline size_t get_devices_count() { return 1; }
+inline size_t get_devices_count() {
+  uint32_t count = 0;
+  aclrtGetDeviceCount(&count);
+  return static_cast<size_t>(count);
+}
 
 C_Status Init() {
   // ACL_CHECK(aclInit(nullptr));
@@ -169,6 +175,7 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  if (dst == nullptr && size == 0) return C_SUCCESS;
   ACL_CHECK(aclrtMemcpy(dst, size, src, size, ACL_MEMCPY_HOST_TO_DEVICE));
   return C_SUCCESS;
 }
@@ -317,6 +324,15 @@ C_Status StreamWaitEvent(const C_Device device,
   return C_SUCCESS;
 }
 
+C_Status AddCallback(const C_Device device,
+                     C_Stream stream,
+                     C_Callback callback,
+                     void *user_data) {
+  C_Status ret = C_SUCCESS;
+  callback(device, stream, user_data, &ret);
+  return ret;
+}
+
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
@@ -331,6 +347,185 @@ C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
 
 C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
   *size = 32;
+  return C_SUCCESS;
+}
+
+// CCL
+HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
+  if (dtype == C_DataType::FLOAT32) {
+    return HCCL_DATA_TYPE_FP32;
+  } else if (dtype == C_DataType::FLOAT16) {
+    return HCCL_DATA_TYPE_FP16;
+  } else if (dtype == C_DataType::INT64) {
+    return HCCL_DATA_TYPE_INT64;
+  } else if (dtype == C_DataType::INT32) {
+    return HCCL_DATA_TYPE_INT32;
+  } else if (dtype == C_DataType::INT8) {
+    return HCCL_DATA_TYPE_INT8;
+  } else {
+    LOG(ERROR) << "Datatype " << dtype << " in hccl is not supported.";
+  }
+}
+
+HcclReduceOp PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
+  if (op == C_CCLReduceOp::MIN) {
+    return HCCL_REDUCE_MIN;
+  } else if (op == C_CCLReduceOp::MAX) {
+    return HCCL_REDUCE_MAX;
+  } else if (op == C_CCLReduceOp::SUM) {
+    return HCCL_REDUCE_SUM;
+  } else if (op == C_CCLReduceOp::PRODUCT) {
+    return HCCL_REDUCE_PROD;
+  } else {
+    LOG(ERROR) << "Reduceop " << op << " in hccl is not supported.";
+  }
+}
+
+C_Status XcclGetUniqueIdSize(size_t *size) {
+  *size = sizeof(HcclRootInfo);
+  return C_SUCCESS;
+}
+
+C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
+  if (unique_id->sz != sizeof(HcclRootInfo)) {
+    LOG(ERROR) << "unique_id->sz must be equal sizeof(HcclRootInfo)";
+    return C_FAILED;
+  }
+  HCCL_CHECK(
+      HcclGetRootInfo(reinterpret_cast<HcclRootInfo *>(unique_id->data)));
+  return C_SUCCESS;
+}
+
+C_Status XcclCommInitRank(size_t nranks,
+                          C_CCLRootId *unique_id,
+                          size_t rank,
+                          C_CCLComm *comm) {
+  HCCL_CHECK(
+      HcclCommInitRootInfo(nranks,
+                           reinterpret_cast<HcclRootInfo *>(unique_id->data),
+                           rank,
+                           reinterpret_cast<HcclComm *>(comm)));
+  return C_SUCCESS;
+}
+
+C_Status XcclDestroyComm(C_CCLComm comm) {
+  HCCL_CHECK(HcclCommDestroy(reinterpret_cast<HcclComm>(comm)));
+  return C_SUCCESS;
+}
+
+C_Status XcclAllReduce(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLReduceOp op,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  HCCL_CHECK(HcclAllReduce(send_buf,
+                           recv_buf,
+                           count,
+                           PDDataTypeToHcclDataType(data_type),
+                           PDReduceOpToHcclReduceOp(op),
+                           reinterpret_cast<HcclComm>(comm),
+                           reinterpret_cast<aclrtStream>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclBroadcast(void *buf,
+                       size_t count,
+                       C_DataType data_type,
+                       size_t root,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  HCCL_CHECK(HcclBroadcast(buf,
+                           count,
+                           PDDataTypeToHcclDataType(data_type),
+                           static_cast<uint32_t>(root),
+                           reinterpret_cast<HcclComm>(comm),
+                           reinterpret_cast<aclrtStream>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclReduce(void *send_buf,
+                    void *recv_buf,
+                    size_t count,
+                    C_DataType data_type,
+                    C_CCLReduceOp op,
+                    size_t root,
+                    C_CCLComm comm,
+                    C_Stream stream) {
+  LOG(ERROR) << "xccl_reduce is not supported  on ascend device.";
+  return C_ERROR;
+}
+
+C_Status XcclAllGather(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  HCCL_CHECK(HcclAllGather(send_buf,
+                           recv_buf,
+                           count,
+                           PDDataTypeToHcclDataType(data_type),
+                           reinterpret_cast<HcclComm>(comm),
+                           reinterpret_cast<aclrtStream>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclReduceScatter(void *send_buf,
+                           void *recv_buf,
+                           size_t count,
+                           C_DataType data_type,
+                           C_CCLReduceOp op,
+                           C_CCLComm comm,
+                           C_Stream stream) {
+  HCCL_CHECK(HcclReduceScatter(send_buf,
+                               recv_buf,
+                               count,
+                               PDDataTypeToHcclDataType(data_type),
+                               PDReduceOpToHcclReduceOp(op),
+                               reinterpret_cast<HcclComm>(comm),
+                               reinterpret_cast<aclrtStream>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclGroupStart() {
+  LOG(ERROR) << "xccl_group_start is not supported on ascend device.";
+  return C_ERROR;
+}
+
+C_Status XcclGroupEnd() {
+  LOG(ERROR) << "xccl_group_end is not supported on ascend device.";
+  return C_ERROR;
+}
+
+C_Status XcclSend(void *send_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t dest_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  HCCL_CHECK(HcclSend(send_buf,
+                      count,
+                      PDDataTypeToHcclDataType(data_type),
+                      static_cast<uint32_t>(dest_rank),
+                      reinterpret_cast<HcclComm>(comm),
+                      reinterpret_cast<aclrtStream>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclRecv(void *recv_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t src_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  HCCL_CHECK(HcclRecv(recv_buf,
+                      count,
+                      PDDataTypeToHcclDataType(data_type),
+                      static_cast<uint32_t>(src_rank),
+                      reinterpret_cast<HcclComm>(comm),
+                      reinterpret_cast<aclrtStream>(stream)));
   return C_SUCCESS;
 }
 
@@ -369,6 +564,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->synchronize_stream = SyncStream;
   params->interface->synchronize_event = SyncEvent;
   params->interface->stream_wait_event = StreamWaitEvent;
+  params->interface->stream_add_callback = AddCallback;
 
   params->interface->memory_copy_h2d = MemCpyH2D;
   params->interface->memory_copy_d2d = MemCpyD2D;
@@ -389,4 +585,19 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
   params->interface->device_extra_padding_size = ExtraPaddingSize;
+
+  // xccl
+  params->interface->xccl_all_gather = XcclAllGather;
+  params->interface->xccl_all_reduce = XcclAllReduce;
+  params->interface->xccl_broadcast = XcclBroadcast;
+  params->interface->xccl_comm_init_rank = XcclCommInitRank;
+  params->interface->xccl_destroy_comm = XcclDestroyComm;
+  params->interface->xccl_get_unique_id = XcclGetUniqueId;
+  params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
+  params->interface->xccl_group_end = XcclGroupEnd;
+  params->interface->xccl_group_start = XcclGroupStart;
+  params->interface->xccl_recv = XcclRecv;
+  params->interface->xccl_reduce = XcclReduce;
+  params->interface->xccl_reduce_scatter = XcclReduceScatter;
+  params->interface->xccl_send = XcclSend;
 }

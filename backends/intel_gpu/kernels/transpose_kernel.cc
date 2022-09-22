@@ -68,6 +68,19 @@ void TransposeKernel(const phi::Context& ctx,
   }
 }
 
+dnnl::memory::dims computeStrides(const std::vector<int64_t>& dims , const std::vector<int>& axis
+) {
+       size_t rank = axis.size();
+       std::vector<int64_t> strides(rank);
+       unsigned int total_stride = 1;
+       for (int i = rank - 1; i >= 0; --i) {
+         strides[axis[i]] = total_stride;
+         total_stride *= dims[axis[i]];
+       }
+      show_debug("computeStrides strides=" << strides << " from [ dims="<< dims << " axis="<< axis << "]");
+       return strides;
+}
+
 template <typename T>
 void TransposeKernelGPU(const phi::Context& ctx,
                      const phi::DenseTensor& x,
@@ -110,16 +123,31 @@ void TransposeKernelGPU(const phi::Context& ctx,
            "axis.size (%d) must be equal the rank of input (%d).",
            axis.size(),
            rank);
-
+try {
   dnnl::memory::dims dims_src = x.dims();
   dnnl::memory::dims dims_dst = out->dims();
 
+
+  // auto md_src = memory::desc(dims_src,
+  //                            dnn_support::toDnnType<T>::type,
+  //                            dnn_support::dims2Tag(dims_src));
+
+  // auto md_dst = memory::desc(dims_src,
+  //                            dnn_support::toDnnType<T>::type,
+  //                            dnn_support::axis2Tag(axis));
+
+  std::vector<int> logical_axis(dims_src.size(),0);
+  for(auto i=0;i<logical_axis.size();++i)
+  {
+    logical_axis[i]=i;
+  }
+  show_debug("logical_axis=" << logical_axis << " axis=" << axis);
   auto md_src = memory::desc(dims_src,
                              dnn_support::toDnnType<T>::type,
-                             dnn_support::dims2Tag(dims_src));
-  auto md_dst = memory::desc(dims_src,
-                             dnn_support::toDnnType<T>::type,
-                             dnn_support::axis2Tag(axis));
+                             computeStrides(dims_src, logical_axis));
+
+  auto md_dst = memory::desc(
+      dims_src, dnn_support::toDnnType<T>::type, computeStrides(dims_src,axis));
 
   auto mem_src = memory(md_src, eng, x_data);
   auto mem_dst = memory(md_dst, eng, out_data);
@@ -137,6 +165,14 @@ void TransposeKernelGPU(const phi::Context& ctx,
   // Primitive execution: reorder with scaled sum.
   reorder_prim.execute(engine_stream, reorder_args);
   engine_stream.wait();
+
+} catch (std::exception& e) {
+     show_debug(" Catch error=" << e.what());
+     throw e;
+}
+
+show_debug("**** TRANSPOSE OK *** x=" << x.dims())
+
 
 }
 

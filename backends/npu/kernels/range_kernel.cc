@@ -15,9 +15,34 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
-#include "paddle/phi/kernels/funcs/range_function.h"
-
 namespace custom_kernel {
+
+template <typename T>
+void GetSize(T start, T end, T step, int64_t* size) {
+  PADDLE_ENFORCE_NE(
+      step,
+      0,
+      phi::errors::InvalidArgument("The step of range op should not be 0."));
+
+  if (start < end) {
+    PADDLE_ENFORCE_GT(
+        step,
+        0,
+        phi::errors::InvalidArgument(
+            "The step should be greater than 0 while start < end."));
+  }
+
+  if (start > end) {
+    PADDLE_ENFORCE_LT(step,
+                      0,
+                      phi::errors::InvalidArgument(
+                          "The step should be less than 0 while start > end."));
+  }
+
+  *size = std::is_integral<T>::value
+              ? ((std::abs(end - start) + std::abs(step) - 1) / std::abs(step))
+              : std::ceil(std::abs((end - start) / step));
+}
 
 template <typename T, typename Context>
 void ArangeKernel(const Context& dev_ctx,
@@ -41,7 +66,7 @@ void ArangeKernel(const Context& dev_ctx,
   T step = n_data[0];
 
   int64_t size = 0;
-  phi::funcs::GetSize(start, end, step, &size);
+  GetSize(start, end, step, &size);
 
   out->Resize(phi::make_ddim({size}));
   dev_ctx.template Alloc<T>(out);

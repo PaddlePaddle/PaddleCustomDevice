@@ -163,8 +163,6 @@ class TestSubtractError(unittest.TestCase):
             self.assertRaises(TypeError, paddle.subtract, x2, y2)
 
 
-# TODO(windstamp)
-@unittest.skipIf(True, "Right now failed maybe caused by other reasons")
 class TestSubtractNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()

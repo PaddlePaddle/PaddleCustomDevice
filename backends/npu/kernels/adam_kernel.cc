@@ -283,7 +283,12 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
                           custom_kernel::AdamKernel,
                           phi::dtype::float16,
                           float,
-                          double) {}
+                          double) {
+  // Skip beta1_pow, beta2_pow, skip_update data transform
+  kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
                           ascend,
@@ -291,4 +296,9 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
                           custom_kernel::AdamwKernel,
                           phi::dtype::float16,
                           float,
-                          double) {}
+                          double) {
+  // Skip beta1_pow, beta2_pow, skip_update data transform
+  kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+}

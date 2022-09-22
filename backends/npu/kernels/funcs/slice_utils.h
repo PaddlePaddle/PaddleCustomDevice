@@ -165,4 +165,44 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
   return decreased_dims;
 }
 
+inline phi::DenseTensor Slice(const phi::DenseTensor& src,
+                              int64_t begin_idx,
+                              int64_t end_idx) {
+  auto meta = src.meta();
+  PADDLE_ENFORCE_GE(
+      begin_idx,
+      0,
+      phi::errors::OutOfRange("The start row index must be greater than 0."
+                              "But received the start index is d%.",
+                              begin_idx));
+  PADDLE_ENFORCE_LE(
+      end_idx,
+      meta.dims[0],
+      phi::errors::OutOfRange("The end row index is out of bound."));
+  PADDLE_ENFORCE_LT(
+      begin_idx,
+      end_idx,
+      phi::errors::InvalidArgument(
+          "The start row index must be less than the end row index."
+          "But received the start index = %d, the end index = %d.",
+          begin_idx,
+          end_idx));
+
+  if (meta.dims[0] == 1) {
+    return src;
+  } else {
+    size_t base = src.numel() / meta.dims[0];
+    phi::DenseTensor dst(src);
+    phi::DDim dst_dims = meta.dims;
+    dst_dims[0] = end_idx - begin_idx;
+    size_t dst_offset =
+        meta.offset +
+        begin_idx * base * paddle::experimental::SizeOf(meta.dtype);
+    phi::DenseTensorMeta dst_meta = {
+        meta.dtype, dst_dims, meta.layout, dst_offset};
+    dst.set_meta(dst_meta);
+    return dst;
+  }
+}
+
 }  // namespace custom_kernel

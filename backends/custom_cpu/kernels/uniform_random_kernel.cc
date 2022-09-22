@@ -35,8 +35,8 @@ template <typename T>
 void UniformRandomRawKernel(const phi::Context &dev_ctx,
                             const phi::IntArray &shape,
                             phi::DataType dtype,
-                            float min,
-                            float max,
+                            const phi::Scalar &min,
+                            const phi::Scalar &max,
                             int seed,
                             int diag_num,
                             int diag_step,
@@ -52,7 +52,8 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
   engine = std::make_shared<std::mt19937_64>();
   engine->seed(seed);
 
-  UniformRealDistribution<T>(data, size, min, max, engine);
+  UniformRealDistribution<T>(
+      data, size, min.to<float>(), max.to<float>(), engine);
   if (diag_num > 0) {
     PD_CHECK(size > (diag_num - 1) * (diag_step + 1),
              "ShapeInvalid: the diagonal's elements is equal (num-1) "
@@ -73,8 +74,8 @@ template <typename T>
 void UniformRandomKernel(const phi::Context &dev_ctx,
                          const phi::IntArray &shape,
                          phi::DataType dtype,
-                         float min,
-                         float max,
+                         const phi::Scalar &min,
+                         const phi::Scalar &max,
                          int seed,
                          phi::DenseTensor *out) {
   UniformRandomRawKernel<T>(

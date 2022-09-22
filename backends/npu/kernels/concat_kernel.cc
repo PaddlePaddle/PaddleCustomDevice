@@ -95,11 +95,13 @@ void ConcatGradKernel(const Context& dev_ctx,
           sizes.push_back(ins[j]->dims()[dim]);
         }
       }
-      const auto& runner = NpuOpRunner("SliceD",
-                                       {dout},
-                                       {*outs[j]},
-                                       {{"offsets", offsets}, {"size", sizes}});
-      runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Slice")
+          .AddInput(dout)
+          .AddInput(dev_ctx, std::move(offsets))
+          .AddInput(dev_ctx, std::move(sizes))
+          .AddOutput(*outs[j])
+          .Run(stream);
     }
     if (ins[j]->numel() != 0UL) {
       offset += ins[j]->dims()[axis];
@@ -116,7 +118,7 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           int,
                           int64_t,
                           float,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           ascend,
@@ -125,4 +127,4 @@ PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           int,
                           int64_t,
                           float,
-                          double) {}
+                          phi::dtype::float16) {}

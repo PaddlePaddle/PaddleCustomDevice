@@ -71,7 +71,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
 template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
                   const phi::DenseTensor& in_x,
-                  const std::vector<int>& kernel_size,
+                  const phi::IntArray& kernel_size,
                   const std::vector<int>& strides_t,
                   const std::vector<int>& paddings_t,
                   bool ceil_mode,
@@ -84,7 +84,8 @@ void Pool2dKernel(const Context& dev_ctx,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  auto ksize = kernel_size;
+  std::vector<int> ksize(kernel_size.GetData().begin(),
+                         kernel_size.GetData().end());
   auto strides = strides_t;
   auto paddings = paddings_t;
   const bool channel_last = data_format == "NHWC";
@@ -217,7 +218,7 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& in_x,
                       const phi::DenseTensor& out,
                       const phi::DenseTensor& out_grad,
-                      const std::vector<int>& kernel_size,
+                      const phi::IntArray& kernel_size,
                       const std::vector<int>& strides_t,
                       const std::vector<int>& paddings_t,
                       bool ceil_mode,
@@ -230,7 +231,8 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       phi::DenseTensor* in_x_grad) {
   dev_ctx.template Alloc<T>(in_x_grad);
 
-  auto ksize = kernel_size;
+  std::vector<int> ksize(kernel_size.GetData().begin(),
+                         kernel_size.GetData().end());
   auto strides = strides_t;
   auto paddings = paddings_t;
 

@@ -15,12 +15,12 @@
 function(py_test_modules TARGET_NAME)
     set(options SERIAL)
     set(oneValueArgs "")
-    set(multiValueArgs MODULES DEPS ENVS)
+    set(multiValueArgs MODULES DEPS ENVS PARAMS)
     cmake_parse_arguments(py_test_modules "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     add_test(NAME ${TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E env CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle-plugins/ PYTHONPATH=${PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH} ${py_test_modules_ENVS}
-        python ${PYTHON_SOURCE_DIR}/tools/test_runner.py ${py_test_modules_MODULES}
+        python ${PYTHON_SOURCE_DIR}/tools/test_runner.py ${py_test_modules_MODULES} ${py_test_modules_PARAMS}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     if (py_test_modules_SERIAL)
@@ -29,5 +29,11 @@ function(py_test_modules TARGET_NAME)
 endfunction()
 
 py_test_modules(test_MNIST_model MODULES test_MNIST_model)
+
+# add dynamic model test
+py_test_modules(test_lenet5_base MODULES test_lenet5 PARAMS "")
+py_test_modules(test_lenet5_ampo1 MODULES test_lenet5 PARAMS "--precision='ampo1'")
+py_test_modules(test_lenet5_ampo2 MODULES test_lenet5 PARAMS "--precision='ampo2'")
+py_test_modules(test_lenet5_dy2static MODULES test_lenet5 PARAMS "--to_staic=True")
 
 add_subdirectory(unittests)

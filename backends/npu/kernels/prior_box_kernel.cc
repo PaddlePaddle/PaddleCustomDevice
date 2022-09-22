@@ -76,21 +76,25 @@ void PriorBoxKernel(const Context& dev_ctx,
   out->Resize(phi::make_ddim({out->numel()}));
   var->Resize(phi::make_ddim({var->numel()}));
 
-  const auto& runner1 =
-      NpuOpRunner("SliceD",
-                  {out_t},
-                  {*out},
-                  {{"offsets", std::vector<int64_t>({0})},
-                   {"size", std::vector<int64_t>({out->numel()})}});
-  runner1.Run(stream);
+  std::vector<int64_t> offset1(1, 0);
+  std::vector<int64_t> size1(1, out->numel());
+  std::vector<int64_t> offset2(1, out->numel());
+  std::vector<int64_t> size2(1, var->numel());
 
-  const auto& runner2 =
-      NpuOpRunner("SliceD",
-                  {out_t},
-                  {*var},
-                  {{"offsets", std::vector<int64_t>({out->numel()})},
-                   {"size", std::vector<int64_t>({var->numel()})}});
-  runner2.Run(stream);
+  NpuOpRunner runner1;
+  runner1.SetType("Slice")
+      .AddInput(out_t)
+      .AddInput(dev_ctx, std::move(offset1))
+      .AddInput(dev_ctx, std::move(size1))
+      .AddOutput(*out)
+      .Run(stream);
+  NpuOpRunner runner2;
+  runner2.SetType("Slice")
+      .AddInput(out_t)
+      .AddInput(dev_ctx, std::move(offset2))
+      .AddInput(dev_ctx, std::move(size2))
+      .AddOutput(*var)
+      .Run(stream);
 
   out->Resize(out_dim);
   var->Resize(var_dim);

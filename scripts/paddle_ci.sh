@@ -83,14 +83,14 @@ function custom_npu_test() {
     pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
 
     # custom_npu build and install
-    cd ${REPO_ROOT}/backends/npu
+    cd ${REPO_ROOT}/backends/npu/
     export WITH_TESTING=ON
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
-    cd ${REPO_ROOT}/backends/npu
-    pip install build/dist/*.whl
+    cd ${REPO_ROOT}/backends/npu/build
+    pip install dist/*.whl
 
     # run ut
     ut_total_startTime_s=`date +%s`

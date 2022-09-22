@@ -63,9 +63,13 @@ void PadGradKernel(const Context& dev_ctx,
     }
   }
 
-  const auto& runner = NpuOpRunner(
-      "SliceD", {dout}, {*dx}, {{"offsets", offsets}, {"size", size}});
-  runner.Run(stream);
+  NpuOpRunner runner;
+  runner.SetType("Slice")
+      .AddInput(dout)
+      .AddInput(dev_ctx, std::move(offsets))
+      .AddInput(dev_ctx, std::move(size))
+      .AddOutput(*dx)
+      .Run(stream);
 }
 
 }  // namespace custom_kernel

@@ -28,6 +28,7 @@ set(CNNL_LIB ${NEUWARE_LIB_DIR}/libcnnl.so)
 set(CNRT_LIB ${NEUWARE_LIB_DIR}/libcnrt.so)
 set(CNPAPI_LIB ${NEUWARE_LIB_DIR}/libcnpapi.so)
 set(CNCL_LIB ${NEUWARE_LIB_DIR}/libcncl.so)
+set(MLUOP_LIB ${NEUWARE_LIB_DIR}/libmluops.so)
 
-set(NEUWARE_LIBS ${CNNL_LIB} ${CNRT_LIB} ${CNPAPI_LIB} ${CNCL_LIB})
+set(NEUWARE_LIBS ${CNNL_LIB} ${CNRT_LIB} ${CNPAPI_LIB} ${CNCL_LIB} ${MLUOP_LIB})
 

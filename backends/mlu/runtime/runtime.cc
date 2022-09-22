@@ -186,8 +186,13 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlCreate(&handle));
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlSetQueue(handle, queue));
 
+  mluOpHandle_t op_handle;
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpCreate(&op_handle));
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetQueue(op_handle, queue));
+
   mlu_stream->queue = queue;
   mlu_stream->handle = handle;
+  mlu_stream->op_handle = op_handle;
 
   *stream = reinterpret_cast<C_Stream>(mlu_stream);
 
@@ -196,7 +201,10 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDestroy(GetHandle(stream)));
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpDestroy(GetOpHandle(stream)));
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueDestroy(GetQueue(stream)));
+
+  
 
   mluStream_t mlu_stream = reinterpret_cast<mluStream_t>(stream);
   delete[] mlu_stream;

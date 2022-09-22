@@ -50,7 +50,11 @@ REG_CPP_TYPE_TO_GE_DTYPE(int16_t, DT_INT16);
 REG_CPP_TYPE_TO_GE_DTYPE(int32_t, DT_INT32);
 REG_CPP_TYPE_TO_GE_DTYPE(int64_t, DT_INT64);
 REG_CPP_TYPE_TO_GE_DTYPE(float, DT_FLOAT);
+REG_CPP_TYPE_TO_GE_DTYPE(phi::dtype::float16, DT_FLOAT16);
+REG_CPP_TYPE_TO_GE_DTYPE(phi::dtype::bfloat16, DT_BF16);
 REG_CPP_TYPE_TO_GE_DTYPE(double, DT_DOUBLE);
+REG_CPP_TYPE_TO_GE_DTYPE(phi::dtype::complex<float>, DT_COMPLEX64);
+REG_CPP_TYPE_TO_GE_DTYPE(phi::dtype::complex<double>, DT_COMPLEX128);
 
 inline ge::DataType string_to_ge_dtype(const std::string& data_type_str) {
   if (data_type_str == "float32") {
@@ -77,6 +81,10 @@ inline ge::DataType string_to_ge_dtype(const std::string& data_type_str) {
     return ge::DataType::DT_BOOL;
   } else if (data_type_str == "float32") {
     return ge::DataType::DT_DOUBLE;
+  } else if (data_type_str == "complex64") {
+    return ge::DataType::DT_COMPLEX64;
+  } else if (data_type_str == "complex128") {
+    return ge::DataType::DT_COMPLEX128;
   } else {
     graph::utils::log() << "[ERROR] string_to_ge_dtype unknown data type: "
                         << data_type_str << std::endl;
@@ -99,6 +107,10 @@ REG_CPP_TYPE_TO_PD_DTYPE(int32_t, INT32);
 REG_CPP_TYPE_TO_PD_DTYPE(int64_t, INT64);
 REG_CPP_TYPE_TO_PD_DTYPE(float, FP32);
 REG_CPP_TYPE_TO_PD_DTYPE(double, FP64);
+REG_CPP_TYPE_TO_PD_DTYPE(phi::dtype::float16, FP16);
+REG_CPP_TYPE_TO_PD_DTYPE(phi::dtype::bfloat16, BF16);
+REG_CPP_TYPE_TO_PD_DTYPE(phi::dtype::complex<float>, COMPLEX64);
+REG_CPP_TYPE_TO_PD_DTYPE(phi::dtype::complex<double>, COMPLEX128);
 
 inline ge::DataType pd_dtype_to_ge_dtype(
     paddle::framework::proto::VarType::Type var_type) {

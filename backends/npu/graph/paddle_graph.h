@@ -29,6 +29,9 @@
 
 #include "graph/framework.pb.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/common/bfloat16.h"
+#include "paddle/phi/common/complex.h"
+#include "paddle/phi/common/float16.h"
 #include "paddle/utils/any.h"
 
 namespace paddle {

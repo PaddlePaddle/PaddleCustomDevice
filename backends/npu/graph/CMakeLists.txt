@@ -13,8 +13,8 @@ set(CMAKE_CXX_FLAGS ${TEMP})
 
 # build graph executor
 proto_library(framework_proto SRCS framework.proto)
-file(GLOB_RECURSE GRAPH_SRCS RELATIVE ${CMAKE_SOURCE_DIR} graph/*.cc)
-file(GLOB_RECURSE GRAPH_ADAPTER_SRCS RELATIVE ${CMAKE_SOURCE_DIR} graph/adapter/*.cc)
+file(GLOB_RECURSE GRAPH_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cc)
+file(GLOB_RECURSE GRAPH_ADAPTER_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} adapter/*.cc)
 add_library(graph_executor STATIC ${RELATIVE} ${CMAKE_CURRENT_BINARY_DIR}/framework.pb.cc ${GRAPH_SRCS} ${GRAPH_ADAPTER_SRCS})
 add_dependencies(graph_executor framework_proto extern_protobuf)
 target_link_libraries(graph_executor PRIVATE graph ge_runner protobuf)

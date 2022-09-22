@@ -14,8 +14,6 @@
 
 #include "graph/graph_executor.h"
 
-static std::unordered_map<C_Scope, std::shared_ptr<ge::Session>> session_cache;
-
 struct GraphWrapper {
   uint32_t id;
   std::shared_ptr<ge::Graph> ge_graph;
@@ -23,7 +21,10 @@ struct GraphWrapper {
   std::shared_ptr<paddle::framework::ir::IRGraph> ir_graph;
 };
 
-static std::unordered_map<C_Graph, GraphWrapper> graph_cache;
+static std::unordered_map<C_Scope,
+                          std::pair<std::shared_ptr<ge::Session>,
+                                    std::unordered_map<C_Graph, GraphWrapper>>>
+    session_cache;
 
 bool ge_initialized = false;
 
@@ -53,7 +54,6 @@ C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
 
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
   session_cache.clear();
-  graph_cache.clear();
 }
 
 C_Status graph_engine_execute_graph(const C_Device device,
@@ -73,13 +73,13 @@ C_Status graph_engine_execute_graph(const C_Device device,
 
   if (session_cache.find(scope) == session_cache.end()) {
     std::map<ge::AscendString, ge::AscendString> options;
-    session_cache[scope] = std::make_shared<ge::Session>(options);
+    session_cache[scope] = {std::make_shared<ge::Session>(options), {}};
   }
-  auto session = session_cache[scope].get();
+  auto session = session_cache[scope].first.get();
 
   // 1. Get or create a ge_graph
   bool add_ge_graph = false;
-
+  auto& graph_cache = session_cache[scope].second;
   if (graph_cache.find(graph) == graph_cache.end()) {
     add_ge_graph = true;
     auto id = static_cast<uint32_t>(graph_cache.size());

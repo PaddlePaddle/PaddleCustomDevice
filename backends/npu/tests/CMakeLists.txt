@@ -31,9 +31,16 @@ endfunction()
 py_test_modules(test_MNIST_model MODULES test_MNIST_model)
 
 # add dynamic model test
-py_test_modules(test_lenet5_base MODULES test_lenet5 PARAMS "")
-py_test_modules(test_lenet5_ampo1 MODULES test_lenet5 PARAMS "--precision='ampo1'")
-py_test_modules(test_lenet5_ampo2 MODULES test_lenet5 PARAMS "--precision='ampo2'")
-py_test_modules(test_lenet5_dy2static MODULES test_lenet5 PARAMS "--to_staic=True")
+py_test_modules(test_lenet5_base MODULES test_lenet5_model PARAMS "")
+py_test_modules(test_lenet5_ampo1 MODULES test_lenet5_model PARAMS "--precision='ampo1'")
+py_test_modules(test_lenet5_ampo2 MODULES test_lenet5_model PARAMS "--precision='ampo2'")
+py_test_modules(test_lenet5_dy2static_base MODULES test_lenet5_model PARAMS "--to_staic=True")
+py_test_modules(test_lenet5_dy2static_ampo1 MODULES test_lenet5_model PARAMS "--to_staic=True --precision='ampo1")
+py_test_modules(test_lenet5_dy2static_ampo2 MODULES test_lenet5_model PARAMS "--to_staic=True --precision='ampo2")
+
+# add static model test
+py_test_modules(test_lenet5_static_base MODULES test_lenet5_static PARAMS "")
+py_test_modules(test_lenet5_static_ampo1 MODULES test_lenet5_static PARAMS "--precision='ampo1'")
+py_test_modules(test_lenet5_static_ampo2 MODULES test_lenet5_static PARAMS "--precision='ampo2'")
 
 add_subdirectory(unittests)

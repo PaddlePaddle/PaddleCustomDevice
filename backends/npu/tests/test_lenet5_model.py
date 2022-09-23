@@ -32,9 +32,9 @@ def parse_args():
     parser.add_argument(
         '--device',
         type=str,
-        choices=['cpu', 'ascend'],
+        choices=['cpu', 'gpu', 'ascend'],
         default="ascend",
-        help='device type, support cpu and ascend')
+        help='device type, support cpu gpu and ascend')
     parser.add_argument(
         '--precision',
         type=str,
@@ -158,6 +158,8 @@ def infer_func(saved_model, device_type=None):
     # enable custom device
     if device_type == "ascend":
         config.enable_custom_device("ascend")
+    elif device_type == "gpu":
+        config.enable_use_gpu(100, 0)
     else:
         config.disable_gpu()  # use cpu
 

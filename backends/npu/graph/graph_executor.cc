@@ -161,7 +161,6 @@ C_Status graph_engine_execute_graph(const C_Device device,
 
   for (auto i = 0; i < feed_tensor_num; ++i) {
     std::string tensor_name = global_graph.feed_inputs_[i];
-    graph::utils::log() << "[INFO] feed " << tensor_name << std::endl;
     auto var_node = ir_graph.Var(tensor_name);
     auto var_dims = var_node->dims();
     int numel = std::accumulate(
@@ -182,7 +181,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
                           << std::endl;
       return C_FAILED;
     }
-    graph::utils::log() << "feed " << tensor_name << ", dims="
+    graph::utils::log() << "[INFO] feed " << tensor_name << ", dims="
                         << paddle::framework::ir::to_string(var_dims)
                         << ", ptr=" << data_ptr << ", size="
                         << numel * graph::utils::get_pd_dtype_size(
@@ -231,6 +230,10 @@ C_Status graph_engine_execute_graph(const C_Device device,
                           << std::endl;
       return C_FAILED;
     } else {
+      graph::utils::log() << "[INFO] fetch " << tensor_name << ", dims="
+                          << paddle::framework::ir::to_string(out_dim)
+                          << ", ptr=" << reinterpret_cast<void*>(out_data)
+                          << ", size=" << out.GetSize() << std::endl;
       std::memcpy(data_ptr, out_data, out.GetSize());
     }
   }

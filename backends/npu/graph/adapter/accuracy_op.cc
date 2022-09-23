@@ -60,19 +60,17 @@ class AccuracyAdapter : public custom_graph::OpAdapter {
                           .set_attr_axes(std::vector<int64_t>({0}))
                           .set_attr_keep_dims(false);
 
-    auto reduce_sum_int =
-        ge::op::Cast()
-            .set_input_x(reduce_sum)
-            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
+    // auto reduce_sum_int =
+    //     ge::op::Cast()
+    //         .set_input_x(reduce_sum)
+    //         .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
 
-    graph->AddOp(correct->Name(), reduce_sum_int);
-
-    auto total_int =
-        graph::funcs::constant({1}, std::vector<int>({num_samples}));
-    graph->AddOp(total->Name(), total_int);
+    graph->AddOp(correct->Name(), reduce_sum);
 
     auto total_float = graph::funcs::constant(
         {1}, std::vector<float>({static_cast<float>(num_samples)}));
+    graph->AddOp(total->Name(), total_float);
+    graph->AddInput(total_float);
 
     auto div = ge::op::Div().set_input_x1(reduce_sum).set_input_x2(total_float);
     graph->AddOp(accuracy->Name(), div);

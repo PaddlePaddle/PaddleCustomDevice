@@ -1,16 +1,3 @@
-macro(UNSET_VAR VAR_NAME)
-  unset(${VAR_NAME} CACHE)
-  unset(${VAR_NAME})
-endmacro()
-
-# graph executor dependencies
-include(external/zlib)
-include(external/xxhash)
-set(TEMP ${CMAKE_CXX_FLAGS})
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0)
-include(external/protobuf)
-set(CMAKE_CXX_FLAGS ${TEMP})
-
 # build graph executor
 proto_library(framework_proto SRCS framework.proto)
 file(GLOB_RECURSE GRAPH_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cc)

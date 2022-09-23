@@ -128,8 +128,14 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
     }
 
     if (input_grad) {
+      auto input_size = graph::funcs::constant(
+          {in_dims.size()},
+          std::vector<int64_t>(in_dims.begin(), in_dims.end()));
+      graph->AddInput(input_size);
+
       auto ge_op =
           ge::op::Conv2DBackpropInputD()
+              // .set_input_input_size(input_size)
               .set_input_filter(graph->GetOp(filter->Name()))
               .set_input_out_backprop(graph->GetOp(output_grad->Name()))
               .set_attr_input_size(
@@ -140,7 +146,7 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
               .set_attr_dilations(dilations_vec)
               .set_attr_groups(groups)
               .set_attr_data_format(data_format);
-      graph::funcs::update_input_format(ge_op, "x", data_format);
+      graph::funcs::update_input_format(ge_op, "filter", data_format);
       graph::funcs::update_input_format(ge_op, "out_backprop", data_format);
       graph::funcs::update_output_format(ge_op, "y", data_format);
 
@@ -148,9 +154,15 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
     }
 
     if (filter_grad) {
+      auto filter_size = graph::funcs::constant(
+          {filter_dims.size()},
+          std::vector<int64_t>(filter_dims.begin(), filter_dims.end()));
+      graph->AddInput(filter_size);
+
       auto ge_op =
           ge::op::Conv2DBackpropFilterD()
               .set_input_x(graph->GetOp(input->Name()))
+              // .set_input_filter_size(filter_size)
               .set_input_out_backprop(graph->GetOp(output_grad->Name()))
               .set_attr_filter_size(
                   std::vector<int64_t>(filter_dims.begin(), filter_dims.end()))

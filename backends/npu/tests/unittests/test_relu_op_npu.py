@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -59,6 +60,7 @@ class TestRelu(OpTest):
             self.check_grad_with_place(self.place, ['X'], 'Out')
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestReluFp16(TestRelu):
     def init_dtype(self):
         self.dtype = np.float16
@@ -89,6 +91,7 @@ class TestReluNeg(OpTest):
         self.check_output_with_place(self.place)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestReluNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()

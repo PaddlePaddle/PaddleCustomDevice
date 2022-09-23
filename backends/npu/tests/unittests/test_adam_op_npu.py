@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -110,6 +111,7 @@ class TestAdam(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestAdamWithEpsilonTensor(OpTest):
     def setUp(self):
         self.set_npu()
@@ -164,7 +166,7 @@ class TestAdamWithEpsilonTensor(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
-@unittest.skip(reason="disable_ut in Paddle CI")
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestAdamOpWithSkipUpdate(OpTest):
     def setUp(self):
         self.set_npu()
@@ -217,6 +219,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestAdamOpWithGlobalBetaPow(OpTest):
     def setUp(self):
         self.set_npu()
@@ -274,6 +277,7 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()
@@ -334,6 +338,7 @@ class TestNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss, rtol=1e-3))
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestNetWithEpsilonTensor(unittest.TestCase):
     def _test(self,
               place,

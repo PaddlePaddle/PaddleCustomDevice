@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import unittest
 import numpy as np
 import sys
@@ -79,6 +80,7 @@ class TestTopkV2NPUOp(OpTest):
         self.place = paddle.CustomPlace('npu', 0)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2OpFloat16(TestTopkV2NPUOp):
     def set_attrs(self):
         self.k = 3
@@ -92,6 +94,7 @@ class TestTopkV2OpFloat16(TestTopkV2NPUOp):
         self.input_data = np.random.rand(3, 4).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2OP1Int32(TestTopkV2NPUOp):
     def set_attrs(self):
         self.k = 3
@@ -99,6 +102,7 @@ class TestTopkV2OP1Int32(TestTopkV2NPUOp):
         self.largest = False
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2OP2Int32(TestTopkV2NPUOp):
     def set_attrs(self):
         self.k = 4
@@ -106,6 +110,7 @@ class TestTopkV2OP2Int32(TestTopkV2NPUOp):
         self.largest = False
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2OP3Int32(TestTopkV2NPUOp):
     def set_attrs(self):
         self.k = 6
@@ -113,6 +118,7 @@ class TestTopkV2OP3Int32(TestTopkV2NPUOp):
         self.largest = True
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2OP4Int32(TestTopkV2NPUOp):
     def set_attrs(self):
         self.k = 3
@@ -120,26 +126,31 @@ class TestTopkV2OP4Int32(TestTopkV2NPUOp):
         self.largest = True
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op1Int64(TestTopkV2OP1Int32):
     def set_dtype(self):
         self.dtype = np.int64
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op2Int64(TestTopkV2OP2Int32):
     def set_dtype(self):
         self.dtype = np.int64
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op3Int64(TestTopkV2OP3Int32):
     def set_dtype(self):
         self.dtype = np.int64
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op4Int64(TestTopkV2OP4Int32):
     def set_dtype(self):
         self.dtype = np.int64
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op1Float32(TestTopkV2OP1Int32):
     def set_dtype(self):
         self.dtype = np.float32
@@ -148,6 +159,7 @@ class TestTopkV2Op1Float32(TestTopkV2OP1Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op2Float32(TestTopkV2OP2Int32):
     def set_dtype(self):
         self.dtype = np.float32
@@ -156,6 +168,7 @@ class TestTopkV2Op2Float32(TestTopkV2OP2Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op3Float32(TestTopkV2OP3Int32):
     def set_dtype(self):
         self.dtype = np.float32
@@ -164,6 +177,7 @@ class TestTopkV2Op3Float32(TestTopkV2OP3Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op4Float32(TestTopkV2OP4Int32):
     def set_dtype(self):
         self.dtype = np.float32
@@ -172,6 +186,7 @@ class TestTopkV2Op4Float32(TestTopkV2OP4Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op1Float64(TestTopkV2OP1Int32):
     def set_dtype(self):
         self.dtype = np.float64
@@ -180,6 +195,7 @@ class TestTopkV2Op1Float64(TestTopkV2OP1Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op2Float64(TestTopkV2OP2Int32):
     def set_dtype(self):
         self.dtype = np.float64
@@ -188,6 +204,7 @@ class TestTopkV2Op2Float64(TestTopkV2OP2Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op3Float64(TestTopkV2OP3Int32):
     def set_dtype(self):
         self.dtype = np.float64
@@ -196,6 +213,7 @@ class TestTopkV2Op3Float64(TestTopkV2OP3Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
     def set_dtype(self):
         self.dtype = np.float64
@@ -204,6 +222,7 @@ class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopKAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True

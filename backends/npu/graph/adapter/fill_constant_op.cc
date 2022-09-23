@@ -66,17 +66,9 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
 
     // for loss grad
     if (!graph->HasOp(out->Name())) {
-      std::string var_name = out->Name();
-      auto var_dims = out->dims();
-      ge::TensorDesc var_desc(
-          ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
-          ge::Format::FORMAT_NCHW,
-          graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
-      var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
-
-      auto ge_op = ge::op::Variable();
-      ge_op.update_output_desc_y(var_desc);
-      graph->AddOp(var_name, ge_op);
+      graph->AddInput(constant_op);
+      graph->AddOp(out->Name(), constant_op);
+      return;
     }
 
     // inplace op

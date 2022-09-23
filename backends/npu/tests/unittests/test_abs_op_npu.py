@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -59,9 +60,13 @@ class TestNPUAbs(OpTest):
 
 # To-do(qili93): numeric_place will use CPUPlace in op_test.py and abs do not have CPUKernel for float16, to be uncommented after numeric_place fixed
 # @unittest.skipIf(not paddle.is_compiled_with_npu(), "core is not compiled with NPU")
-# class TestNPUAbsFP16(TestNPUAbs):
-#     def init_dtype(self):
-#         self.dtype = np.float16
+@unittest.skipIf(
+    os.getenv('FLAGS_use_graph_engine', None) == '1',
+    "fp16 is not supported on cpu")
+class TestNPUAbsFP16(TestNPUAbs):
+    def init_dtype(self):
+        self.dtype = np.float16
+
 
 if __name__ == '__main__':
     unittest.main()

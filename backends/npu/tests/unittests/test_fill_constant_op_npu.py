@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -48,6 +49,7 @@ class TestFillConstant(OpTest):
         self.check_output_with_place(self.place)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFillConstantInt(OpTest):
     def setUp(self):
         self.set_npu()
@@ -72,6 +74,7 @@ class TestFillConstantInt(OpTest):
         self.check_output_with_place(self.place)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFillConstantInt64(OpTest):
     def setUp(self):
         self.set_npu()
@@ -96,6 +99,7 @@ class TestFillConstantInt64(OpTest):
         self.check_output_with_place(self.place)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFillConstantFP16(OpTest):
     def setUp(self):
         self.set_npu()
@@ -120,6 +124,7 @@ class TestFillConstantFP16(OpTest):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFillConstantBool(OpTest):
     def setUp(self):
         self.set_npu()
@@ -144,6 +149,7 @@ class TestFillConstantBool(OpTest):
         self.check_output_with_place(self.place)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFillConstantWithPlaceType(OpTest):
     def setUp(self):
         self.set_npu()

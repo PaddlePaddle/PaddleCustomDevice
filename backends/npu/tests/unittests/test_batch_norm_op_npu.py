@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import unittest
 import numpy as np
 import sys
@@ -294,6 +295,7 @@ class TestBatchNormOpInference(unittest.TestCase):
         pass
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFP16BatchNormOpInference(TestBatchNormOpInference):
     def setUp(self):
         self.dtype = np.float16
@@ -301,6 +303,7 @@ class TestFP16BatchNormOpInference(TestBatchNormOpInference):
         self.data_formats = ["NCHW", "NHWC"]
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestBatchNormOpTraining(unittest.TestCase):
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -497,11 +500,13 @@ class TestBatchNormOpTraining(unittest.TestCase):
         pass
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFP16BatchNormOpTraining(TestBatchNormOpTraining):
     def init_dtype(self):
         self.dtype = np.float16
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestBatchNormOpTrainingCase1(TestBatchNormOpTraining):
     def init_test_case(self):
         self.use_global_stats = False
@@ -509,6 +514,7 @@ class TestBatchNormOpTrainingCase1(TestBatchNormOpTraining):
         self.fetch_list = ['y', 'mean', 'variance', 'x@GRAD']
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestBatchNormOpTrainingMomentumVariable(TestBatchNormOpTraining):
     def init_test_case(self):
         self.use_momentum_variable = True
@@ -520,6 +526,7 @@ class TestBatchNormOpTrainingMomentumVariable(TestBatchNormOpTraining):
         ]
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
     def init_test_case(self):
         self.use_global_stats = True
@@ -616,6 +623,7 @@ class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
         return y, mean_out, variance_out, mean, saved_variance, x_grad, scale_grad, bias_grad
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestBatchNormOpFreezeStatsAndScaleBiasTraining(
         TestBatchNormOpFreezeStatsTraining):
     def init_test_case(self):
@@ -624,6 +632,7 @@ class TestBatchNormOpFreezeStatsAndScaleBiasTraining(
         self.fetch_list = ['y', 'mean', 'variance', 'x@GRAD']
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestDygraphBatchNormTrainableStats(unittest.TestCase):
     def test_dygraph(self):
         places = [fluid.CustomPlace('npu', 0)]

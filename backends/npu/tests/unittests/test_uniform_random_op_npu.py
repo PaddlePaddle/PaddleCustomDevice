@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import sys
 import subprocess
 import unittest
@@ -70,6 +71,7 @@ class TestUniformRandomOp(OpTest):
             self.test_check_api()
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
@@ -106,6 +108,7 @@ def output_hist(out):
     return hist, prob
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestNPUUniformRandomOp(OpTest):
     def setUp(self):
         self.set_npu()
@@ -141,6 +144,7 @@ class TestNPUUniformRandomOp(OpTest):
                 hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]

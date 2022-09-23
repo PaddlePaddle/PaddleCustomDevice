@@ -84,7 +84,6 @@ function custom_npu_test() {
 
     # custom_npu build and install
     cd ${REPO_ROOT}/backends/npu/
-    export WITH_TESTING=ON
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;

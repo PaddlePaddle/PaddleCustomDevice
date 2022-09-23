@@ -41,7 +41,7 @@ cd backends/npu
 # 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# 3) 编译选项，是否打开单元测试编译，默认值为 OFF
+# 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
 
 # 4) 执行编译脚本

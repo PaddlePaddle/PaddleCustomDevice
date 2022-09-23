@@ -352,4 +352,22 @@ inline std::vector<T> get_new_data_from_tensor(
   return vec_new_data;
 }
 
+template <typename T>
+class MPTypeTrait {
+ public:
+  using Type = T;
+};
+
+template <>
+class MPTypeTrait<phi::dtype::float16> {
+ public:
+  using Type = float;
+};
+
+template <>
+class MPTypeTrait<phi::dtype::bfloat16> {
+ public:
+  using Type = float;
+};
+
 }  // namespace custom_kernel

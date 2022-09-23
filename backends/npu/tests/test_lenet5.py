@@ -29,9 +29,23 @@ def parse_args():
         return v.lower() in ("true", "t", "1")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", type=str, default="ascend")
-    parser.add_argument("--precision", type=str, default="fp32")  # ampo1, ampo2
-    parser.add_argument("--to_static", type=str2bool, default=False)
+    parser.add_argument(
+        '--device',
+        type=str,
+        choices=['cpu', 'ascend'],
+        default="ascend",
+        help='device type, support cpu and ascend')
+    parser.add_argument(
+        '--precision',
+        type=str,
+        choices=['fp32', 'ampo1', 'ampo2'],
+        default="fp32",
+        help='precision type, support fp32 ampo1 and ampo2')
+    parser.add_argument(
+        '--to_static',
+        type=str2bool,
+        default=False,
+        help='whether to enable dynamic to static or not, true or false')
     return parser.parse_args()
 
 
@@ -78,7 +92,7 @@ class LeNet5(nn.Layer):
         return out
 
 
-def train_func(epoch_id, train_loader, model, cost, optimizer):
+def train_func_base(epoch_id, train_loader, model, cost, optimizer):
     total_step = len(train_loader)
     epoch_start = time.time()
     for batch_id, (images, labels) in enumerate(train_loader()):
@@ -93,7 +107,28 @@ def train_func(epoch_id, train_loader, model, cost, optimizer):
             epoch_id + 1, EPOCH_NUM, batch_id + 1, total_step, loss.numpy()))
     epoch_end = time.time()
     print(
-        f"Epoch ID: {epoch_id+1}, Train epoch time: {(epoch_end - epoch_start) * 1000} ms"
+        f"Epoch ID: {epoch_id+1}, FP32 train epoch time: {(epoch_end - epoch_start) * 1000} ms"
+    )
+
+
+def train_func_ampo1(epoch_id, train_loader, model, cost, optimizer, scaler):
+    total_step = len(train_loader)
+    epoch_start = time.time()
+    for batch_id, (images, labels) in enumerate(train_loader()):
+        # forward
+        with paddle.amp.auto_cast(level='O1'):
+            outputs = model(images)
+            loss = cost(outputs, labels)
+        # backward and optimize
+        scaled = scaler.scale(loss)
+        scaled.backward()
+        scaler.minimize(optimizer, scaled)
+        optimizer.clear_grad()
+        print("Epoch [{}/{}], Step [{}/{}], Loss: {}".format(
+            epoch_id + 1, EPOCH_NUM, batch_id + 1, total_step, loss.numpy()))
+    epoch_end = time.time()
+    print(
+        f"Epoch ID: {epoch_id+1}, AMPO1 train epoch time: {(epoch_end - epoch_start) * 1000} ms"
     )
 
 
@@ -153,15 +188,21 @@ def main():
     # model
     model = LeNet5()
 
-    # convert to static model
-    if args.to_static:
-        build_strategy = paddle.static.BuildStrategy()
-        mnist = paddle.jit.to_static(model, build_strategy=build_strategy)
-
     # cost and optimizer
     cost = nn.CrossEntropyLoss()
     optimizer = paddle.optimizer.Adam(
         learning_rate=0.001, parameters=model.parameters())
+
+    # convert to ampo1 model
+    if args.precision == "ampo1":
+        scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
+        model, optimizer = paddle.amp.decorate(
+            models=model, optimizers=optimizer, level='O1')
+
+    # convert to static model
+    if args.to_static:
+        build_strategy = paddle.static.BuildStrategy()
+        mnist = paddle.jit.to_static(model, build_strategy=build_strategy)
 
     # data loader
     transform = transforms.Compose([
@@ -188,7 +229,11 @@ def main():
 
     # train and eval
     for epoch_id in range(EPOCH_NUM):
-        train_func(epoch_id, train_loader, model, cost, optimizer)
+        if args.precision == "ampo1":
+            train_func_ampo1(epoch_id, train_loader, model, cost, optimizer,
+                             scaler)
+        else:
+            train_func_base(epoch_id, train_loader, model, cost, optimizer)
         test_func(epoch_id, test_loader, model, cost)
 
     # save inference model

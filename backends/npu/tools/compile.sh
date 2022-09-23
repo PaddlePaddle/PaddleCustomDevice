@@ -19,7 +19,6 @@ set -ex
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
 # prepare build directory
-rm -rf ${SOURCE_ROOT}/build
 mkdir -p ${SOURCE_ROOT}/build
 cd ${SOURCE_ROOT}/build
 

@@ -114,7 +114,8 @@ export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_d
 # 4) 执行编译脚本
 bash tools/compile.sh
 
-# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件
+# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
+export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
 ```
 
 ### 推理功能验证

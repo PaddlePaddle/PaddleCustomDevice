@@ -17,7 +17,11 @@ find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Developmen
 if(DEFINED ENV{PADDLE_CUSTOM_PATH})
     set(PADDLE_DIR $ENV{PADDLE_CUSTOM_PATH})
 else()
-    set(PADDLE_DIR ${Python_SITEARCH}/paddle)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" "-c"
+        "import re, paddle; print(re.compile('/__init__.py.*').sub('',paddle.__file__))"
+        OUTPUT_VARIABLE PADDLE_DIR
+        ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
 if(NOT EXISTS ${PADDLE_DIR})

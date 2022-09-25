@@ -74,8 +74,6 @@ set(ONEAPI_SYCL_INCLUDE "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/include/syc
 set(ONEAPI_SYCL_LIBDIR "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/lib/")
 set(CMAKE_CXX_COMPILER "${DPCPP_COMPIER_PATH}")
 ##########################################
-
-
 set(ONEDNN_INC "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/include")
 set(ONEDNN_LIB "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/lib")
 ##########################################
@@ -92,17 +90,33 @@ include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
+option(WITH_KERNELS    "compile with custom kernels"      ON)
 option(WITH_TESTING    "compile with unit testing"        ON)
 
 set(PLUGIN_NAME        "paddle-custom-intel-gpu")
 set(PLUGIN_VERSION     "0.0.1")
 
 include(paddle)
+message(STATUS "PADDLE_BUILD_DIR DIR : ${PADDLE_BUILD_DIR}")
+message(STATUS "ONEDNN_INC DIR : ${ONEDNN_INC}")
+############ Third-party dependencies
 
-include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels)
+# if(NOT DEFINED PADDLE_BUILD_DIR)
+# set(PADDLE_BUILD_DIR "$ENV{HOME}/projects/Paddle/build")
+# endif()
+
+set(BOOST_INC_DIR      "${PADDLE_BUILD_DIR}/third_party/boost/src/extern_boost")
+set(GFLAGS_INC_DIR     "${PADDLE_BUILD_DIR}/third_party/install/gflags/include")
+set(GLOG_INC_DIR       "${PADDLE_BUILD_DIR}/third_party/install/glog/include")
+set(THREAD_INC_DIR     "${PADDLE_BUILD_DIR}/third_party/threadpool/src/extern_threadpool")
+set(THIRD_PARTY_INC_DIR ${BOOST_INC_DIR} ${GFLAGS_INC_DIR} ${GLOG_INC_DIR} ${THREAD_INC_DIR})
+
+include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${THIRD_PARTY_INC_DIR} ${CMAKE_SOURCE_DIR}/kernels)
 link_directories(${PADDLE_LIB_DIR} ${ONEDNN_LIB} ${ONEAPI_SYCL_LIBDIR})
 
 add_definitions(-std=c++14)
+add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)  # for out CustomContext temporarily
+add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)  # for out fluid separate temporarily
 
 file(GLOB_RECURSE PLUGIN_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc)
 list(APPEND PLUGIN_SRCS runtime/runtime.cc)
@@ -110,6 +124,9 @@ list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})  # special name
+
+include(third_party)
+add_dependencies(${PLUGIN_NAME} third_party)
 
 if( "${CMAKE_CXX_COMPILER}" STREQUAL "${DPCPP_COMPIER_PATH}" )
         add_definitions(-DUSEDPCPP)

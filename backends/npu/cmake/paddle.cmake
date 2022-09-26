@@ -21,7 +21,7 @@ else()
         COMMAND "${Python_EXECUTABLE}" "-c"
         "import re, paddle; print(re.compile('/__init__.py.*').sub('',paddle.__file__))"
         OUTPUT_VARIABLE PADDLE_DIR
-        ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
 if(NOT EXISTS ${PADDLE_DIR})

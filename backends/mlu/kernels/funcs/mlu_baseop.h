@@ -1919,6 +1919,28 @@ class MLUCnnl {
                               const cnnlTensorDescriptor_t output_desc,
                               void* output);
 
+  static void SmoothL1LossForward(const Context& ctx,
+                                  const cnnlTensorDescriptor_t x_desc,
+                                  const void* x,
+                                  const cnnlTensorDescriptor_t t_desc,
+                                  const void* target,
+                                  const float beta,
+                                  const cnnlSmoothL1LossAlgorithm_t algorithm,
+                                  const cnnlTensorDescriptor_t y_desc,
+                                  void* y);
+
+  static void SmoothL1LossBackward(const Context& ctx,
+                                   const cnnlTensorDescriptor_t x_desc,
+                                   const void* x,
+                                   const cnnlTensorDescriptor_t target_desc,
+                                   const void* target,
+                                   const cnnlTensorDescriptor_t dy_desc,
+                                   const void* dy,
+                                   const float beta,
+                                   const cnnlSmoothL1LossAlgorithm_t algorithm,
+                                   const cnnlTensorDescriptor_t dx_desc,
+                                   void* dx);
+
   static void EmbeddingForward(const Context& ctx,
                                const int padding_idx,
                                const cnnlTensorDescriptor_t weight_desc,

@@ -138,29 +138,6 @@ void MultiplyKernelGPU(const phi::Context& dev_ctx,
 }
 
 
-
-void inline align_broadcast(std::vector<int64_t>& from,
-                            std::vector<int64_t>& to, int axis) {
-  std::vector<int64_t> tmp(from.size(), 1);
-  std::copy(to.begin(),
-            to.end(),
-            tmp.begin() + ((axis == -1) ? (from.size() - to.size()) : axis));
-  to = std::move(tmp);
- }
-
-void update_broadcast(std::vector<int64_t>& x, std::vector<int64_t>& y, int axis) {
-
-   if(x.size()==y.size()) return;
-
-   if(x.size()>y.size())
-   {
-     align_broadcast(x,y,axis);
-   } else {
-     align_broadcast(y,x,axis);
-   }
-}
-
-
 template <typename T>
 void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
                           const phi::DenseTensor& x,
@@ -186,8 +163,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
   dnnl::memory::dims dims_y = y.dims();
   dnnl::memory::dims dims_out = out->dims();
 
-  update_broadcast(dims_x,dims_y,axis);
-
+  phi::update_broadcast(dims_x,dims_y,axis);
 
  auto md_x = memory::desc(dims_x, dnn_support::toDnnType<T>::type, dnn_support::dims2Tag(dims_x));
 

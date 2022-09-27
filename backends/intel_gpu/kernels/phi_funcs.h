@@ -358,5 +358,25 @@ static inline std::vector<int64_t> BroadcastDims(
 
   return dst_dims;
 }
+static void inline align_broadcast(std::vector<int64_t>& from,
+                            std::vector<int64_t>& to, int axis) {
+  std::vector<int64_t> tmp(from.size(), 1);
+  std::copy(to.begin(),
+            to.end(),
+            tmp.begin() + ((axis == -1) ? (from.size() - to.size()) : axis));
+  to = std::move(tmp);
+ }
+
+static void update_broadcast(std::vector<int64_t>& x, std::vector<int64_t>& y, int axis) {
+
+   if(x.size()==y.size()) return;
+
+   if(x.size()>y.size())
+   {
+     align_broadcast(x,y,axis);
+   } else {
+     align_broadcast(y,x,axis);
+   }
+}
 
 }  // namespace phi

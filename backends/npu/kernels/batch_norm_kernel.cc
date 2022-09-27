@@ -72,16 +72,16 @@ void BatchNormKernel(const Context& dev_ctx,
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
   } else {
-    dev_ctx.template Alloc<T>(mean_out);
-    dev_ctx.template Alloc<T>(variance_out);
-    dev_ctx.template Alloc<T>(saved_mean);
-    dev_ctx.template Alloc<T>(saved_variance);
+    dev_ctx.template Alloc<float>(mean_out);
+    dev_ctx.template Alloc<float>(variance_out);
+    dev_ctx.template Alloc<float>(saved_mean);
+    dev_ctx.template Alloc<float>(saved_variance);
 
     phi::DenseTensor sum, square_sum;
     sum.Resize(running_mean.dims());
     square_sum.Resize(running_mean.dims());
-    dev_ctx.template Alloc<T>(&sum);
-    dev_ctx.template Alloc<T>(&square_sum);
+    dev_ctx.template Alloc<float>(&sum);
+    dev_ctx.template Alloc<float>(&square_sum);
     // BNTrainingReduce ONLY support rank = 4
     if (x.dims().size() == 3) {
       auto x_shape_vec = phi::vectorize(x.dims());
@@ -148,8 +148,8 @@ void BatchNormGradKernel(
   phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
   scale_grad_tmp.Resize(scale.dims());
   bias_grad_tmp.Resize(bias.dims());
-  dev_ctx.template Alloc<T>(&scale_grad_tmp);
-  dev_ctx.template Alloc<T>(&bias_grad_tmp);
+  dev_ctx.template Alloc<float>(&scale_grad_tmp);
+  dev_ctx.template Alloc<float>(&bias_grad_tmp);
 
   if (d_scale == nullptr) {
     d_scale = &scale_grad_tmp;
@@ -160,8 +160,8 @@ void BatchNormGradKernel(
 
   auto stream = dev_ctx.stream();
   if (d_scale && d_bias) {
-    dev_ctx.template Alloc<T>(d_scale);
-    dev_ctx.template Alloc<T>(d_bias);
+    dev_ctx.template Alloc<float>(d_scale);
+    dev_ctx.template Alloc<float>(d_bias);
 
     if (use_global_stats) {
       const auto* running_mean = mean.get_ptr();

@@ -84,7 +84,6 @@ function custom_npu_test() {
 
     # custom_npu build and install
     cd ${REPO_ROOT}/backends/npu/
-    export WITH_TESTING=ON
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
@@ -98,7 +97,7 @@ function custom_npu_test() {
     tmpfile=$tmp_dir/$tmpfile_rand
     ctest --output-on-failure | tee $tmpfile;
     collect_failed_tests
-set +x
+
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0

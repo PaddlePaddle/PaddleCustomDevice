@@ -160,8 +160,8 @@ void BatchNormGradKernel(
 
   auto stream = dev_ctx.stream();
   if (d_scale && d_bias) {
-    dev_ctx.template Alloc<T>(d_scale);
-    dev_ctx.template Alloc<T>(d_bias);
+    dev_ctx.template Alloc<float>(d_scale);
+    dev_ctx.template Alloc<float>(d_bias);
 
     if (use_global_stats) {
       const auto* running_mean = mean.get_ptr();

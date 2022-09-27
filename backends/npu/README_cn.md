@@ -41,7 +41,7 @@ cd backends/npu
 # 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# 3) 编译选项，是否打开单元测试编译，默认值为 OFF
+# 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
 
 # 4) 执行编译脚本
@@ -114,7 +114,8 @@ export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_d
 # 4) 执行编译脚本
 bash tools/compile.sh
 
-# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件
+# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
+export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
 ```
 
 ### 推理功能验证

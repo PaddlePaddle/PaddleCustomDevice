@@ -28,7 +28,7 @@ paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places
@@ -121,7 +121,7 @@ class TestCastOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace('custom_cpu', 0))
+                np.array([[-1]]), [[1]], fluid.CustomPlace('intel_gpu', 0))
             self.assertRaises(TypeError, fluid.layers.cast, x1, 'int32')
 
 

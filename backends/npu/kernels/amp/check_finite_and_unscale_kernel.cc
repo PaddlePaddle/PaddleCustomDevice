@@ -55,9 +55,13 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
 
   for (const auto& xs_item : xs) {
     std::vector<int> axes;
-    phi::DenseTensor xs_is_finite, xs_is_finite_f;
+    phi::DenseTensor xs_is_finite, xs_is_finite_f, xs_is_inf, xs_is_nan;
     xs_is_finite.Resize(xs_item->dims());
     dev_ctx.template Alloc<bool>(&xs_is_finite);
+    xs_is_inf.Resize(xs_item->dims());
+    dev_ctx.template Alloc<bool>(&xs_is_inf);
+    xs_is_nan.Resize(xs_item->dims());
+    dev_ctx.template Alloc<bool>(&xs_is_nan);
     xs_is_finite_f.Resize(xs_item->dims());
     dev_ctx.template Alloc<T>(&xs_is_finite_f);
 
@@ -65,13 +69,17 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
       axes.push_back(i);
     }
 
-    const auto& runner_check_finite =
-        NpuOpRunner("IsFinite", {*xs_item}, {xs_is_finite}, {});
-    runner_check_finite.Run(stream);
+    const auto& runner_check_inf =
+        NpuOpRunner("IsInf", {*xs_item}, {xs_is_inf}, {});
+    runner_check_inf.Run(stream);
 
-    const auto& runner_logical_not =
-        NpuOpRunner("LogicalNot", {xs_is_finite}, {xs_is_finite}, {});
-    runner_logical_not.Run(stream);
+    const auto& runner_check_nan =
+        NpuOpRunner("IsNan", {*xs_item}, {xs_is_nan}, {});
+    runner_check_nan.Run(stream);
+
+    const auto& runner_logical_and =
+        NpuOpRunner("LogicalAnd", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
+    runner_logical_and.Run(stream);
 
     const auto& runner_cast = NpuOpRunner(
         "Cast",

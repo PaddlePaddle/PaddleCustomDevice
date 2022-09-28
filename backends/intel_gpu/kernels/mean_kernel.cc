@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 #include <CL/sycl.hpp>
 #include "dnn_support.hpp"
+
 namespace custom_kernel {
 
 template <typename T>
@@ -26,12 +28,14 @@ void MeanAllKernel(const phi::Context& dev_ctx,
   auto x_data = x.data<T>();
   auto numel = x.numel();
 
-  show_kernel("Mean-Sycl type=" << dnn_support::type2String<T>::name());
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  show_debug("Mean numel="<< numel );
+  VLOG(3) << "MeanAll, size="<< numel;
+  show_kernel("MeanAll, size="<< numel);
 
   auto e1 = q->fill(out_data, static_cast<T>(0), 1);
+
+  
   q->single_task(e1, [=](){
     for (auto i = 0; i < numel; ++i) {
       *out_data += x_data[i];
@@ -56,12 +60,11 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   auto numel = x_grad->numel();
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  show_kernel("MeanAllGrad-Sycl type=" << dnn_support::type2String<T>::name());
+  VLOG(3) << "MeanAllGrad, size="<< numel;
+  show_kernel("MeanAllGrad, size="<< numel);
 
-  q->submit([&](sycl::handler& h) {
-    h.parallel_for(numel, [=](auto& i){
+  q->parallel_for(numel, [=](auto& i){
         x_grad_data[i] = *out_grad_data / static_cast<T>(numel);
-    });
   });
   q->wait();
 }

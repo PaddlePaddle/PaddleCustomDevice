@@ -125,7 +125,7 @@ class TestLayerNormOp(unittest.TestCase):
         self.dtype = np.float32
         self.atol = 1e-4
 
-    def __assert_close(self, tensor, np_array, msg, atol=1e-4):
+    def __assert_close(self, tensor, np_array, msg, atol=1e-3):
         self.assertTrue(
             np.allclose(
                 np.array(tensor).astype(np_array.dtype), np_array, atol=atol),

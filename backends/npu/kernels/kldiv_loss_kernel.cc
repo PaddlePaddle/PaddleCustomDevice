@@ -74,10 +74,19 @@ void KLDivLossKernel(const Context& dev_ctx,
     const auto& mul_runner =
         NpuOpRunner("Mul", {*out, cliped_target}, {*out}, {});
     mul_runner.Run(stream);
-  } else if ("batchmean" == reduction || "sum" == reduction) {
+  } else if ("sum" == reduction) {
     const auto& runner =
         NpuOpRunner("KLDiv", {x, label}, {*out}, {{"reduction", reduction}});
     runner.Run(stream);
+  } else if ("batchmean" == reduction) {
+    const auto& runner = NpuOpRunner(
+        "KLDiv", {x, label}, {*out}, {{"reduction", std::string("sum")}});
+    runner.Run(stream);
+
+    const int batch = x.dims()[0];
+    const auto& muls_runner = NpuOpRunner(
+        "Muls", {*out}, {*out}, {{"value", static_cast<float>(1.0 / batch)}});
+    muls_runner.Run(stream);
   } else if ("mean" == reduction) {
     const auto& runner = NpuOpRunner(
         "KLDiv", {x, label}, {*out}, {{"reduction", std::string("sum")}});

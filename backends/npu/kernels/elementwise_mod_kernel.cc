@@ -44,10 +44,41 @@ void ModuloRawKernel(const Context& dev_ctx,
         dev_ctx, &x, &y, axis, &transformed_x, &transformed_y);
   }
   dev_ctx.template Alloc<T>(out);
-  const auto& runner =
-      NpuOpRunner("FloorMod", {transformed_x, transformed_y}, {*out}, {});
   auto stream = dev_ctx.stream();
-  runner.Run(stream);
+
+  if (transformed_x.dtype() != phi::DataType::FLOAT16) {
+    const auto& runner =
+        NpuOpRunner("FloorMod", {transformed_x, transformed_y}, {*out}, {});
+    runner.Run(stream);
+  } else {
+    // TODO(songkai05): In CANN512, npu op FloorMod returns false results in
+    // dtype FLOAT16, so cast inputs to FLOAT32 temporarily until Ascend fix
+    // this problem.
+    phi::DenseTensor x_float32, y_float32, out_float32;
+    phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, transformed_x.dims()};
+    x_float32.set_meta(meta);
+    y_float32.set_meta(meta);
+    out_float32.set_meta(meta);
+    dev_ctx.template Alloc<float>(&x_float32);
+    dev_ctx.template Alloc<float>(&y_float32);
+    dev_ctx.template Alloc<float>(&out_float32);
+
+    const auto& cast_runner1 = NpuOpRunner(
+        "Cast", {transformed_x}, {x_float32}, {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(stream);
+
+    const auto& cast_runner2 = NpuOpRunner(
+        "Cast", {transformed_y}, {y_float32}, {{"dst_type", ACL_FLOAT}});
+    cast_runner2.Run(stream);
+
+    const auto& runner =
+        NpuOpRunner("FloorMod", {x_float32, y_float32}, {out_float32}, {});
+    runner.Run(stream);
+
+    const auto& cast_runner3 =
+        NpuOpRunner("Cast", {out_float32}, {*out}, {{"dst_type", ACL_FLOAT16}});
+    cast_runner3.Run(stream);
+  }
 }
 
 template <typename T, typename Context>

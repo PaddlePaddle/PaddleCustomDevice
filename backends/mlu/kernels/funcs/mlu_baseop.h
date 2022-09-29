@@ -2284,7 +2284,7 @@ class MLUCnnl {
       void* diff_x);
 };
 
-class MLUOp {
+class MLUOP {
   public:
   static void OpYoloBox(
       const Context& ctx,

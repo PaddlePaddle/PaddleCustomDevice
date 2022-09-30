@@ -128,12 +128,23 @@ void FullLikeKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   auto shape = out->dims();
-  NpuOpRunner runner;
-  runner.SetType("Fill")
-      .AddInput(dev_ctx, phi::vectorize(shape))
-      .AddInput(tensor_tmp)
-      .AddOutput(*out)
-      .Run(stream);
+
+  if (std::is_same<T, bool>::value) {
+    // In CANN512, NPU op Fill returns false results when dtype is bool,
+    // so use memset instead.
+    ACL_CHECK(aclrtMemsetAsync(out->data(),
+                               sizeof(bool) * out->numel(),
+                               static_cast<int32_t>(value),
+                               sizeof(bool) * out->numel(),
+                               stream));
+  } else {
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, phi::vectorize(shape))
+        .AddInput(tensor_tmp)
+        .AddOutput(*out)
+        .Run(stream);
+  }
 }
 
 template <typename T, typename Context>

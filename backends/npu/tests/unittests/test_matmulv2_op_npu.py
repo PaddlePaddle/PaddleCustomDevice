@@ -148,6 +148,13 @@ class TestMatMulOp5(TestMatMulV2Op):
         self.trans_x = True
         self.trans_y = False
 
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ['X', 'Y'], 'Out', numeric_place=paddle.CPUPlace())
+
 
 class TestMatMulOp6(TestMatMulV2Op):
     """
@@ -159,6 +166,16 @@ class TestMatMulOp6(TestMatMulV2Op):
         self.y_shape = (102, )
         self.trans_x = True
         self.trans_y = False
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ['X', 'Y'],
+            'Out',
+            numeric_place=paddle.CPUPlace(),
+            max_relative_error=1e-2)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
 
 
 class TestMatMulOp7(TestMatMulV2Op):

@@ -73,8 +73,6 @@ class TestUniformRandomOp(OpTest):
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_cuda():
-            places.append(core.CUDAPlace(0))
         return places
 
     def test_check_output(self):
@@ -146,8 +144,7 @@ class TestNPUUniformRandomOp(OpTest):
 class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_npu():
-            places.append(core.CustomPlace('ascend', 0))
+        places.append(core.CustomPlace('ascend', 0))
         return places
 
     def test_check_output(self):

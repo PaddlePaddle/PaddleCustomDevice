@@ -164,6 +164,7 @@ class TestAdamWithEpsilonTensor(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
+@unittest.skip(reason="disable_ut in Paddle CI")
 class TestAdamOpWithSkipUpdate(OpTest):
     def setUp(self):
         self.set_npu()
@@ -477,8 +478,7 @@ class TestNetWithEpsilonTensor(unittest.TestCase):
     def test_adam_api(self):
         # NOTE(zhiqiu): cpu and gpu has different seed, so should compare separatly.
         self._test_with_place(paddle.CPUPlace())
-        if core.is_compiled_with_npu():
-            self._test_with_place(paddle.CustomPlace('ascend', 0))
+        self._test_with_place(paddle.CustomPlace('ascend', 0))
 
 
 if __name__ == '__main__':

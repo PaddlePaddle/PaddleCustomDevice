@@ -156,7 +156,6 @@ inline mluOpDataType_t ToMluOpDataType(const DataType& dtype) {
   return type;
 }
 
-
 template <typename T>
 inline cnnlDataType_t ToCnnlDataType() {
   auto type = paddle::experimental::CppTypeToDataType<T>::Type();
@@ -174,7 +173,7 @@ inline static cnnlHandle_t GetHandleFromCTX(const Context& dev_ctx) {
 }
 
 inline static mluOpHandle_t GetMLUOpHandleFromCTX(const Context& dev_ctx) {
-   return GetOpHandle(dev_ctx.stream());
+  return GetOpHandle(dev_ctx.stream());
 }
 
 // Converts (via narrowing) a type T value to a type U, and checks that the
@@ -342,11 +341,11 @@ class MLUCnnlTensorDesc {
   cnnlTensorDescriptor_t raw_tensor_desc = nullptr;
 };
 
-//class mlu op tensor desc
-class MLUOpTensorDesc{
-public:
+// class mlu op tensor desc
+class MLUOpTensorDesc {
+ public:
   MLUOpTensorDesc() {}
-  
+
   // SE_DISALLOW_COPY_AND_ASSIGN
   MLUOpTensorDesc(const MLUOpTensorDesc& desc) = delete;
   MLUOpTensorDesc& operator=(const MLUOpTensorDesc&) = delete;
@@ -355,7 +354,7 @@ public:
       : raw_tensor_desc(rhs.raw_tensor_desc) {
     rhs.raw_tensor_desc = nullptr;
   }
-  
+
   MLUOpTensorDesc& operator=(MLUOpTensorDesc&& rhs);
 
   MLUOpTensorDesc(const int tensor_dim,
@@ -403,11 +402,10 @@ public:
                   int position,
                   float scale);
   ~MLUOpTensorDesc();
-   const mluOpTensorDescriptor_t get() const { return raw_tensor_desc; }
+  const mluOpTensorDescriptor_t get() const { return raw_tensor_desc; }
 
-private:
-   mluOpTensorDescriptor_t  raw_tensor_desc = nullptr;
-
+ private:
+  mluOpTensorDescriptor_t raw_tensor_desc = nullptr;
 };
 
 class MLUCnnlActivationDesc {
@@ -2285,23 +2283,48 @@ class MLUCnnl {
 };
 
 class MLUOP {
-  public:
-  static void OpYoloBox(
-      const Context& ctx,
-      const mluOpTensorDescriptor_t x_desc, const void *x,
-      const mluOpTensorDescriptor_t img_size_desc, const void *img_size,
-      const mluOpTensorDescriptor_t anchors_desc, const void *anchors,
-      const int class_num, 
-      const float conf_thresh, 
-      const int downsample_ratio,
-      const bool clip_bbox, 
-      const float scale, 
-      const bool iou_aware,
-      const float iou_aware_factor, 
-      const mluOpTensorDescriptor_t boxes_desc,
-      void *boxes, 
-      const mluOpTensorDescriptor_t scores_desc, 
-      void *scores);
+ public:
+  static void OpYoloBox(const Context& ctx,
+                        const mluOpTensorDescriptor_t x_desc,
+                        const void* x,
+                        const mluOpTensorDescriptor_t img_size_desc,
+                        const void* img_size,
+                        const mluOpTensorDescriptor_t anchors_desc,
+                        const void* anchors,
+                        const int class_num,
+                        const float conf_thresh,
+                        const int downsample_ratio,
+                        const bool clip_bbox,
+                        const float scale,
+                        const bool iou_aware,
+                        const float iou_aware_factor,
+                        const mluOpTensorDescriptor_t boxes_desc,
+                        void* boxes,
+                        const mluOpTensorDescriptor_t scores_desc,
+                        void* scores);
+
+  static void OpPriorBox(const Context& ctx,
+                         const mluOpTensorDescriptor_t min_sizes_desc,
+                         const void* min_sizes,
+                         const mluOpTensorDescriptor_t aspect_ratios_desc,
+                         const void* aspect_ratios,
+                         const mluOpTensorDescriptor_t variances_desc,
+                         const void* variances,
+                         const mluOpTensorDescriptor_t max_sizes_desc,
+                         const void* max_sizes,
+                         const int height,
+                         const int width,
+                         const int im_height,
+                         const int im_width,
+                         const float step_h,
+                         const float step_w,
+                         const float offset,
+                         const bool clip,
+                         const bool min_max_aspect_ratios_order,
+                         const mluOpTensorDescriptor_t output_desc,
+                         void* output,
+                         const mluOpTensorDescriptor_t var_desc,
+                         void* var);
 };
 
 const std::map<const std::string, std::pair<std::vector<int>, std::vector<int>>>

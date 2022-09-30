@@ -155,4 +155,7 @@ PD_REGISTER_PLUGIN_KERNEL(accuracy,
                           float,
                           phi::dtype::float16,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::DataType::INT64);
+  kernel->InputAt(2).SetDataType(phi::DataType::INT64);
+}

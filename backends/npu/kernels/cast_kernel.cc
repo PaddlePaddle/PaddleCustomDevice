@@ -14,7 +14,6 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
@@ -67,4 +66,6 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           int16_t,
                           int32_t,
                           int64_t,
-                          bool) {}
+                          bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

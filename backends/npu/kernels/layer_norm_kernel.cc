@@ -85,8 +85,11 @@ void LayerNormNPUKernel(const Context& dev_ctx,
 
     FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    const auto& runner =
-        NpuOpRunner("FillD", {value}, {default_scale}, {{"dims", axes}});
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, std::move(axes))
+        .AddInput(value)
+        .AddOutput(default_scale);
     runner.Run(stream);
     scale = &default_scale;
   } else {
@@ -106,8 +109,11 @@ void LayerNormNPUKernel(const Context& dev_ctx,
 
     FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(0));
 
-    const auto& runner =
-        NpuOpRunner("FillD", {value}, {default_bias}, {{"dims", axes}});
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, std::move(axes))
+        .AddInput(value)
+        .AddOutput(default_bias);
     runner.Run(stream);
     bias = &default_bias;
   } else {
@@ -277,8 +283,11 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
 
     FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    const auto& runner =
-        NpuOpRunner("FillD", {value}, {default_scale}, {{"dims", axes}});
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, std::move(axes))
+        .AddInput(value)
+        .AddOutput(default_scale);
     runner.Run(stream);
     scale = &default_scale;
   } else {

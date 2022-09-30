@@ -92,6 +92,13 @@ class TestKLDivLossOp3(TestKLDivLossOp):
         self.x_shape = (2, 3, 5, 7, 9)
         self.reduction = 'mean'
 
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ['X'],
+            'Loss',
+            no_grad_set=set(["Target"]),
+            max_relative_error=0.16)
+
 
 class TestKLDivLossOp4(TestKLDivLossOp):
     def initTestCase(self):

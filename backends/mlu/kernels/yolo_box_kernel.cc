@@ -47,6 +47,14 @@ void YoloBoxKernel(const Context& dev_ctx,
     std::vector<int64_t> boxes_out_dim({n, s, h * w, 4});
     std::vector<int64_t> scores_out_dim({n, s, h * w, class_num});
 
+    phi::DenseTensor boxes_tensor_mluops;
+    boxes_tensor_mluops.Resize({n, s, 4, h*w});
+    dev_ctx.template Alloc<T>(&boxes_tensor_mluops);
+    
+    phi::DenseTensor scores_tensor_mluops;
+    scores_tensor_mluops.Resize({n, s, class_num, h*w});
+    dev_ctx.template Alloc<T>(&scores_tensor_mluops);
+
     MLUOpTensorDesc boxes_trans_desc_mluops(
         4, boxes_dim_mluops.data(), ToMluOpDataType<T>());
     MLUCnnlTensorDesc boxes_trans_desc_cnnl(
@@ -58,6 +66,8 @@ void YoloBoxKernel(const Context& dev_ctx,
 
     dev_ctx.template Alloc<T>(boxes);
     dev_ctx.template Alloc<T>(scores);
+    FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0), boxes);
+    FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0), scores);
 
     MLUOpTensorDesc x_desc(x, MLUOP_LAYOUT_ARRAY, ToMluOpDataType<T>());
     MLUOpTensorDesc img_size_desc(
@@ -87,9 +97,9 @@ void YoloBoxKernel(const Context& dev_ctx,
                      iou_aware,
                      iou_aware_factor,
                      boxes_trans_desc_mluops.get(),
-                     GetBasePtr(boxes),
+                     GetBasePtr(&boxes_tensor_mluops),
                      scores_trans_desc_mluops.get(),
-                     GetBasePtr(scores));
+                     GetBasePtr(&scores_tensor_mluops));
     const std::vector<int> perm = {0, 1, 3, 2};
 
     // transpose the boxes from [N, S, 4, H*W] to [N, S, H*W, 4]
@@ -97,7 +107,7 @@ void YoloBoxKernel(const Context& dev_ctx,
                        perm,
                        4,
                        boxes_trans_desc_cnnl.get(),
-                       GetBasePtr(boxes),
+                       GetBasePtr(&boxes_tensor_mluops),
                        boxes_desc_cnnl.get(),
                        GetBasePtr(boxes));
 
@@ -107,7 +117,7 @@ void YoloBoxKernel(const Context& dev_ctx,
                        perm,
                        4,
                        scores_trans_desc_cnnl.get(),
-                       GetBasePtr(scores),
+                       GetBasePtr(&scores_tensor_mluops),
                        scores_desc_cnnl.get(),
                        GetBasePtr(scores));
 

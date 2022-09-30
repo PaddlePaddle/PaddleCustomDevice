@@ -244,7 +244,6 @@ MLUCnnlTensorDesc::~MLUCnnlTensorDesc() {
   }
 }
 
-
 class MLUOpTensorDescPool {
  public:
   mluOpTensorDescriptor_t Pop() {
@@ -292,8 +291,11 @@ MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
                                  const int dim_sizes[],
                                  const mluOpDataType_t tensor_dtype) {
   raw_tensor_desc = g_mluop_tensor_desc_pool.Pop();
-  PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetTensorDescriptor(
-      raw_tensor_desc, MLUOP_LAYOUT_ARRAY, tensor_dtype, tensor_dim, dim_sizes));
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetTensorDescriptor(raw_tensor_desc,
+                                                      MLUOP_LAYOUT_ARRAY,
+                                                      tensor_dtype,
+                                                      tensor_dim,
+                                                      dim_sizes));
 }
 
 MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
@@ -326,16 +328,16 @@ MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
                  &CheckedNarrowing<int64_t, int>);
   raw_tensor_desc = g_mluop_tensor_desc_pool.Pop();
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetTensorDescriptor(raw_tensor_desc,
-                                                     MLUOP_LAYOUT_ARRAY,
-                                                     tensor_dtype,
-                                                     tensor_dim,
-                                                     dim_sizes_int32.data()));
+                                                      MLUOP_LAYOUT_ARRAY,
+                                                      tensor_dtype,
+                                                      tensor_dim,
+                                                      dim_sizes_int32.data()));
 }
 
 MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
-                                     const int64_t dim_sizes[],
-                                     const mluOpDataType_t tensor_dtype,
-                                     const mluOpTensorLayout_t layout) {
+                                 const int64_t dim_sizes[],
+                                 const mluOpDataType_t tensor_dtype,
+                                 const mluOpTensorLayout_t layout) {
   std::vector<int> dim_sizes_int32(tensor_dim);
   std::vector<int64_t>::const_iterator int64_cbegin(dim_sizes);
   std::vector<int64_t>::const_iterator int64_cend(dim_sizes + tensor_dim);
@@ -345,16 +347,16 @@ MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
                  &CheckedNarrowing<int64_t, int>);
   raw_tensor_desc = g_mluop_tensor_desc_pool.Pop();
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetTensorDescriptor(raw_tensor_desc,
-                                                     layout,
-                                                     tensor_dtype,
-                                                     tensor_dim,
-                                                     dim_sizes_int32.data()));
+                                                      layout,
+                                                      tensor_dtype,
+                                                      tensor_dim,
+                                                      dim_sizes_int32.data()));
 }
 
 MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
-                                     const int64_t dim_sizes[],
-                                     const mluOpDataType_t tensor_dtype,
-                                     int position) {
+                                 const int64_t dim_sizes[],
+                                 const mluOpDataType_t tensor_dtype,
+                                 int position) {
   std::vector<int> dim_sizes_int32(tensor_dim);
   std::vector<int64_t>::const_iterator int64_cbegin(dim_sizes);
   std::vector<int64_t>::const_iterator int64_cend(dim_sizes + tensor_dim);
@@ -364,17 +366,17 @@ MLUOpTensorDesc::MLUOpTensorDesc(const int tensor_dim,
                  &CheckedNarrowing<int64_t, int>);
   raw_tensor_desc = g_mluop_tensor_desc_pool.Pop();
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpSetTensorDescriptor(raw_tensor_desc,
-                                                     MLUOP_LAYOUT_ARRAY,
-                                                     tensor_dtype,
-                                                     tensor_dim,
-                                                     dim_sizes_int32.data()));
+                                                      MLUOP_LAYOUT_ARRAY,
+                                                      tensor_dtype,
+                                                      tensor_dim,
+                                                      dim_sizes_int32.data()));
   PADDLE_ENFORCE_MLU_SUCCESS(
       mluOpSetTensorDescriptorPosition(raw_tensor_desc, position));
 }
 
 MLUOpTensorDesc::MLUOpTensorDesc(const Tensor& tensor,
-                                     const mluOpTensorLayout_t layout,
-                                     const mluOpDataType_t tensor_dtype) {
+                                 const mluOpTensorLayout_t layout,
+                                 const mluOpDataType_t tensor_dtype) {
   auto dims = phi::vectorize<int>(tensor.dims());
   int tensor_dim = dims.size();
   raw_tensor_desc = g_mluop_tensor_desc_pool.Pop();
@@ -386,10 +388,10 @@ MLUOpTensorDesc::MLUOpTensorDesc(const Tensor& tensor,
     std::vector<int> tensor_dim_sizes_int(dims.begin(), dims.end());
     PADDLE_ENFORCE_MLU_SUCCESS(
         mluOpSetTensorDescriptor(raw_tensor_desc,
-                                layout,
-                                tensor_dtype,
-                                tensor_dim,
-                                tensor_dim_sizes_int.data()));
+                                 layout,
+                                 tensor_dtype,
+                                 tensor_dim,
+                                 tensor_dim_sizes_int.data()));
   }
 }
 
@@ -416,10 +418,10 @@ MLUOpTensorDesc::MLUOpTensorDesc(const Tensor& tensor,
       raw_tensor_desc, position, scale));
 }
 
-MLUOpTensorDesc::~MLUOpTensorDesc(){
-   if (raw_tensor_desc) {
-    g_mluop_tensor_desc_pool.Recycle(raw_tensor_desc); 
-  } 
+MLUOpTensorDesc::~MLUOpTensorDesc() {
+  if (raw_tensor_desc) {
+    g_mluop_tensor_desc_pool.Recycle(raw_tensor_desc);
+  }
 }
 
 MLUCnnlActivationDesc::MLUCnnlActivationDesc(
@@ -4602,15 +4604,16 @@ MLURNNDesc::~MLURNNDesc() {
                                                  output));
 }
 
-/* static */ void MLUCnnl::SmoothL1LossForward(const Context& ctx,
-                                               const cnnlTensorDescriptor_t x_desc,
-                                               const void* x,
-                                               const cnnlTensorDescriptor_t t_desc,
-                                               const void* target,
-                                               const float beta,
-                                               const cnnlSmoothL1LossAlgorithm_t algorithm,
-                                               const cnnlTensorDescriptor_t y_desc,
-                                               void* y) {
+/* static */ void MLUCnnl::SmoothL1LossForward(
+    const Context& ctx,
+    const cnnlTensorDescriptor_t x_desc,
+    const void* x,
+    const cnnlTensorDescriptor_t t_desc,
+    const void* target,
+    const float beta,
+    const cnnlSmoothL1LossAlgorithm_t algorithm,
+    const cnnlTensorDescriptor_t y_desc,
+    void* y) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
   size_t workspace_size;
@@ -4632,20 +4635,20 @@ MLURNNDesc::~MLURNNDesc() {
                                                         workspace_size,
                                                         y_desc,
                                                         y));
-
 }
 
-/* static */ void MLUCnnl::SmoothL1LossBackward(const Context& ctx,
-                                                const cnnlTensorDescriptor_t x_desc,
-                                                const void* x,
-                                                const cnnlTensorDescriptor_t target_desc,
-                                                const void* target,
-                                                const cnnlTensorDescriptor_t dy_desc,
-                                                const void* dy,
-                                                const float beta,
-                                                const cnnlSmoothL1LossAlgorithm_t algorithm,
-                                                const cnnlTensorDescriptor_t dx_desc,
-                                                void* dx) {
+/* static */ void MLUCnnl::SmoothL1LossBackward(
+    const Context& ctx,
+    const cnnlTensorDescriptor_t x_desc,
+    const void* x,
+    const cnnlTensorDescriptor_t target_desc,
+    const void* target,
+    const cnnlTensorDescriptor_t dy_desc,
+    const void* dy,
+    const float beta,
+    const cnnlSmoothL1LossAlgorithm_t algorithm,
+    const cnnlTensorDescriptor_t dx_desc,
+    void* dx) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
   size_t workspace_size;
@@ -5282,45 +5285,93 @@ MLURNNDesc::~MLURNNDesc() {
                                                               diff_x));
 }
 
+/* static */ void MLUOP::OpYoloBox(const Context& ctx,
+                                   const mluOpTensorDescriptor_t x_desc,
+                                   const void* x,
+                                   const mluOpTensorDescriptor_t img_size_desc,
+                                   const void* img_size,
+                                   const mluOpTensorDescriptor_t anchors_desc,
+                                   const void* anchors,
+                                   const int class_num,
+                                   const float conf_thresh,
+                                   const int downsample_ratio,
+                                   const bool clip_bbox,
+                                   const float scale,
+                                   const bool iou_aware,
+                                   const float iou_aware_factor,
+                                   const mluOpTensorDescriptor_t boxes_desc,
+                                   void* boxes,
+                                   const mluOpTensorDescriptor_t scores_desc,
+                                   void* scores) {
+  mluOpHandle_t handle = GetMLUOpHandleFromCTX(ctx);
 
-/* static */ void MLUOP::OpYoloBox(
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpYoloBox(handle,
+                                          x_desc,
+                                          x,
+                                          img_size_desc,
+                                          img_size,
+                                          anchors_desc,
+                                          anchors,
+                                          class_num,
+                                          conf_thresh,
+                                          downsample_ratio,
+                                          clip_bbox,
+                                          scale,
+                                          iou_aware,
+                                          iou_aware_factor,
+                                          boxes_desc,
+                                          boxes,
+                                          scores_desc,
+                                          scores));
+}
+
+/* static */ void MLUOP::OpPriorBox(
     const Context& ctx,
-    const mluOpTensorDescriptor_t x_desc, const void *x,
-    const mluOpTensorDescriptor_t img_size_desc, const void *img_size,
-    const mluOpTensorDescriptor_t anchors_desc, const void *anchors,
-    const int class_num, 
-    const float conf_thresh, 
-    const int downsample_ratio,
-    const bool clip_bbox, 
-    const float scale, 
-    const bool iou_aware,
-    const float iou_aware_factor, 
-    const mluOpTensorDescriptor_t boxes_desc,
-    void *boxes, 
-    const mluOpTensorDescriptor_t scores_desc, 
-    void *scores){
-        mluOpHandle_t handle =  GetMLUOpHandleFromCTX(ctx);
+    const mluOpTensorDescriptor_t min_sizes_desc,
+    const void* min_sizes,
+    const mluOpTensorDescriptor_t aspect_ratios_desc,
+    const void* aspect_ratios,
+    const mluOpTensorDescriptor_t variances_desc,
+    const void* variances,
+    const mluOpTensorDescriptor_t max_sizes_desc,
+    const void* max_sizes,
+    const int height,
+    const int width,
+    const int im_height,
+    const int im_width,
+    const float step_h,
+    const float step_w,
+    const float offset,
+    const bool clip,
+    const bool min_max_aspect_ratios_order,
+    const mluOpTensorDescriptor_t output_desc,
+    void* output,
+    const mluOpTensorDescriptor_t var_desc,
+    void* var) {
+  mluOpHandle_t handle = GetMLUOpHandleFromCTX(ctx);
 
-    PADDLE_ENFORCE_MLU_SUCCESS(mluOpYoloBox(
-                   handle, 
-                   x_desc, x,
-                   img_size_desc, img_size,
-                   anchors_desc, anchors,
-                   class_num, 
-                   conf_thresh, 
-                   downsample_ratio,
-                   clip_bbox, 
-                   scale, 
-                   iou_aware,
-                   iou_aware_factor, 
-                   boxes_desc,
-                   boxes, 
-                   scores_desc, 
-                   scores));
-
-    }
-
-
-
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpPriorBox(handle,
+                                           min_sizes_desc,
+                                           min_sizes,
+                                           aspect_ratios_desc,
+                                           aspect_ratios,
+                                           variances_desc,
+                                           variances,
+                                           max_sizes_desc,
+                                           max_sizes,
+                                           height,
+                                           width,
+                                           im_height,
+                                           im_width,
+                                           step_h,
+                                           step_w,
+                                           offset,
+                                           clip,
+                                           min_max_aspect_ratios_order,
+                                           output_desc,
+                                           output,
+                                           var_desc,
+                                           var));
+}
 
 }  // namespace custom_kernel

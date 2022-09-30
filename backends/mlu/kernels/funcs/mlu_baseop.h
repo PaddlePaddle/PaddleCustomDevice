@@ -120,14 +120,61 @@ inline cnnlDataType_t ToCnnlDataType(const DataType& dtype) {
   return type;
 }
 
+inline mluOpDataType_t ToMluOpDataType(const DataType& dtype) {
+  mluOpDataType_t type = MLUOP_DTYPE_FLOAT;
+  switch (dtype) {
+    case DataType::FLOAT16:
+      type = MLUOP_DTYPE_HALF;
+      break;
+    case DataType::FLOAT32:
+      type = MLUOP_DTYPE_FLOAT;
+      break;
+    case DataType::FLOAT64:
+      type = MLUOP_DTYPE_DOUBLE;
+      break;
+    case DataType::INT8:
+      type = MLUOP_DTYPE_INT8;
+      break;
+    case DataType::INT16:
+      type = MLUOP_DTYPE_INT16;
+      break;
+    case DataType::INT32:
+      type = MLUOP_DTYPE_INT32;
+      break;
+    case DataType::INT64:
+      type = MLUOP_DTYPE_INT64;
+      break;
+    case DataType::BOOL:
+      type = MLUOP_DTYPE_BOOL;
+      break;
+    case DataType::UINT8:
+      type = MLUOP_DTYPE_UINT8;
+      break;
+    default:
+      break;
+  }
+  return type;
+}
+
+
 template <typename T>
 inline cnnlDataType_t ToCnnlDataType() {
   auto type = paddle::experimental::CppTypeToDataType<T>::Type();
   return ToCnnlDataType(type);
 }
 
+template <typename T>
+inline mluOpDataType_t ToMluOpDataType() {
+  auto type = paddle::experimental::CppTypeToDataType<T>::Type();
+  return ToMluOpDataType(type);
+}
+
 inline static cnnlHandle_t GetHandleFromCTX(const Context& dev_ctx) {
   return GetHandle(dev_ctx.stream());
+}
+
+inline static mluOpHandle_t GetMLUOpHandleFromCTX(const Context& dev_ctx) {
+   return GetOpHandle(dev_ctx.stream());
 }
 
 // Converts (via narrowing) a type T value to a type U, and checks that the
@@ -293,6 +340,74 @@ class MLUCnnlTensorDesc {
 
  private:
   cnnlTensorDescriptor_t raw_tensor_desc = nullptr;
+};
+
+//class mlu op tensor desc
+class MLUOpTensorDesc{
+public:
+  MLUOpTensorDesc() {}
+  
+  // SE_DISALLOW_COPY_AND_ASSIGN
+  MLUOpTensorDesc(const MLUOpTensorDesc& desc) = delete;
+  MLUOpTensorDesc& operator=(const MLUOpTensorDesc&) = delete;
+
+  MLUOpTensorDesc(MLUOpTensorDesc&& rhs)
+      : raw_tensor_desc(rhs.raw_tensor_desc) {
+    rhs.raw_tensor_desc = nullptr;
+  }
+  
+  MLUOpTensorDesc& operator=(MLUOpTensorDesc&& rhs);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int dim_sizes[],
+                  const mluOpDataType_t tensor_dtype);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int dim_sizes[],
+                  const mluOpDataType_t tensor_dtype,
+                  const mluOpTensorLayout_t layout);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int dim_sizes[],
+                  const mluOpDataType_t tensor_dtype,
+                  int position);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int64_t dim_sizes[],
+                  const mluOpDataType_t tensor_dtype);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int64_t dim_sizes[],
+                  const mluOpDataType_t tensor_dtype,
+                  const mluOpTensorLayout_t layout);
+
+  MLUOpTensorDesc(const int tensor_dim,
+                  const int64_t dim_sizes[],
+                  const mluOpDataType_t tensor_dtype,
+                  int position);
+
+  MLUOpTensorDesc(const Tensor& tensor,
+                  const mluOpTensorLayout_t layout,
+                  const mluOpDataType_t tensor_dtype);
+
+  explicit MLUOpTensorDesc(const Tensor& tensor);
+
+  MLUOpTensorDesc(const Tensor& tensor,
+                  mluOpTensorLayout_t layout,
+                  const mluOpDataType_t tensor_dtype,
+                  int position);
+
+  MLUOpTensorDesc(const Tensor& tensor,
+                  mluOpTensorLayout_t layout,
+                  const mluOpDataType_t tensor_dtype,
+                  int position,
+                  float scale);
+  ~MLUOpTensorDesc();
+   const mluOpTensorDescriptor_t get() const { return raw_tensor_desc; }
+
+private:
+   mluOpTensorDescriptor_t  raw_tensor_desc = nullptr;
+
 };
 
 class MLUCnnlActivationDesc {
@@ -1919,6 +2034,28 @@ class MLUCnnl {
                               const cnnlTensorDescriptor_t output_desc,
                               void* output);
 
+  static void SmoothL1LossForward(const Context& ctx,
+                                  const cnnlTensorDescriptor_t x_desc,
+                                  const void* x,
+                                  const cnnlTensorDescriptor_t t_desc,
+                                  const void* target,
+                                  const float beta,
+                                  const cnnlSmoothL1LossAlgorithm_t algorithm,
+                                  const cnnlTensorDescriptor_t y_desc,
+                                  void* y);
+
+  static void SmoothL1LossBackward(const Context& ctx,
+                                   const cnnlTensorDescriptor_t x_desc,
+                                   const void* x,
+                                   const cnnlTensorDescriptor_t target_desc,
+                                   const void* target,
+                                   const cnnlTensorDescriptor_t dy_desc,
+                                   const void* dy,
+                                   const float beta,
+                                   const cnnlSmoothL1LossAlgorithm_t algorithm,
+                                   const cnnlTensorDescriptor_t dx_desc,
+                                   void* dx);
+
   static void EmbeddingForward(const Context& ctx,
                                const int padding_idx,
                                const cnnlTensorDescriptor_t weight_desc,
@@ -2145,6 +2282,26 @@ class MLUCnnl {
       const void* count,
       const cnnlTensorDescriptor_t diff_x_desc,
       void* diff_x);
+};
+
+class MLUOP {
+  public:
+  static void OpYoloBox(
+      const Context& ctx,
+      const mluOpTensorDescriptor_t x_desc, const void *x,
+      const mluOpTensorDescriptor_t img_size_desc, const void *img_size,
+      const mluOpTensorDescriptor_t anchors_desc, const void *anchors,
+      const int class_num, 
+      const float conf_thresh, 
+      const int downsample_ratio,
+      const bool clip_bbox, 
+      const float scale, 
+      const bool iou_aware,
+      const float iou_aware_factor, 
+      const mluOpTensorDescriptor_t boxes_desc,
+      void *boxes, 
+      const mluOpTensorDescriptor_t scores_desc, 
+      void *scores);
 };
 
 const std::map<const std::string, std::pair<std::vector<int>, std::vector<int>>>

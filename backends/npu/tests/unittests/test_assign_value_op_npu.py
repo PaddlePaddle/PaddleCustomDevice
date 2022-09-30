@@ -78,8 +78,7 @@ class TestAssignApi(unittest.TestCase):
         self.init_dtype()
         self.value = (
             -100 + 200 * numpy.random.random(size=(2, 5))).astype(self.dtype)
-        self.place = fluid.NPUPlace(0) if fluid.core.is_compiled_with_npu(
-        ) else fluid.CPUPlace()
+        self.place = paddle.CustomPlace('ascend', 0)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -113,8 +112,7 @@ class TestAssignApi4(TestAssignApi):
         self.init_dtype()
         self.value = numpy.random.choice(
             a=[False, True], size=(2, 5)).astype(numpy.bool)
-        self.place = fluid.NPUPlace(0) if fluid.core.is_compiled_with_npu(
-        ) else fluid.CPUPlace()
+        self.place = paddle.CustomPlace('ascend', 0)
 
     def init_dtype(self):
         self.dtype = "bool"

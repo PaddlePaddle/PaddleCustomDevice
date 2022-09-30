@@ -48,8 +48,8 @@ function print_usage() {
 }
 
 function init() {
-    WORKSPACE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../../" && pwd )"
-    export WORKSPACE_ROOT
+    REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
+    export REPO_ROOT
 
     # For paddle easy debugging
     export FLAGS_call_stack_level=2
@@ -77,21 +77,18 @@ function show_ut_retry_result() {
     fi
 }
 function custom_npu_test() {
-    # paddle install
+    # install paddlepaddle daily build cpu version
     pip install hypothesis
-    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
 
     # custom_npu build and install
-    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/npu
-    mkdir build && cd build
-    cmake .. -DWITH_TESTING=ON
+    cd ${REPO_ROOT}/backends/npu/
+    bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
-    make -j8
-    if [[ "$?" != "0" ]];then
-        exit 7;
-    fi
+    cd ${REPO_ROOT}/backends/npu/build
     pip install dist/*.whl
 
     # run ut
@@ -100,7 +97,7 @@ function custom_npu_test() {
     tmpfile=$tmp_dir/$tmpfile_rand
     ctest --output-on-failure | tee $tmpfile;
     collect_failed_tests
-set +x
+
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0
@@ -190,10 +187,11 @@ set -ex
 function custom_cpu_test() {
     # paddle install
     pip install hypothesis
-    pip install ${WORKSPACE_ROOT}/Paddle/build/python/dist/*whl
+    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
 
     # custom_cpu build and install
-    cd ${WORKSPACE_ROOT}/PaddleCustomDevice/backends/custom_cpu
+    cd ${REPO_ROOT}/backends/custom_cpu
     mkdir build && cd build
     cmake .. -DWITH_TESTING=ON
     if [[ "$?" != "0" ]];then

@@ -25,3 +25,6 @@ cmake-build-*
 
 Testing
 tools/__pycache__
+
+# ignore npu cache
+kernel_meta*/

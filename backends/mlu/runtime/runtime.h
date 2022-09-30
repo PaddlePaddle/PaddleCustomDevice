@@ -16,6 +16,7 @@
 
 #include <cncl.h>
 #include <cnnl.h>
+#include <mlu_op.h>
 #include <cnpapi.h>
 #include <cnrt.h>
 
@@ -34,6 +35,7 @@ struct CustomMLUStatusType {};
 
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnrtRet_t, cnrtSuccess);
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnnlStatus_t, CNNL_STATUS_SUCCESS);
+DEFINE_CUSTOM_MLU_STATUS_TYPE(mluOpStatus_t, MLUOP_STATUS_SUCCESS);
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnclResult_t, CNCL_RET_SUCCESS);
 
 /*************** CNRT ERROR ***************/
@@ -55,6 +57,18 @@ inline std::string build_mlu_error_msg(cnnlStatus_t stat) {
        << ". ";
   return sout.str();
 }
+
+/*************** MLUOP ERROR ***************/
+inline bool is_error(mluOpStatus_t stat) { return stat != MLUOP_STATUS_SUCCESS; }
+
+inline std::string build_mlu_error_msg(mluOpStatus_t stat) {
+  std::ostringstream sout;
+  sout << "MLU OP error(" << stat << "), " << mluOpGetErrorString(stat)
+       << ". ";
+  return sout.str();
+}
+
+
 
 /*************** CNCL ERROR ***************/
 inline bool is_error(cnclResult_t e) { return e != CNCL_RET_SUCCESS; }
@@ -79,6 +93,7 @@ inline std::string build_mlu_error_msg(cnclResult_t e) {
 
 struct CustomMLUStream {
   cnnlHandle_t handle;
+  mluOpHandle_t op_handle;
   cnrtQueue_t queue;
 };
 typedef CustomMLUStream *mluStream_t;
@@ -89,6 +104,14 @@ inline cnnlHandle_t GetHandle(const C_Stream stream) {
 inline cnnlHandle_t GetHandle(void *stream) {
   return reinterpret_cast<mluStream_t>(stream)->handle;
 }
+
+inline mluOpHandle_t GetOpHandle(const C_Stream stream) {
+  return reinterpret_cast<mluStream_t>(stream)->op_handle;
+}
+inline mluOpHandle_t GetOpHandle(void *stream) {
+  return reinterpret_cast<mluStream_t>(stream)->op_handle;
+}
+
 inline cnrtQueue_t GetQueue(const C_Stream stream) {
   return reinterpret_cast<mluStream_t>(stream)->queue;
 }

@@ -14,7 +14,9 @@
 
 #include <random>
 
+#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
+#include "dnn_support.hpp"
 
 namespace custom_kernel {
 
@@ -35,64 +37,86 @@ template <typename T>
 void UniformRandomRawKernel(const phi::Context &dev_ctx,
                             const phi::IntArray &shape,
                             phi::DataType dtype,
-                            float min,
-                            float max,
+                            const phi::Scalar &min,
+                            const phi::Scalar &max,
                             int seed,
                             int diag_num,
                             int diag_step,
                             float diag_val,
                             phi::DenseTensor *out) {
+  VLOG(3) << "UniformRandomRaw-SYCL type=" << dnn_support::type2String<T>::name();
+  show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
+
   auto shape_data = shape.GetData();
-
   out->Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
-  T *data = dev_ctx.template Alloc<T>(out);
-  auto size = out->numel();
-  std::shared_ptr<std::mt19937_64> engine;
+  auto out_data = dev_ctx.template Alloc<T>(out);
+  auto numel = out->numel();
 
+  // // 1. CPU implement
+  phi::DenseTensor cpu_out;
+  cpu_out.Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
+  cpu_out.set_dtype(out->dtype());
+  auto cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
+
+  std::shared_ptr<std::mt19937_64> engine;
   engine = std::make_shared<std::mt19937_64>();
   engine->seed(seed);
 
-  UniformRealDistribution<T>(data, size, min, max, engine);
+  UniformRealDistribution<T>(
+      cpu_data, numel, min.to<float>(), max.to<float>(), engine);
   if (diag_num > 0) {
-    PD_CHECK(size > (diag_num - 1) * (diag_step + 1),
-             "ShapeInvalid: the diagonal's elements is equal (num-1) "
-             "* (step-1) with num %d, step %d,"
-             "It should be smaller than %d, but received %d",
-             diag_num,
-             diag_step,
-             (diag_num - 1) * (diag_step + 1),
-             size);
+    PD_CHECK(
+        numel,
+        (diag_num - 1) * (diag_step + 1),
+            "ShapeInvalid: the diagonal's elements is equal (num-1) "
+            "* (step-1) with num %d, step %d,"
+            "It should be smaller than %d, but received %d",
+            diag_num,
+            diag_step,
+            (diag_num - 1) * (diag_step + 1),
+            numel);
     for (int64_t i = 0; i < diag_num; ++i) {
       int64_t pos = i * diag_step + i;
-      data[pos] = diag_val;
+      cpu_data[pos] = diag_val;
     }
   }
+
+  // 2. CPU Copy to IntelGPU
+  auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
+  q->parallel_for(numel, [=](auto& i){
+  //   std::random_device random_device;
+  // std::mt19937 random_engine{random_device()};
+
+  });
+  q->memcpy(out_data, cpu_data, numel*sizeof(T));
+  q->wait();
 }
 
 template <typename T>
 void UniformRandomKernel(const phi::Context &dev_ctx,
                          const phi::IntArray &shape,
                          phi::DataType dtype,
-                         float min,
-                         float max,
+                        //  float min,
+                        //  float max,
+                         const phi::Scalar &min,
+                         const phi::Scalar &max,
                          int seed,
                          phi::DenseTensor *out) {
-  UniformRandomRawKernel<T>(
+  VLOG(3) << "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name();
+  show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
+   custom_kernel::UniformRandomRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
-
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(uniform_random_raw,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::UniformRandomRawKernel,
-                    float,
-                    double) {}
+                    float) {}
 
 PD_BUILD_PHI_KERNEL(uniform_random,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::UniformRandomKernel,
-                    float,
-                    double) {}
+                    float) {}

@@ -67,64 +67,31 @@ void MultiplyRawKernelGPU(const phi::Context& dev_ctx,
 
 
   void *stream = const_cast< void* >(dev_ctx.stream());
-
+  auto* q = static_cast<sycl::queue*>(stream);
 
   // T* out_data = dev_ctx.Alloc<T>(out,out->numel() * sizeof(T));
 
-  T* out_data = dev_ctx.HostAlloc<T>(out);
+  T* out_data = dev_ctx.Alloc<T>(out);
 
   auto NOUT = out->numel();
 
   auto input_x = x.data<T>();
   auto input_y = y.data<T>();
 
-  auto* q = static_cast<sycl::queue*>(stream);
-  T* gpu_mem = sycl::malloc_device<T>(out->numel(), *q);
+
+
 
   q->submit([&](sycl::handler& h){
 
-   h.parallel_for(NOUT,[input_x, input_y, gpu_mem ](sycl::id<1> i){
+   h.parallel_for(NOUT,[input_x, input_y, out_data ](sycl::id<1> i){
 
-            gpu_mem[i] =  input_x[i]*input_y[i];
-            // input_x[i]++;
-          //  out_data[i]=3;
+            out_data[i] =  input_x[i]*input_y[i];
    });
 
   });
 
   q->wait();
-  q->submit([&](sycl::handler &h) {
-  // copy hostArray to deviceArray
-      h.memcpy(out_data, gpu_mem, sizeof(T) * out->numel() );
-   });
-  q->wait();
 
-  sycl::free(gpu_mem, *q);
-
-  // std::cout << "stream = " << stream << std::endl;
-  // std::cout << "Out_data="<< out_data << std::endl;
-
-/*
-  auto x_dims = x.dims();
-  auto y_dims = y.dims();
-
-
-
-  auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
-  phi::DenseTensor tmp_x, tmp_y;
-  phi::BroadcastTo<T>(dev_ctx, x, dst_dims, axis, &tmp_x);
-  phi::BroadcastTo<T>(dev_ctx, y, dst_dims, axis, &tmp_y);
-
-  auto x_data = tmp_x.data<T>();
-  auto y_data = tmp_y.data<T>();
-  auto out_data = dev_ctx.template Alloc<T>(out);
-  auto numel = out->numel();
-  for (auto i = 0; i < numel; ++i) {
-    out_data[i] = x_data[i] * y_data[i];
-  }
-
-
-*/
 
 }
 
@@ -232,14 +199,14 @@ void MultiplyMainRaw(const phi::Context& dev_ctx,
   //   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
   // }
 
-  if constexpr (std::is_same<T, float>::value
-               || std::is_same<T, int32_t>::value
-             //  || std::is_same<T,double>::value
-                 ) {
-    MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
-  } else {
-    MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
-  }
+   if constexpr (std::is_same<T, float>::value
+                || std::is_same<T, int32_t>::value
+              //  || std::is_same<T,double>::value
+                  ) {
+     MultiplyOneDNNRawKernel<T>(dev_ctx, x, y, axis, out);
+   } else {
+     MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
+   }
 }
   template <typename T>
   void MultiplyMain(const phi::Context& dev_ctx,

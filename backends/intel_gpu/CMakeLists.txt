@@ -75,15 +75,16 @@ set(ONEAPI_SYCL_INCLUDE "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/include/syc
 set(ONEAPI_SYCL_LIBDIR "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/lib/")
 set(CMAKE_CXX_COMPILER "${DPCPP_COMPIER_PATH}")
 ##########################################
-set(ONEDNN_INC "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/include")
-set(ONEDNN_LIB "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/lib")
+#set(ONEDNN_INC "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/include")
+#set(ONEDNN_LIB "${PADDLE_BUILD_DIR}/third_party/install/mkldnn/lib")
 ##########################################
 set(PADDLE_PLUGIN_DIR  "${CND_PYTHON}/site-packages/paddle-plugins/")
 set(PADDLE_INC_DIR     "${CND_PYTHON}/site-packages/paddle/include/")
 set(PADDLE_LIB_DIR     "${CND_PYTHON}/site-packages/paddle/fluid/")
 
 
-include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
+#include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
+include_directories( ${ONEAPI_SYCL_INCLUDE} )
 
 ###########################################
 
@@ -91,11 +92,15 @@ include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
+option(WITH_CUSTOMDNN    "use onednn with custom"     ON)
 option(WITH_KERNELS    "compile with custom kernels"      ON)
 option(WITH_TESTING    "compile with unit testing"        ON)
 
 set(PLUGIN_NAME        "paddle-custom-intel-gpu")
 set(PLUGIN_VERSION     "0.0.1")
+
+
+
 
 include(paddle)
 message(STATUS "PADDLE_BUILD_DIR DIR : ${PADDLE_BUILD_DIR}")
@@ -113,7 +118,13 @@ set(THREAD_INC_DIR     "${PADDLE_BUILD_DIR}/third_party/threadpool/src/extern_th
 set(THIRD_PARTY_INC_DIR ${BOOST_INC_DIR} ${GFLAGS_INC_DIR} ${GLOG_INC_DIR} ${THREAD_INC_DIR})
 
 include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${THIRD_PARTY_INC_DIR} ${CMAKE_SOURCE_DIR}/kernels)
-link_directories(${PADDLE_LIB_DIR} ${ONEDNN_LIB} ${ONEAPI_SYCL_LIBDIR})
+link_directories(${PADDLE_LIB_DIR}  ${ONEAPI_SYCL_LIBDIR})
+
+
+if(WITH_CUSTOMDNN)
+        add_definitions(-DCUSTOM_DNN)  #  build onednn from source
+endif()
+
 
 add_definitions(-std=c++14)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)  # for out CustomContext temporarily

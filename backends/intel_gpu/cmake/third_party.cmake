@@ -25,7 +25,9 @@ set(third_party_deps)
 include(external/gflags)    # download, build, install gflags
 include(external/glog)      # download, build, install glog
 include(external/pybind11)
-
+if(WITH_CUSTOMDNN)
+include(external/onednn_gpu)
+endif()
 list(APPEND third_party_deps extern_gflags extern_glog extern_pybind)
 
 if (WITH_TESTING)

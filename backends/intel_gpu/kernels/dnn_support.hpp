@@ -117,6 +117,15 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
     const static dnnl::memory::data_type type = dnnl::memory::data_type::bf16;
   };
 
+#ifdef CUSTOM_DNN
+
+  template <>
+  struct toDnnType<double> {
+    const static dnnl::memory::data_type type = dnnl::memory::data_type::f64;
+  };
+
+#endif
+
   template <class T = dnnl::memory::dims>
   dnnl::memory::format_tag dims2Tag(const T& d) {
     switch (d.size()) {
@@ -210,13 +219,10 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
     }
     return dnnl::memory::format_tag::a;
   }
-  /*
-  template <>
-  struct toDnnType<double> {
-    const static dnnl::memory::data_type type = dnnl::memory::data_type::f64;
-  };
 
-  */
+
+
+
 
 
 template<class T>

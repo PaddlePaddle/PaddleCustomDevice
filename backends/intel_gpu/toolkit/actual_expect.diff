@@ -1,0 +1,29 @@
+diff --git a/python/paddle/fluid/tests/unittests/op_test.py b/python/paddle/fluid/tests/unittests/op_test.py
+index d672dccec9..95413e733c 100644
+--- a/python/paddle/fluid/tests/unittests/op_test.py
++++ b/python/paddle/fluid/tests/unittests/op_test.py
+@@ -1440,13 +1440,21 @@ class OpTest(unittest.TestCase):
+                 raise NotImplementedError("base class, not implement!")
+ 
+             def _compare_numpy(self, name, actual_np, expect_np):
+-                self.op_test.assertTrue(
+-                    np.allclose(
++                out_all = np.allclose(
+                         actual_np,
+                         expect_np,
+                         atol=atol,
+                         rtol=self.rtol if hasattr(self, 'rtol') else 1e-5,
+-                        equal_nan=equal_nan), "Output (" + name +
++                        equal_nan=equal_nan)
++                if not out_all:
++                    print("Actual :  shape=", actual_np.shape )
++                    print("Expected: shape=", expect_np.shape )
++
++                    #print("Actual :  shape=", actual_np.shape ," data=",  actual_np)
++                    #print("Expected: shape=", expect_np.shape, " data=", expect_np)
++
++                self.op_test.assertTrue(
++                    out_all, "Output (" + name +
+                     ") has diff at " + str(place) + " in " + self.checker_name)
+ 
+             def _compare_list(self, name, actual, expect):

@@ -30,7 +30,8 @@ endif()
 message(STATUS "OneAPI DIR : ${ONEAPI_PATH}")
 
 if(NOT DEFINED ONEAPI_COMPILER_DIR)
-set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
+#set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
+set(ONEAPI_COMPILER_DIR "compiler/latest")
 endif()
 
 if(NOT EXISTS "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")

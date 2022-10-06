@@ -89,7 +89,6 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
 
   });
   q->memcpy(out_data, cpu_data, numel*sizeof(T));
-  q->wait();
 }
 
 template <typename T>

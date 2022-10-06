@@ -21,20 +21,12 @@ from paddle.metric import Accuracy
 from paddle.vision.datasets import MNIST
 from paddle.vision.models import LeNet
 import paddle.static.amp as amp
-import random
-from paddle import callbacks
 import argparse
 import ast
 
-SEED = 2
-paddle.seed(SEED)
-paddle.framework.random._manual_program_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
-
 paddle.enable_static()
-#set_device('cpu')
 paddle.set_device('intel_gpu')
+
 
 def parse_args():
     parser = argparse.ArgumentParser("Lenet BF16 train static script")
@@ -119,5 +111,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()

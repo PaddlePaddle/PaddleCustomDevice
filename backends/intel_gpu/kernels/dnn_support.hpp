@@ -47,6 +47,7 @@ using DeviceConfig = config::DeviceConfig<0>;
 using DeviceConfigPtr = std::unique_ptr<DeviceConfig>;
 extern DeviceConfigPtr devconf;
 extern std::mutex mx;
+extern std::recursive_mutex rmux;
 
 inline void InitializeDevConf() {
      if(!devconf)
@@ -72,7 +73,7 @@ const T* shortPath(const T* p) {
 }
 
 #define show_msg(title, vbit, x) \
-  if(devconf && devconf->plugin_verbose & vbit) {  \
+  if(devconf && devconf->plugin_verbose & vbit) { std::lock_guard<std::recursive_mutex> l(rmux); \
   std::cout << "[" << title << "][" << std::hex << std::this_thread::get_id() \
             << std::dec << "]["<< shortPath(__FILE__)<< ":"<< __LINE__ <<"]: "<< x << std::endl; }
 

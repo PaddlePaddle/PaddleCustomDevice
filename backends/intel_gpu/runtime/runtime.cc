@@ -41,6 +41,7 @@ using up_t = std::unique_ptr<T>;
 
 DeviceConfigPtr devconf;
 std::mutex mx;
+std::recursive_mutex rmux;
 
 auto intel_match = [](sycl::device &dev) -> bool {
   const auto name = dev.template get_info<sycl::info::device::name>();

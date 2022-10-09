@@ -4,6 +4,15 @@ English | [简体中文](./README_cn.md)
 
 Please refer to the following steps to compile, install and verify the custom device implementaion for Cambricon MLU.
 
+## Dependencies Version
+
+| Module    | Version  |
+| --------- | -------- |
+| cntoolkit | 3.1.2-1  |
+| cnnl      | 1.13.2-1 |
+| cncl      | 1.4.1-1  |
+| mluops    | 0.3.0-1  |
+
 ## Get Sources
 
 ```bash

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import random
 import paddle
 
 from paddle import Model, set_device
@@ -24,6 +25,11 @@ from paddle.vision.models import LeNet
 paddle.enable_static()
 paddle.set_device('intel_gpu')
 
+SEED = 2
+paddle.seed(SEED)
+paddle.framework.random._manual_program_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
 
 class MnistDataset(MNIST):
 

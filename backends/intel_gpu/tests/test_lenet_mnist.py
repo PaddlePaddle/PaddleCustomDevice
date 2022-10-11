@@ -20,31 +20,9 @@ from paddle.static import InputSpec as Input
 from paddle.metric import Accuracy
 from paddle.vision.datasets import MNIST
 from paddle.vision.models import LeNet
-import paddle.static.amp as amp
-import random
-from paddle import callbacks
-import argparse
-import ast
-
-SEED = 2
-paddle.seed(SEED)
-paddle.framework.random._manual_program_seed(SEED)
-np.random.seed(SEED)
-random.seed(SEED)
 
 paddle.enable_static()
-#set_device('cpu')
 paddle.set_device('intel_gpu')
-
-def parse_args():
-    parser = argparse.ArgumentParser("Lenet BF16 train static script")
-    parser.add_argument('-bf16',
-                        '--bf16',
-                        type=ast.literal_eval,
-                        default=False,
-                        help="whether use bf16")
-    args = parser.parse_args()
-    return args
 
 
 class MnistDataset(MNIST):
@@ -72,7 +50,7 @@ def compute_accuracy(pred, gt):
     return np.sum(correct) / correct.shape[0]
 
 
-def main(args):
+def main():
     print('download training data and load training data')
     train_dataset = MnistDataset(mode='train', )
     val_dataset = MnistDataset(mode='test', )
@@ -86,22 +64,12 @@ def main(args):
 
     model = Model(LeNet(), inputs, labels)
     optim = paddle.optimizer.SGD(learning_rate=0.001)
-    if args.bf16:
-        optim = amp.bf16.decorate_bf16(
-            optim,
-            amp_lists=amp.bf16.AutoMixedPrecisionListsBF16(custom_bf16_list={
-                'matmul_v2', 'pool2d', 'relu', 'scale', 'elementwise_add',
-                'reshape2', 'slice', 'reduce_mean', 'conv2d'
-            }, ))
 
     # Configuration model
     model.prepare(optim, paddle.nn.CrossEntropyLoss(), Accuracy())
+
     # Training model #
-    if args.bf16:
-        print('Training BF16')
-    else:
-        print('Training FP32')
-    model.fit(train_dataset, epochs=2, batch_size=batch_size, verbose=1)
+    model.fit(train_dataset, epochs=1, batch_size=batch_size, verbose=1)
     eval_result = model.evaluate(val_dataset, batch_size=batch_size, verbose=1)
 
     output = model.predict(test_dataset,
@@ -119,5 +87,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()

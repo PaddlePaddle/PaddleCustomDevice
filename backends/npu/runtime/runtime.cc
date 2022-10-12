@@ -23,6 +23,8 @@
 
 #include "glog/logging.h"
 
+std::once_flag g_device_count_init_flag;
+
 class AlignnedAllocator {
  public:
   void *Alloc(size_t size, size_t align) {
@@ -107,9 +109,13 @@ inline size_t get_current_device_id() {
 }
 
 inline size_t get_devices_count() {
-  uint32_t count = 0;
-  aclrtGetDeviceCount(&count);
-  return static_cast<size_t>(count);
+  static size_t num_dev;
+  std::call_once(g_device_count_init_flag, [&] {
+    uint32_t count = 0;
+    aclrtGetDeviceCount(&count);
+    num_dev = static_cast<size_t>(count);
+  });
+  return num_dev;
 }
 
 C_Status Init() {

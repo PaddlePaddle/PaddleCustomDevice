@@ -156,6 +156,36 @@ inline mluOpDataType_t ToMluOpDataType(const DataType& dtype) {
   return type;
 }
 
+inline cnclDataType_t ToCnclDataType(const DataType& dtype) {
+  cnclDataType_t type = cnclFloat32;
+  switch (dtype) {
+    case DataType::FLOAT16:
+      type = cnclFloat16;
+      break;
+    case DataType::FLOAT32:
+      type = cnclFloat32;
+      break;
+    case DataType::INT8:
+      type = cnclInt8;
+      break;
+    case DataType::INT16:
+      type = cnclInt16;
+      break;
+    case DataType::INT32:
+      type = cnclInt32;
+      break;
+    case DataType::BOOL:
+      type = cnclUint8;
+      break;
+    case DataType::UINT8:
+      type = cnclUint8;
+      break;
+    default:
+      break;
+  }
+  return type;
+}
+
 template <typename T>
 inline cnnlDataType_t ToCnnlDataType() {
   auto type = paddle::experimental::CppTypeToDataType<T>::Type();

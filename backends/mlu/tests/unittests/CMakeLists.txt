@@ -18,3 +18,8 @@ string(REPLACE ".py" "" TEST_OPS "${TEST_OPS}")
 foreach(TEST_OP ${TEST_OPS})
     py_test_modules(${TEST_OP} MODULES ${TEST_OP})
 endforeach(TEST_OP)
+
+bash_test_modules(test_sync_batch_norm_mlu START_BASH test_sync_batch_norm_op_mlu.sh
+                  ENVS PADDLE_BINARY_DIR=${PADDLE_BINARY_DIR})
+set_tests_properties(test_sync_batch_norm_mlu PROPERTIES TIMEOUT
+                     120)

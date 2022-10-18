@@ -68,18 +68,7 @@ void TransposeKernel(const phi::Context& ctx,
   }
 }
 
-dnnl::memory::dims computeStrides(const std::vector<int64_t>& dims , const std::vector<int>& axis
-) {
-       size_t rank = axis.size();
-       std::vector<int64_t> strides(rank);
-       unsigned int total_stride = 1;
-       for (int i = rank - 1; i >= 0; --i) {
-         strides[axis[i]] = total_stride;
-         total_stride *= dims[axis[i]];
-       }
-      show_debug("computeStrides strides=" << strides << " from [ dims="<< dims << " axis="<< axis << "]");
-       return strides;
-}
+
 
 template <typename T>
 void TransposeKernelGPU(const phi::Context& ctx,
@@ -142,12 +131,14 @@ try {
     logical_axis[i]=i;
   }
   show_debug("logical_axis=" << logical_axis << " axis=" << axis);
-  auto md_src = memory::desc(dims_src,
-                             dnn_support::toDnnType<T>::type,
-                             computeStrides(dims_src, logical_axis));
+  auto md_src =
+      memory::desc(dims_src,
+                   dnn_support::toDnnType<T>::type,
+                   dnn_support::computeStrides(dims_src, logical_axis));
 
-  auto md_dst = memory::desc(
-      dims_src, dnn_support::toDnnType<T>::type, computeStrides(dims_src,axis));
+  auto md_dst = memory::desc(dims_src,
+                             dnn_support::toDnnType<T>::type,
+                             dnn_support::computeStrides(dims_src, axis));
 
   auto mem_src = memory(md_src, eng, x_data);
   auto mem_dst = memory(md_dst, eng, out_data);

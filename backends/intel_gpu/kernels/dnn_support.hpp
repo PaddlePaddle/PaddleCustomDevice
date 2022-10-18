@@ -264,5 +264,20 @@ struct type2String<short> {
   constexpr static const char* name() { return "short"; }
 };
 
+template<class T>
+dnnl::memory::dims computeStrides(const std::vector<int64_t>& dims,
+                                  const std::vector<T>& axis) {
+  size_t rank = axis.size();
+  std::vector<int64_t> strides(rank);
+  unsigned int total_stride = 1;
+  for (int i = rank - 1; i >= 0; --i) {
+    strides[axis[i]] = total_stride;
+    total_stride *= dims[axis[i]];
+  }
+  show_debug("computeStrides strides=" << strides << " from [ dims=" << dims
+                                       << " axis=" << axis << "]");
+  return strides;
+}
+
 
 }

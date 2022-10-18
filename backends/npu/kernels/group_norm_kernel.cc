@@ -153,8 +153,7 @@ void GroupNormKernel(const Context& dev_ctx,
                      phi::DenseTensor* mean,
                      phi::DenseTensor* variance) {
   auto stream = dev_ctx.stream();
-  const phi::DataLayout data_layout_data =
-      paddle::framework::StringToDataLayout(data_layout);
+  const phi::DataLayout data_layout_data = phi::StringToDataLayout(data_layout);
 
   phi::DenseTensor xnorm;
   phi::DenseTensorMeta xnorm_meta = {x.dtype(), x.dims()};

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/conv_utils.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 
@@ -133,8 +134,7 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
   auto dilations = dilation;
   if ((!dx) && (!dfilter)) return;
 
-  const phi::DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_format);
+  const phi::DataLayout data_layout = StringToDataLayout(data_format);
   auto in_dims = x.dims();
   auto filter_dims = filter.dims();
   auto in_dims_size = in_dims.size();

@@ -17,25 +17,25 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=5.0.2.alpha005
-# export CANN_VERSION=5.0.4.alpha005
-# export CANN_VERSION=5.1.RC2.alpha007
+# export CANN_VERSION=5.1.RC2
+# export CANN_VERSION=6.0.RC1.alpha003
 # bash build-aarch64.sh ${CANN_VERSION}
 
 CANN_VERSION=${1:-5.1.RC2.alpha007}
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
-CANN_NNAEPKG=Ascend-cann-nnae_${CANN_VERSION}_linux-aarch64.run
 
 DOCKER_VERSION=${CANN_VERSION//[^0-9]/}
 DOCKER_VERSION=${DOCKER_VERSION:0:3}
 
-# download x86_64 pkgs
-if [ ! -f ${CANN_TOOLKIT} ]; then
-    wget https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
+# download aarch64 pkgs
+if [ ${DOCKER_VERSION} -eq 512 ]; then
+   CANN_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%20${CANN_VERSION}/${CANN_TOOLKIT}
+else
+   CANN_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
 fi
 
-if [ ! -f ${CANN_NNAEPKG} ]; then
-    wget https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_NNAEPKG}
+if [ ! -f ${CANN_TOOLKIT} ]; then
+    wget ${CANN_URL}
 fi
 
 # copy file to current directory

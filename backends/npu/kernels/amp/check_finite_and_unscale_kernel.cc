@@ -77,7 +77,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
         NpuOpRunner("IsNan", {*xs_item}, {xs_is_nan}, {});
     runner_check_nan.Run(stream);
 
-    const auto& runner_logical_and =
+    const auto& runner_logical_or =
         NpuOpRunner("LogicalOr", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
     runner_logical_and.Run(stream);
 

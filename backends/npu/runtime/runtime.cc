@@ -529,6 +529,58 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  // NOTE(wangran16):
+  // https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/60RC1alpha001/infacldevg/aclcppdevg/aclcppdevg_03_0784.html
+  std::vector<uint32_t> device_ids(
+      {static_cast<uint32_t>(get_current_device_id())});
+  aclprofAicoreMetrics metrics = ACL_AICORE_ARITHMETIC_UTILIZATION;
+  aclprofAicoreEvents *events = nullptr;
+  uint64_t type = ACL_PROF_ACL_API | ACL_PROF_TASK_TIME |
+                  ACL_PROF_AICORE_METRICS | ACL_PROF_AICPU | ACL_PROF_L2CACHE |
+                  ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API;
+
+  AscendProfiler::Instance().update_config(device_ids, metrics, events, type);
+  std::string path = "./ascend_profiling";
+  ACL_CHECK(aclprofInit(path.c_str(), path.size()));
+
+  LOG(INFO) << "ascend profiling data will be saved in " << path;
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  AscendProfiler::Instance().step_stop();
+  AscendProfiler::Instance().destroy_step_info();
+  AscendProfiler::Instance().destroy_config();
+  // ACL_CHECK(aclprofFinalize());
+  return C_SUCCESS;
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  AscendProfiler::Instance().start();
+
+  AscendProfiler::Instance().destroy_step_info();
+  AscendProfiler::Instance().get_step_info();
+  AscendProfiler::Instance().step_start();
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  AscendProfiler::Instance().step_stop();
+  AscendProfiler::Instance().destroy_step_info();
+
+  AscendProfiler::Instance().stop();
+  return C_SUCCESS;
+}
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t tracing_start_ns_,
+                             void *user_data) {
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   if (params->size != sizeof(CustomRuntimeParams) &&
       params->interface->size != sizeof(C_DeviceInterface)) {
@@ -600,4 +652,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_reduce = XcclReduce;
   params->interface->xccl_reduce_scatter = XcclReduceScatter;
   params->interface->xccl_send = XcclSend;
+
+  // profiler
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
 }

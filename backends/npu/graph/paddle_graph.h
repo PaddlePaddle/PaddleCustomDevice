@@ -100,7 +100,8 @@ class OpNode : public Node {
  public:
   std::string to_string() const override;
 
-  OpNode(paddle::framework::proto::OpDesc* op_desc, std::fstream& ofs);
+  OpNode(paddle::framework::proto::OpDesc* op_desc,
+         std::basic_ostream<char>& ofs);
 
   bool IsInputNode() const override;
 
@@ -198,9 +199,10 @@ class OpNode : public Node {
   OpNode& operator=(OpNode&&);
 
   void build_from_op_desc(paddle::framework::proto::OpDesc* op_desc,
-                          std::fstream& ofs);
+                          std::basic_ostream<char>& ofs);
   paddle::any build_attribute_from_op_desc_attr(
-      paddle::framework::proto::OpDesc_Attr* attr, std::fstream& ofs);
+      paddle::framework::proto::OpDesc_Attr* attr,
+      std::basic_ostream<char>& ofs);
   void add_input_node(const std::string& parameter, VarNode* node) {
     inputs_[parameter].emplace_back(node);
   }
@@ -227,7 +229,8 @@ class OpNode : public Node {
 
 class VarNode : public Node {
  public:
-  VarNode(paddle::framework::proto::VarDesc* var_desc, std::fstream& ofs);
+  VarNode(paddle::framework::proto::VarDesc* var_desc,
+          std::basic_ostream<char>& ofs);
 
   bool IsInputNode() const override { return inputs_.size() == 0; }
 
@@ -282,9 +285,10 @@ class VarNode : public Node {
   VarNode& operator=(VarNode&&);
 
   void build_from_var_desc(paddle::framework::proto::VarDesc* var_desc,
-                           std::fstream& ofs);
+                           std::basic_ostream<char>& ofs);
   paddle::any build_attribute_from_var_desc_attr(
-      paddle::framework::proto::VarDesc_Attr* attr, std::fstream& ofs);
+      paddle::framework::proto::VarDesc_Attr* attr,
+      std::basic_ostream<char>& ofs);
   void add_input_node(OpNode* node) { inputs_.emplace_back(node); }
   void add_output_node(OpNode* node) { outputs_.emplace_back(node); }
   void add_input_nodes(std::vector<OpNode*> nodes) {
@@ -356,9 +360,8 @@ class IRGraph {
 
  private:
   void build_from_block_desc(paddle::framework::proto::BlockDesc* block,
-                             std::fstream& ofs);
+                             std::basic_ostream<char>& ofs);
 
-  paddle::framework::proto::ProgramDesc* prog_;
   std::vector<std::unique_ptr<OpNode>> op_nodes_;
   std::vector<std::unique_ptr<VarNode>> var_nodes_;
 };

@@ -140,6 +140,51 @@ inline std::string GEGradVarName(const std::string var_name) {
   }
 }
 
+class Tensor;
+class Operator {
+ public:
+  Operator(const std::string& op_type) : op_type_(op_type) {
+    static size_t op_index = 0;
+    std::string op_name = op_type + std::to_string(op_index++);
+    op = std::make_shared_ptr<ge::Operator>(
+        ge::OpeatorFactory::CreateOperator(op_name.c_str(), op_type.c_str()));
+  }
+
+  ~Operator() {}
+
+  std::shared_ptr<ge::Operator> GetGEOp() { return op; }
+
+  Operator& SetGEOp(std::shared_ptr<ge::Operator> other) {
+    op = other;
+    return *this;
+  }
+
+  Operator& Input(Tensor* input) {
+    inputs_.push_back(input);
+    return *this;
+  }
+
+  Operator& Output(Tensor* output) {
+    outputs_.push_back(output);
+    return *this;
+  }
+
+ private:
+  std::vector<Tensor*> inputs_;
+  std::vector<Tensor*> outputs_;
+  std::shared_ptr<ge::Operator> op;
+  std::string op_type_;
+};
+
+class Tensor {
+ public:
+  Tensor() = default;
+
+ private:
+  Operator* generator_{nullptr};
+  size_t index_ = 0;
+}
+
 class GEGraph {
  public:
   GEGraph(const std::string& ge_graph_name,

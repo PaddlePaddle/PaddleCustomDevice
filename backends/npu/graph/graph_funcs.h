@@ -172,11 +172,21 @@ inline ge::Operator reshape(ge::Operator& node,
   if (name.size() == 0) {
     auto reshape_op =
         ge::op::Reshape().set_input_x(node).set_input_shape(shape);
+    ge::TensorDesc desc = reshape_op.GetOutputDescByName("y");
+    desc.SetShape(ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())));
+    desc.SetOriginShape(
+        ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())));
+    reshape_op.UpdateInputDesc("y", desc);
     return reshape_op;
   } else {
     auto reshape_op = ge::op::Reshape(ge::AscendString(name.c_str()))
                           .set_input_x(node)
                           .set_input_shape(shape);
+    ge::TensorDesc desc = reshape_op.GetOutputDescByName("y");
+    desc.SetShape(ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())));
+    desc.SetOriginShape(
+        ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())));
+    reshape_op.UpdateInputDesc("y", desc);
     return reshape_op;
   }
 }
@@ -203,12 +213,18 @@ inline ge::Operator cast(ge::Operator& node, const std::string& name = "") {
   if (name.size() == 0) {
     auto cast_op = ge::op::Cast().set_input_x(node).set_attr_dst_type(
         graph::utils::cpp_type_to_ge_dtype<T>::value);
+    ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
+    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+    cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   } else {
     auto cast_op =
         ge::op::Cast(ge::AscendString(name.c_str()))
             .set_input_x(node)
             .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<T>::value);
+    ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
+    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+    cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   }
 }
@@ -219,12 +235,18 @@ inline ge::Operator cast(ge::Operator& node,
   if (name.size() == 0) {
     auto cast_op = ge::op::Cast().set_input_x(node).set_attr_dst_type(
         graph::utils::pd_dtype_to_ge_dtype(dtype));
+    ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
+    desc.SetDataType(graph::utils::pd_dtype_to_ge_dtype(dtype));
+    cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   } else {
     auto cast_op =
         ge::op::Cast(ge::AscendString(name.c_str()))
             .set_input_x(node)
             .set_attr_dst_type(graph::utils::pd_dtype_to_ge_dtype(dtype));
+    ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
+    desc.SetDataType(graph::utils::pd_dtype_to_ge_dtype(dtype));
+    cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   }
 }
@@ -257,6 +279,90 @@ inline void update_output_format(ge::Operator& node,
   }
 
   node.UpdateOutputDesc(output_name.c_str(), desc);
+}
+
+inline void update_input_shape(ge::Operator& node,
+                               const std::string& input_name,
+                               const std::vector<int32_t>& shape) {
+  ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
+  desc.SetShape(ge::Shape(std::vector<int64_t>(shape.begin(), shape.end())));
+  desc.SetOriginShape(
+      ge::Shape(std::vector<int64_t>(shape.begin(), shape.end())));
+  node.UpdateInputDesc(input_name.c_str(), desc);
+}
+
+inline void update_output_shape(ge::Operator& node,
+                                const std::string& output_name,
+                                const std::vector<int32_t>& shape) {
+  ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
+  desc.SetShape(ge::Shape(std::vector<int64_t>(shape.begin(), shape.end())));
+  desc.SetOriginShape(
+      ge::Shape(std::vector<int64_t>(shape.begin(), shape.end())));
+  node.UpdateOutputDesc(output_name.c_str(), desc);
+}
+
+inline void update_input_dtype(ge::Operator& node,
+                               const std::string& input_name,
+                               paddle::framework::proto::VarType::Type dtype) {
+  ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
+  desc.SetDataType(graph::utils::pd_dtype_to_ge_dtype(dtype));
+  node.UpdateInputDesc(input_name.c_str(), desc);
+}
+
+inline void update_output_dtype(ge::Operator& node,
+                                const std::string& output_name,
+                                paddle::framework::proto::VarType::Type dtype) {
+  ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
+  desc.SetDataType(graph::utils::pd_dtype_to_ge_dtype(dtype));
+  node.UpdateOutputDesc(output_name.c_str(), desc);
+}
+
+template <typename T>
+inline void update_input_dtype(ge::Operator& node,
+                               const std::string& input_name) {
+  ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
+  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+  node.UpdateInputDesc(input_name.c_str(), desc);
+}
+
+template <typename T>
+inline void update_output_dtype(ge::Operator& node,
+                                const std::string& output_name) {
+  ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
+  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+  node.UpdateOutputDesc(output_name.c_str(), desc);
+}
+
+inline void update_input_dtype(
+    ge::Operator& node,
+    std::unordered_map<std::string, paddle::framework::proto::VarType::Type>
+        args) {
+  for (auto& arg : args) {
+    update_input_dtype(node, arg.first, arg.second);
+  }
+}
+
+inline void update_output_dtype(
+    ge::Operator& node,
+    std::unordered_map<std::string, paddle::framework::proto::VarType::Type>
+        args) {
+  for (auto& arg : args) {
+    update_output_dtype(node, arg.first, arg.second);
+  }
+}
+
+inline void update_input_format(
+    ge::Operator& node, std::unordered_map<std::string, std::string> args) {
+  for (auto& arg : args) {
+    update_input_format(node, arg.first, arg.second);
+  }
+}
+
+inline void update_output_format(
+    ge::Operator& node, std::unordered_map<std::string, std::string> args) {
+  for (auto& arg : args) {
+    update_output_format(node, arg.first, arg.second);
+  }
 }
 
 }  // namespace funcs

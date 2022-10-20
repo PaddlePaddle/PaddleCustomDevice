@@ -48,6 +48,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
       auto node = ge::op::Dot()
                       .set_input_input_x(graph->GetOp(X->Name()))
                       .set_input_input_y(graph->GetOp(Y->Name()));
+      graph::funcs::update_input_dtype(
+          node, {{"input_x", X->dtype()}, {"input_y", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"output", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
       return;
     }
@@ -59,6 +62,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                       .set_input_x2(graph->GetOp(Y->Name()))
                       .set_attr_transpose_x1(trans_x)
                       .set_attr_transpose_x2(trans_y);
+      graph::funcs::update_input_dtype(
+          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
       return;
     }
@@ -76,7 +82,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                      .set_attr_transpose_x1(trans_x)
                      .set_attr_transpose_x2(trans_y);
       auto reshape_out = graph::funcs::reshape(out, out_dims);
-
+      graph::funcs::update_input_dtype(
+          out, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(out, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), reshape_out);
       return;
     }
@@ -102,6 +110,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                       .set_input_x2(y_broadcast)
                       .set_attr_adj_x1(trans_x)
                       .set_attr_adj_x2(trans_y);
+      graph::funcs::update_input_dtype(
+          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
     } else if (broadcast_x && !broadcast_y) {
       auto x_broadcast =
@@ -111,6 +122,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                       .set_input_x2(graph->GetOp(Y->Name()))
                       .set_attr_adj_x1(trans_x)
                       .set_attr_adj_x2(trans_y);
+      graph::funcs::update_input_dtype(
+          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
     } else if (!broadcast_x && broadcast_y) {
       auto y_broadcast =
@@ -120,6 +134,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                       .set_input_x2(y_broadcast)
                       .set_attr_adj_x1(trans_x)
                       .set_attr_adj_x2(trans_y);
+      graph::funcs::update_input_dtype(
+          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
     } else {
       auto node = ge::op::BatchMatMul()
@@ -127,6 +144,9 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
                       .set_input_x2(graph->GetOp(Y->Name()))
                       .set_attr_adj_x1(trans_x)
                       .set_attr_adj_x2(trans_y);
+      graph::funcs::update_input_dtype(
+          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
+      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
       graph->AddOp(Out->Name(), node);
     }
   }
@@ -159,12 +179,18 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
         auto ge_op = ge::op::Mul()
                          .set_input_x1(graph->GetOp(dOut->Name()))
                          .set_input_x2(graph->GetOp(Y->Name()));
+        graph::funcs::update_input_dtype(
+            ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
+        graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
         graph->AddOp(dX->Name(), ge_op);
       }
       if (dY) {
         auto ge_op = ge::op::Mul()
                          .set_input_x1(graph->GetOp(dOut->Name()))
                          .set_input_x2(graph->GetOp(X->Name()));
+        graph::funcs::update_input_dtype(
+            ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
+        graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
         graph->AddOp(dY->Name(), ge_op);
       }
       return;
@@ -207,6 +233,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_transpose_x1(trans_y)
                            .set_attr_transpose_x2(true);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name(), ge_op);
         } else {
           auto ge_op = ge::op::MatMul()
@@ -214,6 +243,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(Y->Name() + "_temp"))
                            .set_attr_transpose_x1(false)
                            .set_attr_transpose_x2(!trans_y);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name(), ge_op);
         }
       }
@@ -224,6 +256,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(X->Name() + "_temp"))
                            .set_attr_transpose_x1(true)
                            .set_attr_transpose_x2(trans_x);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), ge_op);
         } else {
           auto ge_op = ge::op::MatMul()
@@ -231,6 +266,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_transpose_x1(!trans_x)
                            .set_attr_transpose_x2(false);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), ge_op);
         }
       }
@@ -253,6 +291,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                           .set_attr_transpose_x1(false)
                           .set_attr_transpose_x2(!trans_y);
         auto matmul_reshape = graph::funcs::reshape(matmul, X->dims());
+        graph::funcs::update_input_dtype(
+            matmul, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
+        graph::funcs::update_output_dtype(matmul, {{"y", dX->dtype()}});
         graph->AddOp(dX->Name(), matmul_reshape);
       }
       if (dY) {
@@ -264,6 +305,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                             .set_input_x2(x_temp_reshape)
                             .set_attr_transpose_x1(true)
                             .set_attr_transpose_x2(false);
+          graph::funcs::update_input_dtype(
+              matmul, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
+          graph::funcs::update_output_dtype(matmul, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), matmul);
         } else {
           auto matmul = ge::op::MatMul()
@@ -271,6 +315,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                             .set_input_x2(dout_reshape)
                             .set_attr_transpose_x1(true)
                             .set_attr_transpose_x2(false);
+          graph::funcs::update_input_dtype(
+              matmul, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(matmul, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), matmul);
         }
       }
@@ -313,6 +360,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_adj_x1(trans_y)
                            .set_attr_adj_x2(true);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name(), ge_op);
         } else {
           auto ge_op = ge::op::BatchMatMul()
@@ -320,6 +370,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(Y->Name() + "_temp_brd"))
                            .set_attr_adj_x1(false)
                            .set_attr_adj_x2(!trans_y);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name(), ge_op);
         }
       } else {
@@ -329,6 +382,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_adj_x1(trans_y)
                            .set_attr_adj_x2(true);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name() + "_temp", ge_op);
         } else {
           auto ge_op = ge::op::BatchMatMul()
@@ -336,6 +392,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(Y->Name() + "_temp_brd"))
                            .set_attr_adj_x1(false)
                            .set_attr_adj_x2(!trans_y);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
           graph->AddOp(dX->Name() + "_temp", ge_op);
         }
 
@@ -366,6 +425,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(X->Name() + "_temp_brd"))
                            .set_attr_adj_x1(true)
                            .set_attr_adj_x2(trans_x);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), ge_op);
         } else {
           auto ge_op = ge::op::BatchMatMul()
@@ -373,6 +435,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_adj_x1(!trans_x)
                            .set_attr_adj_x2(false);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name(), ge_op);
         }
       } else {
@@ -382,6 +447,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(X->Name() + "_temp_brd"))
                            .set_attr_adj_x1(true)
                            .set_attr_adj_x2(trans_x);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name() + "_temp", ge_op);
         } else {
           auto ge_op = ge::op::BatchMatMul()
@@ -389,6 +457,9 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
                            .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
                            .set_attr_adj_x1(!trans_x)
                            .set_attr_adj_x2(false);
+          graph::funcs::update_input_dtype(
+              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
+          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
           graph->AddOp(dY->Name() + "_temp", ge_op);
         }
 

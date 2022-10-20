@@ -44,7 +44,17 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     engine->seed(seed);
 
     uint8_t* data_value = nullptr;
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      std::uniform_real_distribution<float> dist(static_cast<float>(min_value),
+                                                 static_cast<float>(max_value));
+
+      auto ptr = new phi::dtype::float16[size];
+      for (auto i = 0; i < size; ++i) {
+        ptr[i] = static_cast<phi::dtype::float16>(dist(*engine));
+      }
+      bytesize = size * sizeof(phi::dtype::float16);
+      data_value = reinterpret_cast<uint8_t*>(ptr);
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       std::uniform_real_distribution<float> dist(static_cast<float>(min_value),
                                                  static_cast<float>(max_value));
       auto ptr = new float[size];
@@ -73,18 +83,25 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     auto constant_op = ge::op::Constant().set_attr_value(tensor);
     constant_op.update_output_desc_y(out_tensor_desc);
 
-    // inplace op
-    auto assign_op = ge::op::Assign()
-                         .set_input_ref(graph->GetOp(out->Name()))
-                         .set_input_value(constant_op);
-    graph->AddInput(graph->GetOp(out->Name()));
-    // graph->Graph()->AddOp(assign_op);
+    if (!graph->HasOp(out->Name())) {
+      graph->AddInput(constant_op);
+      graph->AddOp(out->Name(), constant_op);
+    } else {
+      // inplace op
+      auto assign_op = ge::op::Assign()
+                           .set_input_ref(graph->GetOp(out->Name()))
+                           .set_input_value(constant_op);
+      graph->AddInput(graph->GetOp(out->Name()));
+    }
     graph::utils::log() << "[INFO] uniform random tensor: " << out->Name()
                         << ", dims: "
                         << paddle::framework::ir::to_string(out->dims())
                         << std::endl;
 
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
+      delete[] ptr;
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
       delete[] ptr;
     } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
@@ -127,7 +144,16 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
     auto engine = std::make_shared<std::mt19937_64>();
     engine->seed(seed);
 
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      std::normal_distribution<float> dist(mean_value, std_value);
+
+      auto ptr = new phi::dtype::float16[size];
+      for (auto i = 0; i < size; ++i) {
+        ptr[i] = static_cast<phi::dtype::float16>(dist(*engine));
+      }
+      bytesize = size * sizeof(phi::dtype::float16);
+      data_value = reinterpret_cast<uint8_t*>(ptr);
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       std::normal_distribution<float> dist(mean_value, std_value);
 
       auto ptr = new float[size];
@@ -167,7 +193,10 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
                         << paddle::framework::ir::to_string(out->dims())
                         << std::endl;
 
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
+      delete[] ptr;
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
       delete[] ptr;
     } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {

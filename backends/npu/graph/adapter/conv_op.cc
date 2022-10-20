@@ -71,8 +71,11 @@ class Conv2dAdapter : public custom_graph::OpAdapter {
                      .set_attr_dilations(dilations_vec)
                      .set_attr_groups(groups)
                      .set_attr_data_format(data_format);
-    graph::funcs::update_input_format(ge_op, "x", data_format);
-    graph::funcs::update_input_format(ge_op, "filter", data_format);
+    graph::funcs::update_input_dtype(
+        ge_op, {{"x", input->dtype()}, {"filter", filter->dtype()}});
+    graph::funcs::update_output_dtype(ge_op, {{"y", output->dtype()}});
+    graph::funcs::update_input_format(
+        ge_op, {{"x", data_format}, {"filter", data_format}});
     graph::funcs::update_output_format(ge_op, "y", data_format);
 
     graph->AddOp(output->Name(), ge_op);
@@ -146,8 +149,13 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
               .set_attr_dilations(dilations_vec)
               .set_attr_groups(groups)
               .set_attr_data_format(data_format);
-      graph::funcs::update_input_format(ge_op, "filter", data_format);
-      graph::funcs::update_input_format(ge_op, "out_backprop", data_format);
+      graph::funcs::update_input_dtype(
+          ge_op,
+          {{"filter", filter->dtype()},
+           {"out_backprop", output_grad->dtype()}});
+      graph::funcs::update_output_dtype(ge_op, {{"y", input_grad->dtype()}});
+      graph::funcs::update_input_format(
+          ge_op, {{"filter", data_format}, {"out_backprop", data_format}});
       graph::funcs::update_output_format(ge_op, "y", data_format);
 
       graph->AddOp(input_grad->Name(), ge_op);
@@ -172,8 +180,13 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
               .set_attr_dilations(dilations_vec)
               .set_attr_groups(groups)
               .set_attr_data_format(data_format);
-      graph::funcs::update_input_format(ge_op, "x", data_format);
-      graph::funcs::update_input_format(ge_op, "out_backprop", data_format);
+      graph::funcs::update_input_dtype(
+          ge_op,
+          {{"x", input->dtype()}, {"out_backprop", output_grad->dtype()}});
+      graph::funcs::update_output_dtype(ge_op, {{"y", filter_grad->dtype()}});
+      graph::funcs::update_input_format(
+          ge_op, {{"x", data_format}, {"out_backprop", data_format}});
+
       graph::funcs::update_output_format(ge_op, "y", data_format);
 
       graph->AddOp(filter_grad->Name(), ge_op);

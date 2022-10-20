@@ -72,8 +72,36 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                   ksize);
 
     if (adaptive) {
-      graph::utils::log() << "[ERROR] unsupport adaptive pooling" << std::endl;
-      exit(-1);
+      // AdaptiveAvgPool2d only support NCHW
+      if (pooling_type == "avg") {
+        if (channel_last) {
+          auto trans_x = ge::op::TransData()
+                             .set_input_src(graph->GetOp(in_x->Name()))
+                             .set_attr_src_format("NHWC")
+                             .set_attr_dst_format("NCHW");
+          auto op = ge::op::AdaptiveAvgPool2d()
+                        .set_input_x(trans_x)
+                        .set_attr_output_size(std::vector<int64_t>(
+                            out_data_dims.begin(), out_data_dims.end()));
+          auto trans_out = ge::op::TransData()
+                               .set_input_src(op)
+                               .set_attr_src_format("NCHW")
+                               .set_attr_dst_format("NHWC");
+          graph->AddOp(out->Name(), trans_out);
+        } else {
+          auto op = ge::op::AdaptiveAvgPool2d()
+                        .set_input_x(graph->GetOp(in_x->Name()))
+                        .set_attr_output_size(std::vector<int64_t>(
+                            out_data_dims.begin(), out_data_dims.end()));
+          graph->AddOp(out->Name(), op);
+        }
+      } else {
+        auto op = ge::op::AdaptiveMaxPool2d()
+                      .set_input_x(graph->GetOp(in_x->Name()))
+                      .set_attr_output_size(std::vector<int64_t>(
+                          out_data_dims.begin(), out_data_dims.end()));
+        graph->AddOp(out->Name(), op);
+      }
     } else {
       if (pooling_type == "max") {
         // PADDLE_ENFORCE_EQ(
@@ -91,8 +119,10 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                          .set_attr_data_format(data_format)
                          .set_attr_global_pooling(global_pooling)
                          .set_attr_ceil_mode(ceil_mode);
-        graph::funcs::update_input_format(ge_op, data_format, "x");
-        graph::funcs::update_output_format(ge_op, data_format, "y");
+        graph::funcs::update_input_dtype(ge_op, {{"x", in_x->dtype()}});
+        graph::funcs::update_output_dtype(ge_op, {{"y", out->dtype()}});
+        graph::funcs::update_input_format(ge_op, "x", data_format);
+        graph::funcs::update_output_format(ge_op, "y", data_format);
 
         graph->AddOp(out->Name(), ge_op);
       } else {
@@ -107,8 +137,10 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
                          .set_attr_global_pooling(global_pooling)
                          .set_attr_ceil_mode(ceil_mode)
                          .set_attr_exclusive(exclusive);
-        graph::funcs::update_input_format(ge_op, data_format, "x");
-        graph::funcs::update_output_format(ge_op, data_format, "y");
+        graph::funcs::update_input_dtype(ge_op, {{"x", in_x->dtype()}});
+        graph::funcs::update_output_dtype(ge_op, {{"y", out->dtype()}});
+        graph::funcs::update_input_format(ge_op, "x", data_format);
+        graph::funcs::update_output_format(ge_op, "y", data_format);
 
         graph->AddOp(out->Name(), ge_op);
       }
@@ -227,7 +259,12 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
                        .set_attr_data_format(data_format)
                        .set_attr_global_pooling(global_pooling)
                        .set_attr_ceil_mode(ceil_mode);  // 0: floor, 1: ceil
-
+      graph::funcs::update_input_dtype(ge_op,
+                                       {{"orig_input", in_x->dtype()},
+                                        {"orig_output", out->dtype()},
+                                        {"grad", out_grad->dtype()}});
+      graph::funcs::update_output_dtype(ge_op,
+                                        {{"out_grad", in_x_grad->dtype()}});
       graph->AddOp(in_x_grad->Name(), ge_op);
     } else if (pooling_type == "avg") {
       // PADDLE_ENFORCE(strides[0] == strides[1],
@@ -251,7 +288,10 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
                        .set_attr_global_pooling(global_pooling)
                        .set_attr_ceil_mode(ceil_mode)  // 0: floor, 1: ceil
                        .set_attr_exclusive(exclusive);
-
+      graph::funcs::update_input_dtype(ge_op,
+                                       {{"input_grad", out_grad->dtype()}});
+      graph::funcs::update_output_dtype(ge_op,
+                                        {{"out_grad", in_x_grad->dtype()}});
       graph->AddOp(in_x_grad->Name(), ge_op);
     }
   }

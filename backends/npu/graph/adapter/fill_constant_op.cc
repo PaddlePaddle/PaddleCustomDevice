@@ -39,7 +39,22 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
     auto bytesize = size;
 
     uint8_t* data_value = nullptr;
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+
+    if (out->dtype() == paddle::framework::proto::VarType::INT32) {
+      auto ptr = new int32_t[size];
+      for (auto i = 0; i < size; ++i) {
+        ptr[i] = static_cast<int32_t>(fill_constant_value);
+      }
+      bytesize = size * sizeof(int32_t);
+      data_value = reinterpret_cast<uint8_t*>(ptr);
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      auto ptr = new phi::dtype::float16[size];
+      for (auto i = 0; i < size; ++i) {
+        ptr[i] = static_cast<phi::dtype::float16>(fill_constant_value);
+      }
+      bytesize = size * sizeof(phi::dtype::float16);
+      data_value = reinterpret_cast<uint8_t*>(ptr);
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = new float[size];
       for (auto i = 0; i < size; ++i) {
         ptr[i] = static_cast<float>(fill_constant_value);
@@ -68,22 +83,25 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
     if (!graph->HasOp(out->Name())) {
       graph->AddInput(constant_op);
       graph->AddOp(out->Name(), constant_op);
-      return;
+    } else {
+      // inplace op
+      auto assign_op = ge::op::Assign()
+                           .set_input_ref(graph->GetOp(out->Name()))
+                           .set_input_value(constant_op);
+      graph->AddInput(graph->GetOp(out->Name()));
     }
-
-    // inplace op
-    auto assign_op = ge::op::Assign()
-                         .set_input_ref(graph->GetOp(out->Name()))
-                         .set_input_value(constant_op);
-    graph->AddInput(graph->GetOp(out->Name()));
-    // graph->Graph()->AddOp(assign_op);
-
     graph::utils::log() << "[INFO] fill constant tensor: " << out->Name()
                         << ", dims: "
                         << paddle::framework::ir::to_string(out->dims())
                         << std::endl;
 
-    if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+    if (out->dtype() == paddle::framework::proto::VarType::INT32) {
+      auto ptr = reinterpret_cast<int32_t*>(data_value);
+      delete[] ptr;
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
+      delete[] ptr;
+    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
       auto ptr = reinterpret_cast<float*>(data_value);
       delete[] ptr;
     } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {

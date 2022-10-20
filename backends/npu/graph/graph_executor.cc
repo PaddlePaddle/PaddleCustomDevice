@@ -28,18 +28,24 @@ static std::unordered_map<C_Scope,
 
 bool ge_initialized = false;
 
+std::map<ge::AscendString, ge::AscendString> config;
+
 C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
   if (!ge_initialized) {
+    ge_initialized = true;
     auto soc_name = aclrtGetSocName();
-    std::map<ge::AscendString, ge::AscendString> config = {
-        {"ge.exec.deviceId", "0"},
-        {"ge.graphRunMode", "0"},
-        {"ge.exec.precision_mode", "allow_fp32_to_fp16"},
-        {"ge.graphMemoryMaxSize", "1048576"},
-        {"ge.socVersion", ge::AscendString(soc_name)},
-        {"ge.opSelectImplmode", "high_performance"}};
+    config = {{"ge.exec.deviceId",
+               ge::AscendString(std::to_string(device->id).c_str())},
+              {"ge.graphRunMode", "0"},
+              {"ge.exec.precision_mode", "allow_fp32_to_fp16"},
+              {"ge.graphMemoryMaxSize", "22548578304"},
+              {"ge.variableMemoryMaxSize",
+               "10737418240"}, /* graphMemoryMaxSize + variableMemoryMaxSize <=
+                                  31 GB */
+              {"ge.socVersion", ge::AscendString(soc_name)},
+              {"ge.opSelectImplmode", "high_performance"}};
     // {"ge.exec.reuseZeroCopyMemory", "1"},
-    // {"GE_USE_STATIC_MEMORY", "2"}
+    // {"GE_USE_STATIC_MEMORY", "2"}};
     ge::Status ret = ge::GEInitialize(config);
     if (ret != ge::SUCCESS) {
       graph::utils::log() << "[ERROR] graph_engine_initialize failed."
@@ -53,12 +59,23 @@ C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
 }
 
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
-  session_cache.clear();
+  if (ge_initialized) {
+    ge_initialized = false;
+    session_cache.clear();
+    ge::Status ret = ge::GEFinalize();
+    if (ret != ge::SUCCESS) {
+      graph::utils::log() << "[ERROR] graph_engine_finalize failed."
+                          << std::endl;
+      return C_FAILED;
+    }
+    graph::utils::log() << "[INFO] graph_engine_finalize success." << std::endl;
+  }
+  return C_SUCCESS;
 }
 
 C_Status graph_engine_execute_graph(const C_Device device,
                                     const C_Stream stream,
-                                    const C_Scope scope,
+                                    const C_Scope scope_,
                                     const C_Graph graph,
                                     char** feed_tensor_name,
                                     void** feed_tensor_data,
@@ -67,13 +84,12 @@ C_Status graph_engine_execute_graph(const C_Device device,
                                     void** fetch_tensor_data,
                                     size_t fetch_tensor_num) {
   ge::Status ret = ge::SUCCESS;
-
+  C_Scope scope = nullptr;
   graph::utils::log() << "[INFO] scope=" << scope << ", graph=" << graph
                       << std::endl;
 
   if (session_cache.find(scope) == session_cache.end()) {
-    std::map<ge::AscendString, ge::AscendString> options;
-    session_cache[scope] = {std::make_shared<ge::Session>(options), {}};
+    session_cache[scope] = {std::make_shared<ge::Session>(config), {}};
   }
   auto session = session_cache[scope].first.get();
 
@@ -91,6 +107,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
     graph_cache[graph].ctx_graph = std::make_shared<custom_graph::GEGraph>(
         name, id, graph_cache[graph].ge_graph.get());
   }
+  graph::utils::log() << "[INFO] find graph cache.\n";
 
   auto& ir_graph = *graph_cache[graph].ir_graph;
   auto ge_graph_id = graph_cache[graph].id;

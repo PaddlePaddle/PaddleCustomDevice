@@ -74,18 +74,13 @@ class ReduceMeanGradAdapter : public custom_graph::OpAdapter {
       reduce_numel *= x_dim[axes[i]];
       out_dim[axes[i]] = 1;
     }
-    auto fillv2 = ge::op::FillV2D()
-                      .set_attr_value(1.0f / static_cast<float>(reduce_numel))
-                      .set_attr_dims(
-                          std::vector<int64_t>(out_dim.begin(), out_dim.end()));
-    auto mul = ge::op::Mul().set_input_x1(fillv2).set_input_x2(
-        graph->GetOp(out_grad->Name()));
-    auto zeros_like_x = ge::op::FillV2D().set_attr_value(0.0f).set_attr_dims(
-        std::vector<int64_t>(x_dim.begin(), x_dim.end()));
-    auto add = ge::op::Add(ge::AscendString((x->Name() + "_grad").c_str()))
-                   .set_input_x1(mul)
-                   .set_input_x2(zeros_like_x);
-    graph->AddOp(x_grad->Name(), add);
+
+    auto muls = ge::op::Muls()
+                    .set_input_x(graph->GetOp(out_grad->Name()))
+                    .set_attr_value(1.0f / static_cast<float>(reduce_numel));
+    auto reshape_muls = graph::funcs::reshape(muls, out_dim);
+    auto broadcast_to = graph::funcs::broadcast_to(reshape_muls, x_dim);
+    graph->AddOp(x_grad->Name(), broadcast_to);
   }
 };
 

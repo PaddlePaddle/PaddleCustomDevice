@@ -60,13 +60,13 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
                           .set_input_mean(graph->GetOp(running_mean->Name()))
                           .set_input_variance(graph->GetOp(running_var->Name()))
                           .set_attr_epsilon(epsilon);
-      graph::funcs::update_input_format(bn_infer, data_layout, "x");
-      graph::funcs::update_input_format(bn_infer, data_layout, "scale");
-      graph::funcs::update_input_format(bn_infer, data_layout, "offset");
-      graph::funcs::update_input_format(bn_infer, data_layout, "mean");
-      graph::funcs::update_input_format(bn_infer, data_layout, "variance");
-      graph::funcs::update_output_format(bn_infer, data_layout, "y");
-
+      graph::funcs::update_input_format(bn_infer,
+                                        {{"x", data_layout},
+                                         {"scale", data_layout},
+                                         {"offset", data_layout},
+                                         {"mean", data_layout},
+                                         {"variance", data_layout}});
+      graph::funcs::update_output_format(bn_infer, {{"y", data_layout}});
       graph->AddOp(y->Name(), bn_infer);
     } else {
       auto *mean_out = ctx.Output("MeanOut");
@@ -85,13 +85,11 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
       auto bn_training_reduce = ge::op::BNTrainingReduce()
                                     .set_input_x(graph->GetOp(x->Name()))
                                     .SetAttr("epsilon", epsilon);
-      graph::funcs::update_input_format(bn_training_reduce, data_layout, "x");
-      graph::funcs::update_output_format(bn_training_reduce, "NCHW", "sum");
+      graph::funcs::update_input_format(bn_training_reduce,
+                                        {{"x", data_layout}});
       graph::funcs::update_output_format(
-          bn_training_reduce, "NCHW", "square_sum");
-      auto x_desc = bn_training_reduce.GetInputDescByName("x");
-      std::cout << "format=" << ge::GetFormatName(x_desc.GetFormat())
-                << std::endl;
+          bn_training_reduce, {{"sum", "NCHW"}, {"square_sum", "NCHW"}});
+      graph::funcs::update_input_dtype(bn_training_reduce, {{"x", x->dtype()}});
 
       auto bn_training_update =
           ge::op::BNTrainingUpdate()
@@ -104,23 +102,25 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
               .set_input_variance(graph->GetOp(running_var->Name()))
               .set_attr_epsilon(epsilon)
               .set_attr_factor(momentum);
-      graph::funcs::update_input_format(bn_training_update, data_layout, "x");
-      graph::funcs::update_input_format(bn_training_update, "NCHW", "sum");
-      graph::funcs::update_input_format(
-          bn_training_update, "NCHW", "square_sum");
-      graph::funcs::update_input_format(bn_training_update, "NCHW", "scale");
-      graph::funcs::update_input_format(bn_training_update, "NCHW", "offset");
-      graph::funcs::update_input_format(bn_training_update, "NCHW", "mean");
-      graph::funcs::update_input_format(bn_training_update, "NCHW", "variance");
-      graph::funcs::update_output_format(bn_training_update, data_layout, "y");
-      graph::funcs::update_output_format(bn_training_update, "NCHW", "mean");
-      graph::funcs::update_output_format(
-          bn_training_update, "NCHW", "variance");
-      graph::funcs::update_output_format(
-          bn_training_update, "NCHW", "batch_mean");
-      graph::funcs::update_output_format(
-          bn_training_update, "NCHW", "batch_variance");
-
+      graph::funcs::update_input_format(bn_training_update,
+                                        {{"x", data_layout},
+                                         {"sum", "NCHW"},
+                                         {"square_sum", "NCHW"},
+                                         {"scale", "NCHW"},
+                                         {"offset", "NCHW"},
+                                         {"mean", "NCHW"},
+                                         {"variance", "NCHW"}});
+      graph::funcs::update_output_format(bn_training_update,
+                                         {{"y", data_layout},
+                                          {"mean", "NCHW"},
+                                          {"variance", "NCHW"},
+                                          {"batch_mean", "NCHW"},
+                                          {"batch_variance", "NCHW"}});
+      graph::funcs::update_output_dtype(
+          bn_training_update,
+          {{"y", y->dtype()},
+           {"batch_mean", saved_mean->dtype()},
+           {"batch_variance", saved_variance->dtype()}});
       auto y_node = graph::funcs::get_output_by_name(
           bn_training_update, y->dims(), y->dtype(), "y");
       auto batch_mean_node =
@@ -178,10 +178,15 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(running_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_dtype(
+            bn_training_update_grad,
+            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
+        graph::funcs::update_output_dtype(bn_training_update_grad,
+                                          {{"diff_scale", d_scale->dtype()},
+                                           {"diff_offset", d_bias->dtype()}});
         graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "grads");
-        graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "x");
+            bn_training_update_grad,
+            {{"grads", data_layout}, {"x", data_layout}});
 
         graph->AddOp(d_scale->Name(),
                      graph::funcs::get_output_by_name(bn_training_update_grad,
@@ -202,11 +207,15 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(saved_inv_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_dtype(
+            bn_training_update_grad,
+            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
+        graph::funcs::update_output_dtype(bn_training_update_grad,
+                                          {{"diff_scale", d_scale->dtype()},
+                                           {"diff_offset", d_bias->dtype()}});
         graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "grads");
-        graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "x");
-
+            bn_training_update_grad,
+            {{"grads", data_layout}, {"x", data_layout}});
         graph->AddOp(d_scale->Name(),
                      graph::funcs::get_output_by_name(bn_training_update_grad,
                                                       d_scale->dims(),
@@ -228,9 +237,9 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_scale(graph->GetOp(scale->Name()))
                 .set_input_batch_variance(graph->GetOp(running_var->Name()))
                 .set_attr_epsilon(epsilon);
-        graph::funcs::update_input_format(bn_infer_grad, data_layout, "grads");
+        graph::funcs::update_input_format(bn_infer_grad, "grads", data_layout);
         graph::funcs::update_output_format(
-            bn_infer_grad, data_layout, "x_backprop");
+            bn_infer_grad, "x_backprop", data_layout);
 
         graph->AddOp(d_x->Name(), bn_infer_grad);
       } else {
@@ -245,13 +254,16 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
                 .set_input_batch_variance(
                     graph->GetOp(saved_inv_variance->Name()))
                 .set_attr_epsilon(epsilon);
+        graph::funcs::update_input_dtype(
+            bn_training_update_grad,
+            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
+        graph::funcs::update_output_dtype(bn_training_update_grad,
+                                          {{"y", d_x->dtype()}});
         graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "grads");
-        graph::funcs::update_input_format(
-            bn_training_update_grad, data_layout, "x");
-        graph::funcs::update_output_format(
-            bn_training_update_grad, data_layout, "y");
-
+            bn_training_update_grad,
+            {{"grads", data_layout}, {"x", data_layout}});
+        graph::funcs::update_output_format(bn_training_update_grad,
+                                           {{"y", data_layout}});
         graph->AddOp(d_x->Name(), bn_training_update_grad);
       }
     }

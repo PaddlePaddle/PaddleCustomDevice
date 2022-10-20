@@ -35,44 +35,42 @@ class AccuracyAdapter : public custom_graph::OpAdapter {
       return;
     }
 
-    auto indices_int =
-        ge::op::Cast()
-            .set_input_x(graph->GetOp(indices->Name()))
-            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
-    auto label_int =
-        ge::op::Cast()
-            .set_input_x(graph->GetOp(label->Name()))
-            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
+    auto label_same_dtype_with_indices = graph->GetOp(label->Name());
+    if (label->dtype() != indices->dtype()) {
+      label_same_dtype_with_indices =
+          graph::funcs::cast(label_same_dtype_with_indices, indices->dtype());
+    }
 
-    auto equal =
-        ge::op::Equal().set_input_x1(indices_int).set_input_x2(label_int);
+    auto equal = ge::op::Equal()
+                     .set_input_x1(graph->GetOp(indices->Name()))
+                     .set_input_x2(label_same_dtype_with_indices);
 
-    auto equal_float = ge::op::Cast().set_input_x(equal).set_attr_dst_type(
-        graph::utils::cpp_type_to_ge_dtype<float>::value);
+    auto equal_float = graph::funcs::cast<float>(equal);
 
     auto reduce_max = ge::op::ReduceMaxD()
                           .set_input_x(equal_float)
                           .set_attr_axes(std::vector<int64_t>({1}))
                           .set_attr_keep_dims(false);
 
-    auto reduce_sum = ge::op::ReduceSumD()
-                          .set_input_x(reduce_max)
-                          .set_attr_axes(std::vector<int64_t>({0}))
-                          .set_attr_keep_dims(false);
-
-    // auto reduce_sum_int =
-    //     ge::op::Cast()
-    //         .set_input_x(reduce_sum)
-    //         .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<int>::value);
-
-    graph->AddOp(correct->Name(), reduce_sum);
+    auto reduce_sum =
+        ge::op::ReduceSumD(ge::AscendString(correct->Name().c_str()))
+            .set_input_x(reduce_max)
+            .set_attr_axes(std::vector<int64_t>({0}))
+            .set_attr_keep_dims(false);
 
     auto total_float = graph::funcs::constant(
-        {1}, std::vector<float>({static_cast<float>(num_samples)}));
+        {1},
+        std::vector<float>({static_cast<float>(num_samples)}),
+        ge::Format::FORMAT_NCHW,
+        total->Name());
+
+    auto div = ge::op::Div(ge::AscendString(accuracy->Name().c_str()))
+                   .set_input_x1(reduce_sum)
+                   .set_input_x2(total_float);
+
+    graph->AddOp(correct->Name(), reduce_sum);
     graph->AddOp(total->Name(), total_float);
     graph->AddInput(total_float);
-
-    auto div = ge::op::Div().set_input_x1(reduce_sum).set_input_x2(total_float);
     graph->AddOp(accuracy->Name(), div);
   }
 };

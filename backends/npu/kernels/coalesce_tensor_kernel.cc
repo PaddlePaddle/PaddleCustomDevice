@@ -339,4 +339,6 @@ PD_REGISTER_PLUGIN_KERNEL(coalesce_tensor,
                           int,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}

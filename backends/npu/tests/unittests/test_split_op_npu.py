@@ -40,8 +40,7 @@ class TestNPUSplitOp(NPUOpTest):
         x = np.random.random((4, 5, 6)).astype(self.dtype)
         out = np.split(x, [2, 3], axis)
         self.inputs = {'X': x}
-        self.outputs = {'Out': [('out%d' % i, out[i])
-                                for i in range(len(out))]}
+        self.outputs = {'Out': [('out%d' % i, out[i]) for i in range(len(out))]}
         self.attrs = {'axis': axis, 'sections': [2, 1, 2]}
 
     def get_dtype(self):
@@ -71,8 +70,7 @@ class TestNPUSplitOp_2(NPUOpTest):
         }
 
         out = np.split(self.x, self.indices_or_sections, self.axis)
-        self.outputs = {'Out': [('out%d' % i, out[i])
-                                for i in range(len(out))]}
+        self.outputs = {'Out': [('out%d' % i, out[i]) for i in range(len(out))]}
 
     def init_data(self):
         self.x = np.random.random((4, 5, 6)).astype(self.dtype)
@@ -96,7 +94,6 @@ class TestNPUSplitOp_2(NPUOpTest):
 
 # attr(axis) is Tensor
 class TestSplitOp_AxisTensor(NPUOpTest):
-
     def setUp(self):
         self.set_plugin()
         self._set_op_type()
@@ -109,8 +106,7 @@ class TestSplitOp_AxisTensor(NPUOpTest):
         self.attrs = {'sections': self.sections, 'num': self.num}
 
         out = np.split(self.x, self.indices_or_sections, self.axis)
-        self.outputs = {'Out': [('out%d' % i, out[i])
-                                for i in range(len(out))]}
+        self.outputs = {'Out': [('out%d' % i, out[i]) for i in range(len(out))]}
 
     def init_data(self):
         self.x = np.random.random((4, 5, 6)).astype(self.dtype)
@@ -134,7 +130,6 @@ class TestSplitOp_AxisTensor(NPUOpTest):
 
 # attr(sections) is list containing Tensor
 class TestSplitOp_SectionsTensor(NPUOpTest):
-
     def setUp(self):
         self.set_plugin()
         self._set_op_type()
@@ -156,8 +151,7 @@ class TestSplitOp_SectionsTensor(NPUOpTest):
         }
 
         out = np.split(self.x, self.indices_or_sections, self.axis)
-        self.outputs = {'Out': [('out%d' % i, out[i])
-                                for i in range(len(out))]}
+        self.outputs = {'Out': [('out%d' % i, out[i]) for i in range(len(out))]}
 
     def init_data(self):
         self.x = np.random.random((4, 5, 6)).astype(self.dtype)
@@ -178,6 +172,69 @@ class TestSplitOp_SectionsTensor(NPUOpTest):
 
     def test_check_grad(self):
         pass
+
+
+# split_with_num op cannot be called by set op type because it has not been registered in fluid OpProto, 
+# we call paddle.split() in dygraph mode to test it.
+class TestNPUSplitWithNumOp(unittest.TestCase):
+    def initTestCase(self):
+        self.dim = (4, 5, 6)
+        self.dtype = 'float32'
+        self.axis = 2
+        self.num = 3
+
+    def setUp(self):
+        self.initTestCase()
+        self.__class__.use_custom_device = True
+        self.place = [paddle.CustomPlace('ascend', 0)]
+
+    def test_split_with_num(self):
+        def run(place):
+            paddle.disable_static(place)
+            np.random.seed(2021)
+            numpy_input = (np.random.random(self.dim)).astype(self.dtype)
+            tensor_input = paddle.to_tensor(numpy_input)
+            numpy_output = np.split(numpy_input, self.num, self.axis)
+            paddle_output = paddle.split(tensor_input, self.num, self.axis)
+            for i in range(self.num):
+                self.assertEqual(
+                    np.allclose(numpy_output[i], paddle_output[i].numpy()),
+                    True)
+            paddle.enable_static()
+
+        for place in self.place:
+            run(place)
+
+
+class TestNPUSplitWithNumOp_AxisTensor(TestNPUSplitWithNumOp):
+    def initTestCase(self):
+        self.dim = (4, 5, 6)
+        self.dtype = 'float32'
+        self.axis = np.array([2]).astype('int32')
+        self.num = 3
+
+    def setUp(self):
+        self.initTestCase()
+        self.__class__.use_custom_device = True
+        self.place = [paddle.CustomPlace('ascend', 0)]
+
+    def test_split_with_num(self):
+        def run(place):
+            paddle.disable_static(place)
+            np.random.seed(2021)
+            numpy_input = (np.random.random(self.dim)).astype(self.dtype)
+            tensor_input = paddle.to_tensor(numpy_input)
+            numpy_output = np.split(numpy_input, self.num, self.axis[0])
+            paddle_output = paddle.split(tensor_input, self.num,
+                                         paddle.to_tensor(self.axis))
+            for i in range(self.num):
+                self.assertEqual(
+                    np.allclose(numpy_output[i], paddle_output[i].numpy()),
+                    True)
+            paddle.enable_static()
+
+        for place in self.place:
+            run(place)
 
 
 if __name__ == '__main__':

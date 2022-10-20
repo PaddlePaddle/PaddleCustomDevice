@@ -79,7 +79,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
 
     const auto& runner_logical_or =
         NpuOpRunner("LogicalOr", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
-    runner_logical_and.Run(stream);
+    runner_logical_or.Run(stream);
 
     const auto& runner_cast = NpuOpRunner(
         "Cast",

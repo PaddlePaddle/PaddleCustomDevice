@@ -70,7 +70,7 @@ inline void TensorCopy(const Context& dev_ctx,
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
-    AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
@@ -78,7 +78,7 @@ inline void TensorCopy(const Context& dev_ctx,
              dst_place_.GetType() == phi::AllocationType::CUSTOM) {
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
-        AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+        AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
         if (blocking) {
           dev_ctx.Wait();
         }

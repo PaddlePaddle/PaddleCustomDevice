@@ -71,7 +71,8 @@ void OneHotKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
-  PADDLE_THROW(phi::errors::Unimplemented("OneHotKernel is not need?"));
+  custom_kernel::OneHotRawKernel<T, Context>(
+      dev_ctx, x, num_classes_s, phi::DataType::FLOAT32, false, out);
 }
 
 }  // namespace custom_kernel

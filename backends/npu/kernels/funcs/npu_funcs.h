@@ -245,6 +245,7 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
                                  const phi::CustomContext& dev_ctx,
                                  std::vector<bool>* dst) {
   auto src_ptr = static_cast<const void*>(src.data<bool>());
+  C_Stream stream = static_cast<C_Stream>(ctx.stream());
   auto size = src.numel() * sizeof(bool);
 
   bool* array = new bool[src.numel()];
@@ -255,7 +256,7 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
 
   auto src_place = src.place();
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
-    MemCpyD2H(nullptr, dst_ptr, src_ptr, size);
+    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorToVector on %s is not supported.", src_place));

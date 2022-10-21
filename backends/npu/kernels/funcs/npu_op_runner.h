@@ -168,6 +168,10 @@ class NpuOpRunner {
   aclTensorDesc *CreateTensorDesc(phi::DenseTensor tensor,
                                   aclMemType mem_type = ACL_MEMTYPE_DEVICE);
   aclDataBuffer *CreateDataBuffer(phi::DenseTensor tensor);
+  void GetFloatStatus(aclrtStream stream, std::string op_type) const;
+  void InitFloatStatus(aclrtStream stream) const;
+  void ClearFloatStatus(aclrtStream stream) const;
+  void AllocFloatStatus(aclrtStream stream) const;
 
  private:
   std::string op_type_;
@@ -190,4 +194,35 @@ struct cpp_type_to_acl_dtype<float> {
 template <>
 struct cpp_type_to_acl_dtype<double> {
   static const aclDataType value() { return ACL_DOUBLE; }
+};
+
+template <>
+struct cpp_type_to_acl_dtype<phi::dtype::float16> {
+  static const aclDataType value() { return ACL_FLOAT16; }
+};
+
+template <>
+struct cpp_type_to_acl_dtype<int8_t> {
+  static const aclDataType value() { return ACL_BOOL; }
+};
+
+template <>
+struct cpp_type_to_acl_dtype<uint8_t> {
+  static const aclDataType value() { return ACL_UINT8; }
+};
+template <>
+struct cpp_type_to_acl_dtype<bool> {
+  static const aclDataType value() { return ACL_INT8; }
+};
+template <>
+struct cpp_type_to_acl_dtype<int16_t> {
+  static const aclDataType value() { return ACL_INT16; }
+};
+template <>
+struct cpp_type_to_acl_dtype<int32_t> {
+  static const aclDataType value() { return ACL_INT32; }
+};
+template <>
+struct cpp_type_to_acl_dtype<int64_t> {
+  static const aclDataType value() { return ACL_INT64; }
 };

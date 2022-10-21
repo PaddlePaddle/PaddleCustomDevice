@@ -37,13 +37,12 @@ static std::map<paddle::experimental::DataType, aclDataType>  //
         {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
 };
 
-static std::map<paddle::experimental::DataLayout, aclFormat>
-    DATA_LAYOUT_2_ACL_FORMAT = {
-        {paddle::experimental::DataLayout::NCHW, ACL_FORMAT_NCHW},
-        {paddle::experimental::DataLayout::NHWC, ACL_FORMAT_NHWC},
-        {paddle::experimental::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
-        {paddle::experimental::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
-        {paddle::experimental::DataLayout::ANY, ACL_FORMAT_ND},
+static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
+    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
+    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
+    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
+    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
+    {phi::DataLayout::ANY, ACL_FORMAT_ND},
 };
 
 aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
@@ -56,7 +55,7 @@ aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
   return iter->second;
 }
 
-aclFormat ConvertToNpuFormat(paddle::experimental::DataLayout layout) {
+aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
   auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
   PADDLE_ENFORCE_NE(
       iter,

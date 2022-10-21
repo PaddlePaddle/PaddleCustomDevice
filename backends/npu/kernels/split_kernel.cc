@@ -68,12 +68,41 @@ void SplitKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void SplitWithNumKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        int num,
+                        const phi::Scalar& axis_scalar,
+                        std::vector<phi::DenseTensor*> outs) {
+  int axis_value = axis_scalar.to<int>();
+  auto input_axis_dim = x.dims().at(axis_value);
+  std::vector<int64_t> sections_vec;
+  for (int i = 0; i < num; ++i) {
+    sections_vec.push_back(input_axis_dim / num);
+  }
+  phi::IntArray sections(sections_vec);
+  custom_kernel::SplitKernel<T, Context>(
+      dev_ctx, x, sections, axis_scalar, outs);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(split,
                           ascend,
                           ALL_LAYOUT,
                           custom_kernel::SplitKernel,
+                          float,
+                          double,
+                          int64_t,
+                          int,
+                          bool,
+                          uint8_t,
+                          int8_t) {}
+
+PD_REGISTER_PLUGIN_KERNEL(split_with_num,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::SplitWithNumKernel,
                           float,
                           double,
                           int64_t,

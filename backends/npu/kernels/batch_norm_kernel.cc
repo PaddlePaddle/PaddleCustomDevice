@@ -40,8 +40,7 @@ void BatchNormKernel(const Context& dev_ctx,
   bool test_mode = is_test && (!trainable_stats);
   bool training = !test_mode && !use_global_stats;
 
-  phi::DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
@@ -131,8 +130,7 @@ void BatchNormGradKernel(
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
-  phi::DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
   use_global_stats = is_test || use_global_stats;
 

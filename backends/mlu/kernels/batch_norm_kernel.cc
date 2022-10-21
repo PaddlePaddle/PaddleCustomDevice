@@ -13,20 +13,9 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
-
-template <typename T>
-class MPTypeTrait {
- public:
-  using Type = T;
-};
-
-template <>
-class MPTypeTrait<phi::dtype::float16> {
- public:
-  using Type = float;
-};
 
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
@@ -51,8 +40,7 @@ void BatchNormKernel(const Context& dev_ctx,
   bool test_mode = is_test && (!trainable_stats);
   bool global_stats = test_mode || use_global_stats;
 
-  DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_GE(
@@ -173,8 +161,7 @@ void BatchNormGradKernel(
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
-  DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   Tensor d_x_tmp;
   if (d_x == nullptr) {
@@ -329,8 +316,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
                           phi::DenseTensor* y,
                           phi::DenseTensor* mean_out,
                           phi::DenseTensor* variance_out) {
-  DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_GE(

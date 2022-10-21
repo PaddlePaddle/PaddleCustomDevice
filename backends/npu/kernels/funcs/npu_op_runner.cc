@@ -24,19 +24,6 @@
 static aclDataBuffer *float_status_buffer_;
 static aclTensorDesc *float_status_desc_;
 
-static std::map<aclDataType, paddle::experimental::DataType>  //
-    ACL_DTYPE_2_DTYPE = {
-        {ACL_BOOL, paddle::experimental::DataType::BOOL},
-        {ACL_UINT8, paddle::experimental::DataType::UINT8},
-        {ACL_INT8, paddle::experimental::DataType::INT8},
-        {ACL_INT16, paddle::experimental::DataType::INT16},
-        {ACL_INT32, paddle::experimental::DataType::INT32},
-        {ACL_INT64, paddle::experimental::DataType::INT64},
-        {ACL_FLOAT16, paddle::experimental::DataType::FLOAT16},
-        {ACL_FLOAT, paddle::experimental::DataType::FLOAT32},
-        {ACL_DOUBLE, paddle::experimental::DataType::FLOAT64},
-};
-
 static std::map<paddle::experimental::DataType, aclDataType>  //
     DTYPE_2_ACL_DTYPE = {
         {paddle::experimental::DataType::BOOL, ACL_BOOL},
@@ -69,16 +56,6 @@ aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
   return iter->second;
 }
 
-paddle::experimental::DataType ConvertToDtype(aclDataType dtype) {
-  auto iter = ACL_DTYPE_2_DTYPE.find(dtype);
-  PADDLE_ENFORCE_NE(
-      iter,
-      ACL_DTYPE_2_DTYPE.end(),
-      phi::errors::NotFound(
-          "The data type %s can not convert to ACL data type.", dtype));
-  return iter->second;
-}
-
 aclFormat ConvertToNpuFormat(paddle::experimental::DataLayout layout) {
   auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
   PADDLE_ENFORCE_NE(
@@ -98,7 +75,6 @@ NpuOpRunner::NpuOpRunner(const std::string &op_type,
                          const std::vector<phi::DenseTensor> &outputs,
                          const NPUAttributeMap &attrs)
     : op_type_(op_type) {
-  // InitFloatStatus();
   AddInputs(inputs);
   AddOutputs(outputs);
   AddAttrs(attrs);
@@ -224,7 +200,6 @@ NpuOpRunner &NpuOpRunner::AddAttrs(const NPUAttributeMap &attrs) {
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor) {
-  // inputs_.emplace_back(tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(tensor));
   // create aclDataBuffer
@@ -234,7 +209,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor) {
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
                                    aclMemType mem_type) {
-  // inputs_.emplace_back(tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(tensor, mem_type));
   // create aclDataBuffer
@@ -248,7 +222,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
   custom_kernel::TensorFromVector(
       dev_ctx, dims, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
-  // inputs_.emplace_back(host_tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
   // create aclDataBuffer
@@ -263,7 +236,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
   custom_kernel::TensorFromVector(
       dev_ctx, dims, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
-  // inputs_.emplace_back(host_tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
   // create aclDataBuffer
@@ -278,7 +250,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
-  // inputs_.emplace_back(host_tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
   // create aclDataBuffer
@@ -293,7 +264,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
-  // inputs_.emplace_back(host_tensor);
   // create aclTensorDesc
   input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
   // create aclDataBuffer
@@ -303,7 +273,6 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
 }
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
-  // outputs_.emplace_back(tensor);
   // create aclTensorDesc
   output_descs_.emplace_back(CreateTensorDesc(tensor));
   // create aclDataBuffer
@@ -313,7 +282,6 @@ NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
 
 NpuOpRunner &NpuOpRunner::AddInputs(
     const std::vector<phi::DenseTensor> &tensors) {
-  // inputs_ = tensors;
   input_descs_.reserve(tensors.size());
   input_buffers_.reserve(tensors.size());
   for (auto tensor : tensors) {
@@ -344,7 +312,6 @@ NpuOpRunner &NpuOpRunner::AddInputNames(const std::vector<std::string> &names) {
 
 NpuOpRunner &NpuOpRunner::AddOutputs(
     const std::vector<phi::DenseTensor> &tensors) {
-  // outputs_ = tensors;
   output_descs_.reserve(tensors.size());
   output_buffers_.reserve(tensors.size());
   for (auto tensor : tensors) {
@@ -657,9 +624,9 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  stream);
   }
   VLOG(4) << "after aclopCompileAndExecute: " << ret;
-  // if (sync) {
-  ret = aclrtSynchronizeStream(stream);
-  // }
+  if (sync) {
+    ret = aclrtSynchronizeStream(stream);
+  }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
   if (FLAGS_ascend_check_nan_inf) {
     GetFloatStatus(stream, op_type_);

@@ -20,9 +20,12 @@
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "pybind11/pybind11.h"
+#include "runtime/runtime.h"
 
 static aclDataBuffer *float_status_buffer_;
 static aclTensorDesc *float_status_desc_;
+
+ENV_uint64(ascend_check_nan_inf, 0);
 
 static std::map<paddle::experimental::DataType, aclDataType>  //
     DTYPE_2_ACL_DTYPE = {

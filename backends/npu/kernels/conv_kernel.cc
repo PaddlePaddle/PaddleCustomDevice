@@ -684,6 +684,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
                           float,
                           phi::dtype::float16) {}
 
+// test for ci
 PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d,
                           ascend,
                           ALL_LAYOUT,

@@ -20,3 +20,4 @@ foreach(TEST_OP ${TEST_OPS})
 endforeach(TEST_OP)
 
 set_tests_properties(test_adam_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_adamw_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)

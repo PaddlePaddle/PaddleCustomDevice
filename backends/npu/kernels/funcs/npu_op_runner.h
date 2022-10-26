@@ -172,6 +172,7 @@ class NpuOpRunner {
   void InitFloatStatus(aclrtStream stream) const;
   void ClearFloatStatus(aclrtStream stream) const;
   void AllocFloatStatus(aclrtStream stream) const;
+  void PrintOpInfo() const;
 
  private:
   std::string op_type_;

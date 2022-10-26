@@ -511,6 +511,52 @@ void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
   ClearFloatStatus(stream);
 }
 
+void NpuOpRunner::PrintOpInfo() const {
+  // PrintInput
+  std::cout << "Input: " << std::endl;
+  for (int i = 0; i < input_descs_.size(); i++) {
+    auto type = aclGetTensorDescType(input_descs_[i]);
+    std::cout << "- type: " << type << std::endl;
+    auto input_size = aclGetTensorDescSize(input_descs_[i]);
+    auto numel = aclGetTensorDescElementCount(input_descs_[i]);
+    std::vector<float> cpu_data(numel, 0);
+    auto input_ptr = aclGetDataBufferAddr(input_buffers_[i]);
+    PADDLE_ENFORCE_NPU_SUCCESS(aclrtMemcpy(cpu_data.data(),
+                                           input_size,
+                                           input_ptr,
+                                           input_size,
+                                           ACL_MEMCPY_DEVICE_TO_HOST));
+    float sum = 0.0;
+    std::cout << "- data: [";
+    for (int i = 0; i < cpu_data.size(); ++i) {
+      std::cout << cpu_data[i] << ",";
+    }
+    std::cout << "]" << std::endl;
+    std::vector<float>().swap(cpu_data);
+  }
+  // PrintOutput
+  std::cout << "Output: " << std::endl;
+  for (int i = 0; i < output_descs_.size(); i++) {
+    auto type = aclGetTensorDescType(output_descs_[i]);
+    std::cout << "- type: " << type << std::endl;
+    auto input_size = aclGetTensorDescSize(output_descs_[i]);
+    auto numel = aclGetTensorDescElementCount(output_descs_[i]);
+    std::vector<float> cpu_data(numel, 0);
+    auto input_ptr = aclGetDataBufferAddr(output_buffers_[i]);
+    PADDLE_ENFORCE_NPU_SUCCESS(aclrtMemcpy(cpu_data.data(),
+                                           input_size,
+                                           input_ptr,
+                                           input_size,
+                                           ACL_MEMCPY_DEVICE_TO_HOST));
+    float sum = 0.0;
+    std::cout << "- data: [";
+    for (int i = 0; i < cpu_data.size(); ++i) {
+      std::cout << cpu_data[i] << ",";
+    }
+    std::cout << "]" << std::endl;
+    std::vector<float>().swap(cpu_data);
+  }
+}
 void NpuOpRunner::GetFloatStatus(aclrtStream stream,
                                  std::string cur_op_type) const {
   std::string op_type = "NPUGetFloatStatus";
@@ -568,6 +614,9 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
   float sum = 0.0;
   for (int i = 0; i < cpu_data.size(); ++i) {
     sum += cpu_data[i];
+  }
+  if (sum > 1.0) {
+    PrintOpInfo();
   }
   PADDLE_ENFORCE_LT(sum,
                     1.0,

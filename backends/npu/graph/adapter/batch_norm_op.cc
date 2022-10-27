@@ -20,59 +20,41 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode &ctx,
-           custom_graph::GEGraph *graph) override {
+  void run(const Context &ctx) override {
+    auto &x = ctx.Input("X");
+    auto &scale = ctx.Input("Scale");
+    auto &bias = ctx.Input("Bias");
+    auto &running_mean = ctx.Input("Mean");
+    auto &running_var = ctx.Input("Variance");
+    auto &y = ctx.Output("Y");
+
     float epsilon = ctx.Attr<float>("epsilon");
     float momentum = ctx.Attr<float>("momentum");
     bool is_test = ctx.Attr<bool>("is_test");
     bool use_global_stats = ctx.Attr<bool>("use_global_stats");
     bool trainable_stats = ctx.Attr<bool>("trainable_statistics");
-
-    bool test_mode = is_test && (!trainable_stats);
-    bool training = !test_mode && !use_global_stats;
-
     std::string data_layout = ctx.Attr<std::string>("data_layout");
 
+    auto x_dims = x.Shape();
+    bool test_mode = is_test && (!trainable_stats);
+    bool training = !test_mode && !use_global_stats;
     graph::utils::log() << "[INFO] batch_norm data_layout: " << data_layout
                         << std::endl;
 
-    auto *running_mean = ctx.Input("Mean");
-    auto *running_var = ctx.Input("Variance");
-    auto *scale = ctx.Input("Scale");
-    auto *bias = ctx.Input("Bias");
-    auto *x = ctx.Input("X");
-    auto x_dims = x->dims();
-    // PADDLE_ENFORCE_EQ(
-    //     (x_dims.size() == 4UL || x_dims.size() == 3UL),
-    //     true,
-    //     platform::errors::InvalidArgument(
-    //         "The input tensor X's dimension must equal to 3 or 4. "
-    //         " But got X's shape = [%s], X's dimension = [%d].",
-    //         x_dims.to_str(),
-    //         x_dims.size()));
-    auto *y = ctx.Output("Y");
-
     if (!training) {
-      auto bn_infer = ge::op::BNInfer()
-                          .set_input_x(graph->GetOp(x->Name()))
-                          .set_input_scale(graph->GetOp(scale->Name()))
-                          .set_input_offset(graph->GetOp(bias->Name()))
-                          .set_input_mean(graph->GetOp(running_mean->Name()))
-                          .set_input_variance(graph->GetOp(running_var->Name()))
-                          .set_attr_epsilon(epsilon);
-      graph::funcs::update_input_format(bn_infer,
-                                        {{"x", data_layout},
-                                         {"scale", data_layout},
-                                         {"offset", data_layout},
-                                         {"mean", data_layout},
-                                         {"variance", data_layout}});
-      graph::funcs::update_output_format(bn_infer, {{"y", data_layout}});
-      graph->AddOp(y->Name(), bn_infer);
+      OpCommand("BNInfer")
+          .Input(x, "x")
+          .Input(scale)
+          .Input(bias)
+          .Input(running_mean)
+          .Input(running_var)
+          .Output(y, "y")
+          .Attr("epsilon", epsilon);
     } else {
-      auto *mean_out = ctx.Output("MeanOut");
-      auto *variance_out = ctx.Output("VarianceOut");
-      auto *saved_mean = ctx.Output("SavedMean");
-      auto *saved_variance = ctx.Output("SavedVariance");
+      auto &mean_out = ctx.Output("MeanOut");
+      auto &variance_out = ctx.Output("VarianceOut");
+      auto &saved_mean = ctx.Output("SavedMean");
+      auto &saved_variance = ctx.Output("SavedVariance");
 
       // if MomentumTensor is set, use MomentumTensor value, momentum
       // is only used in this training branch
@@ -82,61 +64,28 @@ class BatchNormOpAdapter : public custom_graph::OpAdapter {
         exit(1);
       }
 
-      auto bn_training_reduce = ge::op::BNTrainingReduce()
-                                    .set_input_x(graph->GetOp(x->Name()))
-                                    .SetAttr("epsilon", epsilon);
-      graph::funcs::update_input_format(bn_training_reduce,
-                                        {{"x", data_layout}});
-      graph::funcs::update_output_format(
-          bn_training_reduce, {{"sum", "NCHW"}, {"square_sum", "NCHW"}});
-      graph::funcs::update_input_dtype(bn_training_reduce, {{"x", x->dtype()}});
+      Tensor sum, square_sum, tmp_mean, tmp_variance;
+      OpCommand("BNTrainingReduce")
+          .Input(x.SetFormat(data_layout), "x")
+          .Output(sum.SetFormat("NCHW"), "sum")
+          .Output(square_sum.SetFormat("NCHW"), "square_sum")
+          .Attr("epsilon", epsilon);
 
-      auto bn_training_update =
-          ge::op::BNTrainingUpdate()
-              .set_input_x(graph->GetOp(x->Name()))
-              .set_input_sum(bn_training_reduce, "sum")
-              .set_input_square_sum(bn_training_reduce, "square_sum")
-              .set_input_scale(graph->GetOp(scale->Name()))
-              .set_input_offset(graph->GetOp(bias->Name()))
-              .set_input_mean(graph->GetOp(running_mean->Name()))
-              .set_input_variance(graph->GetOp(running_var->Name()))
-              .set_attr_epsilon(epsilon)
-              .set_attr_factor(momentum);
-      graph::funcs::update_input_format(bn_training_update,
-                                        {{"x", data_layout},
-                                         {"sum", "NCHW"},
-                                         {"square_sum", "NCHW"},
-                                         {"scale", "NCHW"},
-                                         {"offset", "NCHW"},
-                                         {"mean", "NCHW"},
-                                         {"variance", "NCHW"}});
-      graph::funcs::update_output_format(bn_training_update,
-                                         {{"y", data_layout},
-                                          {"mean", "NCHW"},
-                                          {"variance", "NCHW"},
-                                          {"batch_mean", "NCHW"},
-                                          {"batch_variance", "NCHW"}});
-      graph::funcs::update_output_dtype(
-          bn_training_update,
-          {{"y", y->dtype()},
-           {"batch_mean", saved_mean->dtype()},
-           {"batch_variance", saved_variance->dtype()}});
-      auto y_node = graph::funcs::get_output_by_name(
-          bn_training_update, y->dims(), y->dtype(), "y");
-      auto batch_mean_node =
-          graph::funcs::get_output_by_name(bn_training_update,
-                                           mean_out->dims(),
-                                           mean_out->dtype(),
-                                           "batch_mean");
-      auto batch_variance_node =
-          graph::funcs::get_output_by_name(bn_training_update,
-                                           variance_out->dims(),
-                                           variance_out->dtype(),
-                                           "batch_variance");
-
-      graph->AddOp(y->Name(), y_node);
-      graph->AddOp(saved_mean->Name(), batch_mean_node);
-      graph->AddOp(saved_variance->Name(), batch_variance_node);
+      OpCommand("BNTrainingUpdate")
+          .Input(x, "x")
+          .Input(sum, "sum")
+          .Input(square_sum, "square_sum")
+          .Input(scale.SetFormat("NCHW"), "scale")
+          .Input(bias.SetFormat("NCHW"), "offset")
+          .Input(running_mean.SetFormat("NCHW"), "mean")
+          .Input(running_var.SetFormat("NCHW"), "variance")
+          .Output(y.SetFormat(data_layout), "y")
+          .Output(tmp_mean)
+          .Output(tmp_variance)
+          .Output(saved_mean)
+          .Output(saved_variance)
+          .Attr("epsilon", epsilon)
+          .Attr("momentum", momentum);
     }
   }
 };
@@ -145,126 +94,77 @@ class BatchNormGradOpAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode &ctx,
-           custom_graph::GEGraph *graph) override {
-    auto *x = ctx.Input("X");
-    auto *d_y = ctx.Input(paddle::framework::GradVarName("Y"));
-    auto *scale = ctx.Input("Scale");
-    auto *bias = ctx.Input("Bias");
-    auto *saved_mean = ctx.Input("SavedMean");
-    // SavedVariance have been reverted in forward operator
-    auto *saved_inv_variance = ctx.Input("SavedVariance");
+  void run(const Context &ctx) override {
+    auto &x = ctx.Input("X");
+    auto &d_y = ctx.Input(paddle::framework::GradVarName("Y"));
+    auto &scale = ctx.Input("Scale");
+    auto &bias = ctx.Input("Bias");
+
     std::string data_layout = ctx.Attr<std::string>("data_layout");
     bool use_global_stats = ctx.Attr<bool>("use_global_stats");
     bool is_test = ctx.Attr<bool>("is_test");
     float epsilon = ctx.Attr<float>("epsilon");
 
-    auto *d_x = ctx.Output(paddle::framework::GradVarName("X"));
-    auto *d_scale = ctx.Output(paddle::framework::GradVarName("Scale"));
-    auto *d_bias = ctx.Output(paddle::framework::GradVarName("Bias"));
-
     use_global_stats = is_test || use_global_stats;
 
-    if (d_scale && d_bias) {
+    if (ctx.HasOutput(paddle::framework::GradVarName("Scale")) &&
+        ctx.HasOutput(paddle::framework::GradVarName("Bias"))) {
+      auto &d_scale = ctx.Output(paddle::framework::GradVarName("Scale"));
+      auto &d_bias = ctx.Output(paddle::framework::GradVarName("Bias"));
       if (use_global_stats) {
-        const auto *running_mean = ctx.Input("Mean");
-        const auto *running_variance = ctx.Input("Variance");
+        auto &running_mean = ctx.Input("Mean");
+        auto &running_variance = ctx.Input("Variance");
 
-        auto bn_training_update_grad =
-            ge::op::BNTrainingUpdateGrad()
-                .set_input_grads(graph->GetOp(d_y->Name()))
-                .set_input_x(graph->GetOp(x->Name()))
-                .set_input_batch_mean(graph->GetOp(running_mean->Name()))
-                .set_input_batch_variance(
-                    graph->GetOp(running_variance->Name()))
-                .set_attr_epsilon(epsilon);
-        graph::funcs::update_input_dtype(
-            bn_training_update_grad,
-            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
-        graph::funcs::update_output_dtype(bn_training_update_grad,
-                                          {{"diff_scale", d_scale->dtype()},
-                                           {"diff_offset", d_bias->dtype()}});
-        graph::funcs::update_input_format(
-            bn_training_update_grad,
-            {{"grads", data_layout}, {"x", data_layout}});
-
-        graph->AddOp(d_scale->Name(),
-                     graph::funcs::get_output_by_name(bn_training_update_grad,
-                                                      d_scale->dims(),
-                                                      d_scale->dtype(),
-                                                      "diff_scale"));
-        graph->AddOp(d_bias->Name(),
-                     graph::funcs::get_output_by_name(bn_training_update_grad,
-                                                      d_bias->dims(),
-                                                      d_bias->dtype(),
-                                                      "diff_offset"));
+        OpCommand("BNTrainingUpdateGrad")
+            .Input(d_y.SetFormat(data_layout), "grads")
+            .Input(x.SetFormat(data_layout), "x")
+            .Input(running_mean)
+            .Input(running_variance)
+            .Output(d_scale, "diff_scale")
+            .Output(d_bias, "diff_offset")
+            .Attr("epsilon", epsilon);
       } else {
-        auto bn_training_update_grad =
-            ge::op::BNTrainingUpdateGrad()
-                .set_input_grads(graph->GetOp(d_y->Name()))
-                .set_input_x(graph->GetOp(x->Name()))
-                .set_input_batch_mean(graph->GetOp(saved_mean->Name()))
-                .set_input_batch_variance(
-                    graph->GetOp(saved_inv_variance->Name()))
-                .set_attr_epsilon(epsilon);
-        graph::funcs::update_input_dtype(
-            bn_training_update_grad,
-            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
-        graph::funcs::update_output_dtype(bn_training_update_grad,
-                                          {{"diff_scale", d_scale->dtype()},
-                                           {"diff_offset", d_bias->dtype()}});
-        graph::funcs::update_input_format(
-            bn_training_update_grad,
-            {{"grads", data_layout}, {"x", data_layout}});
-        graph->AddOp(d_scale->Name(),
-                     graph::funcs::get_output_by_name(bn_training_update_grad,
-                                                      d_scale->dims(),
-                                                      d_scale->dtype(),
-                                                      "diff_scale"));
-        graph->AddOp(d_bias->Name(),
-                     graph::funcs::get_output_by_name(bn_training_update_grad,
-                                                      d_bias->dims(),
-                                                      d_bias->dtype(),
-                                                      "diff_offset"));
+        auto &saved_mean = ctx.Input("SavedMean");
+        // SavedVariance have been reverted in forward operator
+        auto &saved_inv_variance = ctx.Input("SavedVariance");
+
+        OpCommand("BNTrainingUpdateGrad")
+            .Input(d_y.SetFormat(data_layout), "grads")
+            .Input(x.SetFormat(data_layout), "x")
+            .Input(saved_mean)
+            .Input(saved_inv_variance)
+            .Output(d_scale, "diff_scale")
+            .Output(d_bias, "diff_offset")
+            .Attr("epsilon", epsilon);
       }
     }
-    if (d_x) {
+    if (ctx.HasOutput(paddle::framework::GradVarName("X"))) {
+      auto &d_x = ctx.Output(paddle::framework::GradVarName("X"));
       if (use_global_stats) {
-        const auto *running_var = ctx.Input("Variance");
-        auto bn_infer_grad =
-            ge::op::BNInferGrad()
-                .set_input_grads(graph->GetOp(d_y->Name()))
-                .set_input_scale(graph->GetOp(scale->Name()))
-                .set_input_batch_variance(graph->GetOp(running_var->Name()))
-                .set_attr_epsilon(epsilon);
-        graph::funcs::update_input_format(bn_infer_grad, "grads", data_layout);
-        graph::funcs::update_output_format(
-            bn_infer_grad, "x_backprop", data_layout);
+        auto &running_variance = ctx.Input("Variance");
 
-        graph->AddOp(d_x->Name(), bn_infer_grad);
+        OpCommand("BNInferGrad")
+            .Input(d_y.SetFormat(data_layout), "grads")
+            .Input(scale)
+            .Input(running_variance)
+            .Output(d_x)
+            .Attr("epsilon", epsilon);
       } else {
-        auto bn_training_update_grad =
-            ge::op::BNTrainingReduceGrad()
-                .set_input_grads(graph->GetOp(d_y->Name()))
-                .set_input_x(graph->GetOp(x->Name()))
-                .set_input_diff_scale(graph->GetOp(d_scale->Name()))
-                .set_input_diff_offset(graph->GetOp(d_bias->Name()))
-                .set_input_scale(graph->GetOp(scale->Name()))
-                .set_input_batch_mean(graph->GetOp(saved_mean->Name()))
-                .set_input_batch_variance(
-                    graph->GetOp(saved_inv_variance->Name()))
-                .set_attr_epsilon(epsilon);
-        graph::funcs::update_input_dtype(
-            bn_training_update_grad,
-            {{"grads", d_y->dtype()}, {"x", x->dtype()}});
-        graph::funcs::update_output_dtype(bn_training_update_grad,
-                                          {{"y", d_x->dtype()}});
-        graph::funcs::update_input_format(
-            bn_training_update_grad,
-            {{"grads", data_layout}, {"x", data_layout}});
-        graph::funcs::update_output_format(bn_training_update_grad,
-                                           {{"y", data_layout}});
-        graph->AddOp(d_x->Name(), bn_training_update_grad);
+        auto &saved_mean = ctx.Input("SavedMean");
+        // SavedVariance have been reverted in forward operator
+        auto &saved_inv_variance = ctx.Input("SavedVariance");
+        auto &d_scale = ctx.Output(paddle::framework::GradVarName("Scale"));
+        auto &d_bias = ctx.Output(paddle::framework::GradVarName("Bias"));
+        OpCommand("BNTrainingReduceGrad")
+            .Input(d_y.SetFormat(data_layout), "grads")
+            .Input(x.SetFormat(data_layout), "x")
+            .Input(d_scale)
+            .Input(d_bias)
+            .Input(scale)
+            .Input(saved_mean)
+            .Input(saved_inv_variance)
+            .Output(d_x.SetFormat(data_layout), "y")
+            .Attr("epsilon", epsilon);
       }
     }
   }

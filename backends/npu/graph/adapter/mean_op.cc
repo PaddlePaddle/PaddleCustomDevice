@@ -20,15 +20,20 @@ class MeanAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
-    auto reduce_mean = ge::op::ReduceMeanD()
-                           .set_input_x(graph->GetOp(x->Name()))
-                           .set_attr_axes(std::vector<int64_t>())
-                           .set_attr_keep_dims(false);
-    graph->AddOp(out->Name(), reduce_mean);
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
+    Tensor tmp_x;
+    if (x.DType() == paddle::framework::proto::VarType::FP64) {
+      OpCommand::Cast<float>(x, tmp_x);
+    } else {
+      tmp_x = x;
+    }
+    OpCommand("ReduceMeanD")
+        .Input(tmp_x)
+        .Output(out)
+        .Attr("axes", std::vector<int64_t>())
+        .Attr("keep_dims", false);
   }
 };
 
@@ -36,24 +41,26 @@ class MeanGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto grad = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto dx = ctx.Output(paddle::framework::GradVarName("X"));
+  void run(const Context& ctx) override {
+    auto& grad = ctx.Input(paddle::framework::GradVarName("Out"));
+    auto& dx = ctx.Output(paddle::framework::GradVarName("X"));
 
-    auto dx_dim = dx->dims();
-    // auto fillv2 = ge::op::FillV2D()
-    //               .set_attr_value(1.0f / static_cast<float>(dx->numel()))
-    //               .set_attr_dims(
-    //                   std::vector<int64_t>(dx_dim.begin(), dx_dim.end()));
-    auto fillv2 = graph::funcs::constant(
-        dx_dim,
-        std::vector<float>(dx->numel(),
-                           1.0f / static_cast<float>(dx->numel())));
-    auto reduce_mean_grad = ge::op::Mul().set_input_x1(fillv2).set_input_x2(
-        graph->GetOp(grad->Name()));
+    Tensor dx_numel;
+    OpCommand::FillConstant(
+        dx_numel,
+        dx.Shape(),
+        std::vector<float>(dx.Numel(), 1.0f / static_cast<float>(dx.Numel())));
+    Tensor dx_numel_same_dtype_with_grad;
+    if (grad.DType() != paddle::framework::proto::VarType::FP32) {
+      OpCommand::Cast(dx_numel, dx_numel_same_dtype_with_grad, grad.DType());
+    } else {
+      dx_numel_same_dtype_with_grad = dx_numel;
+    }
 
-    graph->AddOp(dx->Name(), reduce_mean_grad);
+    OpCommand("Mul")
+        .Input(grad)
+        .Input(dx_numel_same_dtype_with_grad)
+        .Output(dx);
   }
 };
 

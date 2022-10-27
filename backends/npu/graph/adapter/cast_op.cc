@@ -20,18 +20,16 @@ class CastAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
     auto dtype = static_cast<paddle::framework::proto::VarType::Type>(
         ctx.Attr<int>("out_dtype"));
 
-    if (x->dtype() == dtype) {
-      graph->RecordNode(out->Name(), graph->GetOp(x->Name()));
+    if (x.DType() == dtype) {
+      out = x;
     } else {
-      auto cast = graph::funcs::cast(graph->GetOp(x->Name()), dtype);
-      graph->AddOp(out->Name(), cast);
+      OpCommand::Cast(x, out, dtype);
     }
   }
 };

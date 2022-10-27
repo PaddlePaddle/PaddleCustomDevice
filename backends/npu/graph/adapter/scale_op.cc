@@ -20,18 +20,14 @@ class ScaleAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
+
     auto scale = ctx.Attr<float>("scale");
     auto bias = ctx.Attr<float>("bias");
     auto bias_after_scale = ctx.Attr<bool>("bias_after_scale");
 
-    float power = 1.0;
-
-    // graph::utils::log() << "[INFO] scale:" << scale << ", bias:" << bias
-    //         << " , bias_after_scale:" << bias_after_scale;
     if (ctx.HasInput("ScaleTensor")) {
       graph::utils::log() << "[ERROR] unsupport ScaleTensor.\n";
       exit(-1);
@@ -42,23 +38,43 @@ class ScaleAdapter : public custom_graph::OpAdapter {
     }
 
     if (std::isinf(scale)) {
-      if (std::signbit(scale)) {
-        scale = -std::numeric_limits<float>::max();
-      } else {
-        scale = std::numeric_limits<float>::max();
-      }
-      auto op = ge::op::Power()
-                    .set_input_x(graph->GetOp(x->Name()))
-                    .set_attr_power(power)
-                    .set_attr_scale(scale)
-                    .set_attr_shift(bias);
-      graph->AddOp(out->Name(), op);
+      float power = 1.0;
+      scale = std::signbit(scale) ? -std::numeric_limits<float>::max()
+                                  : std::numeric_limits<float>::max();
+      OpCommand("Power")
+          .Input(x)
+          .Output(out)
+          .Attr("power", power)
+          .Attr("scale", scale)
+          .Attr("shift", bias);
     } else {
-      auto muls = ge::op::Muls()
-                      .set_input_x(graph->GetOp(x->Name()))
-                      .set_attr_value(scale);
-      auto op = ge::op::Adds().set_input_x(muls).set_attr_value(bias);
-      graph->AddOp(out->Name(), op);
+      if (x.DType() == paddle::framework::proto::VarType::INT64) {
+        OpCommandPipe()
+            .Op("Cast")
+            .Attr("dst_type",
+                  static_cast<int32_t>(
+                      graph::utils::cpp_type_to_ge_dtype<int>::value()))
+            .Op("Muls")
+            .Attr("value", scale)
+            .Op("Adds")
+            .Attr("value", bias)
+            .Op("Cast")
+            .Attr("dst_type",
+                  static_cast<int>(
+                      graph::utils::cpp_type_to_ge_dtype<int64_t>::value()))
+            .Input(x)
+            .Output(out)
+            .End();
+      } else {
+        OpCommandPipe()
+            .Op("Muls")
+            .Attr("value", scale)
+            .Op("Adds")
+            .Attr("value", bias)
+            .Input(x)
+            .Output(out)
+            .End();
+      }
     }
   }
 };

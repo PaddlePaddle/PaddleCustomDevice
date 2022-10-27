@@ -20,12 +20,11 @@ class ReluAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto out = ctx.Output("Out");
-    auto x = ctx.Input("X");
-    auto ge_op = ge::op::Relu().set_input_x(graph->GetOp(x->Name()));
-    graph->AddOp(out->Name(), ge_op);
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
+
+    OpCommand("Relu").Input(x).Output(out);
   }
 };
 
@@ -33,15 +32,12 @@ class ReluGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto out_grad = ctx.Input("Out@GRAD");
-    auto out = ctx.Input("Out");
-    auto x_grad = ctx.Output("X@GRAD");
-    auto ge_op = ge::op::ReluGrad()
-                     .set_input_gradients(graph->GetOp(out_grad->Name()))
-                     .set_input_features(graph->GetOp(out->Name()));
-    graph->AddOp(x_grad->Name(), ge_op);
+  void run(const Context& ctx) override {
+    auto& out_grad = ctx.Input("Out@GRAD");
+    auto& out = ctx.Input("Out");
+    auto& x_grad = ctx.Output("X@GRAD");
+
+    OpCommand("ReluGrad").Input(out_grad).Input(out).Output(x_grad);
   }
 };
 

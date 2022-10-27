@@ -20,58 +20,55 @@ class AccuracyAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* inference = ctx.Input("Out");
-    auto* label = ctx.Input("Label");
-    auto* indices = ctx.Input("Indices");
+  void run(const Context& ctx) override {
+    auto& inference = ctx.Input("Out");
+    auto& label = ctx.Input("Label");
+    auto& indices = ctx.Input("Indices");
+    auto& accuracy = ctx.Output("Accuracy");
+    auto& correct = ctx.Output("Correct");
+    auto& total = ctx.Output("Total");
 
-    auto* accuracy = ctx.Output("Accuracy");
-    auto* correct = ctx.Output("Correct");
-    auto* total = ctx.Output("Total");
-
-    int num_samples = inference->dims()[0];
+    int num_samples = inference.Shape()[0];
     if (num_samples == 0) {
       return;
     }
 
-    auto label_same_dtype_with_indices = graph->GetOp(label->Name());
-    if (label->dtype() != indices->dtype()) {
-      label_same_dtype_with_indices =
-          graph::funcs::cast(label_same_dtype_with_indices, indices->dtype());
+    Tensor label_same_dtype_with_indices;
+
+    if (label.DType() != indices.DType()) {
+      OpCommand("Cast")
+          .Input(label)
+          .Output(label_same_dtype_with_indices)
+          .Attr("dst_type",
+                static_cast<int>(
+                    graph::utils::pd_dtype_to_ge_dtype(indices.DType())));
+    } else {
+      label_same_dtype_with_indices = label;
     }
 
-    auto equal = ge::op::Equal()
-                     .set_input_x1(graph->GetOp(indices->Name()))
-                     .set_input_x2(label_same_dtype_with_indices);
+    OpCommandPipe()
+        .Op("Equal")
+        .Op("Cast")
+        .Attr("dst_type",
+              static_cast<int>(
+                  graph::utils::cpp_type_to_ge_dtype<float>::value()))
+        .Op("ReduceMaxD")
+        .Attr("axes", std::vector<int64_t>({1}))
+        .Attr("keep_dims", false)
+        .Op("ReduceSumD")
+        .Attr("axes", std::vector<int64_t>({0}))
+        .Attr("keep_dims", false)
+        .Input(indices)
+        .Input(label_same_dtype_with_indices)
+        .Output(correct)
+        .End();
 
-    auto equal_float = graph::funcs::cast<float>(equal);
-
-    auto reduce_max = ge::op::ReduceMaxD()
-                          .set_input_x(equal_float)
-                          .set_attr_axes(std::vector<int64_t>({1}))
-                          .set_attr_keep_dims(false);
-
-    auto reduce_sum =
-        ge::op::ReduceSumD(ge::AscendString(correct->Name().c_str()))
-            .set_input_x(reduce_max)
-            .set_attr_axes(std::vector<int64_t>({0}))
-            .set_attr_keep_dims(false);
-
-    auto total_float = graph::funcs::constant(
+    OpCommand::FillConstant(
+        total,
         {1},
         std::vector<float>({static_cast<float>(num_samples)}),
-        ge::Format::FORMAT_NCHW,
-        total->Name());
-
-    auto div = ge::op::Div(ge::AscendString(accuracy->Name().c_str()))
-                   .set_input_x1(reduce_sum)
-                   .set_input_x2(total_float);
-
-    graph->AddOp(correct->Name(), reduce_sum);
-    graph->AddOp(total->Name(), total_float);
-    graph->AddInput(total_float);
-    graph->AddOp(accuracy->Name(), div);
+        ge::Format::FORMAT_NCHW);
+    OpCommand("Div").Input(correct).Input(total).Output(accuracy);
   }
 };
 

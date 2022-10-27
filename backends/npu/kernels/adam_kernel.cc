@@ -197,6 +197,8 @@ void AdamwKernel(const Context& dev_ctx,
                  phi::DenseTensor* beta1_pow_out,
                  phi::DenseTensor* beta2_pow_out,
                  phi::DenseTensor* master_param_outs) {
+  auto stream = dev_ctx.stream();
+
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
     PADDLE_ENFORCE_EQ(skip_update->numel(),
@@ -221,14 +223,12 @@ void AdamwKernel(const Context& dev_ctx,
     decay.set_meta(meta);
     tmp.set_meta(meta);
 
-    dev_ctx.template Alloc<float>(&tmp);
-    dev_ctx.template Alloc<float>(&one);
-    dev_ctx.template Alloc<float>(&decay);
+    dev_ctx.template Alloc<T>(&tmp);
+    dev_ctx.template Alloc<T>(&one);
+    dev_ctx.template Alloc<T>(&decay);
 
-    FillNpuTensorWithConstant<float>(&one, dev_ctx, 1.0f);
+    FillNpuTensorWithConstant<T>(&one, dev_ctx, static_cast<T>(1.0));
     NPUAttributeMap attr_input = {{"value", coeff}};
-
-    auto stream = dev_ctx.stream();
 
     const auto& runner1 =
         NpuOpRunner("Muls", {learning_rate}, {tmp}, attr_input);
@@ -238,16 +238,17 @@ void AdamwKernel(const Context& dev_ctx,
     runner2.Run(stream);
 
     // Master Parma is not supported on npu
-    if (master_param.is_initialized()) {
-      PADDLE_THROW(
-          phi::errors::Unimplemented("Master Parma is not supported on npu"));
-    } else {
-      dev_ctx.template Alloc<T>(param_out);
+    // if (master_param.is_initialized()) {
+    //   PADDLE_THROW(
+    //       phi::errors::Unimplemented("Master Parma is not supported on
+    //       npu"));
+    // } else {
+    dev_ctx.template Alloc<T>(param_out);
 
-      const auto& runner = NpuOpRunner(
-          "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
-      runner.Run(stream);
-    }
+    const auto& runner = NpuOpRunner(
+        "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
+    runner.Run(stream);
+    // }
   }
 
   custom_kernel::AdamKernel<T, Context>(dev_ctx,
@@ -273,6 +274,13 @@ void AdamwKernel(const Context& dev_ctx,
                                         beta1_pow_out,
                                         beta2_pow_out,
                                         master_param_outs);
+  // if (master_param_outs) {
+  //   dev_ctx.template Alloc<float>(master_param_outs);
+  //   const auto& runner_cast = NpuOpRunner("Cast", {*param_out},
+  //   {*master_param_outs}, {{"dst_dtype",
+  //   static_cast<int32_t>(cpp_type_to_acl_dtype<float>::value())}});
+  //   runner_cast.Run(stream);
+  // }
 }
 
 }  // namespace custom_kernel

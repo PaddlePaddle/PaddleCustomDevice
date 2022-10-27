@@ -20,15 +20,13 @@ class ReduceMeanAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto x = ctx.Input("X");
-    auto out = ctx.Output("Out");
-
-    auto x_dims = ctx.Input("X")->dims();
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
     auto dim = ctx.Attr<std::vector<int>>("dim");
     bool reduce_all = ctx.Attr<bool>("reduce_all");
     bool keep_dim = ctx.Attr<bool>("keep_dim");
+    auto x_dims = x.Shape();
 
     if (reduce_all) {
       dim.clear();
@@ -36,12 +34,12 @@ class ReduceMeanAdapter : public custom_graph::OpAdapter {
         dim.emplace_back(i);
       }
     }
-    auto ge_op =
-        ge::op::ReduceMeanD(ge::AscendString(out->Name().c_str()))
-            .set_input_x(graph->GetOp(x->Name()))
-            .set_attr_axes(std::vector<int64_t>(dim.begin(), dim.end()))
-            .set_attr_keep_dims(keep_dim);
-    graph->AddOp(out->Name(), ge_op);
+
+    OpCommand("ReduceMeanD")
+        .Input(x)
+        .Output(out)
+        .Attr("axes", std::vector<int64_t>(dim.begin(), dim.end()))
+        .Attr("keep_dims", keep_dim);
   }
 };
 
@@ -49,14 +47,13 @@ class ReduceMeanGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto x = ctx.Input("X");
-    auto x_dim = x->dims();
-    auto out_grad = ctx.Input("Out@GRAD");
-    auto x_grad = ctx.Output("X@GRAD");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out_grad = ctx.Input("Out@GRAD");
+    auto& x_grad = ctx.Output("X@GRAD");
     auto axes = ctx.Attr<std::vector<int>>("dim");
     auto reduce_all = ctx.Attr<bool>("reduce_all");
+    auto x_dim = x.Shape();
 
     int reduce_numel = 1;
     if (reduce_all) {
@@ -75,12 +72,11 @@ class ReduceMeanGradAdapter : public custom_graph::OpAdapter {
       out_dim[axes[i]] = 1;
     }
 
-    auto muls = ge::op::Muls()
-                    .set_input_x(graph->GetOp(out_grad->Name()))
-                    .set_attr_value(1.0f / static_cast<float>(reduce_numel));
-    auto reshape_muls = graph::funcs::reshape(muls, out_dim);
-    auto broadcast_to = graph::funcs::broadcast_to(reshape_muls, x_dim);
-    graph->AddOp(x_grad->Name(), broadcast_to);
+    Tensor muls, reshape_muls;
+    OpCommand("Muls").Input(out_grad).Output(muls).Attr(
+        "value", static_cast<float>(1.0f / reduce_numel));
+    OpCommand::Reshape(muls, reshape_muls, out_dim);
+    OpCommand::BroadcastTo(reshape_muls, x_grad, x_dim);
   }
 };
 

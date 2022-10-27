@@ -141,146 +141,520 @@ inline std::string GEGradVarName(const std::string var_name) {
 }
 
 class Tensor;
+class Operator;
+
+class Graph {
+ public:
+  static Graph*& global_graph() {
+    static Graph* graph;
+    return graph;
+  }
+
+  static void set_global_graph(Graph* graph) { Graph::global_graph() = graph; }
+
+  static Graph* get_global_graph() { return Graph::global_graph(); }
+
+ public:
+  Graph(const std::string& name, size_t id, C_Graph c_graph)
+      : name_(name),
+        id_(id),
+        ge_graph_(std::make_shared<ge::Graph>(name_.c_str())),
+        ir_graph_(std::make_shared<paddle::framework::ir::IRGraph>(c_graph)) {}
+
+  ~Graph() {}
+
+  const std::string& GetName() const { return name_; }
+
+  size_t GetId() const { return id_; }
+
+  std::shared_ptr<ge::Graph> ge_graph() { return ge_graph_; }
+
+  std::shared_ptr<paddle::framework::ir::IRGraph> ir_graph() {
+    return ir_graph_;
+  }
+
+  void AddFeedInput(int index, Tensor* tensor) {
+    if (feed_inputs_.size() < index + 1) {
+      feed_inputs_.resize(index + 1);
+    }
+    feed_inputs_[index] = tensor;
+  }
+
+  void AddFetchOutput(int index, Tensor* tensor) {
+    if (fetch_outputs_.size() < index + 1) {
+      fetch_outputs_.resize(index + 1);
+    }
+    fetch_outputs_[index] = tensor;
+  }
+
+  void AddInput(std::shared_ptr<Operator> input) { inputs_.push_back(input); }
+
+  void AddOutput(std::shared_ptr<Operator> output) {
+    outputs_.push_back(output);
+  }
+
+  void AddTarget(std::shared_ptr<Operator> target) {
+    targets_.push_back(target);
+  }
+
+  const std::vector<std::shared_ptr<Operator>>& GetInputs() const {
+    return inputs_;
+  }
+
+  const std::vector<std::shared_ptr<Operator>>& GetOutputs() const {
+    return outputs_;
+  }
+
+  const std::vector<std::shared_ptr<Operator>>& GetTargets() const {
+    return targets_;
+  }
+
+  const std::vector<Tensor*>& GetFeedInputs() const { return feed_inputs_; }
+
+  const std::vector<Tensor*>& GetFetchOutputs() const { return fetch_outputs_; }
+
+ private:
+  std::string name_;
+  size_t id_;
+
+  std::shared_ptr<ge::Graph> ge_graph_;
+  std::shared_ptr<paddle::framework::ir::IRGraph> ir_graph_;
+  std::vector<std::shared_ptr<Operator>> inputs_;
+  std::vector<std::shared_ptr<Operator>> outputs_;
+  std::vector<std::shared_ptr<Operator>> targets_;
+  std::vector<Tensor*> feed_inputs_;
+  std::vector<Tensor*> fetch_outputs_;
+};
+
+class Tensor {
+ public:
+  enum class Flag : size_t {
+    FEED = 0x1,
+    FETCH = 0x2,
+    PERSISTABLE = 0x4,
+    GRAD = 0x8,
+    CONST = 0x10,
+    TARGET = 0x20,
+  };
+
+  static std::unordered_map<std::string, Tensor>& TensorStorage() {
+    static std::unordered_map<std::string, Tensor> tensor_map;
+    return tensor_map;
+  }
+
+  static Tensor& Get(const std::string& name) {
+    if (TensorStorage().find(name) == TensorStorage().end()) {
+      TensorStorage().insert({name, Tensor(name)});
+    }
+    return TensorStorage()[name];
+  }
+
+  Tensor() {
+    static size_t tensor_index = 0;
+    name_ = "tensor_" + std::to_string(tensor_index++);
+  }
+
+  Tensor(const std::string& name) : name_(name) {}
+
+  ~Tensor() {}
+
+  const std::string& Name() { return name_; }
+
+  const std::pair<std::shared_ptr<Operator>, size_t>& From() const {
+    return op_;
+  }
+
+  Tensor& MarkAsFeedInput(int col) {
+    flags_ |= static_cast<size_t>(Flag::FEED);
+
+    if (op_.first.get()) {
+      Graph::get_global_graph()->AddFeedInput(col, this);
+      Graph::get_global_graph()->AddInput(op());
+    }
+    return *this;
+  }
+
+  Tensor& MarkAsFetchOutput(int col) {
+    flags_ |= static_cast<size_t>(Flag::FETCH);
+
+    if (op_.first.get()) {
+      Graph::get_global_graph()->AddFetchOutput(col, this);
+      Graph::get_global_graph()->AddOutput(op());
+    }
+    return *this;
+  }
+
+  Tensor& MarkAsConst() {
+    flags_ |= static_cast<size_t>(Flag::CONST);
+
+    if (op_.first.get()) {
+      Graph::get_global_graph()->AddInput(op());
+    }
+    return *this;
+  }
+
+  Tensor& MarkAsTarget() {
+    flags_ |= static_cast<size_t>(Flag::TARGET);
+    if (op_.first.get()) {
+      Graph::get_global_graph()->AddTarget(op());
+      return *this;
+    }
+  }
+
+  Tensor& SetFrom(std::pair<std::shared_ptr<Operator>, size_t> op) {
+    op_ = op;
+    return *this;
+  }
+
+  Tensor& SetShape(const std::vector<int>& dims) {
+    dims_ = dims;
+    return *this;
+  }
+
+  Tensor& SetFormat(const std::string& format) {
+    format_ = format;
+    return *this;
+  }
+
+  template <typename T>
+  Tensor& SetDType() {
+    dtype_ = graph::utils::cpp_type_to_pd_dtype<T>::value;
+  }
+
+  Tensor& SetDType(paddle::framework::proto::VarType::Type dtype) {
+    dtype_ = dtype;
+  }
+
+  const std::vector<int>& Shape() const { return dims_; }
+
+  const std::string& Format() const { return format_; }
+
+  paddle::framework::proto::VarType::Type DType() const { return dtype_; }
+
+  int Numel() const {
+    return std::accumulate(
+        dims_.cbegin(), dims_.cend(), 1, std::multiplies<int>());
+  }
+
+  size_t flags() const { return flags_; }
+
+  std::shared_ptr<Operator> op() const { return op_.first; }
+
+ private:
+  std::string name_;
+
+  std::pair<std::shared_ptr<Operator>, size_t> op_{nullptr, 0};
+  std::vector<int> dims_{};
+  std::string format_{};
+  paddle::framework::proto::VarType::Type dtype_ =
+      paddle::framework::proto::VarType::FP32;
+  size_t flags_ = 0;
+};
+
 class Operator {
  public:
-  Operator(const std::string& op_type) : op_type_(op_type) {
+  Operator() = default;
+
+  Operator(const std::string& op_type, const std::string& name) {
     static size_t op_index = 0;
-    std::string op_name = op_type + std::to_string(op_index++);
-    op = std::make_shared_ptr<ge::Operator>(
-        ge::OpeatorFactory::CreateOperator(op_name.c_str(), op_type.c_str()));
+    std::string op_name = name;
+    if (op_name.size() == 0) {
+      op_name = op_type + std::to_string(op_index++);
+    }
+    op = std::make_shared<ge::Operator>(
+        ge::OperatorFactory::CreateOperator(op_name.c_str(), op_type.c_str()));
   }
 
   ~Operator() {}
 
-  std::shared_ptr<ge::Operator> GetGEOp() { return op; }
+  std::shared_ptr<ge::Operator> GetGEOp() const { return op; }
 
-  Operator& SetGEOp(std::shared_ptr<ge::Operator> other) {
-    op = other;
-    return *this;
+  void SetGEOp(std::shared_ptr<ge::Operator> other) { op = other; }
+
+  void AddInput(Tensor* input) { inputs_.push_back(input); }
+
+  void AddOutput(Tensor* output) { outputs_.push_back(output); }
+
+  void AddDepend(Operator* other) { op->AddControlInput(*other->GetGEOp()); }
+
+  void AddDepend(std::shared_ptr<Operator> other) {
+    op->AddControlInput(*other->GetGEOp());
   }
 
-  Operator& Input(Tensor* input) {
-    inputs_.push_back(input);
-    return *this;
-  }
+  const std::vector<Tensor*>& Inputs() const { return inputs_; }
 
-  Operator& Output(Tensor* output) {
-    outputs_.push_back(output);
-    return *this;
-  }
+  const std::vector<Tensor*>& Outputs() const { return outputs_; }
 
  private:
   std::vector<Tensor*> inputs_;
   std::vector<Tensor*> outputs_;
   std::shared_ptr<ge::Operator> op;
-  std::string op_type_;
 };
 
-class Tensor {
+class OpCommand {
  public:
-  Tensor() = default;
+  template <typename T>
+  static void FillConstant(Tensor& tensor,
+                           const std::vector<int>& dim,
+                           const std::vector<T>& value,
+                           ge::Format format = ge::Format::FORMAT_NCHW) {
+    ge::TensorDesc desc(ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
+                        format,
+                        graph::utils::cpp_type_to_ge_dtype<T>::value());
+    desc.SetRealDimCnt(desc.GetShape().GetDimNum());
+    ge::Tensor value_tensor(
+        desc,
+        reinterpret_cast<uint8_t*>(const_cast<T*>(value.data())),
+        value.size() * sizeof(T));
+    OpCommand("Const").Output(tensor).Attr("value", value_tensor);
+    tensor.MarkAsConst();
+  }
+
+  template <typename T>
+  static void FillConstant(Tensor& tensor,
+                           const std::vector<int>& dim,
+                           T* value,
+                           ge::Format format = ge::Format::FORMAT_NCHW) {
+    ge::TensorDesc desc(ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
+                        format,
+                        graph::utils::cpp_type_to_ge_dtype<T>::value());
+    desc.SetRealDimCnt(desc.GetShape().GetDimNum());
+    ge::Tensor value_tensor(
+        desc,
+        reinterpret_cast<uint8_t*>(value),
+        std::accumulate(dim.begin(), dim.end(), 1, std::multiplies<int>()) *
+            sizeof(T));
+    OpCommand("Const").Output(tensor).Attr("value", value_tensor);
+    tensor.MarkAsConst();
+  }
+
+  template <typename T>
+  static void Cast(Tensor& in, Tensor& out) {
+    OpCommand("Cast").Input(in).Output(out).Attr(
+        "dst_type",
+        static_cast<int>(graph::utils::cpp_type_to_ge_dtype<T>::value()));
+  }
+
+  static void Cast(Tensor& in,
+                   Tensor& out,
+                   paddle::framework::proto::VarType::Type dtype) {
+    OpCommand("Cast").Input(in).Output(out).Attr(
+        "dst_type",
+        static_cast<int>(graph::utils::pd_dtype_to_ge_dtype(dtype)));
+  }
+
+  static void Reshape(Tensor& in,
+                      Tensor& out,
+                      const std::vector<int32_t>& dims) {
+    Tensor shape;
+    OpCommand::FillConstant(shape, {dims.size()}, dims);
+    OpCommand("Reshape").Input(in).Input(shape).Output(out);
+  }
+
+  static void BroadcastTo(Tensor& in,
+                          Tensor& out,
+                          const std::vector<int32_t>& dims) {
+    Tensor shape;
+    OpCommand::FillConstant(shape, {dims.size()}, dims);
+    OpCommand("BroadcastTo").Input(in).Input(shape).Output(out);
+  }
+
+ public:
+  OpCommand(const std::string& op_type, const std::string& op_name = "")
+      : op(std::make_shared<Operator>(op_type, op_name)) {}
+
+  ~OpCommand() {}
+
+  OpCommand& Input() {
+    op->AddInput(nullptr);
+    return *this;
+  }
+
+  OpCommand& Output() {
+    op->AddOutput(nullptr);
+    return *this;
+  }
+
+  OpCommand& Input(Tensor& input) {
+    int32_t in_index = op->Inputs().size();
+    op->AddInput(&input);
+    op->GetGEOp()->SetInput(in_index,
+                            *op->Inputs().back()->From().first->GetGEOp(),
+                            op->Inputs().back()->From().second);
+    return *this;
+  }
+
+  OpCommand& Input(Tensor& input, const std::string& desc_name) {
+    Input(input);
+    if (input.Shape().size() > 0) {
+      graph::funcs::update_input_shape(
+          *op->GetGEOp(), desc_name, input.Shape());
+    }
+    if (input.Format().size() > 0) {
+      graph::funcs::update_input_format(
+          *op->GetGEOp(), desc_name, input.Format());
+    }
+    graph::funcs::update_input_dtype(*op->GetGEOp(), desc_name, input.DType());
+    return *this;
+  }
+
+  OpCommand& Output(Tensor& output) {
+    int32_t out_index = op->Outputs().size();
+    op->AddOutput(&output);
+    output.SetFrom({op, out_index});
+    return *this;
+  }
+
+  OpCommand& Output(Tensor& output, const std::string& desc_name) {
+    Output(output);
+    if (output.Shape().size() > 0) {
+      graph::funcs::update_output_shape(
+          *op->GetGEOp(), desc_name, output.Shape());
+    }
+    if (output.Format().size() > 0) {
+      graph::funcs::update_output_format(
+          *op->GetGEOp(), desc_name, output.Format());
+    }
+    graph::funcs::update_output_dtype(
+        *op->GetGEOp(), desc_name, output.DType());
+    return *this;
+  }
+
+  template <typename T>
+  OpCommand& Attr(const std::string& attr_name, const T& attr_value) {
+    op->GetGEOp()->SetAttr(attr_name.c_str(), attr_value);
+    return *this;
+  }
+
+  OpCommand& Depend(Tensor& tensor) {
+    op->AddDepend(tensor.op());
+    return *this;
+  }
 
  private:
-  Operator* generator_{nullptr};
-  size_t index_ = 0;
-}
+  std::shared_ptr<Operator> op;
+};
 
-class GEGraph {
+class OpCommandPipe {
  public:
-  GEGraph(const std::string& ge_graph_name,
-          uint32_t ge_graph_id,
-          ge::Graph* ge_graph)
-      : ge_graph_name_(ge_graph_name),
-        ge_graph_id_(ge_graph_id),
-        ge_graph_(ge_graph) {}
-
-  void AddInput(ge::Operator in) { inputs_.push_back(in); }
-
-  void AddFeedInput(std::string name, ge::Operator in, int col) {
-    if (feed_inputs_.size() <= col) {
-      feed_inputs_.resize(col + 1);
-    }
-    feed_inputs_[col] = name;
-    AddInput(in);
-  }
-
-  void AddOutput(ge::Operator out) { outputs_.push_back(out); }
-
-  void AddFetchOutput(std::string name, ge::Operator out, int col) {
-    if (fetch_outputs_.size() <= col) {
-      fetch_outputs_.resize(col + 1);
-    }
-    fetch_outputs_[col] = name;
-    AddOutput(out);
-  }
-
-  ge::Operator& GetOp(const std::string& op) {
-    if (ge_ops_.find(op) == ge_ops_.end()) {
-      graph::utils::log() << "[ERROR] not found " << op << " in context "
-                          << this << std::endl;
-      exit(-1);
-    } else {
-      // graph::utils::log() << "[INFO] found " << op << " in context " << this
-      //                     << std::endl;
-    }
-    return ge_ops_[op];
-  }
-
-  bool HasOp(const std::string& op) {
-    return ge_ops_.find(op) != ge_ops_.end();
-  }
-
-  ge::Operator& AddOp(const std::string& op, ge::Operator ge_op) {
-    RecordNode(op, ge_op);
-    ge_graph_->AddOp(ge_op);
-    return ge_ops_[op];
-  }
-
-  ge::Operator& RecordNode(const std::string& op, ge::Operator ge_op) {
-    graph::utils::log() << "[INFO] record " << op << " in context " << this
-                        << std::endl;
-    ge_ops_[op] = ge_op;
-  }
-
-  ge::Graph* Graph() { return ge_graph_; }
-
-  const std::string& GraphName() { return ge_graph_name_; }
-
-  uint32_t GraphId() { return ge_graph_id_; }
-
-  void Finalize(ge::Session* session) {
-    ge_graph_->SetInputs(inputs_);
-    ge_graph_->SetOutputs(outputs_);
-
-    auto ret = ge::aclgrphDumpGraph(
-        *ge_graph_, ge_graph_name_.c_str(), ge_graph_name_.size());
-    if (ret != ge::SUCCESS) {
-      graph::utils::log() << "[ERROR] save graph  " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " failed." << std::endl;
-    } else {
-      graph::utils::log() << "[INFO] save graph " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " success." << std::endl;
-    }
-    ret = session->AddGraph(ge_graph_id_, *ge_graph_);
-    if (ret != ge::SUCCESS) {
-      graph::utils::log() << "[ERROR] add graph  " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " failed." << std::endl;
-    } else {
-      graph::utils::log() << "[INFO] add graph " << ge_graph_id_ << ": "
-                          << ge_graph_name_ << " success." << std::endl;
+  OpCommandPipe() = default;
+  OpCommandPipe(const std::vector<std::string>& op_pipe) {
+    for (auto& op_type : op_pipe) {
+      Op(op_type);
     }
   }
 
-  //  private:
-  std::string ge_graph_name_;
-  uint32_t ge_graph_id_;
-  ge::Graph* ge_graph_;  // not own
+  OpCommandPipe& Op(const std::string& op_type) {
+    op_pipe_.emplace_back(new OpCommand(op_type));
+    return *this;
+  }
 
-  std::unordered_map<std::string, ge::Operator> ge_ops_{};
-  std::vector<ge::Operator> inputs_{};
-  std::vector<ge::Operator> outputs_{};
-  std::vector<std::string> feed_inputs_{};
-  std::vector<std::string> fetch_outputs_{};
+  OpCommandPipe& Cast() { return *this; }
+
+  OpCommandPipe& Reshape(const std::vector<int>& dims) { return *this; }
+
+  OpCommandPipe& BroadcastTo(const std::vector<int>& dims) { return *this; }
+
+  template <typename T>
+  OpCommandPipe& Attr(const std::string& attr_name, const T& attr_value) {
+    op_pipe_.back()->Attr(attr_name, attr_value);
+    return *this;
+  }
+
+  OpCommandPipe& Input(Tensor& input) {
+    inputs_.push_back(&input);
+    return *this;
+  }
+
+  OpCommandPipe& Output(Tensor& output) {
+    outputs_.push_back(&output);
+    return *this;
+  }
+
+  void End() {
+    std::shared_ptr<OpCommand> prev_op = op_pipe_[0];
+    std::shared_ptr<OpCommand> cur_op = prev_op;
+
+    for (auto& in : inputs_) {
+      prev_op->Input(*in);
+    }
+
+    for (auto i = 1; i < op_pipe_.size(); ++i) {
+      Tensor tmp;
+      cur_op = op_pipe_[i];
+      prev_op->Output(tmp);
+      cur_op->Input(tmp);
+      prev_op = cur_op;
+    }
+
+    for (auto& out : outputs_) {
+      cur_op->Output(*out);
+    }
+  }
+
+ private:
+  std::vector<Tensor*> inputs_;
+  std::vector<Tensor*> outputs_;
+  std::vector<std::shared_ptr<OpCommand>> op_pipe_;
+};
+
+class Context {
+ public:
+  Context(paddle::framework::ir::OpNode* op_node) : op_node_(op_node) {}
+
+  bool HasInput(const std::string& name) const {
+    return !!op_node_->Input(name);
+  }
+
+  bool HasOutput(const std::string& name) const {
+    return !!op_node_->Output(name);
+  }
+
+  Tensor& Input(const std::string& name) const {
+    auto* var_node = op_node_->Input(name);
+    Tensor& tensor = Tensor::Get(var_node->Name());
+    tensor.SetShape(var_node->dims());
+    tensor.SetDType(var_node->dtype());
+    return tensor;
+  }
+
+  Tensor& Output(const std::string& name) const {
+    auto* var_node = op_node_->Output(name);
+    Tensor& tensor = Tensor::Get(var_node->Name());
+    tensor.SetShape(var_node->dims());
+    tensor.SetDType(var_node->dtype());
+    return tensor;
+  }
+
+  std::vector<Tensor*> MultiInput(const std::string& name) const {
+    std::vector<Tensor*> ret;
+    for (auto& var_node : op_node_->MultiInput(name)) {
+      auto& tensor = Tensor::Get(var_node->Name());
+      tensor.SetShape(var_node->dims());
+      tensor.SetDType(var_node->dtype());
+      ret.push_back(&tensor);
+    }
+    return ret;
+  }
+
+  std::vector<Tensor*> MultiOutput(const std::string& name) const {
+    std::vector<Tensor*> ret;
+    for (auto& var_node : op_node_->MultiOutput(name)) {
+      auto& tensor = Tensor::Get(var_node->Name());
+      tensor.SetShape(var_node->dims());
+      tensor.SetDType(var_node->dtype());
+      ret.push_back(&tensor);
+    }
+    return ret;
+  }
+
+  template <typename T>
+  T Attr(const std::string& name) const {
+    return op_node_->Attr<T>(name);
+  }
+
+ private:
+  paddle::framework::ir::OpNode* op_node_;
 };
 
 class OpAdapter;
@@ -300,8 +674,7 @@ class OpAdapter {
 
   virtual ~OpAdapter() {}
 
-  virtual void run(const paddle::framework::ir::OpNode& ctx,
-                   GEGraph* graph) = 0;
+  virtual void run(const custom_graph::Context& ctx) = 0;
 };
 
 template <typename AdapterT>

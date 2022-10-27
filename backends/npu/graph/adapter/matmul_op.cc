@@ -20,72 +20,64 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* X = ctx.Input("X");
-    auto* Y = ctx.Input("Y");
-    auto* Out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& X = ctx.Input("X");
+    auto& Y = ctx.Input("Y");
+    auto& Out = ctx.Output("Out");
     bool trans_x = ctx.Attr<bool>("trans_x");
     bool trans_y = ctx.Attr<bool>("trans_y");
 
-    auto x_dims = X->dims();
-    auto y_dims = Y->dims();
-    auto out_dims = Out->dims();
+    auto x_dims = X.Shape();
+    auto y_dims = Y.Shape();
+    auto out_dims = Out.Shape();
     int x_ndim = x_dims.size();
     int y_ndim = y_dims.size();
     int out_ndim = out_dims.size();
 
     if (x_ndim == 1 && y_ndim == 1) {
       //   PADDLE_ENFORCE_EQ(
-      //       X->numel(),
-      //       Y->numel(),
+      //       X.Numel(),
+      //       Y.Numel(),
       //       platform::errors::InvalidArgument(
       //           "X's numbers must be equal to Y's numbers,"
       //           "when X/Y's dims =1. But received X has [%d] elements,"
       //           "received Y has [%d] elements",
-      //           X->numel(),
-      //           Y->numel()));
-      auto node = ge::op::Dot()
-                      .set_input_input_x(graph->GetOp(X->Name()))
-                      .set_input_input_y(graph->GetOp(Y->Name()));
-      graph::funcs::update_input_dtype(
-          node, {{"input_x", X->dtype()}, {"input_y", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"output", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
+      //           X.Numel(),
+      //           Y.Numel()));
+
+      OpCommand("Dot")
+          .Input(X, "input_x")
+          .Input(Y, "input_y")
+          .Output(Out, "output");
       return;
     }
 
     // Case 2: [M, K] x [K, N] = [M, N]
     if (x_ndim == 2 && y_ndim == 2) {
-      auto node = ge::op::MatMul()
-                      .set_input_x1(graph->GetOp(X->Name()))
-                      .set_input_x2(graph->GetOp(Y->Name()))
-                      .set_attr_transpose_x1(trans_x)
-                      .set_attr_transpose_x2(trans_y);
-      graph::funcs::update_input_dtype(
-          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
+      OpCommand("MatMul")
+          .Input(X, "x1")
+          .Input(Y, "x2")
+          .Output(Out, "y")
+          .Attr("transpose_x1", trans_x)
+          .Attr("transpose_x2", trans_y);
       return;
     }
 
     // Case 3: [B, M, K] x [K, N] =  [B, M, N], when trans_x = false
     // Equal: [B * M, K] x [K, N] = [B * M, N] => [B, M, N]
     if (trans_x == false && y_ndim == 2) {
-      auto reshape_x =
-          graph::funcs::reshape(graph->GetOp(X->Name()),
-                                {static_cast<int32_t>(x_dims[0] * x_dims[1]),
-                                 static_cast<int32_t>(x_dims[2])});
-      auto out = ge::op::MatMul()
-                     .set_input_x1(reshape_x)
-                     .set_input_x2(graph->GetOp(Y->Name()))
-                     .set_attr_transpose_x1(trans_x)
-                     .set_attr_transpose_x2(trans_y);
-      auto reshape_out = graph::funcs::reshape(out, out_dims);
-      graph::funcs::update_input_dtype(
-          out, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(out, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), reshape_out);
+      Tensor tmp_x, tmp_out;
+      OpCommand::Reshape(X,
+                         tmp_x,
+                         {static_cast<int32_t>(x_dims[0] * x_dims[1]),
+                          static_cast<int32_t>(x_dims[2])});
+      OpCommand("MatMul")
+          .Input(tmp_x, "x1")
+          .Input(Y, "x2")
+          .Output(tmp_out, "y")
+          .Attr("transpose_x1", trans_x)
+          .Attr("transpose_x2", trans_y);
+      OpCommand::Reshape(tmp_out, Out, out_dims);
       return;
     }
 
@@ -100,55 +92,23 @@ class MatmulV2Adapter : public custom_graph::OpAdapter {
     bool broadcast_x = !(x_dims == x_broadcast_dims);
     bool broadcast_y = !(y_dims == y_broadcast_dims);
 
-    if (broadcast_x && broadcast_y) {
-      auto x_broadcast =
-          graph::funcs::broadcast_to(graph->GetOp(X->Name()), x_broadcast_dims);
-      auto y_broadcast =
-          graph::funcs::broadcast_to(graph->GetOp(X->Name()), y_broadcast_dims);
-      auto node = ge::op::BatchMatMul()
-                      .set_input_x1(x_broadcast)
-                      .set_input_x2(y_broadcast)
-                      .set_attr_adj_x1(trans_x)
-                      .set_attr_adj_x2(trans_y);
-      graph::funcs::update_input_dtype(
-          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
-    } else if (broadcast_x && !broadcast_y) {
-      auto x_broadcast =
-          graph::funcs::broadcast_to(graph->GetOp(X->Name()), x_broadcast_dims);
-      auto node = ge::op::BatchMatMul()
-                      .set_input_x1(x_broadcast)
-                      .set_input_x2(graph->GetOp(Y->Name()))
-                      .set_attr_adj_x1(trans_x)
-                      .set_attr_adj_x2(trans_y);
-      graph::funcs::update_input_dtype(
-          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
-    } else if (!broadcast_x && broadcast_y) {
-      auto y_broadcast =
-          graph::funcs::broadcast_to(graph->GetOp(X->Name()), y_broadcast_dims);
-      auto node = ge::op::BatchMatMul()
-                      .set_input_x1(graph->GetOp(X->Name()))
-                      .set_input_x2(y_broadcast)
-                      .set_attr_adj_x1(trans_x)
-                      .set_attr_adj_x2(trans_y);
-      graph::funcs::update_input_dtype(
-          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
+    Tensor x_brd, y_brd;
+    if (broadcast_x) {
+      OpCommand::BroadcastTo(X, x_brd, x_broadcast_dims);
     } else {
-      auto node = ge::op::BatchMatMul()
-                      .set_input_x1(graph->GetOp(X->Name()))
-                      .set_input_x2(graph->GetOp(Y->Name()))
-                      .set_attr_adj_x1(trans_x)
-                      .set_attr_adj_x2(trans_y);
-      graph::funcs::update_input_dtype(
-          node, {{"x1", X->dtype()}, {"x2", Y->dtype()}});
-      graph::funcs::update_output_dtype(node, {{"y", Out->dtype()}});
-      graph->AddOp(Out->Name(), node);
+      x_brd = X;
     }
+    if (broadcast_y) {
+      OpCommand::BroadcastTo(Y, y_brd, y_broadcast_dims);
+    } else {
+      y_brd = Y;
+    }
+    OpCommand("BatchMatMul")
+        .Input(x_brd, "x1")
+        .Input(y_brd, "x2")
+        .Output(Out, "y")
+        .Attr("adj_x1", trans_x)
+        .Attr("adj_x2", trans_y);
   }
 };
 
@@ -156,120 +116,93 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* X = ctx.Input("X");
-    auto* Y = ctx.Input("Y");
-    auto* dOut = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto* dX = ctx.Output(paddle::framework::GradVarName("X"));
-    auto* dY = ctx.Output(paddle::framework::GradVarName("Y"));
+  void run(const Context& ctx) override {
+    auto& X = ctx.Input("X");
+    auto& Y = ctx.Input("Y");
+    auto& dOut = ctx.Input(paddle::framework::GradVarName("Out"));
+
     bool trans_x = ctx.Attr<bool>("trans_x");
     bool trans_y = ctx.Attr<bool>("trans_y");
 
-    auto x_dims = X->dims();
-    auto y_dims = Y->dims();
-    auto out_dims = dOut->dims();
+    auto x_dims = X.Shape();
+    auto y_dims = Y.Shape();
+    auto out_dims = dOut.Shape();
     int x_ndim = x_dims.size();
     int y_ndim = y_dims.size();
     int out_ndim = out_dims.size();
 
     // Case 1: [K] x [K] = [1]
     if (x_ndim == 1 && y_ndim == 1) {
-      if (dX) {
-        auto ge_op = ge::op::Mul()
-                         .set_input_x1(graph->GetOp(dOut->Name()))
-                         .set_input_x2(graph->GetOp(Y->Name()));
-        graph::funcs::update_input_dtype(
-            ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
-        graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-        graph->AddOp(dX->Name(), ge_op);
+      if (ctx.HasOutput(paddle::framework::GradVarName("X"))) {
+        auto& dX = ctx.Output(paddle::framework::GradVarName("X"));
+        OpCommand("Mul").Input(dOut, "x1").Input(Y, "x2").Output(dX, "y");
       }
-      if (dY) {
-        auto ge_op = ge::op::Mul()
-                         .set_input_x1(graph->GetOp(dOut->Name()))
-                         .set_input_x2(graph->GetOp(X->Name()));
-        graph::funcs::update_input_dtype(
-            ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
-        graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-        graph->AddOp(dY->Name(), ge_op);
+      if (ctx.HasOutput(paddle::framework::GradVarName("Y"))) {
+        auto& dY = ctx.Output(paddle::framework::GradVarName("Y"));
+        OpCommand("Mul").Input(dOut, "x1").Input(X, "x2").Output(dY, "y");
       }
       return;
     }
 
+    Tensor x_temp, out_temp, y_temp;
     if (x_ndim == 1) {
       x_dims.insert(x_dims.begin(), 1);
       out_dims.insert(out_dims.end() - 1, 1);
       x_ndim = 2;
       out_ndim += 1;
-      auto x_temp = graph::funcs::reshape(graph->GetOp(X->Name()), x_dims);
-      auto out_temp =
-          graph::funcs::reshape(graph->GetOp(dOut->Name()), out_dims);
-      graph->AddOp(X->Name() + "_temp", x_temp);
-      graph->RecordNode(Y->Name() + "_temp", graph->GetOp(Y->Name()));
-      graph->AddOp(dOut->Name() + "_temp", out_temp);
+      OpCommand::Reshape(X, x_temp, x_dims);
+      y_temp = Y;
+      OpCommand::Reshape(dOut, out_temp, out_dims);
     } else if (y_ndim == 1) {
       y_dims.push_back(1);
       out_dims.push_back(1);
       y_ndim = 2;
       out_ndim += 1;
-      auto y_temp = graph::funcs::reshape(graph->GetOp(Y->Name()), y_dims);
-      auto out_temp =
-          graph::funcs::reshape(graph->GetOp(dOut->Name()), out_dims);
-      graph->RecordNode(X->Name() + "_temp", graph->GetOp(X->Name()));
-      graph->AddOp(Y->Name() + "_temp", y_temp);
-      graph->AddOp(dOut->Name() + "_temp", out_temp);
+      x_temp = X;
+      OpCommand::Reshape(Y, y_temp, y_dims);
+      OpCommand::Reshape(dOut, out_temp, out_dims);
     } else {
-      graph->RecordNode(X->Name() + "_temp", graph->GetOp(X->Name()));
-      graph->RecordNode(Y->Name() + "_temp", graph->GetOp(Y->Name()));
-      graph->RecordNode(dOut->Name() + "_temp", graph->GetOp(dOut->Name()));
+      x_temp = X;
+      y_temp = Y;
+      out_temp = dOut;
     }
 
     // Case 2: [M, K] x [K, N] = [M, N]
     if (out_ndim == 2) {
-      if (dX) {
+      if (ctx.HasOutput(paddle::framework::GradVarName("X"))) {
+        auto& dX = ctx.Output(paddle::framework::GradVarName("X"));
         if (trans_x) {
-          auto ge_op = ge::op::MatMul()
-                           .set_input_x1(graph->GetOp(Y->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_transpose_x1(trans_y)
-                           .set_attr_transpose_x2(true);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name(), ge_op);
+          OpCommand("MatMul")
+              .Input(y_temp, "x1")
+              .Input(out_temp, "x2")
+              .Output(dX)
+              .Attr("transpose_x1", trans_y)
+              .Attr("transpose_x2", true);
         } else {
-          auto ge_op = ge::op::MatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(Y->Name() + "_temp"))
-                           .set_attr_transpose_x1(false)
-                           .set_attr_transpose_x2(!trans_y);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name(), ge_op);
+          OpCommand("MatMul")
+              .Input(out_temp, "x1")
+              .Input(y_temp, "x2")
+              .Output(dX)
+              .Attr("transpose_x1", false)
+              .Attr("transpose_x2", !trans_y);
         }
       }
-      if (dY) {
+      if (ctx.HasOutput(paddle::framework::GradVarName("Y"))) {
+        auto& dY = ctx.Output(paddle::framework::GradVarName("Y"));
         if (trans_y) {
-          auto ge_op = ge::op::MatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(X->Name() + "_temp"))
-                           .set_attr_transpose_x1(true)
-                           .set_attr_transpose_x2(trans_x);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), ge_op);
+          OpCommand("MatMul")
+              .Input(out_temp, "x1")
+              .Input(x_temp, "x2")
+              .Output(dY)
+              .Attr("transpose_x1", true)
+              .Attr("transpose_x2", trans_x);
         } else {
-          auto ge_op = ge::op::MatMul()
-                           .set_input_x1(graph->GetOp(X->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_transpose_x1(!trans_x)
-                           .set_attr_transpose_x2(false);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), ge_op);
+          OpCommand("MatMul")
+              .Input(x_temp, "x1")
+              .Input(out_temp, "x2")
+              .Output(dY)
+              .Attr("transpose_x1", !trans_x)
+              .Attr("transpose_x2", false);
         }
       }
       return;
@@ -281,44 +214,37 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
     // Case 3: [B, M, K] x [K, N] =  [B, M, N], when trans_x = false
     // Equal: [B * M, K] x [K, N] = [B * M, N] => [B, M, N]
     if (trans_x == false && y_ndim == 2) {
-      auto dout_reshape = graph::funcs::reshape(
-          graph->GetOp(dOut->Name() + "_temp"), {dOut->numel() / N, N});
-
-      if (dX) {
-        auto matmul = ge::op::MatMul()
-                          .set_input_x1(dout_reshape)
-                          .set_input_x2(graph->GetOp(Y->Name() + "_temp"))
-                          .set_attr_transpose_x1(false)
-                          .set_attr_transpose_x2(!trans_y);
-        auto matmul_reshape = graph::funcs::reshape(matmul, X->dims());
-        graph::funcs::update_input_dtype(
-            matmul, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
-        graph::funcs::update_output_dtype(matmul, {{"y", dX->dtype()}});
-        graph->AddOp(dX->Name(), matmul_reshape);
+      Tensor dout_reshape;
+      OpCommand::Reshape(out_temp, dout_reshape, {dOut.Numel() / N, N});
+      if (ctx.HasOutput(paddle::framework::GradVarName("X"))) {
+        auto& dX = ctx.Output(paddle::framework::GradVarName("X"));
+        Tensor dx_reshape;
+        OpCommand("MatMul")
+            .Input(dout_reshape, "x1")
+            .Input(y_temp, "x2")
+            .Output(dx_reshape, "y")
+            .Attr("transpose_x1", false)
+            .Attr("transpose_x2", !trans_y);
+        OpCommand::Reshape(dx_reshape, dX, X.Shape());
       }
-      if (dY) {
-        auto x_temp_reshape = graph::funcs::reshape(
-            graph->GetOp(X->Name() + "_temp"), {X->numel() / K, K});
+      if (ctx.HasOutput(paddle::framework::GradVarName("Y"))) {
+        auto& dY = ctx.Output(paddle::framework::GradVarName("Y"));
+        Tensor x_temp_reshape;
+        OpCommand::Reshape(x_temp, x_temp_reshape, {X.Numel() / K, K});
         if (trans_y) {
-          auto matmul = ge::op::MatMul()
-                            .set_input_x1(dout_reshape)
-                            .set_input_x2(x_temp_reshape)
-                            .set_attr_transpose_x1(true)
-                            .set_attr_transpose_x2(false);
-          graph::funcs::update_input_dtype(
-              matmul, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
-          graph::funcs::update_output_dtype(matmul, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), matmul);
+          OpCommand("MatMul")
+              .Input(dout_reshape, "x1")
+              .Input(x_temp_reshape, "x2")
+              .Output(dY, "y")
+              .Attr("transpose_x1", true)
+              .Attr("transpose_x2", false);
         } else {
-          auto matmul = ge::op::MatMul()
-                            .set_input_x1(x_temp_reshape)
-                            .set_input_x2(dout_reshape)
-                            .set_attr_transpose_x1(true)
-                            .set_attr_transpose_x2(false);
-          graph::funcs::update_input_dtype(
-              matmul, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(matmul, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), matmul);
+          OpCommand("MatMul")
+              .Input(x_temp_reshape, "x1")
+              .Input(dout_reshape, "x2")
+              .Output(dY, "y")
+              .Attr("transpose_x1", true)
+              .Attr("transpose_x2", false);
         }
       }
       return;
@@ -332,70 +258,52 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
     std::copy(x_dims.end() - 2, x_dims.end(), x_broadcast_dims.end() - 2);
     std::copy(y_dims.end() - 2, y_dims.end(), y_broadcast_dims.end() - 2);
 
+    Tensor x_temp_brd, y_temp_brd;
     if (x_dims == x_broadcast_dims) {
-      auto x_temp_brd =
-          graph::funcs::reshape(graph->GetOp(X->Name()), x_broadcast_dims);
-      graph->AddOp(X->Name() + "_temp_brd", x_temp_brd);
+      OpCommand::Reshape(X, x_temp_brd, x_broadcast_dims);
     } else {
-      auto x_temp_brd = graph::funcs::broadcast_to(
-          graph->GetOp(X->Name() + "_temp"), x_broadcast_dims);
-      graph->AddOp(X->Name() + "_temp_brd", x_temp_brd);
+      OpCommand::BroadcastTo(X, x_temp_brd, x_broadcast_dims);
     }
-
     if (y_dims == y_broadcast_dims) {
-      auto y_temp_brd =
-          graph::funcs::reshape(graph->GetOp(Y->Name()), y_broadcast_dims);
-      graph->AddOp(X->Name() + "_temp_brd", y_temp_brd);
+      OpCommand::Reshape(Y, y_temp_brd, y_broadcast_dims);
     } else {
-      auto y_temp_brd = graph::funcs::broadcast_to(
-          graph->GetOp(Y->Name() + "_temp"), y_broadcast_dims);
-      graph->AddOp(Y->Name() + "_temp_brd", y_temp_brd);
+      OpCommand::BroadcastTo(Y, y_temp_brd, y_broadcast_dims);
     }
 
-    if (dX) {
+    if (ctx.HasOutput(paddle::framework::GradVarName("X"))) {
+      auto& dX = ctx.Output(paddle::framework::GradVarName("X"));
       if (x_dims == x_broadcast_dims) {
         if (trans_x) {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(Y->Name() + "_temp_brd"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_adj_x1(trans_y)
-                           .set_attr_adj_x2(true);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name(), ge_op);
+          OpCommand("BatchMatMul")
+              .Input(y_temp_brd, "x1")
+              .Input(out_temp, "x2")
+              .Output(dX, "y")
+              .Attr("adj_x1", trans_y)
+              .Attr("adj_x2", true);
         } else {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(Y->Name() + "_temp_brd"))
-                           .set_attr_adj_x1(false)
-                           .set_attr_adj_x2(!trans_y);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name(), ge_op);
+          OpCommand("BatchMatMul")
+              .Input(out_temp, "x1")
+              .Input(y_temp_brd, "x2")
+              .Output(dX, "y")
+              .Attr("adj_x1", false)
+              .Attr("adj_x2", !trans_y);
         }
       } else {
+        Tensor dx_temp;
         if (trans_x) {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(Y->Name() + "_temp_brd"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_adj_x1(trans_y)
-                           .set_attr_adj_x2(true);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", Y->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name() + "_temp", ge_op);
+          OpCommand("BatchMatMul")
+              .Input(y_temp_brd, "x1")
+              .Input(out_temp, "x2")
+              .Output(dx_temp, "y")
+              .Attr("adj_x1", trans_y)
+              .Attr("adj_x2", true);
         } else {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(Y->Name() + "_temp_brd"))
-                           .set_attr_adj_x1(false)
-                           .set_attr_adj_x2(!trans_y);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", Y->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dX->dtype()}});
-          graph->AddOp(dX->Name() + "_temp", ge_op);
+          OpCommand("BatchMatMul")
+              .Input(out_temp, "x1")
+              .Input(y_temp_brd, "x2")
+              .Output(dx_temp, "y")
+              .Attr("adj_x1", false)
+              .Attr("adj_x2", !trans_y);
         }
 
         std::vector<int64_t> axes;
@@ -410,57 +318,47 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
             axes.push_back(i);
           }
         }
-        auto ge_op = ge::op::ReduceSumD()
-                         .set_input_x(graph->GetOp(dX->Name() + "_temp"))
-                         .set_attr_axes(axes)
-                         .set_attr_keep_dims(false);
-        graph->AddOp(dX->Name(), ge_op);
+        OpCommand("ReduceSumD")
+            .Input(dx_temp)
+            .Output(dX)
+            .Attr("axes", axes)
+            .Attr("keep_dims", false);
       }
     }
-    if (dY) {
+    if (ctx.HasOutput(paddle::framework::GradVarName("Y"))) {
+      auto& dY = ctx.Output(paddle::framework::GradVarName("Y"));
       if (y_dims == y_broadcast_dims) {
         if (trans_y) {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(X->Name() + "_temp_brd"))
-                           .set_attr_adj_x1(true)
-                           .set_attr_adj_x2(trans_x);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), ge_op);
+          OpCommand("BatchMatMul")
+              .Input(out_temp, "x1")
+              .Input(x_temp_brd, "x2")
+              .Output(dY, "y")
+              .Attr("adj_x1", true)
+              .Attr("adj_x2", trans_x);
         } else {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(X->Name() + "_temp_brd"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_adj_x1(!trans_x)
-                           .set_attr_adj_x2(false);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name(), ge_op);
+          OpCommand("BatchMatMul")
+              .Input(x_temp_brd, "x1")
+              .Input(out_temp, "x2")
+              .Output(dY, "y")
+              .Attr("adj_x1", !trans_x)
+              .Attr("adj_x2", false);
         }
       } else {
+        Tensor dy_temp;
         if (trans_y) {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_input_x2(graph->GetOp(X->Name() + "_temp_brd"))
-                           .set_attr_adj_x1(true)
-                           .set_attr_adj_x2(trans_x);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", dOut->dtype()}, {"x2", X->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name() + "_temp", ge_op);
+          OpCommand("BatchMatMul")
+              .Input(out_temp, "x1")
+              .Input(x_temp_brd, "x2")
+              .Output(dy_temp, "y")
+              .Attr("adj_x1", true)
+              .Attr("adj_x2", trans_x);
         } else {
-          auto ge_op = ge::op::BatchMatMul()
-                           .set_input_x1(graph->GetOp(X->Name() + "_temp_brd"))
-                           .set_input_x2(graph->GetOp(dOut->Name() + "_temp"))
-                           .set_attr_adj_x1(!trans_x)
-                           .set_attr_adj_x2(false);
-          graph::funcs::update_input_dtype(
-              ge_op, {{"x1", X->dtype()}, {"x2", dOut->dtype()}});
-          graph::funcs::update_output_dtype(ge_op, {{"y", dY->dtype()}});
-          graph->AddOp(dY->Name() + "_temp", ge_op);
+          OpCommand("BatchMatMul")
+              .Input(x_temp_brd, "x1")
+              .Input(out_temp, "x2")
+              .Output(dy_temp, "y")
+              .Attr("adj_x1", !trans_x)
+              .Attr("adj_x2", false);
         }
 
         std::vector<int64_t> axes;
@@ -475,11 +373,11 @@ class MatmulV2GradAdapter : public custom_graph::OpAdapter {
             axes.push_back(i);
           }
         }
-        auto ge_op = ge::op::ReduceSumD()
-                         .set_input_x(graph->GetOp(dY->Name() + "_temp"))
-                         .set_attr_axes(axes)
-                         .set_attr_keep_dims(false);
-        graph->AddOp(dY->Name(), ge_op);
+        OpCommand("ReduceSumD")
+            .Input(dy_temp)
+            .Output(dY)
+            .Attr("axes", axes)
+            .Attr("keep_dims", false);
       }
     }
   }

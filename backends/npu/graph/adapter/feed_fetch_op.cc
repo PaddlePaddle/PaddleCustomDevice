@@ -20,24 +20,14 @@ class FeedAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto out = ctx.Output("Out");
-    auto out_dims = out->dims();
+  void run(const Context& ctx) override {
+    auto& out = ctx.Output("Out");
     auto col = ctx.Attr<int>("col");
-    graph::utils::log() << "[INFO] feed var " << out->Name() << ", dims: "
-                        << paddle::framework::ir::to_string(out_dims)
+    graph::utils::log() << "[INFO] feed var " << out.Name() << ", col=" << col
                         << std::endl;
-    auto ge_op =
-        ge::op::Data(ge::AscendString(out->Name().c_str())).set_attr_index(col);
-    ge::TensorDesc desc = ge_op.GetOutputDescByName("y");
-    desc.SetShape(
-        ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())));
-    desc.SetRealDimCnt(desc.GetShape().GetDimNum());
-    ge_op.UpdateOutputDesc("y", desc);
 
-    graph->AddOp(out->Name(), ge_op);
-    graph->AddFeedInput(out->Name(), ge_op, col);
+    OpCommand("Data").Output(out, "y").Attr("index", col);
+    out.MarkAsFeedInput(col);
   }
 };
 
@@ -45,13 +35,13 @@ class FetchV2Adapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto x = ctx.Input("X");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
     auto col = ctx.Attr<int>("col");
+    graph::utils::log() << "[INFO] fetch var " << x.Name() << ", col=" << col
+                        << std::endl;
 
-    graph::utils::log() << "[INFO] fetch var " << x->Name() << std::endl;
-    graph->AddFetchOutput(x->Name(), graph->GetOp(x->Name()), col);
+    x.MarkAsFetchOutput(col);
   }
 };
 

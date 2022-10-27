@@ -20,42 +20,43 @@ class MulAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto x = ctx.Input("X");
-    auto x_dim = x->dims();
-    auto y = ctx.Input("Y");
-    auto y_dim = y->dims();
-    auto out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& y = ctx.Input("Y");
+    auto& out = ctx.Output("Out");
+
     int x_num_col_dims = ctx.Attr<int>("x_num_col_dims");
     int y_num_col_dims = ctx.Attr<int>("y_num_col_dims");
 
+    auto x_dim = x.Shape();
+    auto y_dim = y.Shape();
+
     if (x_num_col_dims == 1 && y_num_col_dims == 1) {
       if (x_dim.size() == 2 && y_dim.size() == 2) {
-        auto ge_op = ge::op::MatMul(ge::AscendString(out->Name().c_str()))
-                         .set_input_x1(graph->GetOp(x->Name()))
-                         .set_input_x2(graph->GetOp(y->Name()))
-                         .set_attr_transpose_x1(false)
-                         .set_attr_transpose_x2(false);
-        graph->AddOp(out->Name(), ge_op);
+        OpCommand("MatMul")
+            .Input(x)
+            .Input(y)
+            .Output(out)
+            .Attr("transpose_x1", false)
+            .Attr("transpose_x2", false);
       } else if (x_dim.size() >= 3 && y_dim.size() == 2) {
-        auto ge_op = ge::op::BatchMatMul(ge::AscendString(out->Name().c_str()))
-                         .set_input_x1(graph->GetOp(x->Name()))
-                         .set_input_x2(graph->GetOp(y->Name()))
-                         .set_attr_adj_x1(false)
-                         .set_attr_adj_x2(false);
-        graph->AddOp(out->Name(), ge_op);
+        OpCommand("BatchMatMul")
+            .Input(x)
+            .Input(y)
+            .Output(out)
+            .Attr("adj_x1", false)
+            .Attr("adj_x2", false);
       } else {
         // error
       }
     } else if (x_dim.size() == 3 && y_dim.size() == 2) {
       if (x_num_col_dims == 2) {
-        auto ge_op = ge::op::BatchMatMul(ge::AscendString(out->Name().c_str()))
-                         .set_input_x1(graph->GetOp(x->Name()))
-                         .set_input_x2(graph->GetOp(y->Name()))
-                         .set_attr_adj_x1(false)
-                         .set_attr_adj_x2(false);
-        graph->AddOp(out->Name(), ge_op);
+        OpCommand("BatchMatMul")
+            .Input(x)
+            .Input(y)
+            .Output(out)
+            .Attr("adj_x1", false)
+            .Attr("adj_x2", false);
       } else {
         // error
       }
@@ -67,78 +68,76 @@ class MulGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto x = ctx.Input("X");
-    auto x_dim = x->dims();
-    auto y = ctx.Input("Y");
-    auto y_dim = y->dims();
-    auto out_grad = ctx.Input("Out@GRAD");
-    auto x_grad = ctx.Output("X@GRAD");
-    auto y_grad = ctx.Output("Y@GRAD");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& y = ctx.Input("Y");
+    auto& out_grad = ctx.Input("Out@GRAD");
+
+    auto x_dim = x.Shape();
+    auto y_dim = y.Shape();
 
     int x_num_col_dims = ctx.Attr<int>("x_num_col_dims");
     int y_num_col_dims = ctx.Attr<int>("y_num_col_dims");
 
     if (x_num_col_dims == 1 && y_num_col_dims == 1) {
       if (x_dim.size() == 2 && y_dim.size() == 2) {
-        if (x_grad) {
-          auto ge_op =
-              ge::op::MatMul(ge::AscendString((x->Name() + "_grad").c_str()))
-                  .set_input_x1(graph->GetOp(out_grad->Name()))
-                  .set_input_x2(graph->GetOp(y->Name()))
-                  .set_attr_transpose_x1(false)
-                  .set_attr_transpose_x2(true);
-          graph->AddOp(x_grad->Name(), ge_op);
+        if (ctx.HasOutput("X@GRAD")) {
+          auto& x_grad = ctx.Output("X@GRAD");
+          OpCommand("MatMul")
+              .Input(out_grad)
+              .Input(y)
+              .Output(x_grad)
+              .Attr("transpose_x1", false)
+              .Attr("transpose_x2", true);
         }
-        if (y_grad) {
-          auto ge_op =
-              ge::op::MatMul(ge::AscendString((y->Name() + "_grad").c_str()))
-                  .set_input_x1(graph->GetOp(x->Name()))
-                  .set_input_x2(graph->GetOp(out_grad->Name()))
-                  .set_attr_transpose_x1(true)
-                  .set_attr_transpose_x2(false);
-          graph->AddOp(y_grad->Name(), ge_op);
+        if (ctx.HasOutput("Y@GRAD")) {
+          auto& y_grad = ctx.Output("Y@GRAD");
+          OpCommand("MatMul")
+              .Input(x)
+              .Input(out_grad)
+              .Output(y_grad)
+              .Attr("transpose_x1", true)
+              .Attr("transpose_x2", false);
         }
       } else if (x_dim.size() >= 3 && y_dim.size() == 2) {
-        if (x_grad) {
-          auto ge_op = ge::op::BatchMatMul(
-                           ge::AscendString((x->Name() + "_grad").c_str()))
-                           .set_input_x1(graph->GetOp(out_grad->Name()))
-                           .set_input_x2(graph->GetOp(y->Name()))
-                           .set_attr_adj_x1(false)
-                           .set_attr_adj_x2(true);
-          graph->AddOp(x_grad->Name(), ge_op);
+        if (ctx.HasOutput("X@GRAD")) {
+          auto& x_grad = ctx.Output("X@GRAD");
+          OpCommand("BatchMatMul")
+              .Input(out_grad)
+              .Input(y)
+              .Output(x_grad)
+              .Attr("adj_x1", false)
+              .Attr("adj_x2", true);
         }
-        if (y_grad) {
-          auto ge_op = ge::op::BatchMatMul(
-                           ge::AscendString((y->Name() + "_grad").c_str()))
-                           .set_input_x1(graph->GetOp(x->Name()))
-                           .set_input_x2(graph->GetOp(out_grad->Name()))
-                           .set_attr_adj_x1(true)
-                           .set_attr_adj_x2(false);
-          graph->AddOp(y_grad->Name(), ge_op);
+        if (ctx.HasOutput("Y@GRAD")) {
+          auto& y_grad = ctx.Output("Y@GRAD");
+          OpCommand("BatchMatMul")
+              .Input(x)
+              .Input(out_grad)
+              .Output(y_grad)
+              .Attr("adj_x1", true)
+              .Attr("adj_x2", false);
         }
       }
     } else {
       if (x_num_col_dims == 2) {
-        if (x_grad) {
-          auto ge_op = ge::op::BatchMatMul(
-                           ge::AscendString((x->Name() + "_grad").c_str()))
-                           .set_input_x1(graph->GetOp(out_grad->Name()))
-                           .set_input_x2(graph->GetOp(y->Name()))
-                           .set_attr_adj_x1(false)
-                           .set_attr_adj_x2(true);
-          graph->AddOp(x_grad->Name(), ge_op);
+        if (ctx.HasOutput("X@GRAD")) {
+          auto& x_grad = ctx.Output("X@GRAD");
+          OpCommand("BatchMatMul")
+              .Input(out_grad)
+              .Input(y)
+              .Output(x_grad)
+              .Attr("adj_x1", false)
+              .Attr("adj_x2", true);
         }
-        if (y_grad) {
-          auto ge_op = ge::op::BatchMatMul(
-                           ge::AscendString((y->Name() + "_grad").c_str()))
-                           .set_input_x1(graph->GetOp(x->Name()))
-                           .set_input_x2(graph->GetOp(out_grad->Name()))
-                           .set_attr_adj_x1(true)
-                           .set_attr_adj_x2(false);
-          graph->AddOp(y_grad->Name(), ge_op);
+        if (ctx.HasOutput("Y@GRAD")) {
+          auto& y_grad = ctx.Output("Y@GRAD");
+          OpCommand("BatchMatMul")
+              .Input(x)
+              .Input(out_grad)
+              .Output(y_grad)
+              .Attr("adj_x1", true)
+              .Attr("adj_x2", false);
         }
       } else {
         // error

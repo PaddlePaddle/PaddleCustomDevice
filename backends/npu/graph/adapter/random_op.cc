@@ -20,10 +20,9 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
+  void run(const Context& ctx) override {
     auto out = ctx.Output("Out");
-    auto out_dims = out->dims();
+    auto out_dims = out.Shape();
     auto min_value = ctx.Attr<float>("min");
     auto max_value = ctx.Attr<float>("max");
     auto seed = ctx.Attr<int>("seed");
@@ -33,7 +32,7 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
         ge::Format::FORMAT_NCHW,
-        graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
+        graph::utils::pd_dtype_to_ge_dtype(out.DType()));
     out_tensor_desc.SetRealDimCnt(out_tensor_desc.GetShape().GetDimNum());
 
     auto size = std::accumulate(
@@ -43,74 +42,42 @@ class UniformRandomAdapter : public custom_graph::OpAdapter {
     auto engine = std::make_shared<std::mt19937_64>();
     engine->seed(seed);
 
-    uint8_t* data_value = nullptr;
-    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
+    Tensor constant_tensor;
+    if (out.DType() == paddle::framework::proto::VarType::FP16) {
       std::uniform_real_distribution<float> dist(static_cast<float>(min_value),
                                                  static_cast<float>(max_value));
-
-      auto ptr = new phi::dtype::float16[size];
+      auto value =
+          std::shared_ptr<phi::dtype::float16>(new phi::dtype::float16[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<phi::dtype::float16>(dist(*engine));
+        *(value.get() + i) = static_cast<phi::dtype::float16>(dist(*engine));
       }
-      bytesize = size * sizeof(phi::dtype::float16);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
+    } else if (out.DType() == paddle::framework::proto::VarType::FP32) {
       std::uniform_real_distribution<float> dist(static_cast<float>(min_value),
                                                  static_cast<float>(max_value));
-      auto ptr = new float[size];
+      auto value = std::shared_ptr<float>(new float[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<float>(dist(*engine));
+        *(value.get() + i) = static_cast<float>(dist(*engine));
       }
-      bytesize = size * sizeof(float);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
+    } else if (out.DType() == paddle::framework::proto::VarType::FP64) {
       std::uniform_real_distribution<double> dist(
           static_cast<double>(min_value), static_cast<double>(max_value));
-      auto ptr = new double[size];
+      auto value = std::shared_ptr<double>(new double[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<double>(dist(*engine));
+        *(value.get() + i) = static_cast<double>(dist(*engine));
       }
-      bytesize = size * sizeof(double);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype() << std::endl;
+                          << out.DType() << std::endl;
       exit(-1);
     }
 
-    ge::Tensor tensor(out_tensor_desc, data_value, bytesize);
-
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
-    constant_op.update_output_desc_y(out_tensor_desc);
-
-    if (!graph->HasOp(out->Name())) {
-      graph->AddInput(constant_op);
-      graph->AddOp(out->Name(), constant_op);
+    if (out.op() == nullptr) {
+      out = constant_tensor;
     } else {
-      // inplace op
-      auto assign_op = ge::op::Assign()
-                           .set_input_ref(graph->GetOp(out->Name()))
-                           .set_input_value(constant_op);
-      graph->AddInput(graph->GetOp(out->Name()));
-    }
-    graph::utils::log() << "[INFO] uniform random tensor: " << out->Name()
-                        << ", dims: "
-                        << paddle::framework::ir::to_string(out->dims())
-                        << std::endl;
-
-    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
-      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
-      auto ptr = reinterpret_cast<float*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
-      auto ptr = reinterpret_cast<double*>(data_value);
-      delete[] ptr;
-    } else {
-      graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
-                          << out->dtype() << std::endl;
-      exit(-1);
+      OpCommand("Assign").Input(out).Input(constant_tensor);
     }
   }
 };
@@ -119,10 +86,9 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
+  void run(const Context& ctx) override {
     auto out = ctx.Output("Out");
-    auto out_dims = out->dims();
+    auto out_dims = out.Shape();
     auto mean_value = ctx.Attr<float>("mean");
     auto std_value = ctx.Attr<float>("std");
     auto seed = ctx.Attr<int>("seed");
@@ -132,7 +98,7 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
     ge::TensorDesc out_tensor_desc(
         ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
         ge::Format::FORMAT_NCHW,
-        graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
+        graph::utils::pd_dtype_to_ge_dtype(out.DType()));
     out_tensor_desc.SetRealDimCnt(out_tensor_desc.GetShape().GetDimNum());
 
     auto size = std::accumulate(
@@ -144,68 +110,42 @@ class GaussianRandomAdapter : public custom_graph::OpAdapter {
     auto engine = std::make_shared<std::mt19937_64>();
     engine->seed(seed);
 
-    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
-      std::normal_distribution<float> dist(mean_value, std_value);
-
-      auto ptr = new phi::dtype::float16[size];
+    Tensor constant_tensor;
+    if (out.DType() == paddle::framework::proto::VarType::FP16) {
+      std::normal_distribution<float> dist(static_cast<float>(mean_value),
+                                           static_cast<float>(std_value));
+      auto value =
+          std::shared_ptr<phi::dtype::float16>(new phi::dtype::float16[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<phi::dtype::float16>(dist(*engine));
+        *(value.get() + i) = static_cast<phi::dtype::float16>(dist(*engine));
       }
-      bytesize = size * sizeof(phi::dtype::float16);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
-      std::normal_distribution<float> dist(mean_value, std_value);
-
-      auto ptr = new float[size];
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
+    } else if (out.DType() == paddle::framework::proto::VarType::FP32) {
+      std::normal_distribution<float> dist(static_cast<float>(mean_value),
+                                           static_cast<float>(std_value));
+      auto value = std::shared_ptr<float>(new float[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<float>(dist(*engine));
+        *(value.get() + i) = static_cast<float>(dist(*engine));
       }
-      bytesize = size * sizeof(float);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
-      std::normal_distribution<double> dist(mean_value, std_value);
-
-      auto ptr = new double[size];
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
+    } else if (out.DType() == paddle::framework::proto::VarType::FP64) {
+      std::normal_distribution<double> dist(static_cast<double>(mean_value),
+                                            static_cast<double>(std_value));
+      auto value = std::shared_ptr<double>(new double[size]);
       for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<double>(dist(*engine));
+        *(value.get() + i) = static_cast<double>(dist(*engine));
       }
-      bytesize = size * sizeof(double);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
+      OpCommand::FillConstant(constant_tensor, out_dims, value.get());
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype() << std::endl;
+                          << out.DType() << std::endl;
       exit(-1);
     }
 
-    ge::Tensor tensor(out_tensor_desc, data_value, bytesize);
-
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
-    constant_op.update_output_desc_y(out_tensor_desc);
-
-    // inplace op
-    auto assign_op = ge::op::Assign()
-                         .set_input_ref(graph->GetOp(out->Name()))
-                         .set_input_value(constant_op);
-    graph->AddInput(graph->GetOp(out->Name()));
-    // graph->Graph()->AddOp(assign_op);
-    graph::utils::log() << "[INFO] gaussian random tensor: " << out->Name()
-                        << ", dims: "
-                        << paddle::framework::ir::to_string(out->dims())
-                        << std::endl;
-
-    if (out->dtype() == paddle::framework::proto::VarType::FP16) {
-      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
-      auto ptr = reinterpret_cast<float*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
-      auto ptr = reinterpret_cast<double*>(data_value);
-      delete[] ptr;
+    if (out.op() == nullptr) {
+      out = constant_tensor;
     } else {
-      graph::utils::log() << "[ERROR] uniform_random unsupported datatype "
-                          << out->dtype() << std::endl;
-      exit(-1);
+      OpCommand("Assign").Input(out).Input(constant_tensor);
     }
   }
 };

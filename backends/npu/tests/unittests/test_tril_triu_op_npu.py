@@ -50,6 +50,11 @@ class TestNPUTrilTriu(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        if self.dtype != np.bool_:
+            self.check_grad_with_place(
+                self.place, ['X'], 'Out', max_relative_error=0.01)
+
     def set_npu(self):
         self.__class__.use_custom_device = True
 

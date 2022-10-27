@@ -40,10 +40,10 @@ inline std::ostream& log() {
 template <typename T>
 struct cpp_type_to_ge_dtype;
 
-#define REG_CPP_TYPE_TO_GE_DTYPE(cpp_type, ge_dtype)          \
-  template <>                                                 \
-  struct cpp_type_to_ge_dtype<cpp_type> {                     \
-    static const ge::DataType value = ge::DataType::ge_dtype; \
+#define REG_CPP_TYPE_TO_GE_DTYPE(cpp_type, ge_dtype)                         \
+  template <>                                                                \
+  struct cpp_type_to_ge_dtype<cpp_type> {                                    \
+    static constexpr ge::DataType value() { return ge::DataType::ge_dtype; } \
   };
 
 REG_CPP_TYPE_TO_GE_DTYPE(int16_t, DT_INT16);

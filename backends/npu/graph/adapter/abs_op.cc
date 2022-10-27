@@ -20,12 +20,10 @@ class AbsAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
-    auto abs = ge::op::Abs().set_input_x(graph->GetOp(x->Name()));
-    graph->AddOp(out->Name(), abs);
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
+    OpCommand("Abs").Input(x).Output(out);
   }
 };
 
@@ -33,16 +31,11 @@ class AbsGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* dout = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto* dx = ctx.Output(paddle::framework::GradVarName("X"));
-
-    auto abs_grad = ge::op::AbsGrad()
-                        .set_input_y(graph->GetOp(x->Name()))
-                        .set_input_dy(graph->GetOp(dout->Name()));
-    graph->AddOp(dx->Name(), abs_grad);
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& dout = ctx.Input(paddle::framework::GradVarName("Out"));
+    auto& dx = ctx.Output(paddle::framework::GradVarName("X"));
+    OpCommand("AbsGrad").Input(x).Input(dout).Output(dx);
   }
 };
 

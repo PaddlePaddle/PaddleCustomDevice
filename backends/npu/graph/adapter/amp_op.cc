@@ -20,8 +20,7 @@ class AmpAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
+  void run(const Context& ctx) override {
     graph::utils::log() << "[INFO] skip amp op.\n";
   }
 };

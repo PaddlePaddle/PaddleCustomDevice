@@ -20,97 +20,47 @@ class FillConstantAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto out = ctx.Output("Out");
-    auto out_dims = out->dims();
-    auto fill_constant_value = ctx.Attr<float>("value");
-    graph::utils::log() << "[INFO] fill_constant_value=" << fill_constant_value
-                        << std::endl;
-
-    ge::TensorDesc out_tensor_desc(
-        ge::Shape(std::vector<int64_t>(out_dims.begin(), out_dims.end())),
-        ge::Format::FORMAT_NCHW,
-        graph::utils::pd_dtype_to_ge_dtype(out->dtype()));
-    out_tensor_desc.SetRealDimCnt(out_tensor_desc.GetShape().GetDimNum());
-
-    auto size = std::accumulate(
-        out_dims.begin(), out_dims.end(), 1, std::multiplies<int>());
-    auto bytesize = size;
-
-    uint8_t* data_value = nullptr;
-
-    if (out->dtype() == paddle::framework::proto::VarType::INT32) {
-      auto ptr = new int32_t[size];
-      for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<int32_t>(fill_constant_value);
-      }
-      bytesize = size * sizeof(int32_t);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP16) {
-      auto ptr = new phi::dtype::float16[size];
-      for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<phi::dtype::float16>(fill_constant_value);
-      }
-      bytesize = size * sizeof(phi::dtype::float16);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
-      auto ptr = new float[size];
-      for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<float>(fill_constant_value);
-      }
-      bytesize = size * sizeof(float);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
-      auto ptr = new double[size];
-      for (auto i = 0; i < size; ++i) {
-        ptr[i] = static_cast<double>(fill_constant_value);
-      }
-      bytesize = size * sizeof(double);
-      data_value = reinterpret_cast<uint8_t*>(ptr);
-    } else {
-      graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype() << std::endl;
-      exit(-1);
-    }
-
-    ge::Tensor tensor(out_tensor_desc, data_value, bytesize);
-
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
-    constant_op.update_output_desc_y(out_tensor_desc);
-
-    // for loss grad
-    if (!graph->HasOp(out->Name())) {
-      graph->AddInput(constant_op);
-      graph->AddOp(out->Name(), constant_op);
-    } else {
-      // inplace op
-      auto assign_op = ge::op::Assign()
-                           .set_input_ref(graph->GetOp(out->Name()))
-                           .set_input_value(constant_op);
-      graph->AddInput(graph->GetOp(out->Name()));
-    }
-    graph::utils::log() << "[INFO] fill constant tensor: " << out->Name()
+  void run(const Context& ctx) override {
+    auto& out = ctx.Output("Out");
+    auto out_dims = out.Shape();
+    auto value = ctx.Attr<float>("value");
+    graph::utils::log() << "[INFO] fill constant tensor: " << out.Name()
                         << ", dims: "
-                        << paddle::framework::ir::to_string(out->dims())
+                        << paddle::framework::ir::to_string(out.Shape())
                         << std::endl;
 
-    if (out->dtype() == paddle::framework::proto::VarType::INT32) {
-      auto ptr = reinterpret_cast<int32_t*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP16) {
-      auto ptr = reinterpret_cast<phi::dtype::float16*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP32) {
-      auto ptr = reinterpret_cast<float*>(data_value);
-      delete[] ptr;
-    } else if (out->dtype() == paddle::framework::proto::VarType::FP64) {
-      auto ptr = reinterpret_cast<double*>(data_value);
-      delete[] ptr;
+    Tensor constant_tensor;
+    if (out.DType() == paddle::framework::proto::VarType::INT32) {
+      OpCommand::FillConstant(
+          constant_tensor,
+          out_dims,
+          std::vector<int32_t>(out.Numel(), static_cast<int32_t>(value)));
+    } else if (out.DType() == paddle::framework::proto::VarType::FP16) {
+      OpCommand::FillConstant(
+          constant_tensor,
+          out_dims,
+          std::vector<phi::dtype::float16>(
+              out.Numel(), static_cast<phi::dtype::float16>(value)));
+    } else if (out.DType() == paddle::framework::proto::VarType::FP32) {
+      OpCommand::FillConstant(
+          constant_tensor,
+          out_dims,
+          std::vector<float>(out.Numel(), static_cast<float>(value)));
+    } else if (out.DType() == paddle::framework::proto::VarType::FP64) {
+      OpCommand::FillConstant(
+          constant_tensor,
+          out_dims,
+          std::vector<double>(out.Numel(), static_cast<double>(value)));
     } else {
       graph::utils::log() << "[ERROR] fill_constant unsupported datatype "
-                          << out->dtype() << std::endl;
+                          << out.DType() << std::endl;
       exit(-1);
+    }
+
+    if (out.op() == nullptr) {
+      out = constant_tensor;
+    } else {
+      OpCommand("Assign").Input(out).Input(constant_tensor);
     }
   }
 };

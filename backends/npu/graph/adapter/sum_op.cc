@@ -20,25 +20,27 @@ class SumAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto out_var = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& out = ctx.Output("Out");
 
-    if (out_var->Type() == "lod_tensor") {
-      auto x = ctx.MultiInput("X");
-      int n = x.size();
-      if (n == 1) {
-        graph->RecordNode(out_var->Name(), graph->GetOp(x[0]->Name()));
-      } else {
-        auto add_n = ge::op::AddN().create_dynamic_input_x(n).set_attr_N(n);
-        for (auto i = 0; i < n; ++i) {
-          add_n = add_n.set_dynamic_input_x(i, graph->GetOp(x[i]->Name()));
-        }
-        graph->AddOp(out_var->Name(), add_n);
-      }
+    // if (out_var->Type() == "lod_tensor") {
+    auto x = ctx.MultiInput("X");
+    int n = x.size();
+    if (n == 1) {
+      out = *x[0];
     } else {
-      // error
+      Tensor prev = *x[0];
+      Tensor cur;
+      for (auto i = 0; i < x.size(); ++i) {
+        cur = *x[i];
+        Tensor sum;
+        OpCommand("Add").Input(prev).Input(cur).Output(sum);
+        prev = sum;
+      }
     }
+    // } else {
+    //   // error
+    // }
   }
 };
 

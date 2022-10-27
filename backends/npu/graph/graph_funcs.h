@@ -37,18 +37,18 @@ inline ge::Operator constant(const std::vector<int>& dim,
   ge::TensorDesc tensor_desc(
       ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
       format,
-      graph::utils::cpp_type_to_ge_dtype<T>::value);
+      graph::utils::cpp_type_to_ge_dtype<T>::value());
   tensor_desc.SetRealDimCnt(tensor_desc.GetShape().GetDimNum());
   ge::Tensor tensor(tensor_desc,
                     reinterpret_cast<uint8_t*>(const_cast<T*>(value.data())),
                     value.size() * sizeof(T));
   if (name.size() == 0) {
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
+    auto constant_op = ge::op::Const().set_attr_value(tensor);
     constant_op.update_output_desc_y(tensor_desc);
     return constant_op;
   } else {
     auto constant_op =
-        ge::op::Constant(ge::AscendString(name.c_str())).set_attr_value(tensor);
+        ge::op::Const(ge::AscendString(name.c_str())).set_attr_value(tensor);
     constant_op.update_output_desc_y(tensor_desc);
     return constant_op;
   }
@@ -61,7 +61,7 @@ inline ge::Operator variable(const std::vector<int>& dim,
   ge::TensorDesc tensor_desc(
       ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
       format,
-      graph::utils::cpp_type_to_ge_dtype<T>::value);
+      graph::utils::cpp_type_to_ge_dtype<T>::value());
   tensor_desc.SetRealDimCnt(tensor_desc.GetShape().GetDimNum());
 
   if (name.size() == 0) {
@@ -83,7 +83,7 @@ inline ge::Operator variable(const std::vector<int>& dim,
   ge::TensorDesc tensor_desc(
       ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
       format,
-      graph::utils::cpp_type_to_ge_dtype<T>::value);
+      graph::utils::cpp_type_to_ge_dtype<T>::value());
   tensor_desc.SetRealDimCnt(tensor_desc.GetShape().GetDimNum());
   ge::Tensor tensor(tensor_desc,
                     reinterpret_cast<uint8_t*>(const_cast<T*>(value.data())),
@@ -92,7 +92,7 @@ inline ge::Operator variable(const std::vector<int>& dim,
   if (name.size() == 0) {
     auto variable = ge::op::Variable();
     variable.update_output_desc_y(tensor_desc);
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
+    auto constant_op = ge::op::Const().set_attr_value(tensor);
     constant_op.update_output_desc_y(tensor_desc);
     auto assign_op =
         ge::op::Assign().set_input_ref(variable).set_input_value(constant_op);
@@ -100,7 +100,7 @@ inline ge::Operator variable(const std::vector<int>& dim,
   } else {
     auto variable = ge::op::Variable(ge::AscendString(name.c_str()));
     variable.update_output_desc_y(tensor_desc);
-    auto constant_op = ge::op::Constant().set_attr_value(tensor);
+    auto constant_op = ge::op::Const().set_attr_value(tensor);
     constant_op.update_output_desc_y(tensor_desc);
     auto assign_op =
         ge::op::Assign().set_input_ref(variable).set_input_value(constant_op);
@@ -118,7 +118,7 @@ inline ge::Operator get_output_by_name(
   ge::TensorDesc tensor_desc(
       ge::Shape(std::vector<int64_t>(dim.begin(), dim.end())),
       format,
-      graph::utils::cpp_type_to_ge_dtype<T>::value);
+      graph::utils::cpp_type_to_ge_dtype<T>::value());
   tensor_desc.SetRealDimCnt(tensor_desc.GetShape().GetDimNum());
 
   if (name.size() == 0) {
@@ -212,18 +212,18 @@ template <typename T>
 inline ge::Operator cast(ge::Operator& node, const std::string& name = "") {
   if (name.size() == 0) {
     auto cast_op = ge::op::Cast().set_input_x(node).set_attr_dst_type(
-        graph::utils::cpp_type_to_ge_dtype<T>::value);
+        graph::utils::cpp_type_to_ge_dtype<T>::value());
     ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
-    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value());
     cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   } else {
     auto cast_op =
         ge::op::Cast(ge::AscendString(name.c_str()))
             .set_input_x(node)
-            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<T>::value);
+            .set_attr_dst_type(graph::utils::cpp_type_to_ge_dtype<T>::value());
     ge::TensorDesc desc = cast_op.GetOutputDescByName("y");
-    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+    desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value());
     cast_op.UpdateInputDesc("y", desc);
     return cast_op;
   }
@@ -321,7 +321,7 @@ template <typename T>
 inline void update_input_dtype(ge::Operator& node,
                                const std::string& input_name) {
   ge::TensorDesc desc = node.GetInputDescByName(input_name.c_str());
-  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value());
   node.UpdateInputDesc(input_name.c_str(), desc);
 }
 
@@ -329,7 +329,7 @@ template <typename T>
 inline void update_output_dtype(ge::Operator& node,
                                 const std::string& output_name) {
   ge::TensorDesc desc = node.GetOutputDescByName(output_name.c_str());
-  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value);
+  desc.SetDataType(graph::utils::cpp_type_to_ge_dtype<T>::value());
   node.UpdateOutputDesc(output_name.c_str(), desc);
 }
 

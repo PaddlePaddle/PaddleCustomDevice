@@ -20,17 +20,14 @@ class TransposeAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
     std::vector<int> axis = ctx.Attr<std::vector<int>>("axis");
 
-    auto perm = graph::funcs::constant({axis.size()}, axis);
-    auto transpose = ge::op::Transpose()
-                         .set_input_x(graph->GetOp(x->Name()))
-                         .set_input_perm(perm);
-    graph->AddOp(out->Name(), transpose);
+    Tensor perm;
+    OpCommand::FillConstant(perm, {axis.size()}, axis);
+    OpCommand("Transpose").Input(x).Input(perm).Output(out);
   }
 };
 
@@ -38,21 +35,18 @@ class TransposeGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* out_grad = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto* x_grad = ctx.Output(paddle::framework::GradVarName("X"));
+  void run(const Context& ctx) override {
+    auto& out_grad = ctx.Input(paddle::framework::GradVarName("Out"));
+    auto& x_grad = ctx.Output(paddle::framework::GradVarName("X"));
     std::vector<int> axis = ctx.Attr<std::vector<int>>("axis");
     std::vector<int> reversed_axis(axis);
     for (size_t i = 0; i < axis.size(); i++) {
       reversed_axis[axis[i]] = i;
     }
 
-    auto perm = graph::funcs::constant({reversed_axis.size()}, reversed_axis);
-    auto transpose = ge::op::Transpose()
-                         .set_input_x(graph->GetOp(out_grad->Name()))
-                         .set_input_perm(perm);
-    graph->AddOp(x_grad->Name(), transpose);
+    Tensor perm;
+    OpCommand::FillConstant(perm, {reversed_axis.size()}, reversed_axis);
+    OpCommand("Transpose").Input(out_grad).Input(perm).Output(x_grad);
   }
 };
 

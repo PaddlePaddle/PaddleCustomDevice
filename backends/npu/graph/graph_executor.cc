@@ -14,19 +14,9 @@
 
 #include "graph/graph_executor.h"
 
-struct GraphWrapper {
-  uint32_t id;
-  std::shared_ptr<ge::Graph> ge_graph;
-  std::shared_ptr<custom_graph::GEGraph> ctx_graph;
-  std::shared_ptr<paddle::framework::ir::IRGraph> ir_graph;
-};
-
-static std::unordered_map<C_Scope,
-                          std::pair<std::shared_ptr<ge::Session>,
-                                    std::unordered_map<C_Graph, GraphWrapper>>>
-    session_cache;
-
 bool ge_initialized = false;
+ge::Session* session = nullptr;
+std::unordered_map<C_Graph, std::shared_ptr<custom_graph::Graph>> graph_cache;
 
 std::map<ge::AscendString, ge::AscendString> config;
 
@@ -61,7 +51,16 @@ C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
   if (ge_initialized) {
     ge_initialized = false;
-    session_cache.clear();
+    // for (auto& iter : session_cache) {
+    //   iter.second.second.clear();
+    // }
+    // session_cache.clear();
+    if (session) {
+      graph_cache.clear();
+      custom_graph::Tensor::TensorStorage().clear();
+      delete session;
+      session = nullptr;
+    }
     ge::Status ret = ge::GEFinalize();
     if (ret != ge::SUCCESS) {
       graph::utils::log() << "[ERROR] graph_engine_finalize failed."
@@ -75,110 +74,123 @@ C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
 
 C_Status graph_engine_execute_graph(const C_Device device,
                                     const C_Stream stream,
-                                    const C_Scope scope_,
-                                    const C_Graph graph,
+                                    const C_Scope c_scope,
+                                    const C_Graph c_graph,
                                     char** feed_tensor_name,
                                     void** feed_tensor_data,
                                     size_t feed_tensor_num,
                                     char** fetch_tensor_name,
                                     void** fetch_tensor_data,
                                     size_t fetch_tensor_num) {
-  ge::Status ret = ge::SUCCESS;
-  C_Scope scope = nullptr;
-  graph::utils::log() << "[INFO] scope=" << scope << ", graph=" << graph
-                      << std::endl;
+  graph::utils::log() << "[INFO] run graph_engine_execute_graph" << std::endl;
 
-  if (session_cache.find(scope) == session_cache.end()) {
-    session_cache[scope] = {std::make_shared<ge::Session>(config), {}};
+  if (session == nullptr) {
+    session = new ge::Session(config);
   }
-  auto session = session_cache[scope].first.get();
 
-  // 1. Get or create a ge_graph
   bool add_ge_graph = false;
-  auto& graph_cache = session_cache[scope].second;
-  if (graph_cache.find(graph) == graph_cache.end()) {
+  if (graph_cache.find(c_graph) == graph_cache.end()) {
+    auto graph_id = graph_cache.size();
+    graph_cache.insert(
+        {c_graph,
+         std::make_shared<custom_graph::Graph>(
+             "graph_" + std::to_string(graph_id), graph_id, c_graph)});
     add_ge_graph = true;
-    auto id = static_cast<uint32_t>(graph_cache.size());
-    std::string name = "ge_graph." + std::to_string(id);
-    graph_cache[graph].id = id;
-    graph_cache[graph].ge_graph = std::make_shared<ge::Graph>(name);
-    graph_cache[graph].ir_graph =
-        std::make_shared<paddle::framework::ir::IRGraph>(graph);
-    graph_cache[graph].ctx_graph = std::make_shared<custom_graph::GEGraph>(
-        name, id, graph_cache[graph].ge_graph.get());
   }
-  graph::utils::log() << "[INFO] find graph cache.\n";
+  auto graph = graph_cache[c_graph];
 
-  auto& ir_graph = *graph_cache[graph].ir_graph;
-  auto ge_graph_id = graph_cache[graph].id;
-  std::string ge_graph_name = "ge_graph." + std::to_string(ge_graph_id);
-  auto& global_graph = *graph_cache[graph].ctx_graph;
+  auto paddle_ir_graph = graph->ir_graph();
+  custom_graph::Graph::set_global_graph(graph.get());
 
+  // 1. build graph
   if (add_ge_graph) {
-    // 2. Get or create variable and constant
-    for (auto& var_node : ir_graph.Vars()) {
-      // input node
+    // 1.1 build vars
+    for (auto& var_node : paddle_ir_graph->Vars()) {
       if (var_node->Persistable() && (var_node->Type() != "feed_minibatch" &&
                                       var_node->Type() != "fetch_list")) {
-        std::string var_name = var_node->Name();
-        // if (var_node->IsParameter()) {
-        auto var_dims = var_node->dims();
-        ge::TensorDesc var_desc(
-            ge::Shape(std::vector<int64_t>(var_dims.begin(), var_dims.end())),
-            ge::Format::FORMAT_NCHW,
-            graph::utils::pd_dtype_to_ge_dtype(var_node->dtype()));
-        var_desc.SetRealDimCnt(var_desc.GetShape().GetDimNum());
-
-        auto ge_op = ge::op::Variable(ge::AscendString(var_name.c_str()));
-        ge_op.update_output_desc_y(var_desc);
-        global_graph.AddOp(var_name, ge_op);
+        auto& tensor = custom_graph::Tensor::Get(var_node->Name())
+                           .SetShape(var_node->dims())
+                           .SetDType(var_node->dtype())
+                           .SetFormat("NCHW");
+        custom_graph::OpCommand("Variable", var_node->Name())
+            .Output(tensor, "y");
         graph::utils::log()
-            << "[INFO] var " << var_name
-            << ", dims=" << paddle::framework::ir::to_string(var_dims)
+            << "[INFO] var " << var_node->Name()
+            << ", dims=" << paddle::framework::ir::to_string(var_node->dims())
             << std::endl;
-        // }
       }
     }
 
-    // 3. Build graph
-    for (auto& op_node : ir_graph.Ops()) {
+    // 1.2 build ops
+    for (auto& op_node : paddle_ir_graph->Ops()) {
       if (custom_graph::OpAdapter::Factory().find(op_node->Type()) !=
           custom_graph::OpAdapter::Factory().end()) {
         graph::utils::log()
             << "[INFO] run " << op_node->Type() << " adapter" << std::endl;
         auto& creator = custom_graph::OpAdapter::Factory()[op_node->Type()];
-        auto adaper = creator();
-        adaper->run(*op_node, &global_graph);
+        auto adapter = creator();
+        custom_graph::Context adapter_context(op_node.get());
+        adapter->run(adapter_context);
       } else {
         graph::utils::log() << "[ERROR] op " << op_node->Type()
                             << " is not supported." << std::endl;
-        exit(-1);
+        return C_FAILED;
       }
     }
 
-    if (global_graph.feed_inputs_.size() != feed_tensor_num ||
-        global_graph.fetch_outputs_.size() != fetch_tensor_num) {
-      graph::utils::log() << "[ERROR] global_graph.feed_inputs_.size(): "
-                          << global_graph.feed_inputs_.size()
-                          << " != feed_tensor_num: " << feed_tensor_num
-                          << " || "
-                             "global_graph.fetch_outputs_size(): "
-                          << global_graph.fetch_outputs_.size()
-                          << " != fetch_tensor_num: " << fetch_tensor_num
-                          << std::endl;
-      return C_FAILED;
+    // 1.3 finalize
+    std::vector<ge::Operator> inputs;
+    std::vector<ge::Operator> outputs;
+    std::vector<ge::Operator> targets;
+    for (auto& op : graph->GetInputs()) {
+      inputs.push_back(*op->GetGEOp());
+    }
+    for (auto& op : graph->GetOutputs()) {
+      outputs.push_back(*op->GetGEOp());
+    }
+    for (auto& op : graph->GetTargets()) {
+      outputs.push_back(*op->GetGEOp());
+    }
+    graph->ge_graph()->SetInputs(inputs);
+    graph->ge_graph()->SetOutputs(outputs);
+    graph->ge_graph()->SetTargets(targets);
+
+    if (ge::aclgrphDumpGraph(*graph->ge_graph(),
+                             graph->GetName().c_str(),
+                             graph->GetName().size()) != ge::SUCCESS) {
+      graph::utils::log() << "[ERROR] save graph  " << graph->GetId() << ": "
+                          << graph->GetName() << " failed." << std::endl;
+    } else {
+      graph::utils::log() << "[INFO] save graph " << graph->GetId() << ": "
+                          << graph->GetName() << " success." << std::endl;
     }
 
-    global_graph.Finalize(session);
+    if (session->AddGraph(graph->GetId(), *graph->ge_graph()) != ge::SUCCESS) {
+      graph::utils::log() << "[ERROR] add graph  " << graph->GetId() << ": "
+                          << graph->GetName() << " failed." << std::endl;
+    } else {
+      graph::utils::log() << "[INFO] add graph " << graph->GetId() << ": "
+                          << graph->GetName() << " success." << std::endl;
+    }
   }
 
-  // 4. Run graph
+  // 2. Run graph
   std::vector<ge::Tensor> input_tensors;
   std::vector<ge::Tensor> output_tensors;
 
+  std::vector<std::string> feed_inputs;
+  std::vector<std::string> fetch_outputs;
+  for (auto& tensor : graph->GetFeedInputs()) {
+    feed_inputs.push_back(tensor->Name());
+  }
+  for (auto& tensor : graph->GetFetchOutputs()) {
+    fetch_outputs.push_back(tensor->Name());
+  }
+
+  // 2.1 feed data
   for (auto i = 0; i < feed_tensor_num; ++i) {
-    std::string tensor_name = global_graph.feed_inputs_[i];
-    auto var_node = ir_graph.Var(tensor_name);
+    std::string name = feed_inputs[i];
+    auto var_node = paddle_ir_graph->Var(name);
     auto var_dims = var_node->dims();
     int numel = std::accumulate(
         var_dims.begin(), var_dims.end(), 1, std::multiplies<int>());
@@ -188,17 +200,17 @@ C_Status graph_engine_execute_graph(const C_Device device,
         graph::utils::pd_dtype_to_ge_dtype(var_node->dtype()));
     void* data_ptr = nullptr;
     for (auto j = 0; j < feed_tensor_num; ++j) {
-      if (tensor_name == feed_tensor_name[j]) {
+      if (name == feed_tensor_name[j]) {
         data_ptr = feed_tensor_data[j];
         break;
       }
     }
     if (!data_ptr) {
-      graph::utils::log() << "[ERROR] not found feed_tensor " << tensor_name
+      graph::utils::log() << "[ERROR] not found feed_tensor " << name
                           << std::endl;
       return C_FAILED;
     }
-    graph::utils::log() << "[INFO] feed " << tensor_name << ", dims="
+    graph::utils::log() << "[INFO] feed " << name << ", dims="
                         << paddle::framework::ir::to_string(var_dims)
                         << ", ptr=" << data_ptr << ", size="
                         << numel * graph::utils::get_pd_dtype_size(
@@ -210,15 +222,17 @@ C_Status graph_engine_execute_graph(const C_Device device,
                    numel * graph::utils::get_pd_dtype_size(var_node->dtype())));
   }
 
-  ret = session->RunGraph(ge_graph_id, input_tensors, output_tensors);
-  if (ret != ge::SUCCESS) {
-    graph::utils::log() << "[ERROR] run graph  " << ge_graph_id << ": "
-                        << ge_graph_name << " failed." << std::endl;
+  // 2.2 run graph
+  if (session->RunGraph(graph->GetId(), input_tensors, output_tensors) !=
+      ge::SUCCESS) {
+    graph::utils::log() << "[ERROR] run graph  " << graph->GetId() << ": "
+                        << graph->GetName() << " failed." << std::endl;
   } else {
-    graph::utils::log() << "[INFO] run graph " << ge_graph_id << ": "
-                        << ge_graph_name << " success." << std::endl;
+    graph::utils::log() << "[INFO] run graph " << graph->GetId() << ": "
+                        << graph->GetName() << " success." << std::endl;
   }
 
+  // 2.3 fetch data
   if (output_tensors.size() != fetch_tensor_num) {
     graph::utils::log() << "[ERROR] output_tensors.size(): "
                         << output_tensors.size()
@@ -230,24 +244,24 @@ C_Status graph_engine_execute_graph(const C_Device device,
   graph::utils::log() << "[INFO] output_tensors size " << output_tensors.size()
                       << ", fetch size " << fetch_tensor_num << std::endl;
   for (auto i = 0; i < output_tensors.size(); ++i) {
+    std::string name = fetch_outputs[i];
     auto& out = output_tensors[i];
     auto out_desc = out.GetTensorDesc();
     auto out_dim = out_desc.GetShape().GetDims();
     auto out_data = out.GetData();
-    std::string tensor_name = global_graph.fetch_outputs_[i];
     void* data_ptr = nullptr;
     for (auto j = 0; j < fetch_tensor_num; ++j) {
-      if (tensor_name == fetch_tensor_name[j]) {
+      if (name == fetch_tensor_name[j]) {
         data_ptr = fetch_tensor_data[j];
         break;
       }
     }
     if (!data_ptr) {
-      graph::utils::log() << "[ERROR] not found fetch_tensor " << tensor_name
+      graph::utils::log() << "[ERROR] not found fetch_tensor " << name
                           << std::endl;
       return C_FAILED;
     } else {
-      graph::utils::log() << "[INFO] fetch " << tensor_name << ", dims="
+      graph::utils::log() << "[INFO] fetch " << name << ", dims="
                           << paddle::framework::ir::to_string(out_dim)
                           << ", ptr=" << reinterpret_cast<void*>(out_data)
                           << ", size=" << out.GetSize() << std::endl;

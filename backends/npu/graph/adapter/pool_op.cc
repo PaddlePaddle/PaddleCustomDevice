@@ -20,10 +20,9 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode &ctx,
-           custom_graph::GEGraph *graph) override {
-    auto in_x = ctx.Input("X");
-    auto out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& in_x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
 
     std::string pooling_type = ctx.Attr<std::string>("pooling_type");
     std::vector<int> ksize = ctx.Attr<std::vector<int>>("ksize");
@@ -39,8 +38,8 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
 
     const bool channel_last = data_format == "NHWC";
 
-    auto in_x_dims = in_x->dims();
-    auto out_dims = out->dims();
+    auto in_x_dims = in_x.Shape();
+    auto out_dims = out.Shape();
 
     std::vector<int64_t> ksize_vec(4, 1);
     std::vector<int64_t> strides_vec(4, 1);
@@ -75,74 +74,64 @@ class Pool2dAdapter : public custom_graph::OpAdapter {
       // AdaptiveAvgPool2d only support NCHW
       if (pooling_type == "avg") {
         if (channel_last) {
-          auto trans_x = ge::op::TransData()
-                             .set_input_src(graph->GetOp(in_x->Name()))
-                             .set_attr_src_format("NHWC")
-                             .set_attr_dst_format("NCHW");
-          auto op = ge::op::AdaptiveAvgPool2d()
-                        .set_input_x(trans_x)
-                        .set_attr_output_size(std::vector<int64_t>(
-                            out_data_dims.begin(), out_data_dims.end()));
-          auto trans_out = ge::op::TransData()
-                               .set_input_src(op)
-                               .set_attr_src_format("NCHW")
-                               .set_attr_dst_format("NHWC");
-          graph->AddOp(out->Name(), trans_out);
+          Tensor trans_x, trans_out;
+
+          OpCommandPipe()
+              .Op("TransData")
+              .Attr("src_format", "NHWC")
+              .Attr("dst_format", "NCHW")
+              .Op("AdaptiveAvgPool2d")
+              .Attr("output_size",
+                    std::vector<int64_t>(out_data_dims.begin(),
+                                         out_data_dims.end()))
+              .Op("TransData")
+              .Attr("src_format", "NCHW")
+              .Attr("dst_format", "NHWC")
+              .Input(in_x)
+              .Output(out)
+              .End();
         } else {
-          auto op = ge::op::AdaptiveAvgPool2d()
-                        .set_input_x(graph->GetOp(in_x->Name()))
-                        .set_attr_output_size(std::vector<int64_t>(
-                            out_data_dims.begin(), out_data_dims.end()));
-          graph->AddOp(out->Name(), op);
+          OpCommand("AdaptiveAvgPool2d")
+              .Input(in_x)
+              .Output(out)
+              .Attr("output_size",
+                    std::vector<int64_t>(out_data_dims.begin(),
+                                         out_data_dims.end()));
         }
       } else {
-        auto op = ge::op::AdaptiveMaxPool2d()
-                      .set_input_x(graph->GetOp(in_x->Name()))
-                      .set_attr_output_size(std::vector<int64_t>(
-                          out_data_dims.begin(), out_data_dims.end()));
-        graph->AddOp(out->Name(), op);
+        OpCommand("AdaptiveMaxPool2d")
+            .Input(in_x)
+            .Output(out)
+            .Attr("output_size",
+                  std::vector<int64_t>(out_data_dims.begin(),
+                                       out_data_dims.end()));
       }
     } else {
       if (pooling_type == "max") {
-        // PADDLE_ENFORCE_EQ(
-        //     exclusive,
-        //     true,
-        //     platform::errors::InvalidArgument(
-        //         "MaxPool only support exclusive=false, but got true"));
-        auto ge_op = ge::op::MaxPoolV3()
-                         .set_input_x(graph->GetOp(in_x->Name()))
-                         .set_attr_ksize(ksize_vec)
-                         .set_attr_strides(strides_vec)
-                         .set_attr_padding_mode(std::string("CALCULATED"))
-                         .set_attr_pads(std::vector<int64_t>(paddings.begin(),
-                                                             paddings.end()))
-                         .set_attr_data_format(data_format)
-                         .set_attr_global_pooling(global_pooling)
-                         .set_attr_ceil_mode(ceil_mode);
-        graph::funcs::update_input_dtype(ge_op, {{"x", in_x->dtype()}});
-        graph::funcs::update_output_dtype(ge_op, {{"y", out->dtype()}});
-        graph::funcs::update_input_format(ge_op, "x", data_format);
-        graph::funcs::update_output_format(ge_op, "y", data_format);
-
-        graph->AddOp(out->Name(), ge_op);
+        OpCommand("MaxPoolV3")
+            .Input(in_x, "x")
+            .Output(out, "y")
+            .Attr("ksize", ksize_vec)
+            .Attr("strides", strides_vec)
+            .Attr("padding_mode", "CALCULATED")
+            .Attr("pads",
+                  std::vector<int64_t>(paddings.begin(), paddings.end()))
+            .Attr("data_format", data_format)
+            .Attr("global_pooling", global_pooling)
+            .Attr("ceil_mode", ceil_mode);
       } else {
-        auto ge_op = ge::op::AvgPoolV2()
-                         .set_input_x(graph->GetOp(in_x->Name()))
-                         .set_attr_ksize(ksize_vec)
-                         .set_attr_strides(strides_vec)
-                         .set_attr_padding_mode(std::string("CALCULATED"))
-                         .set_attr_pads(std::vector<int64_t>(paddings.begin(),
-                                                             paddings.end()))
-                         .set_attr_data_format(data_format)
-                         .set_attr_global_pooling(global_pooling)
-                         .set_attr_ceil_mode(ceil_mode)
-                         .set_attr_exclusive(exclusive);
-        graph::funcs::update_input_dtype(ge_op, {{"x", in_x->dtype()}});
-        graph::funcs::update_output_dtype(ge_op, {{"y", out->dtype()}});
-        graph::funcs::update_input_format(ge_op, "x", data_format);
-        graph::funcs::update_output_format(ge_op, "y", data_format);
-
-        graph->AddOp(out->Name(), ge_op);
+        OpCommand("AvgPoolV2")
+            .Input(in_x, "x")
+            .Output(out, "y")
+            .Attr("ksize", ksize_vec)
+            .Attr("strides", strides_vec)
+            .Attr("padding_mode", "CALCULATED")
+            .Attr("pads",
+                  std::vector<int64_t>(paddings.begin(), paddings.end()))
+            .Attr("data_format", data_format)
+            .Attr("global_pooling", global_pooling)
+            .Attr("ceil_mode", ceil_mode)
+            .Attr("exclusive", exclusive);
       }
     }
   }
@@ -152,12 +141,11 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode &ctx,
-           custom_graph::GEGraph *graph) override {
-    auto *in_x = ctx.Input("X");
-    auto *out = ctx.Input("Out");
-    auto *out_grad = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto *in_x_grad = ctx.Output(paddle::framework::GradVarName("X"));
+  void run(const Context& ctx) override {
+    auto& in_x = ctx.Input("X");
+    auto& out = ctx.Input("Out");
+    auto& out_grad = ctx.Input(paddle::framework::GradVarName("Out"));
+    auto& in_x_grad = ctx.Output(paddle::framework::GradVarName("X"));
 
     std::string pooling_type = ctx.Attr<std::string>("pooling_type");
     std::vector<int> ksize = ctx.Attr<std::vector<int>>("ksize");
@@ -173,8 +161,8 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
     const bool channel_last = data_format == "NHWC";
 
     // update paddings
-    auto in_x_dims = in_x->dims();
-    auto out_dims = out->dims();
+    auto in_x_dims = in_x.Shape();
+    auto out_dims = out.Shape();
 
     std::vector<int64_t> ksize_vec(4, 1);
     std::vector<int64_t> strides_vec(4, 1);
@@ -206,20 +194,6 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
                   ksize);
 
     if (adaptive || (global_pooling && pooling_type == "max")) {
-      // PADDLE_ENFORCE_EQ(data_dims[0] % out_data_dims[0],
-      //                   0,
-      //                   platform::errors::InvalidArgument(
-      //                       "When adaptive = True, H and W must be divisible,
-      //                       " "but input dims is %s, output dims is %s",
-      //                       data_dims,
-      //                       out_data_dims));
-      // PADDLE_ENFORCE_EQ(data_dims[1] % out_data_dims[1],
-      //                   0,
-      //                   platform::errors::InvalidArgument(
-      //                       "When adaptive = True, H and W must be divisible,
-      //                       " "but input dims is %s, output dims is %s",
-      //                       data_dims,
-      //                       out_data_dims));
       if (channel_last) {
         strides_vec[1] = data_dims[0] / out_data_dims[0];
         strides_vec[2] = data_dims[1] / out_data_dims[1];
@@ -235,64 +209,41 @@ class Pool2dGradAdapter : public custom_graph::OpAdapter {
 
     if (pooling_type == "max") {
       if (global_pooling) {
-        for (auto &s : strides_vec) {
+        for (auto& s : strides_vec) {
           s = 1;
         }
-        // PADDLE_ENFORCE_LT(std::max(data_dims[0], data_dims[1]),
-        //                   255,
-        //                   platform::errors::InvalidArgument(
-        //                       "MaxPoolGrad H, W must be less than 255 when "
-        //                       "global_pooling = True, but got %s",
-        //                       data_dims));
         global_pooling = false;
       }
 
-      auto ge_op = ge::op::MaxPoolV3Grad()
-                       .set_input_orig_input(graph->GetOp(in_x->Name()))
-                       .set_input_orig_output(graph->GetOp(out->Name()))
-                       .set_input_grad(graph->GetOp(out_grad->Name()))
-                       .set_attr_ksize(ksize_vec)
-                       .set_attr_strides(strides_vec)
-                       .set_attr_padding_mode("CALCULATED")
-                       .set_attr_pads(std::vector<int64_t>(paddings.begin(),
-                                                           paddings.end()))
-                       .set_attr_data_format(data_format)
-                       .set_attr_global_pooling(global_pooling)
-                       .set_attr_ceil_mode(ceil_mode);  // 0: floor, 1: ceil
-      graph::funcs::update_input_dtype(ge_op,
-                                       {{"orig_input", in_x->dtype()},
-                                        {"orig_output", out->dtype()},
-                                        {"grad", out_grad->dtype()}});
-      graph::funcs::update_output_dtype(ge_op,
-                                        {{"out_grad", in_x_grad->dtype()}});
-      graph->AddOp(in_x_grad->Name(), ge_op);
+      OpCommand("MaxPoolV3Grad")
+          .Input(in_x, "orig_input")
+          .Input(out, "orig_output")
+          .Input(out_grad, "grad")
+          .Output(in_x_grad, "out_grad")
+          .Attr("ksize", ksize_vec)
+          .Attr("strides", strides_vec)
+          .Attr("padding_mode", "CALCULATED")
+          .Attr("pads", std::vector<int64_t>(paddings.begin(), paddings.end()))
+          .Attr("data_format", data_format)
+          .Attr("global_pooling", global_pooling)
+          .Attr("ceil_mode", ceil_mode);
     } else if (pooling_type == "avg") {
-      // PADDLE_ENFORCE(strides[0] == strides[1],
-      //                platform::errors::InvalidArgument(
-      //                    "AvgPoolGrad dose not support Asymmetric strides.
-      //                    but " "strides = (%d, %d)", strides[0],
-      //                    strides[1]));
-
-      auto input_shape = graph::funcs::constant(
-          {static_cast<int>(in_x_dims.size())}, std::move(in_x_dims));
-
-      auto ge_op = ge::op::AvgPoolV2Grad()
-                       .set_input_orig_input_shape(input_shape)
-                       .set_input_input_grad(graph->GetOp(out_grad->Name()))
-                       .set_attr_ksize(ksize_vec)
-                       .set_attr_strides(strides_vec)
-                       .set_attr_padding_mode("CALCULATED")
-                       .set_attr_pads(std::vector<int64_t>(paddings.begin(),
-                                                           paddings.end()))
-                       .set_attr_data_format(data_format)
-                       .set_attr_global_pooling(global_pooling)
-                       .set_attr_ceil_mode(ceil_mode)  // 0: floor, 1: ceil
-                       .set_attr_exclusive(exclusive);
-      graph::funcs::update_input_dtype(ge_op,
-                                       {{"input_grad", out_grad->dtype()}});
-      graph::funcs::update_output_dtype(ge_op,
-                                        {{"out_grad", in_x_grad->dtype()}});
-      graph->AddOp(in_x_grad->Name(), ge_op);
+      Tensor input_shape;
+      OpCommand::FillConstant(input_shape,
+                              {static_cast<int>(in_x_dims.size())},
+                              std::move(in_x_dims));
+      OpCommand("AvgPoolV2Grad")
+          .Input(input_shape)
+          .Input(out_grad, "input_grad")
+          .Output(in_x_grad, "out_grad")
+          .Attr("ksize", ksize_vec)
+          .Attr("strides", strides_vec)
+          .Attr("padding_mode", "CALCULATED")
+          .Attr("pads", std::vector<int64_t>(paddings.begin(), paddings.end()))
+          .Attr("data_format", data_format)
+          .Attr("global_pooling", global_pooling)
+          .Attr("ceil_mode", ceil_mode)
+          .Attr("exclusive", exclusive);
     }
   }
 };

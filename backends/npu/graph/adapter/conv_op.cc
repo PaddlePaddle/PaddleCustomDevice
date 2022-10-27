@@ -20,11 +20,10 @@ class Conv2dAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto input = ctx.Input("Input");
-    auto filter = ctx.Input("Filter");
-    auto output = ctx.Output("Output");
+  void run(const Context& ctx) override {
+    auto& input = ctx.Input("Input");
+    auto& filter = ctx.Input("Filter");
+    auto& output = ctx.Output("Output");
 
     std::vector<int> strides = ctx.Attr<std::vector<int>>("strides");
     std::vector<int> paddings = ctx.Attr<std::vector<int>>("paddings");
@@ -34,8 +33,8 @@ class Conv2dAdapter : public custom_graph::OpAdapter {
     std::string data_format = ctx.Attr<std::string>("data_format");
     const bool channel_last = data_format == "NHWC";
 
-    auto in_dims = input->dims();
-    auto filter_dims = filter->dims();
+    auto in_dims = input.Shape();
+    auto filter_dims = filter.Shape();
     std::vector<int> in_data_dims;
 
     if (channel_last) {
@@ -62,23 +61,15 @@ class Conv2dAdapter : public custom_graph::OpAdapter {
       dilations_vec[3] = dilations[1];
     }
 
-    auto ge_op = ge::op::Conv2D()
-                     .set_input_x(graph->GetOp(input->Name()))
-                     .set_input_filter(graph->GetOp(filter->Name()))
-                     .set_attr_strides(strides_vec)
-                     .set_attr_pads(
-                         std::vector<int64_t>(paddings.begin(), paddings.end()))
-                     .set_attr_dilations(dilations_vec)
-                     .set_attr_groups(groups)
-                     .set_attr_data_format(data_format);
-    graph::funcs::update_input_dtype(
-        ge_op, {{"x", input->dtype()}, {"filter", filter->dtype()}});
-    graph::funcs::update_output_dtype(ge_op, {{"y", output->dtype()}});
-    graph::funcs::update_input_format(
-        ge_op, {{"x", data_format}, {"filter", data_format}});
-    graph::funcs::update_output_format(ge_op, "y", data_format);
-
-    graph->AddOp(output->Name(), ge_op);
+    OpCommand("Conv2D")
+        .Input(input, "x")
+        .Input(filter, "filter")
+        .Output(output, "y")
+        .Attr("strides", strides_vec)
+        .Attr("pads", std::vector<int64_t>(paddings.begin(), paddings.end()))
+        .Attr("dilations", dilations_vec)
+        .Attr("groups", groups)
+        .Attr("data_format", data_format);
   }
 };
 
@@ -86,13 +77,10 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto input = ctx.Input("Input");
-    auto filter = ctx.Input("Filter");
-    auto output_grad = ctx.Input("Output@GRAD");
-    auto input_grad = ctx.Output("Input@GRAD");
-    auto filter_grad = ctx.Output("Filter@GRAD");
+  void run(const Context& ctx) override {
+    auto& input = ctx.Input("Input");
+    auto& filter = ctx.Input("Filter");
+    auto& output_grad = ctx.Input("Output@GRAD");
 
     std::vector<int> strides = ctx.Attr<std::vector<int>>("strides");
     std::vector<int> paddings = ctx.Attr<std::vector<int>>("paddings");
@@ -102,8 +90,8 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
     std::string data_format = ctx.Attr<std::string>("data_format");
     const bool channel_last = data_format == "NHWC";
 
-    auto in_dims = input->dims();
-    auto filter_dims = filter->dims();
+    auto in_dims = input.Shape();
+    auto filter_dims = filter.Shape();
     std::vector<int> in_data_dims;
 
     if (channel_last) {
@@ -130,66 +118,46 @@ class Conv2dGradAdapter : public custom_graph::OpAdapter {
       dilations_vec[3] = dilations[1];
     }
 
-    if (input_grad) {
-      auto input_size = graph::funcs::constant(
+    if (ctx.HasOutput("Input@GRAD")) {
+      auto& input_grad = ctx.Output("Input@GRAD");
+
+      Tensor input_size;
+      OpCommand::FillConstant(
+          input_size,
           {in_dims.size()},
           std::vector<int64_t>(in_dims.begin(), in_dims.end()));
-      graph->AddInput(input_size);
-
-      auto ge_op =
-          ge::op::Conv2DBackpropInputD()
-              // .set_input_input_size(input_size)
-              .set_input_filter(graph->GetOp(filter->Name()))
-              .set_input_out_backprop(graph->GetOp(output_grad->Name()))
-              .set_attr_input_size(
-                  std::vector<int64_t>(in_dims.begin(), in_dims.end()))
-              .set_attr_strides(strides_vec)
-              .set_attr_pads(
-                  std::vector<int64_t>(paddings.begin(), paddings.end()))
-              .set_attr_dilations(dilations_vec)
-              .set_attr_groups(groups)
-              .set_attr_data_format(data_format);
-      graph::funcs::update_input_dtype(
-          ge_op,
-          {{"filter", filter->dtype()},
-           {"out_backprop", output_grad->dtype()}});
-      graph::funcs::update_output_dtype(ge_op, {{"y", input_grad->dtype()}});
-      graph::funcs::update_input_format(
-          ge_op, {{"filter", data_format}, {"out_backprop", data_format}});
-      graph::funcs::update_output_format(ge_op, "y", data_format);
-
-      graph->AddOp(input_grad->Name(), ge_op);
+      OpCommand("Conv2DBackpropInputD")
+          .Input(filter, "filter")
+          .Input(output_grad, "out_backprop")
+          .Output(input_grad, "y")
+          .Attr("input_size",
+                std::vector<int64_t>(in_dims.begin(), in_dims.end()))
+          .Attr("strides", strides_vec)
+          .Attr("pads", std::vector<int64_t>(paddings.begin(), paddings.end()))
+          .Attr("dilations", dilations_vec)
+          .Attr("groups", groups)
+          .Attr("data_format", data_format);
     }
 
-    if (filter_grad) {
-      auto filter_size = graph::funcs::constant(
+    if (ctx.HasOutput("Filter@GRAD")) {
+      auto& filter_grad = ctx.Output("Filter@GRAD");
+
+      Tensor filter_size;
+      OpCommand::FillConstant(
+          filter_size,
           {filter_dims.size()},
           std::vector<int64_t>(filter_dims.begin(), filter_dims.end()));
-      graph->AddInput(filter_size);
-
-      auto ge_op =
-          ge::op::Conv2DBackpropFilterD()
-              .set_input_x(graph->GetOp(input->Name()))
-              // .set_input_filter_size(filter_size)
-              .set_input_out_backprop(graph->GetOp(output_grad->Name()))
-              .set_attr_filter_size(
-                  std::vector<int64_t>(filter_dims.begin(), filter_dims.end()))
-              .set_attr_strides(strides_vec)
-              .set_attr_pads(
-                  std::vector<int64_t>(paddings.begin(), paddings.end()))
-              .set_attr_dilations(dilations_vec)
-              .set_attr_groups(groups)
-              .set_attr_data_format(data_format);
-      graph::funcs::update_input_dtype(
-          ge_op,
-          {{"x", input->dtype()}, {"out_backprop", output_grad->dtype()}});
-      graph::funcs::update_output_dtype(ge_op, {{"y", filter_grad->dtype()}});
-      graph::funcs::update_input_format(
-          ge_op, {{"x", data_format}, {"out_backprop", data_format}});
-
-      graph::funcs::update_output_format(ge_op, "y", data_format);
-
-      graph->AddOp(filter_grad->Name(), ge_op);
+      OpCommand("Conv2DBackpropFilterD")
+          .Input(input, "x")
+          .Input(output_grad, "out_backprop")
+          .Output(filter_grad, "y")
+          .Attr("filter_size",
+                std::vector<int64_t>(filter_dims.begin(), filter_dims.end()))
+          .Attr("strides", strides_vec)
+          .Attr("pads", std::vector<int64_t>(paddings.begin(), paddings.end()))
+          .Attr("dilations", dilations_vec)
+          .Attr("groups", groups)
+          .Attr("data_format", data_format);
     }
   }
 };

@@ -20,22 +20,18 @@ class ReshapeAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* x = ctx.Input("X");
-    auto* out = ctx.Output("Out");
+  void run(const Context& ctx) override {
+    auto& x = ctx.Input("X");
+    auto& out = ctx.Output("Out");
     auto shape_tensor_vector = ctx.MultiInput("ShapeTensor");
+
     if (shape_tensor_vector.size() > 0) {
       graph::utils::log() << "[ERROR] reshape unsupported ShapeTensor."
                           << std::endl;
       exit(-1);
     } else {
-      auto* shape_tensor = ctx.Input("Shape");
-      if (shape_tensor) {
-        auto op = ge::op::Reshape()
-                      .set_input_x(graph->GetOp(x->Name()))
-                      .set_input_shape(graph->GetOp(shape_tensor->Name()));
-        graph->AddOp(out->Name(), op);
+      if (ctx.HasInput("Shape")) {
+        OpCommand("Reshape").Input(x).Input(ctx.Input("Shape")).Output(out);
       } else {
         auto target_shape_vector = ctx.Attr<std::vector<int>>("shape");
         int num_negative = std::count(
@@ -43,7 +39,7 @@ class ReshapeAdapter : public custom_graph::OpAdapter {
         auto it_zero = std::find(
             target_shape_vector.begin(), target_shape_vector.end(), 0);
         if (it_zero != target_shape_vector.end()) {
-          int x_rank = x->dims().size();
+          int x_rank = x.Shape().size();
           for (size_t i = 0; i < target_shape_vector.size(); i++) {
             if (target_shape_vector[i] == 0) {
               // PADDLE_ENFORCE_LT(
@@ -55,14 +51,14 @@ class ReshapeAdapter : public custom_graph::OpAdapter {
               //         "but the index is %d and input dim size is %d",
               //         i,
               //         x_rank));
-              target_shape_vector[i] = x->dims().at(i);
+              target_shape_vector[i] = x.Shape().at(i);
             }
           }
         }
         auto it = std::find(
             target_shape_vector.begin(), target_shape_vector.end(), -1);
         if (it != target_shape_vector.end()) {
-          auto ddim_out_vec = x->dims();
+          auto ddim_out_vec = x.Shape();
           int ddim_out_product = std::accumulate(ddim_out_vec.begin(),
                                                  ddim_out_vec.end(),
                                                  1,
@@ -75,9 +71,7 @@ class ReshapeAdapter : public custom_graph::OpAdapter {
           target_shape_vector[index] = ddim_out_product / reshape_out_product;
         }
 
-        auto op =
-            graph::funcs::reshape(graph->GetOp(x->Name()), target_shape_vector);
-        graph->AddOp(out->Name(), op);
+        OpCommand::Reshape(x, out, target_shape_vector);
       }
     }
   }
@@ -87,14 +81,12 @@ class ReshapeGradAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* d_x = ctx.Output(paddle::framework::GradVarName("X"));
-    auto* d_out = ctx.Input(paddle::framework::GradVarName("Out"));
-    auto in_dims = d_x->dims();
+  void run(const Context& ctx) override {
+    auto& d_x = ctx.Output(paddle::framework::GradVarName("X"));
+    auto& d_out = ctx.Input(paddle::framework::GradVarName("Out"));
+    auto in_dims = d_x.Shape();
 
-    auto op = graph::funcs::reshape(graph->GetOp(d_x->Name()), in_dims);
-    graph->AddOp(d_x->Name(), op);
+    OpCommand::Reshape(d_out, d_x, in_dims);
   }
 };
 

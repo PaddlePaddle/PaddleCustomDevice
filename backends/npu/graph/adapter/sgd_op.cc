@@ -20,19 +20,16 @@ class SGDAdapter : public custom_graph::OpAdapter {
  public:
   using OpAdapter::OpAdapter;
 
-  void run(const paddle::framework::ir::OpNode& ctx,
-           custom_graph::GEGraph* graph) override {
-    auto* learning_rate = ctx.Input("LearningRate");
-    auto* param = ctx.Input("Param");
-    auto* grad = ctx.Input("Grad");
-    auto* param_out = ctx.Output("ParamOut");
+  void run(const Context& ctx) override {
+    auto& learning_rate = ctx.Input("LearningRate");
+    auto& param = ctx.Input("Param");
+    auto& grad = ctx.Input("Grad");
+    auto& param_out = ctx.Output("ParamOut");
 
-    auto sgd = ge::op::ApplyGradientDescent(
-                   ge::AscendString((param->Name() + "_sgd").c_str()))
-                   .set_input_var(graph->GetOp(param->Name()))
-                   .set_input_alpha(graph->GetOp(learning_rate->Name()))
-                   .set_input_delta(graph->GetOp(grad->Name()));
-    graph->Graph()->AddOp(sgd);
+    OpCommand("ApplyGradientDescent")
+        .Input(param)
+        .Input(learning_rate)
+        .Input(grad);
   }
 };
 

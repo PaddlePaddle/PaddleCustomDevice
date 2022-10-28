@@ -340,7 +340,7 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
   show_debug("create-stream for device=" << device->id);
 
   *stream =
-      reinterpret_cast<C_Stream>(reg_dev[device->id].getDefaultOrCreate());
+      reinterpret_cast<C_Stream>(reg_dev[device->id].create_stream());
 
   return C_SUCCESS;
 }

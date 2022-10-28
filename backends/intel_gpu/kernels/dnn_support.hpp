@@ -138,6 +138,10 @@ std::ostream& operator<<(std::ostream& o, const std::vector<T>& v) {
         return dnnl::memory::format_tag::abc;
       case 4:
         return dnnl::memory::format_tag::abcd;
+      case 5:
+        return dnnl::memory::format_tag::abcde;
+      case 6:
+        return dnnl::memory::format_tag::abcdef;
 
       default:
         show_error("This size is not supported size=" << d.size());

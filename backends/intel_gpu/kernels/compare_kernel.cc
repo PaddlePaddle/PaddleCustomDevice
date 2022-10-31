@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include <cmath>
-
 #include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include <CL/sycl.hpp>
-#include "oneapi/dnnl/dnnl_sycl.hpp"
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 
@@ -51,7 +49,7 @@ void RawCompareKernelSycl(const phi::Context& dev_ctx,
   auto y_data = y.data<T>();
   auto out_data = dev_ctx.template Alloc<bool>(out);
   auto numel = out->numel();
-  
+
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
   // if float_func == func only func is to be calculated
   if (float_func != func && std::is_floating_point<T>::value) {
@@ -62,7 +60,7 @@ void RawCompareKernelSycl(const phi::Context& dev_ctx,
     q->parallel_for(numel, [=](auto& i){
       func(x_data, y_data, out_data, i);
     });
-  }  
+  }
   q->wait();
 }
 
@@ -134,8 +132,8 @@ void EqualityKernel(const phi::Context& dev_ctx,
   if constexpr (std::is_same<T, float>::value) {
     RawCompareKernelDNN<T>(dev_ctx, kernel_name, binary_type, x, y, axis, out);
   } else {
-    RawCompareKernelSycl<T>(dev_ctx, kernel_name, x, y, axis, out, float_func, func);    
-  }  
+    RawCompareKernelSycl<T>(dev_ctx, kernel_name, x, y, axis, out, float_func, func);
+  }
 }
 
 template <typename T, typename F>
@@ -151,7 +149,7 @@ void CompareKernel(const phi::Context& dev_ctx,
     RawCompareKernelDNN<T>(dev_ctx, kernel_name, binary_type, x, y, axis, out);
   } else {
     RawCompareKernelSycl<T>(dev_ctx, kernel_name, x, y, axis, out, func, func);
-  }  
+  }
 }
 
 
@@ -161,12 +159,12 @@ void NotEqualKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& y,
                     int axis,
                     phi::DenseTensor* out) {
-  
+
   EqualityKernel<T>(dev_ctx, "NotEqual", dnnl::algorithm::binary_ne, x, y, axis, out,
     [](T* x_data, T* y_data, bool* out_data, long i){
               out_data[i] = x_data[i] != y_data[i];
     },
-    [](T* x_data, T* y_data, bool* out_data, long i){  
+    [](T* x_data, T* y_data, bool* out_data, long i){
           out_data[i] = static_cast<bool>(
               std::fabs(static_cast<double>(x_data[i] - y_data[i])) >= 1e-8);
     });
@@ -179,11 +177,11 @@ void EqualKernel(const phi::Context& dev_ctx,
                  int axis,
                  phi::DenseTensor* out) {
 
-  EqualityKernel<T>(dev_ctx, "Equal", dnnl::algorithm::binary_eq, x, y, axis, out, 
+  EqualityKernel<T>(dev_ctx, "Equal", dnnl::algorithm::binary_eq, x, y, axis, out,
     [](T* x_data, T* y_data, bool* out_data, long i){
               out_data[i] = x_data[i] == y_data[i];
     },
-    [](T* x_data, T* y_data, bool* out_data, long i){  
+    [](T* x_data, T* y_data, bool* out_data, long i){
           out_data[i] = static_cast<bool>(
               std::fabs(static_cast<double>(x_data[i] - y_data[i])) < 1e-8);
     });
@@ -196,7 +194,7 @@ void LessThanKernel(const phi::Context& dev_ctx,
                     int axis,
                     phi::DenseTensor* out) {
 
-  CompareKernel<T>(dev_ctx, "LessThanKernel", dnnl::algorithm::binary_lt, x, y, axis, out, 
+  CompareKernel<T>(dev_ctx, "LessThanKernel", dnnl::algorithm::binary_lt, x, y, axis, out,
     [](T* x_data, T* y_data, bool* out_data, long i){
         out_data[i] = x_data[i] < y_data[i];
     });
@@ -209,7 +207,7 @@ void LessEqualKernel(const phi::Context& dev_ctx,
                      int axis,
                      phi::DenseTensor* out) {
 
-  CompareKernel<T>(dev_ctx, "LessEqual", dnnl::algorithm::binary_le, x, y, axis, out, 
+  CompareKernel<T>(dev_ctx, "LessEqual", dnnl::algorithm::binary_le, x, y, axis, out,
     [](T* x_data, T* y_data, bool* out_data, long i){
       out_data[i] = x_data[i] <= y_data[i];
     });
@@ -222,7 +220,7 @@ void GreaterThanKernel(const phi::Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
 
-  CompareKernel<T>(dev_ctx, "GreaterThan", dnnl::algorithm::binary_gt, x, y, axis, out, 
+  CompareKernel<T>(dev_ctx, "GreaterThan", dnnl::algorithm::binary_gt, x, y, axis, out,
     [](T* x_data, T* y_data, bool* out_data, long i){
       out_data[i] = x_data[i] > y_data[i];
     });

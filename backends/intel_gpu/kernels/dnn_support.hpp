@@ -1,4 +1,8 @@
 #pragma once
+
+#include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/execution>
+#include <oneapi/dpl/iterator>
 #include <CL/sycl.hpp>
 #include <thread>
 #include <vector>

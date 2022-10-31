@@ -11,16 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include "dnn_support.hpp"
 #include <unistd.h>
-
-#include <CL/sycl.hpp>
-#include <cstdint>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
-
-#include "dnn_support.hpp"
 #include "paddle/phi/backends/device_ext.h"
 
 #define MEMORY_FRACTION 0.5f

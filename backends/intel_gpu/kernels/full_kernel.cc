@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/capi/all.h"
-#include <CL/sycl.hpp>
 #include "dnn_support.hpp"
+#include "paddle/phi/capi/all.h"
+
 namespace custom_kernel {
 
 template <typename T, typename VType>

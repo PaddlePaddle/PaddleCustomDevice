@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include <CL/sycl.hpp>
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 
@@ -35,7 +35,7 @@ void MeanAllKernel(const phi::Context& dev_ctx,
 
   auto e1 = q->fill(out_data, static_cast<T>(0), 1);
 
-  
+
   q->single_task(e1, [=](){
     for (auto i = 0; i < numel; ++i) {
       *out_data += x_data[i];

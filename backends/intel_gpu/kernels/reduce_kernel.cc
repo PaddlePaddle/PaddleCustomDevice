@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include <cmath>
 
 #include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include "oneapi/dnnl/dnnl_sycl.hpp"
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 
@@ -52,7 +52,7 @@ void ReduceKernel(const phi::Context& dev_ctx,
     }
     reduce_dims = output_dims;
   }
-  
+
   void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
   auto out_data = dev_ctx.template Alloc<T>(out);
@@ -81,7 +81,7 @@ void ReduceKernel(const phi::Context& dev_ctx,
     dnnl::memory::dims dims_x = x.dims();
     dnnl::memory::dims dims_out = reduce_dims;
 
-    auto md_x = memory::desc(dims_x, 
+    auto md_x = memory::desc(dims_x,
                               dnn_support::toDnnType<T>::type,
                               dnn_support::dims2Tag(dims_x));
 
@@ -137,7 +137,7 @@ void SumRawKernel(const phi::Context& dev_ctx,
                   phi::DataType out_dtype,
                   phi::DenseTensor* out) {
   ReduceKernel<T>(dev_ctx, "SumRaw", x, dims, dnnl::algorithm::reduction_sum,
-    keep_dim, reduce_all, out); 
+    keep_dim, reduce_all, out);
 }
 
 template <typename T>

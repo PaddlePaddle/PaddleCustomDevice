@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include "dnn_support.hpp"
+
 namespace custom_kernel {
 
 template <typename T>

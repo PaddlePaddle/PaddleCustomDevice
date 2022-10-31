@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include <random>
-
 #include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 

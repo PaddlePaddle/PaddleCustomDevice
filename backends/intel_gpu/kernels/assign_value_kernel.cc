@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
 
+#include "dnn_support.hpp"
+#include <cmath>
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include <CL/sycl.hpp>
-#include "dnn_support.hpp"
 
 namespace custom_kernel {
 
@@ -92,7 +91,7 @@ void AssignRawKernel(const phi::Context& dev_ctx,
 //   // for (size_t i = 0; i < x.size(); ++i) {
 //     // custom_kernel::AssignKernel<T, Context>(dev_ctx, *x[i], out.at(i));
 //   // }
-  
+
 //   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
 //   for (size_t i = 0; i < x.size(); ++i) {

@@ -50,6 +50,9 @@ if(NOT EXISTS "${CND_INSTALL_DIR}")
  message(FATAL_ERROR "Can't find conda directory ${CND_INSTALL_DIR}")
 endif()
 
+if(NOT DEFINED ENV{DPL_ROOT})
+	message(FATAL_ERROR "DPL_ROOT ist not set !!! " $ENV{DPL_ROOT})
+endif()
 message(STATUS "Conda DIR : ${CND_INSTALL_DIR}")
 
 # if(NOT DEFINED CND_ENV)
@@ -84,7 +87,7 @@ set(PADDLE_LIB_DIR     "${CND_PYTHON}/site-packages/paddle/fluid/")
 
 
 #include_directories( ${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
-include_directories( ${ONEAPI_SYCL_INCLUDE} )
+include_directories( ${ONEAPI_SYCL_INCLUDE} $ENV{DPL_ROOT}/include)
 
 ###########################################
 

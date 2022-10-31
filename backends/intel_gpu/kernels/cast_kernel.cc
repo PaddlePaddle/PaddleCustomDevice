@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dnn_support.hpp"
 #include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 
@@ -108,7 +109,7 @@ void CastKernel(const phi::Context& dev_ctx,
     default:
       break;
   }
-  q->wait(); 
+  q->wait();
 }
 
 }  // namespace custom_kernel

@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <CL/sycl.hpp>
-
-#include "oneapi/dnnl/dnnl_sycl.hpp"
+#include "dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
-#include "dnn_support.hpp"
+
 
 namespace custom_kernel {
 

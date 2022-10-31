@@ -95,7 +95,7 @@ include_directories( ${ONEAPI_SYCL_INCLUDE} $ENV{DPL_ROOT}/include)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-option(WITH_CUSTOMDNN    "use onednn with custom"     ON)
+option(WITH_CUSTOMDNN    "use onednn with custom"     OFF)
 option(WITH_KERNELS    "compile with custom kernels"      ON)
 option(WITH_TESTING    "compile with unit testing"        ON)
 

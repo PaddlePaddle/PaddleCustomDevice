@@ -44,6 +44,7 @@ set_tests_properties(test_tanh_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALON
 set_tests_properties(test_relu6_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_relu_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_with_cross_entropy_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_where_index_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 
 set_tests_properties(test_abs_op_npu PROPERTIES TIMEOUT 300)
 set_tests_properties(test_accuracy_op_npu PROPERTIES TIMEOUT 300)

@@ -27,63 +27,14 @@ void FullKernel(const Context& dev_ctx,
   auto shape_vec = shape.GetData();
   out->ResizeAndAllocate(phi::make_ddim(shape_vec));
   dev_ctx.template Alloc<T>(out);
-
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-  T value = val.to<T>();
 
-  if (dtype != phi::DenseTensorMeta::DataType::BOOL) {
-    phi::DenseTensor tensor_value;
-    tensor_value.Resize(phi::make_ddim({1}));
-    FillNpuTensorWithConstant<T>(&tensor_value, dev_ctx, value);
-    NpuOpRunner runner;
-    if (dtype != phi::DenseTensorMeta::DataType::INT64 &&
-        dtype != phi::DenseTensorMeta::DataType::FLOAT64) {
-#if (CANN_VERSION_CODE >= 503003 && CANN_VERSION_CODE < 504000)
-      runner.SetType("FillD")
-          .AddInput(tensor_value)
-          .AddOutput(*out)
-          .AddAttrs({{"dims", shape_vec}})
-          .Run(stream);
-#else
-      runner.SetType("Fill")
-          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
-          .AddInput(tensor_value)
-          .AddOutput(*out)
-          .Run(stream);
-#endif
-    } else {
-      runner.SetType("Fill")
-          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
-          .AddInput(tensor_value)
-          .AddOutput(*out)
-          .Run(stream);
-    }
-  } else {
-    auto op_func = [&shape_vec, &value](
-                       const std::vector<phi::DenseTensor>& inputs,
-                       const std::vector<phi::DenseTensor>& outputs,
-                       const NPUAttributeMap& attrs,
-                       const Context& dev_ctx) {
-      phi::DenseTensor tensor_value;
-      tensor_value.Resize(phi::make_ddim({1}));
-      FillNpuTensorWithConstant<uint8_t>(
-          &tensor_value, dev_ctx, static_cast<uint8_t>(value));
-
-      NpuOpRunner runner;
-      runner.SetType("Fill")
-          .AddInput(dev_ctx, std::vector<int64_t>(shape_vec))
-          .AddInput(tensor_value)
-          .AddOutput(outputs[0])
-          .Run(dev_ctx.stream());
-    };
-    NpuOpRunner::TypeAdapter({},
-                             {*out},
-                             {},
-                             dev_ctx,
-                             op_func,
-                             {},
-                             {phi::DenseTensorMeta::DataType::UINT8});
-  }
+  NpuOpRunner runner;
+  runner.SetType("Fills")
+      .AddInput(*out)
+      .AddOutput(*out)
+      .AddAttrs({{"value", val.to<float>()}})
+      .Run(stream);
 }
 
 template <typename T, typename Context>
@@ -92,22 +43,33 @@ void FullLikeKernel(const Context& dev_ctx,
                     const phi::Scalar& val,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
+  auto value = val.to<double>();
   using CommonType = typename std::common_type<
       float,
-      typename std::conditional<std::is_same<T, phi::dtype::float16>::value,
-                                float,
-                                T>::type>::type;
-  dev_ctx.template Alloc<T>(out);
-  auto value = val.to<float>();
+      typename std::conditional<
+          std::is_same<T, phi::dtype::float16>::value ||
+              std::is_same<T, phi::dtype::bfloat16>::value,
+          float,
+          T>::type>::type;
 
   auto common_type_value = static_cast<CommonType>(value);
 
-  PADDLE_ENFORCE_EQ(
-      (common_type_value >=
+  // Check whether the filled value is valid
+  bool is_out_range = true;
+  if (std::isinf(value) || std::isnan(value)) {
+    is_out_range = false;
+  }
+
+  if ((common_type_value >=
        static_cast<CommonType>(std::numeric_limits<T>::lowest())) &&
-          (common_type_value <=
-           static_cast<CommonType>(std::numeric_limits<T>::max())),
-      true,
+      (common_type_value <=
+       static_cast<CommonType>(std::numeric_limits<T>::max()))) {
+    is_out_range = false;
+  }
+
+  PADDLE_ENFORCE_EQ(
+      is_out_range,
+      false,
       phi::errors::InvalidArgument(
           "The filled value is out of range for target type, "
           "current kernel type is %s, the range should between %f "
@@ -115,36 +77,17 @@ void FullLikeKernel(const Context& dev_ctx,
           typeid(T).name(),
           static_cast<CommonType>(std::numeric_limits<T>::lowest()),
           static_cast<CommonType>(std::numeric_limits<T>::max()),
-          value));
+          static_cast<float>(value)));
 
-  PADDLE_ENFORCE_EQ(std::isnan(value),
-                    false,
-                    phi::errors::InvalidArgument("The filled value is NaN."));
+  dev_ctx.template Alloc<T>(out);
+  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  phi::DenseTensor tensor_tmp;
-  tensor_tmp.Resize(phi::make_ddim({1}));
-  FillNpuTensorWithConstant<T>(&tensor_tmp, dev_ctx, static_cast<T>(value));
-
-  auto stream = dev_ctx.stream();
-
-  auto shape = out->dims();
-
-  if (std::is_same<T, bool>::value) {
-    // In CANN512, NPU op Fill returns false results when dtype is bool,
-    // so use memset instead.
-    ACL_CHECK(aclrtMemsetAsync(out->data(),
-                               sizeof(bool) * out->numel(),
-                               static_cast<int32_t>(value),
-                               sizeof(bool) * out->numel(),
-                               stream));
-  } else {
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, phi::vectorize(shape))
-        .AddInput(tensor_tmp)
-        .AddOutput(*out)
-        .Run(stream);
-  }
+  NpuOpRunner runner;
+  runner.SetType("Fills")
+      .AddInput(*out)
+      .AddOutput(*out)
+      .AddAttrs({{"value", val.to<float>()}})
+      .Run(stream);
 }
 
 template <typename T, typename Context>

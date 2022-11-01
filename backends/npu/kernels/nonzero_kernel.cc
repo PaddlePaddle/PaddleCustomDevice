@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void WhereIndexKernel(const Context& dev_ctx,
+void NonZeroKernel(const Context& dev_ctx,
                       const phi::DenseTensor& condition,
                       phi::DenseTensor* out) {
   auto dims = condition.dims();
@@ -90,10 +90,10 @@ void WhereIndexKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(where_index,
+PD_REGISTER_PLUGIN_KERNEL(nonzero,
                           ascend,
                           ALL_LAYOUT,
-                          custom_kernel::WhereIndexKernel,
+                          custom_kernel::NonZeroKernel,
                           bool,
                           int,
                           int64_t,

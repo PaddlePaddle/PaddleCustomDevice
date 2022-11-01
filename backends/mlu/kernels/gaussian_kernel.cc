@@ -47,7 +47,7 @@ void GaussianKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(gaussian_random,
+PD_REGISTER_PLUGIN_KERNEL(gaussian,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::GaussianKernel,

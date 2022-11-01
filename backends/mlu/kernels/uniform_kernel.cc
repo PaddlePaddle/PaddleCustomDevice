@@ -31,7 +31,7 @@ inline void UniformRealDistribution(T* data,
 }
 
 template <typename T, typename Context>
-void UniformRandomRawKernel(const Context& dev_ctx,
+void UniformRawKernel(const Context& dev_ctx,
                             const phi::IntArray& shape,
                             phi::DataType dtype,
                             const phi::Scalar& min,
@@ -84,27 +84,27 @@ void UniformRandomRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void UniformRandomKernel(const Context& dev_ctx,
+void UniformKernel(const Context& dev_ctx,
                          const phi::IntArray& shape,
                          phi::DataType dtype,
                          const phi::Scalar& min,
                          const phi::Scalar& max,
                          int seed,
                          phi::DenseTensor* out) {
-  custom_kernel::UniformRandomRawKernel<T>(
+  custom_kernel::UniformRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(uniform_random_raw,
+PD_REGISTER_PLUGIN_KERNEL(uniform_raw,
                           CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::UniformRandomRawKernel,
+                          custom_kernel::UniformRawKernel,
                           float) {}
 
-PD_REGISTER_PLUGIN_KERNEL(uniform_random,
+PD_REGISTER_PLUGIN_KERNEL(uniform,
                           CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::UniformRandomKernel,
+                          custom_kernel::UniformKernel,
                           float) {}

@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TrilTriuKernel(const Context& dev_ctx,
+void TrilKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     int diagonal,
                     bool lower,
@@ -74,10 +74,10 @@ void TrilTriuKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(tril_triu,
+PD_REGISTER_PLUGIN_KERNEL(tril,
                           ascend,
                           ALL_LAYOUT,
-                          custom_kernel::TrilTriuKernel,
+                          custom_kernel::TrilKernel,
                           bool,
                           float,
                           int,

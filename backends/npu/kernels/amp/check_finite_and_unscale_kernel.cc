@@ -68,18 +68,16 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
     for (auto i = 0; i < xs_item->dims().size(); ++i) {
       axes.push_back(i);
     }
-
     const auto& runner_check_inf =
         NpuOpRunner("IsInf", {*xs_item}, {xs_is_inf}, {});
     runner_check_inf.Run(stream);
-
     const auto& runner_check_nan =
         NpuOpRunner("IsNan", {*xs_item}, {xs_is_nan}, {});
     runner_check_nan.Run(stream);
 
-    const auto& runner_logical_and =
-        NpuOpRunner("LogicalAnd", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
-    runner_logical_and.Run(stream);
+    const auto& runner_logical_or =
+        NpuOpRunner("LogicalOr", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
+    runner_logical_or.Run(stream);
 
     const auto& runner_cast = NpuOpRunner(
         "Cast",

@@ -53,12 +53,9 @@ void Conv2dKernel(const Context& dev_ctx,
                   const std::vector<int>& strides_t,
                   const std::vector<int>& paddings_t,
                   const std::string& padding_algorithm,
-                  int groups,
                   const std::vector<int>& dilations_t,
+                  int groups,
                   const std::string& data_format,
-                  bool use_addto,
-                  int workspace_size_MB,
-                  bool exhaustive_search,
                   phi::DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
   auto strides = strides_t;
@@ -126,12 +123,9 @@ void Conv2dGradKernel(const Context& dev_ctx,
                       const std::vector<int>& strides_t,
                       const std::vector<int>& paddings_t,
                       const std::string& padding_algorithm,
-                      int groups,
                       const std::vector<int>& dilations_t,
+                      int groups,
                       const std::string& data_format,
-                      bool use_addto,
-                      int workspace_size_MB,
-                      bool exhaustive_search,
                       phi::DenseTensor* input_grad,
                       phi::DenseTensor* filter_grad) {
   auto strides = strides_t;
@@ -241,10 +235,6 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
                            int groups,
                            const std::vector<int>& dilations_in,
                            const std::string& data_format,
-                           bool use_addto,
-                           int workspace_size_MB,
-                           bool exhaustive_search,
-                           bool fuse_relu,
                            phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
@@ -349,10 +339,6 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
                                int groups,
                                const std::vector<int>& dilations_in,
                                const std::string& data_format,
-                               bool use_addto,
-                               int workspace_size_MB,
-                               bool exhaustive_search,
-                               bool fuse_relu,
                                phi::DenseTensor* input_grad,
                                phi::DenseTensor* filter_grad) {
   std::vector<int> padding = paddings_in;
@@ -470,9 +456,6 @@ void Conv3dKernel(const Context& dev_ctx,
                   int groups,
                   const std::vector<int>& dilation,
                   const std::string& data_format,
-                  bool use_addto,
-                  int workspace_size_MB,
-                  bool exhaustive_search,
                   phi::DenseTensor* out) {
   auto paddings = padding;
   auto dilations = dilation;
@@ -557,9 +540,6 @@ void Conv3dGradKernel(const Context& dev_ctx,
                       int groups,
                       const std::vector<int>& dilation,
                       const std::string& data_format,
-                      bool use_addto,
-                      int workspace_size_MB,
-                      bool exhaustive_search,
                       phi::DenseTensor* input_grad,
                       phi::DenseTensor* filter_grad) {
   auto paddings = padding;

@@ -20,17 +20,16 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     const phi::DenseTensor& scale,
-                     const phi::DenseTensor& bias,
                      const phi::DenseTensor& running_mean,
                      const phi::DenseTensor& running_var,
+                     const phi::DenseTensor& scale,
+                     const phi::DenseTensor& bias,
+                     bool is_test,
                      float momentum,
                      float epsilon,
                      const std::string& data_layout_str,
-                     bool is_test,
                      bool use_global_stats,
                      bool trainable_stats,
-                     bool fuse_with_relu,
                      phi::DenseTensor* y,
                      phi::DenseTensor* mean_out,
                      phi::DenseTensor* variance_out,
@@ -40,8 +39,7 @@ void BatchNormKernel(const Context& dev_ctx,
   bool test_mode = is_test && (!trainable_stats);
   bool training = !test_mode && !use_global_stats;
 
-  phi::DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
@@ -127,12 +125,10 @@ void BatchNormGradKernel(
     bool is_test,
     bool use_global_stats,
     bool trainable_statistics,
-    bool fuse_with_relu,
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
-  phi::DataLayout data_layout =
-      paddle::framework::StringToDataLayout(data_layout_str);
+  phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
   use_global_stats = is_test || use_global_stats;
 
@@ -228,10 +224,10 @@ void BatchNormGradKernel(
 template <typename T, typename Context>
 void BatchNormInferKernel(const Context& dev_ctx,
                           const phi::DenseTensor& x,
-                          const phi::DenseTensor& scale,
-                          const phi::DenseTensor& bias,
                           const phi::DenseTensor& mean,
                           const phi::DenseTensor& variance,
+                          const phi::DenseTensor& scale,
+                          const phi::DenseTensor& bias,
                           float momentum,
                           float epsilon,
                           const std::string& data_layout_str,

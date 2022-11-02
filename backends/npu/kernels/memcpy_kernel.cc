@@ -98,9 +98,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           ascend,
@@ -109,9 +115,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           ascend,
@@ -120,9 +132,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy,
                           ascend,
@@ -131,8 +149,14 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }

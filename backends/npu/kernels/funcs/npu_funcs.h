@@ -43,8 +43,30 @@ inline void TensorCopy(const Context& dev_ctx,
     dst_place_ = dev_ctx.GetPlace();
   }
 
+  if (&src == dst) {
+    if (src_place == dst_place_) {
+      VLOG(6) << "Skip copy the same data(" << src_ptr << ") from " << src_place
+              << " to " << dst_place_;
+    } else {
+      VLOG(6) << "Src and dst are the same Tensor, in-place copy data("
+              << src_ptr << ") from " << src_place << " to " << dst_place_;
+      const phi::DenseTensor src_copy = src;
+      TensorCopy(dev_ctx, src_copy, blocking, dst, dst_place_);
+    }
+    return;
+  }
+
   VLOG(3) << "TensorCopy " << src.dims() << " from " << src_place << " to "
           << dst_place_;
+
+  PADDLE_ENFORCE_EQ(
+      dst->place(),
+      dst_place_,
+      phi::errors::Unavailable(
+          "The Dst Tensor's place and dst_place do not match, Tensor's place "
+          "place is %s, dst_place is %s.",
+          dst->place(),
+          dst_place_));
 
   dst->Resize(src.dims());
   void* dst_ptr = nullptr;
@@ -54,7 +76,7 @@ inline void TensorCopy(const Context& dev_ctx,
     dst_ptr = dev_ctx.HostAlloc(dst, src.dtype());
   }
 
-  if (src_ptr == dst_ptr) {
+  if (src_ptr == dst_ptr && src_place == dst_place_) {
     VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "
             << src_place << " to " << dst_ptr << " in " << dst_place_;
     return;

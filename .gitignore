@@ -28,3 +28,5 @@ tools/__pycache__
 
 # ignore npu cache
 kernel_meta*/
+
+backends/npu/tests/unittests/*

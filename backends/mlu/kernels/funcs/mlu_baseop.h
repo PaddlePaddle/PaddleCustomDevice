@@ -2112,6 +2112,7 @@ class MLUCnnl {
                    const void* masked,
                    const cnnlTensorDescriptor_t value_desc,
                    const void* value,
+                   const void* scale,
                    const cnnlTensorDescriptor_t output_desc,
                    void* output,
                    uint32_t* number);

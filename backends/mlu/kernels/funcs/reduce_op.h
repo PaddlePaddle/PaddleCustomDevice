@@ -32,12 +32,12 @@ void MLUReduceOp(const Context& dev_ctx,
   auto input_dims = phi::vectorize(x.dims());
   const auto& input_dim_size = x.dims().size();
   std::vector<int> reduce_dims;
+  VLOG(3) << "ReduceOp keep_dim " << keep_dim;
+  if (!keep_dim && dims.size() == 0) reduce_all = true;
   if (reduce_all) {
     for (size_t i = 0; i < input_dims.size(); i++) {
       reduce_dims.push_back(static_cast<int>(i));
     }
-  } else if (dims.size() == 0) {
-    reduce_dims.push_back(0);
   } else {
     for (size_t i = 0; i < dims.size(); ++i) {
       if (dims[i] < 0) {

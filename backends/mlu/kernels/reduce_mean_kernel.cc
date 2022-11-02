@@ -50,6 +50,7 @@ void MeanGradKernel(const Context& dev_ctx,
   auto reduce_dims = axes.GetData();
   auto input_dims = phi::vectorize(x.dims());
 
+  if (!keep_dim && reduce_dims.size() == 0) reduce_all = true;
   int reduce_numel = 1;
   if (reduce_all) {
     reduce_dims.clear();

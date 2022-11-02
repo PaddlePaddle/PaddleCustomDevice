@@ -586,14 +586,15 @@ MLUCnnlReduceDesc::MLUCnnlReduceDesc(const std::vector<int>& axis_vec,
                                      const cnnlIndicesType_t indices_type) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlCreateReduceDescriptor(&reduction_desc_));
   PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlSetReduceDescriptor(reduction_desc_,
-                              const_cast<int*>(axis_vec.data()),
-                              axis_vec.size(),
-                              reduce_op,
-                              data_type,
-                              nan_propagation,
-                              reduce_indices,
-                              indices_type));
+      cnnlSetReduceDescriptor_v2(reduction_desc_,
+                                 const_cast<int*>(axis_vec.data()),
+                                 axis_vec.size(),
+                                 reduce_op,
+                                 data_type,
+                                 nan_propagation,
+                                 reduce_indices,
+                                 indices_type,
+                                 0 /*exponent*/));
 }
 
 const cnnlReduceDescriptor_t MLUCnnlReduceDesc::get() const {
@@ -4893,6 +4894,7 @@ MLURNNDesc::~MLURNNDesc() {
                                 const void* masked,
                                 const cnnlTensorDescriptor_t value_desc,
                                 const void* value,
+                                const void* scale,
                                 const cnnlTensorDescriptor_t output_desc,
                                 void* output,
                                 uint32_t* number) {
@@ -4910,7 +4912,7 @@ MLURNNDesc::~MLURNNDesc() {
   workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlMasked_v3(handle,
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlMasked_v4(handle,
                                            masked_mode,
                                            input_desc,
                                            input,
@@ -4918,6 +4920,7 @@ MLURNNDesc::~MLURNNDesc() {
                                            masked,
                                            value_desc,
                                            value,
+                                           scale,
                                            workspace_ptr,
                                            workspace_size,
                                            output_desc,

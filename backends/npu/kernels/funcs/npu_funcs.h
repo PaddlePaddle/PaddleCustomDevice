@@ -35,6 +35,9 @@ inline void TensorCopy(const Context& dev_ctx,
                        const phi::Place& dst_place = phi::CustomPlace()) {
   auto* src_ptr = src.data();
   const auto& src_place = src.place();
+  if (src_ptr == nullptr) {
+    return;
+  }
   auto dst_place_ = dst_place;
   if (dst_place_.GetType() != phi::AllocationType::CPU) {
     dst_place_ = dev_ctx.GetPlace();
@@ -52,8 +55,8 @@ inline void TensorCopy(const Context& dev_ctx,
   }
 
   if (src_ptr == dst_ptr) {
-    VLOG(3) << "Skip copy the same data async from " << src_place << " to "
-            << src_place;
+    VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "
+            << src_place << " to " << dst_ptr << " in " << dst_place_;
     return;
   }
   VLOG(4) << "src:" << src_ptr << ", dst:" << dst_ptr;

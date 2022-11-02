@@ -17,7 +17,7 @@
 
 namespace custom_kernel {
 
-template <typename T,typename Context>
+template <typename T, typename Context>
 static void Mul(const Context& dev_ctx,
                 const phi::DenseTensor& X,
                 const phi::DenseTensor& Y,
@@ -43,7 +43,7 @@ static void Mul(const Context& dev_ctx,
                     alpha);
 }
 
-template <typename T,typename Context>
+template <typename T, typename Context>
 static void MatMul2D(const Context& dev_ctx,
                      const phi::DenseTensor& X,
                      const phi::DenseTensor& Y,
@@ -65,7 +65,6 @@ static void MatMul2D(const Context& dev_ctx,
                   out_desc.get(),
                   GetBasePtr(out));
 }
-
 
 template <typename T, typename Context>
 static void MatMulND(const Context& dev_ctx,
@@ -136,8 +135,6 @@ static void ReduceDims(const Context& dev_ctx,
                   GetBasePtr(out));
 }
 
-
-
 template <typename T, typename Context>
 void MatmulKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
@@ -145,82 +142,105 @@ void MatmulKernel(const Context& dev_ctx,
                   bool transpose_x,
                   bool transpose_y,
                   phi::DenseTensor* out) {
-    std::vector<int64_t> x_dims = phi::vectorize(x.dims());
-    std::vector<int64_t> y_dims = phi::vectorize(y.dims());
-    std::vector<int64_t> out_dims = phi::vectorize(out->dims());
-    int x_ndim = x_dims.size();
-    int y_ndim = y_dims.size();
-    // Case 1: [K] x [K] = [1]
-    // Equal: [1, K] x [K, 1] = [1, 1] => [1]
-    const bool all_one_dim = (x_ndim == 1 && y_ndim == 1);
-    if (all_one_dim) {
-      out->Resize({1, 1});
-    }
+  std::vector<int64_t> x_dims = phi::vectorize(x.dims());
+  std::vector<int64_t> y_dims = phi::vectorize(y.dims());
+  std::vector<int64_t> out_dims = phi::vectorize(out->dims());
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  // Case 1: [K] x [K] = [1]
+  // Equal: [1, K] x [K, 1] = [1, 1] => [1]
+  const bool all_one_dim = (x_ndim == 1 && y_ndim == 1);
+  if (all_one_dim) {
+    out->Resize({1, 1});
+  }
 
-    // Resize dim 1 to 2
-    Tensor x_temp, y_temp;
-    x_temp = x;
-    y_temp = y;
-    if (x_ndim == 1) {
-      x_dims.insert(x_dims.begin(), 1);
-      x_temp.Resize(phi::make_ddim(x_dims));
-      x_ndim = 2;
-      // matmul op of mlu needs `std::max(x->dim, y->dim) == out->dim`
-      if (out_dims.size() < y_dims.size()) {
-        std::vector<int64_t> temp_out_dims(out_dims.begin(), out_dims.end());
-        temp_out_dims.insert(temp_out_dims.end() - 1, 1);
-        out->Resize(phi::make_ddim(temp_out_dims));
-      }
+  // Resize dim 1 to 2
+  Tensor x_temp, y_temp;
+  x_temp = x;
+  y_temp = y;
+  if (x_ndim == 1) {
+    x_dims.insert(x_dims.begin(), 1);
+    x_temp.Resize(phi::make_ddim(x_dims));
+    x_ndim = 2;
+    // matmul op of mlu needs `std::max(x->dim, y->dim) == out->dim`
+    if (out_dims.size() < y_dims.size()) {
+      std::vector<int64_t> temp_out_dims(out_dims.begin(), out_dims.end());
+      temp_out_dims.insert(temp_out_dims.end() - 1, 1);
+      out->Resize(phi::make_ddim(temp_out_dims));
     }
-    if (y_ndim == 1) {
-      y_dims.push_back(1);
-      y_temp.Resize(phi::make_ddim(y_dims));
-      y_ndim = 2;
-      // matmul op of mlu needs `std::max(x->dim, y->dim) == out->dim`
-      if (out_dims.size() < x_dims.size()) {
-        std::vector<int64_t> temp_out_dims(out_dims.begin(), out_dims.end());
-        temp_out_dims.push_back(1);
-        out->Resize(phi::make_ddim(temp_out_dims));
-      }
+  }
+  if (y_ndim == 1) {
+    y_dims.push_back(1);
+    y_temp.Resize(phi::make_ddim(y_dims));
+    y_ndim = 2;
+    // matmul op of mlu needs `std::max(x->dim, y->dim) == out->dim`
+    if (out_dims.size() < x_dims.size()) {
+      std::vector<int64_t> temp_out_dims(out_dims.begin(), out_dims.end());
+      temp_out_dims.push_back(1);
+      out->Resize(phi::make_ddim(temp_out_dims));
     }
-    const int K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-    if (transpose_y) {
-      PADDLE_ENFORCE_EQ(
-          y_dims[y_ndim - 1],
-          K,
-          phi::errors::InvalidArgument("Input(Y) has error dim."
-                                        "Y'dims[%d] must be equal to %d"
-                                        "But received Y'dims[%d] is %d",
-                                        y_ndim - 1,
-                                        K,
-                                        y_ndim - 1,
-                                        y_dims[y_ndim - 1]));
-    } else {
-      PADDLE_ENFORCE_EQ(
-          y_dims[y_ndim - 2],
-          K,
-          phi::errors::InvalidArgument("Input(Y) has error dim."
-                                        "Y'dims[%d] must be equal to %d"
-                                        "But received Y'dims[%d] is %d",
-                                        y_ndim - 2,
-                                        K,
-                                        y_ndim - 2,
-                                        y_dims[y_ndim - 2]));
-    }
+  }
+  const int K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
+  if (transpose_y) {
+    PADDLE_ENFORCE_EQ(
+        y_dims[y_ndim - 1],
+        K,
+        phi::errors::InvalidArgument("Input(Y) has error dim."
+                                     "Y'dims[%d] must be equal to %d"
+                                     "But received Y'dims[%d] is %d",
+                                     y_ndim - 1,
+                                     K,
+                                     y_ndim - 1,
+                                     y_dims[y_ndim - 1]));
+  } else {
+    PADDLE_ENFORCE_EQ(
+        y_dims[y_ndim - 2],
+        K,
+        phi::errors::InvalidArgument("Input(Y) has error dim."
+                                     "Y'dims[%d] must be equal to %d"
+                                     "But received Y'dims[%d] is %d",
+                                     y_ndim - 2,
+                                     K,
+                                     y_ndim - 2,
+                                     y_dims[y_ndim - 2]));
+  }
 
-    if (x_ndim == 2 && y_ndim == 2) {
-      // Case 2: [M, K] x [K, N] = [M, N]
-      MatMul2D<T>(dev_ctx, x_temp, y_temp, out, transpose_x, transpose_y);
-    } else {
-      // Case 3: [B, M, K] x [K, N] =  [B, M, N]
-      // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
-      MatMulND<T>(dev_ctx, x_temp, y_temp, out, transpose_x, transpose_y);
-    }
+  if (x_ndim == 2 && y_ndim == 2) {
+    // Case 2: [M, K] x [K, N] = [M, N]
+    MatMul2D<T>(dev_ctx, x_temp, y_temp, out, transpose_x, transpose_y);
+  } else {
+    // Case 3: [B, M, K] x [K, N] =  [B, M, N]
+    // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
+    MatMulND<T>(dev_ctx, x_temp, y_temp, out, transpose_x, transpose_y);
+  }
 
-    if (phi::vectorize(out->dims()) != out_dims) {
-      out->Resize(phi::make_ddim(out_dims));
-    }
+  if (phi::vectorize(out->dims()) != out_dims) {
+    out->Resize(phi::make_ddim(out_dims));
+  }
+}
 
+template <typename T, typename Context>
+void MatmulWithFlattenKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             int x_num_col_dims,
+                             int y_num_col_dims,
+                             phi::DenseTensor* out) {
+  const Tensor x_matrix =
+      x.dims().size() > 2 ? ReshapeToMatrix(x, x_num_col_dims) : x;
+  const Tensor y_matrix =
+      y.dims().size() > 2 ? ReshapeToMatrix(y, y_num_col_dims) : y;
+
+  dev_ctx.template Alloc<T>(out);
+  auto z_dim = out->dims();
+  if (z_dim.size() != 2) {
+    out->Resize({x_matrix.dims()[0], y_matrix.dims()[1]});
+  }
+
+  custom_kernel::MatMul2D<T, Context>(dev_ctx, x, y, out, false, false);
+  if (z_dim.size() != 2) {
+    out->Resize(z_dim);
+  }
 }
 
 template <typename T, typename Context>
@@ -232,120 +252,165 @@ void MatmulGradKernel(const Context& dev_ctx,
                       bool transpose_y,
                       phi::DenseTensor* dx,
                       phi::DenseTensor* dy) {
-    std::vector<int64_t> x_dims = phi::vectorize(x.dims());
-    std::vector<int64_t> y_dims = phi::vectorize(y.dims());
-    std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
-    int x_ndim = x_dims.size();
-    int y_ndim = y_dims.size();
-    int out_ndim = out_dims.size();
+  std::vector<int64_t> x_dims = phi::vectorize(x.dims());
+  std::vector<int64_t> y_dims = phi::vectorize(y.dims());
+  std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  int out_ndim = out_dims.size();
 
-    // Case 1: [K] x [K] = [1]
-    if (x_ndim == 1 && y_ndim == 1) {
-      if (dx) {
-        Mul<T>(dev_ctx, dout, y, dx);
-      }
-      if (dy) {
-        Mul<T>(dev_ctx, dout, x, dy);
-      }
-      return;
-    }
-
-    // Resize dim 1 to 2
-    Tensor x_temp, y_temp, dout_temp;
-    x_temp = x;
-    y_temp = y;
-    dout_temp = dout;
-    if (x_ndim == 1) {
-      x_dims.insert(x_dims.begin(), 1);
-      out_dims.insert(out_dims.end() - 1, 1);
-      x_temp.Resize(phi::make_ddim(x_dims));
-      dout_temp.Resize(phi::make_ddim(out_dims));
-      x_ndim = 2;
-      out_ndim += 1;
-    }
-    if (y_ndim == 1) {
-      y_dims.push_back(1);
-      out_dims.push_back(1);
-      y_temp.Resize(phi::make_ddim(y_dims));
-      dout_temp.Resize(phi::make_ddim(out_dims));
-      y_ndim = 2;
-      out_ndim += 1;
-    }
-
-    // Case 2: [M, K] x [K, N] = [M, N]
-    if (out_ndim == 2) {
-      if (dx) {
-        dx->Resize(phi::make_ddim(x_dims));
-        if (transpose_x) {
-          MatMul2D<T>(dev_ctx, y_temp, dout_temp, dx, transpose_y, true);
-        } else {
-          MatMul2D<T>(dev_ctx, dout_temp, y_temp, dx, false, !transpose_y);
-        }
-        dx->Resize(x.dims());
-      }
-      if (dy) {
-        dy->Resize(phi::make_ddim(y_dims));
-        if (transpose_y) {
-          MatMul2D<T>(dev_ctx, dout_temp, x_temp, dy, true, transpose_x);
-        } else {
-          MatMul2D<T>(dev_ctx, x_temp, dout_temp, dy, !transpose_x, false);
-        }
-        dy->Resize(y.dims());
-      }
-      return;
-    }
-
-    // Case 3: [B, M, K] x [K, N] =  [B, M, N]
-    // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
-    std::vector<int64_t> x_bcast_dims(out_ndim, 1);
-    std::vector<int64_t> y_bcast_dims(out_ndim, 1);
-    std::copy(out_dims.begin(), out_dims.end() - 2, x_bcast_dims.begin());
-    std::copy(out_dims.begin(), out_dims.end() - 2, y_bcast_dims.begin());
-    std::copy(x_dims.end() - 2, x_dims.end(), x_bcast_dims.end() - 2);
-    std::copy(y_dims.end() - 2, y_dims.end(), y_bcast_dims.end() - 2);
-
+  // Case 1: [K] x [K] = [1]
+  if (x_ndim == 1 && y_ndim == 1) {
     if (dx) {
-      Tensor dx_temp;
-      if (x_dims != x_bcast_dims) {
-        dx_temp.Resize(phi::make_ddim(x_bcast_dims));
-      } else {
-        dev_ctx.template Alloc<T>(dx);
-        dx_temp = *dx;
-      }
-
-      if (transpose_x) {
-        MatMulND<T>(dev_ctx, y_temp, dout_temp, &dx_temp, transpose_y, true);
-      } else {
-        MatMulND<T>(
-            dev_ctx, dout_temp, y_temp, &dx_temp, false, !transpose_y);
-      }
-
-      if (x_dims != x_bcast_dims) {
-        ReduceDims<T>(dev_ctx, x_dims, x_bcast_dims, dx_temp, dx);
-      }
+      Mul<T>(dev_ctx, dout, y, dx);
     }
-
     if (dy) {
-      Tensor dy_temp;
-      if (y_dims != y_bcast_dims) {
-        dy_temp.Resize(phi::make_ddim(y_bcast_dims));
-      } else {
-        dev_ctx.template Alloc<T>(dy);
-        dy_temp = *dy;
-      }
+      Mul<T>(dev_ctx, dout, x, dy);
+    }
+    return;
+  }
 
+  // Resize dim 1 to 2
+  Tensor x_temp, y_temp, dout_temp;
+  x_temp = x;
+  y_temp = y;
+  dout_temp = dout;
+  if (x_ndim == 1) {
+    x_dims.insert(x_dims.begin(), 1);
+    out_dims.insert(out_dims.end() - 1, 1);
+    x_temp.Resize(phi::make_ddim(x_dims));
+    dout_temp.Resize(phi::make_ddim(out_dims));
+    x_ndim = 2;
+    out_ndim += 1;
+  }
+  if (y_ndim == 1) {
+    y_dims.push_back(1);
+    out_dims.push_back(1);
+    y_temp.Resize(phi::make_ddim(y_dims));
+    dout_temp.Resize(phi::make_ddim(out_dims));
+    y_ndim = 2;
+    out_ndim += 1;
+  }
+
+  // Case 2: [M, K] x [K, N] = [M, N]
+  if (out_ndim == 2) {
+    if (dx) {
+      dx->Resize(phi::make_ddim(x_dims));
+      if (transpose_x) {
+        MatMul2D<T>(dev_ctx, y_temp, dout_temp, dx, transpose_y, true);
+      } else {
+        MatMul2D<T>(dev_ctx, dout_temp, y_temp, dx, false, !transpose_y);
+      }
+      dx->Resize(x.dims());
+    }
+    if (dy) {
+      dy->Resize(phi::make_ddim(y_dims));
       if (transpose_y) {
-        MatMulND<T>(dev_ctx, dout_temp, x_temp, &dy_temp, true, transpose_x);
+        MatMul2D<T>(dev_ctx, dout_temp, x_temp, dy, true, transpose_x);
       } else {
-        MatMulND<T>(
-            dev_ctx, x_temp, dout_temp, &dy_temp, !transpose_x, false);
+        MatMul2D<T>(dev_ctx, x_temp, dout_temp, dy, !transpose_x, false);
       }
+      dy->Resize(y.dims());
+    }
+    return;
+  }
 
-      if (y_dims != y_bcast_dims) {
-        ReduceDims<T>(dev_ctx, y_dims, y_bcast_dims, dy_temp, dy);
-      }
+  // Case 3: [B, M, K] x [K, N] =  [B, M, N]
+  // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
+  std::vector<int64_t> x_bcast_dims(out_ndim, 1);
+  std::vector<int64_t> y_bcast_dims(out_ndim, 1);
+  std::copy(out_dims.begin(), out_dims.end() - 2, x_bcast_dims.begin());
+  std::copy(out_dims.begin(), out_dims.end() - 2, y_bcast_dims.begin());
+  std::copy(x_dims.end() - 2, x_dims.end(), x_bcast_dims.end() - 2);
+  std::copy(y_dims.end() - 2, y_dims.end(), y_bcast_dims.end() - 2);
+
+  if (dx) {
+    Tensor dx_temp;
+    if (x_dims != x_bcast_dims) {
+      dx_temp.Resize(phi::make_ddim(x_bcast_dims));
+    } else {
+      dev_ctx.template Alloc<T>(dx);
+      dx_temp = *dx;
     }
 
+    if (transpose_x) {
+      MatMulND<T>(dev_ctx, y_temp, dout_temp, &dx_temp, transpose_y, true);
+    } else {
+      MatMulND<T>(dev_ctx, dout_temp, y_temp, &dx_temp, false, !transpose_y);
+    }
+
+    if (x_dims != x_bcast_dims) {
+      ReduceDims<T>(dev_ctx, x_dims, x_bcast_dims, dx_temp, dx);
+    }
+  }
+
+  if (dy) {
+    Tensor dy_temp;
+    if (y_dims != y_bcast_dims) {
+      dy_temp.Resize(phi::make_ddim(y_bcast_dims));
+    } else {
+      dev_ctx.template Alloc<T>(dy);
+      dy_temp = *dy;
+    }
+
+    if (transpose_y) {
+      MatMulND<T>(dev_ctx, dout_temp, x_temp, &dy_temp, true, transpose_x);
+    } else {
+      MatMulND<T>(dev_ctx, x_temp, dout_temp, &dy_temp, !transpose_x, false);
+    }
+
+    if (y_dims != y_bcast_dims) {
+      ReduceDims<T>(dev_ctx, y_dims, y_bcast_dims, dy_temp, dy);
+    }
+  }
+}
+
+template <typename T, typename Context>
+void MatmulWithFlattenGradKernel(const Context& dev_ctx,
+                                 const phi::DenseTensor& x,
+                                 const phi::DenseTensor& y,
+                                 const phi::DenseTensor& out_grad,
+                                 int x_num_col_dims,
+                                 int y_num_col_dims,
+                                 phi::DenseTensor* x_grad,
+                                 phi::DenseTensor* y_grad) {
+  auto x_matrix = x.dims().size() > 2 ? ReshapeToMatrix(x, x_num_col_dims) : x;
+  auto y_matrix = y.dims().size() > 2 ? ReshapeToMatrix(y, y_num_col_dims) : y;
+  auto* dout = &out_grad;
+
+  Tensor dout_mat(*dout);
+  dout_mat.Resize({phi::flatten_to_2d(x.dims(), x_num_col_dims)[0],
+                   phi::flatten_to_2d(y.dims(), y_num_col_dims)[1]});
+
+  auto* dx = x_grad;
+  auto* dy = y_grad;
+
+  if (dx != nullptr) {
+    phi::DenseTensorMeta x_meta = {x.dtype(), x.dims()};
+    dx->set_meta(x_meta);
+  }
+  if (dy != nullptr) {
+    phi::DenseTensorMeta y_meta = {y.dtype(), y.dims()};
+    dy->set_meta(y_meta);
+  }
+
+  if (dx) {
+    dev_ctx.template Alloc<T>(dx);
+    Tensor dx_matrix =
+        dx->dims().size() > 2 ? ReshapeToMatrix(*dx, x_num_col_dims) : *dx;
+
+    // dx = dout * y'. dx: M x K, dout : M x N, y : K x N
+    custom_kernel::MatMul2D<T, Context>(
+        dev_ctx, dout_mat, y_matrix, &dx_matrix, false, true);
+  }
+  if (dy) {
+    dev_ctx.template Alloc<T>(dy);
+    Tensor dy_matrix =
+        dy->dims().size() > 2 ? ReshapeToMatrix(*dy, y_num_col_dims) : *dy;
+    // dy = x' * dout. dy K x N, dout : M x N, x : M x K
+    custom_kernel::MatMul2D<T, Context>(
+        dev_ctx, x_matrix, dout_mat, &dy_matrix, true, false);
+  }
 }
 
 }  // namespace custom_kernel
@@ -357,9 +422,23 @@ PD_REGISTER_PLUGIN_KERNEL(matmul,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::MatmulWithFlattenKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::MatmulGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::MatmulWithFlattenGradKernel,
                           float,
                           phi::dtype::float16) {}

@@ -11,9 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include "dnn_support.hpp"
 #include <cstring>
 
+#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
@@ -126,6 +127,8 @@ void ReshapeKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::IntArray& shape,
                    phi::DenseTensor* out) {
+  VLOG(3) << "Reshape type=" << dnn_support::type2String<T>::name();
+  show_kernel("Reshape type=" << dnn_support::type2String<T>::name());
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape.GetData(), x_dims);
   out->Resize(out_dims);
@@ -135,14 +138,17 @@ void ReshapeKernel(const phi::Context& dev_ctx,
     out->share_lod(x);
   }
 
-  dev_ctx.Alloc(out, x.dtype());
   if (!(x.initialized() && x.Holder() == out->Holder())) {
+    show_debug("Reshape type initialized=" << dnn_support::type2String<T>::name()) ;
     dev_ctx.Alloc(out, x.dtype());
     auto dims = out->dims();
     auto x_data = x.data<T>();
     auto out_data = out->data<T>();
 
-    memcpy(out_data, x_data, x.numel() * sizeof(T));
+    void* stream = const_cast<void*>(dev_ctx.stream());
+    auto* q = static_cast<sycl::queue*>(stream);
+    q->memcpy(out_data, x_data, x.numel() * sizeof(T));
+
     out->Resize(dims);
     out->ResetLoD(x.lod());
   }
@@ -160,7 +166,7 @@ void ReshapeWithXShape(const phi::Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(reshape,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::ReshapeKernel,
                     float,
@@ -170,10 +176,11 @@ PD_BUILD_PHI_KERNEL(reshape,
                     int32_t,
                     int64_t,
                     uint8_t,
-                    bool) {}
+                    bool
+                    ) {}
 
 PD_BUILD_PHI_KERNEL(reshape_with_xshape,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::ReshapeWithXShape,
                     float,
@@ -183,4 +190,5 @@ PD_BUILD_PHI_KERNEL(reshape_with_xshape,
                     int32_t,
                     int64_t,
                     uint8_t,
-                    bool) {}
+                    bool
+                    ) {}

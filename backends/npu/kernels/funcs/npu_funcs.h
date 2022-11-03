@@ -59,6 +59,14 @@ inline void TensorCopy(const Context& dev_ctx,
   VLOG(3) << "TensorCopy " << src.dims() << " from " << src_place << " to "
           << dst_place_;
 
+  dst->Resize(src.dims());
+  void* dst_ptr = nullptr;
+  if (dst_place_.GetType() != phi::AllocationType::CPU) {
+    dst_ptr = dev_ctx.Alloc(dst, src.dtype());
+  } else {
+    dst_ptr = dev_ctx.HostAlloc(dst, src.dtype());
+  }
+
   PADDLE_ENFORCE_EQ(
       dst->place(),
       dst_place_,
@@ -67,14 +75,6 @@ inline void TensorCopy(const Context& dev_ctx,
           "place is %s, dst_place is %s.",
           dst->place(),
           dst_place_));
-
-  dst->Resize(src.dims());
-  void* dst_ptr = nullptr;
-  if (dst_place_.GetType() != phi::AllocationType::CPU) {
-    dst_ptr = dev_ctx.Alloc(dst, src.dtype());
-  } else {
-    dst_ptr = dev_ctx.HostAlloc(dst, src.dtype());
-  }
 
   if (src_ptr == dst_ptr && src_place == dst_place_) {
     VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "

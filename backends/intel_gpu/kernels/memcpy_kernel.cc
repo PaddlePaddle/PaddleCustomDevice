@@ -62,7 +62,8 @@ PD_BUILD_PHI_KERNEL(memcpy_d2h,
                     float,
                     double,
                     int32_t,
-                    int64_t) {}
+                    int64_t,
+                    bool) {}
 
 PD_BUILD_PHI_KERNEL(memcpy_h2d,
                     intel_gpu,
@@ -71,4 +72,5 @@ PD_BUILD_PHI_KERNEL(memcpy_h2d,
                     float,
                     double,
                     int32_t,
-                    int64_t) {}
+                    int64_t,
+                    bool) {}

@@ -272,6 +272,11 @@ struct type2String<short> {
   constexpr static const char* name() { return "short"; }
 };
 
+template <>
+struct type2String<signed char> {
+  constexpr static const char* name() { return "signed char"; }
+};
+
 template<class T>
 dnnl::memory::dims computeStrides(const std::vector<int64_t>& dims,
                                   const std::vector<T>& axis) {

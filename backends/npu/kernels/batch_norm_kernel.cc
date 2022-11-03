@@ -43,7 +43,7 @@ void BatchNormKernel(const Context& dev_ctx,
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
   dev_ctx.template Alloc<T>(y);
-  phi::DenseTensor x_tensor(x), y_tesnor(*y);
+  phi::DenseTensor x_tensor(x), y_tensor(*y);
   const auto& x_dims = x.dims();
 
   if (CANN_VERSION_CODE < 512000) {
@@ -61,7 +61,7 @@ void BatchNormKernel(const Context& dev_ctx,
       phi::DenseTensorMeta y_meta = {
           y->dtype(), y->dims(), phi::DataLayout::kNHWC};
       x_tensor.set_meta(x_meta);
-      y_tesnor.set_meta(y_meta);
+      y_tensor.set_meta(y_meta);
     }
   } else {
     const auto& x_dims = x.dims();
@@ -92,7 +92,7 @@ void BatchNormKernel(const Context& dev_ctx,
       phi::DenseTensorMeta y_meta = {
           y->dtype(), y->dims(), phi::DataLayout::kNHWC};
       x_tensor.set_meta(x_meta);
-      y_tesnor.set_meta(y_meta);
+      y_tensor.set_meta(y_meta);
     }
   }
 
@@ -101,7 +101,7 @@ void BatchNormKernel(const Context& dev_ctx,
     const auto& runner_infer =
         NpuOpRunner("BNInfer",
                     {x_tensor, scale, bias, running_mean, running_var},
-                    {y_tesnor},
+                    {y_tensor},
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
   } else {
@@ -138,7 +138,7 @@ void BatchNormKernel(const Context& dev_ctx,
     const auto& runner_update = NpuOpRunner(
         "BNTrainingUpdate",
         {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
-        {y_tesnor, *mean_out, *variance_out, *saved_mean, *saved_variance},
+        {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
         {{"factor", momentum}, {"epsilon", epsilon}});
     runner_update.Run(stream);
   }
@@ -323,7 +323,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
       phi::DenseTensorMeta y_meta = {
           y->dtype(), y->dims(), phi::DataLayout::kNHWC};
       x_tensor.set_meta(x_meta);
-      y_tesnor.set_meta(y_meta);
+      y_tensor.set_meta(y_meta);
     }
   } else {
     PADDLE_ENFORCE_EQ(

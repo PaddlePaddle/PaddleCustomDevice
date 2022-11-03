@@ -26,7 +26,7 @@ import paddle.fluid.core as core
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places
@@ -252,7 +252,7 @@ class TestReshapeAPI(unittest.TestCase):
             # Situation 4: have shape(Tensor), no actual shape(Tensor)
             out_4 = self.reshape(x, shape=actual_shape)
 
-        exe = paddle.static.Executor(place=paddle.CustomPlace('custom_cpu', 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace('intel_gpu', 0))
         res_1, res_2, res_3, res_4 = exe.run(
             main_prog,
             feed={"x": input,
@@ -276,7 +276,7 @@ class TestReshapeAPI(unittest.TestCase):
         self._set_paddle_api()
         input = np.random.random([2, 25]).astype("float32")
         shape = [2, 5, 5]
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             x = self.to_tensor(input)
             positive_five = self.fill_constant([1], "int32", 5)
 
@@ -300,7 +300,7 @@ class TestStaticReshape_(TestReshapeAPI):
         self._set_paddle_api()
         input = np.random.random([2, 25]).astype("float32")
         shape = [2, 5, 5]
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             x = self.to_tensor(input)
             positive_five = self.fill_constant([1], "int32", 5)
 
@@ -324,7 +324,7 @@ class TestDygraphReshapeAPI(unittest.TestCase):
         self.reshape = paddle.reshape
 
     def test_out(self):
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         input_1 = np.random.random([5, 1, 10]).astype("int32")
         input = paddle.to_tensor(input_1)
         output = self.reshape(x=input, shape=[5, 10])
@@ -333,7 +333,7 @@ class TestDygraphReshapeAPI(unittest.TestCase):
         self.assertTrue(np.allclose(expected_out, out_np))
 
     def test_out_uint8(self):
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         input_1 = np.random.random([5, 1, 10]).astype("uint8")
         input = paddle.to_tensor(input_1)
         output = self.reshape(x=input, shape=[5, 10])
@@ -342,7 +342,7 @@ class TestDygraphReshapeAPI(unittest.TestCase):
         self.assertTrue(np.allclose(expected_out, out_np))
 
     def test_out_float32(self):
-        paddle.disable_static(paddle.CustomPlace('custom_cpu', 0))
+        paddle.disable_static(paddle.CustomPlace('intel_gpu', 0))
         input_1 = np.random.random([5, 1, 10]).astype("float32")
         input = paddle.to_tensor(input_1)
         output = self.reshape(x=input, shape=[5, 10])

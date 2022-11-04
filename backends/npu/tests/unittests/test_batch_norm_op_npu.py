@@ -68,7 +68,12 @@ def _reference_testing(x, scale, offset, mean, var, epsilon, data_format):
 def _cal_mean_variance(x, epsilon, data_format):
     assert data_format in ['NCHW', 'NHWC']
     x_shape = x.shape
-    if len(x_shape) == 3:
+    if len(x_shape) == 2:
+        if data_format == "NCHW":
+            x = np.reshape(x, (x.shape[0], x.shape[1], 1, 1))
+        else:
+            x = np.reshape(x, (x.shape[0], 1, 1, x.shape[1]))
+    elif len(x_shape) == 3:
         if data_format == "NCHW":  # NCL -> NCL1
             x = np.reshape(x, (x_shape[0], x_shape[1], x_shape[2], 1))
         else:  # NLC -> NL1C
@@ -87,7 +92,12 @@ def _cal_mean_variance(x, epsilon, data_format):
 def _reference_training(x, scale, offset, epsilon, data_format):
     x_shape = x.shape
 
-    if len(x_shape) == 3:
+    if len(x_shape) == 2:
+        if data_format == "NCHW":
+            x = np.reshape(x, (x.shape[0], x.shape[1], 1, 1))
+        else:
+            x = np.reshape(x, (x.shape[0], 1, 1, x.shape[1]))
+    elif len(x_shape) == 3:
         if data_format == "NCHW":  # NCL -> NCL1
             x = np.reshape(x, (x_shape[0], x_shape[1], x_shape[2], 1))
         else:  # NLC -> NL1C
@@ -144,7 +154,14 @@ def _reference_grad(x, y_grad, scale, mean, var, epsilon, data_format):
         raise ValueError("Unknown data order.")
 
     x_shape = x.shape
-    if len(x_shape) == 3:
+    if len(x_shape) == 2:
+        if data_format == "NCHW":
+            x = np.reshape(x, (x.shape[0], x.shape[1], 1, 1))
+            y_grad = np.reshape(y_grad, (x_shape[0], x_shape[1], 1, 1))
+        else:
+            x = np.reshape(x, (x.shape[0], 1, 1, x.shape[1]))
+            y_grad = np.reshape(y_grad, (x_shape[0], 1, 1, x_shape[1]))
+    elif len(x_shape) == 3:
         if data_format == "NCHW":  # NCL -> NCL1
             x = np.reshape(x, (x_shape[0], x_shape[1], x_shape[2], 1))
             y_grad = np.reshape(y_grad, (x_shape[0], x_shape[1], x_shape[2], 1))
@@ -170,7 +187,7 @@ def _reference_grad(x, y_grad, scale, mean, var, epsilon, data_format):
         x = np.transpose(x, (0, 3, 1, 2))
         y_grad = np.transpose(y_grad, (0, 3, 1, 2))
 
-    if len(x_shape) == 3:
+    if len(x_shape) == 3 or len(x_shape) == 2:
         x_grad = np.reshape(x_grad, x_shape)
 
     return x_grad, grad_scale, grad_offset
@@ -190,7 +207,7 @@ class TestBatchNormOpInference(unittest.TestCase):
         if len(shape) == 2:
             x_shape = shape
             c = x_shape[1]
-        if len(shape) == 3:
+        elif len(shape) == 3:
             n, l, c = shape[0], shape[1], shape[2]
             if data_layout == "NHWC":  # NLC
                 x_shape = [n, l, c]
@@ -271,6 +288,7 @@ class TestBatchNormOpInference(unittest.TestCase):
         for data_format in self.data_formats:
             self.check_with_place(place, data_format, self.dtype, [2, 3, 4, 5])
             self.check_with_place(place, data_format, self.dtype, [3, 8, 5])
+            self.check_with_place(place, data_format, self.dtype, [2, 4])
 
     def init_kernel_type(self):
         pass
@@ -343,8 +361,10 @@ class TestBatchNormOpTraining(unittest.TestCase):
             # attr
             epsilon = self.epsilon
             momentum = self.momentum
-
-            if len(shape) == 3:
+            if len(shape) == 2:
+                x_shape = shape
+                c = x_shape[1]
+            elif len(shape) == 3:
                 if data_layout == "NHWC":  # NLC
                     n, l, c = shape[0], shape[1], shape[2]
                 elif data_layout == "NCHW":  # NCL
@@ -471,6 +491,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
                 core.CustomPlace('ascend', 0), data_format, [2, 3, 4, 5])
             test_with_place(
                 core.CustomPlace('ascend', 0), data_format, [3, 8, 5])
+            test_with_place(core.CustomPlace('ascend', 0), data_format, [2, 3])
 
     def init_kernel_type(self):
         pass
@@ -509,7 +530,14 @@ class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
 
     def reference_grad(self, x, y_grad, scale, mean, var, epsilon, data_format):
         x_shape = x.shape
-        if len(x_shape) == 3:
+        if len(x_shape) == 2:
+            if data_format == "NCHW":
+                x = np.reshape(x, (x.shape[0], x.shape[1], 1, 1))
+                y_grad = np.reshape(y_grad, (x_shape[0], x_shape[1], 1, 1))
+            else:
+                x = np.reshape(x, (x.shape[0], 1, 1, x.shape[1]))
+                y_grad = np.reshape(y_grad, (x_shape[0], 1, 1, x_shape[1]))
+        elif len(x_shape) == 3:
             if data_format == "NCHW":  # NCL -> NCL1
                 x = np.reshape(x, (x_shape[0], x_shape[1], x_shape[2], 1))
                 y_grad = np.reshape(y_grad,
@@ -534,7 +562,7 @@ class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
             x = np.transpose(x, (0, 3, 1, 2))
             y_grad = np.transpose(y_grad, (0, 3, 1, 2))
 
-        if len(x_shape) == 3:
+        if len(x_shape) == 3 or len(x_shape) == 2:
             x_grad = np.reshape(x_grad, x_shape)
 
         return x_grad, grad_scale, grad_offset
@@ -545,7 +573,14 @@ class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
             raise ValueError("Unknown data order.")
 
         x_shape = x.shape
-        if len(x_shape) == 3:
+        if len(x_shape) == 2:
+            if data_layout == "NCHW":
+                x = np.reshape(x, (x.shape[0], x.shape[1], 1, 1))
+                y_grad = np.reshape(y_grad, (x_shape[0], x_shape[1], 1, 1))
+            else:
+                x = np.reshape(x, (x.shape[0], 1, 1, x.shape[1]))
+                y_grad = np.reshape(y_grad, (x_shape[0], 1, 1, x_shape[1]))
+        elif len(x_shape) == 3:
             if data_layout == "NCHW":  # NCL -> NCL1
                 x = np.reshape(x, (x_shape[0], x_shape[1], x_shape[2], 1))
                 y_grad = np.reshape(y_grad,
@@ -574,7 +609,7 @@ class TestBatchNormOpFreezeStatsTraining(TestBatchNormOpTraining):
         x_grad, scale_grad, bias_grad = self.reference_grad(
             x, y_grad, scale, mean, variance, epsilon, data_layout)
 
-        if len(x_shape) == 3:
+        if len(x_shape) == 3 or len(x_shape) == 2:
             y = np.reshape(y, x_shape)
             x_grad = np.reshape(x_grad, x_shape)
 

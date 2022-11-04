@@ -147,21 +147,6 @@ void RoiAlignGradKernel(const Context& dev_ctx,
       "ConcatD", {x_list}, {boxes_N5}, {{"N", 2}, {"concat_dim", 1}});
   runner_concat.Run(stream);
 
-  //  If CANN version code is less than 504, by analysis, in order to match cpu
-  //  grad version, rois[:,3:5] should substrate 1 before call ascend grad
-  //  function
-#if (CANN_VERSION_CODE < 504000)
-  std::vector<float> vec_dlt = {0, 0, 0, -1.0f, -1.0f};
-  phi::DenseTensor tsr_dlt;
-  tsr_dlt.Resize({5});
-  dev_ctx.template Alloc<float>(&tsr_dlt);
-  TensorFromVector<float>(dev_ctx, vec_dlt, dev_ctx, &tsr_dlt);
-  dev_ctx.Wait();
-  const auto& runner_add =
-      NpuOpRunner("AddV2", {boxes_N5, tsr_dlt}, {boxes_N5}, {});
-  runner_add.Run(stream);
-#endif
-
   //  Call ascend RoiAlignGrad function
   int roi_end_mode = 0;
   const auto& runner_roi_align_grad =

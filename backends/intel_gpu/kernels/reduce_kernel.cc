@@ -103,8 +103,9 @@ void ReduceKernel(const phi::Context& dev_ctx,
     reduction_args.insert({DNNL_ARG_DST, out_mem});
 
     reduction_prim.execute(engine_stream, reduction_args);
+    engine_stream.wait();
   }
-    // engine_stream.wait();
+
 }
 
 template <typename T>

@@ -51,8 +51,12 @@
       getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))               \
           ? parser(getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))) \
           : value
+#define ENV_DECLARE(type, name) extern type FLAGS_##name;
+
 #define ENV_uint64(x, value) ENV_DEFINE(uint64_t, x, value, std::stoul)
 #define ENV_string(x, value) ENV_DEFINE(std::string, x, value, std::string)
+#define ENV_bool(x, value) ENV_DEFINE(bool, x, value, std::stoul)
+#define USE_ENV_bool(x) ENV_DECLARE(bool, x)
 
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
@@ -195,6 +199,11 @@ class AscendProfiler {
 C_Status graph_engine_initialize(const C_Device device, const C_Stream stream);
 
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream);
+
+C_Status graph_engine_prepare_graph(const C_Device device,
+                                    const C_Stream stream,
+                                    const C_Scope c_scope,
+                                    const C_Graph c_graph);
 
 C_Status graph_engine_execute_graph(const C_Device device,
                                     const C_Stream stream,

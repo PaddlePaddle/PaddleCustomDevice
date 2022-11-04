@@ -20,6 +20,9 @@
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
+#include "runtime/runtime.h"
+
+USE_ENV_bool(use_graph_engine);
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,

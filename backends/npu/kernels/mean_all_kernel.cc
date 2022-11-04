@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -22,11 +23,13 @@ void MeanAllKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
   std::vector<int> axes;
-  NPUAttributeMap attr_input = {{"keep_dims", false}, {"axes", axes}};
-  dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner("ReduceMeanD", {x}, {*out}, attr_input);
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  ACL_RUN(dev_ctx.template Alloc<T>(out));
+  experimental::OpCommand("ReduceMeanD")
+      .Input(x)
+      .Output(*out)
+      .Attr("keep_dims", false)
+      .Attr("axes", axes)
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -44,39 +47,38 @@ void MeanAllGradKernel(const Context& dev_ctx,
           "received Out@Grad's elements num is %d.",
           grad.numel()));
 
-  dev_ctx.template Alloc<T>(x_grad);
-
+  ACL_RUN(dev_ctx.template Alloc<T>(x_grad));
   // ones
   phi::DenseTensor ones;
   phi::DenseTensorMeta ones_meta = {grad.dtype(), x_grad->dims()};
   ones.set_meta(ones_meta);
-  dev_ctx.template Alloc<T>(&ones);
-  const auto& runner_ones = NpuOpRunner("OnesLike", {*x_grad}, {ones}, {});
-  runner_ones.Run(stream);
+  ACL_RUN(dev_ctx.template Alloc<T>(&ones));
+  experimental::OpCommand("OnesLike").Input(*x_grad).Output(ones).Run(dev_ctx);
 
   // means
   phi::DenseTensor mean_tensor;
   phi::DenseTensorMeta mean_meta = {grad.dtype(), {1}};
   mean_tensor.set_meta(mean_meta);
-  dev_ctx.template Alloc<T>(&mean_tensor);
-  FillNpuTensorWithConstant<T>(
-      &mean_tensor,
-      dev_ctx,
-      static_cast<T>(1.0 / static_cast<float>(x_grad->numel())));
+  ACL_RUN({
+    dev_ctx.template Alloc<T>(&mean_tensor);
+    FillNpuTensorWithConstant<T>(
+        &mean_tensor,
+        dev_ctx,
+        static_cast<T>(1.0 / static_cast<float>(x_grad->numel())));
+  });
 
-  // means mul ones
+  // means mul ones and mul grad
   phi::DenseTensor mean_ma;
   phi::DenseTensorMeta mean_ma_meta = {grad.dtype(), x_grad->dims()};
   mean_ma.set_meta(mean_ma_meta);
-  dev_ctx.template Alloc<T>(&mean_ma);
-
-  const auto& runner_mul_1 =
-      NpuOpRunner("Mul", {mean_tensor, ones}, {mean_ma}, {});
-  runner_mul_1.Run(stream);
-
-  // and mul grad
-  const auto& runner_mul_2 = NpuOpRunner("Mul", {mean_ma, grad}, {*x_grad}, {});
-  runner_mul_2.Run(stream);
+  ACL_RUN(dev_ctx.template Alloc<T>(&mean_ma));
+  experimental::OpCommand("Mul")
+      .Input(mean_tensor)
+      .Input(ones)
+      .Output(mean_ma)
+      .Run(dev_ctx);
+  experimental::OpCommand("Mul").Input(mean_ma).Input(grad).Output(*x_grad).Run(
+      dev_ctx);
 }
 
 }  // namespace custom_kernel

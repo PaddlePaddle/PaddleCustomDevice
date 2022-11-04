@@ -17,13 +17,62 @@
 #include <string>
 #include <vector>
 
+#include "graph/types.h"
+#include "paddle/phi/backends/device_ext.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct C_GE_Operator;
+struct C_GE_TensorDesc;
 struct C_GE_Tensor;
 struct C_GE_Graph;
+struct C_GE_Session;
+
+C_GE_TensorDesc* CreateTensorDesc();
+
+void DestroyTensorDesc(C_GE_TensorDesc*);
+
+void TensorDescSetShape(C_GE_TensorDesc* desc, int64_t* dims, int64_t rank);
+
+void TensorDescSetDType(C_GE_TensorDesc* desc, int64_t dtype);
+
+void TensorDescSetFormat(C_GE_TensorDesc* desc, int64_t format);
+
+uint8_t* TensorGetData(C_GE_Tensor* tensor);
+
+size_t TensorGetSize(C_GE_Tensor* tensor);
+
+void* SetTensor(C_GE_Tensor* tensor,
+                void* data,
+                int64_t* dims,
+                int64_t rank,
+                int64_t dtype,
+                int64_t format);
+
+C_GE_Tensor* CreateTensor();
+
+void DestroyTensor(C_GE_Tensor* tensor);
+
+C_GE_Session* GetSession(const C_Scope scope);
+
+void SessionAddGraph(C_GE_Session* session, size_t graph_id, C_GE_Graph* graph);
+
+void SessionRunGraph(C_GE_Session* session,
+                     size_t graph_id,
+                     C_GE_Tensor** ins,
+                     size_t ins_count,
+                     C_GE_Tensor** outs,
+                     size_t outs_count);
+
+C_GE_Graph* CreateGraph(const C_Scope scope, const char* name);
+
+void GraphSetInput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
+
+void GraphSetOutput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
+
+void GraphSetTarget(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
 
 C_GE_Operator* CreateOperator(const char* op_name, const char* op_type);
 
@@ -94,59 +143,73 @@ void OperatorSetAttrStringList(C_GE_Operator* self,
                                const char** list,
                                int count);
 
+void OperatorUpdateInputDesc(C_GE_Operator* self,
+                             const char* desc_name,
+                             int64_t* dims,
+                             int64_t rank,
+                             int64_t dtype,
+                             int64_t format);
+
+void OperatorUpdateOutputDesc(C_GE_Operator* self,
+                              const char* desc_name,
+                              int64_t* dims,
+                              int64_t rank,
+                              int64_t dtype,
+                              int64_t format);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
 template <typename T>
-void OperatorSetAttr(C_GE_Operator* self,
-                     const std::string& attr_name,
-                     const T& attr_value);
+inline void OperatorSetAttr(C_GE_Operator* self,
+                            const std::string& attr_name,
+                            const T& attr_value);
 
 template <>
-void OperatorSetAttr<int64_t>(C_GE_Operator* self,
-                              const std::string& attr_name,
-                              const int64_t& attr_value) {
+inline void OperatorSetAttr<int64_t>(C_GE_Operator* self,
+                                     const std::string& attr_name,
+                                     const int64_t& attr_value) {
   OperatorSetAttrInt64(self, attr_name.c_str(), attr_value);
 }
 
 template <>
-void OperatorSetAttr<int32_t>(C_GE_Operator* self,
-                              const std::string& attr_name,
-                              const int32_t& attr_value) {
+inline void OperatorSetAttr<int32_t>(C_GE_Operator* self,
+                                     const std::string& attr_name,
+                                     const int32_t& attr_value) {
   OperatorSetAttrInt32(self, attr_name.c_str(), attr_value);
 }
 
 template <>
-void OperatorSetAttr<uint32_t>(C_GE_Operator* self,
-                               const std::string& attr_name,
-                               const uint32_t& attr_value) {
+inline void OperatorSetAttr<uint32_t>(C_GE_Operator* self,
+                                      const std::string& attr_name,
+                                      const uint32_t& attr_value) {
   OperatorSetAttrUint32(self, attr_name.c_str(), attr_value);
 }
 
 template <>
-void OperatorSetAttr<float>(C_GE_Operator* self,
-                            const std::string& attr_name,
-                            const float& attr_value) {
+inline void OperatorSetAttr<float>(C_GE_Operator* self,
+                                   const std::string& attr_name,
+                                   const float& attr_value) {
   OperatorSetAttrFloat(self, attr_name.c_str(), attr_value);
 }
 
 template <>
-void OperatorSetAttr<bool>(C_GE_Operator* self,
-                           const std::string& attr_name,
-                           const bool& attr_value) {
+inline void OperatorSetAttr<bool>(C_GE_Operator* self,
+                                  const std::string& attr_name,
+                                  const bool& attr_value) {
   OperatorSetAttrBool(self, attr_name.c_str(), attr_value);
 }
 
 template <>
-void OperatorSetAttr<std::string>(C_GE_Operator* self,
-                                  const std::string& attr_name,
-                                  const std::string& attr_value) {
+inline void OperatorSetAttr<std::string>(C_GE_Operator* self,
+                                         const std::string& attr_name,
+                                         const std::string& attr_value) {
   OperatorSetAttrString(self, attr_name.c_str(), attr_value.c_str());
 }
 
 template <>
-void OperatorSetAttr<std::vector<int64_t>>(
+inline void OperatorSetAttr<std::vector<int64_t>>(
     C_GE_Operator* self,
     const std::string& attr_name,
     const std::vector<int64_t>& attr_value) {
@@ -154,7 +217,7 @@ void OperatorSetAttr<std::vector<int64_t>>(
       self, attr_name.c_str(), attr_value.data(), attr_value.size());
 }
 template <>
-void OperatorSetAttr<std::vector<int32_t>>(
+inline void OperatorSetAttr<std::vector<int32_t>>(
     C_GE_Operator* self,
     const std::string& attr_name,
     const std::vector<int32_t>& attr_value) {
@@ -163,7 +226,7 @@ void OperatorSetAttr<std::vector<int32_t>>(
 }
 
 template <>
-void OperatorSetAttr<std::vector<uint32_t>>(
+inline void OperatorSetAttr<std::vector<uint32_t>>(
     C_GE_Operator* self,
     const std::string& attr_name,
     const std::vector<uint32_t>& attr_value) {
@@ -172,17 +235,19 @@ void OperatorSetAttr<std::vector<uint32_t>>(
 }
 
 template <>
-void OperatorSetAttr<std::vector<float>>(C_GE_Operator* self,
-                                         const std::string& attr_name,
-                                         const std::vector<float>& attr_value) {
+inline void OperatorSetAttr<std::vector<float>>(
+    C_GE_Operator* self,
+    const std::string& attr_name,
+    const std::vector<float>& attr_value) {
   OperatorSetAttrFloatList(
       self, attr_name.c_str(), attr_value.data(), attr_value.size());
 }
 
 template <>
-void OperatorSetAttr<std::vector<bool>>(C_GE_Operator* self,
-                                        const std::string& attr_name,
-                                        const std::vector<bool>& attr_value) {
+inline void OperatorSetAttr<std::vector<bool>>(
+    C_GE_Operator* self,
+    const std::string& attr_name,
+    const std::vector<bool>& attr_value) {
   std::vector<uint8_t> uint8_list;
   for (auto i = 0; i < attr_value.size(); ++i) {
     uint8_list.push_back(attr_value[i]);
@@ -192,7 +257,7 @@ void OperatorSetAttr<std::vector<bool>>(C_GE_Operator* self,
 }
 
 template <>
-void OperatorSetAttr<std::vector<std::string>>(
+inline void OperatorSetAttr<std::vector<std::string>>(
     C_GE_Operator* self,
     const std::string& attr_name,
     const std::vector<std::string>& attr_value) {
@@ -203,3 +268,45 @@ void OperatorSetAttr<std::vector<std::string>>(
   OperatorSetAttrStringList(
       self, attr_name.c_str(), string_list.data(), string_list.size());
 }
+
+namespace ge {
+namespace capi {
+
+template <typename T, T* (*Allocator)(), void (*Deleter)(T*)>
+class GEClassWrapper {};
+
+// struct TensorDesc {
+//   TensorDesc() { raw_data = CreateTensorDesc(); }
+
+//   ~TensorDesc() {
+//     DestroyTensorDesc(raw_data);
+//     raw_data = nullptr;
+//   }
+
+//   TensorDesc(const TensorDesc& other) {
+
+//   }
+
+//   TensorDesc& operator=(TensorDesc& other) {
+
+//     return *this;
+//   }
+
+//   void SetShape(const std::vector<int64_t>& shape) {
+//     TensorDescSetShape(
+//         raw_data, const_cast<int64_t*>(shape.data()), shape.size());
+//   }
+
+//   void SetDType(ge::DataType dtype) {
+//     TensorDescSetDType(raw_data, static_cast<int64_t>(dtype));
+//   }
+
+//   void SetFormat(ge::Format format) {
+//     TensorDescSetFormat(raw_data, static_cast<int64_t>(format));
+//   }
+
+//   C_GE_TensorDesc* raw_data{nullptr};
+// };
+
+}  // namespace capi
+}  // namespace ge

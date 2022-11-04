@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
@@ -25,14 +26,39 @@ void FullKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   auto shape_vec = shape.GetData();
-  auto out_dim = phi::make_ddim(shape_vec);
-  out->ResizeAndAllocate(out_dim);
-  dev_ctx.template Alloc<T>(out);
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
+  ACL_RUN({
+    out->ResizeAndAllocate(phi::make_ddim(shape_vec));
+    dev_ctx.template Alloc<T>(out);
+  });
 
-  FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(val.to<T>()));
+  T value = val.to<T>();
+  ACL_RUN({
+    experimental::OpCommand("Fills")
+        .Input(*out)
+        .Output(*out)
+        .Attr("value", static_cast<float>(value))
+        .Run(dev_ctx);
+  });
+  GRAPH_RUN({
+    auto tensor = CreateTensor();
+    std::vector<T> tensor_value;
+    for (auto i = 0; i < out->numel(); ++i) {
+      tensor_value.push_back(static_cast<T>(value));
+    }
+    SetTensor(
+        tensor,
+        tensor_value.data(),
+        shape_vec.data(),
+        shape_vec.size(),
+        static_cast<int64_t>(experimental::ConvertToGEDtype(out->dtype())),
+        static_cast<int64_t>(experimental::ConvertToGEFormat(out->layout())));
 
-  out->Resize(out_dim);
+    experimental::OpCommand("Const")
+        .Output(*out)
+        .Attr("vale", tensor)
+        .Run(dev_ctx);
+    DestroyTensor(tensor);
+  });
 }
 
 template <typename T, typename Context>
@@ -113,7 +139,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
-                          bool,
+                          // bool,
                           int,
                           int64_t,
                           float,

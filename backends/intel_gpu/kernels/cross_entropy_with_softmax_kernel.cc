@@ -44,8 +44,8 @@ void CrossEntropy(const T* prob,
   } else {
         // std::cout << "***** Tutaj  CrossEntropy NOT soft_label, typeT=" << dnn_support::type2String<T>::name() 
         // << ", typeU=" << dnn_support::type2String<U>::name() << std::endl;    
-    q->single_task([=](){
-      for (int i = 0; i < batch_size; ++i) {
+      // for (int i = 0; i < batch_size; ++i) {
+      q->parallel_for(batch_size, [=](auto& i){        
         for (int j = 0; j < num_remain; j++) {
           int lbl = static_cast<int>(label[i * num_remain + j]);
           if (lbl != ignore_index) {
@@ -70,7 +70,7 @@ void CrossEntropy(const T* prob,
                               ? 0
                               : -phi::TolerableValue<T>(sycl::log(prob[index]));
         }
-      }
+      // }
     });
   }
   // std::cout << "***** Tutaj  CrossEntropy final" << std::endl;    

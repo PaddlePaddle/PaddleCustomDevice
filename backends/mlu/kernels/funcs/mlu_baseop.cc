@@ -5377,4 +5377,67 @@ MLURNNDesc::~MLURNNDesc() {
                                            var));
 }
 
+/* static */ void MLUOP::GenerateProposalsV2(
+    const Context& ctx,
+    const int pre_nms_top_n,
+    const int post_nms_top_n,
+    const float nms_thresh,
+    const float min_size,
+    const float eta,
+    bool pixel_offset,
+    const mluOpTensorDescriptor_t scores_desc,
+    const void* scores,
+    const mluOpTensorDescriptor_t bbox_deltas_desc,
+    const void* bbox_deltas,
+    const mluOpTensorDescriptor_t im_shape_desc,
+    const void* im_shape,
+    const mluOpTensorDescriptor_t anchors_desc,
+    const void* anchors,
+    const mluOpTensorDescriptor_t variances_desc,
+    const void* variances,
+    const mluOpTensorDescriptor_t rpn_rois_desc,
+    void* rpn_rois,
+    const mluOpTensorDescriptor_t rpn_roi_probs_desc,
+    void* rpn_roi_probs,
+    const mluOpTensorDescriptor_t rpn_rois_num_desc,
+    void* rpn_rois_num,
+    void* rpn_rois_batch_size) {
+  mluOpHandle_t handle = GetMLUOpHandleFromCTX(ctx);
+
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpGetGenerateProposalsV2WorkspaceSize(
+      handle, scores_desc, &workspace_size));
+
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(mluOpGenerateProposalsV2(handle,
+                                                      pre_nms_top_n,
+                                                      post_nms_top_n,
+                                                      nms_thresh,
+                                                      min_size,
+                                                      eta,
+                                                      pixel_offset,
+                                                      scores_desc,
+                                                      scores,
+                                                      bbox_deltas_desc,
+                                                      bbox_deltas,
+                                                      im_shape_desc,
+                                                      im_shape,
+                                                      anchors_desc,
+                                                      anchors,
+                                                      variances_desc,
+                                                      variances,
+                                                      workspace_ptr,
+                                                      workspace_size,
+                                                      rpn_rois_desc,
+                                                      rpn_rois,
+                                                      rpn_roi_probs_desc,
+                                                      rpn_roi_probs,
+                                                      rpn_rois_num_desc,
+                                                      rpn_rois_num,
+                                                      rpn_rois_batch_size));
+}
+
 }  // namespace custom_kernel

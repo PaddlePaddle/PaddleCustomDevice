@@ -29,7 +29,7 @@ class TestPad3dNPUOp(OpTest):
         paddle.enable_static()
         self.__class__.use_custom_device = True
         self.op_type = "pad3d"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.x_type = "float32"
         self.mode = "constant"
@@ -163,7 +163,7 @@ class TestPadAPI(unittest.TestCase):
     def test_static(self):
         paddle.enable_static()
         self.place = fluid.CustomPlace(
-            'ascend',
+            'npu',
             0)  # if fluid.core.is_compiled_with_npu() else fluid.CPUPlace()
         with program_guard(Program(), Program()):
             input_shape = (1, 2, 3, 4, 5)
@@ -196,7 +196,7 @@ class TestPadAPI(unittest.TestCase):
 
     def test_dygraph_1(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (1, 2, 3, 4, 5)
         pad = [1, 2, 1, 1, 3, 4]
 
@@ -226,7 +226,7 @@ class TestPadAPI(unittest.TestCase):
 
     def test_dygraph_2(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (2, 3, 4, 5)
         pad = [1, 1, 3, 4]
 
@@ -256,7 +256,7 @@ class TestPadAPI(unittest.TestCase):
 
     def test_dygraph_3(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (3, 4, 5)
         pad = [3, 4]
 
@@ -310,7 +310,7 @@ class TestPad1dAPI(unittest.TestCase):
 
     def test_class(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (3, 4, 5)
         pad = [1, 2]
         pad_int = 1
@@ -364,7 +364,7 @@ class TestPad2dAPI(unittest.TestCase):
 
     def test_class(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (3, 4, 5, 6)
         pad = [1, 2, 2, 1]
         pad_int = 1
@@ -420,7 +420,7 @@ class TestPad3dAPI(unittest.TestCase):
 
     def test_class(self):
         paddle.disable_static()
-        paddle.device.set_device("ascend:0")
+        paddle.device.set_device("npu:0")
         input_shape = (3, 4, 5, 6, 7)
         pad = [1, 2, 2, 1, 1, 0]
         pad_int = 1
@@ -454,7 +454,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.fluid.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], value=1, mode='constant')
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = Executor(place)
             outputs = exe.run(feed={'x': data}, fetch_list=[y.name])
 
@@ -463,7 +463,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.fluid.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode='reflect')
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = Executor(place)
             outputs = exe.run(feed={'x': data}, fetch_list=[y.name])
 
@@ -472,7 +472,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.fluid.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode='replicate')
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = Executor(place)
             outputs = exe.run(feed={'x': data}, fetch_list=[y.name])
 

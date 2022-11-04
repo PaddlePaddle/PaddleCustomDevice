@@ -65,7 +65,7 @@ void LayerNormNPUKernel(const Context& dev_ctx,
   int right = static_cast<int>(matrix_dim[1]);
 
   // The shape of scale and bias should be equal to x.shape[begin_norm_axis:],
-  // required by Ascend.
+  // required by npu.
   for (auto i = begin_norm_axis; i < x_dims.size(); ++i) {
     axes.push_back(x_dims[i]);
   }
@@ -257,7 +257,7 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
     return;
   }
 
-  // The rank of mean should be equal to x, required by Ascend.
+  // The rank of mean should be equal to x, required by npu.
   std::vector<int> new_shape;
   for (auto i = 0; i < begin_norm_axis; ++i) {
     new_shape.push_back(x_dims[i]);
@@ -424,14 +424,14 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormNPUKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradNPUKernel,
                           float,

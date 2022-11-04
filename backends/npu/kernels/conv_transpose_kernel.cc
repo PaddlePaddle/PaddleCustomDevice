@@ -198,14 +198,14 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeGradKernel,
                           float,

@@ -440,14 +440,14 @@ void MatmulGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(matmul,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulGradKernel,
                           float,

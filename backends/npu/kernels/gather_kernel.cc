@@ -72,7 +72,7 @@ void GatherGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(gather,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GatherKernel,
                           float,
@@ -80,7 +80,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GatherGradKernel,
                           float,

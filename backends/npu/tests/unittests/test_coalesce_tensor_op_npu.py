@@ -77,7 +77,7 @@ class TestAllocContinuousSpace(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=paddle.CustomPlace('ascend', 0),
+            place=paddle.CustomPlace('npu', 0),
             no_check_set=["FusedOutput"],
             atol=1e-5, )
 
@@ -95,7 +95,7 @@ class TestAllocContinuousSpace2(TestAllocContinuousSpace):
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=paddle.CustomPlace('ascend', 0),
+            place=paddle.CustomPlace('npu', 0),
             no_check_set=["FusedOutput"],
             atol=1e-5, )
 

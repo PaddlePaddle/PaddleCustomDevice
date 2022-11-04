@@ -118,7 +118,7 @@ def conv2dtranspose_forward_naive(input_, filter_, attrs):
 class TestConv2DTransposeOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def setUp(self):
         # init as conv transpose
@@ -564,7 +564,7 @@ class TestConv2DTransposeAPI(unittest.TestCase):
         data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
         data2_np = np.random.random((2, 5, 5, 3)).astype("float32")
 
-        place = core.CustomPlace('ascend', 0)
+        place = core.CustomPlace('npu', 0)
         exe = fluid.Executor(place)
         exe.run(fluid.default_startup_program())
         results = exe.run(
@@ -584,7 +584,7 @@ class TestConv2DTransposeAPI(unittest.TestCase):
 
 class TestConv2DTransposeRepr(unittest.TestCase):
     def test_case(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         x_var = paddle.uniform((2, 4, 8, 8), dtype='float32', min=-1., max=1.)
         conv = nn.Conv2DTranspose(4, 6, (3, 3), output_padding=1, stride=2)
         print(conv)

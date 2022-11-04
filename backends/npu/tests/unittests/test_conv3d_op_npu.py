@@ -254,7 +254,7 @@ class TestConv3DOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = fluid.CustomPlace('ascend', 0)
+        self.place = fluid.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -330,7 +330,7 @@ class TestConv3DOp_2(OpTest):
         self.outputs = {'Output': output}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0), atol=1e-2)
+        self.check_output_with_place(paddle.CustomPlace('npu', 0), atol=1e-2)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
@@ -366,7 +366,7 @@ class TestConv3DOp_2(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = fluid.CustomPlace('ascend', 0)
+        self.place = fluid.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32

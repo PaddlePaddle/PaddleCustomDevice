@@ -203,7 +203,7 @@ void MinimumGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumRawKernel,
                           float,
@@ -211,7 +211,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum_raw,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumKernel,
                           float,
@@ -219,7 +219,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumGradKernel,
                           float,

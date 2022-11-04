@@ -57,7 +57,7 @@ void CastKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cast,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CastKernel,
                           phi::dtype::float16,

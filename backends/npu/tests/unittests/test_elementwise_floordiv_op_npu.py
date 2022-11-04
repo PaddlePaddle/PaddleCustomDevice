@@ -40,7 +40,7 @@ class TestElementwiseFloorDiv(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_input_output(self):
         self.x = np.random.uniform(1, 1000, [10, 10]).astype(self.dtype)

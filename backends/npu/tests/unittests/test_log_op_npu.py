@@ -30,7 +30,7 @@ class TestLog(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "log"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -58,7 +58,7 @@ class TestLogFp16(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "log"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -110,7 +110,7 @@ class TestLogNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

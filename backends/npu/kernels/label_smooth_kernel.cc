@@ -85,14 +85,14 @@ void LabelSmoothGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(label_smooth,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(label_smooth_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothGradKernel,
                           float,

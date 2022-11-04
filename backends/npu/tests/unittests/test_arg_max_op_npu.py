@@ -30,7 +30,7 @@ paddle.enable_static()
 class BaseTestCase(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def initTestCase(self):
         self.op_type = 'arg_max'
@@ -215,7 +215,7 @@ class TestArgMaxFloat32Case10(BaseTestCase):
 class BaseTestComplex1_1(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def initTestCase(self):
         self.op_type = 'arg_max'
@@ -244,7 +244,7 @@ class BaseTestComplex1_1(OpTest):
 class BaseTestComplex1_2(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def initTestCase(self):
         self.op_type = 'arg_max'
@@ -279,7 +279,7 @@ class TestArgMaxAPI(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -307,7 +307,7 @@ class TestArgMaxAPI_2(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -336,7 +336,7 @@ class TestArgMaxAPI_3(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_dygraph_api(self):
         def run(place):

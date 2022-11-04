@@ -37,7 +37,7 @@ def gather_numpy(x, index, axis):
 class TestGatherOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "gather"
         self.config()
         xnp = np.random.random(self.x_shape).astype(self.x_type)
@@ -87,7 +87,7 @@ class API_TestGather(unittest.TestCase):
             data1 = fluid.layers.data('data1', shape=[-1, 2], dtype='float32')
             index = fluid.layers.data('index', shape=[-1, 1], dtype='int32')
             out = paddle.fluid.layers.gather(data1, index)
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = fluid.Executor(place)
             input = np.array([[1, 2], [3, 4], [5, 6]])
             index_1 = np.array([1, 2])
@@ -103,7 +103,7 @@ class API_TestGather(unittest.TestCase):
             x = paddle.fluid.data('x', shape=[-1, 2], dtype='float32')
             index = paddle.fluid.data('index', shape=[-1, 1], dtype='int32')
             out = paddle.gather(x, index)
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             x_np = np.array([[1, 2], [3, 4], [5, 6]]).astype('float32')
             index_np = np.array([1, 1]).astype('int32')
@@ -137,7 +137,7 @@ class TestGatherGrad(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

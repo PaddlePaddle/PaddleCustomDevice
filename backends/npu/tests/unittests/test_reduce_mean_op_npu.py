@@ -36,11 +36,10 @@ class TestMeanOp(OpTest):
         self.outputs = {'Out': self.inputs['X'].mean(axis=0)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+        self.check_output_with_place(paddle.CustomPlace('npu', 0))
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            paddle.CustomPlace('ascend', 0), ['X'], 'Out')
+        self.check_grad_with_place(paddle.CustomPlace('npu', 0), ['X'], 'Out')
 
 
 class TestMeanOp5D(TestMeanOp):

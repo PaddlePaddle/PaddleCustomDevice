@@ -42,7 +42,7 @@ class TestNPUWhereOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -68,7 +68,7 @@ class TestNPUWhereOp3(TestNPUWhereOp):
 class TestNPUWhereAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_data()
 
     def init_data(self):
@@ -150,7 +150,7 @@ class TestNPUWhereAPI(unittest.TestCase):
 
 class TestWhereDygraphAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             x_i = np.array([0.9383, 0.1983, 3.2, 1.2]).astype("float64")
             y_i = np.array([1.0, 1.0, 1.0, 1.0]).astype("float64")
             cond_i = np.array([False, False, True, True]).astype("bool")

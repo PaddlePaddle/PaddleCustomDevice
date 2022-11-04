@@ -56,7 +56,7 @@ void TransposeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(transpose,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TransposeKernel,
                           int,
@@ -67,7 +67,7 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TransposeGradKernel,
                           int,

@@ -62,7 +62,7 @@ def adam_step(inputs, attributes):
 class TestAdam(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -113,7 +113,7 @@ class TestAdam(OpTest):
 class TestAdamWithEpsilonTensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -168,7 +168,7 @@ class TestAdamWithEpsilonTensor(OpTest):
 class TestAdamOpWithSkipUpdate(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -220,7 +220,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
 class TestAdamOpWithGlobalBetaPow(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -304,7 +304,7 @@ class TestNet(unittest.TestCase):
             adam.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 
@@ -478,7 +478,7 @@ class TestNetWithEpsilonTensor(unittest.TestCase):
     def test_adam_api(self):
         # NOTE(zhiqiu): cpu and gpu has different seed, so should compare separatly.
         self._test_with_place(paddle.CPUPlace())
-        self._test_with_place(paddle.CustomPlace('ascend', 0))
+        self._test_with_place(paddle.CustomPlace('npu', 0))
 
 
 if __name__ == '__main__':

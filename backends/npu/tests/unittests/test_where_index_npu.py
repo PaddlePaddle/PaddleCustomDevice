@@ -31,7 +31,7 @@ class TestWhereIndexOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_config()
 
     def test_check_output(self):
@@ -88,7 +88,7 @@ class TestWhereOpError(unittest.TestCase):
             cond = fluid.layers.data(name='cond', shape=[4], dtype='bool')
             result = fluid.layers.where(cond)
 
-            exe = fluid.Executor(paddle.CustomPlace('ascend', 0))
+            exe = fluid.Executor(paddle.CustomPlace('npu', 0))
             exe.run(fluid.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
             out = exe.run(fluid.default_main_program(), feed={'cond': cond_i})

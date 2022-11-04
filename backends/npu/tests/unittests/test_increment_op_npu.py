@@ -30,7 +30,7 @@ SEED = 2021
 class TestIncrement(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -56,7 +56,7 @@ class TestIncrement(OpTest):
 class TestIncrementFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -82,7 +82,7 @@ class TestIncrementFP16(OpTest):
 class TestIncrementINT64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -119,7 +119,7 @@ class TestIncrementInplace(unittest.TestCase):
             a = paddle.static.data(name="a", shape=[1], dtype='float32')
             b = fluid.layers.increment(a)
 
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
 
         exe = paddle.static.Executor(place)
         exe.run(startup_prog)

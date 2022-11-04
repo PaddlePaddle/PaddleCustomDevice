@@ -151,8 +151,8 @@ class TestBCELoss(unittest.TestCase):
         input_np = np.random.uniform(0.1, 0.8, size=(20, 30)).astype(np.float32)
         label_np = np.random.randint(0, 2, size=(20, 30)).astype(np.float32)
         places = [fluid.CPUPlace()]
-        if ('ascend' in paddle.fluid.core.get_all_custom_device_type()):
-            places.append(paddle.CustomPlace('ascend', 0))
+        if ('npu' in paddle.fluid.core.get_all_custom_device_type()):
+            places.append(paddle.CustomPlace('npu', 0))
         reductions = ['sum', 'mean', 'none']
         for place in places:
             for reduction in reductions:
@@ -178,8 +178,8 @@ class TestBCELoss(unittest.TestCase):
         label_np = np.random.randint(
             0, 2, size=(2, 3, 4, 10)).astype(np.float32)
         weight_np = np.random.random(size=(3, 4, 10)).astype(np.float32)
-        place = paddle.CustomPlace('ascend', 0) if (
-            'ascend' in paddle.fluid.core.get_all_custom_device_type()
+        place = paddle.CustomPlace('npu', 0) if (
+            'npu' in paddle.fluid.core.get_all_custom_device_type()
         ) else fluid.CPUPlace()
         for reduction in ['sum', 'mean', 'none']:
             static_result = test_static_layer(
@@ -200,7 +200,7 @@ class TestBCELoss(unittest.TestCase):
             self.assertTrue(np.allclose(dy_functional, expected))
 
     def test_BCELoss_error(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         self.assertRaises(
             ValueError, paddle.nn.loss.BCELoss, reduction="unsupport reduction")
         input = paddle.to_tensor([[0.1, 0.3]], dtype='float32')
@@ -232,7 +232,7 @@ class TestBceLossOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

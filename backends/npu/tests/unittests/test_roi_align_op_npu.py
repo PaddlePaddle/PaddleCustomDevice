@@ -183,7 +183,7 @@ class TestROIAlignNPUOp(OpTest):
     def setUp(self):
         self.op_type = "roi_align"
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.set_data()
 
     def test_check_output(self):

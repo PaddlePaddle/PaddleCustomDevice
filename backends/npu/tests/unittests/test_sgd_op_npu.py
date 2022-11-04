@@ -27,7 +27,7 @@ SEED = 2021
 class TestSGD(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "sgd"
         self.conf()
         w = np.random.random((self.h, self.w)).astype("float32")
@@ -81,7 +81,7 @@ class TestNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

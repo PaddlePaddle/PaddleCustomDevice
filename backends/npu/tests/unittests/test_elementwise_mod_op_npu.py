@@ -31,7 +31,7 @@ paddle.enable_static()
 class TestElementwiseModOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "elementwise_mod"
         self.axis = -1
         self.init_dtype()
@@ -142,7 +142,7 @@ class TestElementwiseModOp_broadcast_2(TestElementwiseModOp):
 
 class TestRemainderOp(unittest.TestCase):
     def test_name(self):
-        paddle.set_device('ascend:0')
+        paddle.set_device('npu:0')
         with fluid.program_guard(fluid.Program()):
             x = fluid.data(name="x", shape=[2, 3], dtype="int64")
             y = fluid.data(name='y', shape=[2, 3], dtype='int64')
@@ -150,7 +150,7 @@ class TestRemainderOp(unittest.TestCase):
             self.assertEqual(('div_res' in y_1.name), True)
 
     def test_dygraph(self):
-        paddle.set_device('ascend:0')
+        paddle.set_device('npu:0')
         with fluid.dygraph.guard():
             np_x = np.array([2, 3, 8, 7]).astype('int64')
             np_y = np.array([1, 5, 3, 3]).astype('int64')

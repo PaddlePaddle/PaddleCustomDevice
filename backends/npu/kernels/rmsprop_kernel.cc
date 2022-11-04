@@ -90,4 +90,4 @@ void RMSPROPKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rmsprop, ascend, ALL_LAYOUT, custom_kernel::RMSPROPKernel, float) {}
+    rmsprop, npu, ALL_LAYOUT, custom_kernel::RMSPROPKernel, float) {}

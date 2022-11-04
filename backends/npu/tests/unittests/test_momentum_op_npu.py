@@ -96,7 +96,7 @@ class TestMomentumOp1(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+        self.check_output_with_place(paddle.CustomPlace('npu', 0))
 
 
 class TestMomentumOpFp16(TestMomentumOp1):
@@ -115,7 +115,7 @@ class TestMomentumOp2(TestMomentumOp1):
 
 class TestMomentumV2(unittest.TestCase):
     def test_momentum_dygraph(self):
-        paddle.disable_static(place=paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(place=paddle.CustomPlace('npu', 0))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear = paddle.nn.Linear(13, 5)
@@ -129,7 +129,7 @@ class TestMomentumV2(unittest.TestCase):
 
     def test_momentum(self):
         paddle.enable_static()
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         main = fluid.Program()
         with fluid.program_guard(main):
             x = fluid.layers.data(name='x', shape=[13], dtype='float32')
@@ -210,7 +210,7 @@ class TestMomentumOpWithDecay(OpTest):
 
     def test_check_output(self):
         paddle.enable_static()
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0), atol=3e-3)
+        self.check_output_with_place(paddle.CustomPlace('npu', 0), atol=3e-3)
 
 
 class TestMomentumOpWithDecayFP16(TestMomentumOpWithDecay):
@@ -229,7 +229,7 @@ class TestMomentumOpWithDecay2(TestMomentumOpWithDecay):
 
 class TestMomentumOpWithDecayAPI(unittest.TestCase):
     def _test_momentum_dygraph_common(self, regularization):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         inp = np.random.uniform(-0.1, 0.1, [10, 10]).astype("float32")
         linear = paddle.nn.Linear(10, 10)
         inp = paddle.to_tensor(inp)
@@ -250,7 +250,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
 
     def test_momentum_static(self):
         paddle.enable_static()
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         main = fluid.Program()
         with fluid.program_guard(main):
             x = fluid.layers.data(name='x', shape=[13], dtype='float32')
@@ -285,7 +285,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             momentum.minimize(loss)
             linear.clear_gradients()
 
-    def __test_vs(self, place=paddle.CustomPlace('ascend', 0)):
+    def __test_vs(self, place=paddle.CustomPlace('npu', 0)):
         linear_old = paddle.nn.Linear(
             2,
             2,
@@ -317,7 +317,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             True,
             'the param weight updated by two Momentum optimizers should equal')
 
-    def test_vs(self, place=paddle.CustomPlace('ascend', 0)):
+    def test_vs(self, place=paddle.CustomPlace('npu', 0)):
         paddle.disable_static()
         self.__test_vs(place=place)
         paddle.enable_static()
@@ -325,7 +325,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
 
 class TestMomentumV2Group(TestMomentumV2):
     def test_momentum_dygraph(self):
-        paddle.disable_static(place=paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(place=paddle.CustomPlace('npu', 0))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear_1 = paddle.nn.Linear(13, 5)

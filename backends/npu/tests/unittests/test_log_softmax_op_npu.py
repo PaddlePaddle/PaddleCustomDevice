@@ -45,7 +45,7 @@ def ref_log_softmax_grad(x, axis):
 class TestLogSoftmaxNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "log_softmax"
         self.dtype = np.float32
         self.shape = [2, 3, 4, 5]
@@ -122,8 +122,8 @@ class TestNNLogSoftmaxAPI(unittest.TestCase):
     def setUp(self):
         self.x_shape = [2, 3, 4, 5]
         self.x = np.random.uniform(-1., 1., self.x_shape).astype(np.float32)
-        self.place = paddle.CustomPlace('ascend', 0) \
-            if ('ascend' in paddle.fluid.core.get_all_custom_device_type()) \
+        self.place = paddle.CustomPlace('npu', 0) \
+            if ('npu' in paddle.fluid.core.get_all_custom_device_type()) \
             else paddle.CPUPlace()
 
     def check_api(self, axis=-1):
@@ -154,8 +154,8 @@ class TestNNFunctionalLogSoftmaxAPI(unittest.TestCase):
     def setUp(self):
         self.x_shape = [2, 3, 4, 5]
         self.x = np.random.uniform(-1, 1, self.x_shape).astype(np.float32)
-        self.place = paddle.CustomPlace('ascend', 0) \
-            if ('ascend' in paddle.fluid.core.get_all_custom_device_type()) \
+        self.place = paddle.CustomPlace('npu', 0) \
+            if ('npu' in paddle.fluid.core.get_all_custom_device_type()) \
             else paddle.CPUPlace()
 
     def check_api(self, axis=-1, dtype=None):

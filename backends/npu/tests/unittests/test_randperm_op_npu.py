@@ -70,7 +70,7 @@ class TestRandpermOp(OpTest):
         self.__class__.use_custom_device = True
 
     def _get_places(self):
-        return [paddle.CustomPlace('ascend', 0)]
+        return [paddle.CustomPlace('npu', 0)]
 
     def init_attrs(self):
         pass
@@ -114,7 +114,7 @@ class TestRandpermOpError(unittest.TestCase):
 class TestRandpermAPI(unittest.TestCase):
     def test_out(self):
         n = 10
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         with program_guard(Program(), Program()):
             x1 = paddle.randperm(n)
             x2 = paddle.randperm(n, 'float32')
@@ -130,7 +130,7 @@ class TestRandpermAPI(unittest.TestCase):
 
 class TestRandpermImperative(unittest.TestCase):
     def test_out(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         n = 10
         for dtype in ['int32', np.int64, 'float32', 'float64']:
             data_p = paddle.randperm(n, dtype)

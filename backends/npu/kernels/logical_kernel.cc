@@ -50,12 +50,10 @@ void LogicalAndNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_not, ascend, ALL_LAYOUT, custom_kernel::LogicalNotNPUKernel, bool) {
-}
+    logical_not, npu, ALL_LAYOUT, custom_kernel::LogicalNotNPUKernel, bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_or, ascend, ALL_LAYOUT, custom_kernel::LogicalOrNPUKernel, bool) {}
+    logical_or, npu, ALL_LAYOUT, custom_kernel::LogicalOrNPUKernel, bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_and, ascend, ALL_LAYOUT, custom_kernel::LogicalAndNPUKernel, bool) {
-}
+    logical_and, npu, ALL_LAYOUT, custom_kernel::LogicalAndNPUKernel, bool) {}

@@ -148,7 +148,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   runner_concat.Run(stream);
 
   //  If CANN version code is less than 504, by analysis, in order to match cpu
-  //  grad version, rois[:,3:5] should substrate 1 before call ascend grad
+  //  grad version, rois[:,3:5] should substrate 1 before call npu grad
   //  function
 #if (CANN_VERSION_CODE < 504000)
   std::vector<float> vec_dlt = {0, 0, 0, -1.0f, -1.0f};
@@ -162,7 +162,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   runner_add.Run(stream);
 #endif
 
-  //  Call ascend RoiAlignGrad function
+  //  Call npu RoiAlignGrad function
   int roi_end_mode = 0;
   const auto& runner_roi_align_grad =
       NpuOpRunner("ROIAlignGrad",
@@ -180,7 +180,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(roi_align,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::RoiAlignKernel,
                           float,
@@ -188,7 +188,7 @@ PD_REGISTER_PLUGIN_KERNEL(roi_align,
                           int) {}
 
 PD_REGISTER_PLUGIN_KERNEL(roi_align_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::RoiAlignGradKernel,
                           float,

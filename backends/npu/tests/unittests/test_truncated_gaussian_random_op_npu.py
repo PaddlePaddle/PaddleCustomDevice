@@ -50,7 +50,7 @@ class TestTruncatedNormal(unittest.TestCase):
                     2, 2, weight_attr=weight_attr, bias_attr=False)
 
             if run_npu:
-                place = paddle.CustomPlace('ascend', 0)
+                place = paddle.CustomPlace('npu', 0)
             else:
                 place = paddle.CPUPlace()
 

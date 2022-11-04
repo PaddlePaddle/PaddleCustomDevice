@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GaussianKernel(const Context& ctx,
-                          const phi::IntArray& shape,
-                          float mean,
-                          float std,
-                          int seed,
-                          phi::DataType dtype,
-                          phi::DenseTensor* out) {
+                    const phi::IntArray& shape,
+                    float mean,
+                    float std,
+                    int seed,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out) {
   ctx.template Alloc<T>(out);
 
   phi::DenseTensor cpu_tensor;
@@ -47,8 +47,5 @@ void GaussianKernel(const Context& ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(gaussian,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::GaussianKernel,
-                          float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    gaussian, npu, ALL_LAYOUT, custom_kernel::GaussianKernel, float) {}

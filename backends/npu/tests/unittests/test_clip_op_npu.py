@@ -26,7 +26,7 @@ from tests.op_test import OpTest
 class TestClipOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def setUp(self):
         self.set_npu()
@@ -141,8 +141,8 @@ class TestClipAPI(unittest.TestCase):
         min = fluid.data(name='min', shape=[1], dtype='float32')
         max = fluid.data(name='max', shape=[1], dtype='float32')
 
-        place = paddle.CustomPlace('ascend', 0) if (
-            'ascend' in paddle.fluid.core.get_all_custom_device_type()
+        place = paddle.CustomPlace('npu', 0) if (
+            'npu' in paddle.fluid.core.get_all_custom_device_type()
         ) else fluid.CPUPlace()
         exe = fluid.Executor(place)
 
@@ -178,8 +178,8 @@ class TestClipAPI(unittest.TestCase):
 
     def test_clip_dygraph(self):
         paddle.disable_static()
-        place = paddle.CustomPlace('ascend', 0) if (
-            'ascend' in paddle.fluid.core.get_all_custom_device_type()
+        place = paddle.CustomPlace('npu', 0) if (
+            'npu' in paddle.fluid.core.get_all_custom_device_type()
         ) else fluid.CPUPlace()
         paddle.disable_static(place)
         data_shape = [1, 9, 9, 4]

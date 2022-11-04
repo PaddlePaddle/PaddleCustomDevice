@@ -29,7 +29,7 @@ class TestFlattenOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "flatten_contiguous_range"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.start_axis = 0
         self.stop_axis = -1
@@ -294,7 +294,7 @@ class TestStaticFlattenPythonAPI(unittest.TestCase):
                 name="x", shape=[2, 3, 4, 4], dtype='float32')
             out = self.execute_api(x, start_axis=-2, stop_axis=-1)
 
-        exe = paddle.static.Executor(place=paddle.CustomPlace('ascend', 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace('npu', 0))
         fetch_out = exe.run(main_prog, feed={"x": np_x}, fetch_list=[out])
         self.assertTrue((2, 3, 16) == fetch_out[0].shape)
 
@@ -317,7 +317,7 @@ class TestFlattenPython(unittest.TestCase):
         self.assertRaises(ValueError, test_InputError)
 
         def test_Negative():
-            paddle.disable_static(paddle.CustomPlace('ascend', 0))
+            paddle.disable_static(paddle.CustomPlace('npu', 0))
             img = paddle.to_tensor(x)
             out = paddle.flatten(img, start_axis=-2, stop_axis=-1)
             return out.numpy().shape

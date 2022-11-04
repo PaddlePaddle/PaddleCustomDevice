@@ -207,7 +207,7 @@ void ExpandGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(expand,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandKernel,
                           bool,
@@ -217,7 +217,7 @@ PD_REGISTER_PLUGIN_KERNEL(expand,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(expand_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandGradKernel,
                           int,

@@ -267,7 +267,7 @@ class TestBatchNormOpInference(unittest.TestCase):
             self.__assert_close(var_dict["y"], out[0], "y", atol=1e-3)
 
     def test_check_output(self):
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         for data_format in self.data_formats:
             self.check_with_place(place, data_format, self.dtype, [2, 3, 4, 5])
             self.check_with_place(place, data_format, self.dtype, [3, 8, 5])
@@ -468,9 +468,8 @@ class TestBatchNormOpTraining(unittest.TestCase):
 
         for data_format in self.data_formats:
             test_with_place(
-                core.CustomPlace('ascend', 0), data_format, [2, 3, 4, 5])
-            test_with_place(
-                core.CustomPlace('ascend', 0), data_format, [3, 8, 5])
+                core.CustomPlace('npu', 0), data_format, [2, 3, 4, 5])
+            test_with_place(core.CustomPlace('npu', 0), data_format, [3, 8, 5])
 
     def init_kernel_type(self):
         pass
@@ -591,7 +590,7 @@ class TestBatchNormOpFreezeStatsAndScaleBiasTraining(
 
 class TestDygraphBatchNormTrainableStats(unittest.TestCase):
     def test_dygraph(self):
-        places = [fluid.CustomPlace('ascend', 0)]
+        places = [fluid.CustomPlace('npu', 0)]
         for p in places:
             shape = [4, 10, 4, 4]
 
@@ -610,7 +609,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
             self.assertTrue(np.allclose(y1, y2))
 
     def test_static(self):
-        places = [fluid.CustomPlace('ascend', 0)]
+        places = [fluid.CustomPlace('npu', 0)]
         for p in places:
             exe = fluid.Executor(p)
             shape = [4, 10, 16, 16]

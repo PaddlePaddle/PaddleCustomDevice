@@ -57,7 +57,7 @@ pip install build/dist/paddle_custom_npu*.whl
 # 1) 列出可用硬件后端
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 预期得到如下输出结果
-['ascend']
+['npu']
 
 # 2) 运行简单模型训练任务
 python tests/test_MNIST_model.py
@@ -140,7 +140,7 @@ cd Paddle-Inference-Demo/c++/cpu/resnet50/
 wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
 tar xzf resnet50.tgz
 
-# 4) 修改 resnet50_test.cc，使用 config.EnableCustomDevice("ascend", 0) 接口替换 config.EnableUseGpu(100, 0)
+# 4) 修改 resnet50_test.cc，使用 config.EnableCustomDevice("npu", 0) 接口替换 config.EnableUseGpu(100, 0)
 
 # 5) 修改 compile.sh 编译文件，需根据 C++ 预测库的 version.txt 信息对以下的几处内容进行修改
 WITH_MKL=ON  # 如果是 Aarch 环境，请设置为 OFF

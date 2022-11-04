@@ -280,7 +280,7 @@ void UpdateLossScaling(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(update_loss_scaling,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UpdateLossScaling,
                           float,

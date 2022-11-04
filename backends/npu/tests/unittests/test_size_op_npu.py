@@ -26,7 +26,7 @@ paddle.enable_static()
 class TestSizeOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "size"
 
         self.config()
@@ -84,7 +84,7 @@ class TestSizeOp6(TestSizeOp):
 class TestSizeAPI(unittest.TestCase):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def set_npu(self):
         self.__class__.use_custom_device = True

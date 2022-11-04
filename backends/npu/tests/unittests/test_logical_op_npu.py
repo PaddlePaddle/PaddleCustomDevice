@@ -107,7 +107,7 @@ def run_static(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
     main_program = fluid.Program()
     place = paddle.CPUPlace()
     if use_custom_device:
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
     exe = fluid.Executor(place)
     with fluid.program_guard(main_program, startup_program):
         x = paddle.static.data(name='x', shape=x_np.shape, dtype=x_np.dtype)
@@ -127,7 +127,7 @@ def run_static(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
 def run_dygraph(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
     place = paddle.CPUPlace()
     if use_custom_device:
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
     paddle.disable_static(place)
     op = getattr(paddle, op_str)
     x = paddle.to_tensor(x_np, dtype=x_np.dtype)
@@ -199,7 +199,7 @@ def test_type_error(unit_test, use_custom_device, type_str_map):
 
     place = paddle.CPUPlace()
     if use_custom_device:
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
     for op_data in TEST_META_OP_DATA:
         meta_data = dict(op_data)
         binary_op = meta_data['binary_op']

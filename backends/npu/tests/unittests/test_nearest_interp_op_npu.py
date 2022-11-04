@@ -88,7 +88,7 @@ def nearest_neighbor_interp_np(X,
 class TestNearestInterpOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def setUp(self):
         self.set_npu()
@@ -302,7 +302,7 @@ class TestNearestNeighborInterpScale3(TestNearestInterpOp):
 class TestNearestInterpOp_attr_tensor(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def setUp(self):
         self.set_npu()
@@ -417,8 +417,8 @@ class TestNearestInterp_attr_tensor_Case3(TestNearestInterpOp_attr_tensor):
 class TestNearestInterpOpAPI_dy(unittest.TestCase):
     def test_case(self):
         import paddle
-        if ('ascend' in paddle.fluid.core.get_all_custom_device_type()):
-            place = paddle.CustomPlace('ascend', 0)
+        if ('npu' in paddle.fluid.core.get_all_custom_device_type()):
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = core.CPUPlace()
         with fluid.dygraph.guard(place):

@@ -82,13 +82,13 @@ class TestPnormOp(OpTest):
     def test_check_output(self):
         if self.dtype == "float16":
             self.check_output_with_place(
-                paddle.CustomPlace('ascend', 0), atol=5e-3)
+                paddle.CustomPlace('npu', 0), atol=5e-3)
         else:
-            self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+            self.check_output_with_place(paddle.CustomPlace('npu', 0))
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            paddle.CustomPlace('ascend', 0), ['X'],
+            paddle.CustomPlace('npu', 0), ['X'],
             'Out',
             user_defined_grads=self.gradient)
 

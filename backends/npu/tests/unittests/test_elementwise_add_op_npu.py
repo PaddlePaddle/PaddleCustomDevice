@@ -30,7 +30,7 @@ class TestElementwiseAddOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_add"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
         self.init_input_output()
         self.init_kernel_type()
@@ -188,7 +188,7 @@ class TestAddAPI(unittest.TestCase):
             z = paddle.add(x_reshape, y_reshape)
             z = paddle.reshape(z, shape=[3])
 
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             x_value, y_value, z_value = exe.run(feed={"x": x_np,
                                                       "y": y_np},
@@ -215,10 +215,10 @@ class TestAddError(unittest.TestCase):
             # the input of elementwise_add must be Variable.
             x1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             y1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             self.assertRaises(TypeError, paddle.add, x1, y1)
 
             # the input dtype must be float16 or float32 or float64 or int32 or int64
@@ -492,10 +492,10 @@ class TestElementwiseAddOpError(unittest.TestCase):
             # the input of elementwise_add must be Variable.
             x1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             y1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             self.assertRaises(TypeError, fluid.layers.elementwise_add, x1, y1)
 
             # the input dtype of elementwise_add must be float16 or float32 or float64 or int32 or int64
@@ -530,14 +530,14 @@ class TestAddApi(unittest.TestCase):
             y = fluid.data(name="y", shape=[3], dtype='float32')
             z = self._executed_api(x, y)
 
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = fluid.Executor(place)
             z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
             z_expected = np.array([3., 8., 6.])
             self.assertEqual((z_value == z_expected).all(), True)
 
     def test_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             np_x = np.array([2, 3, 4]).astype('float32')
             np_y = np.array([1, 5, 2]).astype('float32')
             x = fluid.dygraph.to_variable(np_x)
@@ -559,7 +559,7 @@ class TestAddInplaceBroadcastSuccess(unittest.TestCase):
         self.y_numpy = np.random.rand(3, 4).astype('float')
 
     def test_broadcast_success(self):
-        paddle.disable_static(place=paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(place=paddle.CustomPlace('npu', 0))
         self.init_data()
         x = paddle.to_tensor(self.x_numpy)
         y = paddle.to_tensor(self.y_numpy)
@@ -587,7 +587,7 @@ class TestAddInplaceBroadcastError(unittest.TestCase):
         self.y_numpy = np.random.rand(2, 3, 4).astype('float')
 
     def test_broadcast_errors(self):
-        paddle.disable_static(place=paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(place=paddle.CustomPlace('npu', 0))
         self.init_data()
         x = paddle.to_tensor(self.x_numpy)
         y = paddle.to_tensor(self.y_numpy)

@@ -64,7 +64,7 @@ class TestMatMulV2Op(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def config(self):
         self.x_shape = (100, )
@@ -378,7 +378,7 @@ create_test_fp16_class(TestMatMulOp17)
 class TestMatMulV2API(unittest.TestCase):
     def setUp(self):
         self.places = [paddle.CPUPlace()]
-        self.places.append(paddle.CustomPlace('ascend', 0))
+        self.places.append(paddle.CustomPlace('npu', 0))
 
     def check_static_result(self, place):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
@@ -410,7 +410,7 @@ class TestMatMulV2API(unittest.TestCase):
                 result = paddle.matmul(x, y)
 
     def test_dygraph_fp16(self):
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         with fluid.dygraph.guard(place):
             input_x = np.random.random([4, 3]).astype("float16")
             input_y = np.random.random([3, 4]).astype("float16")

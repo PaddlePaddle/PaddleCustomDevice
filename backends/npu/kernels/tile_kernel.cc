@@ -112,7 +112,7 @@ void TileKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(tile,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TileKernel,
                           bool,

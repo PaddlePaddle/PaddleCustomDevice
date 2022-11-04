@@ -14,7 +14,6 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 #include "paddle/phi/common/int_array.h"
 #include "paddle/phi/core/meta_tensor.h"
 
@@ -192,7 +191,7 @@ void ReshapeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReshapeWithXShapeKernel,
                           phi::dtype::float16,
@@ -204,7 +203,7 @@ PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
                           int64_t,
                           bool) {}
 PD_REGISTER_PLUGIN_KERNEL(reshape_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReshapeGradKernel,
                           phi::dtype::float16,

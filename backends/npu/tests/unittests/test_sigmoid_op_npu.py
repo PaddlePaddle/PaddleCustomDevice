@@ -47,7 +47,7 @@ class TestNPUSigmoid(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32

@@ -32,7 +32,7 @@ np.random.seed(10)
 class TestTileOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.init_data()
 
@@ -96,7 +96,7 @@ class TestTileOpRank4(TestTileOpRank1):
 class TestTileOpRank1_tensor_attr(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.init_data()
         repeat_times_tensor = []
@@ -145,7 +145,7 @@ class TestTileOpRank2_attr_tensor(TestTileOpRank1_tensor_attr):
 class TestTileOpRank1_tensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.init_data()
 
@@ -181,7 +181,7 @@ class TestTileOpRank2_tensor(TestTileOpRank1_tensor):
 class TestTileOpInteger(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.inputs = {
             'X': np.random.randint(
@@ -202,7 +202,7 @@ class TestTileOpInteger(OpTest):
 class TestTileOpInt64_t(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.inputs = {
             'X': np.random.randint(
@@ -223,7 +223,7 @@ class TestTileOpInt64_t(OpTest):
 class TestTileOpBool(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.inputs = {'X': np.random.randint(1, size=(2, 4, 5)).astype("bool")}
         self.attrs = {'repeat_times': [2, 1, 4]}
@@ -240,7 +240,7 @@ class TestTileOpBool(OpTest):
 # Test python API
 class TestTileAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             np_x = np.random.random([12, 14]).astype("float32")
             x = paddle.to_tensor(np_x)
 

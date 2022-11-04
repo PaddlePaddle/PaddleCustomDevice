@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NonZeroKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& condition,
-                      phi::DenseTensor* out) {
+                   const phi::DenseTensor& condition,
+                   phi::DenseTensor* out) {
   auto dims = condition.dims();
   const int rank = dims.size();
 
@@ -91,7 +91,7 @@ void NonZeroKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(nonzero,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NonZeroKernel,
                           bool,

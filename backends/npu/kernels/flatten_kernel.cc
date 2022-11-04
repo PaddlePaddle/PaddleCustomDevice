@@ -74,7 +74,7 @@ void FlattenWithXShape(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(flatten,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FlattenKernel,
                           float,
@@ -86,7 +86,7 @@ PD_REGISTER_PLUGIN_KERNEL(flatten,
                           int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FlattenWithXShape,
                           float,
@@ -98,7 +98,7 @@ PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
                           int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(flatten_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FlattenGradKernel,
                           float,

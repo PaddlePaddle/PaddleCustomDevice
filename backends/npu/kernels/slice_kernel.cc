@@ -319,7 +319,7 @@ void SliceGradRawKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SliceRawKernel,
                           phi::dtype::float16,
@@ -330,7 +330,7 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           int64_t,
                           bool) {}
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SliceGradRawKernel,
                           phi::dtype::float16,

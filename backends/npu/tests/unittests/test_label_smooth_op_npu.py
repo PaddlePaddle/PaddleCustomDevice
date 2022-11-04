@@ -29,7 +29,7 @@ class TestLabelSmoothOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "label_smooth"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)

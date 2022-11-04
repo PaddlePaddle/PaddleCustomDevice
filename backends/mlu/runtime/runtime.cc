@@ -204,8 +204,6 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpDestroy(GetOpHandle(stream)));
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueDestroy(GetQueue(stream)));
 
-  
-
   mluStream_t mlu_stream = reinterpret_cast<mluStream_t>(stream);
   delete[] mlu_stream;
 
@@ -375,7 +373,7 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported  on ascend device.";
+  LOG(ERROR) << "xccl_reduce is not supported  on mlu device.";
   PADDLE_ENFORCE_MLU_SUCCESS(cnclReduce(send_buf,
                                         recv_buf,
                                         count,

@@ -31,7 +31,7 @@ class TestReduceSum(OpTest):
         np.random.seed(SEED)
         self.set_npu()
         self.init_dtype()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_op_type()
         self.initTestCase()
 
@@ -69,7 +69,7 @@ class TestReduceSum(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
-    # TODO(ascendrc): Add grad test
+    # TODO(npurc): Add grad test
     # def test_check_grad(self):
     #     if self.dtype == np.float16:
     #         return
@@ -117,7 +117,7 @@ class TestReduceSumNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 
@@ -174,7 +174,7 @@ class TestReduceSumNet3(TestReduceSumNet):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

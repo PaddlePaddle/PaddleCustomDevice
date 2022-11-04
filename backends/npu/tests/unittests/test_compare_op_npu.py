@@ -27,7 +27,7 @@ def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('ascend', 0)
+            self.place = paddle.CustomPlace('npu', 0)
             x = np.random.random(size=(10, 7)).astype(typename)
             y = np.random.random(size=(10, 7)).astype(typename)
             out = callback(x, y)
@@ -61,7 +61,7 @@ def create_test_class(op_type, typename, callback):
 
         def test_dynamic_api(self):
             paddle.disable_static()
-            paddle.set_device('ascend:0')
+            paddle.set_device('npu:0')
             x = np.random.random(size=(10, 7)).astype(typename)
             y = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)

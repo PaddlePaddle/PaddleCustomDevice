@@ -103,7 +103,7 @@ void PriorBoxKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(prior_box,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PriorBoxKernel,
                           float,

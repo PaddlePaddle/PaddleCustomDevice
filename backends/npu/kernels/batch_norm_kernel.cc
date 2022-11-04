@@ -269,7 +269,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormKernel,
                           phi::dtype::float16,
@@ -277,7 +277,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormGradKernel,
                           phi::dtype::float16,
@@ -285,7 +285,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormInferKernel,
                           phi::dtype::float16,

@@ -33,7 +33,7 @@ void SizeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(size,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SizeKernel,
                           int,

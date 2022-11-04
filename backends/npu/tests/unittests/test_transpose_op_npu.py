@@ -28,7 +28,7 @@ class TestTransposeOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "transpose2"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
         self.init_shape_axis()
 

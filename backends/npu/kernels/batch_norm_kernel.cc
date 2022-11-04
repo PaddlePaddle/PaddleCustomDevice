@@ -41,24 +41,38 @@ void BatchNormKernel(const Context& dev_ctx,
 
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
-  const auto& x_dims = x.dims();
-  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The input tensor X's dimension must equal to 3 or 4. "
-                        " But got X's shape = [%s], X's dimension = [%d].",
-                        x_dims.to_str(),
-                        x_dims.size()));
-
   dev_ctx.template Alloc<T>(y);
+  phi::DenseTensor x_tensor(x), y_tensor(*y);
+  const auto& x_dims = x.dims();
 
-  phi::DenseTensor x_tensor(x), y_tesnor(*y);
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  }
+  // transform 3d tensor to 4d tensor to satisfy the format
+  if (x.dims().size() == 3) {
+    auto x_shape_vec = phi::vectorize(x.dims());
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+    auto x_new_shape = phi::make_ddim(x_shape_vec);
+    x_tensor.Resize(x_new_shape);
+  }
   if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {x.dtype(), x.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta x_meta = {
+        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
     phi::DenseTensorMeta y_meta = {
         y->dtype(), y->dims(), phi::DataLayout::kNHWC};
     x_tensor.set_meta(x_meta);
-    y_tesnor.set_meta(y_meta);
+    y_tensor.set_meta(y_meta);
   }
 
   auto stream = dev_ctx.stream();
@@ -66,7 +80,7 @@ void BatchNormKernel(const Context& dev_ctx,
     const auto& runner_infer =
         NpuOpRunner("BNInfer",
                     {x_tensor, scale, bias, running_mean, running_var},
-                    {y_tesnor},
+                    {y_tensor},
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
   } else {
@@ -80,18 +94,7 @@ void BatchNormKernel(const Context& dev_ctx,
     square_sum.Resize(running_mean.dims());
     dev_ctx.template Alloc<float>(&sum);
     dev_ctx.template Alloc<float>(&square_sum);
-    // BNTrainingReduce ONLY support rank = 4
-    if (x.dims().size() == 3) {
-      auto x_shape_vec = phi::vectorize(x.dims());
-      if (data_layout == phi::DataLayout::kNCHW) {
-        x_shape_vec.push_back(1);  // expand NCL -> NCL1
-      } else {
-        x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
-      }
-      auto x_new_shape = phi::make_ddim(x_shape_vec);
-      x_tensor.Resize(x_new_shape);
-      x_tensor.Resize(x_new_shape);
-    }
+
     const auto& runner_reduce = NpuOpRunner("BNTrainingReduce",
                                             {x_tensor},
                                             {sum, square_sum},
@@ -101,7 +104,7 @@ void BatchNormKernel(const Context& dev_ctx,
     const auto& runner_update = NpuOpRunner(
         "BNTrainingUpdate",
         {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
-        {y_tesnor, *mean_out, *variance_out, *saved_mean, *saved_variance},
+        {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
         {{"factor", momentum}, {"epsilon", epsilon}});
     runner_update.Run(stream);
   }
@@ -133,10 +136,23 @@ void BatchNormGradKernel(
   use_global_stats = is_test || use_global_stats;
 
   phi::DenseTensor x_tensor(x), dy_tensor(d_y);
+
+  if (x.dims().size() == 3) {
+    auto x_shape_vec = phi::vectorize(x.dims());
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+    auto x_new_shape = phi::make_ddim(x_shape_vec);
+    x_tensor.Resize(x_new_shape);
+    dy_tensor.Resize(x_new_shape);
+  }
   if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {x.dtype(), x.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta x_meta = {
+        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
     phi::DenseTensorMeta dy_meta = {
-        d_y.dtype(), d_y.dims(), phi::DataLayout::kNHWC};
+        d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
     x_tensor.set_meta(x_meta);
     dy_tensor.set_meta(dy_meta);
   }
@@ -186,18 +202,6 @@ void BatchNormGradKernel(
       dx_tensor.set_meta(dx_meta);
     }
     if (use_global_stats) {
-      if (x.dims().size() == 3) {
-        // BNInferGrad only support x rank = 4,
-        auto x_shape_vec = phi::vectorize(d_x->dims());
-        if (data_layout == phi::DataLayout::kNCHW) {
-          x_shape_vec.push_back(1);  // expand NCL -> NCL1
-        } else {
-          x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
-        }
-        auto x_new_shape = phi::make_ddim(x_shape_vec);
-        dx_tensor.Resize(x_new_shape);
-        dy_tensor.Resize(x_new_shape);
-      }
       const auto* running_variance = variance.get_ptr();
       const auto& runner_infer =
           NpuOpRunner("BNInferGrad",
@@ -237,31 +241,47 @@ void BatchNormInferKernel(const Context& dev_ctx,
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
-  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The input tensor X's dimension must equal to 3 or 4. "
-                        " But got X's shape = [%s], X's dimension = [%d].",
-                        x_dims.to_str(),
-                        x_dims.size()));
 
   dev_ctx.template Alloc<T>(y);
 
   phi::DenseTensor x_tensor(x);
-  phi::DenseTensor y_tesnor(*y);
+  phi::DenseTensor y_tensor(*y);
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  }
+  if (x_dims.size() == 3) {
+    auto x_shape_vec = phi::vectorize(x_dims);
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+    auto x_new_shape = phi::make_ddim(x_shape_vec);
+    x_tensor.Resize(x_new_shape);
+  }
   if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {x.dtype(), x.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta x_meta = {
+        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
     phi::DenseTensorMeta y_meta = {
         y->dtype(), y->dims(), phi::DataLayout::kNHWC};
     x_tensor.set_meta(x_meta);
-    y_tesnor.set_meta(y_meta);
+    y_tensor.set_meta(y_meta);
   }
 
   auto stream = dev_ctx.stream();
   const auto& runner_infer =
       NpuOpRunner("BNInfer",
                   {x_tensor, scale, bias, mean, variance},
-                  {y_tesnor},
+                  {y_tensor},
                   {{"epsilon", epsilon}});
   runner_infer.Run(stream);
 }

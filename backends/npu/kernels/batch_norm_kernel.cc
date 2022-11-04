@@ -44,7 +44,7 @@ void BatchNormKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(y);
   phi::DenseTensor x_tensor(x), y_tensor(*y);
   const auto& x_dims = x.dims();
-
+  
   if (CANN_VERSION_CODE < 512000) {
     PADDLE_ENFORCE_EQ(
         (x_dims.size() == 4UL || x_dims.size() == 3UL),
@@ -305,8 +305,8 @@ void BatchNormInferKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x);
   phi::DenseTensor y_tensor(*y);
-
-  if (CANN_VERSION_CODE < 5120000) {
+  
+  if (CANN_VERSION_CODE < 512000) {
     PADDLE_ENFORCE_EQ(
         (x_dims.size() == 4UL || x_dims.size() == 3UL),
         true,

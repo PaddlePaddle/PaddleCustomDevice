@@ -31,7 +31,7 @@ void MeanRawKernel(const Context& dev_ctx,
 
 #if (CANN_VERSION_CODE >= 512000)
   auto input_dims = x.dims();
-  if (reduce_all) {
+  if (reduce_all || dims.size() == 0) {
     dims.clear();
     for (int i = 0; i < input_dims.size(); i++) {
       dims.push_back(static_cast<int>(i));

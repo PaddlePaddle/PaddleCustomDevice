@@ -352,6 +352,27 @@ inline std::vector<T> get_new_data_from_tensor(
   return vec_new_data;
 }
 
+inline phi::DenseTensor ReshapeToMatrix(const phi::DenseTensor& src,
+                                        int num_col_dims) {
+  int rank = src.dims().size();
+  PADDLE_ENFORCE_GE(
+      rank,
+      2,
+      phi::errors::InvalidArgument(
+          "'ReshapeToMatrix()' is only used for flatten high rank "
+          "tensors to matrixs. The dimensions of phi::DenseTensor must be "
+          "greater or equal than 2. "
+          "But received dimensions of phi::DenseTensor is %d",
+          rank));
+  if (rank == 2) {
+    return src;
+  }
+  phi::DenseTensor res;
+  res = src;
+  res.Resize(phi::flatten_to_2d(src.dims(), num_col_dims));
+  return res;
+}
+
 template <typename T>
 class MPTypeTrait {
  public:

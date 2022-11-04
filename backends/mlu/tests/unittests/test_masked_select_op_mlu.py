@@ -38,7 +38,6 @@ def np_masked_select(shape, x, mask):
 
 
 class TestMaskedSelectOp(OpTest):
-
     def setUp(self):
         self.init()
         self.__class__.use_custom_device = True
@@ -58,24 +57,21 @@ class TestMaskedSelectOp(OpTest):
         self.check_grad_with_place(self.place, ['X'], 'Y')
 
     def init(self):
-        self.shape = (50, 3)
+        self.shape = (50, 2)
 
 
 class TestMaskedSelectOp1(TestMaskedSelectOp):
-
     def init(self):
         self.shape = (6, 8, 9, 18)
 
 
 class TestMaskedSelectOp2(TestMaskedSelectOp):
-
     def init(self):
         self.shape = (168, )
 
 
 @skip_check_grad_ci(reason="get_numeric_gradient not support int32")
 class TestMaskedSelectOpInt32(TestMaskedSelectOp):
-
     def init_dtype(self):
         self.dtype = np.int32
 
@@ -84,20 +80,17 @@ class TestMaskedSelectOpInt32(TestMaskedSelectOp):
 
 
 class TestMaskedSelectOpFp16(TestMaskedSelectOp):
-
     def init_dtype(self):
         self.dtype = np.float16
 
     def test_check_grad(self):
         x_grad = self.inputs['Mask'].astype(self.dtype)
         x_grad = x_grad * (1 / x_grad.size)
-        self.check_grad_with_place(self.place, ['X'],
-                                   'Y',
-                                   user_defined_grads=[x_grad])
+        self.check_grad_with_place(
+            self.place, ['X'], 'Y', user_defined_grads=[x_grad])
 
 
 class TestMaskedSelectAPI(unittest.TestCase):
-
     def test_imperative_mode(self):
         paddle.disable_static(paddle.CustomPlace('CustomMLU', 0))
         shape = (88, 6, 8)
@@ -123,16 +116,13 @@ class TestMaskedSelectAPI(unittest.TestCase):
         exe = paddle.static.Executor(place=paddle.CustomPlace('CustomMLU', 0))
 
         res = exe.run(paddle.static.default_main_program(),
-                      feed={
-                          "x": np_x,
-                          "mask": np_mask
-                      },
+                      feed={"x": np_x,
+                            "mask": np_mask},
                       fetch_list=[out])
         self.assertEqual(np.allclose(res, np_out), True)
 
 
 class TestMaskedSelectError(unittest.TestCase):
-
     def test_error(self):
         with paddle.static.program_guard(paddle.static.Program(),
                                          paddle.static.Program()):
@@ -140,9 +130,8 @@ class TestMaskedSelectError(unittest.TestCase):
             shape = [8, 9, 6]
             x = paddle.fluid.data(shape=shape, dtype='float32', name='x')
             mask = paddle.fluid.data(shape=shape, dtype='bool', name='mask')
-            mask_float = paddle.fluid.data(shape=shape,
-                                           dtype='float32',
-                                           name='mask_float')
+            mask_float = paddle.fluid.data(
+                shape=shape, dtype='float32', name='mask_float')
             np_x = np.random.random(shape).astype('float32')
             np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
 

@@ -634,6 +634,34 @@ PD_REGISTER_PLUGIN_KERNEL(log10,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(gelu,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(exp,
                           CustomMLU,
                           ALL_LAYOUT,

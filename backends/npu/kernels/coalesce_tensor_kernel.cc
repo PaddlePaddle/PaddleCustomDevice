@@ -257,11 +257,12 @@ void CoalesceTensorKernel(const Context &dev_ctx,
 
   size_t offset = 0;
   if (copy_data) {
-    custom_kernel::VisitDataType(
-        dtype,
-        FillConstantVisitor<Context>(
-            dev_ctx, fused_output, static_cast<float>(0.0), dtype));
-
+    // (Note: duanyanhui)
+    // Temporary comment when executing on the old executor due to the accurary
+    // for adam. custom_kernel::VisitDataType(
+    //     dtype,
+    //     FillConstantVisitor<Context>(
+    //         dev_ctx, fused_output, static_cast<float>(0.0), dtype));
     for (size_t i = 0; i < input.size(); ++i) {
       size_t len = static_cast<size_t>(input[i]->numel());
       auto sub_tensor =
@@ -339,4 +340,6 @@ PD_REGISTER_PLUGIN_KERNEL(coalesce_tensor,
                           int,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}

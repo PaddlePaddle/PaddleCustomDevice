@@ -55,6 +55,13 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
+  if (out->numel() == 0) {
+    phi::CPUContext dev_ctx_cpu;
+    dev_ctx_cpu.SetZeroAllocator(&(dev_ctx.GetHostAllocator()));
+    dev_ctx_cpu.template Alloc<T>(out);
+  } else {
+    dev_ctx.template HostAlloc<T>(out);
+  }
   TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
   dev_ctx.Wait();
 }
@@ -91,9 +98,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           ascend,
@@ -102,9 +115,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           ascend,
@@ -113,9 +132,15 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {}
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy,
                           ascend,
@@ -124,8 +149,14 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int,
                           int64_t,
-                          bool) {
+                          bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>,
+                          int16_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }

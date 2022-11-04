@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void GaussianRandomKernel(const Context& ctx,
+void GaussianKernel(const Context& ctx,
                           const phi::IntArray& shape,
                           float mean,
                           float std,
@@ -47,8 +47,8 @@ void GaussianRandomKernel(const Context& ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(gaussian_random,
+PD_REGISTER_PLUGIN_KERNEL(gaussian,
                           ascend,
                           ALL_LAYOUT,
-                          custom_kernel::GaussianRandomKernel,
+                          custom_kernel::GaussianKernel,
                           float) {}

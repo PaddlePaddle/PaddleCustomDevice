@@ -489,42 +489,35 @@ void HardSigmoidKernel(const Context& dev_ctx,
                   GetBasePtr(out));
 }
 
-// template <typename T, typename Context>
-// void HardSigmoidGradKernel(const Context& dev_ctx,
-//                            const phi::DenseTensor& out,
-//                            const phi::DenseTensor& dout,
-//                            float slope,
-//                            float offset,
-//                            phi::DenseTensor* dx) {
-//   dev_ctx.template Alloc<T>(dx);
-//   auto* dout = ctx.Input<Tensor>(framework::GradVarName("Out"));
-//   auto* x = ctx.Input<Tensor>("X");
-//   auto* dx = ctx.Output<Tensor>(framework::GradVarName("X"));
-//   float slope = ctx.Attr<float>("slope");
-//   float offset = ctx.Attr<float>("offset");
-//   dx->mutable_data<T>(ctx.GetPlace());
-
-//   MLUCnnlActivationDesc act_desc(CNNL_ACTIVATION_HARDSIGMOID,
-//                                   1.0f /*ceof useless*/,
-//                                   1.0f /*sliced_dim useless*/,
-//                                   slope,
-//                                   offset);
-//   MLUCnnlTensorDesc x_desc(*x);
-//   MLUCnnlTensorDesc dout_desc(*dout);
-//   MLUCnnlTensorDesc dx_desc(*dx);
-//   MLUCnnl::ActiveGrad(ctx,
-//                       act_desc.get(),
-//                       nullptr,
-//                       nullptr,
-//                       nullptr,
-//                       nullptr,
-//                       dout_desc.get(),
-//                       GetBasePtr(dout),
-//                       x_desc.get(),
-//                       GetBasePtr(x),
-//                       dx_desc.get(),
-//                       GetBasePtr(dx));
-// }
+template <typename T, typename Context>
+void HardSigmoidGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& out,
+                           const phi::DenseTensor& dout,
+                           float slope,
+                           float offset,
+                           phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  MLUCnnlActivationDesc act_desc(CNNL_ACTIVATION_HARDSIGMOID,
+                                 1.0f /*ceof useless*/,
+                                 1.0f /*sliced_dim useless*/,
+                                 slope,
+                                 offset);
+  MLUCnnlTensorDesc out_desc(out);
+  MLUCnnlTensorDesc dout_desc(dout);
+  MLUCnnlTensorDesc dx_desc(*dx);
+  MLUCnnl::ActiveGrad(dev_ctx,
+                      act_desc.get(),
+                      nullptr,
+                      nullptr,
+                      out_desc.get(),
+                      GetBasePtr(&out),
+                      dout_desc.get(),
+                      GetBasePtr(&dout),
+                      nullptr,
+                      nullptr,
+                      dx_desc.get(),
+                      GetBasePtr(dx));
+}
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
@@ -634,6 +627,34 @@ PD_REGISTER_PLUGIN_KERNEL(log10,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(gelu,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TanhGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(exp,
                           CustomMLU,
                           ALL_LAYOUT,
@@ -669,12 +690,12 @@ PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
                           float,
                           phi::dtype::float16) {}
 
-// PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
-//                           CustomMLU,
-//                           ALL_LAYOUT,
-//                           custom_kernel::HardSigmoidGradKernel,
-//                           float,
-//                           phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSigmoidGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(floor,
                           CustomMLU,

@@ -6,6 +6,8 @@
 #include <CL/sycl.hpp>
 #include <thread>
 #include <vector>
+#include <algorithm>
+#include <utility>
 
 #include "oneapi/dnnl/dnnl_sycl.hpp"
 

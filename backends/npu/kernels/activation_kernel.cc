@@ -136,8 +136,8 @@ void SwishRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
-                 const DenseTensor& x,
-                 DenseTensor* out) {
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
   SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
 }
 

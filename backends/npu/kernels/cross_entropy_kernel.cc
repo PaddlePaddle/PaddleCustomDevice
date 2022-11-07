@@ -109,7 +109,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
                                        int ignore_index,
                                        int axis,
                                        phi::DenseTensor* logits_grad) {
-  int cls_num = softmax.dims()[1];
+  int cls_num = softmax.dims()[softmax.dims().size() - 1];
   auto stream = dev_ctx.stream();
 
   // cast label from int64/int32 to int32 for OneHotD

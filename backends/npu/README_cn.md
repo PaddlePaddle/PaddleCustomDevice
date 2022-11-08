@@ -9,17 +9,17 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-npu:cann512-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann512-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann600-aarch64-gcc82
 
 # 2) 参考如下命令启动容器，如果是 aarch64 环境，则相应替换为 aarch64 镜像即可
-docker run -it --name paddle-dev-cann512 -v `pwd`:/workspace \
+docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        --workdir=/workspace --pids-limit 409600 \
        --privileged --network=host --shm-size=128G \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann512-x86_64-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -39,6 +39,7 @@ git submodule update --remote --init --recursive
 cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
+# 注意：如果是 aarch64 环境，需要源码编译得到 Paddle CPU 的 WHL 安装包
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON

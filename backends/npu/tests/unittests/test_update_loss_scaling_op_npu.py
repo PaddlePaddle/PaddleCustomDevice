@@ -71,7 +71,8 @@ class TestUpdateLossScalingOp(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(
+            self.place, no_check_set=['Out'], check_dygraph=False)
 
 
 class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
@@ -106,7 +107,7 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, check_dygraph=False)
 
 
 # NOTE(wangran16): unknown bug - no device error message

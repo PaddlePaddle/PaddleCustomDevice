@@ -29,7 +29,7 @@ void CrossEntropy(const T* prob,
                   T* out, sycl::queue* q = nullptr) {
   auto num_remain = num_classes / axis_dim;
   if (soft_label) {
-  std::cout << "***** Tutaj  CrossEntropy soft_label" << std::endl;    
+  // std::cout << "***** Tutaj  CrossEntropy soft_label" << std::endl;    
     for (auto i = 0; i < batch_size; ++i) {
       for (auto k = 0; k < num_remain; ++k) {
         out[i * num_remain + k] = 0;
@@ -176,7 +176,7 @@ void CrossEntropyWithSoftmaxKernel(const phi::Context& dev_ctx,
                                    phi::DenseTensor* loss) {
   // do not with softmax op, and input is softmax
   if (!use_softmax) {
-    std::cout << "***** Tutaj  CrossEntropyWithSoftmaxKernel NOT use_softmax" << std::endl;
+    // std::cout << "***** Tutaj  CrossEntropyWithSoftmaxKernel NOT use_softmax" << std::endl;
     auto softmax_data = dev_ctx.template Alloc<T>(softmax);
     CrossEntropyKernel<T>(
         dev_ctx, logits, label, soft_label, ignore_index, axis, loss);
@@ -242,7 +242,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
     // use_softmax step1
     if (soft_label) {
       for (auto i = 0; i < n; ++i) {
-      std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel soft_label in if (!use_softmax) " << std::endl;
+      // std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel soft_label in if (!use_softmax) " << std::endl;
       // q->parallel_for(n, [=](auto& i){
         for (auto j = 0; j < axis_dim; ++j) {
           for (auto k = 0; k < remain; ++k) {
@@ -256,7 +256,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
       }
       // );
     } else {
-      std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in if (!use_softmax) " << std::endl;
+      // std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in if (!use_softmax) " << std::endl;
       // use_softmax step2
       const int remain = d / axis_dim;
       // for (int i = 0; i < n; ++i) {         // for each sample_1_dim
@@ -285,7 +285,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
         }
       }
       );
-      std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in if (!use_softmax), after parallel " << std::endl;
+      // std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in if (!use_softmax), after parallel " << std::endl;
     }
     return;
   }
@@ -313,7 +313,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
     // operation
 
   } else {
-    std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in main " << std::endl;
+    // std::cout << "***** Tutaj  CrossEntropyWithSoftmaxGradCPUKernel NOT soft_label in main " << std::endl;
     // for (auto i = 0; i < n; ++i) {
     q->parallel_for(n, [=](auto& i){            
       for (auto j = 0; j < axis_dim; ++j) {

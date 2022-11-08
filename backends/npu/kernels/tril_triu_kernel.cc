@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TrilKernel(const Context& dev_ctx,
+void TrilTriuKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     int diagonal,
                     bool lower,
@@ -72,8 +72,33 @@ void TrilKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void TrilKernel(const Context& ctx,
+                const DenseTensor& x,
+                int diagonal,
+                DenseTensor* out) {
+  TrilTriuKernel<T, Context>(ctx, x, diagonal, true, out);
+}
+
+template <typename T, typename Context>
+void TriuKernel(const Context& ctx,
+                const DenseTensor& x,
+                int diagonal,
+                DenseTensor* out) {
+  TrilTriuKernel<T, Context>(ctx, x, diagonal, false, out);
+}
+
 }  // namespace custom_kernel
 
+PD_REGISTER_PLUGIN_KERNEL(tril_triu,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::TrilTriuKernel,
+                          bool,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
+                          
 PD_REGISTER_PLUGIN_KERNEL(tril,
                           ascend,
                           ALL_LAYOUT,
@@ -82,3 +107,12 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           float,
                           int,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(triu,
+        ascend,
+        ALL_LAYOUT,
+        custom_kernel::TriuKernel,
+        bool,
+        float,
+        int,
+        phi::dtype::float16) {}

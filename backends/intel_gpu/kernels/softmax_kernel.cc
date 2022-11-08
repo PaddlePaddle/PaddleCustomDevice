@@ -53,27 +53,6 @@ void Softmax(int axis_dim, const T* in, T* out, size_t M, size_t N) {
 }
 
 template <typename T>
-void SoftmaxKernelOrg(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   int axis,
-                   phi::DenseTensor* out) {
-
-  const int rank = x.dims().size();
-  const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
-  int axis_dim = x.dims()[calc_axis];
-  show_kernel("SoftmaxKernel() rank=" << rank << " calc_axis="<< calc_axis << " axis_dim="<< axis_dim);
-  // allocate memory on device.
-  dev_ctx.template Alloc<T>(out);
-  if (out->numel() == 0) {
-    return;
-  }
-
-  const int n = phi::funcs::SizeToAxis(calc_axis, x.dims());
-  const int d = phi::funcs::SizeFromAxis(calc_axis, x.dims());
-  Softmax(axis_dim, x.data<T>(), out->data<T>(), n, d);
-}
-
-template <typename T>
 void SoftmaxGrad(
     const T* out, const T* out_grad, int axis_dim, int M, int N, T* x_grad) {
   int num_remain = N / axis_dim;
@@ -99,6 +78,31 @@ void SoftmaxGrad(
   delete[] dot;
 }
 
+// template <typename T>
+// void SoftmaxGradKernel(const phi::Context& dev_ctx,
+//                        const phi::DenseTensor& out,
+//                        const phi::DenseTensor& out_grad,
+//                        int axis,
+//                        phi::DenseTensor* x_grad) {
+//   show_kernel("SoftmaxGradKernel()");
+//   const int rank = x_grad->dims().size();
+//   const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
+//   int axis_dim = x_grad->dims()[calc_axis];
+
+//   // allocate memory on device.
+//   dev_ctx.template Alloc<T>(x_grad);
+//   if (x_grad->numel() == 0) {
+//     return;
+//   }
+
+//   const int n = phi::funcs::SizeToAxis(calc_axis, x_grad->dims());
+//   const int d = phi::funcs::SizeFromAxis(calc_axis, x_grad->dims());
+//   SoftmaxGrad(
+//       out.data<T>(), out_grad.data<T>(), axis_dim, n, d, x_grad->data<T>());
+// }
+
+std::shared_ptr<dnnl::softmax_forward::primitive_desc> softmax_pd = nullptr;
+
 template <typename T>
 void SoftmaxGradKernel(const phi::Context& dev_ctx,
                        const phi::DenseTensor& out,
@@ -110,26 +114,57 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
   const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
   int axis_dim = x_grad->dims()[calc_axis];
 
-  // allocate memory on device.
   dev_ctx.template Alloc<T>(x_grad);
   if (x_grad->numel() == 0) {
     return;
   }
 
-  const int n = phi::funcs::SizeToAxis(calc_axis, x_grad->dims());
-  const int d = phi::funcs::SizeFromAxis(calc_axis, x_grad->dims());
-  SoftmaxGrad(
-      out.data<T>(), out_grad.data<T>(), axis_dim, n, d, x_grad->data<T>());
+// #############################
+// std::cout << "***** Tutaj  SoftmaxGradKernel " << std::endl;
+
+  using namespace dnnl;
+  auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
+
+  auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
+  auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
+
+  dnnl::memory::dims out_dims = out.dims();
+
+  std::vector<int> logical_axis(out_dims.size(), 0);
+  for (auto i = 0; i < logical_axis.size(); ++i) {
+    logical_axis[i] = i;
+  }
+
+  auto strides =
+      dnn_support::computeStrides(out_dims, logical_axis);
+
+  auto md_out =
+        memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
+
+  auto md_out_grad =
+      memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
+
+  auto md_x_grad =
+      memory::desc(out_dims, dnn_support::toDnnType<T>::type,strides);
+
+  auto dst_memory_p = memory(md_out, eng, out.data<T>());
+  auto diff_dst_memory_p = memory(md_out_grad, eng, out_grad.data<T>());
+  auto diff_src_memory_p = memory(md_x_grad, eng, x_grad->data<T>());
+
+  auto bwd_desc = softmax_backward::desc(md_out_grad, md_out, calc_axis);
+  auto bwd_pd_ = softmax_backward::primitive_desc(bwd_desc, eng, *softmax_pd);
+
+  auto softmax_bwd_p = softmax_backward(bwd_pd_);
+
+  std::unordered_map<int, memory> softmax_args;
+  softmax_args.insert({DNNL_ARG_DST,  dst_memory_p});
+  softmax_args.insert({DNNL_ARG_DIFF_DST, diff_dst_memory_p});
+  softmax_args.insert({DNNL_ARG_DIFF_SRC, diff_src_memory_p});
+
+  softmax_bwd_p.execute(engine_stream, softmax_args);
+  engine_stream.wait();
+
 }
-
-
-
-
-
-
-
-
-
 
 // ##################################
 
@@ -205,9 +240,9 @@ try {
   auto softmax_d =
       softmax_forward::desc(prop_kind::forward_training, md_src, calc_axis);
 
-   auto softmax_pd = softmax_forward::primitive_desc(softmax_d, eng);
+   softmax_pd = std::make_shared<softmax_forward::primitive_desc>(softmax_d, eng);
 
-   auto softmax_prim = softmax_forward(softmax_pd);
+   auto softmax_prim = softmax_forward(*softmax_pd);
    std::unordered_map<int, memory> softmax_args;
    softmax_args.insert({DNNL_ARG_SRC, mem_src});
    softmax_args.insert({DNNL_ARG_DST,  mem_dst});
@@ -270,8 +305,9 @@ PD_BUILD_PHI_KERNEL(softmax,
 
 
 PD_BUILD_PHI_KERNEL(softmax_grad,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::SoftmaxGradKernel,
-                    float,
-                    double) {}
+                    float
+                    // , double
+                    ) {}

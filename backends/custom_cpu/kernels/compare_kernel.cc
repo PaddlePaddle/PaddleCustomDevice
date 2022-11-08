@@ -20,7 +20,7 @@
 namespace custom_kernel {
 
 template <typename T>
-void NotEqualKernel(const phi::Context& dev_ctx,
+void NotEqualRawKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     int axis,
@@ -48,7 +48,15 @@ void NotEqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void EqualKernel(const phi::Context& dev_ctx,
+void NotEqualKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  NotEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T>
+void EqualRawKernel(const phi::Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  int axis,
@@ -76,7 +84,15 @@ void EqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void LessThanKernel(const phi::Context& dev_ctx,
+void EqualKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  EqualRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T>
+void LessThanRawKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     int axis,
@@ -98,7 +114,15 @@ void LessThanKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void LessEqualKernel(const phi::Context& dev_ctx,
+void LessThanKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  LessThanRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T>
+void LessEqualRawKernel(const phi::Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& y,
                      int axis,
@@ -120,7 +144,15 @@ void LessEqualKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void GreaterThanKernel(const phi::Context& dev_ctx,
+void LessEqualKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  LessEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T>
+void GreaterThanRawKernel(const phi::Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        int axis,
@@ -142,7 +174,16 @@ void GreaterThanKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void GreaterEqualKernel(const phi::Context& dev_ctx,
+void GreaterThanKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  GreaterThanRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
+
+template <typename T>
+void GreaterEqualRawKernel(const phi::Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
                         int axis,
@@ -163,12 +204,32 @@ void GreaterEqualKernel(const phi::Context& dev_ctx,
   }
 }
 
+template <typename T>
+void GreaterEqualKernel(const phi::Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  GreaterEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+}
+
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(not_equal,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::NotEqualKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
+PD_BUILD_PHI_KERNEL(not_equal_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::NotEqualRawKernel,
                     float,
                     double,
                     uint8_t,
@@ -189,10 +250,34 @@ PD_BUILD_PHI_KERNEL(equal,
                     int64_t,
                     bool) {}
 
+PD_BUILD_PHI_KERNEL(equal_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::EqualRawKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
 PD_BUILD_PHI_KERNEL(less_than,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::LessThanKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
+PD_BUILD_PHI_KERNEL(less_than_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::LessThanRawKernel,
                     float,
                     double,
                     uint8_t,
@@ -213,6 +298,18 @@ PD_BUILD_PHI_KERNEL(less_equal,
                     int64_t,
                     bool) {}
 
+PD_BUILD_PHI_KERNEL(less_equal_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::LessEqualRawKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
 PD_BUILD_PHI_KERNEL(greater_than,
                     custom_cpu,
                     ALL_LAYOUT,
@@ -225,10 +322,34 @@ PD_BUILD_PHI_KERNEL(greater_than,
                     int64_t,
                     bool) {}
 
+PD_BUILD_PHI_KERNEL(greater_than_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::GreaterThanRawKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
 PD_BUILD_PHI_KERNEL(greater_equal,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::GreaterEqualKernel,
+                    float,
+                    double,
+                    uint8_t,
+                    int16_t,
+                    int32_t,
+                    int64_t,
+                    bool) {}
+
+PD_BUILD_PHI_KERNEL(greater_equal_raw,
+                    custom_cpu,
+                    ALL_LAYOUT,
+                    custom_kernel::GreaterEqualRawKernel,
                     float,
                     double,
                     uint8_t,

@@ -212,6 +212,87 @@ class TestArgMaxFloat32Case10(BaseTestCase):
         self.axis = 0
 
 
+# test argmax, dtype: double
+class TestArgMaxDoubleCase1(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4, 5)
+        self.dtype = 'double'
+        self.axis = -1
+
+
+class TestArgMaxDoubleCase2(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4, 5)
+        self.dtype = 'double'
+        self.axis = 0
+
+
+class TestArgMaxDoubleCase3(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4, 5)
+        self.dtype = 'double'
+        self.axis = 1
+
+
+class TestArgMaxDoubleCase4(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4, 5)
+        self.dtype = 'double'
+        self.axis = 2
+
+
+class TestArgMaxDoubleCase5(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4)
+        self.dtype = 'double'
+        self.axis = -1
+
+
+class TestArgMaxDoubleCase6(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4)
+        self.dtype = 'double'
+        self.axis = 0
+
+
+class TestArgMaxDoubleCase7(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, 4)
+        self.dtype = 'double'
+        self.axis = 1
+
+
+class TestArgMaxDoubleCase8(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (1, )
+        self.dtype = 'double'
+        self.axis = 0
+
+
+class TestArgMaxDoubleCase9(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (2, )
+        self.dtype = 'double'
+        self.axis = 0
+
+
+class TestArgMaxDoubleCase10(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = 'arg_max'
+        self.dims = (3, )
+        self.dtype = 'double'
+        self.axis = 0
+
+
 class BaseTestComplex1_1(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True

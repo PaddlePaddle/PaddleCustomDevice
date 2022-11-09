@@ -75,7 +75,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             inputs={'X': npu_var},
             outputs={'Out': cpu_var},
             attrs={'dst_place_type': 0})
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         exe = fluid.Executor(place)
         npu_, cpu_ = exe.run(main_program,
                              feed={},
@@ -91,7 +91,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             inputs={'X': cpu_var},
             outputs={'Out': npu_var},
             attrs={'dst_place_type': 6})
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         exe = fluid.Executor(place)
         npu_, cpu_ = exe.run(main_program,
                              feed={},

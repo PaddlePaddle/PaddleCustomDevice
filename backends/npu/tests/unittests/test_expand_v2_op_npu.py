@@ -31,7 +31,7 @@ np.random.seed(10)
 class TestExpandV2NPUOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.dtype = np.float32
         self.init_data()
@@ -102,7 +102,7 @@ class TestExpandV2OpRank6(TestExpandV2NPUOpRank1):
 class TestExpandV2OpNPURank1_tensor_attr(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
@@ -148,7 +148,7 @@ class TestExpandV2OpRank2_Corner_tensor_attr(
 class TestExpandV2NPUOpRank1_tensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
@@ -181,7 +181,7 @@ class TestExpandV2NPUOpRank1_tensor(OpTest):
 class TestExpandV2OpFloat(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.dtype = np.float16
         self.ori_shape = (2, 4, 20)
@@ -206,7 +206,7 @@ class TestExpandV2OpInteger(OpTest):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.inputs = {
             'X': np.random.randint(
@@ -235,7 +235,7 @@ class TesstExpandV2OpBool(TestExpandV2OpInteger):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_v2"
         self.inputs = {'X': np.random.randint(10, size=(2, 4, 20)) > 5}
         self.attrs = {'shape': [2, 4, 20]}
@@ -247,7 +247,7 @@ class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace('ascend', 0))
+                np.array([[-1]]), [[1]], paddle.CustomPlace('npu', 0))
             shape = [2, 2]
             self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
             x2 = fluid.layers.data(name='x2', shape=[2], dtype="uint8")
@@ -281,7 +281,7 @@ class TestExpandV2API(unittest.TestCase):
 
             g0 = fluid.backward.calc_gradient(out_2, x)
 
-            exe = fluid.Executor(place=paddle.CustomPlace('ascend', 0))
+            exe = fluid.Executor(place=paddle.CustomPlace('npu', 0))
             res_1, res_2, res_3 = exe.run(fluid.default_main_program(),
                                           feed={
                                               "x": input,

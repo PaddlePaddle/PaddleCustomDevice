@@ -52,7 +52,7 @@ class TestOneHotOp(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOp_non_lod(OpTest):
@@ -103,7 +103,7 @@ class TestOneHotOp_attr(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOp_default_dtype(OpTest):
@@ -131,7 +131,7 @@ class TestOneHotOp_default_dtype(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOp_default_dtype_attr(OpTest):
@@ -159,7 +159,7 @@ class TestOneHotOp_default_dtype_attr(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOp_out_of_range(OpTest):
@@ -182,7 +182,7 @@ class TestOneHotOp_out_of_range(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOp_dtype_int64(OpTest):
@@ -205,7 +205,7 @@ class TestOneHotOp_dtype_int64(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('ascend', 0), check_dygraph=False)
+            paddle.CustomPlace('npu', 0), check_dygraph=False)
 
 
 class TestOneHotOpApi(unittest.TestCase):
@@ -221,7 +221,7 @@ class TestOneHotOpApi(unittest.TestCase):
         depth = 10
         label = np.array([np.random.randint(0, depth - 1)
                           for i in range(6)]).reshape([6, 1])
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             one_hot_label = fluid.one_hot(
                 input=fluid.dygraph.to_variable(label), depth=depth)
 
@@ -229,7 +229,7 @@ class TestOneHotOpApi(unittest.TestCase):
         label = fluid.layers.data(name="label", shape=[1], dtype="int64")
         one_hot_label = fluid.one_hot(input=label, depth=depth)
 
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
         label_data = np.array([np.random.randint(0, 10 - 1)
                                for i in range(6)]).reshape([6, 1])
 

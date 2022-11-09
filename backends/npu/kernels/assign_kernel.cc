@@ -108,16 +108,11 @@ void AssignValueKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(assign,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::AssignKernel,
-                          int,
-                          float,
-                          double) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    assign, npu, ALL_LAYOUT, custom_kernel::AssignKernel, int, float, double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AssignRawKernel,
                           int,
@@ -127,7 +122,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(assign_array,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AssignArrayKernel,
                           int,
@@ -135,7 +130,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AssignValueKernel,
                           bool,

@@ -78,14 +78,14 @@ void ArgMaxKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(arg_min,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMinKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(arg_max,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
                           float,

@@ -27,7 +27,7 @@ void IsEmptyKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(is_empty,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IsEmptyKernel,
                           float,

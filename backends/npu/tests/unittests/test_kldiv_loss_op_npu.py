@@ -44,7 +44,7 @@ def kldiv_loss(x, target, reduction):
 class TestKLDivLossOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = 'float32'
@@ -130,7 +130,7 @@ class TestKLDivLossDygraph(unittest.TestCase):
         target = np.random.uniform(-10, 10, shape).astype('float32')
         gt_loss = kldiv_loss(x, target, reduction)
 
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             kldiv_criterion = paddle.nn.KLDivLoss(reduction)
             pred_loss = kldiv_criterion(
                 paddle.to_tensor(x), paddle.to_tensor(target))
@@ -160,7 +160,7 @@ class TestKLDivLossDygraph(unittest.TestCase):
 
 class TestKLDivLossTypePromotion(unittest.TestCase):
     def test_kl_div_promotion(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             x1 = paddle.rand([5, 20], dtype='float32')
             target1 = paddle.rand([5, 20], dtype='float32')
 

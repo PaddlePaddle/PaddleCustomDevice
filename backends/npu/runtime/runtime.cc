@@ -113,7 +113,7 @@ inline size_t get_devices_count() {
 }
 
 C_Status Init() {
-  ACL_CHECK(aclInit(nullptr));
+  // ACL_CHECK(aclInit(nullptr));
   size_t count = get_devices_count();
   if (count) {
     global_allocator_list = new AlignnedAllocatorList(count);
@@ -453,7 +453,7 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported  on ascend device.";
+  LOG(ERROR) << "xccl_reduce is not supported on ascend npu device.";
   return C_ERROR;
 }
 
@@ -490,12 +490,12 @@ C_Status XcclReduceScatter(void *send_buf,
 }
 
 C_Status XcclGroupStart() {
-  LOG(ERROR) << "xccl_group_start is not supported on ascend device.";
+  LOG(ERROR) << "xccl_group_start is not supported on ascend npu device.";
   return C_ERROR;
 }
 
 C_Status XcclGroupEnd() {
-  LOG(ERROR) << "xccl_group_end is not supported on ascend device.";
+  LOG(ERROR) << "xccl_group_end is not supported on ascend npu device.";
   return C_ERROR;
 }
 
@@ -584,8 +584,8 @@ void InitPlugin(CustomRuntimeParams *params) {
     return;
   }
 
-  params->device_type = "ascend";
-  params->sub_device_type = "910";
+  params->device_type = "npu";
+  params->sub_device_type = "Ascend910";
   params->version.major = PADDLE_CUSTOM_RUNTIME_MAJOR_VERSION;
   params->version.minor = PADDLE_CUSTOM_RUNTIME_MINOR_VERSION;
   params->version.patch = PADDLE_CUSTOM_RUNTIME_PATCH_VERSION;

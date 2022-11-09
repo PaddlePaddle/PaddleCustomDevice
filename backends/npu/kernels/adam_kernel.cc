@@ -278,7 +278,7 @@ void AdamwKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(adam,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AdamKernel,
                           phi::dtype::float16,
@@ -291,7 +291,7 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AdamwKernel,
                           phi::dtype::float16,

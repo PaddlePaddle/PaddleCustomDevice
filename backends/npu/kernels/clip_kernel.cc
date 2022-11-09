@@ -77,7 +77,7 @@ void ClipGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(clip,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ClipKernel,
                           float,
@@ -85,7 +85,7 @@ PD_REGISTER_PLUGIN_KERNEL(clip,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(clip_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ClipGradKernel,
                           float,

@@ -60,7 +60,7 @@ class TestArgsortOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.__class__.no_need_check_grad = True
 
     def init_inputshape(self):
@@ -138,7 +138,7 @@ class TestArgsortOpDescendingAxisNeg2NPU(TestArgsortOpAxisNeg2NPU):
 # it will change the type from fp32 to fp16,
 # so the check_output_with_place add thw atol
 # this test is only used to test the grad
-# issue： https://gitee.com/ascend/modelzoo/issues/I44I7K
+# issue： https://gitee.com/Ascend/modelzoo/issues/I44I7K
 
 
 class TestArgsortOpAxis0NPUFP32(TestArgsortOp):
@@ -153,7 +153,7 @@ class TestArgsortOpAxis0NPUFP32(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_grad(self):
         self.check_grad_with_place(
@@ -239,7 +239,7 @@ class TestArgsortOpAxis0NPUINT64(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestArgsortOpAxis1NPUINT64(TestArgsortOpAxis0NPUINT64):

@@ -31,7 +31,7 @@ void FloorDivideKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(floor_divide,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FloorDivideKernel,
                           int,

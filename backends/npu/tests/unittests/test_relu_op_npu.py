@@ -30,7 +30,7 @@ class TestRelu(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "relu"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -68,7 +68,7 @@ class TestReluNeg(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "relu"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -119,7 +119,7 @@ class TestReluNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

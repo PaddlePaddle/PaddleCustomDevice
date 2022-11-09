@@ -62,7 +62,7 @@ void RandpermKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(randperm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::RandpermKernel,
                           int64_t,

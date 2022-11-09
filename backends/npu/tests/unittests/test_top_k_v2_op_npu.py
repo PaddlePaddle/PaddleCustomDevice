@@ -76,7 +76,7 @@ class TestTopkV2NPUOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestTopkV2OpFloat16(TestTopkV2NPUOp):
@@ -207,7 +207,7 @@ class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
 class TestTopKAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         np.random.seed(123)
         self.input_data = np.random.rand(6, 7, 8)
         self.large_input_data = np.random.rand(2, 1030)
@@ -322,14 +322,14 @@ class TestTopKAPI(unittest.TestCase):
             self.assertTrue(np.allclose(sort_paddle[0], numpy_result[0]))
 
     def test_cases(self):
-        places = [core.CustomPlace('ascend', 0)]
+        places = [core.CustomPlace('npu', 0)]
         for place in places:
             self.run_dygraph(place)
             self.run_static(place)
 
     def test_errors(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         paddle.disable_static()
         x = paddle.to_tensor([1, 2, 3])
         with self.assertRaises(BaseException):

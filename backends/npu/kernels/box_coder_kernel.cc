@@ -466,7 +466,7 @@ void BoxCoderKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(box_coder,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BoxCoderKernel,
                           float,

@@ -57,7 +57,7 @@ class TestNet(unittest.TestCase):
             rmsprop.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 
@@ -117,7 +117,7 @@ class TestCenteredNet(unittest.TestCase):
             rmsprop.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

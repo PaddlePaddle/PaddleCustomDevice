@@ -35,7 +35,7 @@ class BaseTestCase(OpTest):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         np.random.seed(2021)
         self.x = (np.random.random(self.dims)).astype(self.dtype)
         self.inputs = {'X': self.x}
@@ -220,7 +220,7 @@ class TestArgMinAPI(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -248,7 +248,7 @@ class TestArgMaxAPI_2(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_dygraph_api(self):
         def run(place):

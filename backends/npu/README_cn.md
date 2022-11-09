@@ -141,7 +141,7 @@ cd Paddle-Inference-Demo/c++/cpu/resnet50/
 wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
 tar xzf resnet50.tgz
 
-# 4) 修改 resnet50_test.cc，使用 config.EnableCustomDevice("ascend", 0) 接口替换 config.EnableUseGpu(100, 0)
+# 4) 修改 resnet50_test.cc，使用 config.EnableCustomDevice("npu", 0) 接口替换 config.EnableUseGpu(100, 0)
 
 # 5) 修改 compile.sh 编译文件，需根据 C++ 预测库的 version.txt 信息对以下的几处内容进行修改
 WITH_MKL=ON  # 如果是 Aarch 环境，请设置为 OFF

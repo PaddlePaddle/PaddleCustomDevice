@@ -34,7 +34,7 @@ class TestExpNPUOP(OpTest):
     def setUp(self):
 
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "exp"
         self.init_dtype()
         self.init_kernel_type()

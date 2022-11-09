@@ -30,7 +30,7 @@ class TestScale(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
 
         self.inputs = {
@@ -72,7 +72,7 @@ class TestBiasAfterScale(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
 
         self.inputs = {

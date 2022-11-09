@@ -68,7 +68,7 @@ void MaximumGradKernel(const Context& dev_ctx,
                        phi::DenseTensor* dy) {
   auto stream = dev_ctx.stream();
 
-  // The ascend elementwise_max_grad op only supports broadcast
+  // The npu elementwise_max_grad op only supports broadcast
   // when axis is -1, and requires all the inputs must have the
   // same shape when axis is not -1. For convenience, we should
   // broadcast the original input x and y to transformed_x and
@@ -240,7 +240,7 @@ void MaximumGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(maximum_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaximumRawKernel,
                           int,
@@ -250,7 +250,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum_raw,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(maximum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaximumKernel,
                           int,
@@ -260,7 +260,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(maximum_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaximumGradKernel,
                           int,

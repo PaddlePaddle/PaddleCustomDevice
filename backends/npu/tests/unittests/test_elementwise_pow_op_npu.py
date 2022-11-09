@@ -81,7 +81,7 @@ class TestElementwisePow(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_pow"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         self.init_input_output()
@@ -295,7 +295,7 @@ class TestElementwisePowNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

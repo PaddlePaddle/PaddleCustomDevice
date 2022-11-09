@@ -174,21 +174,21 @@ void DivideGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(divide_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideGradKernel,
                           float,

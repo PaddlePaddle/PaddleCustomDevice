@@ -33,7 +33,7 @@ class TestLogLossOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = 'log_loss'
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
 

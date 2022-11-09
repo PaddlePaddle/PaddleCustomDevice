@@ -68,7 +68,7 @@ void StackGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(stack,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::StackKernel,
                           int,
@@ -77,7 +77,7 @@ PD_REGISTER_PLUGIN_KERNEL(stack,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(stack_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::StackGradKernel,
                           int,

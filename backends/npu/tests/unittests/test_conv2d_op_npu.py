@@ -220,18 +220,18 @@ class TestConv2DOp(OpTest):
         self.outputs = {'Output': output}
 
     def test_check_output(self):
-        self.check_output_with_place(fluid.CustomPlace('ascend', 0), atol=1e-2)
+        self.check_output_with_place(fluid.CustomPlace('npu', 0), atol=1e-2)
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            fluid.CustomPlace('ascend', 0), {'Input', 'Filter'},
+            fluid.CustomPlace('npu', 0), {'Input', 'Filter'},
             'Output',
             max_relative_error=0.03,
             numeric_place=paddle.CPUPlace())
 
     def test_check_grad_no_filter(self):
         self.check_grad_with_place(
-            fluid.CustomPlace('ascend', 0), ['Input'],
+            fluid.CustomPlace('npu', 0), ['Input'],
             'Output',
             max_relative_error=0.03,
             no_grad_set=set(['Filter']),
@@ -239,7 +239,7 @@ class TestConv2DOp(OpTest):
 
     def test_check_grad_no_input(self):
         self.check_grad_with_place(
-            fluid.CustomPlace('ascend', 0), ['Filter'],
+            fluid.CustomPlace('npu', 0), ['Filter'],
             'Output',
             max_relative_error=0.03,
             no_grad_set=set(['Input']),
@@ -409,17 +409,17 @@ class TestConv2DOp_v2(OpTest):
         self.outputs = {'Output': output}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0), atol=1e-2)
+        self.check_output_with_place(paddle.CustomPlace('npu', 0), atol=1e-2)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), {'Input', 'Filter'},
+                paddle.CustomPlace('npu', 0), {'Input', 'Filter'},
                 'Output',
                 max_relative_error=1.1)
         else:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), {'Input', 'Filter'},
+                paddle.CustomPlace('npu', 0), {'Input', 'Filter'},
                 'Output',
                 max_relative_error=0.02,
                 numeric_place=paddle.CPUPlace())
@@ -427,13 +427,13 @@ class TestConv2DOp_v2(OpTest):
     def test_check_grad_no_filter(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), ['Input'],
+                paddle.CustomPlace('npu', 0), ['Input'],
                 'Output',
                 max_relative_error=0.99,
                 no_grad_set=set(['Filter']))
         else:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), ['Input'],
+                paddle.CustomPlace('npu', 0), ['Input'],
                 'Output',
                 max_relative_error=0.02,
                 no_grad_set=set(['Filter']),
@@ -442,13 +442,13 @@ class TestConv2DOp_v2(OpTest):
     def test_check_grad_no_input(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), ['Filter'],
+                paddle.CustomPlace('npu', 0), ['Filter'],
                 'Output',
                 max_relative_error=0.99,
                 no_grad_set=set(['Input']))
         else:
             self.check_grad_with_place(
-                paddle.CustomPlace('ascend', 0), ['Filter'],
+                paddle.CustomPlace('npu', 0), ['Filter'],
                 'Output',
                 no_grad_set=set(['Input']),
                 numeric_place=paddle.CPUPlace())

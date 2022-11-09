@@ -52,7 +52,7 @@ void ModuloRawKernel(const Context& dev_ctx,
     runner.Run(stream);
   } else {
     // TODO(songkai05): In CANN512, npu op FloorMod returns false results in
-    // dtype FLOAT16, so cast inputs to FLOAT32 temporarily until Ascend fix
+    // dtype FLOAT16, so cast inputs to FLOAT32 temporarily until npu fix
     // this problem.
     phi::DenseTensor x_float32, y_float32, out_float32;
     phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, transformed_x.dims()};
@@ -93,7 +93,7 @@ void ModuloKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(remainder,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ModuloKernel,
                           int,
@@ -102,7 +102,7 @@ PD_REGISTER_PLUGIN_KERNEL(remainder,
                           double,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(remainder_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ModuloRawKernel,
                           int,

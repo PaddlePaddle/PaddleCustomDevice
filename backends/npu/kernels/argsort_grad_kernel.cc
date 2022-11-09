@@ -143,7 +143,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(argsort_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortGradKernel,
                           float,

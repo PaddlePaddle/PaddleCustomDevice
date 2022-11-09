@@ -49,7 +49,7 @@ class TestDropoutOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -155,7 +155,7 @@ class TestDropoutOpInference(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -206,13 +206,13 @@ class TestDropoutOpFp16(TestDropoutOp):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
-        self.places = [fluid.CPUPlace(), paddle.CustomPlace('ascend', 0)]
+        self.places = [fluid.CPUPlace(), paddle.CustomPlace('npu', 0)]
 
     def check_static_result(self, place):
         with fluid.program_guard(fluid.Program(), fluid.Program()):

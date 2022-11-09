@@ -31,7 +31,7 @@ numpy.random.seed(2021)
 class TestAssignValueNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.op_type = "assign_value"
         self.inputs = {}
@@ -78,7 +78,7 @@ class TestAssignApi(unittest.TestCase):
         self.init_dtype()
         self.value = (
             -100 + 200 * numpy.random.random(size=(2, 5))).astype(self.dtype)
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -112,7 +112,7 @@ class TestAssignApi4(TestAssignApi):
         self.init_dtype()
         self.value = numpy.random.choice(
             a=[False, True], size=(2, 5)).astype(numpy.bool)
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = "bool"

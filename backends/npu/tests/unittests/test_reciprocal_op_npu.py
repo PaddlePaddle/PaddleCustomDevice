@@ -45,7 +45,7 @@ class TestReciprocal(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -54,7 +54,7 @@ class TestReciprocal(OpTest):
 class TestReciprocalFp64(TestReciprocal):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float64
@@ -65,7 +65,7 @@ class TestReciprocalFp64(TestReciprocal):
 class TestReciprocalFp16(TestReciprocal):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.__class__.no_need_check_grad = True
 
     def init_dtype(self):

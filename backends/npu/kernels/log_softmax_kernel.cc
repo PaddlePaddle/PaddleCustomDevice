@@ -59,7 +59,7 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(log_softmax,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogSoftmaxKernel,
                           float,
@@ -67,7 +67,7 @@ PD_REGISTER_PLUGIN_KERNEL(log_softmax,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log_softmax_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogSoftmaxGradKernel,
                           float,

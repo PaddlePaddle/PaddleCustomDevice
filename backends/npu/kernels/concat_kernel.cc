@@ -153,7 +153,7 @@ void ConcatGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(concat,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatKernel,
                           int,
@@ -163,7 +163,7 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatGradKernel,
                           int,

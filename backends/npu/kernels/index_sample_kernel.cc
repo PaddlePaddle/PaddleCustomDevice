@@ -116,7 +116,7 @@ void IndexSampleGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(index_sample,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IndexSampleKernel,
                           phi::dtype::float16,
@@ -125,7 +125,7 @@ PD_REGISTER_PLUGIN_KERNEL(index_sample,
                           int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(index_sample_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IndexSampleGradKernel,
                           phi::dtype::float16,

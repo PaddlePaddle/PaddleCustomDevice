@@ -29,7 +29,7 @@ paddle.enable_static()
 class TestFillAnyLikeNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "fill_any_like"
         self.dtype = np.float32
         self.shape = [2, 3, 4, 5]

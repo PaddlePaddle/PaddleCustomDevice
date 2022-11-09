@@ -78,13 +78,13 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormKernel,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormGradKernel,
                           float) {}

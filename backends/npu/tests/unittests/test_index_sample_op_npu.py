@@ -46,11 +46,10 @@ class TestIndexSampleOp(OpTest):
         self.outputs = {'Out': out}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+        self.check_output_with_place(paddle.CustomPlace('npu', 0))
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            paddle.CustomPlace('ascend', 0), ['X'], 'Out')
+        self.check_grad_with_place(paddle.CustomPlace('npu', 0), ['X'], 'Out')
 
     def config(self):
         """
@@ -163,7 +162,7 @@ class TestIndexSampleShape(unittest.TestCase):
         index = fluid.data(name='index', shape=[-1, 3], dtype='int32')
         output = paddle.index_sample(x=x, index=index)
 
-        place = fluid.CustomPlace('ascend', 0)
+        place = fluid.CustomPlace('npu', 0)
         exe = fluid.Executor(place=place)
         exe.run(fluid.default_startup_program())
 
@@ -173,7 +172,7 @@ class TestIndexSampleShape(unittest.TestCase):
 
 class TestIndexSampleDynamic(unittest.TestCase):
     def test_result(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             x = paddle.to_tensor(
                 [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0],
                  [9.0, 10.0, 11.0, 12.0]],

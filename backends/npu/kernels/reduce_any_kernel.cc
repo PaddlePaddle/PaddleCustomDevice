@@ -36,4 +36,4 @@ void AnyKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    any, ascend, ALL_LAYOUT, custom_kernel::AnyKernel, bool) {}
+    any, npu, ALL_LAYOUT, custom_kernel::AnyKernel, bool) {}

@@ -349,14 +349,14 @@ void GroupNormGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(group_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GroupNormKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(group_norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GroupNormGradKernel,
                           float,

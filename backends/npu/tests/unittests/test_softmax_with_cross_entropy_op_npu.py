@@ -65,7 +65,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         self.set_npu()
         self.op_type = "softmax_with_cross_entropy"
         self.numeric_stable_mode = False
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.soft_label = False
         self.init_dtype()
         self.axis = -1
@@ -150,7 +150,7 @@ class TestPowNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

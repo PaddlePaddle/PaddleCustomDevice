@@ -74,14 +74,14 @@ void ProdKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(prod_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ProdRawKernel,
                           phi::dtype::float16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           phi::dtype::float16,

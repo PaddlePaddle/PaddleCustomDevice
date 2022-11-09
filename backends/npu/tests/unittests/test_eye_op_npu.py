@@ -34,7 +34,7 @@ class TestEyeOp(OpTest):
         Test eye op with specified shape
         '''
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "eye"
         self.inputs = {}
 
@@ -112,7 +112,7 @@ class API_TestTensorEye(unittest.TestCase):
     def test_out(self):
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10)
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             result, = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="float32")
@@ -120,7 +120,7 @@ class API_TestTensorEye(unittest.TestCase):
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, num_columns=7, dtype="float16")
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             result, = exe.run(fetch_list=[data])
             expected_result = np.eye(10, 7, dtype="float16")
@@ -128,19 +128,19 @@ class API_TestTensorEye(unittest.TestCase):
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, dtype="int32")
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             result, = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="int32")
         self.assertEqual((result == expected_result).all(), True)
 
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         out = paddle.eye(10, dtype="int32")
         expected_result = np.eye(10, dtype="int32")
         paddle.enable_static()
         self.assertEqual((out.numpy() == expected_result).all(), True)
 
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         batch_shape = [2]
         out = fluid.layers.eye(10, 10, dtype="int32", batch_shape=batch_shape)
         result = np.eye(10, dtype="int32")
@@ -156,7 +156,7 @@ class API_TestTensorEye(unittest.TestCase):
                          True)
         self.assertEqual((out.numpy() == expected_result).all(), True)
 
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         batch_shape = [3, 2]
         out = fluid.layers.eye(10, 10, dtype="int32", batch_shape=batch_shape)
         result = np.eye(10, dtype="int32")

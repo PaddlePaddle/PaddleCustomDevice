@@ -74,7 +74,7 @@ void ClipByNormKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(clip_by_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ClipByNormKernel,
                           float,

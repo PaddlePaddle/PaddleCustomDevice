@@ -29,7 +29,7 @@ np.random.seed(10)
 class TestExpandAsOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_as_v2"
         x = np.random.rand(100).astype("float32")
         target_tensor = np.random.rand(2, 100).astype("float32")
@@ -52,7 +52,7 @@ class TestExpandAsOpRank1(OpTest):
 class TestExpandAsOpRank2(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_as_v2"
         x = np.random.rand(10, 12).astype("float32")
         target_tensor = np.random.rand(10, 12).astype("float32")
@@ -75,7 +75,7 @@ class TestExpandAsOpRank2(OpTest):
 class TestExpandAsOpRank3(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_as_v2"
         x = np.random.rand(2, 3, 20).astype("float32")
         target_tensor = np.random.rand(2, 3, 20).astype("float32")
@@ -98,7 +98,7 @@ class TestExpandAsOpRank3(OpTest):
 class TestExpandAsOpRank4(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "expand_as_v2"
         x = np.random.rand(1, 1, 7, 16).astype("float32")
         target_tensor = np.random.rand(4, 6, 7, 16).astype("float32")
@@ -134,7 +134,7 @@ class TestExpandAsV2API(unittest.TestCase):
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace('ascend', 0))
+        exe = fluid.Executor(place=fluid.CustomPlace('npu', 0))
         res_1 = exe.run(fluid.default_main_program(),
                         feed={"x": input1,
                               "target_tensor": input2},

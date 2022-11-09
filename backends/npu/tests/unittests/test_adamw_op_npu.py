@@ -67,7 +67,7 @@ def adamw_step(inputs, attributes):
 class TestAdamW(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adamw"
         param = np.random.uniform(-1, 1, (105, 102)).astype("float32")
         grad = np.random.uniform(-1, 1, (105, 102)).astype("float32")
@@ -124,7 +124,7 @@ class TestAdamW(OpTest):
 class TestAdamOpWithSkipUpdate(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adamw"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -176,7 +176,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
 class TestAdamOpWithoutDecay(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "adamw"
         param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
@@ -255,7 +255,7 @@ class TestNet(unittest.TestCase):
             adam.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

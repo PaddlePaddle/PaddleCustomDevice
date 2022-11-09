@@ -34,7 +34,7 @@ class TestNPUTrilTriu(OpTest):
         self.set_npu()
         self.init_dtype()
         self.initTestCase()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.real_np_op = getattr(np, self.real_op_type)
 
         self.inputs = {'X': self.X}
@@ -146,7 +146,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = fluid.data(shape=[1, 9, -1, 4], dtype=dtype, name='x')
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
-                place = paddle.CustomPlace('ascend', 0)
+                place = paddle.CustomPlace('npu', 0)
                 exe = fluid.Executor(place)
                 tril_out, triu_out = exe.run(
                     fluid.default_main_program(),
@@ -156,7 +156,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 np.testing.assert_allclose(triu_out, np.triu(data))
 
     def test_api_with_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
 
         dtypes = ['float16', 'float32']
         for dtype in dtypes:
@@ -180,7 +180,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = fluid.data(shape=[1, 9, -1, 4], dtype=dtype, name='x')
                 triu_out = fluid.layers.triu(x)
 
-                place = paddle.CustomPlace('ascend', 0)
+                place = paddle.CustomPlace('npu', 0)
                 exe = fluid.Executor(place)
                 triu_out = exe.run(fluid.default_main_program(),
                                    feed={"x": data},

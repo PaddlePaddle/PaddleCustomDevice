@@ -30,7 +30,7 @@ SEED = 2021
 class TestMean(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "mean"
         self.init_dtype()
 
@@ -57,7 +57,7 @@ class TestMean(OpTest):
 class TestMeanFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "mean"
         self.init_dtype()
 

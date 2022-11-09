@@ -210,7 +210,7 @@ void MergedMomentumKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(merged_momentum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MergedMomentumKernel,
                           float,

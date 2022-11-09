@@ -30,7 +30,7 @@ SEED = 2021
 class TestFillConstantBatchSizeLike(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()
@@ -134,7 +134,7 @@ class TestFillConstantBatchSizeLikeLodTensor(TestFillConstantBatchSizeLike):
     # test LodTensor
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()

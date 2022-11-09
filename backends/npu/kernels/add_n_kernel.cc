@@ -49,7 +49,7 @@ void AddNKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_n,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddNKernel,
                           float,

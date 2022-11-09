@@ -30,7 +30,7 @@ class TestAtan(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "atan"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.dtype = np.float32
         np.random.seed(SEED)
@@ -55,14 +55,14 @@ class TestAtan(OpTest):
             np_x = np.array([0.1])
             data = fluid.layers.data(name="X", shape=[1])
             out = paddle.atan(data, name='Y')
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = fluid.Executor(place)
             result, = exe.run(feed={"X": np_x}, fetch_list=[out])
             expected = np.arctan(np_x)
             self.assertEqual(result, expected)
 
     def test_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
             np_x = np.array([0.1])
             x = fluid.dygraph.to_variable(np_x)
             z = paddle.atan(x).numpy()

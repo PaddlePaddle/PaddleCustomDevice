@@ -49,7 +49,7 @@ void TakeAlongAxisGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TakeAlongAxisKernel,
                           int,
@@ -58,7 +58,7 @@ PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(take_along_axis_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TakeAlongAxisGradKernel,
                           int,

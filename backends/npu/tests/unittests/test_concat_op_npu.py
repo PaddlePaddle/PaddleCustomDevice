@@ -56,9 +56,12 @@ class TestConcatOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['x0', 'x2'], 'Out')
-        self.check_grad_with_place(self.place, ['x1'], 'Out')
-        self.check_grad_with_place(self.place, ['x2'], 'Out')
+        self.check_grad_with_place(
+            self.place, ['x0', 'x2'], 'Out', numeric_place=paddle.CPUPlace())
+        self.check_grad_with_place(
+            self.place, ['x1'], 'Out', numeric_place=paddle.CPUPlace())
+        self.check_grad_with_place(
+            self.place, ['x2'], 'Out', numeric_place=paddle.CPUPlace())
 
     def init_test_data(self):
         self.x0 = np.random.random((1, 4, 50)).astype(self.dtype)
@@ -126,6 +129,24 @@ create_test_fp16(TestConcatOp2)
 create_test_fp16(TestConcatOp3)
 create_test_fp16(TestConcatOp4)
 create_test_fp16(TestConcatOp5)
+
+
+#----------------Concat double----------------
+def create_test_double(parent):
+    class TestConcatDouble(parent):
+        def init_dtype(self):
+            self.dtype = np.double
+
+    cls_name = "{0}_{1}".format(parent.__name__, "double")
+    TestConcatDouble.__name__ = cls_name
+    globals()[cls_name] = TestConcatDouble
+
+
+create_test_double(TestConcatOp)
+create_test_double(TestConcatOp2)
+create_test_double(TestConcatOp3)
+create_test_double(TestConcatOp4)
+create_test_double(TestConcatOp5)
 
 
 #----------------Concat Int64----------------

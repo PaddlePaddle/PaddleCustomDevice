@@ -24,6 +24,7 @@ failed_test_lists=''
 tmp_dir=`mktemp -d`
 
 function collect_failed_tests() {
+    set +x
     for file in `ls $tmp_dir`; do
         exit_code=0
         grep -q 'The following tests FAILED:' $tmp_dir/$file||exit_code=$?
@@ -35,6 +36,7 @@ function collect_failed_tests() {
             ${failuretest}"
         fi
     done
+    set -x
 }
 
 function print_usage() {
@@ -56,26 +58,47 @@ function init() {
 }
 
 function show_ut_retry_result() {
+set +x
     SYSTEM=`uname -s`
-    retry_unittests_ut_name=$(echo "$retry_unittests_record" | grep -oEi "\-.+\(" | sed 's/(//' | sed 's/- //' )
-    retry_unittests_record_judge=$(echo ${retry_unittests_ut_name}| tr ' ' '\n' | sort | uniq -c | awk '{if ($1 >=4) {print $2}}')
-    if [ -z "${retry_unittests_record_judge}" ];then
-        echo "========================================"
-        echo "There are failed tests, which have been successful after re-run:"
-        echo "========================================"
-        echo "The following tests have been re-ran:"
-        echo "${retry_unittests_record}"
-    else
-        failed_ut_re=$(echo "${retry_unittests_record_judge}" | awk BEGIN{RS=EOF}'{gsub(/\n/,"|");print}')
-        echo "========================================"
-        echo "There are failed tests, which have been executed re-run,but success rate is less than 50%:"
-        echo "Summary Failed Tests... "
-        echo "========================================"
+    if [[ "$is_retry_execuate" != "0" ]]  && [[ "${exec_times}" == "0" ]] ;then
+        failed_test_lists_ult=`echo "${failed_test_lists}" | grep -Po '[^ ].*$'`
+        echo "========================================="
+        echo "There are more than ${parallel_failed_tests_exec_retry_threshold} failed unit tests in test, so no unit test retry!!!"
+        echo "========================================="
         echo "The following tests FAILED: "
-        echo "${retry_unittests_record}" | sort -u | grep -E "$failed_ut_re"
+        echo "${failed_test_lists_ult}"
         exit 8;
+    elif [[ "$is_retry_execuate" != "0" ]] && [[ "${exec_times}" == "1" ]];then
+        failed_test_lists_ult=`echo "${failed_test_lists}" | grep -Po '[^ ].*$'`
+        echo "========================================="
+        echo "There are more than 10 failed unit tests, so no unit test retry!!!"
+        echo "========================================="
+        echo "The following tests FAILED: "
+        echo "${failed_test_lists_ult}"
+        exit 8;
+    else
+        retry_unittests_ut_name=$(echo "$retry_unittests_record" | grep -oEi "\-.+\(" | sed 's/(//' | sed 's/- //' )
+        retry_unittests_record_judge=$(echo ${retry_unittests_ut_name}| tr ' ' '\n' | sort | uniq -c | awk '{if ($1 >=4) {print $2}}')
+        if [ -z "${retry_unittests_record_judge}" ];then
+            echo "========================================"
+            echo "There are failed tests, which have been successful after re-run:"
+            echo "========================================"
+            echo "The following tests have been re-ran:"
+            echo "${retry_unittests_record}"
+        else
+            failed_ut_re=$(echo "${retry_unittests_record_judge}" | awk BEGIN{RS=EOF}'{gsub(/\n/,"|");print}')
+            echo "========================================"
+            echo "There are failed tests, which have been executed re-run,but success rate is less than 50%:"
+            echo "Summary Failed Tests... "
+            echo "========================================"
+            echo "The following tests FAILED: "
+            echo "${retry_unittests_record}" | sort -u | grep -E "$failed_ut_re"
+            exit 8;
+        fi
     fi
+set -ex
 }
+
 function custom_npu_test() {
     # install paddlepaddle daily build cpu version
     pip install hypothesis
@@ -97,7 +120,7 @@ function custom_npu_test() {
     tmpfile=$tmp_dir/$tmpfile_rand
     ctest --output-on-failure | tee $tmpfile;
     collect_failed_tests
-
+    set +x
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0
@@ -108,10 +131,8 @@ function custom_npu_test() {
     exec_retry_threshold=30
     is_retry_execuate=0
     rerun_ut_startTime_s=`date +%s`
+    set +x
     if [ -n "$failed_test_lists" ];then
-        if [ ${TIMEOUT_DEBUG_HELP:-OFF} == "ON" ];then
-            bash $PADDLE_ROOT/tools/timeout_debug_help.sh "$failed_test_lists"    # cat logs for tiemout uts which killed by ctest
-        fi
         need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
         need_retry_ut_arr=(${need_retry_ut_str})
         need_retry_ut_count=${#need_retry_ut_arr[@]}
@@ -181,7 +202,7 @@ function custom_npu_test() {
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
     fi
-set -ex
+    set -ex
 }
 
 function custom_cpu_test() {

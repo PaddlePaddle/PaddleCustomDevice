@@ -52,7 +52,7 @@ class TestTileOpRank1(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        pass
+        self.check_grad_with_place(self.place, ['X'], ['Out'])
 
 
 #with dimension expanding
@@ -124,7 +124,7 @@ class TestTileOpRank1_tensor_attr(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        pass
+        self.check_grad_with_place(self.place, ['X'], ['Out'])
 
 
 class TestTileOpRank2_Corner_tensor_attr(TestTileOpRank1_tensor_attr):
@@ -168,7 +168,7 @@ class TestTileOpRank1_tensor(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        pass
+        self.check_grad_with_place(self.place, ['X'], ['Out'])
 
 
 class TestTileOpRank2_tensor(TestTileOpRank1_tensor):
@@ -235,6 +235,57 @@ class TestTileOpBool(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+
+# Situation 7: input x is Double
+class TestTileOpDouble(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace('ascend', 0)
+        self.op_type = "tile"
+        self.inputs = {
+            'X': np.random.randint(
+                10, size=(2, 10, 5)).astype("double")
+        }
+        self.attrs = {'repeat_times': [2, 1, 4]}
+        output = np.tile(self.inputs['X'], (2, 1, 4))
+        self.outputs = {'Out': output}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ['X'], ['Out'])
+
+
+# Situation 8: input x is FP16
+class TestTileOpFloat16(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace('ascend', 0)
+        self.op_type = "tile"
+        self.inputs = {
+            'X': np.random.randint(
+                10, size=(2, 10, 5)).astype("float16")
+        }
+        self.attrs = {'repeat_times': [2, 1, 4]}
+        output = np.tile(self.inputs['X'], (2, 1, 4))
+        self.outputs = {'Out': output}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        numel = self.inputs['X'].size
+        dx = np.full_like(self.inputs['X'], 1.0 / numel, dtype=np.float16)
+        self.check_grad_with_place(
+            self.place, ['X'], ['Out'], user_defined_grads=[dx])
 
 
 # Test python API

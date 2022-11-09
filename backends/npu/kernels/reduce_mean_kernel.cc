@@ -71,7 +71,7 @@ void MeanGradKernel(const Context& dev_ctx,
 
   auto input_dims = x.dims();
 
-  if (reduce_all) {
+  if (reduce_all || dims.size() == 0) {
     reduce_dims.clear();
     for (int d = 0; d < input_dims.size(); ++d) {
       reduce_dims.push_back(static_cast<int>(d));
@@ -107,7 +107,7 @@ void MeanGradKernel(const Context& dev_ctx,
     tmp_output_dims[d] = 1;
   }
   tmp_out_grad = out_grad;
-  tmp_out_grad.Resize(tmp_output_dims);
+  tmp_out_grad.ResizeAndAllocate(tmp_output_dims);
   NpuElementWiseOpBroadcast<T>(dev_ctx,
                                x_grad,
                                &tmp_out_grad,

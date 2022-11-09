@@ -71,7 +71,7 @@ void MeanGradKernel(const Context& dev_ctx,
 
   auto input_dims = x.dims();
 
-  if (reduce_all || dims.size() == 0) {
+  if (reduce_all || reduce_dims.size() == 0) {
     reduce_dims.clear();
     for (int d = 0; d < input_dims.size(); ++d) {
       reduce_dims.push_back(static_cast<int>(d));

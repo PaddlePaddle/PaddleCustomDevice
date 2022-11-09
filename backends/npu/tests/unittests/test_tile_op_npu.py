@@ -241,7 +241,7 @@ class TestTileOpBool(OpTest):
 class TestTileOpDouble(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.inputs = {
             'X': np.random.randint(
@@ -265,7 +265,7 @@ class TestTileOpDouble(OpTest):
 class TestTileOpFloat16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "tile"
         self.inputs = {
             'X': np.random.randint(

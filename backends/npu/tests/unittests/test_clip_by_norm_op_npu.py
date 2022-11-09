@@ -44,7 +44,7 @@ class TestClipByNormOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

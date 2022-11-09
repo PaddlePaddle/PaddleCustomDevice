@@ -92,7 +92,7 @@ void GreaterThanKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(equal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EqualKernel,
                           bool,
@@ -104,7 +104,7 @@ PD_REGISTER_PLUGIN_KERNEL(equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NotEqualKernel,
                           bool,
@@ -116,7 +116,7 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(less_equal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LessEqualKernel,
                           bool,
@@ -128,7 +128,7 @@ PD_REGISTER_PLUGIN_KERNEL(less_equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(less_than,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LessThanKernel,
                           bool,
@@ -140,7 +140,7 @@ PD_REGISTER_PLUGIN_KERNEL(less_than,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_equal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GreaterEqualKernel,
                           bool,
@@ -152,7 +152,7 @@ PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_than,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GreaterThanKernel,
                           bool,

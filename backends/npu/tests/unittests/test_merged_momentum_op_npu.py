@@ -316,7 +316,7 @@ class TestMergedMomentum(unittest.TestCase):
                 self.assertTrue(np.allclose(out1, out2, atol=1e-7))
 
     def get_places(self):
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.__class__.use_custom_device = True
         places = [self.place]
         return places
@@ -389,7 +389,7 @@ class TestMergedMomentum2(unittest.TestCase):
                 self.assertTrue(np.allclose(out3, out4, atol=1e-7))
 
     def get_places(self):
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.__class__.use_custom_device = True
         places = [self.place]
         return places

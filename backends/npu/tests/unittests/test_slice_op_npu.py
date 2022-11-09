@@ -55,7 +55,7 @@ class TestSliceOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         if self.dtype == np.float16:
@@ -88,7 +88,7 @@ class TestSliceOpFp16(TestSliceOp):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestSliceOpTensor(TestSliceOp):
@@ -154,7 +154,7 @@ class TestSliceOpFp16Tensor(TestSliceOpTensor):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestSliceOpTensorList(TestSliceOp):
@@ -242,7 +242,7 @@ class TestSliceOpFp16TensorList(TestSliceOpTensorList):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestSliceNet(unittest.TestCase):
@@ -277,7 +277,7 @@ class TestSliceNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 
@@ -345,7 +345,7 @@ class TestSliceOpDecsDim(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -537,7 +537,7 @@ class TestSliceOpDecsDimStartsListTensorFP16(
 class TestSliceOpInt64(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def setUp(self):
         self.op_type = "slice"

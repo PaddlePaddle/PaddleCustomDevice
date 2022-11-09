@@ -137,7 +137,7 @@ void AddGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
                           int64_t,
@@ -145,7 +145,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
                           int64_t,
@@ -153,7 +153,7 @@ PD_REGISTER_PLUGIN_KERNEL(add,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddGradKernel,
                           float,

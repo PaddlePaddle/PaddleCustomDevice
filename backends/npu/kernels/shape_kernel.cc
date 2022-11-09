@@ -36,7 +36,7 @@ void ShapeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(shape,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ShapeKernel,
                           bool,

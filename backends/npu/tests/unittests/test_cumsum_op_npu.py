@@ -65,7 +65,7 @@ class TestCumsumOp(unittest.TestCase):
             y6 = paddle.cumsum(x, axis=-2)
 
             place = fluid.CustomPlace(
-                'ascend', 0) if use_custom_device else fluid.CPUPlace()
+                'npu', 0) if use_custom_device else fluid.CPUPlace()
             exe = fluid.Executor(place)
             exe.run(fluid.default_startup_program())
             out = exe.run(feed={'X': data_np},
@@ -109,7 +109,7 @@ class TestNPUCumSumOp1(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32

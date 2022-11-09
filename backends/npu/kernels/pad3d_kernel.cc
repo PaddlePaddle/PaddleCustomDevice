@@ -31,16 +31,16 @@ void Pad3dKernel(const Context& dev_ctx,
   PADDLE_ENFORCE_LT(abs(pad_value),
                     1e-5,
                     phi::errors::Unimplemented(
-                        "Ascend npu only support constant_values=0 right now,"
+                        "npu npu only support constant_values=0 right now,"
                         "but received constant_value is %f .",
                         pad_value));
 
-  PADDLE_ENFORCE_EQ(mode,
-                    "constant",
-                    phi::errors::Unimplemented(
-                        "Ascend npu only support mode=constant right now,"
-                        "but received mode is %s .",
-                        mode));
+  PADDLE_ENFORCE_EQ(
+      mode,
+      "constant",
+      phi::errors::Unimplemented("npu npu only support mode=constant right now,"
+                                 "but received mode is %s .",
+                                 mode));
 
   std::vector<int> paddings(
       {0, 0, 0, 0, pads[4], pads[5], pads[2], pads[3], pads[0], pads[1]});
@@ -118,7 +118,7 @@ void Pad3dGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(pad3d,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Pad3dKernel,
                           phi::dtype::float16,
@@ -126,7 +126,7 @@ PD_REGISTER_PLUGIN_KERNEL(pad3d,
                           int) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pad3d_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Pad3dGradKernel,
                           phi::dtype::float16,

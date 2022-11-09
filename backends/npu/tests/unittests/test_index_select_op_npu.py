@@ -29,7 +29,7 @@ SEED = 2021
 class TestNPUIndexSelect(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.op_type = "index_select"
         self.config()
 
@@ -110,7 +110,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
         self.data_index = np.array([0, 1, 1]).astype('int32')
 
     def test_index_select_api(self):
-        paddle.set_device("ascend:0")
+        paddle.set_device("npu:0")
         paddle.enable_static()
         self.input_data()
 
@@ -119,7 +119,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             x = paddle.static.data(name='x', shape=[-1, 4], dtype='float32')
             index = paddle.static.data(name='index', shape=[3], dtype='int32')
             z = paddle.index_select(x, index, axis=1)
-            exe = paddle.static.Executor(paddle.CustomPlace('ascend', 0))
+            exe = paddle.static.Executor(paddle.CustomPlace('npu', 0))
             res, = exe.run(feed={'x': self.data_x,
                                  'index': self.data_index},
                            fetch_list=[z.name],
@@ -133,7 +133,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             x = paddle.static.data(name='x', shape=[-1, 4], dtype='float32')
             index = paddle.static.data(name='index', shape=[3], dtype='int32')
             z = paddle.index_select(x, index)
-            exe = paddle.static.Executor(paddle.CustomPlace('ascend', 0))
+            exe = paddle.static.Executor(paddle.CustomPlace('npu', 0))
             res, = exe.run(feed={'x': self.data_x,
                                  'index': self.data_index},
                            fetch_list=[z.name],
@@ -143,7 +143,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
         self.assertTrue(np.allclose(expect_out, np.array(res)))
 
     def test_dygraph_index_select_api(self):
-        paddle.set_device("ascend:0")
+        paddle.set_device("npu:0")
         paddle.disable_static()
         self.input_data()
 

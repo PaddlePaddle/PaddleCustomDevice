@@ -31,7 +31,7 @@ class TestSum1(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         x0 = np.random.random((3, 40)).astype(self.dtype)
         x1 = np.random.random((3, 40)).astype(self.dtype)
@@ -57,7 +57,7 @@ class TestSum2(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         x0 = np.random.random((3, 3)).astype(self.dtype)
         x1 = np.random.random((3, 3)).astype(self.dtype)
@@ -91,7 +91,7 @@ class TestSum3(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         x0 = np.random.random((3, 3)).astype(self.dtype)
 

@@ -42,7 +42,7 @@ pip install build/dist/paddle_custom_npu*.whl
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 
 # expected output
-['ascend']
+['npu']
 
 # run a simple model
 python tests/test_MNIST_model.py
@@ -103,7 +103,7 @@ Using PaddleInference
 ```bash
 pushd Paddle-Inference-Demo/c++/resnet50
 
-# Modify resnet50_test.cc, use config.EnableCustomDevice("ascend", 0) to replace config.EnableUseGpu(100, 0)
+# Modify resnet50_test.cc, use config.EnableCustomDevice("npu", 0) to replace config.EnableUseGpu(100, 0)
   
 bash run.sh
 ```

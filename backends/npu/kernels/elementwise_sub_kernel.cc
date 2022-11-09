@@ -49,7 +49,7 @@ void SubtractGradKernel(const Context& dev_ctx,
                         phi::DenseTensor* dy) {
   auto stream = dev_ctx.stream();
 
-  // NOTE(zhiqiu): It seems Ascend Sub follow the broadcast sematics with
+  // NOTE(zhiqiu): It seems npu Sub follow the broadcast sematics with
   // default axis=-1?
   // So, the sub_grad should do reduce if needed.
   // For example, the shape of each variable in elementwise_sub:
@@ -170,7 +170,7 @@ void SubtractGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractRawKernel,
                           float,
@@ -178,7 +178,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractKernel,
                           float,
@@ -186,7 +186,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractGradKernel,
                           float,

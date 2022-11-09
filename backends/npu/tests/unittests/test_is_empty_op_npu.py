@@ -32,7 +32,7 @@ class TestEmpty(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -83,7 +83,7 @@ class TestIsEmptyOpError(unittest.TestCase):
 
 class TestIsEmptyOpDygraph(unittest.TestCase):
     def test_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace('npu', 0))
         input = paddle.rand(shape=[4, 32, 32], dtype='float32')
         res = paddle.is_empty(x=input)
 

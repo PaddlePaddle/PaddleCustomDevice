@@ -20,7 +20,7 @@ namespace custom_kernel {
 const int kIgnoreIndex = -100;
 
 void CheckAttrs(bool normalize, int ignore_index) {
-  // Add this check is is due to Ascend SigmoidCrossEntropyWithLogits
+  // Add this check is is due to npu SigmoidCrossEntropyWithLogits
   // and SigmoidCrossEntropyWithLogitsGrad does't supoort
   // attr normalize and ignore_index
   PADDLE_ENFORCE_EQ(normalize,
@@ -73,7 +73,7 @@ void SigmoidCrossEntropyWithLogitsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidCrossEntropyWithLogitsKernel,
                           float,
@@ -81,7 +81,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
 
 PD_REGISTER_PLUGIN_KERNEL(
     sigmoid_cross_entropy_with_logits_grad,
-    ascend,
+    npu,
     ALL_LAYOUT,
     custom_kernel::SigmoidCrossEntropyWithLogitsGradKernel,
     float,

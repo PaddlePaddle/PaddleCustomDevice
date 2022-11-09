@@ -131,14 +131,14 @@ void EmbeddingGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(embedding,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingKernel,
                           float,
                           int,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(embedding_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingGradKernel,
                           float,

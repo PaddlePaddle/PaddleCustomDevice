@@ -126,7 +126,7 @@ class TestNPUUniformRandomOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -144,7 +144,7 @@ class TestNPUUniformRandomOp(OpTest):
 class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        places.append(core.CustomPlace('ascend', 0))
+        places.append(core.CustomPlace('npu', 0))
         return places
 
     def test_check_output(self):

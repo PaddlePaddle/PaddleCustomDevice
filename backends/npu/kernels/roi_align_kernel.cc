@@ -165,7 +165,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(roi_align,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::RoiAlignKernel,
                           float,
@@ -173,7 +173,7 @@ PD_REGISTER_PLUGIN_KERNEL(roi_align,
                           int) {}
 
 PD_REGISTER_PLUGIN_KERNEL(roi_align_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::RoiAlignGradKernel,
                           float,

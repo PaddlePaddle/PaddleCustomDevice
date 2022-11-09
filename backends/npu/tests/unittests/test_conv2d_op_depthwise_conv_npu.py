@@ -175,7 +175,7 @@ def create_test_fp16_class(parent):
 
 # TODO(Aganlengzi)
 @unittest.skipIf(
-    True, "CANN5.0.4 Issue: https://gitee.com/ascend/modelzoo/issues/I4TBLP")
+    True, "CANN5.0.4 Issue: https://gitee.com/Ascend/modelzoo/issues/I4TBLP")
 class TestDepthwiseConvNPU(OpTest):
     def setUp(self):
         self.set_npu()
@@ -216,7 +216,7 @@ class TestDepthwiseConvNPU(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_test_case(self):
         self.pad = [1, 1]
@@ -324,7 +324,7 @@ class TestDepthwiseConvNPU4(TestDepthwiseConvNPU):
 
 # TODO(Aganlengzi)
 @unittest.skipIf(
-    True, "CANN5.0.4 Issue: https://gitee.com/ascend/modelzoo/issues/I4TBLP")
+    True, "CANN5.0.4 Issue: https://gitee.com/Ascend/modelzoo/issues/I4TBLP")
 class TestDepthwiseConvNPU_Padding(OpTest):
     def setUp(self):
         self.op_type = "depthwise_conv2d"
@@ -367,7 +367,7 @@ class TestDepthwiseConvNPU_Padding(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_test_case(self):
         self.pad = [1, 1, 0, 1]

@@ -73,7 +73,7 @@ void SoftmaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(softmax,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SoftmaxKernel,
                           float,
@@ -81,7 +81,7 @@ PD_REGISTER_PLUGIN_KERNEL(softmax,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SoftmaxGradKernel,
                           float,

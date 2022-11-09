@@ -220,7 +220,7 @@ void TileGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(tile,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TileKernel,
                           bool,
@@ -231,7 +231,7 @@ PD_REGISTER_PLUGIN_KERNEL(tile,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tile_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TileGradKernel,
                           bool,

@@ -121,7 +121,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(check_finite_and_unscale,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CheckFiniteAndUnscale,
                           float,

@@ -38,7 +38,7 @@ class TestHardSwishNPU(OpTest):
 
         self.set_npu()
         self.op_type = "hard_swish"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
 
         x = np.random.uniform(-6, 6, [10, 12]).astype(self.dtype)
@@ -87,7 +87,7 @@ class TestHardSwishNPUWithCPU(unittest.TestCase):
     def setUp(self):
         paddle.disable_static()
 
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.dtype = np.float32
 
         self.x = np.random.uniform(-6, 10, [8, 15]).astype(self.dtype)
@@ -102,7 +102,7 @@ class TestHardSwishNPUWithCPU(unittest.TestCase):
         self.out_y = y
 
     def test_check_output_and_grad_npu(self):
-        paddle.set_device('ascend')
+        paddle.set_device('npu')
 
         data = paddle.to_tensor(self.x, stop_gradient=False)
         y = F.hardswish(data)

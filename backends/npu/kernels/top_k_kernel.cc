@@ -72,7 +72,7 @@ void TopkKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(top_k,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TopkKernel,
                           phi::dtype::float16,

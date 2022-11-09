@@ -34,7 +34,7 @@ def test_class(op_type, typename):
         def setUp(self):
             self.op_type = "sin"
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace('ascend', 0)
+            self.place = paddle.CustomPlace('npu', 0)
             self.__class__.no_need_check_grad = True
             np.random.seed(1024)
             x = np.random.uniform(-1, 1, [10, 12]).astype(typename)
@@ -54,14 +54,14 @@ def test_class(op_type, typename):
                 np_x = np.array([0.1])
                 data = fluid.layers.data(name="X", shape=[1])
                 out = eval("paddle.%s(data, name='Y')" % self.op_type)
-                place = fluid.CustomPlace('ascend', 0)
+                place = fluid.CustomPlace('npu', 0)
                 exe = fluid.Executor(place)
                 result, = exe.run(feed={"X": np_x}, fetch_list=[out])
                 expected = eval("np.%s(np_x)" % self.op_type)
                 self.assertEqual(result, expected)
 
         def test_dygraph(self):
-            with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+            with fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
                 np_x = np.array([0.1])
                 x = fluid.dygraph.to_variable(np_x)
                 z = eval("paddle.%s(x).numpy()" % self.op_type)

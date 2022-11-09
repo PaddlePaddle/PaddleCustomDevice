@@ -19,8 +19,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AbsKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -30,11 +30,11 @@ void AbsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-  
+
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
   runner.Run(stream);
@@ -43,11 +43,7 @@ void AbsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    abs, ascend, ALL_LAYOUT, custom_kernel::AbsKernel, float, double) {}
+    abs, npu, ALL_LAYOUT, custom_kernel::AbsKernel, float, double) {}
 
-PD_REGISTER_PLUGIN_KERNEL(abs_grad,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::AbsGradKernel,
-                          float,
-                          double) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    abs_grad, npu, ALL_LAYOUT, custom_kernel::AbsGradKernel, float, double) {}

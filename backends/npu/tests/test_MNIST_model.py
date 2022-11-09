@@ -61,7 +61,7 @@ class MNIST(paddle.nn.Layer):
             return x
 
 
-paddle.set_device('ascend')
+paddle.set_device('npu')
 mnist = MNIST()
 adam = Adam(learning_rate=0.001, parameters=mnist.parameters())
 

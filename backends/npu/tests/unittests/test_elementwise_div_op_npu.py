@@ -30,7 +30,7 @@ class TestElementwiseDiv(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_div"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -78,7 +78,7 @@ class TestElementwiseDivFp16(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_div"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -140,7 +140,7 @@ class TestElementwiseDivNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 
@@ -177,7 +177,7 @@ class TestElementwiseDivNet(unittest.TestCase):
 class TestFloatStatus(unittest.TestCase):
     def test_overflow(self):
         paddle.disable_static()
-        paddle.set_device('ascend:0')
+        paddle.set_device('npu:0')
 
         flag = paddle.zeros([8])
         ops.clear_float_status(flag, flag)

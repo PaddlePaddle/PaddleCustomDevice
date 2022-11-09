@@ -32,7 +32,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def get_prog(self):
         main_program = Program()
@@ -47,7 +47,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def run_prog(self, a, b):
         main_program, out = self.get_prog()
-        place = paddle.CustomPlace('ascend', 0)
+        place = paddle.CustomPlace('npu', 0)
 
         exe = static.Executor(place)
         out_ = exe.run(main_program, feed={"a": a, "b": b}, fetch_list=[out])

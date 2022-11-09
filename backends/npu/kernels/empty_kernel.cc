@@ -37,7 +37,7 @@ void EmptyLikeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(empty,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmptyKernel,
                           float,
@@ -50,7 +50,7 @@ PD_REGISTER_PLUGIN_KERNEL(empty,
                           bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(empty_like,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmptyLikeKernel,
                           float,

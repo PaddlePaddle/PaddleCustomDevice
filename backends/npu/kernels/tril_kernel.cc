@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void TrilKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    int diagonal,
-                    bool lower,
-                    phi::DenseTensor* out) {
+                const phi::DenseTensor& x,
+                int diagonal,
+                bool lower,
+                phi::DenseTensor* out) {
   const auto* x_data = x.data<T>();
   auto* out_data = dev_ctx.template Alloc<T>(out);
 
@@ -75,7 +75,7 @@ void TrilKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(tril,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TrilKernel,
                           bool,

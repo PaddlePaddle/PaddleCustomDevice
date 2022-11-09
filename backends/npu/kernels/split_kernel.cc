@@ -88,7 +88,7 @@ void SplitWithNumKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(split,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SplitKernel,
                           float,
@@ -100,7 +100,7 @@ PD_REGISTER_PLUGIN_KERNEL(split,
                           int8_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(split_with_num,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SplitWithNumKernel,
                           float,

@@ -28,12 +28,12 @@ void PadKernel(const Context& dev_ctx,
 
   auto pad_value = pad_value_scalar.to<float>();
 
-  PADDLE_ENFORCE_LT(abs(pad_value),
-                    1e-5,
-                    phi::errors::Unimplemented(
-                        "Ascend npu only support pad_value=0 right now,"
-                        "but received pad_value is %f .",
-                        pad_value));
+  PADDLE_ENFORCE_LT(
+      abs(pad_value),
+      1e-5,
+      phi::errors::Unimplemented("npu npu only support pad_value=0 right now,"
+                                 "but received pad_value is %f .",
+                                 pad_value));
 
   NpuOpRunner runner;
   runner.SetType("Pad")
@@ -75,7 +75,7 @@ void PadGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(pad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PadKernel,
                           int,
@@ -84,7 +84,7 @@ PD_REGISTER_PLUGIN_KERNEL(pad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pad_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PadGradKernel,
                           int,

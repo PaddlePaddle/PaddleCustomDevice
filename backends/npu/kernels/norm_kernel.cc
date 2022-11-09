@@ -86,14 +86,14 @@ void NormGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NormKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NormGradKernel,
                           float,

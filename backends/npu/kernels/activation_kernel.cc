@@ -721,7 +721,7 @@ void ReciprocalGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CosKernel,
                           float,
@@ -729,7 +729,7 @@ PD_REGISTER_PLUGIN_KERNEL(cos,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cos_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CosGradKernel,
                           float,
@@ -737,7 +737,7 @@ PD_REGISTER_PLUGIN_KERNEL(cos_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AtanKernel,
                           float,
@@ -745,7 +745,7 @@ PD_REGISTER_PLUGIN_KERNEL(atan,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AtanGradKernel,
                           float,
@@ -753,14 +753,13 @@ PD_REGISTER_PLUGIN_KERNEL(atan_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    exp, ascend, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}
+    exp, npu, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    exp_grad, ascend, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {
-}
+    exp_grad, npu, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sin,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SinKernel,
                           float,
@@ -768,21 +767,21 @@ PD_REGISTER_PLUGIN_KERNEL(sin,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReluKernel,
                           float,
@@ -790,7 +789,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReluGradKernel,
                           float,
@@ -798,7 +797,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu6,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6Kernel,
                           float,
@@ -806,7 +805,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6GradKernel,
                           float,
@@ -814,7 +813,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(leaky_relu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LeakyReluKernel,
                           float,
@@ -822,7 +821,7 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LeakyReluGradKernel,
                           float,
@@ -830,63 +829,63 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PowKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PowGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GeluKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GeluGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TanhKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TanhGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidKernel,
                           float,
@@ -894,7 +893,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidGradKernel,
                           float,
@@ -902,7 +901,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SqrtKernel,
                           float,
@@ -910,7 +909,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SqrtGradKernel,
                           float,
@@ -918,7 +917,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquareKernel,
                           float,
@@ -926,7 +925,7 @@ PD_REGISTER_PLUGIN_KERNEL(square,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquareGradKernel,
                           float,
@@ -934,35 +933,35 @@ PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_swish,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(reciprocal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReciprocalKernel,
                           float,
@@ -970,7 +969,7 @@ PD_REGISTER_PLUGIN_KERNEL(reciprocal,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(reciprocal_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReciprocalGradKernel,
                           float,

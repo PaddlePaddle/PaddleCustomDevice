@@ -112,7 +112,7 @@ void UnsqueezeGradNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeNPUKernel,
                           float,
@@ -128,7 +128,7 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           phi::dtype::complex<double>) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeWithXShapeNPUKernel,
                           float,
@@ -144,7 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
                           phi::dtype::complex<double>) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeGradNPUKernel,
                           phi::dtype::bfloat16,

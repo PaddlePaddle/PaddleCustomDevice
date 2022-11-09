@@ -30,7 +30,7 @@ class TestElementwiseSubOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_sub"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
         self.init_input_output()
         self.init_kernel_type()
@@ -63,7 +63,7 @@ class TestElementwiseSubOp(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
-    # TODO(ascendrc): For grad tests, OpTest raises FatalError:Segmentation fault
+    # TODO(npurc): For grad tests, OpTest raises FatalError:Segmentation fault
     #  when call op.run, which may be caused by system environment exception
     #  and the exact cause has not be located.
     # def test_check_grad_normal(self):
@@ -122,7 +122,7 @@ class TestSubtractAPI(unittest.TestCase):
             z = paddle.subtract(x_reshape, y_reshape)
             z = paddle.reshape(z, shape=[3])
 
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = paddle.static.Executor(place)
             x_value, y_value, z_value = exe.run(feed={"x": x_np,
                                                       "y": y_np},
@@ -149,10 +149,10 @@ class TestSubtractError(unittest.TestCase):
             # the input of elementwise_add must be Variable.
             x1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             y1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]],
-                paddle.CustomPlace('ascend', 0))
+                paddle.CustomPlace('npu', 0))
             self.assertRaises(TypeError, paddle.subtract, x1, y1)
 
             # the input dtype must be float16 or float32 or float64 or int32 or int64
@@ -194,7 +194,7 @@ class TestSubtractNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
         else:
             place = paddle.CPUPlace()
 

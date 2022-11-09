@@ -28,7 +28,7 @@ class NPUOpTest(OpTest):
     def set_plugin(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
 
 class TestNPUSplitOp(NPUOpTest):
@@ -186,7 +186,7 @@ class TestNPUSplitWithNumOp(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_split_with_num(self):
         def run(place):
@@ -216,7 +216,7 @@ class TestNPUSplitWithNumOp_AxisTensor(TestNPUSplitWithNumOp):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace('ascend', 0)]
+        self.place = [paddle.CustomPlace('npu', 0)]
 
     def test_split_with_num(self):
         def run(place):

@@ -62,7 +62,7 @@ class TestStackOpBase(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -126,8 +126,8 @@ class TestStackAPIWithLoDTensorArray(unittest.TestCase):
         self.iter_num = 3
         self.input_shape = [2, 3]
         self.x = np.random.random(self.input_shape).astype("float32")
-        self.place = paddle.CustomPlace('ascend', 0) \
-            if ('ascend' in paddle.fluid.core.get_all_custom_device_type()) else paddle.CPUPlace()
+        self.place = paddle.CustomPlace('npu', 0) \
+            if ('npu' in paddle.fluid.core.get_all_custom_device_type()) else paddle.CPUPlace()
         self.set_program()
 
     def set_program(self):
@@ -162,8 +162,8 @@ class TestTensorStackAPIWithLoDTensorArray(unittest.TestCase):
         self.iter_num = 3
         self.input_shape = [2, 3]
         self.x = np.random.random(self.input_shape).astype("float32")
-        self.place = paddle.CustomPlace('ascend', 0) \
-            if ('ascend' in paddle.fluid.core.get_all_custom_device_type()) else paddle.CPUPlace()
+        self.place = paddle.CustomPlace('npu', 0) \
+            if ('npu' in paddle.fluid.core.get_all_custom_device_type()) else paddle.CPUPlace()
         self.set_program()
 
     def set_program(self):
@@ -195,7 +195,7 @@ class API_test(unittest.TestCase):
             data2 = fluid.layers.data('data2', shape=[1, 2], dtype='float32')
             data3 = fluid.layers.data('data3', shape=[1, 2], dtype='float32')
             result_stack = paddle.stack([data1, data2, data3], axis=0)
-            place = paddle.CustomPlace('ascend', 0)
+            place = paddle.CustomPlace('npu', 0)
             exe = fluid.Executor(place)
             input1 = np.random.random([1, 2]).astype('float32')
             input2 = np.random.random([1, 2]).astype('float32')
@@ -219,7 +219,7 @@ class API_DygraphTest(unittest.TestCase):
         data1 = np.array([[1.0, 2.0]])
         data2 = np.array([[3.0, 4.0]])
         data3 = np.array([[5.0, 6.0]])
-        with fluid.dygraph.guard(place=paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace('npu', 0)):
             x1 = fluid.dygraph.to_variable(data1)
             x2 = fluid.dygraph.to_variable(data2)
             x3 = fluid.dygraph.to_variable(data3)
@@ -228,7 +228,7 @@ class API_DygraphTest(unittest.TestCase):
         expected_result = np.stack([data1, data2, data3])
         self.assertTrue(np.allclose(expected_result, result_np))
 
-        with fluid.dygraph.guard(place=paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace('npu', 0)):
             y1 = fluid.dygraph.to_variable(data1)
             result = paddle.stack([y1], axis=0)
             result_np_2 = result.numpy()
@@ -236,7 +236,7 @@ class API_DygraphTest(unittest.TestCase):
         self.assertTrue(np.allclose(expected_result_2, result_np_2))
 
     def test_single_tensor_error(self):
-        with fluid.dygraph.guard(place=paddle.CustomPlace('ascend', 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace('npu', 0)):
             x = paddle.to_tensor([1, 2, 3])
             self.assertRaises(Exception, paddle.stack, x)
 

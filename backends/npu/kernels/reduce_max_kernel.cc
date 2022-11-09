@@ -152,7 +152,7 @@ void MaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(max_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
                           bool,
@@ -162,7 +162,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
                           bool,
@@ -172,7 +172,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxGradKernel,
                           bool,

@@ -29,7 +29,7 @@ class TestConcatOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "concat"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.init_dtype()
         self.init_test_data()
 
@@ -177,7 +177,7 @@ class TestConcatAPIWithLoDTensorArray(unittest.TestCase):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
         self.axis = 1
         self.iter_num = 3
         self.input_shape = [2, 3]

@@ -139,7 +139,7 @@ void IndexSelectGradNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(index_select,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IndexSelectNPUKernel,
                           float,
@@ -147,7 +147,7 @@ PD_REGISTER_PLUGIN_KERNEL(index_select,
                           int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(index_select_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IndexSelectGradNPUKernel,
                           float,

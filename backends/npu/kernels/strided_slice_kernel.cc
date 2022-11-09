@@ -649,7 +649,7 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawKernel,
                           bool,
@@ -660,7 +660,7 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawGradKernel,
                           bool,

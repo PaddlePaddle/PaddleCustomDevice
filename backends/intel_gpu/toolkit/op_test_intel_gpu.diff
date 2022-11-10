@@ -1,0 +1,22 @@
+diff --git a/python/paddle/fluid/tests/unittests/op_test.py b/python/paddle/fluid/tests/unittests/op_test.py
+index 18eaae293b..82f559e66a 100644
+--- a/python/paddle/fluid/tests/unittests/op_test.py
++++ b/python/paddle/fluid/tests/unittests/op_test.py
+@@ -351,6 +351,9 @@ class OpTest(unittest.TestCase):
+         def is_mkldnn_op_test():
+             return hasattr(cls, "use_mkldnn") and cls.use_mkldnn == True
+ 
++        def is_intel_gpu_op_test():
++            return hasattr(cls, "use_intel_gpu") and cls.use_intel_gpu == True
++
+         def is_rocm_op_test():
+             return core.is_compiled_with_rocm()
+ 
+@@ -385,6 +388,7 @@ class OpTest(unittest.TestCase):
+                 and not hasattr(cls, 'exist_fp64_check_grad') \
+                 and not is_xpu_op_test() \
+                 and not is_mkldnn_op_test() \
++                and not is_intel_gpu_op_test() \
+                 and not is_rocm_op_test() \
+                 and not is_npu_op_test() \
+                 and not is_mlu_op_test() \

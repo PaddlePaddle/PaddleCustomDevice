@@ -728,6 +728,74 @@ try {
 }
 
 
+
+
+
+
+template <typename T>
+void MatmulGradKernel(const phi::Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      const phi::DenseTensor& out_grad,
+                      bool transpose_x,
+                      bool transpose_y,
+                      phi::DenseTensor* dx,
+                      phi::DenseTensor* dy) {
+
+  show_kernel("matmul-dnn-grad type=" << dnn_support::type2String<T>::name() << " dx=" << (dx) << " dy=" << (dy) );
+  // auto x_dims = x.dims();
+  // auto y_dims = y.dims();
+  // auto dout_dims = out_grad.dims();
+
+  // int x_ndim = x_dims.size();
+  // int y_ndim = y_dims.size();
+  // int ndim = dout_dims.size();
+
+  // auto x_data = x.data<T>();
+  // auto y_data = y.data<T>();
+  // auto out_grad_data = out_grad.data<T>();
+  // auto dx_data = static_cast<T*>(nullptr);
+  // auto dy_data = static_cast<T*>(nullptr);
+
+  if (dx)
+  {
+     // dx = dout * y'
+    auto dx_data = dev_ctx.template Alloc<T>(dx);
+
+    MatmulKernel<T>(dev_ctx,
+                  out_grad,
+                   y,
+                  false,
+                  true,
+                  dx);
+
+  }
+
+
+  if (dy)
+  {
+    // dy = x' * dout
+    auto dy_data = dev_ctx.template Alloc<T>(dy);
+
+    MatmulKernel<T>(dev_ctx,
+                  x,
+                   out_grad,
+                  true,
+                  false,
+                  dy);
+  }
+
+
+
+
+
+
+
+
+} // gpu::MatmulGradKernel
+
+
+
 } // gpu
 
 
@@ -752,9 +820,17 @@ PD_BUILD_PHI_KERNEL(matmul,
 
 
 
+// PD_BUILD_PHI_KERNEL(matmul_grad,
+//                     custom_cpu,
+//                     ALL_LAYOUT,
+//                     custom_kernel::MatmulGradKernel,
+//                     float,
+//                     double) {}
+
+
 PD_BUILD_PHI_KERNEL(matmul_grad,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
-                    custom_kernel::MatmulGradKernel,
-                    float,
-                    double) {}
+                    custom_kernel::gpu::MatmulGradKernel,
+                    float
+                    ) {}

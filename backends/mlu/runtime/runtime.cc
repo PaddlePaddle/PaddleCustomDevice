@@ -114,6 +114,8 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  VLOG(3) << "AsyncMemCpyD2D: from " << src << " to " << dst << " size " << size
+          << " stream " << stream;
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
                                              const_cast<void *>(src),
                                              size,
@@ -203,8 +205,6 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDestroy(GetHandle(stream)));
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpDestroy(GetOpHandle(stream)));
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueDestroy(GetQueue(stream)));
-
-  
 
   mluStream_t mlu_stream = reinterpret_cast<mluStream_t>(stream);
   delete[] mlu_stream;

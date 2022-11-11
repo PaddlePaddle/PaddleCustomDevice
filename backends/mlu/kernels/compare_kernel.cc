@@ -44,7 +44,7 @@ void EqualKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  EqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
@@ -74,7 +74,7 @@ void NotEqualKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
@@ -104,7 +104,7 @@ void LessThanKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
@@ -134,7 +134,7 @@ void LessEqualKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
@@ -164,7 +164,7 @@ void GreaterThanKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
@@ -194,7 +194,7 @@ void GreaterEqualKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  phi::DenseTensor* out) {
-  GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 }  // namespace custom_kernel

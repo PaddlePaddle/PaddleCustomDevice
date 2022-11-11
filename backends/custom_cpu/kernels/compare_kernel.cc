@@ -52,7 +52,7 @@ void NotEqualKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  NotEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::NotEqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
@@ -88,7 +88,7 @@ void EqualKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  EqualRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::EqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
@@ -118,7 +118,7 @@ void LessThanKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  LessThanRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::LessThanRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
@@ -148,7 +148,7 @@ void LessEqualKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  LessEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::LessEqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
@@ -178,7 +178,7 @@ void GreaterThanKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  GreaterThanRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::GreaterThanRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 
@@ -209,7 +209,7 @@ void GreaterEqualKernel(const phi::Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  GreaterEqualRawKernel<T>(dev_ctx, x, y, -1, out);
+  custom_kernel::GreaterEqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 }  // namespace custom_kernel

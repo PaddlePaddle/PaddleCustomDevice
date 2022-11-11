@@ -138,7 +138,7 @@ template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  phi::DenseTensor* out) {
-  SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
+  custom_kernel::SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
 }
 
 template <typename T, typename Context>
@@ -226,7 +226,7 @@ template <typename T, typename Context>
 void Relu6Kernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  phi::DenseTensor* out) {
-  Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
+  custom_kernel::Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
 }
 
 template <typename T, typename Context>
@@ -628,7 +628,7 @@ template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DenseTensor* out) {
-HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
+custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>

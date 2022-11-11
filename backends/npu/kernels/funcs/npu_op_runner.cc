@@ -212,65 +212,62 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor) {
 NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
                                    aclMemType mem_type) {
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(tensor, mem_type));
+  auto desc = CreateTensorDesc(tensor, mem_type);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(tensor));
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int32_t> &&dims) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
+  if (mem_type == ACL_MEMTYPE_HOST) {
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorConst(
+        desc, const_cast<void *>(tensor.data()), tensor.capacity()));
+  }
 
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int64_t> &&dims) {
+template <typename T>
+void NpuOpRunner::AddConstantInputHelper(const phi::CustomContext &dev_ctx,
+                                         const std::vector<T> &values) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
+      dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
+  auto desc = CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
+  // set tensor const
+  PADDLE_ENFORCE_NPU_SUCCESS(
+      aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
+}
 
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   const std::vector<int32_t> &&values) {
+  AddConstantInputHelper(dev_ctx, values);
+  return *this;
+}
+
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   const std::vector<int64_t> &&values) {
+  AddConstantInputHelper(dev_ctx, values);
   return *this;
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
                                    const std::vector<float> &&values) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, values, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
+  AddConstantInputHelper(dev_ctx, values);
   return *this;
 }
 
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
                                    const std::vector<double> &&values) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, values, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
+  AddConstantInputHelper(dev_ctx, values);
+  return *this;
+}
 
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   const std::vector<bool> &&values) {
+  AddConstantInputHelper(dev_ctx, values);
   return *this;
 }
 
@@ -642,7 +639,6 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   VLOG(4) << "output_desc.size: " << output_descs_.size();
   VLOG(4) << "attr: " << attr_;
   VLOG(4) << "stream: " << stream;
-
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

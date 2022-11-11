@@ -318,6 +318,7 @@ void SliceGradRawKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
+/*
 PD_REGISTER_PLUGIN_KERNEL(slice,
                           npu,
                           ALL_LAYOUT,
@@ -329,6 +330,7 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           int32_t,
                           int64_t,
                           bool) {}
+*/
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
                           npu,
                           ALL_LAYOUT,

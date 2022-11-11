@@ -153,7 +153,7 @@ PD_REGISTER_PLUGIN_KERNEL(equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(equal_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EqualRawKernel,
                           bool,
@@ -178,7 +178,7 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
 
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NotEqualRawKernel,
                           bool,
@@ -202,7 +202,7 @@ PD_REGISTER_PLUGIN_KERNEL(less_equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LessEqualRawKernel,
                           bool,
@@ -226,7 +226,7 @@ PD_REGISTER_PLUGIN_KERNEL(less_than,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LessThanRawKernel,
                           bool,
@@ -250,7 +250,7 @@ PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GreaterEqualRawKernel,
                           bool,
@@ -273,7 +273,7 @@ PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           phi::dtype::float16,
                           double) {}
 PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GreaterThanRawKernel,
                           bool,

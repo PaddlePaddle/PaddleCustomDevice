@@ -795,7 +795,7 @@ PD_REGISTER_PLUGIN_KERNEL(swish,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishRawKernel,
                           float,
@@ -833,7 +833,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu6_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6RawKernel,
                           float,
@@ -990,7 +990,7 @@ PD_REGISTER_PLUGIN_KERNEL(hard_swish,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishRawKernel,
                           float,

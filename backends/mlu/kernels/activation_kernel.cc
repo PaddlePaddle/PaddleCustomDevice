@@ -132,11 +132,18 @@ void ReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void Relu6Kernel(const Context& dev_ctx,
+void Relu6RawKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  float attr,
                  phi::DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_RELU6, out);
+}
+
+template <typename T, typename Context>
+void Relu6Kernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  custom_kernel::Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
 }
 
 template <typename T, typename Context>
@@ -390,7 +397,7 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishKernel(const Context& dev_ctx,
+void HardSwishRawKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      float threshold,
                      float scale,
@@ -421,6 +428,13 @@ void HardSwishKernel(const Context& dev_ctx,
                   GetBasePtr(&x),
                   output_desc.get(),
                   GetBasePtr(out));
+}
+
+template <typename T, typename Context>
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
+custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>
@@ -557,6 +571,13 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(relu6_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6RawKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
                           CustomMLU,
                           ALL_LAYOUT,
@@ -673,6 +694,13 @@ PD_REGISTER_PLUGIN_KERNEL(hard_swish,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 

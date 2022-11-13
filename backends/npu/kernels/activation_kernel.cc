@@ -117,7 +117,7 @@ void SinKernel(const Context& dev_ctx,
 
 // Swish = x * sigmoid(beta * x)
 template <typename T, typename Context>
-void SwishKernel(const Context& dev_ctx,
+void SwishRawKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  float beta,
                  phi::DenseTensor* out) {
@@ -132,6 +132,13 @@ void SwishKernel(const Context& dev_ctx,
 
   const auto& mul_runner = NpuOpRunner("Mul", {x, *out}, {*out});
   mul_runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SwishKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  custom_kernel::SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
 }
 
 template <typename T, typename Context>
@@ -204,7 +211,7 @@ void ReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void Relu6Kernel(const Context& dev_ctx,
+void Relu6RawKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  float attr,
                  phi::DenseTensor* out) {
@@ -213,6 +220,13 @@ void Relu6Kernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Relu6Kernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  custom_kernel::Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
 }
 
 template <typename T, typename Context>
@@ -542,7 +556,7 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishKernel(const Context& dev_ctx,
+void HardSwishRawKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      float threshold,
                      float scale,
@@ -608,6 +622,13 @@ void HardSwishKernel(const Context& dev_ctx,
 
   const auto& runner_mul = NpuOpRunner("Mul", {x, div_val}, {*out});
   runner_mul.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
+custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>
@@ -773,6 +794,13 @@ PD_REGISTER_PLUGIN_KERNEL(swish,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(swish_raw,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishRawKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(swish_grad,
                           npu,
                           ALL_LAYOUT,
@@ -800,6 +828,14 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6Kernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(relu6_raw,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6RawKernel,
                           float,
                           double,
                           phi::dtype::float16) {}
@@ -950,6 +986,13 @@ PD_REGISTER_PLUGIN_KERNEL(hard_swish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 

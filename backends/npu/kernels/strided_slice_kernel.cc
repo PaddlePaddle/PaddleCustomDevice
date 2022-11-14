@@ -293,16 +293,19 @@ void StridedSliceCompute(const Context& dev_ctx,
                                       {"shrink_axis_mask", 0}});
     runner.Run(stream);
   } else {
-    const auto& runner = NpuOpRunner(
-        "StridedSlice",
-        {x, starts_indices_tensor, ends_indices_tensor, strides_indices_tensor},
-        {*out},
-        {{"begin_mask", 0},
-         {"end_mask", 0},
-         {"ellipsis_mask", 0},
-         {"new_axis_mask", 0},
-         {"shrink_axis_mask", 0}});
-    runner.Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("StridedSlice")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(starts_indices_vector))
+        .AddInput(dev_ctx, std::move(ends_indices_vector))
+        .AddInput(dev_ctx, std::move(strides_indices_vector))
+        .AddAttr("begin_mask", 0)
+        .AddAttr("end_mask", 0)
+        .AddAttr("ellipsis_mask", 0)
+        .AddAttr("new_axis_mask", 0)
+        .AddAttr("shrink_axis_mask", 0)
+        .AddOutput(*out)
+        .Run(stream);
   }
 
   if (need_reverse) {

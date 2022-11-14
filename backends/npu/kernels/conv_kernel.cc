@@ -401,16 +401,6 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 
   if (filter_grad) {
     dev_ctx.template Alloc<T>(filter_grad);
-
-    PADDLE_ENFORCE_EQ(
-        (dilations[2] == 1 && dilations[3] == 1),
-        true,
-        phi::errors::InvalidArgument(
-            "dilation_h and dilation_w in DepthwiseConv2DBackpropFilterD "
-            "must be equal to 1, but got dilation_h %d, dilation_w %d",
-            dilation[2],
-            dilation[3]));
-
     NpuOpRunner runner;
     runner.SetType("DepthwiseConv2DBackpropFilterD")
         .AddInput(input_tensor)

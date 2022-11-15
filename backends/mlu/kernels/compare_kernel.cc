@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void EqualKernel(const Context& dev_ctx,
+void EqualRawKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
                  int axis,
@@ -40,7 +40,15 @@ void EqualKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void NotEqualKernel(const Context& dev_ctx,
+void EqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T, typename Context>
+void NotEqualRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     int axis,
@@ -62,7 +70,15 @@ void NotEqualKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LessThanKernel(const Context& dev_ctx,
+void NotEqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T, typename Context>
+void LessThanRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     int axis,
@@ -84,7 +100,15 @@ void LessThanKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LessEqualKernel(const Context& dev_ctx,
+void LessThanKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T, typename Context>
+void LessEqualRawKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& y,
                      int axis,
@@ -106,7 +130,15 @@ void LessEqualKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GreaterThanKernel(const Context& dev_ctx,
+void LessEqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T, typename Context>
+void GreaterThanRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        int axis,
@@ -128,7 +160,15 @@ void GreaterThanKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GreaterEqualKernel(const Context& dev_ctx,
+void GreaterThanKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
+template <typename T, typename Context>
+void GreaterEqualRawKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
                         int axis,
@@ -149,12 +189,30 @@ void GreaterEqualKernel(const Context& dev_ctx,
                  GetBasePtr(out));
 }
 
+template <typename T, typename Context>
+void GreaterEqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(equal,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::EqualKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(equal_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::EqualRawKernel,
                           bool,
                           int16_t,
                           int,
@@ -171,10 +229,30 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::NotEqualRawKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(less_than,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::LessThanKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::LessThanRawKernel,
                           bool,
                           int16_t,
                           int,
@@ -191,6 +269,16 @@ PD_REGISTER_PLUGIN_KERNEL(less_equal,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::LessEqualRawKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           CustomMLU,
                           ALL_LAYOUT,
@@ -201,10 +289,30 @@ PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GreaterThanRawKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::GreaterEqualKernel,
+                          bool,
+                          int16_t,
+                          int,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::GreaterEqualRawKernel,
                           bool,
                           int16_t,
                           int,

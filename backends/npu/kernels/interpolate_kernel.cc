@@ -544,13 +544,6 @@ void InterpolateKernel(
   int n, c, in_d, in_h, in_w;
   ExtractNCDWH(input_dims, data_layout, &n, &c, &in_d, &in_h, &in_w);
 
-  // To-do(qili93): need to support align_corners = true case, try ReSizeD
-  PADDLE_ENFORCE_EQ(
-      align_corners,
-      false,
-      phi::errors::InvalidArgument(
-          "NPU Interpolate Kernel has diff when align_corners is true."));
-
   float scale_h = -1;
   float scale_w = -1;
 
@@ -694,13 +687,6 @@ void InterpolateGradKernel(
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
   int n, c, in_d, in_h, in_w;
   ExtractNCDWH(input.dims(), data_layout, &n, &c, &in_d, &in_h, &in_w);
-
-  // To-do(qili93): need to support align_corners = true case, try ReSizeD
-  PADDLE_ENFORCE_EQ(
-      align_corners,
-      false,
-      phi::errors::InvalidArgument(
-          "NPU Interpolate Kernel has diff when align_corners is true."));
 
   float scale_h = -1;
   float scale_w = -1;

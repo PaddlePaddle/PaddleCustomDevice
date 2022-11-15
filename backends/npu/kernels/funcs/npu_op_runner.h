@@ -69,16 +69,19 @@ class NpuOpRunner {
   NpuOpRunner &AddInput(const phi::DenseTensor &tensor, aclMemType mem_type);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int32_t> &&dims);
+                        const std::vector<int32_t> &&values);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int64_t> &&dims);
+                        const std::vector<int64_t> &&values);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
                         const std::vector<float> &&values);
 
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
                         const std::vector<double> &&values);
+
+  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
+                        const std::vector<bool> &&values);
 
   NpuOpRunner &AddOutput(const phi::DenseTensor &tensor);
 
@@ -173,6 +176,9 @@ class NpuOpRunner {
   void ClearFloatStatus(aclrtStream stream) const;
   void AllocFloatStatus(aclrtStream stream) const;
   void PrintOpInfo() const;
+  template <typename T>
+  void AddConstantInputHelper(const phi::CustomContext &dev_ctx,
+                              const std::vector<T> &values);
 
  private:
   std::string op_type_;

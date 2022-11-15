@@ -525,9 +525,9 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    for (int i = 0; i < cpu_data.size(); ++i) {
-      std::cout << cpu_data[i] << ",";
-    }
+    //for (int i = 0; i < cpu_data.size(); ++i) {
+    //  std::cout << cpu_data[i] << ",";
+    //}
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }
@@ -547,9 +547,9 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    for (int i = 0; i < cpu_data.size(); ++i) {
-      std::cout << cpu_data[i] << ",";
-    }
+    //for (int i = 0; i < cpu_data.size(); ++i) {
+    //  std::cout << cpu_data[i] << ",";
+    //}
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }

@@ -114,6 +114,8 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  VLOG(3) << "AsyncMemCpyD2D: from " << src << " to " << dst << " size " << size
+          << " stream " << stream;
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
                                              const_cast<void *>(src),
                                              size,

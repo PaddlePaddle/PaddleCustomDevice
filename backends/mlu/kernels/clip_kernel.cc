@@ -34,6 +34,7 @@ void ClipKernel(const Context& dev_ctx,
                 GetBasePtr(&x),
                 static_cast<const void*>(&min_val),
                 static_cast<const void*>(&max_val),
+                out_desc.get(),
                 GetBasePtr(out));
 }
 

@@ -762,6 +762,7 @@ class MLUCnnl {
                    const void* input,
                    const void* min,
                    const void* max,
+                   const cnnlTensorDescriptor_t y_desc,
                    void* y);
 
   static void HardtanhBackward(const Context& ctx,

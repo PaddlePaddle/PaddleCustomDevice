@@ -649,6 +649,43 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void StridedSliceKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const std::vector<int>& axes,
+                        const phi::IntArray& starts,
+                        const phi::IntArray& ends,
+                        const phi::IntArray& strides,
+                        phi::DenseTensor* out) {
+  std::vector<int> infer_flags(axes.size(), 1);
+  std::vector<int> decrease_axis;
+  custom_kernel::StridedSliceRawKernel<T, Context>(
+      dev_ctx, x, axes, starts, ends, strides, infer_flags, decrease_axis, out);
+}
+
+template <typename T, typename Context>
+void StridedSliceGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& out_grad,
+                            const std::vector<int>& axes,
+                            const phi::IntArray& starts,
+                            const phi::IntArray& ends,
+                            const phi::IntArray& strides,
+                            phi::DenseTensor* x_grad) {
+  std::vector<int> infer_flags(axes.size(), 1);
+  std::vector<int> decrease_axis;
+  custom_kernel::StridedSliceRawGradKernel<T, Context>(dev_ctx,
+                                        x,
+                                        out_grad,
+                                        axes,
+                                        starts,
+                                        ends,
+                                        strides,
+                                        infer_flags,
+                                        decrease_axis,
+                                        x_grad);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
@@ -666,6 +703,28 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawGradKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceGradKernel,
                           bool,
                           int,
                           int64_t,

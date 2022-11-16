@@ -17,36 +17,74 @@
 
 namespace custom_kernel {
 
+inline phi::DDim GetDimsWithAxis(const phi::DDim &x_dims, 
+                                 const phi::DDim &y_dims, 
+                                 const int axis) {
+  std::vector<int64_t> y_shape(x_dims.size());
+  for (int i = 0; i < axis; ++i) {
+    y_shape[i] = 1;
+  }
+  for (int i = 0; i < y_dims.size(); ++i) {
+    bool is_common_boardcast = x_dims[i + axis] == y_dims[i] ? true : (y_dims[i] == 1 || x_dims[i + axis] == 1);
+    PADDLE_ENFORCE_EQ(is_common_boardcast, true,
+                      phi::errors::InvalidArgument(
+                          "Broadcast dimension mismatch. Operands "
+                          "could not be broadcast together with the shape of "
+                          "X = [%s] and the shape of Y = [%s]. Received [%d] "
+                          "in X is not equal to [%d] in Y.",
+                          x_dims,
+                          y_dims,
+                          x_dims[i + axis],
+                          y_dims[i]));
+    y_shape[i] = y_dims[i];
+  }
+  for (int i = axis + y_dims.size(); i < x_dims.size(); ++i) {
+    y_shape[i] = 1;
+  }
+  return phi::make_ddim(y_shape);
+}
+
 template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::DenseTensor& y,
                   int axis,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  VLOG(1)<< "------------------------------AddRawKernel--------------------------------------------";
+  VLOG(1)<< "0 - AddRawKernel - Input: x" << OpPreparation::DebugString(x);
+  VLOG(1)<< "0 - AddRawKernel - Input: y" << OpPreparation::DebugString(y);
+  VLOG(1)<< "0 - AddRawKernel - Output: out" << OpPreparation::DebugString(*out);
+  if (x.storage_properties_initialized()) {
+    auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    auto requested_size = OpPreparation::PrepareTensorWithFormat(*out, (aclFormat)storage_format);
+    dev_ctx.template Alloc<T>(out, requested_size * paddle::experimental::SizeOf(out->dtype()));
+  } else {
+    dev_ctx.template Alloc<T>(out);
+  }
+
+  VLOG(1)<< "1 - AddRawKernel - Output: out" << OpPreparation::DebugString(*out);
+
   auto stream = dev_ctx.stream();
 
   bool direct_compute = false;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
+
+  phi::DenseTensor x_tensor(x), y_tensor(y);
   if (x_dims.size() >= y_dims.size()) {
-    direct_compute = x_dims.size() == (y_dims.size() + axis);
+    y_tensor.Resize(GetDimsWithAxis(x_dims, y_dims, axis));
   } else {
-    direct_compute = y_dims.size() == (x_dims.size() + axis);
+    x_tensor.Resize(GetDimsWithAxis(y_dims, x_dims, axis));
   }
 
-  if (direct_compute) {
-    const auto& runner = NpuOpRunner("Add", {x, y}, {*out}, {});
-    runner.Run(stream);
-  } else {
-    phi::DenseTensor transformed_x, transformed_y;
-    NpuElementWiseOpBroadcast<T>(
-        dev_ctx, &x, &y, axis, &transformed_x, &transformed_y);
-    const auto& runner =
-        NpuOpRunner("Add", {transformed_x, transformed_y}, {*out}, {});
-    runner.Run(stream);
-  }
+  VLOG(1)<< "2 - AddRawKernel - Input: x_tensor" << OpPreparation::DebugString(x_tensor);
+  VLOG(1)<< "2 - AddRawKernel - Input: y_tensor" << OpPreparation::DebugString(y_tensor);
+  VLOG(1)<< "2 - AddRawKernel - Output: out" << OpPreparation::DebugString(*out);
+
+  const auto& runner = NpuOpRunner("Add", {x_tensor, y_tensor}, {*out}, {});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -66,12 +104,27 @@ void AddGradKernel(const Context& dev_ctx,
                    int axis,
                    phi::DenseTensor* dx,
                    phi::DenseTensor* dy) {
+  VLOG(1)<< "------------------------------AddGradKernel--------------------------------------------";
+  VLOG(1)<< "0 - AddGradKernel - Input: x" << OpPreparation::DebugString(x);
+  VLOG(1)<< "0 - AddGradKernel - Input: y" << OpPreparation::DebugString(y);
+  VLOG(1)<< "0 - AddGradKernel - Input: dout" << OpPreparation::DebugString(dout);
+
   auto stream = dev_ctx.stream();
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
 
   if (dx) {
-    dev_ctx.template Alloc<T>(dx);
+    VLOG(1)<< "0 - AddGradKernel - Output: dx" << OpPreparation::DebugString(*dx);
+
+    if (x.storage_properties_initialized()) {
+      auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+      int64_t storage_format = npu_properties.storage_format;
+      auto requested_size = OpPreparation::PrepareTensorWithFormat(*dx, (aclFormat)storage_format);
+      dev_ctx.template Alloc<T>(dx, requested_size * paddle::experimental::SizeOf(dx->dtype()));
+    } else {
+      dev_ctx.template Alloc<T>(dx);
+    }
+
     if (dx->dims() != dout.dims()) {
       std::vector<int> dst_dims_vec;
       std::vector<int> reduce_axes;
@@ -102,6 +155,8 @@ void AddGradKernel(const Context& dev_ctx,
     }
   }
   if (dy) {
+    VLOG(1)<< "0 - AddGradKernel - Output: dy" << OpPreparation::DebugString(*dy);
+
     dev_ctx.template Alloc<T>(dy);
     if (dy->dims() != dout.dims()) {
       std::vector<int> dst_dims_vec;

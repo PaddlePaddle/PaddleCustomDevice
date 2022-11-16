@@ -19,9 +19,7 @@
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
-aclFormat ConvertToNpuFormat(phi::DataLayout layout);
+#include "kernels/funcs/npu_op_prepare.h"
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,

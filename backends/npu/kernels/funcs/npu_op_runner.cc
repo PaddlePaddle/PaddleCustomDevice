@@ -27,47 +27,6 @@ static aclTensorDesc *float_status_desc_;
 
 ENV_uint64(ascend_check_nan_inf, 0);
 
-static std::map<paddle::experimental::DataType, aclDataType>  //
-    DTYPE_2_ACL_DTYPE = {
-        {paddle::experimental::DataType::BOOL, ACL_BOOL},
-        {paddle::experimental::DataType::UINT8, ACL_UINT8},
-        {paddle::experimental::DataType::INT8, ACL_INT8},
-        {paddle::experimental::DataType::INT16, ACL_INT16},
-        {paddle::experimental::DataType::INT32, ACL_INT32},
-        {paddle::experimental::DataType::INT64, ACL_INT64},
-        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
-        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
-        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
-};
-
-static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
-    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
-    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
-    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
-    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
-    {phi::DataLayout::ANY, ACL_FORMAT_ND},
-};
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
-  auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DTYPE_2_ACL_DTYPE.end(),
-      phi::errors::NotFound(
-          "The data type %s can not convert to ACL data type.", dtype));
-  return iter->second;
-}
-
-aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
-  auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DATA_LAYOUT_2_ACL_FORMAT.end(),
-      phi::errors::NotFound(
-          "The data type (%s) can not convert to ACL data type.", layout));
-  return iter->second;
-}
-
 NpuOpRunner::NpuOpRunner() {}
 
 NpuOpRunner::NpuOpRunner(const std::string &op_type) : op_type_(op_type) {}
@@ -367,24 +326,42 @@ std::vector<aclDataBuffer *> &NpuOpRunner::GetOutputBuffers() {
 
 aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
                                              aclMemType mem_type) {
-  auto dtype = ConvertToNpuDtype(tensor.dtype());
-  auto format = ConvertToNpuFormat(tensor.layout());
-  auto dims = phi::vectorize(tensor.dims());
-  int size = dims.size();
+  auto data_type = ConvertToNpuDtype(tensor.dtype());
+  auto origin_format = ConvertToNpuFormat(tensor.layout());
+  auto origin_dims = phi::vectorize(tensor.dims());
+  // int size = dims.size();
 
-  if (op_type_ == "DropOutGenMask" && size == 1 && *(dims.data()) == 1) {
-    size = 0;
-  }
+  // if (op_type_ == "DropOutGenMask" && size == 1 && *(dims.data()) == 1) {
+  //   size = 0;
+  // }
 
-  VLOG(4) << "NPU dtype:" << dtype << " "
-          << "rank:" << dims.size() << " dims: " << tensor.dims()
-          << " format:" << format;
+  // VLOG(4) << "NPU dtype:" << dtype << " "
+  //         << "rank:" << dims.size() << " dims: " << tensor.dims()
+  //         << " format:" << format;
 
-  auto *desc = aclCreateTensorDesc(dtype, size, dims.data(), format);
+  auto *desc = aclCreateTensorDesc(data_type, origin_dims.size(), origin_dims.data(), origin_format);
   PADDLE_ENFORCE_NOT_NULL(
       desc, phi::errors::External("Call aclCreateTensorDesc failed."));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, format));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, size, dims.data()));
+
+  if (tensor.storage_properties_initialized()) {
+    auto npu_properties = tensor.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    auto storage_dims = phi::vectorize(npu_properties.storage_dims);
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, (aclFormat)storage_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+
+      VLOG(1) << "CreateTensorDesc for OP: " << op_type_ << ", data_type: " << data_type
+          << ", origin_format: " << origin_format << ", storage_format: " << storage_format
+          << ", origin_dims: " << tensor.dims() << ", storage_dims: " << npu_properties.storage_dims;
+  } else {
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, (aclFormat)origin_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, origin_dims.size(), origin_dims.data()));
+
+      VLOG(1) << "CreateTensorDesc for OP: " << op_type_ << ", data_type: " << data_type
+          << ", origin_format: " << origin_format << ", storage_format: " << origin_format
+          << ", origin_dims: " << tensor.dims() << ", storage_dims: " << tensor.dims();
+  }
+
   if (mem_type == ACL_MEMTYPE_HOST) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, mem_type));
   }
@@ -647,7 +624,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.
   if (PyGILState_Check()) {
-    pybind11::gil_scoped_release release;
+    Py_BEGIN_ALLOW_THREADS
     ret = aclopCompileAndExecute(op_type_.c_str(),
                                  input_descs_.size(),
                                  input_descs_.data(),
@@ -660,6 +637,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
+    Py_END_ALLOW_THREADS
   } else {
     ret = aclopCompileAndExecute(op_type_.c_str(),
                                  input_descs_.size(),

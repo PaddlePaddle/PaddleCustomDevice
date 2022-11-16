@@ -35,8 +35,8 @@ class TestROIAlignNPUOp(OpTest):
 
         self.inputs = {
             'X': self.x,
-            'ROIs': self.rois[:, 1:5],
-            'RoisNum': np.asarray(seq_len).astype('int32')
+            'ROIs': (self.rois[:, 1:5], self.rois_lod),
+            'RoisNum': self.boxes_num
         }
 
         self.attrs = {
@@ -54,6 +54,7 @@ class TestROIAlignNPUOp(OpTest):
         self.channels = 3
         self.height = 8
         self.width = 6
+        self.dtype = "float32"
 
         # n, c, h, w
         self.x_dim = (self.batch_size, self.channels, self.height, self.width)
@@ -64,7 +65,7 @@ class TestROIAlignNPUOp(OpTest):
         self.sampling_ratio = 2
         self.aligned = False
 
-        self.x = np.random.random(self.x_dim).astype('float32')
+        self.x = np.random.random(self.x_dim).astype(self.dtype)
 
     def pre_calc(self, x_i, roi_xmin, roi_ymin, roi_bin_grid_h, roi_bin_grid_w,
                  bin_size_h, bin_size_w):
@@ -123,7 +124,7 @@ class TestROIAlignNPUOp(OpTest):
     def calc_roi_align(self):
         self.out_data = np.zeros(
             (self.rois_num, self.channels, self.pooled_height,
-             self.pooled_width)).astype('float32')
+             self.pooled_width)).astype(self.dtype)
 
         offset = 0.5 if self.aligned else 0.
         for i in range(self.rois_num):
@@ -162,23 +163,25 @@ class TestROIAlignNPUOp(OpTest):
         rois = []
         self.rois_lod = [[]]
         for bno in range(self.batch_size):
-            # for i in range(bno + 1):
-            self.rois_lod[0].append(bno)
-            x1 = np.random.randint(
-                0, self.width // self.spatial_scale - self.pooled_width)
-            y1 = np.random.randint(
-                0, self.height // self.spatial_scale - self.pooled_height)
+            self.rois_lod[0].append(bno + 1)
+            for i in range(bno + 1):
+                x1 = np.random.randint(
+                    0, self.width // self.spatial_scale - self.pooled_width)
+                y1 = np.random.randint(
+                    0, self.height // self.spatial_scale - self.pooled_height)
 
-            x2 = np.random.randint(x1 + self.pooled_width,
-                                   self.width // self.spatial_scale)
-            y2 = np.random.randint(y1 + self.pooled_height,
-                                   self.height // self.spatial_scale)
+                x2 = np.random.randint(x1 + self.pooled_width,
+                                       self.width // self.spatial_scale)
+                y2 = np.random.randint(y1 + self.pooled_height,
+                                       self.height // self.spatial_scale)
 
-            roi = [bno, x1, y1, x2, y2]
-            rois.append(roi)
+                roi = [bno, x1, y1, x2, y2]
+                rois.append(roi)
 
         self.rois_num = len(rois)
         self.rois = np.array(rois).astype("float32")
+        self.boxes_num = np.array(
+            [bno + 1 for bno in range(self.batch_size)]).astype('int32')
 
     def setUp(self):
         self.op_type = "roi_align"
@@ -193,13 +196,37 @@ class TestROIAlignNPUOp(OpTest):
         self.check_grad_with_place(self.place, ['X'], 'Out')
 
 
+class TestROIAlignNPUOpDouble(TestROIAlignNPUOp):
+    def init_test_case(self):
+        print("TestROIAlignNPUOpDouble")
+        self.batch_size = 3
+        self.channels = 3
+        self.height = 8
+        self.width = 6
+        self.dtype = "double"
+        # n, c, h, w
+        self.x_dim = (self.batch_size, self.channels, self.height, self.width)
+
+        self.spatial_scale = 1.0 / 2.0
+        self.pooled_height = 2
+        self.pooled_width = 2
+        self.sampling_ratio = 2
+        self.aligned = False
+
+        self.x = np.random.random(self.x_dim).astype(self.dtype)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ['X'], 'Out', max_relative_error=0.01)
+
+
 class TestROIAlignOpWithMinusSample(TestROIAlignNPUOp):
     def init_test_case(self):
         self.batch_size = 3
         self.channels = 3
         self.height = 8
         self.width = 6
-
+        self.dtype = "float32"
         # n, c, h, w
         self.x_dim = (self.batch_size, self.channels, self.height, self.width)
 
@@ -209,7 +236,7 @@ class TestROIAlignOpWithMinusSample(TestROIAlignNPUOp):
         self.sampling_ratio = -1
         self.aligned = False
 
-        self.x = np.random.random(self.x_dim).astype('float32')
+        self.x = np.random.random(self.x_dim).astype(self.dtype)
 
 
 if __name__ == '__main__':

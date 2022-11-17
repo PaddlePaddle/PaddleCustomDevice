@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -68,14 +69,24 @@ void AddRawKernel(const Context& dev_ctx,
   auto y_dims = y.dims();
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
-  phi::DenseTensor x_tensor(x), y_tensor(y);
-  if (x_dims.size() >= y_dims.size()) {
-    y_tensor.Resize(GetDimsWithAxis(x_dims, y_dims, axis));
+  if (direct_compute) {
+    experimental::OpCommand("Add").Input(x).Input(y).Output(*out).Run(dev_ctx);
   } else {
-    x_tensor.Resize(GetDimsWithAxis(y_dims, x_dims, axis));
+    phi::DenseTensor transformed_x, transformed_y;
+    transformed_x.Resize(out->dims());
+    transformed_y.Resize(out->dims());
+    dev_ctx.template Alloc<T>(&transformed_x);
+    dev_ctx.template Alloc<T>(&transformed_y);
+    experimental::OpCommandHelper::BroadcastTo(
+        dev_ctx, x, axis, &transformed_x);
+    experimental::OpCommandHelper::BroadcastTo(
+        dev_ctx, y, axis, &transformed_y);
+    experimental::OpCommand("Add")
+        .Input(transformed_x)
+        .Input(transformed_y)
+        .Output(*out)
+        .Run(dev_ctx);
   }
-  const auto& runner = NpuOpRunner("Add", {x_tensor, y_tensor}, {*out}, {});
-  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -109,32 +120,10 @@ void AddGradKernel(const Context& dev_ctx,
     }
 
     if (dx->dims() != dout.dims()) {
-      std::vector<int> dst_dims_vec;
-      std::vector<int> reduce_axes;
-      auto src_dims = dx->dims();
-      auto dout_dims = dout.dims();
-
-      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
-      for (int ax = 0; ax < dout_dims.size(); ++ax) {
-        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
-            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
-          reduce_axes.push_back(ax);
-        } else {
-          dst_dims_vec.push_back(dout_dims[ax]);
-        }
-      }
-      if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dx);
-        tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
-      }
+      experimental::OpCommandHelper::ElementwiseGradReduce(
+          dev_ctx, dout, axis, dx);
     } else {
-      TensorCopy(dev_ctx, dout, false, dx);
+      experimental::OpCommandHelper::Assign(dev_ctx, dout, dx);
     }
   }
   if (dy) {
@@ -147,32 +136,10 @@ void AddGradKernel(const Context& dev_ctx,
     }
 
     if (dy->dims() != dout.dims()) {
-      std::vector<int> dst_dims_vec;
-      std::vector<int> reduce_axes;
-      auto src_dims = dy->dims();
-      auto dout_dims = dout.dims();
-
-      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
-      for (int ax = 0; ax < dout_dims.size(); ++ax) {
-        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
-            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
-          reduce_axes.push_back(ax);
-        } else {
-          dst_dims_vec.push_back(dout_dims[ax]);
-        }
-      }
-      if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dy);
-        tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
-      }
+      experimental::OpCommandHelper::ElementwiseGradReduce(
+          dev_ctx, dout, axis, dy);
     } else {
-      TensorCopy(dev_ctx, dout, false, dy);
+      experimental::OpCommandHelper::Assign(dev_ctx, dout, dy);
     }
   }
 }

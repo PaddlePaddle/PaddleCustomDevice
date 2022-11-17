@@ -43,7 +43,6 @@ class TestMeanOp(OpTest):
         self.check_grad_with_place(paddle.CustomPlace('npu', 0), ['X'], 'Out')
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestMeanOp5D(TestMeanOp):
     def setUp(self):
         self.set_npu()
@@ -54,7 +53,6 @@ class TestMeanOp5D(TestMeanOp):
         self.outputs = {'Out': self.inputs['X'].mean(axis=0)}
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestMeanOp6D(TestMeanOp):
     def setUp(self):
         self.set_npu()
@@ -65,7 +63,6 @@ class TestMeanOp6D(TestMeanOp):
         self.outputs = {'Out': self.inputs['X'].mean(axis=0)}
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestMeanOp8D(TestMeanOp):
     def setUp(self):
         self.set_npu()
@@ -77,7 +74,6 @@ class TestMeanOp8D(TestMeanOp):
         self.outputs = {'Out': self.inputs['X'].mean(axis=(0, 3))}
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test1DReduce(TestMeanOp):
     def setUp(self):
         self.set_npu()
@@ -86,7 +82,6 @@ class Test1DReduce(TestMeanOp):
         self.outputs = {'Out': self.inputs['X'].mean(axis=0)}
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test2DReduce0(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -96,7 +91,6 @@ class Test2DReduce0(Test1DReduce):
         self.outputs = {'Out': self.inputs['X'].mean(axis=0)}
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test2DReduce1(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -108,7 +102,6 @@ class Test2DReduce1(Test1DReduce):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test3DReduce0(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -120,7 +113,6 @@ class Test3DReduce0(Test1DReduce):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test3DReduce1(Test1DReduce):
     def setUp(self):
         self.set_npu()

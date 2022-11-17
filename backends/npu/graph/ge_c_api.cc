@@ -46,12 +46,12 @@ void TensorDescSetShape(C_GE_TensorDesc* desc, int64_t* dims, int64_t rank) {
   GE_DESC(desc)->SetShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
 }
 
-void TensorDescSetDType(C_GE_TensorDesc* desc, int64_t dtype) {
-  GE_DESC(desc)->SetDataType(static_cast<ge::DataType>(dtype));
+void TensorDescSetDType(C_GE_TensorDesc* desc, ge::DataType dtype) {
+  GE_DESC(desc)->SetDataType(dtype);
 }
 
-void TensorDescSetFormat(C_GE_TensorDesc* desc, int64_t format) {
-  GE_DESC(desc)->SetFormat(static_cast<ge::Format>(format));
+void TensorDescSetFormat(C_GE_TensorDesc* desc, ge::Format format) {
+  GE_DESC(desc)->SetFormat(format);
 }
 
 C_GE_Operator* CreateOperator(const char* op_name, const char* op_type) {
@@ -165,28 +165,60 @@ void OperatorSetAttrStringList(C_GE_Operator* self,
   GE_OP(self)->SetAttr(attr_name, string_list);
 }
 
+C_GE_Tensor* OperatorGetAttrTensor(C_GE_Operator* self, const char* attr_name) {
+  auto tensor = new ge::Tensor;
+  GE_OP(self)->GetAttr(attr_name, *tensor);
+  return C_TENSOR(tensor);
+}
+
 void OperatorUpdateInputDesc(C_GE_Operator* self,
                              const char* desc_name,
                              int64_t* dims,
                              int64_t rank,
-                             int64_t dtype,
-                             int64_t format) {
+                             ge::DataType dtype,
+                             ge::Format format) {
   auto desc = GE_OP(self)->GetInputDescByName(desc_name);
-  desc.SetShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
-  desc.SetDataType(static_cast<ge::DataType>(dtype));
-  desc.SetFormat(static_cast<ge::Format>(format));
+  if (dims == nullptr) {
+    desc.SetShape(ge::Shape(std::vector<int64_t>()));
+    desc.SetOriginShape(ge::Shape({std::vector<int64_t>()}));
+  } else {
+    desc.SetShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
+    desc.SetOriginShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
+  }
+  desc.SetDataType(dtype);
+  desc.SetFormat(format);
+  desc.SetOriginFormat(format);
+  desc.SetRealDimCnt(rank);
+  GE_OP(self)->UpdateInputDesc(desc_name, desc);
 }
 
 void OperatorUpdateOutputDesc(C_GE_Operator* self,
                               const char* desc_name,
                               int64_t* dims,
                               int64_t rank,
-                              int64_t dtype,
-                              int64_t format) {
+                              ge::DataType dtype,
+                              ge::Format format) {
   auto desc = GE_OP(self)->GetOutputDescByName(desc_name);
-  desc.SetShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
-  desc.SetDataType(static_cast<ge::DataType>(dtype));
-  desc.SetFormat(static_cast<ge::Format>(format));
+  if (dims == nullptr) {
+    desc.SetShape(ge::Shape(std::vector<int64_t>()));
+    desc.SetOriginShape(ge::Shape({std::vector<int64_t>()}));
+  } else {
+    desc.SetShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
+    desc.SetOriginShape(ge::Shape(std::vector<int64_t>(dims, dims + rank)));
+  }
+  desc.SetDataType(dtype);
+  desc.SetFormat(format);
+  desc.SetOriginFormat(format);
+  desc.SetRealDimCnt(rank);
+  GE_OP(self)->UpdateOutputDesc(desc_name, desc);
+}
+
+char* OperatorGetOpType(C_GE_Operator* self) {
+  auto type = GE_OP(self)->GetOpType();
+  auto op_type = new char[type.size() + 1];
+  memcpy(op_type, type.data(), type.size());
+  op_type[type.size()] = '\0';
+  return op_type;
 }
 
 namespace c_api {
@@ -233,10 +265,6 @@ void SessionRunGraph(C_GE_Session* session,
                      size_t ins_count,
                      C_GE_Tensor** outs,
                      size_t outs_count) {
-  if (ins_count == 0) {
-    // SetInputs failed: input operator size can not be 0.
-    return;
-  }
   std::vector<ge::Tensor> inputs;
   std::vector<ge::Tensor> outputs;
   for (auto i = 0; i < ins_count; ++i) {
@@ -245,6 +273,9 @@ void SessionRunGraph(C_GE_Session* session,
   if (reinterpret_cast<ge::Session*>(session)->RunGraph(
           graph_id, inputs, outputs) != ge::SUCCESS) {
     std::cerr << "[ERROR] run graph " << graph_id << " failed\n";
+  }
+  if (outputs.size() != outs_count) {
+    std::cerr << "[ERROR] SessionRunGraph outputs size != outs_count\n";
   }
   for (auto i = 0; i < outputs.size(); ++i) {
     *reinterpret_cast<ge::Tensor*>(outs[i]) = outputs[i];
@@ -259,15 +290,18 @@ C_GE_Graph* CreateGraph(const C_Scope scope, const char* name) {
 void GraphSetInput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count) {
   std::vector<ge::Operator> ops_vec;
   for (auto i = 0; i < count; ++i) {
-    ops_vec.push_back(*reinterpret_cast<ge::Operator*>(ops[i]));
+    ops_vec.push_back(*GE_OP(ops[i]));
   }
   reinterpret_cast<ge::Graph*>(graph)->SetInputs(ops_vec);
 }
 
-void GraphSetOutput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count) {
-  std::vector<ge::Operator> ops_vec;
+void GraphSetOutput(C_GE_Graph* graph,
+                    C_GE_Operator** ops,
+                    size_t* index,
+                    size_t count) {
+  std::vector<std::pair<ge::Operator, std::vector<size_t>>> ops_vec;
   for (auto i = 0; i < count; ++i) {
-    ops_vec.push_back(*reinterpret_cast<ge::Operator*>(ops[i]));
+    ops_vec.push_back({*GE_OP(ops[i]), std::vector<size_t>({index[i]})});
   }
   reinterpret_cast<ge::Graph*>(graph)->SetOutputs(ops_vec);
 }
@@ -275,59 +309,65 @@ void GraphSetOutput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count) {
 void GraphSetTarget(C_GE_Graph* graph, C_GE_Operator** ops, size_t count) {
   std::vector<ge::Operator> ops_vec;
   for (auto i = 0; i < count; ++i) {
-    ops_vec.push_back(*reinterpret_cast<ge::Operator*>(ops[i]));
+    ops_vec.push_back(*GE_OP(ops[i]));
   }
   reinterpret_cast<ge::Graph*>(graph)->SetTargets(ops_vec);
 }
 
-C_GE_Tensor* CreateTensor() {
-  return reinterpret_cast<C_GE_Tensor*>(new ge::Tensor);
-}
+C_GE_Tensor* CreateTensor() { return C_TENSOR(new ge::Tensor); }
+
+// C_GE_Tensor* CreateTensor(C_GE_TensorDesc* desc,
+//                           ge::DataType dtype,
+//                           ge::Format format) {
+//   return C_TENSOR(new ge::Tensor(*GE_DESC(desc), dtype, format));
+// }
 
 uint8_t* TensorGetData(C_GE_Tensor* tensor) {
-  return reinterpret_cast<ge::Tensor*>(tensor)->GetData();
+  return GE_TENSOR(tensor)->GetData();
 }
 
 size_t TensorGetSize(C_GE_Tensor* tensor) {
-  return reinterpret_cast<ge::Tensor*>(tensor)->GetSize();
+  return GE_TENSOR(tensor)->GetSize();
 }
 
 void* SetTensor(C_GE_Tensor* tensor,
                 void* data,
                 int64_t* dims,
                 int64_t rank,
-                int64_t dtype,
-                int64_t format) {
+                ge::DataType dtype,
+                ge::Format format) {
   std::vector<int64_t> dims_vec(dims, dims + rank);
-  auto count = std::accumulate(
-      dims_vec.begin(), dims_vec.end(), 1, std::multiplies<int64_t>());
-  auto desc = ge::TensorDesc(ge::Shape(dims_vec),
-                             static_cast<ge::Format>(format),
-                             static_cast<ge::DataType>(dtype));
-  reinterpret_cast<ge::Tensor*>(tensor)->SetTensorDesc(desc);
-  reinterpret_cast<ge::Tensor*>(tensor)->SetData(
+
+  auto desc = ge::TensorDesc(ge::Shape(dims_vec), format, dtype);
+  desc.SetRealDimCnt(desc.GetShape().GetDimNum());
+  GE_TENSOR(tensor)->SetTensorDesc(desc);
+  GE_TENSOR(tensor)->SetData(
       reinterpret_cast<uint8_t*>(data),
-      count * ge::GetSizeByDataType(static_cast<ge::DataType>(dtype)));
+      std::accumulate(
+          dims_vec.begin(), dims_vec.end(), 1, std::multiplies<int64_t>()) *
+          ge::GetSizeByDataType(dtype));
 }
 
 void DestroyTensor(C_GE_Tensor* tensor) {
-  delete reinterpret_cast<ge::Tensor*>(tensor);
+  if (tensor) {
+    delete GE_TENSOR(tensor);
+  }
 }
 
-C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
+C_Status graph_initialize(const C_Device device, const C_Stream stream) {
   if (!c_api::ge_initialized) {
     c_api::ge_initialized = true;
     auto soc_name = aclrtGetSocName();
-    c_api::config = {{"ge.exec.deviceId",
-                      ge::AscendString(std::to_string(device->id).c_str())},
-                     {"ge.graphRunMode", "0"},
-                     {"ge.exec.precision_mode", "allow_fp32_to_fp16"},
-                     {"ge.graphMemoryMaxSize", "22548578304"},
-                     {"ge.variableMemoryMaxSize",
-                      "10737418240"}, /* graphMemoryMaxSize +
-                                         variableMemoryMaxSize <= 31 GB */
-                     {"ge.socVersion", ge::AscendString(soc_name)},
-                     {"ge.opSelectImplmode", "high_performance"}};
+    c_api::config = {
+        {"ge.exec.deviceId",
+         ge::AscendString(std::to_string(device->id).c_str())},
+        {"ge.graphRunMode", "0"},
+        {"ge.exec.precision_mode", "allow_fp32_to_fp16"},
+        {"ge.graphMemoryMaxSize", "22548578304"},
+        {"ge.variableMemoryMaxSize",
+         "10737418240"},  // graphMemoryMaxSize + variableMemoryMaxSize <= 31 GB
+        {"ge.socVersion", ge::AscendString(soc_name)},
+        {"ge.opSelectImplmode", "high_performance"}};
 
     ge::Status ret = ge::GEInitialize(c_api::config);
     if (ret != ge::SUCCESS) {
@@ -339,7 +379,7 @@ C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
   return C_SUCCESS;
 }
 
-C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
+C_Status graph_finalize(const C_Device device, const C_Stream stream) {
   if (c_api::ge_initialized) {
     c_api::ge_initialized = false;
     if (c_api::session) {

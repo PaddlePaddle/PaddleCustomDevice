@@ -13,53 +13,10 @@
 // limitations under the License.
 
 #include "kernels/funcs/npu_funcs.h"
-#include "kernels/funcs/npu_op_runner.h"
 #include "kernels/funcs/op_command.h"
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
-
-template <typename T, typename Context>
-void FullKernel(const Context& dev_ctx,
-                const phi::IntArray& shape,
-                const phi::Scalar& val,
-                phi::DataType dtype,
-                phi::DenseTensor* out) {
-  auto shape_vec = shape.GetData();
-  ACL_RUN({
-    out->ResizeAndAllocate(phi::make_ddim(shape_vec));
-    dev_ctx.template Alloc<T>(out);
-  });
-
-  T value = val.to<T>();
-  ACL_RUN({
-    experimental::OpCommand("Fills")
-        .Input(*out)
-        .Output(*out)
-        .Attr("value", static_cast<float>(value))
-        .Run(dev_ctx);
-  });
-  GRAPH_RUN({
-    auto tensor = CreateTensor();
-    std::vector<T> tensor_value;
-    for (auto i = 0; i < out->numel(); ++i) {
-      tensor_value.push_back(static_cast<T>(value));
-    }
-    SetTensor(
-        tensor,
-        tensor_value.data(),
-        shape_vec.data(),
-        shape_vec.size(),
-        static_cast<int64_t>(experimental::ConvertToGEDtype(out->dtype())),
-        static_cast<int64_t>(experimental::ConvertToGEFormat(out->layout())));
-
-    experimental::OpCommand("Const")
-        .Output(*out)
-        .Attr("vale", tensor)
-        .Run(dev_ctx);
-    DestroyTensor(tensor);
-  });
-}
 
 template <typename T, typename Context>
 void FullLikeKernel(const Context& dev_ctx,
@@ -67,14 +24,13 @@ void FullLikeKernel(const Context& dev_ctx,
                     const phi::Scalar& val,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
-  auto value = val.to<double>();
+  T value = val.to<T>();
+
   using CommonType = typename std::common_type<
       float,
-      typename std::conditional<
-          std::is_same<T, phi::dtype::float16>::value ||
-              std::is_same<T, phi::dtype::bfloat16>::value,
-          float,
-          T>::type>::type;
+      typename std::conditional<std::is_same<T, phi::dtype::float16>::value,
+                                float,
+                                T>::type>::type;
 
   auto common_type_value = static_cast<CommonType>(value);
 
@@ -101,17 +57,59 @@ void FullLikeKernel(const Context& dev_ctx,
           typeid(T).name(),
           static_cast<CommonType>(std::numeric_limits<T>::lowest()),
           static_cast<CommonType>(std::numeric_limits<T>::max()),
-          static_cast<float>(value)));
+          static_cast<CommonType>(value)));
 
+  PADDLE_ENFORCE_EQ(std::isnan(value),
+                    false,
+                    phi::errors::InvalidArgument("The filled value is NaN."));
+  out->Resize(x.dims());
   dev_ctx.template Alloc<T>(out);
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  NpuOpRunner runner;
-  runner.SetType("Fills")
-      .AddInput(*out)
-      .AddOutput(*out)
-      .AddAttrs({{"value", val.to<float>()}})
-      .Run(stream);
+  phi::DenseTensor value_tensor;
+  value_tensor.Resize({1});
+  dev_ctx.template HostAlloc<T>(&value_tensor);
+  *(value_tensor.data<T>()) = val.to<T>();
+
+  if (out->numel() == 1) {
+    GRAPH_RUN({
+      experimental::OpCommand("Const")
+          .Output(*out,
+                  experimental::TensorDescMaker("y", *out).SetDataLayout(
+                      phi::DataLayout::ANY))
+          .Attr("value", value_tensor)
+          .Run(dev_ctx);
+    });
+    ACL_RUN({ TensorCopy(dev_ctx, value_tensor, false, out); });
+  } else {
+    // NOTE(wangran16): There is a bug when fill a tensor of dim [1]
+    phi::DenseTensor x_dims;
+    TensorFromVector(
+        dev_ctx, phi::vectorize(x.dims()), phi::CPUContext(), &x_dims);
+
+    experimental::OpCommand("Fill")
+        .Input(x_dims,
+               experimental::TensorDescMaker("dims", x_dims)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .ScalarInput(value_tensor,
+                     experimental::TensorDescMaker("value", value_tensor)
+                         .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*out,
+                experimental::TensorDescMaker("y", *out).SetDataLayout(
+                    phi::DataLayout::ANY))
+        .Run(dev_ctx);
+  }
+}
+
+template <typename T, typename Context>
+void FullKernel(const Context& dev_ctx,
+                const phi::IntArray& shape,
+                const phi::Scalar& val,
+                phi::DataType dtype,
+                phi::DenseTensor* out) {
+  phi::DenseTensor x_dims;
+  x_dims.Resize(phi::make_ddim(shape.GetData()));
+
+  custom_kernel::FullLikeKernel<T, Context>(dev_ctx, x_dims, val, dtype, out);
 }
 
 template <typename T, typename Context>
@@ -129,8 +127,12 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
     odims[out_batch_size_dim] = static_cast<int>(x.lod().back().size()) - 1;
     custom_kernel::FullKernel<T, Context>(
         dev_ctx, phi::vectorize(odims), val, dtype, out);
+  } else {
+    auto odims = out->dims();
+    odims[out_batch_size_dim] = x.dims()[x_batch_size_dim];
+    custom_kernel::FullKernel<T, Context>(
+        dev_ctx, phi::vectorize(odims), val, dtype, out);
   }
-  custom_kernel::FullLikeKernel<T, Context>(dev_ctx, x, val, dtype, out);
 }
 
 }  // namespace custom_kernel
@@ -139,8 +141,9 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
-                          // bool,
-                          int,
+                          bool,
+                          int16_t,
+                          int32_t,
                           int64_t,
                           float,
                           phi::dtype::float16) {}
@@ -150,7 +153,8 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           bool,
-                          int,
+                          int16_t,
+                          int32_t,
                           int64_t,
                           float,
                           phi::dtype::float16) {
@@ -161,7 +165,10 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::FullBatchSizeLikeKernel,
-                          int,
+                          bool,
+                          int16_t,
+                          int32_t,
+                          int64_t,
                           float,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);

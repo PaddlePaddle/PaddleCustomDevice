@@ -49,6 +49,9 @@ class TestNPUGaussianRandomOp(OpTest):
         self.mean = 1.0
         self.std = 2.
 
+    def _get_places(self):
+        return []
+
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace('npu', 0)

@@ -15,6 +15,7 @@
 #include "kernels/funcs/conv_util.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -22,14 +23,12 @@ template <typename Context>
 static void CastToFP16(const Context& dev_ctx,
                        const phi::DenseTensor& in,
                        phi::DenseTensor* out) {
-  auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<phi::dtype::float16>(out);
-  NpuOpRunner runner;
-  runner.SetType("Cast")
-      .AddInput(in)
-      .AddOutput(*out)
-      .AddAttr("dst_type", ACL_FLOAT16)
-      .Run(stream);
+  experimental::OpCommand("Cast")
+      .Input(in)
+      .Output(*out)
+      .Attr("dst_type", static_cast<int>(ACL_FLOAT16))
+      .Run(dev_ctx);
 }
 
 template <typename Context>
@@ -37,13 +36,11 @@ static void CastToFP32(const Context& dev_ctx,
                        const phi::DenseTensor& in,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<float>(out);
-  auto stream = dev_ctx.stream();
-  NpuOpRunner runner;
-  runner.SetType("Cast")
-      .AddInput(in)
-      .AddOutput(*out)
-      .AddAttr("dst_type", ACL_FLOAT)
-      .Run(stream);
+  experimental::OpCommand("Cast")
+      .Input(in)
+      .Output(*out)
+      .Attr("dst_type", static_cast<int>(ACL_FLOAT))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -86,12 +83,6 @@ void Conv2dKernel(const Context& dev_ctx,
 
   phi::DenseTensor input_tensor(input), output_tensor(*output);
   if (channel_last) {
-    phi::DenseTensorMeta input_meta = {
-        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta output_meta = {
-        output->dtype(), output->dims(), phi::DataLayout::kNHWC};
-    input_tensor.set_meta(input_meta);
-    output_tensor.set_meta(output_meta);
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
     dilations_vec[1] = dilations[0];
@@ -103,16 +94,25 @@ void Conv2dKernel(const Context& dev_ctx,
     dilations_vec[3] = dilations[1];
   }
 
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Conv2D",
-                                   {input_tensor, filter},
-                                   {output_tensor},
-                                   {{"strides", strides_vec},
-                                    {"pads", paddings},
-                                    {"dilations", dilations_vec},
-                                    {"groups", groups},
-                                    {"data_format", data_format}});
-  runner.Run(stream);
+  experimental::OpCommand("Conv2D")
+      .Input(input,
+             experimental::TensorDescMaker("x", input)
+                 .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                             : phi::DataLayout::NCHW))
+      .Input(filter,
+             experimental::TensorDescMaker("filter", filter)
+                 .SetDataLayout(phi::DataLayout::NCHW))
+
+      .Output(*output,
+              experimental::TensorDescMaker("y", *output)
+                  .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                              : phi::DataLayout::NCHW))
+      .Attr("strides", strides_vec)
+      .Attr("pads", paddings)
+      .Attr("dilations", dilations_vec)
+      .Attr("groups", groups)
+      .Attr("data_format", data_format)
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -155,12 +155,6 @@ void Conv2dGradKernel(const Context& dev_ctx,
 
   phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
   if (channel_last) {
-    phi::DenseTensorMeta input_meta = {
-        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta output_grad_meta = {
-        output_grad.dtype(), output_grad.dims(), phi::DataLayout::kNHWC};
-    input_tensor.set_meta(input_meta);
-    output_grad_tensor.set_meta(output_grad_meta);
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
     dilations_vec[1] = dilations[0];
@@ -177,51 +171,54 @@ void Conv2dGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(filter_grad);
     std::vector<int> filter_shape_vec = phi::vectorize<int>(filter.dims());
 
-    phi::DenseTensor filter_grad_fp32;
-    phi::DenseTensorMeta filter_grad_fp32_meta = {phi::DataType::FLOAT32,
-                                                  filter_grad->dims()};
-    filter_grad_fp32.set_meta(filter_grad_fp32_meta);
-
-    if (input.dtype() == phi::DataType::FLOAT16) {
-      CastToFP32<Context>(dev_ctx, *filter_grad, &filter_grad_fp32);
-    } else {
-      filter_grad_fp32 = *filter_grad;
-    }
-    const auto& runner = NpuOpRunner("Conv2DBackpropFilterD",
-                                     {input_tensor, output_grad_tensor},
-                                     {filter_grad_fp32},
-                                     {{"filter_size", filter_shape_vec},
-                                      {"strides", strides_vec},
-                                      {"pads", paddings},
-                                      {"dilations", dilations_vec},
-                                      {"groups", groups},
-                                      {"data_format", data_format}});
-    runner.Run(stream);
-
-    if (input.dtype() == phi::DataType::FLOAT16) {
-      CastToFP16<Context>(dev_ctx, filter_grad_fp32, filter_grad);
-    }
+    phi::DenseTensor filter_size;
+    TensorFromVector(
+        dev_ctx, filter_shape_vec, phi::CPUContext(), &filter_size);
+    experimental::OpCommand("Conv2DBackpropFilter")
+        .Input(input,
+               experimental::TensorDescMaker("x", input)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Input(filter_size)
+        .Input(output_grad,
+               experimental::TensorDescMaker("out_backprop", output_grad)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Output(*filter_grad,
+                experimental::TensorDescMaker("y", *filter_grad)
+                    .SetDataLayout(phi::DataLayout::NCHW))
+        .Attr("strides", strides_vec)
+        .Attr("pads", paddings)
+        .Attr("dilations", dilations_vec)
+        .Attr("groups", groups)
+        .Attr("data_format", data_format)
+        .Run(dev_ctx);
   }
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);
     std::vector<int> input_shape_vec = phi::vectorize<int>(input.dims());
 
-    phi::DenseTensor input_grad_tensor(*input_grad);
-    if (channel_last) {
-      phi::DenseTensorMeta input_grad_meta = {
-          input_grad->dtype(), input_grad->dims(), phi::DataLayout::kNHWC};
-      input_grad_tensor.set_meta(input_grad_meta);
-    }
-    const auto& runner = NpuOpRunner("Conv2DBackpropInputD",
-                                     {filter, output_grad_tensor},
-                                     {input_grad_tensor},
-                                     {{"input_size", input_shape_vec},
-                                      {"strides", strides_vec},
-                                      {"pads", paddings},
-                                      {"dilations", dilations_vec},
-                                      {"groups", groups},
-                                      {"data_format", data_format}});
-    runner.Run(stream);
+    phi::DenseTensor input_size;
+    TensorFromVector(dev_ctx, input_shape_vec, phi::CPUContext(), &input_size);
+    experimental::OpCommand("Conv2DBackpropInput")
+        .Input(input_size)
+        .Input(filter,
+               experimental::TensorDescMaker("filter", filter)
+                   .SetDataLayout(phi::DataLayout::NCHW))
+        .Input(output_grad,
+               experimental::TensorDescMaker("out_backprop", output_grad)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Output(*input_grad,
+                experimental::TensorDescMaker("y", *input_grad)
+                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                                : phi::DataLayout::NCHW))
+        .Attr("strides", strides_vec)
+        .Attr("pads", paddings)
+        .Attr("dilations", dilations_vec)
+        .Attr("groups", groups)
+        .Attr("data_format", data_format)
+        .Run(dev_ctx);
   }
 }
 

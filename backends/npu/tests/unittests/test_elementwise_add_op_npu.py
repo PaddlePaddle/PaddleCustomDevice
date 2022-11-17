@@ -132,13 +132,11 @@ class TestFP16ElementwiseAddOp(TestElementwiseAddOp):
         self.dtype = np.float16
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestINT64ElementwiseAddOp(TestElementwiseAddOp):
     def init_dtype(self):
         self.dtype = np.int64
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 @skip_check_grad_ci(
     reason="[skip shape check] Use y_shape(1) to test broadcast.")
 class TestElementwiseAddOp_scalar(TestElementwiseAddOp):
@@ -148,7 +146,6 @@ class TestElementwiseAddOp_scalar(TestElementwiseAddOp):
         self.out = self.x + self.y
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 @skip_check_grad_ci(
     reason="[skip shape check] Use y_shape(1) to test broadcast.")
 class TestFP16ElementwiseAddOp_scalar(TestFP16ElementwiseAddOp):
@@ -158,7 +155,6 @@ class TestFP16ElementwiseAddOp_scalar(TestFP16ElementwiseAddOp):
         self.out = self.x + self.y
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 @skip_check_grad_ci(
     reason="[skip shape check] Use y_shape(1,1) to test broadcast.")
 class TestElementwiseAddOp_scalar2(TestElementwiseAddOp):
@@ -168,7 +164,6 @@ class TestElementwiseAddOp_scalar2(TestElementwiseAddOp):
         self.out = self.x + self.y
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 @skip_check_grad_ci(
     reason="[skip shape check] Use y_shape(1,1) to test broadcast.")
 class TestFP16ElementwiseAddOp_scalar2(TestFP16ElementwiseAddOp):
@@ -245,7 +240,6 @@ class TestAddError(unittest.TestCase):
             self.assertRaises(TypeError, paddle.add, x2, y2)
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_Vector(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.random((100,)).astype(self.dtype)
@@ -261,7 +255,6 @@ class TestFP16ElementwiseAddOp_Vector(TestFP16ElementwiseAddOp):
         self.out = np.add(self.x, self.y)
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_broadcast_0(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(100, 2, 3).astype(self.dtype)
@@ -283,7 +276,6 @@ class TestFP16ElementwiseAddOp_broadcast_0(TestFP16ElementwiseAddOp):
         self.axis = 0
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_broadcast_1(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(2, 100, 3).astype(self.dtype)
@@ -305,7 +297,6 @@ class TestFP16ElementwiseAddOp_broadcast_1(TestFP16ElementwiseAddOp):
         self.axis = 1
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_broadcast_2(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(2, 3, 100).astype(self.dtype)
@@ -453,7 +444,6 @@ class TestFP16ElementwiseAddOp_rowwise_add_1(TestFP16ElementwiseAddOp):
         self.axis = 1
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_channelwise_add(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(100, 2, 3).astype(self.dtype)
@@ -497,7 +487,6 @@ class TestElementwiseFP16AddOp_commonuse_add1(TestFP16ElementwiseAddOp):
         self.axis = -1
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_commonuse_add2(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(10, 3, 1, 4).astype(self.dtype)
@@ -508,7 +497,6 @@ class TestElementwiseAddOp_commonuse_add2(TestElementwiseAddOp):
         self.axis = -1
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_xsize_lessthan_ysize_add(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(10, 12).astype(self.dtype)
@@ -519,7 +507,6 @@ class TestElementwiseAddOp_xsize_lessthan_ysize_add(TestElementwiseAddOp):
         self.axis = 2
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestElementwiseAddOp_same_shape_ysize_large(TestElementwiseAddOp):
     def init_input_output(self):
         self.x = np.random.rand(10, 1, 12).astype(self.dtype)

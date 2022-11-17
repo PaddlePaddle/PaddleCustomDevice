@@ -37,9 +37,18 @@ void AbsGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    abs, ascend, ALL_LAYOUT, custom_kernel::AbsKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(abs,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AbsKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    abs_grad, ascend, ALL_LAYOUT, custom_kernel::AbsGradKernel, float, double) {
-}
+PD_REGISTER_PLUGIN_KERNEL(abs_grad,
+                          ascend,
+                          ALL_LAYOUT,
+                          custom_kernel::AbsGradKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}

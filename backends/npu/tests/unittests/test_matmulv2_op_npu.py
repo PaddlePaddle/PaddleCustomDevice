@@ -96,10 +96,14 @@ class TestMatMulV2Op(OpTest):
         self.outputs = {'Out': result}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-7)
+        self.check_output_with_place(self.place, atol=1e-4)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X', 'Y'], 'Out')
+        self.check_grad_with_place(
+            self.place, ['X', 'Y'],
+            'Out',
+            max_relative_error=1e-2,
+            numeric_place=paddle.CPUPlace())
 
 
 @unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")

@@ -14,8 +14,16 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void FullKernel(const Context& dev_ctx,
+                const phi::IntArray& shape,
+                const phi::Scalar& val,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
 
 template <typename T, typename Context>
 void MeanRawKernel(const Context& dev_ctx,
@@ -24,25 +32,25 @@ void MeanRawKernel(const Context& dev_ctx,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* out) {
-  auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-
-  auto input_dims = x.dims();
-  if (reduce_all || dims.size() == 0) {
+  auto dims = axes.GetData();
+  if (reduce_all) {
     dims.clear();
-    for (int i = 0; i < input_dims.size(); i++) {
+    for (auto i = 0; i < x.dims().size(); ++i) {
       dims.push_back(static_cast<int>(i));
     }
   }
-  NpuOpRunner runner;
-  runner.SetType("ReduceMean")
-      .AddInput(x)
-      .AddInput(dev_ctx, std::move(dims))
-      .AddOutput(*out)
-      .AddAttrs({{"keep_dims", keep_dim}})
-      .Run(stream);
+
+  phi::DenseTensor reduce_axes;
+  experimental::OpCommandHelper::VectorToHostTensor(
+      dev_ctx, dims, &reduce_axes);
+  experimental::OpCommand("ReduceMean")
+      .Input(x)
+      .Input(reduce_axes)
+      .Output(*out)
+      .Attr("keep_dims", keep_dim)
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -63,60 +71,54 @@ void MeanGradKernel(const Context& dev_ctx,
                     bool keep_dim,
                     bool reduce_all,
                     phi::DenseTensor* x_grad) {
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-  auto reduce_dims = axes.GetData();
-  dev_ctx.template Alloc<T>(x_grad);
+  auto reduce_axes = axes.GetData();
 
   int reduce_numel = 1;
 
-  auto input_dims = x.dims();
-
-  if (reduce_all || reduce_dims.size() == 0) {
-    reduce_dims.clear();
-    for (int d = 0; d < input_dims.size(); ++d) {
-      reduce_dims.push_back(static_cast<int>(d));
+  if (reduce_all) {
+    reduce_axes.clear();
+    for (int d = 0; d < x.dims().size(); ++d) {
+      reduce_axes.push_back(static_cast<int>(d));
     }
   }
-  for (auto& d : reduce_dims) {
+  for (auto& d : reduce_axes) {
     if (d < 0) {
-      d = d + input_dims.size();
+      d += x.dims().size();
     }
-    reduce_numel *= input_dims[d];
+    reduce_numel *= x.dims()[d];
   }
 
-  phi::DenseTensor tensor_value;
-  phi::DenseTensorMeta value_meta = {x_grad->dtype(), {1}};
-  tensor_value.set_meta(value_meta);
-  dev_ctx.template Alloc<T>(&tensor_value);
-  FillNpuTensorWithConstant<T>(
-      &tensor_value,
-      dev_ctx,
-      static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
-
-  NpuOpRunner runner;
-  runner.SetType("Fill")
-      .AddInput(dev_ctx, phi::vectorize(input_dims))
-      .AddInput(tensor_value)
-      .AddOutput(*x_grad)
-      .Run(stream);
-
-  phi::DenseTensor transformed_x_grad, transformed_out_grad;
-  phi::DenseTensor tmp_out_grad;
-  auto tmp_output_dims = input_dims;
-  for (auto d : reduce_dims) {
-    tmp_output_dims[d] = 1;
+  auto out_grad_dims = x.dims();
+  for (auto d : reduce_axes) {
+    out_grad_dims[d] = 1;
   }
-  tmp_out_grad = out_grad;
-  tmp_out_grad.ResizeAndAllocate(tmp_output_dims);
-  NpuElementWiseOpBroadcast<T>(dev_ctx,
-                               x_grad,
-                               &tmp_out_grad,
-                               0,
-                               &transformed_x_grad,
-                               &transformed_out_grad);
-  const auto& runner2 = NpuOpRunner(
-      "Mul", {transformed_x_grad, transformed_out_grad}, {*x_grad}, {});
-  runner2.Run(stream);
+
+  phi::DenseTensor reciprocal_reduce_numel;
+  phi::DenseTensor value;
+  experimental::OpCommandHelper::ScalarToHostTensor(
+      dev_ctx, static_cast<T>(1.0 / reduce_numel), &value);
+  custom_kernel::FullKernel<T, Context>(dev_ctx,
+                                        phi::vectorize(x.dims()),
+                                        value,
+                                        x.dtype(),
+                                        &reciprocal_reduce_numel);
+
+  phi::DenseTensor reshape_out_grad;
+  experimental::OpCommandHelper::Reshape(
+      dev_ctx, out_grad, phi::vectorize<int>(out_grad_dims), &reshape_out_grad);
+
+  dev_ctx.template Alloc<T>(x_grad);
+  experimental::OpCommand("Mul")
+      .Input(reshape_out_grad,
+             experimental::TensorDescMaker("x1", reshape_out_grad)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(reciprocal_reduce_numel,
+             experimental::TensorDescMaker("x2", reciprocal_reduce_numel)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*x_grad,
+              experimental::TensorDescMaker("y", *x_grad)
+                  .SetDataLayout(phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

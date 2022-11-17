@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -25,9 +26,14 @@ void AddNKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   int n = static_cast<int>(x.size());
-  if (n == 1) {
-    TensorCopy(dev_ctx, *x[0], false, out);
-    return;
+  PADDLE_ENFORCE_GT(n,
+                    0,
+                    phi::errors::InvalidArgument(
+                        "Expected size of Input(x) must greater than 0."));
+  experimental::OpCommandHelper::Assign(dev_ctx, *x[0], out);
+  for (int i = 1; i < n; ++i) {
+    experimental::OpCommand("Add").Input(*x[i]).Input(*out).Output(*out).Run(
+        dev_ctx);
   }
 
   std::vector<phi::DenseTensor> inputs;

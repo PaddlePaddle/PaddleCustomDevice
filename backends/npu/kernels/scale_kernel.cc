@@ -14,8 +14,16 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void FullLikeKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& val,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out);
 
 template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
@@ -25,8 +33,6 @@ void ScaleKernel(const Context& dev_ctx,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
-  auto stream = dev_ctx.stream();
-  float power = 1.0;
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
   if (std::isinf(scale)) {
@@ -35,47 +41,34 @@ void ScaleKernel(const Context& dev_ctx,
     } else {
       scale = std::numeric_limits<float>::max();
     }
+
+    phi::DenseTensor scale_tensor;
+    scale_tensor.Resize({1});
+    dev_ctx.template HostAlloc<T>(&scale_tensor);
+    *(scale_tensor.data<T>()) = scale;
+    custom_kernel::FullLikeKernel<T, Context>(
+        dev_ctx, x, scale_tensor, x.dtype(), out);
+    return;
   }
   if (!bias_after_scale) {
     bias *= scale;
   }
   dev_ctx.template Alloc<T>(out);
 
-  NPUAttributeMap attrs = {{"power", power}, {"scale", scale}, {"shift", bias}};
+  phi::DenseTensor x_mul_scale;
+  x_mul_scale.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_mul_scale);
 
-  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                    const std::vector<phi::DenseTensor>& outputs,
-                    const NPUAttributeMap& attrs,
-                    const phi::CustomContext& dev_ctx) {
-    const auto& muls_runner = NpuOpRunner(
-        "Muls", {inputs[0]}, {outputs[0]}, {{"value", attrs.at("scale")}});
-    muls_runner.Run(dev_ctx.stream());
-
-    const auto& adds_runner = NpuOpRunner(
-        "Adds", {outputs[0]}, {outputs[0]}, {{"value", attrs.at("shift")}});
-    adds_runner.Run(dev_ctx.stream());
-  };
-
-  if (x.dtype() == phi::DataType::INT32) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
-  } else if (x.dtype() == phi::DataType::INT64) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
-  } else {
-    const auto& runner = NpuOpRunner("Power", {x}, {*out}, attrs);
-    runner.Run(stream);
-  }
+  experimental::OpCommand("Muls")
+      .Input(x)
+      .Output(x_mul_scale)
+      .Attr("value", scale)
+      .Run(dev_ctx);
+  experimental::OpCommand("Adds")
+      .Input(x_mul_scale)
+      .Output(*out)
+      .Attr("value", bias)
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel
@@ -86,5 +79,4 @@ PD_REGISTER_PLUGIN_KERNEL(scale,
                           custom_kernel::ScaleKernel,
                           phi::dtype::float16,
                           float,
-                          int,
-                          int64_t) {}
+                          int) {}

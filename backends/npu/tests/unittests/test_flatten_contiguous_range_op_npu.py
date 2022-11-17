@@ -34,7 +34,7 @@ class TestFlattenOp(OpTest):
 
         self.start_axis = 0
         self.stop_axis = -1
-        self.dtype = np.float64
+        self.dtype = np.float32
         self.init_test_case()
         self.inputs = {"X": np.random.random(self.in_shape).astype(self.dtype)}
         self.init_attrs()
@@ -65,7 +65,6 @@ class TestFlattenOp(OpTest):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_1(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -80,7 +79,6 @@ class TestFlattenOp_1(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_2(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -95,7 +93,6 @@ class TestFlattenOp_2(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_3(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -110,7 +107,6 @@ class TestFlattenOp_3(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_4(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -125,7 +121,6 @@ class TestFlattenOp_4(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_5(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -140,7 +135,6 @@ class TestFlattenOp_5(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOpSixDims(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 3, 2, 4, 4)
@@ -155,7 +149,6 @@ class TestFlattenOpSixDims(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_Float32(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -171,7 +164,6 @@ class TestFlattenOp_Float32(TestFlattenOp):
         }
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_int32(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -190,7 +182,6 @@ class TestFlattenOp_int32(TestFlattenOp):
         pass
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_uint8(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -209,7 +200,6 @@ class TestFlattenOp_uint8(TestFlattenOp):
         pass
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_int8(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)
@@ -228,7 +218,6 @@ class TestFlattenOp_int8(TestFlattenOp):
         pass
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenOp_int64(TestFlattenOp):
     def init_test_case(self):
         self.in_shape = (3, 2, 5, 4)

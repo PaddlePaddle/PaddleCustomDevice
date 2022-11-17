@@ -14,8 +14,16 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void FullLikeKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& val,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out);
 
 enum class RegularizationType {
   kNONE = 0,
@@ -151,10 +159,8 @@ void MergedMomentumKernel(
               param_out,
               velocity_out,
               master_param_out);
-  phi::DenseTensor mu_tensor;
-  mu_tensor.Resize(phi::make_ddim({1}));
-  dev_ctx.template Alloc<T>(&mu_tensor);
-  FillNpuTensorWithConstant<T>(&mu_tensor, dev_ctx, static_cast<T>(mu));
+  phi::DenseTensor host_mu;
+  experimental::OpCommandHelper::ScalarToHostTensor(dev_ctx, mu, &host_mu);
 
   size_t n = param.size();
   for (size_t idx = 0; idx < n; ++idx) {
@@ -180,30 +186,32 @@ void MergedMomentumKernel(
     if (regularization_flag == RegularizationType::kL2DECAY) {
       regularized_grad.Resize(grad_data->dims());
       dev_ctx.template Alloc<T>(&regularized_grad);
-      const auto& runner1 = NpuOpRunner("Muls",
-                                        {*param_data},
-                                        {regularized_grad},
-                                        {{"value", regularization_coeff_data}});
-      runner1.Run(dev_ctx.stream());
-      const auto& runner2 = NpuOpRunner(
-          "Add", {regularized_grad, *grad_data}, {regularized_grad}, {});
-      runner2.Run(dev_ctx.stream());
+      experimental::OpCommand("Axpy")
+          .Input(*grad_data)
+          .Input(*param_data)
+          .Output(regularized_grad)
+          .Attr("alpha", regularization_coeff_data)
+          .Run(dev_ctx);
     } else {
-      regularized_grad = *grad_data;
-      // regularized_grad.ShareDataWith(*grad_data);
+      experimental::OpCommandHelper::Assign(
+          dev_ctx, *grad_data, &regularized_grad);
     }
-    TensorCopy(dev_ctx, *param_data, false, param_out_data);
-    TensorCopy(dev_ctx, *velocity_data, false, velocity_out_data);
-    // NOTE: ApplyMomentum will change the input
-    const auto& runner = NpuOpRunner("ApplyMomentum",
-                                     {*param_out_data,
-                                      *velocity_out_data,
-                                      *lr_data,
-                                      regularized_grad,
-                                      mu_tensor},
-                                     {*param_out_data},
-                                     {{"use_nesterov", use_nesterov}});
-    runner.Run(dev_ctx.stream());
+    experimental::OpCommandHelper::Assign(dev_ctx, *param_data, param_out_data);
+    experimental::OpCommandHelper::Assign(
+        dev_ctx, *velocity_data, velocity_out_data);
+
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(param_out_data->dims());
+    dev_ctx.template Alloc<T>(&tmp_out);
+    experimental::OpCommand("ApplyMomentum")
+        .Input(*param_out_data)
+        .Input(*velocity_out_data)
+        .Input(*lr_data)
+        .Input(regularized_grad)
+        .ScalarInput(host_mu)
+        .Attr("use_nesterov", use_nesterov)
+        .Output(tmp_out)
+        .Run(dev_ctx);
   }
 }
 

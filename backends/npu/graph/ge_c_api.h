@@ -36,9 +36,9 @@ void DestroyTensorDesc(C_GE_TensorDesc*);
 
 void TensorDescSetShape(C_GE_TensorDesc* desc, int64_t* dims, int64_t rank);
 
-void TensorDescSetDType(C_GE_TensorDesc* desc, int64_t dtype);
+void TensorDescSetDType(C_GE_TensorDesc* desc, ge::DataType);
 
-void TensorDescSetFormat(C_GE_TensorDesc* desc, int64_t format);
+void TensorDescSetFormat(C_GE_TensorDesc* desc, ge::Format);
 
 uint8_t* TensorGetData(C_GE_Tensor* tensor);
 
@@ -48,10 +48,14 @@ void* SetTensor(C_GE_Tensor* tensor,
                 void* data,
                 int64_t* dims,
                 int64_t rank,
-                int64_t dtype,
-                int64_t format);
+                ge::DataType,
+                ge::Format);
 
 C_GE_Tensor* CreateTensor();
+
+// C_GE_Tensor* CreateTensor(C_GE_TensorDesc* desc,
+//                           ge::DataType dtype,
+//                           ge::Format format);
 
 void DestroyTensor(C_GE_Tensor* tensor);
 
@@ -70,7 +74,10 @@ C_GE_Graph* CreateGraph(const C_Scope scope, const char* name);
 
 void GraphSetInput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
 
-void GraphSetOutput(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
+void GraphSetOutput(C_GE_Graph* graph,
+                    C_GE_Operator** ops,
+                    size_t* index,
+                    size_t count);
 
 void GraphSetTarget(C_GE_Graph* graph, C_GE_Operator** ops, size_t count);
 
@@ -143,19 +150,26 @@ void OperatorSetAttrStringList(C_GE_Operator* self,
                                const char** list,
                                int count);
 
+C_GE_Tensor* OperatorGetAttrTensor(C_GE_Operator* self, const char* attr_name);
+
 void OperatorUpdateInputDesc(C_GE_Operator* self,
                              const char* desc_name,
                              int64_t* dims,
                              int64_t rank,
-                             int64_t dtype,
-                             int64_t format);
+                             ge::DataType,
+                             ge::Format);
 
 void OperatorUpdateOutputDesc(C_GE_Operator* self,
                               const char* desc_name,
                               int64_t* dims,
                               int64_t rank,
-                              int64_t dtype,
-                              int64_t format);
+                              ge::DataType,
+                              ge::Format);
+
+char* OperatorGetOpType(C_GE_Operator* self);
+
+C_Status graph_initialize(const C_Device device, const C_Stream stream);
+C_Status graph_finalize(const C_Device device, const C_Stream stream);
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -268,45 +282,3 @@ inline void OperatorSetAttr<std::vector<std::string>>(
   OperatorSetAttrStringList(
       self, attr_name.c_str(), string_list.data(), string_list.size());
 }
-
-namespace ge {
-namespace capi {
-
-template <typename T, T* (*Allocator)(), void (*Deleter)(T*)>
-class GEClassWrapper {};
-
-// struct TensorDesc {
-//   TensorDesc() { raw_data = CreateTensorDesc(); }
-
-//   ~TensorDesc() {
-//     DestroyTensorDesc(raw_data);
-//     raw_data = nullptr;
-//   }
-
-//   TensorDesc(const TensorDesc& other) {
-
-//   }
-
-//   TensorDesc& operator=(TensorDesc& other) {
-
-//     return *this;
-//   }
-
-//   void SetShape(const std::vector<int64_t>& shape) {
-//     TensorDescSetShape(
-//         raw_data, const_cast<int64_t*>(shape.data()), shape.size());
-//   }
-
-//   void SetDType(ge::DataType dtype) {
-//     TensorDescSetDType(raw_data, static_cast<int64_t>(dtype));
-//   }
-
-//   void SetFormat(ge::Format format) {
-//     TensorDescSetFormat(raw_data, static_cast<int64_t>(format));
-//   }
-
-//   C_GE_TensorDesc* raw_data{nullptr};
-// };
-
-}  // namespace capi
-}  // namespace ge

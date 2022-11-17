@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -82,6 +83,14 @@ void Pool2dKernel(const Context& dev_ctx,
                   bool adaptive,
                   const std::string& padding_algorithm,
                   phi::DenseTensor* out) {
+  PADDLE_ENFORCE_EQ(exclusive,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "Pool only support exclusive=true, but got false."));
+  PADDLE_ENFORCE_EQ(
+      adaptive && data_format == "NHWC",
+      false,
+      phi::errors::InvalidArgument("AdaptivePool only support channel first."));
   dev_ctx.template Alloc<T>(out);
 
   std::vector<int> ksize(kernel_size.GetData().begin(),
@@ -95,7 +104,6 @@ void Pool2dKernel(const Context& dev_ctx,
   phi::DDim data_dims;
   phi::DDim out_data_dims;
 
-  phi::DenseTensor in_x_tensor(in_x), out_tensor(*out);
   std::vector<int> ksize_vec(4, 1);
   std::vector<int> strides_vec(4, 1);
 
@@ -106,12 +114,6 @@ void Pool2dKernel(const Context& dev_ctx,
     ksize_vec[2] = ksize[1];
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
-    phi::DenseTensorMeta in_x_meta = {
-        in_x_tensor.dtype(), in_x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta out_meta = {
-        out_tensor.dtype(), out_tensor.dims(), phi::DataLayout::kNHWC};
-    in_x_tensor.set_meta(in_x_meta);
-    out_tensor.set_meta(out_meta);
   } else {
     data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
     out_data_dims = phi::slice_ddim(out_dims, 2, out_dims.size());
@@ -147,69 +149,40 @@ void Pool2dKernel(const Context& dev_ctx,
     if (pooling_type == "max") {
       pooling_mode = "AdaptiveMaxPool2d";
     }
-
-    // AdaptiveAvgPool2d only support NCHW
-    phi::DenseTensor transformed_input, transformed_output;
-    if (pooling_type == "avg" && channel_last) {
-      transformed_input.Resize(phi::make_dim(
-          in_x_dims[0], in_x_dims[3], in_x_dims[1], in_x_dims[2]));
-      dev_ctx.template Alloc<T>(&transformed_input);
-      transformed_output.Resize(
-          phi::make_dim(out_dims[0], out_dims[3], out_dims[1], out_dims[2]));
-      dev_ctx.template Alloc<T>(&transformed_output);
-
-      const auto& trans_runner =
-          NpuOpRunner("TransData",
-                      {in_x_tensor},
-                      {transformed_input},
-                      {{"src_format", std::string("NHWC")},
-                       {"dst_format", std::string("NCHW")}});
-      trans_runner.Run(dev_ctx.stream());
-    } else {
-      transformed_input = in_x_tensor;
-      transformed_output = out_tensor;
-    }
-
-    const auto& runner =
-        NpuOpRunner(pooling_mode,
-                    {transformed_input},
-                    {transformed_output},
-                    {{"output_size", phi::vectorize<int>(out_data_dims)}});
-    runner.Run(dev_ctx.stream());
-
-    if (pooling_type == "avg" && channel_last) {
-      const auto& trans_runner =
-          NpuOpRunner("TransData",
-                      {transformed_output},
-                      {out_tensor},
-                      {{"src_format", std::string("NCHW")},
-                       {"dst_format", std::string("NHWC")}});
-      trans_runner.Run(dev_ctx.stream());
-    }
+    experimental::OpCommand(pooling_mode)
+        .Input(
+            in_x,
+            experimental::TensorDescMaker("x", in_x).SetDataLayout(
+                channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y", *out).SetDataLayout(
+                channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
+        .Attr("output_size", phi::vectorize<int>(out_data_dims))
+        .Run(dev_ctx);
   } else {
     std::string pooling_mode = "AvgPoolV2";
     if (pooling_type == "max") {
-      PADDLE_ENFORCE_EQ(
-          exclusive,
-          true,
-          phi::errors::InvalidArgument(
-              "MaxPool only support exclusive=false, but got true"));
       pooling_mode = "MaxPoolV3";
     }
-
-    const auto& runner =
-        NpuOpRunner(pooling_mode,
-                    {in_x_tensor},
-                    {out_tensor},
-                    {{"ksize", ksize_vec},
-                     {"strides", strides_vec},
-                     {"padding_mode", std::string("CALCULATED")},
-                     {"pads", paddings},
-                     {"data_format", data_format},
-                     {"global_pooling", global_pooling},
-                     {"ceil_mode", ceil_mode},
-                     {"exclusive", exclusive}});
-    runner.Run(dev_ctx.stream());
+    experimental::OpCommand(pooling_mode)
+        .Input(
+            in_x,
+            experimental::TensorDescMaker("x", in_x).SetDataLayout(
+                channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y", *out).SetDataLayout(
+                channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
+        .Attr("ksize", ksize_vec)
+        .Attr("strides", strides_vec)
+        .Attr("padding_mode", std::string("CALCULATED"))
+        .Attr("pads", paddings)
+        .Attr("data_format", data_format)
+        .Attr("global_pooling", global_pooling)
+        .Attr("ceil_mode", ceil_mode)
+        .Attr("exclusive", exclusive)
+        .Run(dev_ctx);
   }
 }
 
@@ -246,8 +219,6 @@ void Pool2dGradKernel(const Context& dev_ctx,
   std::vector<int> ksize_vec(4, 1);
   std::vector<int> strides_vec(4, 1);
 
-  phi::DenseTensor in_x_tensor(in_x), out_tensor(out),
-      out_grad_tensor(out_grad), in_x_grad_tensor(*in_x_grad);
   if (channel_last) {
     data_dims = phi::slice_ddim(in_x_dims, 1, in_x_dims.size() - 1);
     out_data_dims = phi::slice_ddim(out_dims, 1, out_dims.size() - 1);
@@ -255,20 +226,6 @@ void Pool2dGradKernel(const Context& dev_ctx,
     ksize_vec[2] = ksize[1];
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
-    phi::DenseTensorMeta in_x_meta = {
-        in_x_tensor.dtype(), in_x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta out_meta = {
-        out_tensor.dtype(), out_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta out_grad_meta = {out_grad_tensor.dtype(),
-                                          out_grad_tensor.dims(),
-                                          phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta in_x_grad_meta = {in_x_grad_tensor.dtype(),
-                                           in_x_grad_tensor.dims(),
-                                           phi::DataLayout::kNHWC};
-    in_x_tensor.set_meta(in_x_meta);
-    out_tensor.set_meta(out_meta);
-    out_grad_tensor.set_meta(out_grad_meta);
-    in_x_grad_tensor.set_meta(in_x_grad_meta);
   } else {
     data_dims = phi::slice_ddim(in_x_dims, 2, in_x_dims.size());
     out_data_dims = phi::slice_ddim(out_dims, 2, out_dims.size());
@@ -328,34 +285,38 @@ void Pool2dGradKernel(const Context& dev_ctx,
     }
   }
 
-  NPUAttributeMap attrs = {{"ksize", ksize_vec},
-                           {"strides", strides_vec},
-                           {"padding_mode", std::string("CALCULATED")},
-                           {"pads", paddings},
-                           {"data_format", data_format},
-                           {"global_pooling", global_pooling},
-                           {"ceil_mode", ceil_mode},
-                           {"exclusive", exclusive}};
-
   if (pooling_type == "max") {
-    if (global_pooling) {
-      for (auto& s : strides_vec) {
-        s = 1;
-      }
-      PADDLE_ENFORCE_LT(std::max(data_dims[0], data_dims[1]),
-                        255,
-                        phi::errors::InvalidArgument(
-                            "MaxPoolGrad H, W must be less than 255 when "
-                            "global_pooling = True, but got %s",
-                            data_dims));
-      attrs["global_pooling"] = false;
-    }
+    PADDLE_ENFORCE(
+        !global_pooling,
+        phi::errors::Unavailable("Computing gradients of global pooling is not "
+                                 "supported, which means ksize < x1"));
 
-    const auto& runner = NpuOpRunner("MaxPoolV3Grad",
-                                     {in_x_tensor, out_tensor, out_grad_tensor},
-                                     {in_x_grad_tensor},
-                                     attrs);  // 0: floor, 1: ceil
-    runner.Run(dev_ctx.stream());
+    experimental::OpCommand("MaxPoolV3Grad")
+        .Input(in_x,
+               experimental::TensorDescMaker("orig_input", in_x)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Input(out,
+               experimental::TensorDescMaker("orig_output", out)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Input(out_grad,
+               experimental::TensorDescMaker("grad", out_grad)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Output(*in_x_grad,
+                experimental::TensorDescMaker("out_grad", *in_x_grad)
+                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                                : phi::DataLayout::NCHW))
+        .Attr("ksize", ksize_vec)
+        .Attr("strides", strides_vec)
+        .Attr("padding_mode", std::string("CALCULATED"))
+        .Attr("pads", paddings)
+        .Attr("data_format", data_format)
+        .Attr("global_pooling", global_pooling)
+        .Attr("ceil_mode", ceil_mode)  // 0: floor, 1: ceil
+        .Attr("exclusive", exclusive)
+        .Run(dev_ctx);
   } else if (pooling_type == "avg") {
     PADDLE_ENFORCE(strides[0] == strides[1],
                    phi::errors::InvalidArgument(
@@ -363,14 +324,31 @@ void Pool2dGradKernel(const Context& dev_ctx,
                        "strides = (%d, %d)",
                        strides[0],
                        strides[1]));
+    phi::DenseTensor in_x_dims;
+    TensorFromVector(
+        dev_ctx, phi::vectorize(in_x.dims()), phi::CPUContext(), &in_x_dims);
 
-    NpuOpRunner runner;
-    runner.SetType("AvgPoolV2Grad");
-    runner.AddInput(dev_ctx, phi::vectorize<int>(in_x.dims()));
-    runner.AddInput(out_grad_tensor);
-    runner.AddOutput(in_x_grad_tensor);
-    runner.AddAttrs(attrs);
-    runner.Run(dev_ctx.stream());
+    experimental::OpCommand("AvgPoolV2Grad")
+        .Input(in_x_dims,
+               experimental::TensorDescMaker("orig_input_shape", in_x_dims)
+                   .SetDataLayout(phi::DataLayout::NCHW))
+        .Input(out_grad,
+               experimental::TensorDescMaker("input_grad", out_grad)
+                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                               : phi::DataLayout::NCHW))
+        .Output(*in_x_grad,
+                experimental::TensorDescMaker("out_grad", *in_x_grad)
+                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
+                                                : phi::DataLayout::NCHW))
+        .Attr("ksize", ksize_vec)
+        .Attr("strides", strides_vec)
+        .Attr("padding_mode", std::string("CALCULATED"))
+        .Attr("pads", paddings)
+        .Attr("data_format", data_format)
+        .Attr("global_pooling", global_pooling)
+        .Attr("ceil_mode", ceil_mode)  // 0: floor, 1: ceil
+        .Attr("exclusive", exclusive)
+        .Run(dev_ctx);
   }
 }
 

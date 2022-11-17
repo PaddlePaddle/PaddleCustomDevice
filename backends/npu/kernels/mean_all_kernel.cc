@@ -19,11 +19,18 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+extern void FullLikeKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           const phi::Scalar& val,
+                           phi::DataType dtype,
+                           phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
   std::vector<int> axes;
-  ACL_RUN(dev_ctx.template Alloc<T>(out));
+  dev_ctx.template Alloc<T>(out);
   experimental::OpCommand("ReduceMeanD")
       .Input(x)
       .Output(*out)
@@ -47,38 +54,29 @@ void MeanAllGradKernel(const Context& dev_ctx,
           "received Out@Grad's elements num is %d.",
           grad.numel()));
 
-  ACL_RUN(dev_ctx.template Alloc<T>(x_grad));
-  // ones
-  phi::DenseTensor ones;
-  phi::DenseTensorMeta ones_meta = {grad.dtype(), x_grad->dims()};
-  ones.set_meta(ones_meta);
-  ACL_RUN(dev_ctx.template Alloc<T>(&ones));
-  experimental::OpCommand("OnesLike").Input(*x_grad).Output(ones).Run(dev_ctx);
+  dev_ctx.template Alloc<T>(x_grad);
 
-  // means
   phi::DenseTensor mean_tensor;
-  phi::DenseTensorMeta mean_meta = {grad.dtype(), {1}};
-  mean_tensor.set_meta(mean_meta);
-  ACL_RUN({
-    dev_ctx.template Alloc<T>(&mean_tensor);
-    FillNpuTensorWithConstant<T>(
-        &mean_tensor,
-        dev_ctx,
-        static_cast<T>(1.0 / static_cast<float>(x_grad->numel())));
-  });
+  phi::DenseTensor value_tensor;
+  value_tensor.Resize({1});
+  dev_ctx.template HostAlloc<T>(&value_tensor);
+  *(value_tensor.data<T>()) =
+      static_cast<T>(1.0 / static_cast<float>(x_grad->numel()));
+  custom_kernel::FullLikeKernel<T, Context>(
+      dev_ctx, *x_grad, value_tensor, x_grad->dtype(), &mean_tensor);
 
-  // means mul ones and mul grad
-  phi::DenseTensor mean_ma;
-  phi::DenseTensorMeta mean_ma_meta = {grad.dtype(), x_grad->dims()};
-  mean_ma.set_meta(mean_ma_meta);
-  ACL_RUN(dev_ctx.template Alloc<T>(&mean_ma));
   experimental::OpCommand("Mul")
-      .Input(mean_tensor)
-      .Input(ones)
-      .Output(mean_ma)
+      .Input(mean_tensor,
+             experimental::TensorDescMaker("x1", mean_tensor)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(grad,
+             experimental::TensorDescMaker("x2", grad)
+                 .SetDataLayout(phi::DataLayout::ANY))
+
+      .Output(*x_grad,
+              experimental::TensorDescMaker("y", *x_grad)
+                  .SetDataLayout(phi::DataLayout::ANY))
       .Run(dev_ctx);
-  experimental::OpCommand("Mul").Input(mean_ma).Input(grad).Output(*x_grad).Run(
-      dev_ctx);
 }
 
 }  // namespace custom_kernel
@@ -88,13 +86,11 @@ PD_REGISTER_PLUGIN_KERNEL(mean_all,
                           ALL_LAYOUT,
                           custom_kernel::MeanAllKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_all_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::MeanAllGradKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::float16) {}

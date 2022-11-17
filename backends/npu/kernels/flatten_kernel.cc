@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
@@ -37,14 +38,12 @@ void FlattenKernel(const Context& dev_ctx,
                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  const auto& runner =
-      NpuOpRunner("FlattenV2",
-                  {x},
-                  {*out},
-                  {{"axis", static_cast<int32_t>(start_axis)},
-                   {"end_axis", static_cast<int32_t>(stop_axis)}});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  experimental::OpCommand("FlattenV2")
+      .Input(x)
+      .Output(*out)
+      .Attr("axis", static_cast<int32_t>(start_axis))
+      .Attr("end_axis", static_cast<int32_t>(stop_axis))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -54,9 +53,18 @@ void FlattenGradKernel(const Context& dev_ctx,
                        phi::DenseTensor* x_grad) {
   auto xshape_dims = xshape.dims();
   auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());
-
-  TensorCopy(dev_ctx, out_grad, false, x_grad);
   x_grad->Resize(x_dims);
+  dev_ctx.template Alloc<T>(x_grad);
+
+  phi::DenseTensor x_grad_dims;
+  TensorFromVector(
+      dev_ctx, phi::vectorize(x_grad->dims()), phi::CPUContext(), &x_grad_dims);
+
+  experimental::OpCommand("Reshape")
+      .Input(out_grad)
+      .Input(x_grad_dims)
+      .Output(*x_grad)
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>

@@ -94,7 +94,7 @@ class TestAccuracyType(TestAccuracy):
         n = 8192
         infer = np.random.random((n, 100)).astype(self.dtype)
         indices = np.random.randint(0, 1000, (n, 100)).astype('int64')
-        label = np.random.randint(0, 1000, (n, 1)).astype('int32')
+        label = np.random.randint(0, 1000, (n, 1)).astype('int64')
         self.inputs = {'Out': infer, 'Indices': indices, "Label": label}
         num_correct = 0
         for rowid in range(n):
@@ -117,7 +117,7 @@ class TestAccuracyType2(TestAccuracy):
         np.random.seed(SEED)
         n = 8192
         infer = np.random.random((n, 100)).astype(self.dtype)
-        indices = np.random.randint(0, 1000, (n, 100)).astype('int32')
+        indices = np.random.randint(0, 1000, (n, 100)).astype('int64')
         label = np.random.randint(0, 1000, (n, 1)).astype('int64')
         self.inputs = {'Out': infer, 'Indices': indices, "Label": label}
         num_correct = 0

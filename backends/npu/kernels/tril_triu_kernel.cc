@@ -109,7 +109,7 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
         phi::dtype::float16) {}
 =======
 PD_REGISTER_PLUGIN_KERNEL(tril_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TrilGradKernel,
                           bool,

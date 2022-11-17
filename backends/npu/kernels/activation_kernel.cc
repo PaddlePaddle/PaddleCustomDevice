@@ -105,6 +105,28 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void FloorKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Floor", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
+  runner.Run(stream);
+}
+
+
+template <typename T, typename Context>
 void SinKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -889,6 +911,22 @@ PD_REGISTER_PLUGIN_KERNEL(log_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(floor,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::FloorKernel,
+                          double,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(floor_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::FloorGradKernel,
+                          double,
                           float,
                           phi::dtype::float16) {}
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "graph/ge_c_api.h"
+#include "runtime/ge_c_api.h"
 
 #include <algorithm>
 #include <functional>

@@ -15,13 +15,13 @@
 #pragma once
 
 #include "glog/logging.h"
-#include "graph/ge_c_api.h"
 #include "graph/types.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
+#include "runtime/ge_c_api.h"
 #include "runtime/runtime.h"
 
 USE_ENV_bool(use_graph_engine);

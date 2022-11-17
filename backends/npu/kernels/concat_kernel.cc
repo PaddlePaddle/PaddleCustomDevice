@@ -99,7 +99,7 @@ void ConcatKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&out_fp32);
 
     if(inputs.size() == 1) {
-      int index = int(names[0][1]);
+      int index = std::stoi(names[0].substr(1, names[0].size()-1));
       *out = *ins[index];
       return;
     }

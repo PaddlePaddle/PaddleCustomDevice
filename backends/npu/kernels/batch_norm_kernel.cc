@@ -42,9 +42,16 @@ void BatchNormKernel(const Context& dev_ctx,
 
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
-  dev_ctx.template Alloc<T>(y);
-  phi::DenseTensor x_tensor(x), y_tensor(*y);
   const auto& x_dims = x.dims();
+  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The input tensor X's dimension must equal to 3 or 4. "
+                        " But got X's shape = [%s], X's dimension = [%d].",
+                        x_dims.to_str(),
+                        x_dims.size()));
+
+  dev_ctx.template Alloc<T>(y);
 
   if (!training) {
     experimental::OpCommand("BNInfer")
@@ -243,6 +250,14 @@ void BatchNormGradKernel(
   if (d_x) {
     dev_ctx.template Alloc<T>(d_x);
     if (use_global_stats) {
+      std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+      if (x_dims.size() == 3) {
+        if (data_layout == phi::DataLayout::kNCHW) {
+          x_dims.push_back(1);
+        } else {
+          x_dims.insert(x_dims.begin() + 2, 1);
+        }
+      }
       const auto* running_variance = variance.get_ptr();
       experimental::OpCommand("BNInferGrad")
           .Input(d_y,
@@ -311,6 +326,13 @@ void BatchNormInferKernel(const Context& dev_ctx,
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
 
   const auto& x_dims = x.dims();
+  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The input tensor X's dimension must equal to 3 or 4. "
+                        " But got X's shape = [%s], X's dimension = [%d].",
+                        x_dims.to_str(),
+                        x_dims.size()));
 
   dev_ctx.template Alloc<T>(y);
   experimental::OpCommand("BNInfer")
@@ -337,7 +359,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          npu,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormKernel,
                           phi::dtype::float16,
@@ -345,7 +367,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
-                          npu,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormGradKernel,
                           phi::dtype::float16,
@@ -353,7 +375,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
-                          npu,
+                          ascend,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormInferKernel,
                           phi::dtype::float16,

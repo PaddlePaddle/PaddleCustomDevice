@@ -50,7 +50,7 @@ target_compile_definitions(${CUSTOM_NPU_NAME} PRIVATE -D_GLIBCXX_USE_CXX11_ABI=1
 
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib} ${ascend_hccl_lib})
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib} graph_executor)
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib} ge_c_api)
 
 # link paddle shared library
 add_dependencies(${CUSTOM_NPU_NAME} third_party)

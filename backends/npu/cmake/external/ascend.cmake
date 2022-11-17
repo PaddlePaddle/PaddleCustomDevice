@@ -30,7 +30,7 @@ set(ACLLIB_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/acllib/include)
 set(OPS_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/opp/built-in/op_proto/inc)
 set(COMPILER_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/compiler/include/ge)
 
-# link_directories(${ASCEND_CL_DIR} ${ASCEND_DIR}/ascend-toolkit/latest/opp/op_proto/built-in/ ${ASCEND_DIR}/ascend-toolkit/latest/runtime/lib64)
+link_directories(${ASCEND_CL_DIR})
 
 message(STATUS "FWKACLLIB_INC_DIR ${FWKACLLIB_INC_DIR}")
 message(STATUS "ASCEND_CL_DIR ${ASCEND_CL_DIR}")

@@ -44,7 +44,7 @@ if (ON_INFER)
 endif()
 
 # NOTE(wangran16): we need to avoid the ge required macro '_GLIBCXX_USE_CXX11_ABI' affecting the plugin compilation
-add_library(ge_c_api STATIC rumtine/ge_c_api.cc)
+add_library(ge_c_api STATIC runtime/ge_c_api.cc)
 target_link_libraries(ge_c_api PRIVATE graph ge_runner)
 target_compile_options(ge_c_api PRIVATE -fPIC)
 target_compile_definitions(ge_c_api PRIVATE -D_GLIBCXX_USE_CXX11_ABI=0)

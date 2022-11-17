@@ -99,12 +99,9 @@ void ConcatKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&out_fp32);
 
     if(inputs.size() == 1) {
-      for(size_t i = 0; i < ins.size(); ++i) {
-        if (ins[i] && ins[i]->numel() > 0) {
-          *out = *ins[0];
-          return;
-        }
-      }
+      int index = int(names[0][1]);
+      *out = *ins[index];
+      return;
     }
     
     NpuOpRunner runner;

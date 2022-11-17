@@ -99,9 +99,14 @@ void ConcatKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&out_fp32);
 
     if(inputs.size() == 1) {
-      *out = *ins[0];
-      return;
+      for(size_t i = 0; i < ins.size(); ++i) {
+        if (ins[i] && ins[i]->numel() > 0) {
+          *out = *ins[0];
+          return;
+        }
+      }
     }
+    
     NpuOpRunner runner;
     runner.SetType("Concat")
         .AddInput(dev_ctx, std::move(std::vector<int>(1, axis)))

@@ -158,4 +158,3 @@ PD_REGISTER_PLUGIN_KERNEL(add_grad,
                           custom_kernel::AddGradKernel,
                           float,
                           phi::dtype::float16) {}
-

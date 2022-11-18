@@ -108,11 +108,17 @@ inline void TensorCopy(const Context& dev_ctx,
           dev_ctx.Wait();
         }
       } else {
+        PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorCopy is not supported."));
       }
     } else {
+      PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorCopy is not supported."));
     }
-  } else {
-  }
+  } else if (src_place.GetType() == phi::AllocationType::CPU &&
+                dst_place_.GetType() == phi::AllocationType::CPU) {
+      std::memcpy(dst_ptr, src_ptr, size);
+  } 
 }
 
 /**

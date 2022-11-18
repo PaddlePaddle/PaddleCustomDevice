@@ -3016,9 +3016,11 @@ MLURNNDesc::~MLURNNDesc() {
                               const void* x,
                               const void* min,
                               const void* max,
+                              const cnnlTensorDescriptor_t y_desc,
                               void* y) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlClip(handle, x_desc, x, min, max, y));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlClip_v2(
+      handle, CNNL_POINTER_MODE_HOST, x_desc, x, min, max, y_desc, y));
 }
 
 /*static*/ void MLUCnnl::HardtanhBackward(

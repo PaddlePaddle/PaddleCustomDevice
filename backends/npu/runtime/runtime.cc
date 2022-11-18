@@ -113,7 +113,7 @@ inline size_t get_devices_count() {
 }
 
 C_Status Init() {
-  // ACL_CHECK(aclInit(nullptr));
+  ACL_CHECK(aclInit(nullptr));
   size_t count = get_devices_count();
   if (count) {
     global_allocator_list = new AlignnedAllocatorList(count);

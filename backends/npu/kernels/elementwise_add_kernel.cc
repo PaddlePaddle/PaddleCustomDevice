@@ -23,6 +23,8 @@ void AddRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& y,
                   int axis,
                   phi::DenseTensor* out) {
+  LOG(INFO) << "add x.dims: " << x.dims() << " add y.dims: " << y.dims() << " add axis: " << axis;
+
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -66,70 +68,105 @@ void AddGradKernel(const Context& dev_ctx,
                    int axis,
                    phi::DenseTensor* dx,
                    phi::DenseTensor* dy) {
-  auto stream = dev_ctx.stream();
 
-  axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
+  LOG(INFO) << "add_grad x.dims: " << x.dims()  << " add_grad y.dims: " << y.dims() <<  " add_grad dout.dims: " << dout.dims() << " add_grad axis: " << axis;
+
+  auto stream = dev_ctx.stream();
 
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
-    if (dx->dims() != dout.dims()) {
-      std::vector<int> dst_dims_vec;
-      std::vector<int> reduce_axes;
-      auto src_dims = dx->dims();
-      auto dout_dims = dout.dims();
+    // For dx
+    // stage 1
+    auto reduce_ndim = dout.dims().size() - dx->dims().size();
+    std::vector<int> axes;
+    for (auto i = 0; i < reduce_ndim; ++i) {
+      axes.push_back(i);
+    }
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
+    phi::DenseTensor reduced_dout;
+    if (axes.size() != 0) {
+      std::vector<int64_t> reduced_dout_dims;
+      for (auto i = reduce_ndim; i < dout.dims().size(); ++i) {
+        reduced_dout_dims.push_back(dout.dims()[i]);
+      }
 
-      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
-      for (int ax = 0; ax < dout_dims.size(); ++ax) {
-        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
-            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
-          reduce_axes.push_back(ax);
-        } else {
-          dst_dims_vec.push_back(dout_dims[ax]);
-        }
+      phi::DenseTensorMeta reduced_dout_meta = {
+          dx->dtype(), phi::make_ddim(reduced_dout_dims)};
+      reduced_dout.set_meta(reduced_dout_meta);
+      dev_ctx.template Alloc<T>(&reduced_dout);
+
+      const auto& runner = NpuOpRunner("ReduceSumD",
+                                       {dout},
+                                       {reduced_dout},
+                                       {{"axes", axes}, {"keep_dims", false}});
+      runner.Run(stream);
+      tmp_dout = &reduced_dout;
+    }
+
+    // stage 2
+    axes.clear();
+    for (auto i = 0; i < dx->dims().size(); ++i) {
+      if (dx->dims()[i] == 1) {
+        axes.push_back(i);
       }
-      if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dx);
-        tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
-      }
+    }
+    if (axes.size() != 0) {
+      const auto& runner = NpuOpRunner("ReduceSumD",
+                                       {*tmp_dout},
+                                       {*dx},
+                                       {{"axes", axes}, {"keep_dims", true}});
+      runner.Run(stream);
     } else {
-      TensorCopy(dev_ctx, dout, false, dx);
+      TensorCopy(dev_ctx, *tmp_dout, false, dx);
     }
   }
   if (dy) {
     dev_ctx.template Alloc<T>(dy);
-    if (dy->dims() != dout.dims()) {
-      std::vector<int> dst_dims_vec;
-      std::vector<int> reduce_axes;
-      auto src_dims = dy->dims();
-      auto dout_dims = dout.dims();
+    // For dy
+    // stage 1
+    auto reduce_ndim = dout.dims().size() - dy->dims().size();
+    std::vector<int> axes;
+    for (auto i = 0; i < reduce_ndim; ++i) {
+      axes.push_back(i);
+    }
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
+    phi::DenseTensor reduced_dout;
 
-      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
-      for (int ax = 0; ax < dout_dims.size(); ++ax) {
-        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
-            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
-          reduce_axes.push_back(ax);
-        } else {
-          dst_dims_vec.push_back(dout_dims[ax]);
-        }
+    if (axes.size() != 0) {
+      std::vector<int64_t> reduced_dout_dims;
+      for (auto i = reduce_ndim; i < dout.dims().size(); ++i) {
+        reduced_dout_dims.push_back(dout.dims()[i]);
       }
-      if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dy);
-        tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
+
+      phi::DenseTensorMeta reduced_dout_meta = {
+          dy->dtype(), phi::make_ddim(reduced_dout_dims)};
+      reduced_dout.set_meta(reduced_dout_meta);
+      dev_ctx.template Alloc<T>(&reduced_dout);
+
+      const auto& runner = NpuOpRunner("ReduceSumD",
+                                       {dout},
+                                       {reduced_dout},
+                                       {{"axes", axes}, {"keep_dims", false}});
+      runner.Run(stream);
+      tmp_dout = &reduced_dout;
+    }
+
+    // stage 2
+    axes.clear();
+    phi::DenseTensor* tmp_dy = tmp_dout;
+    for (auto i = 0; i < dy->dims().size(); ++i) {
+      if (dy->dims()[i] == 1) {
+        axes.push_back(i);
       }
+    }
+    if (axes.size() != 0) {
+      const auto& runner = NpuOpRunner("ReduceSumD",
+                                       {*tmp_dout},
+                                       {*dy},
+                                       {{"axes", axes}, {"keep_dims", true}});
+      runner.Run(stream);
     } else {
-      TensorCopy(dev_ctx, dout, false, dy);
+      TensorCopy(dev_ctx, *tmp_dout, false, dy);
     }
   }
 }

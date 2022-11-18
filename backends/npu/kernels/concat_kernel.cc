@@ -162,7 +162,6 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           double,
                           phi::dtype::float16) {}
 
-/*
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           npu,
                           ALL_LAYOUT,
@@ -172,4 +171,3 @@ PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           float,
                           double,
                           phi::dtype::float16) {}
-*/

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -43,6 +43,7 @@ PD_BUILD_PHI_KERNEL(memcpy_d2h,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::MemcpyD2HKernel,
+                    phi::dtype::float16,
                     float,
                     double,
                     int32_t,
@@ -52,6 +53,7 @@ PD_BUILD_PHI_KERNEL(memcpy_h2d,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::MemcpyH2DKernel,
+                    phi::dtype::float16,
                     float,
                     double,
                     int32_t,

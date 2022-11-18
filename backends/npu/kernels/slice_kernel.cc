@@ -208,20 +208,6 @@ void SliceRawKernel(const Context& dev_ctx,
   std::vector<int> starts(starts_int.begin(), starts_int.end());
   std::vector<int> ends(ends_int.begin(), ends_int.end());
 
-//  LOG(INFO) << "x.dims: " << x.dims();
-//#define LOG_VECTOR(v) \
-//  LOG(INFO) << "##v: " << v.size(); \
-//  for (int i = 0; i < v.size(); ++i) { \
-//    LOG(INFO) << "##v["<< i << "]: " << v[i];   \
-//  }
-//
-//  LOG_VECTOR(axes_t)
-//  LOG_VECTOR(starts)
-//  LOG_VECTOR(ends)
-//  LOG_VECTOR(infer_flags)
-//  LOG_VECTOR(decrease_axis)
-//#undef LOG_VECTOR
-
   PADDLE_ENFORCE_EQ(
       starts.size(),
       axes.size(),

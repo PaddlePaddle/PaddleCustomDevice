@@ -414,10 +414,10 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
       phi::errors::InvalidArgument(
           "Axis should be great than or equal to 0, but received axis is %d.",
           axis));
-  PADDLE_ENFORCE_LT(axis,
+  PADDLE_ENFORCE_LE(axis,
                     max_dim,
                     phi::errors::InvalidArgument(
-                        "Axis should be less than %d, but received axis is %d.",
+                        "Axis should be less than or equal to %d, but received axis is %d.",
                         max_dim,
                         axis));
 

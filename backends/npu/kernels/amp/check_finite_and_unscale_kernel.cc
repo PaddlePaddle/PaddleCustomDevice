@@ -45,57 +45,35 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   tmp_inverse_out = &inverse_out;
 
   phi::DenseTensor sum;
-  sum.Resize({1});
+  phi::DenseTensorMeta sum_meta = {phi::DataType::FLOAT32, {1}};
+  sum.set_meta(sum_meta);
   dev_ctx.template Alloc<T>(&sum);
   FillNpuTensorWithConstant<T>(&sum, dev_ctx, static_cast<T>(0.0));
 
-  phi::DenseTensor tmp;
-  tmp.Resize({1});
+/*
+  phi::DenseTensor float_status, tmp;
+  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {8}};
+  float_status.set_meta(meta);
+  tmp.set_meta(meta);
+  dev_ctx.template Alloc<T>(&float_status);
   dev_ctx.template Alloc<T>(&tmp);
+  // NOTE(zhiqiu): NPUGetFloatStatus updates data on input in-place.
+  // tmp is only placeholder.
+  const auto& runner_float_status =
+      NpuOpRunner("NPUGetFloatStatus",
+                  {float_status},
+                  {tmp},
+                  {{"message", std::string("check_nan_and_inf")}});
+  runner_float_status.Run(stream);
 
-  for (const auto& xs_item : xs) {
-    std::vector<int> axes;
-    phi::DenseTensor xs_is_finite, xs_is_finite_f, xs_is_inf, xs_is_nan;
-    xs_is_finite.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_finite);
-    xs_is_inf.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_inf);
-    xs_is_nan.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_nan);
-    xs_is_finite_f.Resize(xs_item->dims());
-    dev_ctx.template Alloc<T>(&xs_is_finite_f);
+  const auto& runner_reduce_sum =
+      NpuOpRunner("ReduceSumD",
+                  {float_status},
+                  {sum},
+                  {{"axes", std::vector<int>{0}}, {"keep_dims", true}});
+  runner_reduce_sum.Run(stream);
 
-    for (auto i = 0; i < xs_item->dims().size(); ++i) {
-      axes.push_back(i);
-    }
-    const auto& runner_check_inf =
-        NpuOpRunner("IsInf", {*xs_item}, {xs_is_inf}, {});
-    runner_check_inf.Run(stream);
-    const auto& runner_check_nan =
-        NpuOpRunner("IsNan", {*xs_item}, {xs_is_nan}, {});
-    runner_check_nan.Run(stream);
-
-    const auto& runner_logical_or =
-        NpuOpRunner("LogicalOr", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
-    runner_logical_or.Run(stream);
-
-    const auto& runner_cast = NpuOpRunner(
-        "Cast",
-        {xs_is_finite},
-        {xs_is_finite_f},
-        {{"dst_type", static_cast<int>(cpp_type_to_acl_dtype<T>::value())}});
-    runner_cast.Run(stream);
-
-    const auto& runner_reduce_sum =
-        NpuOpRunner("ReduceSumD",
-                    {xs_is_finite_f},
-                    {tmp},
-                    {{"axes", axes}, {"keep_dims", false}});
-    runner_reduce_sum.Run(stream);
-
-    const auto& runner_add = NpuOpRunner("Add", {tmp, sum}, {sum}, {});
-    runner_add.Run(stream);
-  }
+*/
 
   const auto& runner_greater =
       NpuOpRunner("GreaterEqual", {sum, const_tensor}, {*found_inf}, {});

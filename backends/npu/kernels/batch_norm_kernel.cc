@@ -42,21 +42,35 @@ void BatchNormKernel(const Context& dev_ctx,
 
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
-  const auto& x_dims = x.dims();
-  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The input tensor X's dimension must equal to 3 or 4. "
-                        " But got X's shape = [%s], X's dimension = [%d].",
-                        x_dims.to_str(),
-                        x_dims.size()));
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_dims.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+  }
 
   dev_ctx.template Alloc<T>(y);
 
   if (!training) {
     experimental::OpCommand("BNInfer")
         .Input(x,
-               experimental::TensorDescMaker("x", x).SetDataLayout(data_layout))
+               experimental::TensorDescMaker("x", x)
+                   .SetDataLayout(data_layout)
+                   .SetDims(phi::make_ddim(x_dims)))
         .Input(scale,
                experimental::TensorDescMaker("scale", scale)
                    .SetDataLayout(phi::DataLayout::ANY))
@@ -85,16 +99,6 @@ void BatchNormKernel(const Context& dev_ctx,
     square_sum.Resize(running_mean.dims());
     dev_ctx.template Alloc<float>(&sum);
     dev_ctx.template Alloc<float>(&square_sum);
-
-    // BNTrainingReduce ONLY support rank = 4
-    std::vector<int> x_dims = phi::vectorize<int>(x.dims());
-    if (x_dims.size() == 3) {
-      if (data_layout == phi::DataLayout::kNCHW) {
-        x_dims.push_back(1);
-      } else {
-        x_dims.insert(x_dims.begin() + 2, 1);
-      }
-    }
 
     experimental::OpCommand("BNTrainingReduce")
         .Input(x,
@@ -191,7 +195,27 @@ void BatchNormGradKernel(
     d_bias = &bias_grad_tmp;
   }
 
-  auto stream = dev_ctx.stream();
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_dims.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+  }
+
   if (d_scale && d_bias) {
     dev_ctx.template Alloc<float>(d_scale);
     dev_ctx.template Alloc<float>(d_bias);
@@ -203,10 +227,12 @@ void BatchNormGradKernel(
       experimental::OpCommand("BNTrainingUpdateGrad")
           .Input(d_y,
                  experimental::TensorDescMaker("grads", d_y)
-                     .SetDataLayout(data_layout))
-          .Input(
-              x,
-              experimental::TensorDescMaker("x", x).SetDataLayout(data_layout))
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(x,
+                 experimental::TensorDescMaker("x", x)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
           .Input(*running_mean,
                  experimental::TensorDescMaker("batch_mean", *running_mean)
                      .SetDataLayout(phi::DataLayout::ANY))
@@ -226,10 +252,12 @@ void BatchNormGradKernel(
       experimental::OpCommand("BNTrainingUpdateGrad")
           .Input(d_y,
                  experimental::TensorDescMaker("grads", d_y)
-                     .SetDataLayout(data_layout))
-          .Input(
-              x,
-              experimental::TensorDescMaker("x", x).SetDataLayout(data_layout))
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(x,
+                 experimental::TensorDescMaker("x", x)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
           .Input(saved_mean,
                  experimental::TensorDescMaker("batch_mean", saved_mean)
                      .SetDataLayout(phi::DataLayout::ANY))
@@ -250,14 +278,6 @@ void BatchNormGradKernel(
   if (d_x) {
     dev_ctx.template Alloc<T>(d_x);
     if (use_global_stats) {
-      std::vector<int> x_dims = phi::vectorize<int>(x.dims());
-      if (x_dims.size() == 3) {
-        if (data_layout == phi::DataLayout::kNCHW) {
-          x_dims.push_back(1);
-        } else {
-          x_dims.insert(x_dims.begin() + 2, 1);
-        }
-      }
       const auto* running_variance = variance.get_ptr();
       experimental::OpCommand("BNInferGrad")
           .Input(d_y,
@@ -325,19 +345,33 @@ void BatchNormInferKernel(const Context& dev_ctx,
                           phi::DenseTensor* variance_out) {
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
 
-  const auto& x_dims = x.dims();
-  PADDLE_ENFORCE_EQ((x_dims.size() == 4UL || x_dims.size() == 3UL),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The input tensor X's dimension must equal to 3 or 4. "
-                        " But got X's shape = [%s], X's dimension = [%d].",
-                        x_dims.to_str(),
-                        x_dims.size()));
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_dims.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+  }
 
   dev_ctx.template Alloc<T>(y);
   experimental::OpCommand("BNInfer")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(data_layout))
+             experimental::TensorDescMaker("x", x)
+                 .SetDataLayout(data_layout)
+                 .SetDims(phi::make_ddim(x_dims)))
       .Input(scale,
              experimental::TensorDescMaker("scale", scale)
                  .SetDataLayout(phi::DataLayout::ANY))
@@ -351,7 +385,9 @@ void BatchNormInferKernel(const Context& dev_ctx,
              experimental::TensorDescMaker("variance", variance)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*y,
-              experimental::TensorDescMaker("y", *y).SetDataLayout(data_layout))
+              experimental::TensorDescMaker("y", *y)
+                  .SetDataLayout(data_layout)
+                  .SetDims(phi::make_ddim(x_dims)))
       .Attr("epsilon", epsilon)
       .Run(dev_ctx);
 }

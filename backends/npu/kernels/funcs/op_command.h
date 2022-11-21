@@ -52,6 +52,8 @@ struct TensorDescMaker {
     }
   }
 
+  bool Valid() { return desc_name_.size(); }
+
   TensorDescMaker& SetDims(const phi::DDim& dims) {
     dims_ = dims;
     return *this;
@@ -117,40 +119,78 @@ using NpuAttribute = paddle::variant<paddle::blank,
                                      std::vector<std::vector<int64_t>>,
                                      phi::DenseTensor>;
 
-struct Tensor;
+struct TensorNode;
 
-struct IrNode {
-  explicit IrNode(const std::string& op_type) {
+struct OpNode {
+  explicit OpNode(const std::string& op_type) {
     static std::unordered_map<std::string, size_t> op_count;
     auto op_name_ = op_type + std::to_string(op_count[op_type]++);
     ge_op_ = CreateOperator(op_name_.c_str(), op_type.c_str());
   }
 
-  ~IrNode() {
+  ~OpNode() {
     if (ge_op_) {
       DestroyOperator(ge_op_);
       ge_op_ = nullptr;
     }
   }
 
-  std::vector<Tensor*> ins_;
+  void PushInput(TensorNode* in) { ins_.push_back(in); }
+
+  std::vector<TensorNode*> ins_;
   C_GE_Operator* ge_op_{nullptr};
 };
 
-struct Tensor {
-  Tensor() {}
+enum TensorNodeTag {
+  UNDEFINED = 0,
+  IN,
+  OUT,
+  EDGE,
+};
 
-  // graph tensor
-  std::shared_ptr<IrNode> in_{nullptr};
+struct TensorNode {
+  static std::vector<TensorNode*>& storage() {
+    static std::vector<TensorNode*> ins;
+    return ins;
+  }
+
+  static TensorNode* malloc() {
+    auto ptr = new TensorNode;
+    ptr->SetTag(TensorNodeTag::IN);
+    ptr->Cache();
+    VLOG(10) << "TensorNode::malloc " << ptr;
+    return ptr;
+  }
+
+  static void free(TensorNode* ptr) {
+    VLOG(10) << "TensorNode::free " << ptr;
+    delete ptr;
+  }
+
+  TensorNode() {}
+
+  bool WithoutNode() { return !in_; }
+
+  void SetInput(std::shared_ptr<OpNode> in, size_t index) {
+    in_ = in;
+    in_index_ = index;
+  }
+
+  void PushOutput(std::shared_ptr<OpNode> out, size_t index) {
+    outs_.push_back({index, out.get()});
+  }
+
+  void SetTag(TensorNodeTag tag) { tag_ = tag; }
+
+  void Cache() { storage().push_back(this); }
+
+  bool IsInput() { return tag_ == TensorNodeTag::IN; }
+
+  std::shared_ptr<OpNode> in_{nullptr};
   size_t in_index_{0};
-  std::vector<std::pair<int, IrNode*>> outs_;
-  C_GE_Tensor* ge_tensor_{nullptr};  // graph host tensor
-  bool is_input_{false};             // mark tensor without node as input
+  std::vector<std::pair<int, OpNode*>> outs_;
 
-  // acl tensor
-  aclDataBuffer* buffer_{nullptr};
-  aclTensorDesc* desc_{nullptr};
-  std::vector<int64_t> vec_;  // acl host tensor
+  TensorNodeTag tag_{TensorNodeTag::UNDEFINED};
 };
 
 class NpuCommand {

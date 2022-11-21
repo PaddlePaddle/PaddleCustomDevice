@@ -665,4 +665,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->graph_engine_finalize = graph_engine_finalize;
   params->interface->graph_engine_prepare_graph = graph_engine_prepare_graph;
   params->interface->graph_engine_execute_graph = graph_engine_execute_graph;
+
+  params->interface->device_allocator_allocate =
+      graph_engine_allocator_allocate;
+  params->interface->device_allocator_deallocate =
+      graph_engine_allocator_deallocate;
 }

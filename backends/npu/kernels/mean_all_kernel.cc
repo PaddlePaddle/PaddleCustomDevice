@@ -44,8 +44,6 @@ void MeanAllGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& grad,
                        phi::DenseTensor* x_grad) {
-  auto stream = dev_ctx.stream();
-
   PADDLE_ENFORCE_EQ(
       grad.numel(),
       1,

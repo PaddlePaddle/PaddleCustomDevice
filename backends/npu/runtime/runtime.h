@@ -215,3 +215,11 @@ C_Status graph_engine_execute_graph(const C_Device device,
                                     char **fetch_tensor_name,
                                     void **fetch_tensor_data,
                                     size_t fetch_tensor_num);
+
+C_Status graph_engine_allocator_allocate(const C_Device device,
+                                         void **ptr,
+                                         size_t byte_size);
+
+C_Status graph_engine_allocator_deallocate(const C_Device device,
+                                           void *ptr,
+                                           size_t byte_size);

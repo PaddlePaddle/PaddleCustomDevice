@@ -500,13 +500,6 @@ class AclCommand : public NpuCommand {
 
 // graph command
 
-std::unordered_map<phi::DenseTensor *, Tensor> global_graph_tensor_map;
-std::vector<Tensor> global_const_tensors;
-
-Tensor &GetGraphTensor(const phi::DenseTensor &tensor) {
-  return global_graph_tensor_map[const_cast<phi::DenseTensor *>(&tensor)];
-}
-
 class GraphCommandHelper {
  public:
   static C_GE_Tensor *ConvertDenseTensorToGETensor(const phi::DenseTensor &t) {
@@ -642,10 +635,10 @@ class GraphCommandHelper {
     }
   }
 
-  static std::shared_ptr<IrNode> ConvertHostTensorToConstOp(
+  static std::shared_ptr<OpNode> ConvertHostTensorToConstOp(
       const phi::DenseTensor &t) {
     auto ge_tensor = GraphCommandHelper::ConvertDenseTensorToGETensor(t);
-    auto const_op = std::make_shared<IrNode>("Const");
+    auto const_op = std::make_shared<OpNode>("Const");
     OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
     DestroyTensor(ge_tensor);
 
@@ -660,13 +653,13 @@ class GraphCommandHelper {
     return std::move(const_op);
   }
 
-  static std::shared_ptr<IrNode> ConvertHostTensorToConstOp(
+  static std::shared_ptr<OpNode> ConvertHostTensorToConstOp(
       const phi::DenseTensor &t,
       const std::vector<int64_t> &dims,
       phi::DataType dtype,
       phi::DataLayout format) {
     auto ge_tensor = GraphCommandHelper::ConvertDenseTensorToGETensor(t);
-    auto const_op = std::make_shared<IrNode>("Const");
+    auto const_op = std::make_shared<OpNode>("Const");
     OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
     DestroyTensor(ge_tensor);
 
@@ -680,9 +673,9 @@ class GraphCommandHelper {
     return std::move(const_op);
   }
 
-  static std::shared_ptr<IrNode> ConvertScalarToConstOp(const phi::Scalar &t) {
+  static std::shared_ptr<OpNode> ConvertScalarToConstOp(const phi::Scalar &t) {
     auto ge_tensor = GraphCommandHelper::ConvertScalarToGETensor(t);
-    auto const_op = std::make_shared<IrNode>("Const");
+    auto const_op = std::make_shared<OpNode>("Const");
     OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
     DestroyTensor(ge_tensor);
 
@@ -702,156 +695,195 @@ class GraphCommand : public NpuCommand {
  public:
   explicit GraphCommand(const std::string &op_type)
       : NpuCommand(op_type), op_type_(op_type) {
-    node_ = std::make_shared<IrNode>(op_type);
+    node_ = std::make_shared<OpNode>(op_type);
   }
 
   ~GraphCommand() override {}
+
   void AddInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
+    auto ge_tensor = const_cast<TensorNode *>(
+        reinterpret_cast<const TensorNode *>(tensor.data()));
+
     VLOG(4) << "Input dtype:" << maker.dtype_
             << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
             << ", format: " << maker.layout_;
+    VLOG(4) << "ptr=" << ge_tensor;
 
-    AddInput(tensor);
-    auto dims = phi::vectorize(maker.dims_);
-    OperatorUpdateInputDesc(node_->ge_op_,
-                            maker.desc_name_.c_str(),
-                            dims.data(),
-                            dims.size(),
-                            ConvertToGEDtype(maker.dtype_),
-                            ConvertToGEFormat(maker.layout_));
+    if (!ge_tensor->WithoutNode()) {
+      OperatorSetInput(node_->ge_op_,
+                       in_index_,
+                       ge_tensor->in_->ge_op_,
+                       ge_tensor->in_index_);
+    } else {
+      ge_tensor->SetTag(TensorNodeTag::UNDEFINED);
+    }
+
+    node_->PushInput(ge_tensor);
+    ge_tensor->PushOutput(node_, in_index_);
+    in_index_++;
+
+    if (maker.Valid()) {
+      auto dims = phi::vectorize(maker.dims_);
+      OperatorUpdateInputDesc(node_->ge_op_,
+                              maker.desc_name_.c_str(),
+                              dims.data(),
+                              dims.size(),
+                              ConvertToGEDtype(maker.dtype_),
+                              ConvertToGEFormat(maker.layout_));
+    }
   }
 
   void AddHostInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
+    auto ge_tensor = TensorNode::malloc();
+
     VLOG(4) << "HostInput dtype:" << maker.dtype_
             << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
             << ", format: " << maker.layout_;
+    VLOG(4) << "ptr=" << ge_tensor;
 
-    AddHostInput(tensor);
-    auto dims = phi::vectorize(tensor.dims());
-    OperatorUpdateInputDesc(node_->ge_op_,
-                            maker.desc_name_.c_str(),
-                            dims.data(),
-                            dims.size(),
-                            ConvertToGEDtype(maker.dtype_),
-                            ConvertToGEFormat(maker.layout_));
+    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(tensor),
+                        0);
+    ge_tensor->PushOutput(node_, in_index_);
+    OperatorSetInput(
+        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
+    node_->PushInput(ge_tensor);
+    in_index_++;
+
+    if (maker.Valid()) {
+      auto dims = phi::vectorize(tensor.dims());
+      OperatorUpdateInputDesc(node_->ge_op_,
+                              maker.desc_name_.c_str(),
+                              dims.data(),
+                              dims.size(),
+                              ConvertToGEDtype(maker.dtype_),
+                              ConvertToGEFormat(maker.layout_));
+    }
   }
 
   void AddScalarInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
+    auto ge_tensor = TensorNode::malloc();
     VLOG(4) << "ScalarInput dtype:" << maker.dtype_
             << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
             << ", format: " << maker.layout_;
+    VLOG(4) << "ptr=" << ge_tensor;
 
-    AddScalarInput(tensor);
-    auto dims = phi::vectorize(tensor.dims());
-    OperatorUpdateInputDesc(node_->ge_op_,
-                            maker.desc_name_.c_str(),
-                            dims.data(),
-                            dims.size(),
-                            ConvertToGEDtype(maker.dtype_),
-                            ConvertToGEFormat(maker.layout_));
+    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(
+                            tensor, {}, tensor.dtype(), phi::DataLayout::ANY),
+                        0);
+    ge_tensor->PushOutput(node_, in_index_);
+    OperatorSetInput(
+        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
+    node_->PushInput(ge_tensor);
+    in_index_++;
+
+    if (maker.Valid()) {
+      auto dims = phi::vectorize(tensor.dims());
+      OperatorUpdateInputDesc(node_->ge_op_,
+                              maker.desc_name_.c_str(),
+                              dims.data(),
+                              dims.size(),
+                              ConvertToGEDtype(maker.dtype_),
+                              ConvertToGEFormat(maker.layout_));
+    }
   }
 
   void AddHostScalarInput(const phi::DenseTensor &tensor,
                           TensorDescMaker maker) {
+    auto ge_tensor = TensorNode::malloc();
     VLOG(4) << "HostScalarInput dtype:" << maker.dtype_
             << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
             << ", format: " << maker.layout_;
+    VLOG(4) << "ptr=" << ge_tensor;
 
-    AddHostScalarInput(tensor);
-    auto dims = phi::vectorize(tensor.dims());
-    OperatorUpdateInputDesc(node_->ge_op_,
-                            maker.desc_name_.c_str(),
-                            dims.data(),
-                            dims.size(),
-                            ConvertToGEDtype(maker.dtype_),
-                            ConvertToGEFormat(maker.layout_));
+    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(
+                            tensor, {}, tensor.dtype(), phi::DataLayout::ANY),
+                        0);
+    ge_tensor->PushOutput(node_, in_index_);
+    OperatorSetInput(
+        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
+    node_->PushInput(ge_tensor);
+    in_index_++;
+
+    if (maker.Valid()) {
+      auto dims = phi::vectorize(tensor.dims());
+      OperatorUpdateInputDesc(node_->ge_op_,
+                              maker.desc_name_.c_str(),
+                              dims.data(),
+                              dims.size(),
+                              ConvertToGEDtype(maker.dtype_),
+                              ConvertToGEFormat(maker.layout_));
+    }
   }
 
   void AddOutput(phi::DenseTensor &tensor, TensorDescMaker maker) {
+    auto ge_tensor = reinterpret_cast<TensorNode *>(tensor.data());
     VLOG(4) << "Output dtype:" << maker.dtype_
             << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
             << ", format: " << maker.layout_;
+    VLOG(4) << "ptr=" << ge_tensor;
 
-    AddOutput(tensor);
-    auto dims = phi::vectorize(maker.dims_);
-    OperatorUpdateOutputDesc(node_->ge_op_,
-                             maker.desc_name_.c_str(),
-                             dims.data(),
-                             dims.size(),
-                             ConvertToGEDtype(maker.dtype_),
-                             ConvertToGEFormat(maker.layout_));
+    ge_tensor->SetInput(node_, out_index_++);
+
+    if (WithoutInput()) {
+      ge_tensor->SetTag(TensorNodeTag::IN);
+      ge_tensor->Cache();
+    } else {
+      ge_tensor->SetTag(TensorNodeTag::EDGE);
+    }
+
+    if (maker.Valid()) {
+      auto dims = phi::vectorize(maker.dims_);
+      OperatorUpdateOutputDesc(node_->ge_op_,
+                               maker.desc_name_.c_str(),
+                               dims.data(),
+                               dims.size(),
+                               ConvertToGEDtype(maker.dtype_),
+                               ConvertToGEFormat(maker.layout_));
+    }
   }
 
-  void AddInput() override { in_index_++; }
-
-  void AddInput(const phi::DenseTensor &tensor) override {
-    auto &ge_tensor = GetGraphTensor(tensor);
-    if (ge_tensor.in_) {
-      OperatorSetInput(
-          node_->ge_op_, in_index_, ge_tensor.in_->ge_op_, ge_tensor.in_index_);
-    } else {
-      ge_tensor.is_input_ = true;
-    }
-    node_->ins_.push_back(&ge_tensor);
-    ge_tensor.outs_.push_back({in_index_, node_.get()});
+  void AddInput() override {
+    VLOG(4) << "Input dtype: None";
     in_index_++;
   }
 
+  void AddInput(const phi::DenseTensor &tensor) override {
+    AddInput(tensor, TensorDescMaker(""));
+  }
+
   void AddInput(const phi::Scalar &scalar) override {
-    global_const_tensors.emplace_back();
-    auto &ge_tensor = global_const_tensors.back();
-    ge_tensor.in_ =
-        std::move(GraphCommandHelper::ConvertScalarToConstOp(scalar));
-    ge_tensor.is_input_ = true;
+    auto ge_tensor = TensorNode::malloc();
+
+    VLOG(4) << "ScalarInput dtype:" << scalar.dtype();
+    VLOG(4) << "ptr=" << ge_tensor;
+
+    ge_tensor->SetInput(GraphCommandHelper::ConvertScalarToConstOp(scalar), 0);
+    ge_tensor->PushOutput(node_, in_index_);
     OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor.in_->ge_op_, ge_tensor.in_index_);
-    node_->ins_.push_back(&ge_tensor);
-    ge_tensor.outs_.push_back({in_index_, node_.get()});
+        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
+    node_->PushInput(ge_tensor);
     in_index_++;
   }
 
   void AddHostInput(const phi::DenseTensor &tensor) override {
-    global_const_tensors.emplace_back();
-    auto &ge_tensor = global_const_tensors.back();
-    ge_tensor.in_ =
-        std::move(GraphCommandHelper::ConvertHostTensorToConstOp(tensor));
-    ge_tensor.is_input_ = true;
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor.in_->ge_op_, ge_tensor.in_index_);
-    node_->ins_.push_back(&ge_tensor);
-    ge_tensor.outs_.push_back({in_index_, node_.get()});
-    in_index_++;
+    AddHostInput(tensor, TensorDescMaker(""));
   }
 
   void AddScalarInput(const phi::DenseTensor &tensor) override {
-    global_const_tensors.emplace_back();
-    auto &ge_tensor = global_const_tensors.back();
-    ge_tensor.in_ = std::move(GraphCommandHelper::ConvertHostTensorToConstOp(
-        tensor, {}, tensor.dtype(), phi::DataLayout::ANY));
-    ge_tensor.is_input_ = true;
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor.in_->ge_op_, ge_tensor.in_index_);
-    node_->ins_.push_back(&ge_tensor);
-    ge_tensor.outs_.push_back({in_index_, node_.get()});
-    in_index_++;
+    AddScalarInput(tensor, TensorDescMaker(""));
   }
 
   void AddHostScalarInput(const phi::DenseTensor &tensor) override {
-    AddScalarInput(tensor);
+    AddHostScalarInput(tensor, TensorDescMaker(""));
   }
 
-  void AddOutput() override { out_index_++; }
+  void AddOutput() override {
+    VLOG(4) << "Output dtype: None";
+    out_index_++;
+  }
 
   void AddOutput(phi::DenseTensor &tensor) override {
-    auto &ge_tensor = GetGraphTensor(tensor);
-
-    // t->in_index_ = node_->outs_.size();
-    ge_tensor.in_index_ = out_index_++;
-    ge_tensor.in_ = node_;
-
-    if (node_->ins_.size() == 0) {
-      ge_tensor.is_input_ = true;
-    }
+    AddOutput(tensor, TensorDescMaker(""));
   }
 
   void AddAttribute(const std::string &name,
@@ -910,10 +942,11 @@ class GraphCommand : public NpuCommand {
     VLOG(10) << "op_type: " << op_type_;
   }
 
-  static Tensor &GetTensor(const phi::DenseTensor &tensor);
+ private:
+  bool WithoutInput() const { return in_index_ == 0; }
 
  private:
-  std::shared_ptr<IrNode> node_{nullptr};
+  std::shared_ptr<OpNode> node_{nullptr};
   size_t in_index_{0};
   size_t out_index_{0};
 
@@ -993,9 +1026,8 @@ void OpCommandHelper::Assign(const phi::CustomContext &ctx,
                              phi::DenseTensor *dst) {
   ACL_RUN({ custom_kernel::TensorCopy(ctx, src, false, dst); });
   GRAPH_RUN({
-    auto &src_ge_tensor = GetGraphTensor(src);
-    auto &dst_ge_tensor = GetGraphTensor(*dst);
-    dst_ge_tensor = src_ge_tensor;
+    *reinterpret_cast<TensorNode *>(dst->data()) =
+        *reinterpret_cast<const TensorNode *>(src.data());
   });
 }
 
@@ -1049,48 +1081,41 @@ C_Status graph_engine_execute_graph(const C_Device device,
     for (auto i = 0; i < feed_tensor_num; ++i) {
       auto dense_tensor =
           reinterpret_cast<phi::DenseTensor *>(feed_tensor_name[i]);
-      auto &graph_tensor =
-          custom_kernel::experimental::global_graph_tensor_map[dense_tensor];
-      if (graph_tensor.outs_.size()) {
-        // NOTE(wangran16): run graph failed when the Data node not be linked to
-        // other node.
-        auto node =
-            std::make_shared<custom_kernel::experimental::IrNode>("Data");
-        graph_tensor.in_ = node;
-        graph_tensor.in_index_ = 0;
+      auto graph_tensor =
+          reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+              dense_tensor->data());
 
-        for (auto &t : graph_tensor.outs_) {
+      // NOTE(wangran16): run graph failed when the Data node not be linked to
+      // other node.
+      if (graph_tensor->outs_.size()) {
+        auto node =
+            std::make_shared<custom_kernel::experimental::OpNode>("Data");
+        graph_tensor->SetInput(node, 0);
+        for (auto &t : graph_tensor->outs_) {
           OperatorSetInput(t.second->ge_op_,
                            t.first,
-                           graph_tensor.in_->ge_op_,
-                           graph_tensor.in_index_);
+                           graph_tensor->in_->ge_op_,
+                           graph_tensor->in_index_);
         }
-        input_ops.push_back(node->ge_op_);
+        graph_tensor->SetTag(custom_kernel::experimental::TensorNodeTag::IN);
+        graph_tensor->Cache();
       }
     }
 
-    for (auto &item : custom_kernel::experimental::global_graph_tensor_map) {
-      if (item.second.is_input_ &&
-          std::find(feed_tensor_name,
-                    feed_tensor_name + feed_tensor_num,
-                    reinterpret_cast<char *>(item.first)) ==
-              feed_tensor_name + feed_tensor_num) {
-        VLOG(10) << "add in_ops: " << item.second.in_->ge_op_;
-        input_ops.push_back(item.second.in_->ge_op_);
-        auto dims = phi::vectorize(item.first->dims());
+    for (auto graph_tensor :
+         custom_kernel::experimental::TensorNode::storage()) {
+      if (graph_tensor->IsInput()) {
+        VLOG(10) << "add in_ops: " << graph_tensor->in_->ge_op_;
+        input_ops.push_back(graph_tensor->in_->ge_op_);
       }
-    }
-
-    for (auto &item : custom_kernel::experimental::global_const_tensors) {
-      VLOG(10) << "add in_ops: " << item.in_->ge_op_;
-      input_ops.push_back(item.in_->ge_op_);
     }
 
     for (auto i = 0; i < fetch_tensor_num; ++i) {
       auto dense_tensor =
           reinterpret_cast<phi::DenseTensor *>(fetch_tensor_name[i]);
       auto &graph_tensor =
-          custom_kernel::experimental::global_graph_tensor_map[dense_tensor];
+          *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+              dense_tensor->data());
       VLOG(10) << "add out_ops: " << graph_tensor.in_->ge_op_;
       output_ops.push_back(graph_tensor.in_->ge_op_);
       output_ops_index.push_back(graph_tensor.in_index_);
@@ -1118,15 +1143,14 @@ C_Status graph_engine_execute_graph(const C_Device device,
         graph_cache[c_graph].graph, target_ops.data(), target_ops.size());
     SessionAddGraph(
         session, graph_cache[c_graph].graph_id, graph_cache[c_graph].graph);
-
-    custom_kernel::experimental::global_const_tensors.clear();
   }
 
   for (auto i = 0; i < feed_tensor_num; ++i) {
     auto dense_tensor =
         reinterpret_cast<phi::DenseTensor *>(feed_tensor_name[i]);
     auto &graph_tensor =
-        custom_kernel::experimental::global_graph_tensor_map[dense_tensor];
+        *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+            dense_tensor->data());
     if (graph_tensor.outs_.size()) {
       auto dims = phi::vectorize(dense_tensor->dims());
       auto tensor = CreateTensor();
@@ -1146,16 +1170,9 @@ C_Status graph_engine_execute_graph(const C_Device device,
   for (auto i = 0; i < fetch_tensor_num; ++i) {
     auto dense_tensor =
         reinterpret_cast<phi::DenseTensor *>(fetch_tensor_name[i]);
-    if (custom_kernel::experimental::global_graph_tensor_map.find(
-            dense_tensor) ==
-        custom_kernel::experimental::global_graph_tensor_map.end()) {
-      std::cerr << "[ERROR] can not found fetch tensor " << dense_tensor
-                << std::endl;
-      return C_FAILED;
-    }
     auto &graph_tensor =
-        custom_kernel::experimental::global_graph_tensor_map[dense_tensor];
-
+        *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+            dense_tensor->data());
     auto tensor = CreateTensor();
     PADDLE_ENFORCE(tensor, phi::errors::Fatal("CreateTensor failed."));
     output_tensors.push_back(tensor);
@@ -1189,9 +1206,36 @@ C_Status graph_engine_execute_graph(const C_Device device,
 
 C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
   graph_initialize(device, stream);
+  return C_SUCCESS;
 }
+
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
-  custom_kernel::experimental::global_graph_tensor_map.clear();
-  custom_kernel::experimental::global_const_tensors.clear();
+  for (auto graph_tensor : custom_kernel::experimental::TensorNode::storage()) {
+    // if (graph_tensor->is_feed_ == false) {
+    //   VLOG(10) << "graph_engine_finalize deallocate: ptr=" << graph_tensor;
+    //   delete graph_tensor;
+    // }
+    custom_kernel::experimental::TensorNode::storage().clear();
+  }
+
   graph_finalize(device, stream);
+  return C_SUCCESS;
+}
+
+C_Status graph_engine_allocator_allocate(const C_Device device,
+                                         void **ptr,
+                                         size_t byte_size) {
+  *ptr = new custom_kernel::experimental::TensorNode;
+  VLOG(10) << "graph_engine_allocator_allocate: ptr=" << *ptr
+           << ", byte_size=" << byte_size;
+  return C_SUCCESS;
+}
+
+C_Status graph_engine_allocator_deallocate(const C_Device device,
+                                           void *ptr,
+                                           size_t byte_size) {
+  // VLOG(10) << "graph_engine_allocator_deallocate: ptr=" << ptr
+  //          << ", byte_size=" << byte_size;
+  // delete reinterpret_cast<custom_kernel::experimental::TensorNode *>(ptr);
+  return C_SUCCESS;
 }

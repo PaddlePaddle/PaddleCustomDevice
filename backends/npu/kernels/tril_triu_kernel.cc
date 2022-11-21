@@ -77,7 +77,7 @@ void TrilKernel(const Context& ctx,
                 const phi::DenseTensor& x,
                 int diagonal,
                 phi::DenseTensor* out) {
-  TrilTriuKernel<T, Context>(ctx, x, diagonal, true, out);
+  custom_kernel::TrilTriuKernel<T, Context>(ctx, x, diagonal, true, out);
 }
 
 template <typename T, typename Context>
@@ -85,7 +85,7 @@ void TriuKernel(const Context& ctx,
                 const phi::DenseTensor& x,
                 int diagonal,
                 phi::DenseTensor* out) {
-  TrilTriuKernel<T, Context>(ctx, x, diagonal, false, out);
+  custom_kernel::TrilTriuKernel<T, Context>(ctx, x, diagonal, false, out);
 }
 
 }  // namespace custom_kernel

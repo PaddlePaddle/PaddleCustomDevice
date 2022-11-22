@@ -91,7 +91,7 @@ void MeanGradKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_value,
       dev_ctx,
-      static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+      static_cast<T>(static_cast<T>(1.0f) / static_cast<T>(reduce_numel)));
 
   NpuOpRunner runner;
   runner.SetType("Fill")

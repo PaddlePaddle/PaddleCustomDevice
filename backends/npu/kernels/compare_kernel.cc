@@ -31,64 +31,28 @@ void EqualRawKernel(const Context& dev_ctx,
     transformed_y.set_meta(meta);
     if (x.dtype() == phi::DataType::BOOL) {
       dev_ctx.template Alloc<bool>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::INT16) {
       dev_ctx.template Alloc<int16_t>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::INT32) {
       dev_ctx.template Alloc<int>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::INT64) {
       dev_ctx.template Alloc<int64_t>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::FLOAT32) {
       dev_ctx.template Alloc<float>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::FLOAT16) {
       dev_ctx.template Alloc<phi::dtype::float16>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else if (x.dtype() == phi::DataType::FLOAT64) {
       dev_ctx.template Alloc<double>(&transformed_y);
-      const auto& cast_runner =
-          NpuOpRunner("Cast",
-                      {y},
-                      {transformed_y},
-                      {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-      cast_runner.Run(stream);
     } else {
       phi::errors::InvalidArgument("Unsupported dtype %s for equal kernel",
                                    x.dtype());
     }
+    const auto& cast_runner =
+        NpuOpRunner("Cast",
+                    {y},
+                    {transformed_y},
+                    {{"dst_type", ConvertToNpuDtype(x.dtype())}});
+    cast_runner.Run(stream);
   } else {
     transformed_y = y;
   }

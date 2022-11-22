@@ -24,8 +24,12 @@ void GatherKernel(const Context& dev_ctx,
                   const phi::Scalar& axis,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  const auto& runner =
-      NpuOpRunner("Gather", {x, index}, {*out}, {{"validate_indices", true}});
+  NpuOpRunner runner;
+  runner.SetType("GatherV2")
+      .AddInput(x)
+      .AddInput(index)
+      .AddInput(dev_ctx, std::vector<int32_t>({axis.to<int32_t>()}))
+      .AddOutput(*out);
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }

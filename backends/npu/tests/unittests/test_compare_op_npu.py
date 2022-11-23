@@ -71,6 +71,20 @@ def create_test_class(op_type, typename, callback):
             out = op(x, y)
             self.assertEqual((out.numpy() == real_result).all(), True)
 
+        def test_dynamic_api_different_type(self):
+            if op_type != 'equal':
+                return
+            paddle.disable_static()
+            paddle.set_device('npu:0')
+            x = np.random.random(size=(10, 7)).astype(typename)
+            y = np.random.random(size=(10, 7)).astype('int32')
+            real_result = callback(x, y)
+            x = paddle.to_tensor(x, dtype=typename)
+            y = paddle.to_tensor(y, dtype='float32')
+            op = eval("paddle.%s" % (self.op_type))
+            out = op(x, y)
+            self.assertEqual((out.numpy() == real_result).all(), True)
+
         @unittest.skipIf(typename == 'float16', "float16 is not supported now")
         def test_broadcast_api_1(self):
             paddle.enable_static()

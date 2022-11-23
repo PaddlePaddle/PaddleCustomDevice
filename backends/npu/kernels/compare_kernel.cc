@@ -17,14 +17,32 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensorMeta::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void EqualRawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 int axis,
-                 phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("Equal", {x, y}, {*out}, {});
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    int axis,
+                    phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<bool>(out);
+
+  phi::DenseTensor transformed_x(x), transformed_y;
+  if (x.dtype() != y.dtype()) {
+    phi::DenseTensorMeta meta = {x.dtype(), y.dims()};
+    transformed_y.set_meta(meta);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, y, x.dtype(), &transformed_y);
+  } else {
+    transformed_y = y;
+  }
+
+  const auto& runner =
+      NpuOpRunner("Equal", {transformed_x, transformed_y}, {*out}, {});
   runner.Run(stream);
 }
 
@@ -38,10 +56,10 @@ void EqualKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void NotEqualRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    int axis,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   const auto& runner = NpuOpRunner("NotEqual", {x, y}, {*out}, {});
   auto stream = dev_ctx.stream();
@@ -50,19 +68,18 @@ void NotEqualRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void NotEqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
   custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
-
 template <typename T, typename Context>
 void LessEqualRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     int axis,
-                     phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        int axis,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   auto stream = dev_ctx.stream();
 
@@ -72,18 +89,18 @@ void LessEqualRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LessEqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     phi::DenseTensor* out) {
   custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void LessThanRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    int axis,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   const auto& runner = NpuOpRunner("Less", {x, y}, {*out}, {});
   auto stream = dev_ctx.stream();
@@ -92,18 +109,18 @@ void LessThanRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void LessThanKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
   custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void GreaterEqualRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        int axis,
-                        phi::DenseTensor* out) {
+                           const phi::DenseTensor& x,
+                           const phi::DenseTensor& y,
+                           int axis,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   const auto& runner = NpuOpRunner("GreaterEqual", {x, y}, {*out}, {});
   auto stream = dev_ctx.stream();
@@ -112,18 +129,18 @@ void GreaterEqualRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GreaterEqualKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out) {
   custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T, typename Context>
 void GreaterThanRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       int axis,
-                       phi::DenseTensor* out) {
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& y,
+                          int axis,
+                          phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   const auto& runner = NpuOpRunner("Greater", {x, y}, {*out}, {});
   auto stream = dev_ctx.stream();
@@ -132,9 +149,9 @@ void GreaterThanRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void GreaterThanKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out) {
   custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
@@ -175,7 +192,6 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           float,
                           phi::dtype::float16,
                           double) {}
-
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
                           npu,

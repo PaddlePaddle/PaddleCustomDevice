@@ -17,6 +17,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensorMeta::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void EqualRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
@@ -29,30 +35,8 @@ void EqualRawKernel(const Context& dev_ctx,
   if (x.dtype() != y.dtype()) {
     phi::DenseTensorMeta meta = {x.dtype(), y.dims()};
     transformed_y.set_meta(meta);
-    if (x.dtype() == phi::DataType::BOOL) {
-      dev_ctx.template Alloc<bool>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::INT16) {
-      dev_ctx.template Alloc<int16_t>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::INT32) {
-      dev_ctx.template Alloc<int>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::INT64) {
-      dev_ctx.template Alloc<int64_t>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::FLOAT32) {
-      dev_ctx.template Alloc<float>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::FLOAT16) {
-      dev_ctx.template Alloc<phi::dtype::float16>(&transformed_y);
-    } else if (x.dtype() == phi::DataType::FLOAT64) {
-      dev_ctx.template Alloc<double>(&transformed_y);
-    } else {
-      phi::errors::InvalidArgument("Unsupported dtype %s for equal kernel",
-                                   x.dtype());
-    }
-    const auto& cast_runner =
-        NpuOpRunner("Cast",
-                    {y},
-                    {transformed_y},
-                    {{"dst_type", ConvertToNpuDtype(x.dtype())}});
-    cast_runner.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, y, x.dtype(), &transformed_y);
   } else {
     transformed_y = y;
   }

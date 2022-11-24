@@ -132,7 +132,7 @@ void MaxGradKernel(const Context& dev_ctx,
   // compare
   phi::DenseTensor equal_cond;
   equal_cond.Resize(x_grad->dims());
-  dev_ctx.template Alloc<T>(&equal_cond);
+  dev_ctx.template Alloc<bool>(&equal_cond);
   const auto& r_equal =
       NpuOpRunner("Equal", {x, transformed_out}, {equal_cond}, {});
   r_equal.Run(stream);

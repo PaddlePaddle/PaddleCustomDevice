@@ -242,28 +242,6 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   std::vector<int> dilation = dilations_in;
 
   const bool channel_last = data_format == "NHWC";
-  if (channel_last) {
-    PADDLE_ENFORCE_EQ(
-        out->dims()[out->dims().size() - 1],
-        input.dims()[input.dims().size() - 1],
-        phi::errors::InvalidArgument(
-            "ShapeError: The output channels must be equal to the "
-            "input channels. But receivced output channel number is %d "
-            "and input channel number is %d",
-            out->dims()[out->dims().size() - 1],
-            input.dims()[input.dims().size() - 1]));
-  } else {
-    PADDLE_ENFORCE_EQ(
-        out->dims()[1],
-        input.dims()[1],
-        phi::errors::InvalidArgument(
-            "ShapeError: The output channels must be equal to the "
-            "input channels. But receivced output channel number is %d "
-            "and input channel number is %d",
-            out->dims()[1],
-            input.dims()[1]));
-  }
-
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   phi::DDim in_data_dims;

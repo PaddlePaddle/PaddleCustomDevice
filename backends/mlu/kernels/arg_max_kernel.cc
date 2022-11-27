@@ -117,7 +117,7 @@ void ArgMaxKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(arg_max,
+PD_REGISTER_PLUGIN_KERNEL(argmax,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,

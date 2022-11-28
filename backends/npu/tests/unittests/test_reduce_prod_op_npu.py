@@ -71,6 +71,19 @@ class TestNPUReduceProd3(TestNPUReduceProd):
         self.outputs = {'Out': self.inputs['X'].prod(axis=tuple([0]))}
 
 
+class TestNPUReduceProd4(TestNPUReduceProd):
+    def setUp(self):
+        self.op_type = "reduce_prod"
+        self.set_npu()
+        self.init_dtype()
+
+        self.inputs = {
+            'X': np.random.random((32, 888, 50, 2)).astype(self.dtype)
+        }
+        self.attrs = {'dim': [-1]}
+        self.outputs = {'Out': self.inputs['X'].prod(axis=tuple([-1]))}
+
+
 class TestNPUReduceProd6D(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"

@@ -38,9 +38,9 @@ list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
 if (ON_INFER)
 target_link_directories(${PLUGIN_NAME} PRIVATE ${PADDLE_INFERENCE_LIB_DIR})
-target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference)
+target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference glog)
 else()
-target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB} glog)
 endif()
 
 # packing wheel package

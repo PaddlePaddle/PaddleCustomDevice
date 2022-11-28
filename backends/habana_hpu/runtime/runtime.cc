@@ -26,45 +26,60 @@
 
 #include "paddle/phi/backends/device_ext.h"
 
+#include "utils/utils.h"
+
 #define MEMORY_FRACTION 0.5f
 
 static int global_current_device = 0;
 
 C_Status Init() {
+  HPU_LOG
   std::cout << "habana_hpu plugin compiled with ";
 #ifdef __clang__
   std::cout << "clang\n";
 #else
   std::cout << "gcc\n";
 #endif
+
   return C_SUCCESS;
 }
 
 C_Status InitDevice(const C_Device device) {
+  HPU_LOG
   global_current_device = device->id;
   return C_SUCCESS;
 }
 
 C_Status SetDevice(const C_Device device) {
+  HPU_LOG
   global_current_device = device->id;
   return C_SUCCESS;
 }
 
 C_Status GetDevice(const C_Device device) {
+  HPU_LOG
   device->id = global_current_device;
   return C_SUCCESS;
 }
 
-C_Status DestroyDevice(const C_Device device) { return C_SUCCESS; }
+C_Status DestroyDevice(const C_Device device) {
+  HPU_LOG
 
-C_Status Finalize() { return C_SUCCESS; }
+  return C_SUCCESS; }
+
+C_Status Finalize() {
+  HPU_LOG
+
+  return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
+  HPU_LOG
   *count = 2;
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
+  HPU_LOG
   devices[0] = 0;
   devices[1] = 1;
   return C_SUCCESS;
@@ -74,6 +89,7 @@ C_Status MemCpy(const C_Device device,
                 void *dst,
                 const void *src,
                 size_t size) {
+  HPU_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -83,6 +99,7 @@ C_Status AsyncMemCpy(const C_Device device,
                      void *dst,
                      const void *src,
                      size_t size) {
+  HPU_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -92,6 +109,7 @@ C_Status MemCpyP2P(const C_Device dst_device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  HPU_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -102,11 +120,14 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  HPU_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
+  HPU_LOG
+
   auto data = malloc(size);
   if (data) {
     *ptr = data;
@@ -118,50 +139,69 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
+  HPU_LOG
+
   free(ptr);
   return C_SUCCESS;
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
+  HPU_LOG
   stream = nullptr;
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
-C_Status SyncDevice(const C_Device device) { return C_SUCCESS; }
+C_Status SyncDevice(const C_Device device) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
-C_Status SyncEvent(const C_Device device, C_Event event) { return C_SUCCESS; }
+C_Status SyncEvent(const C_Device device, C_Event event) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
+  HPU_LOG                          
   return C_SUCCESS;
 }
 
-C_Status VisibleDevices(size_t *devices) { return C_SUCCESS; }
+C_Status VisibleDevices(size_t *devices) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
+  HPU_LOG
   float memusage;
   FILE *fp;
   char buffer[1024];
@@ -184,6 +224,7 @@ C_Status DeviceMemStats(const C_Device device,
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
+  HPU_LOG
   *size = 512;
   return C_SUCCESS;
 }
@@ -199,11 +240,13 @@ struct C_CCLComm_st {
 
 // for unittest
 C_Status XcclGetUniqueIdSize(size_t *sz) {
+  HPU_LOG
   *sz = sizeof(size_t);
   return C_SUCCESS;
 }
 
 C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
+  HPU_LOG
   auto ptr = reinterpret_cast<int8_t *>(unique_id->data);
   for (auto i = 0; i < unique_id->sz - 1; ++i) {
     ptr[i] = static_cast<int8_t>(std::rand() % ('z' - 'a') + 'a');
@@ -216,6 +259,7 @@ C_Status XcclCommInitRank(size_t ranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
+  HPU_LOG
   auto sig = sem_open(static_cast<char *>(unique_id->data), O_CREAT, 0644, 0);
   auto sig_2 =
       sem_open(static_cast<char *>(unique_id->data) + 1, O_CREAT, 0644, 0);
@@ -230,6 +274,7 @@ C_Status XcclCommInitRank(size_t ranks,
 }
 
 C_Status XcclDestroyComm(C_CCLComm comm) {
+  HPU_LOG
   if (comm) {
     sem_unlink(comm->sig_name.c_str());
     sem_unlink(comm->sig_2_name.c_str());
@@ -245,6 +290,7 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
+  HPU_LOG
   sem_post(comm->sig);
 
   if (comm->rank == 0) {
@@ -267,6 +313,7 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
+  HPU_LOG
   sem_post(comm->sig);
 
   if (comm->rank == 0) {
@@ -284,26 +331,39 @@ C_Status XcclBroadcast(void *buf,
 }
 
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
-C_Status ProfilerPrepare(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
-C_Status ProfilerStart(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
-C_Status ProfilerStop(C_Profiler prof, void *user_data) { return C_SUCCESS; }
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  HPU_LOG
+  return C_SUCCESS; 
+}
 
 C_Status ProfilerCollectData(C_Profiler prof,
                              uint64_t start_ns,
                              void *user_data) {
+  HPU_LOG
   return C_SUCCESS;
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
+  HPU_LOG
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "habana_hpu";
   params->sub_device_type = "gaudi";

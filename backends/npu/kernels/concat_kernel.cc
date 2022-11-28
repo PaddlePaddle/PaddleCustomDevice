@@ -102,7 +102,7 @@ void ConcatKernel(const Context& dev_ctx,
     if (inputs.size() == 1) {
       int index = std::stoi(names[0].substr(1, names[0].size() - 1));
       out->ResizeAndAllocate(ins[index].dims());
-      TensorCopy(dev_ctx, ins[index], true, out);
+      TensorCopy(dev_ctx, *ins[index], true, out);
       return;
     }
 

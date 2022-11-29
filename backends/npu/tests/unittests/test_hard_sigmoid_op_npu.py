@@ -12,37 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
+import unittest
 
 import numpy as np
-import unittest
-import sys
-from tests.op_test import OpTest
 import paddle
 import paddle.fluid as fluid
 import paddle.nn.functional as F
-from paddle.fluid import Program, program_guard
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
 
 
 def ref_hardsigmoid(x, slope=0.166666666666667, offset=0.5):
-    return np.maximum(np.minimum(x * slope + offset, 1.), 0.).astype(x.dtype)
+    return np.maximum(np.minimum(x * slope + offset, 1.0), 0.0).astype(x.dtype)
 
 
-class TestNPUHardSigmoid(OpTest):
+class TestHardSigmoid(OpTest):
     def setUp(self):
-        paddle.enable_static()
-
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "hard_sigmoid"
-        self.set_npu()
-        self.init_dtype()
+        self.dtype = "float64"
+        self.slope = 0.166666666666667
+        self.offset = 0.5
         self.set_attrs()
+        self.init_shape()
 
-        x = np.random.uniform(-5, 5, [10, 12]).astype(self.dtype)
+        x = np.random.uniform(-5, 5, self.shape).astype(self.dtype)
         lower_threshold = -self.offset / self.slope
-        upper_threshold = (1. - self.offset) / self.slope
+        upper_threshold = (1.0 - self.offset) / self.slope
 
         # Same reason as TestAbs
         delta = 0.005
@@ -51,65 +50,64 @@ class TestNPUHardSigmoid(OpTest):
 
         out = ref_hardsigmoid(x, self.slope, self.offset)
 
-        self.attrs = {'slope': self.slope, 'offset': self.offset}
-        self.inputs = {'X': x}
-        self.outputs = {'Out': out}
+        self.attrs = {"slope": self.slope, "offset": self.offset}
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        check_eager = False
+        if hasattr(self, "check_eager"):
+            check_eager = self.check_eager
+        self.check_output_with_place(self.place, check_eager=check_eager)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        if self.dtype == np.float16:
+            return
+        check_eager = False
+        if hasattr(self, "check_eager"):
+            check_eager = self.check_eager
+        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=check_eager)
 
-    def set_npu(self):
-        self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
-
-    def init_dtype(self):
-        self.dtype = np.float32
+    def init_shape(self):
+        self.shape = [10, 12]
 
     def set_attrs(self):
-        self.slope = 0.166666666666667
-        self.offset = 0.5
+        pass
 
 
-class TestNPUHardSigmoid2(TestNPUHardSigmoid):
+class TestHardSigmoidFP32(TestHardSigmoid):
     def set_attrs(self):
-        self.slope = 0.2
-        self.offset = 0.5
+        self.dtype = "float32"
 
 
-class TestNPUHardSigmoid3(TestNPUHardSigmoid):
+class TestHardSigmoidSlopeOffset(TestHardSigmoid):
     def set_attrs(self):
         self.slope = 0.2
         self.offset = 0.4
 
 
-class TestNPUHardSigmoidFp16(TestNPUHardSigmoid):
-    def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
-
-    def init_dtype(self):
-        self.dtype = np.float16
+class TestHardSigmoid_ZeroDim(TestHardSigmoid):
+    def init_shape(self):
+        self.shape = []
 
 
 class TestHardsigmoidAPI(unittest.TestCase):
     # test paddle.nn.Hardsigmoid, paddle.nn.functional.hardsigmoid
     def setUp(self):
-        self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float32)
-        self.place = paddle.CustomPlace('npu', 0)
+        self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data('X', self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.hardsigmoid(x)
             m = paddle.nn.Hardsigmoid()
             out2 = m(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_hardsigmoid(self.x_np)
         for r in res:
-            self.assertTrue(np.allclose(out_ref, r))
+            np.testing.assert_allclose(out_ref, r, rtol=1e-05)
 
     def test_dygraph_api(self):
         paddle.disable_static(self.place)
@@ -119,22 +117,22 @@ class TestHardsigmoidAPI(unittest.TestCase):
         out2 = m(x)
         out_ref = ref_hardsigmoid(self.x_np)
         for r in [out1, out2]:
-            self.assertTrue(np.allclose(out_ref, r.numpy()))
+            np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
         paddle.enable_static()
 
     def test_fluid_api(self):
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data('X', self.x_np.shape, self.x_np.dtype)
+            x = fluid.data("X", self.x_np.shape, self.x_np.dtype)
             out = paddle.nn.functional.hardsigmoid(x, slope=0.2)
             exe = fluid.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out])
         out_ref = ref_hardsigmoid(self.x_np, 0.2, 0.5)
-        self.assertTrue(np.allclose(out_ref, res[0]))
+        np.testing.assert_allclose(out_ref, res[0], rtol=1e-05)
 
         paddle.disable_static(self.place)
         x = paddle.to_tensor(self.x_np)
         out = paddle.nn.functional.hardsigmoid(x, slope=0.2)
-        self.assertTrue(np.allclose(out_ref, out.numpy()))
+        np.testing.assert_allclose(out_ref, out.numpy(), rtol=1e-05)
         paddle.enable_static()
 
     def test_errors(self):
@@ -142,14 +140,12 @@ class TestHardsigmoidAPI(unittest.TestCase):
             # The input type must be Variable.
             self.assertRaises(TypeError, F.hardsigmoid, 1)
             # The input dtype must be float16, float32, float64.
-            x_int32 = paddle.fluid.data(
-                name='x_int32', shape=[12, 10], dtype='int32')
+            x_int32 = paddle.fluid.data(name="x_int32", shape=[12, 10], dtype="int32")
             self.assertRaises(TypeError, F.hardsigmoid, x_int32)
             # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(
-                name='x_fp16', shape=[12, 10], dtype='float16')
+            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[12, 10], dtype="float16")
             F.hardsigmoid(x_fp16)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

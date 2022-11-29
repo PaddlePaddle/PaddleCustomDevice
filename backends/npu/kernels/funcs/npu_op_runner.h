@@ -16,12 +16,10 @@
 
 #include "acl/acl.h"
 #include "glog/logging.h"
+#include "kernels/funcs/npu_op_prepare.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
-aclFormat ConvertToNpuFormat(phi::DataLayout layout);
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,
@@ -68,20 +66,10 @@ class NpuOpRunner {
 
   NpuOpRunner &AddInput(const phi::DenseTensor &tensor, aclMemType mem_type);
 
+  template <typename T>
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int32_t> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int64_t> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<float> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<double> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<bool> &&values);
+                        const std::vector<T> &&values,
+                        const bool is_const = true);
 
   NpuOpRunner &AddOutput(const phi::DenseTensor &tensor);
 
@@ -176,9 +164,6 @@ class NpuOpRunner {
   void ClearFloatStatus(aclrtStream stream) const;
   void AllocFloatStatus(aclrtStream stream) const;
   void PrintOpInfo() const;
-  template <typename T>
-  void AddConstantInputHelper(const phi::CustomContext &dev_ctx,
-                              const std::vector<T> &values);
 
  private:
   std::string op_type_;

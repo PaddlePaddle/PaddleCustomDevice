@@ -1059,21 +1059,21 @@ PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish,
+PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,

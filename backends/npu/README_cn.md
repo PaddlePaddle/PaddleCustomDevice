@@ -38,8 +38,9 @@ git submodule update --remote --init --recursive
 # 1) 进入硬件后端(昇腾NPU)目录
 cd backends/npu
 
-# 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
-# 注意：如果是 aarch64 环境，需要源码编译得到 Paddle CPU 的 WHL 安装包
+# 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
+# 默认 NPU 开发镜像中已经装有飞桨 CPU 安装包 (飞桨 develop 分支的 nightly build 版本)
+# 也可以通过如下命令安装，如果是 aarch64 环境，则需要源码编译得到 Paddle CPU 的 WHL 安装包
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON

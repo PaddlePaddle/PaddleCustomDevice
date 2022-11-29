@@ -80,6 +80,7 @@ for epoch in range(epoch_num):
         avg_loss.backward()
         sgd.step()
         sgd.clear_grad()
+        break
 
         if batch_id % 100 == 0:
             print("Epoch {} step {}, Loss = {:}, Accuracy = {:}".format(

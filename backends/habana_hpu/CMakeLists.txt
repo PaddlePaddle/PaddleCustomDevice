@@ -26,8 +26,8 @@ set(PLUGIN_VERSION     "0.0.1")
 
 include(paddle)
 
-include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels)
-link_directories(${PADDLE_LIB_DIR})
+include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels /usr/include/habanalabs)
+link_directories(${PADDLE_LIB_DIR} /usr/lib/habanalabs)
 
 add_definitions(-std=c++14)
 
@@ -38,9 +38,9 @@ list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
 if (ON_INFER)
 target_link_directories(${PLUGIN_NAME} PRIVATE ${PADDLE_INFERENCE_LIB_DIR})
-target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference glog)
+target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference glog Synapse)
 else()
-target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB} glog)
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB} glog Synapse)
 endif()
 
 # packing wheel package

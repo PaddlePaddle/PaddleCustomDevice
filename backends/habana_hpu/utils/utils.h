@@ -10,7 +10,4 @@ class hpu_logging {
     std::string function;
 };
 
-#define HPU_LOG hpu_logging local_log = hpu_logging(__FUNCTION__);
-
-#define  FENTRY() (LOG(INFO) << "Enter " << __FUNCTION__ << std::endl);
-#define  FEXIT() (LOG(INFO) << "Exit " << __FUNCTION__ << std::endl);
+#define FUNCALL_LOG hpu_logging local_log = hpu_logging(__FUNCTION__);

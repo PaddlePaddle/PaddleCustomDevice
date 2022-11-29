@@ -52,17 +52,21 @@ void SplitKernel(const Context& dev_ctx,
 
   if (sections.size() == 1) {
     NpuOpRunner runner;
-    runner.SetType("SplitD").AddInput(x).AddOutputs(outputs).AddAttrs(
-        {{"split_dim", axis},
-         {"num_split", static_cast<int32_t>(sections[0])}});
+    runner.SetType("Split")
+        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
+        .AddInput(x)
+        .AddOutputs(outputs)
+        .AddAttrs({{"num_split", static_cast<int32_t>(sections[0])}});
     auto stream = dev_ctx.stream();
     runner.Run(stream);
   } else {
     NpuOpRunner runner;
-    runner.SetType("SplitVD").AddInput(x).AddOutputs(outputs).AddAttrs(
-        {{"size_splits", sections},
-         {"split_dim", axis},
-         {"num_split", static_cast<int32_t>(sections.size())}});
+    runner.SetType("SplitV")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(sections))
+        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
+        .AddOutputs(outputs)
+        .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
     auto stream = dev_ctx.stream();
     runner.Run(stream);
   }

@@ -293,16 +293,19 @@ void StridedSliceCompute(const Context& dev_ctx,
                                       {"shrink_axis_mask", 0}});
     runner.Run(stream);
   } else {
-    const auto& runner = NpuOpRunner(
-        "StridedSlice",
-        {x, starts_indices_tensor, ends_indices_tensor, strides_indices_tensor},
-        {*out},
-        {{"begin_mask", 0},
-         {"end_mask", 0},
-         {"ellipsis_mask", 0},
-         {"new_axis_mask", 0},
-         {"shrink_axis_mask", 0}});
-    runner.Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("StridedSlice")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(starts_indices_vector))
+        .AddInput(dev_ctx, std::move(ends_indices_vector))
+        .AddInput(dev_ctx, std::move(strides_indices_vector))
+        .AddAttr("begin_mask", 0)
+        .AddAttr("end_mask", 0)
+        .AddAttr("ellipsis_mask", 0)
+        .AddAttr("new_axis_mask", 0)
+        .AddAttr("shrink_axis_mask", 0)
+        .AddOutput(*out)
+        .Run(stream);
   }
 
   if (need_reverse) {
@@ -646,6 +649,43 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void StridedSliceKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const std::vector<int>& axes,
+                        const phi::IntArray& starts,
+                        const phi::IntArray& ends,
+                        const phi::IntArray& strides,
+                        phi::DenseTensor* out) {
+  std::vector<int> infer_flags(axes.size(), 1);
+  std::vector<int> decrease_axis;
+  custom_kernel::StridedSliceRawKernel<T, Context>(
+      dev_ctx, x, axes, starts, ends, strides, infer_flags, decrease_axis, out);
+}
+
+template <typename T, typename Context>
+void StridedSliceGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& out_grad,
+                            const std::vector<int>& axes,
+                            const phi::IntArray& starts,
+                            const phi::IntArray& ends,
+                            const phi::IntArray& strides,
+                            phi::DenseTensor* x_grad) {
+  std::vector<int> infer_flags(axes.size(), 1);
+  std::vector<int> decrease_axis;
+  custom_kernel::StridedSliceRawGradKernel<T, Context>(dev_ctx,
+                                        x,
+                                        out_grad,
+                                        axes,
+                                        starts,
+                                        ends,
+                                        strides,
+                                        infer_flags,
+                                        decrease_axis,
+                                        x_grad);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
@@ -663,6 +703,28 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawGradKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceGradKernel,
                           bool,
                           int,
                           int64_t,

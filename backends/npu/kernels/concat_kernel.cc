@@ -60,7 +60,11 @@ void ConcatKernel(const Context& dev_ctx,
         continue;
       }
     }
-
+    if (inputs.size() == 1) {
+      out->ResizeAndAllocate(inputs[0].dims());
+      TensorCopy(dev_ctx, inputs[0], true, out);
+      return;
+    }
     NpuOpRunner runner;
     runner.SetType("Concat")
         .AddInput(dev_ctx, std::move(std::vector<int>(1, axis)))
@@ -69,6 +73,7 @@ void ConcatKernel(const Context& dev_ctx,
         .AddAttr("N", static_cast<int>(inputs.size()));
     runner.AddInputNames(names);
     runner.Run(stream);
+
   } else {
     // TODO(songkai05): In CANN512, Concat doesn't support dtype double,
     // so cast double to float32 temporarily until it supports double.
@@ -93,6 +98,14 @@ void ConcatKernel(const Context& dev_ctx,
     phi::DenseTensorMeta meta_fp32 = {phi::DataType::FLOAT32, out->dims()};
     out_fp32.set_meta(meta_fp32);
     dev_ctx.template Alloc<float>(&out_fp32);
+
+    if (inputs.size() == 1) {
+      int index = std::stoi(names[0].substr(1, names[0].size() - 1));
+      out->ResizeAndAllocate(ins[index]->dims());
+      TensorCopy(dev_ctx, *ins[index], true, out);
+      return;
+    }
+
     NpuOpRunner runner;
     runner.SetType("Concat")
         .AddInput(dev_ctx, std::move(std::vector<int>(1, axis)))

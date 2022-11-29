@@ -86,6 +86,9 @@ inline void TensorCopy(const Context& dev_ctx,
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
   auto size = src.numel() * paddle::experimental::SizeOf(src.dtype());
+  if (UNLIKELY(size) == 0) {
+    return;
+  }
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
@@ -108,10 +111,15 @@ inline void TensorCopy(const Context& dev_ctx,
           dev_ctx.Wait();
         }
       } else {
+        PADDLE_THROW(
+            phi::errors::Unimplemented("TensorCopy is not supported."));
       }
     } else {
+      PADDLE_THROW(phi::errors::Unimplemented("TensorCopy is not supported."));
     }
-  } else {
+  } else if (src_place.GetType() == phi::AllocationType::CPU &&
+             dst_place_.GetType() == phi::AllocationType::CPU) {
+    std::memcpy(dst_ptr, src_ptr, size);
   }
 }
 
@@ -349,11 +357,12 @@ inline void NpuBroadcast(const Context& dev_ctx,
     auto tmp_tensor_dims = phi::slice_ddim(dst_dims, 0, axis + src_dims.size());
     tmp_tensor.Resize(tmp_tensor_dims);
     dev_ctx.template Alloc<T>(&tmp_tensor);
-    const auto& runner =
-        NpuOpRunner("ExpandD",
-                    {tmp_src},
-                    {tmp_tensor},
-                    {{"shape", phi::vectorize<int64_t>(tmp_tensor_dims)}});
+    NpuOpRunner runner;
+    runner.SetType("Expand")
+        .AddInput(tmp_src)
+        .AddInput(dev_ctx, phi::vectorize<int64_t>(tmp_tensor_dims))
+        .AddOutput(tmp_tensor);
+    auto stream = dev_ctx.stream();
     runner.Run(stream);
     tmp_src = tmp_tensor;
     tmp_src.Resize(tmp_tensor_dims);
@@ -414,12 +423,13 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
       phi::errors::InvalidArgument(
           "Axis should be great than or equal to 0, but received axis is %d.",
           axis));
-  PADDLE_ENFORCE_LT(axis,
-                    max_dim,
-                    phi::errors::InvalidArgument(
-                        "Axis should be less than %d, but received axis is %d.",
-                        max_dim,
-                        axis));
+  PADDLE_ENFORCE_LE(
+      axis,
+      max_dim,
+      phi::errors::InvalidArgument(
+          "Axis should be less than or equal to %d, but received axis is %d.",
+          max_dim,
+          axis));
 
   for (int i = 0; i < x_dims.size(); ++i) {
     dst_dims_vec[i + x_axis] =

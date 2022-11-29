@@ -550,10 +550,10 @@ void InterpolateKernel(
   // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
     auto list_new_shape_tensor = size_tensor.get();
-    std::vector<int32_t> output_h(1);
-    std::vector<int32_t> output_w(1);
-    TensorToVector(dev_ctx, *(list_new_shape_tensor[0]), dev_ctx, &output_h);
-    TensorToVector(dev_ctx, *(list_new_shape_tensor[1]), dev_ctx, &output_w);
+    auto output_h =
+        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
+    auto output_w =
+        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
     out_h = output_h[0];
     out_w = output_w[0];
   } else if (out_size) {
@@ -933,25 +933,37 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}

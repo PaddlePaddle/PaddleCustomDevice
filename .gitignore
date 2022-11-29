@@ -28,3 +28,7 @@ tools/__pycache__
 
 # ignore npu cache
 kernel_meta*/
+
+# ignore Paddle change
+Paddle/
+

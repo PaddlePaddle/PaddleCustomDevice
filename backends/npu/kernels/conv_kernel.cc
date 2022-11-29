@@ -35,28 +35,6 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   std::vector<int> dilation = dilations_in;
 
   const bool channel_last = data_format == "NHWC";
-  if (channel_last) {
-    PADDLE_ENFORCE_EQ(
-        out->dims()[out->dims().size() - 1],
-        input.dims()[input.dims().size() - 1],
-        phi::errors::InvalidArgument(
-            "ShapeError: The output channels must be equal to the "
-            "input channels. But receivced output channel number is %d "
-            "and input channel number is %d",
-            out->dims()[out->dims().size() - 1],
-            input.dims()[input.dims().size() - 1]));
-  } else {
-    PADDLE_ENFORCE_EQ(
-        out->dims()[1],
-        input.dims()[1],
-        phi::errors::InvalidArgument(
-            "ShapeError: The output channels must be equal to the "
-            "input channels. But receivced output channel number is %d "
-            "and input channel number is %d",
-            out->dims()[1],
-            input.dims()[1]));
-  }
-
   auto in_dims = input.dims();
   auto filter_dims = filter.dims();
   phi::DDim in_data_dims;
@@ -194,16 +172,6 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 
   if (filter_grad) {
     dev_ctx.template Alloc<T>(filter_grad);
-
-    PADDLE_ENFORCE_EQ(
-        (dilations[2] == 1 && dilations[3] == 1),
-        true,
-        phi::errors::InvalidArgument(
-            "dilation_h and dilation_w in DepthwiseConv2DBackpropFilterD "
-            "must be equal to 1, but got dilation_h %d, dilation_w %d",
-            dilation[2],
-            dilation[3]));
-
     NpuOpRunner runner;
     runner.SetType("DepthwiseConv2DBackpropFilterD")
         .AddInput(input_tensor)

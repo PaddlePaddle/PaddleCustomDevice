@@ -238,24 +238,27 @@ PD_REGISTER_PLUGIN_KERNEL(elementwise_pow,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowRawKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowGradKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

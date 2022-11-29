@@ -171,67 +171,51 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor) {
 NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
                                    aclMemType mem_type) {
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(tensor, mem_type));
+  auto desc = CreateTensorDesc(tensor, mem_type);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(tensor));
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int32_t> &&dims) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
+  if (mem_type == ACL_MEMTYPE_HOST) {
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorConst(
+        desc, const_cast<void *>(tensor.data()), tensor.capacity()));
+  }
 
   return *this;
 }
 
+template <typename T>
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int64_t> &&dims) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<float> &&values) {
+                                   const std::vector<T> &&values,
+                                   const bool is_const) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
+  auto desc = CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
+  // set tensor const
+  if (is_const) {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
+  }
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<double> &&values) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, values, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
-  return *this;
-}
+#define ADD_INPUT_IMPL_GET_DTYPE(cpp_type)               \
+  template NpuOpRunner &NpuOpRunner::AddInput<cpp_type>( \
+      const phi::CustomContext &dev_ctx,                 \
+      const std::vector<cpp_type> &&values,              \
+      const bool is_const);
+ADD_INPUT_IMPL_GET_DTYPE(bool);
+ADD_INPUT_IMPL_GET_DTYPE(int32_t);
+ADD_INPUT_IMPL_GET_DTYPE(int64_t);
+ADD_INPUT_IMPL_GET_DTYPE(float);
+ADD_INPUT_IMPL_GET_DTYPE(double);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::float16);
+#undef ADD_INPUT_IMPL_GET_DTYPE
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
   // create aclTensorDesc
@@ -619,7 +603,6 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   VLOG(4) << "output_desc.size: " << output_descs_.size();
   VLOG(4) << "attr: " << attr_;
   VLOG(4) << "stream: " << stream;
-
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

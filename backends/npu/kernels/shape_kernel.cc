@@ -21,16 +21,16 @@ template <typename T, typename Context>
 void ShapeKernel(const Context& dev_ctx,
                  const phi::DenseTensor& input,
                  phi::DenseTensor* out) {
-  out->Resize({input.dims().size()});
+  auto& in_dims = input.dims();
   dev_ctx.template Alloc<int32_t>(out);
 
-  // The output data type defaults to int32.
-  auto stream = dev_ctx.stream();
-  NpuOpRunner runner;
-  auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT32);
-  runner.SetType("Shape").AddInput(input).AddOutput(*out).AddAttr(
-      "dtype", static_cast<int>(dst_dtype));
-  runner.Run(stream);
+  phi::DenseTensor cpu_tensor;
+  cpu_tensor.Resize({in_dims.size()});
+  auto cpu_data = dev_ctx.template HostAlloc<int32_t>(&cpu_tensor);
+  for (int i = 0; i < in_dims.size(); ++i) {
+    cpu_data[i] = in_dims[i];
+  }
+  TensorCopy(dev_ctx, cpu_tensor, true, out);
 }
 
 }  // namespace custom_kernel

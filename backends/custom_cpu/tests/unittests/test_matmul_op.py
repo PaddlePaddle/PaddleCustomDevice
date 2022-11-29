@@ -83,6 +83,25 @@ class API_TestMm(unittest.TestCase):
             "two value is\
             {}\n{}, check diff!".format(np_res, expected_result))
 
+    def test_out_fp16(self):
+        with fluid.program_guard(fluid.Program()):
+            x = fluid.data(name="x", shape=[2], dtype="float16")
+            y = fluid.data(name='y', shape=[2], dtype='float16')
+            res = fluid.data(name="output", shape=[1], dtype="float16")
+            result = paddle.mm(x, y)
+            exe = fluid.Executor(fluid.CustomPlace('custom_cpu', 0))
+            data1 = np.random.rand(2).astype('float16')
+            data2 = np.random.rand(2).astype('float16')
+            np_res = exe.run(feed={'x': data1, 'y': data2}, fetch_list=[result])
+            expected_result = np.matmul(
+                data1.reshape(1, 2), data2.reshape(2, 1))
+
+        self.assertTrue(
+            np.allclose(
+                np_res, expected_result, atol=1e-3),
+            "two value is\
+            {}\n{}, check diff!".format(np_res, expected_result))
+
     def test_dygraph_without_out(self):
         device = fluid.CustomPlace('custom_cpu', 0)
         with fluid.dygraph.guard(device):

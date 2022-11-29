@@ -195,21 +195,28 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
+                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
+                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::AddGradKernel,
+                          int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

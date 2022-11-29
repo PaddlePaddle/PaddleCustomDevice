@@ -28,7 +28,7 @@ DOCKER_VERSION=${DOCKER_VERSION:0:3}
 
 # download aarch64 pkgs
 if [ ! -f ${CANN_TOOLKIT} ]; then
-    wget https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
+    wget -q https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
 fi
 
 # copy file to current directory

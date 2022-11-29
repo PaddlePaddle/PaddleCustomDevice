@@ -22,18 +22,23 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cassert>
 #include <iostream>
+#include <chrono>
+#include <string>
 
 #include "paddle/phi/backends/device_ext.h"
 
 #include "utils/utils.h"
+#include "utils/hpu_helper.h"
 
 #define MEMORY_FRACTION 0.5f
 
 static int global_current_device = 0;
+static C_Stream g_stream = nullptr;
 
 C_Status Init() {
-  HPU_LOG
+  FUNCALL_LOG
   std::cout << "habana_hpu plugin compiled with ";
 #ifdef __clang__
   std::cout << "clang\n";
@@ -41,65 +46,149 @@ C_Status Init() {
   std::cout << "gcc\n";
 #endif
 
+  synStatus status = synFail;
+  status = synInitialize();
+  assert(status == synSuccess && "synapse initialization failed");
   return C_SUCCESS;
 }
 
 C_Status InitDevice(const C_Device device) {
-  HPU_LOG
-  global_current_device = device->id;
+  FUNCALL_LOG
+  uint32_t deviceId = 0;
+  synDeviceType deviceType = synDeviceGaudi;
+  bool deviceAcquired = waitForIdleDevice(&deviceId, /* INOUT */ deviceType, 60);
+
+  LOG(INFO) << "requested device id " << device->id << ", real device id " << deviceId;
+  global_current_device = deviceId;
+  device->id = deviceId;
+
   return C_SUCCESS;
 }
 
 C_Status SetDevice(const C_Device device) {
-  HPU_LOG
+  FUNCALL_LOG
+  //nothing to do
   global_current_device = device->id;
   return C_SUCCESS;
 }
 
 C_Status GetDevice(const C_Device device) {
-  HPU_LOG
+  FUNCALL_LOG
+  //nothing to do
   device->id = global_current_device;
   return C_SUCCESS;
 }
 
 C_Status DestroyDevice(const C_Device device) {
-  HPU_LOG
+  FUNCALL_LOG
 
-  return C_SUCCESS; }
+  LOG(INFO) << device->id;
+
+  synStatus status = synDeviceRelease(device->id);
+  assert(status == synSuccess && "synDeviceRelease failed!");
+  return C_SUCCESS; 
+}
 
 C_Status Finalize() {
-  HPU_LOG
+  FUNCALL_LOG
 
-  return C_SUCCESS; }
+  // synDestroy();
+  return C_SUCCESS; 
+}
 
 C_Status GetDevicesCount(size_t *count) {
-  HPU_LOG
-  *count = 2;
+  FUNCALL_LOG
+  uint32_t pCount = 0;
+    LOG(INFO) << "get real device count " << pCount;
+
+  synStatus status = synDeviceGetCount(&pCount);
+  LOG(INFO) << "get real device count " << pCount;
+  assert(status == synSuccess && "synDeviceGetCount failed!");
+  //currently only expose 1 device 
+  *count = 1;
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
-  HPU_LOG
+  FUNCALL_LOG
+  //TODO: suse HABANA_VISIBLE_DEVICES to get available device
   devices[0] = 0;
-  devices[1] = 1;
+  // devices[1] = 1;
   return C_SUCCESS;
 }
 
-C_Status MemCpy(const C_Device device,
+C_Status h2dMemCpy(const C_Device device,
                 void *dst,
                 const void *src,
                 size_t size) {
-  HPU_LOG
-  memcpy(dst, src, size);
+  FUNCALL_LOG
+  LOG(INFO) << dst << " " << src << " " << size;
+  synStatus status = HostMap(device->id, size, src);
+  assert(status == synSuccess && "synHostMap failed!");
+  status = synMemCopyAsync(g_stream->memcpyStreamHostToDev, reinterpret_cast<uint64_t>(src), size, reinterpret_cast<uint64_t>(dst), HOST_TO_DRAM);
+  assert(status == synSuccess && "synMemCopyAsync failed!");
+  status = synStreamSynchronize(g_stream->memcpyStreamHostToDev);
+  assert(status == synSuccess && "synStreamSynchronize failed!");
+  status = HostUnmap(device->id, src);
+  assert(status == synSuccess && "synHostUnmap failed!");
   return C_SUCCESS;
 }
 
-C_Status AsyncMemCpy(const C_Device device,
+C_Status d2hMemCpy(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size) {
+  FUNCALL_LOG
+
+  LOG(INFO) << dst << " " << src << " " << size;
+  synStatus status = HostMap(device->id, size, dst);
+  assert(status == synSuccess && "synHostMap failed!");
+  status = synMemCopyAsync(g_stream->memcpyStreamDevToHost, reinterpret_cast<uint64_t>(src), size, reinterpret_cast<uint64_t>(dst), DRAM_TO_HOST);
+  assert(status == synSuccess && "synMemCopyAsync failed!");
+  status = synStreamSynchronize(g_stream->memcpyStreamDevToHost);
+  assert(status == synSuccess && "synStreamSynchronize failed!");
+  status = HostUnmap(device->id, dst);
+  assert(status == synSuccess && "synHostUnmap failed!");
+  
+  return C_SUCCESS;
+}
+
+C_Status d2dMemCpy(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size) {
+  FUNCALL_LOG
+  // memcpy(dst, src, size);
+  // synMemCopyAsync(streamhandle, src, size, dst, DRAM_TO_DRAM);
+  return C_SUCCESS;
+}
+
+C_Status h2dAsyncMemCpy(const C_Device device,
                      C_Stream stream,
                      void *dst,
                      const void *src,
                      size_t size) {
-  HPU_LOG
+  FUNCALL_LOG
+  memcpy(dst, src, size);
+  return C_SUCCESS;
+}
+
+C_Status d2hAsyncMemCpy(const C_Device device,
+                     C_Stream stream,
+                     void *dst,
+                     const void *src,
+                     size_t size) {
+  FUNCALL_LOG
+  memcpy(dst, src, size);
+  return C_SUCCESS;
+}
+
+C_Status d2dAsyncMemCpy(const C_Device device,
+                     C_Stream stream,
+                     void *dst,
+                     const void *src,
+                     size_t size) {
+  FUNCALL_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -109,7 +198,7 @@ C_Status MemCpyP2P(const C_Device dst_device,
                    void *dst,
                    const void *src,
                    size_t size) {
-  HPU_LOG
+  FUNCALL_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
@@ -120,138 +209,155 @@ C_Status AsyncMemCpyP2P(const C_Device dst_device,
                         void *dst,
                         const void *src,
                         size_t size) {
-  HPU_LOG
+  FUNCALL_LOG
   memcpy(dst, src, size);
   return C_SUCCESS;
 }
 
-C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  HPU_LOG
+C_Status deviceAllocate(const C_Device device, void **ptr, size_t size) {
+  FUNCALL_LOG
 
-  auto data = malloc(size);
-  if (data) {
-    *ptr = data;
-    return C_SUCCESS;
-  } else {
-    *ptr = nullptr;
-  }
+  // auto data = malloc(size);
+  // if (data) {
+  //   *ptr = data;
+  //   return C_SUCCESS;
+  // } else {
+  //   *ptr = nullptr;
+  // }
+
+  //TODO: how to bring into tensor name
+  LOG(INFO) << "deviceAllocate device id=" << device->id;
+  static int i = 0;
+  uint64_t input_dram;
+  std::string name = "Tensor_" + std::to_string(device->id) + "_" + std::to_string(i);
+  i ++;
+  synStatus status = hbmAlloc(device->id, size, &input_dram, name);
+  assert(status == synSuccess && "hbmAlloc failed!");
+  *ptr = reinterpret_cast<void*>(input_dram);
+  LOG(INFO) << "deviceAllocate ptr=" << *ptr << " input_dram=" << input_dram;
+
+  return C_SUCCESS;
+}
+
+C_Status hostAllocate(const C_Device device, void **ptr, size_t size) {
+  FUNCALL_LOG
+
+  // auto data = malloc(size);
+  // if (data) {
+  //   *ptr = data;
+  //   return C_SUCCESS;
+  // } else {
+  //   *ptr = nullptr;
+  // }
+
+  //TODO: how to bring into tensor name
+
   return C_FAILED;
 }
 
-C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  HPU_LOG
+C_Status deviceDeallocate(const C_Device device, void *ptr, size_t size) {
+  FUNCALL_LOG
 
-  free(ptr);
+  // free(ptr);
+  hbmFree(device->id, *reinterpret_cast<uint64_t*>(ptr), "");
+  return C_SUCCESS;
+}
+
+C_Status hostDeallocate(const C_Device device, void *ptr, size_t size) {
+  FUNCALL_LOG
+
+  // free(ptr);
   return C_SUCCESS;
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  HPU_LOG
-  stream = nullptr;
+  FUNCALL_LOG
+  // stream = nullptr;
+
+  createStream(device->id, stream);
+  g_stream = *stream;
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
-  HPU_LOG
+  FUNCALL_LOG
+  destroyStream(device->id, stream);
   return C_SUCCESS;
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  HPU_LOG
+  FUNCALL_LOG
+  createEvent(device->id, event);
   return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  HPU_LOG
+  FUNCALL_LOG
+  recordEvent(device->id, stream, event);
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  HPU_LOG
+  FUNCALL_LOG
+  destroyEvent(device->id, event);
   return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
-  HPU_LOG
+  FUNCALL_LOG
+  synDeviceSynchronize(device->id);
   return C_SUCCESS; 
 }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
-  HPU_LOG
+  FUNCALL_LOG
+  //TODO: decide which stream to sync
+  synStreamSynchronize(stream->computeStream);
   return C_SUCCESS;
 }
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
-  HPU_LOG
+  FUNCALL_LOG
+  synEventSynchronize(event->eventHandle);
   return C_SUCCESS; 
 }
 
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  HPU_LOG                          
+  FUNCALL_LOG
+  //TODO: decide how which stream to wait
+  synStreamWaitEvent(stream->computeStream, event->eventHandle, 0);                          
   return C_SUCCESS;
-}
-
-C_Status VisibleDevices(size_t *devices) {
-  HPU_LOG
-  return C_SUCCESS; 
 }
 
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
-  HPU_LOG
-  float memusage;
-  FILE *fp;
-  char buffer[1024];
-  size_t byte_read;
-  char *pos;
+  FUNCALL_LOG
 
-  fp = fopen("/proc/meminfo", "r");
-  byte_read = fread(buffer, 1, sizeof(buffer), fp);
-  fclose(fp);
-  buffer[byte_read] = '\0';
-  pos = strstr(buffer, "MemTotal:");
-  sscanf(pos, "MemTotal: %lu kB", total_memory);
-  pos = strstr(pos, "MemFree:");
-  sscanf(pos, "MemFree: %lu kB", free_memory);
-  *total_memory = *total_memory * 1024;
-  *free_memory = *free_memory * 1024;
-  *free_memory = *free_memory * MEMORY_FRACTION;
+  synDeviceGetMemoryInfo(device->id, free_memory, total_memory);
+  LOG(INFO) << "meminfo:" << *free_memory << "/" << *total_memory;
 
   return C_SUCCESS;
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
-  HPU_LOG
+  FUNCALL_LOG
   *size = 512;
   return C_SUCCESS;
 }
 
-struct C_CCLComm_st {
-  size_t rank;
-  size_t nranks;
-  sem_t *sig;
-  sem_t *sig_2;
-  std::string sig_name;
-  std::string sig_2_name;
-};
-
 // for unittest
 C_Status XcclGetUniqueIdSize(size_t *sz) {
-  HPU_LOG
-  *sz = sizeof(size_t);
+  FUNCALL_LOG
+
   return C_SUCCESS;
 }
 
 C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
-  HPU_LOG
-  auto ptr = reinterpret_cast<int8_t *>(unique_id->data);
-  for (auto i = 0; i < unique_id->sz - 1; ++i) {
-    ptr[i] = static_cast<int8_t>(std::rand() % ('z' - 'a') + 'a');
-  }
-  ptr[unique_id->sz - 1] = '\0';
+  FUNCALL_LOG
+
   return C_SUCCESS;
 }
 
@@ -259,27 +365,14 @@ C_Status XcclCommInitRank(size_t ranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
-  HPU_LOG
-  auto sig = sem_open(static_cast<char *>(unique_id->data), O_CREAT, 0644, 0);
-  auto sig_2 =
-      sem_open(static_cast<char *>(unique_id->data) + 1, O_CREAT, 0644, 0);
-  *comm =
-      new C_CCLComm_st({rank,
-                        ranks,
-                        sig,
-                        sig_2,
-                        std::string(static_cast<char *>(unique_id->data)),
-                        std::string(static_cast<char *>(unique_id->data) + 1)});
+  FUNCALL_LOG
+
   return C_SUCCESS;
 }
 
 C_Status XcclDestroyComm(C_CCLComm comm) {
-  HPU_LOG
-  if (comm) {
-    sem_unlink(comm->sig_name.c_str());
-    sem_unlink(comm->sig_2_name.c_str());
-    delete comm;
-  }
+  FUNCALL_LOG
+
   return C_SUCCESS;
 }
 
@@ -290,20 +383,8 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-  HPU_LOG
-  sem_post(comm->sig);
+  FUNCALL_LOG
 
-  if (comm->rank == 0) {
-    for (auto i = 0; i < comm->nranks; ++i) {
-      sem_wait(comm->sig);
-    }
-
-    for (auto i = 0; i < comm->nranks; ++i) {
-      sem_post(comm->sig_2);
-    }
-  }
-
-  sem_wait(comm->sig_2);
   return C_SUCCESS;
 }
 
@@ -313,57 +394,45 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
-  HPU_LOG
-  sem_post(comm->sig);
+  FUNCALL_LOG
 
-  if (comm->rank == 0) {
-    for (auto i = 0; i < comm->nranks; ++i) {
-      sem_wait(comm->sig);
-    }
-
-    for (auto i = 0; i < comm->nranks; ++i) {
-      sem_post(comm->sig_2);
-    }
-  }
-
-  sem_wait(comm->sig_2);
   return C_SUCCESS;
 }
 
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS; 
 }
 
 C_Status ProfilerStart(C_Profiler prof, void *user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS; 
 }
 
 C_Status ProfilerStop(C_Profiler prof, void *user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS; 
 }
 
 C_Status ProfilerCollectData(C_Profiler prof,
                              uint64_t start_ns,
                              void *user_data) {
-  HPU_LOG
+  FUNCALL_LOG
   return C_SUCCESS;
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
-  HPU_LOG
+  FUNCALL_LOG
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "habana_hpu";
   params->sub_device_type = "gaudi";
@@ -392,20 +461,20 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->synchronize_event = SyncEvent;
   params->interface->stream_wait_event = StreamWaitEvent;
 
-  params->interface->memory_copy_h2d = MemCpy;
-  params->interface->memory_copy_d2d = MemCpy;
-  params->interface->memory_copy_d2h = MemCpy;
+  params->interface->memory_copy_h2d = h2dMemCpy;
+  params->interface->memory_copy_d2d = d2dMemCpy;
+  params->interface->memory_copy_d2h = d2hMemCpy;
   params->interface->memory_copy_p2p = MemCpyP2P;
-  params->interface->async_memory_copy_h2d = AsyncMemCpy;
-  params->interface->async_memory_copy_d2d = AsyncMemCpy;
-  params->interface->async_memory_copy_d2h = AsyncMemCpy;
+  params->interface->async_memory_copy_h2d = h2dAsyncMemCpy;
+  params->interface->async_memory_copy_d2d = d2dAsyncMemCpy;
+  params->interface->async_memory_copy_d2h = d2hAsyncMemCpy;
   params->interface->async_memory_copy_p2p = AsyncMemCpyP2P;
-  params->interface->device_memory_allocate = Allocate;
-  params->interface->host_memory_allocate = Allocate;
-  params->interface->unified_memory_allocate = Allocate;
-  params->interface->device_memory_deallocate = Deallocate;
-  params->interface->host_memory_deallocate = Deallocate;
-  params->interface->unified_memory_deallocate = Deallocate;
+  params->interface->device_memory_allocate = deviceAllocate;
+  params->interface->host_memory_allocate = hostAllocate;
+  // params->interface-> = Allocate;
+  params->interface->device_memory_deallocate = deviceDeallocate;
+  params->interface->host_memory_deallocate = hostDeallocate;
+  // params->interface->unified_memory_deallocate = Deallocate;
 
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;

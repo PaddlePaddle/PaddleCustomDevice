@@ -55,7 +55,15 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
-  TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+  if (x.storage_properties_initialized()) {
+    paddle::Tensor x_tensor(std::make_shared<phi::DenseTensor>(x));
+    auto temp = paddle::npu_identity(x_tensor);
+    auto dense_tensor =
+        std::dynamic_pointer_cast<phi::DenseTensor>(temp.impl());
+    TensorCopy(dev_ctx, *dense_tensor, false, out, phi::CPUPlace());
+  } else {
+    TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+  }
   dev_ctx.Wait();
 }
 

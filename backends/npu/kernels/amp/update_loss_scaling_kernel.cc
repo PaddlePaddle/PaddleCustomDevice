@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 template <typename Context, typename T>
@@ -240,6 +241,11 @@ void UpdateLossScaling(const Context& dev_ctx,
                        phi::DenseTensor* updated_loss_scaling,
                        phi::DenseTensor* good_out,
                        phi::DenseTensor* bad_out) {
+  GRAPH_RUN_THEN_RETURN({
+    LOG(INFO) << "Skip amp kernel in graph mode.";
+    return;
+  });
+
   auto* found_inf = &t_found_inf;
   PADDLE_ENFORCE_EQ(
       found_inf->numel(),

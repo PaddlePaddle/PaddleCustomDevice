@@ -98,22 +98,11 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           int,
                           phi::dtype::float16) {}
 
-<<<<<<< 07149aac764ba5ffa268597c195c24362e4b0bc3:backends/npu/kernels/tril_triu_kernel.cc
 PD_REGISTER_PLUGIN_KERNEL(triu,
-        npu,
-        ALL_LAYOUT,
-        custom_kernel::TriuKernel,
-        bool,
-        float,
-        int,
-        phi::dtype::float16) {}
-=======
-PD_REGISTER_PLUGIN_KERNEL(tril_grad,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::TrilGradKernel,
+                          custom_kernel::TriuKernel,
                           bool,
                           float,
                           int,
                           phi::dtype::float16) {}
->>>>>>> update:backends/npu/kernels/tril_kernel.cc

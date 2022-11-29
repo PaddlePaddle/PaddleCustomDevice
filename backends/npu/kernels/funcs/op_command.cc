@@ -12,19 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/op_command.h"
-
-#include "acl/acl_op_compiler.h"
-#include "kernels/funcs/npu_funcs.h"
-#include "pybind11/pybind11.h"
-
-#define RELEASE_GIL_THEN_RUN(expr)        \
-  if (PyGILState_Check()) {               \
-    pybind11::gil_scoped_release release; \
-    expr;                                 \
-  } else {                                \
-    expr;                                 \
-  }
+#include "kernels/funcs/acl_command.h"
+#include "kernels/funcs/graph_command.h"
 
 namespace custom_kernel {
 namespace experimental {
@@ -34,6 +23,9 @@ aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
       DTYPE_2_ACL_DTYPE = {
           {paddle::experimental::DataType::BOOL, ACL_BOOL},
           {paddle::experimental::DataType::UINT8, ACL_UINT8},
+          {paddle::experimental::DataType::UINT16, ACL_UINT16},
+          {paddle::experimental::DataType::UINT32, ACL_UINT32},
+          {paddle::experimental::DataType::UINT64, ACL_UINT64},
           {paddle::experimental::DataType::INT8, ACL_INT8},
           {paddle::experimental::DataType::INT16, ACL_INT16},
           {paddle::experimental::DataType::INT32, ACL_INT32},
@@ -56,6 +48,9 @@ ge::DataType ConvertToGEDtype(paddle::experimental::DataType dtype) {
       DTYPE_2_GE_DTYPE = {
           {paddle::experimental::DataType::BOOL, ge::DataType::DT_UINT8},
           {paddle::experimental::DataType::UINT8, ge::DataType::DT_UINT8},
+          {paddle::experimental::DataType::UINT16, ge::DataType::DT_UINT16},
+          {paddle::experimental::DataType::UINT32, ge::DataType::DT_UINT32},
+          {paddle::experimental::DataType::UINT64, ge::DataType::DT_UINT64},
           {paddle::experimental::DataType::INT8, ge::DataType::DT_INT8},
           {paddle::experimental::DataType::INT16, ge::DataType::DT_INT16},
           {paddle::experimental::DataType::INT32, ge::DataType::DT_INT32},
@@ -106,853 +101,6 @@ ge::Format ConvertToGEFormat(phi::DataLayout layout) {
           "The data type (%s) can not convert to ACL data type.", layout));
   return iter->second;
 }
-
-class AclCommandHelper {
- public:
-  static aclTensorDesc *CreateDesc(TensorDescMaker maker) {
-    auto dims = phi::vectorize(maker.dims_);
-    if (dims.size() == 0) {
-      maker.MarkAsScalar();
-    }
-
-    if (maker.is_scalar_) {
-      maker.layout_ = phi::DataLayout::ANY;
-    }
-
-    auto desc = aclCreateTensorDesc(ConvertToNpuDtype(maker.dtype_),
-                                    maker.is_scalar_ ? 0 : dims.size(),
-                                    maker.is_scalar_ ? nullptr : dims.data(),
-                                    ConvertToNpuFormat(maker.layout_));
-    PADDLE_ENFORCE_NOT_NULL(
-        desc, phi::errors::External("Call aclCreateTensorDesc failed."));
-
-    if (maker.is_host_) {
-      PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, ACL_MEMTYPE_HOST));
-    }
-
-    if (maker.change_storage_) {
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclSetTensorFormat(desc, ConvertToNpuFormat(maker.layout_)));
-      if (dims.size()) {
-        PADDLE_ENFORCE_NPU_SUCCESS(
-            aclSetTensorShape(desc,
-                              maker.is_scalar_ ? 0 : dims.size(),
-                              maker.is_scalar_ ? nullptr : dims.data()));
-      }
-    }
-    return desc;
-  }
-
-  static aclDataBuffer *CreateBuffer(const void *data, size_t numel) {
-    return aclCreateDataBuffer(const_cast<void *>(data), numel);
-  }
-
-  static void ConvertScalarToDeviceTensor(const phi::CustomContext &ctx,
-                                          const phi::Scalar &scalar,
-                                          phi::DenseTensor *tensor) {
-    tensor->Resize({1});
-    if (scalar.dtype() == phi::DataType::FLOAT16) {
-      auto val = scalar.to<phi::dtype::float16>();
-      ctx.template Alloc<phi::dtype::float16>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(phi::dtype::float16));
-    } else if (scalar.dtype() == phi::DataType::FLOAT32) {
-      auto val = scalar.to<float>();
-      ctx.template Alloc<float>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(float));
-    } else if (scalar.dtype() == phi::DataType::FLOAT64) {
-      auto val = scalar.to<double>();
-      ctx.template Alloc<double>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(double));
-    } else if (scalar.dtype() == phi::DataType::INT8) {
-      auto val = scalar.to<int8_t>();
-      ctx.template Alloc<int8_t>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(int8_t));
-    } else if (scalar.dtype() == phi::DataType::INT16) {
-      auto val = scalar.to<int16_t>();
-      ctx.template Alloc<int16_t>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(int16_t));
-    } else if (scalar.dtype() == phi::DataType::INT32) {
-      auto val = scalar.to<int32_t>();
-      ctx.template Alloc<int32_t>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(int32_t));
-    } else if (scalar.dtype() == phi::DataType::INT64) {
-      auto val = scalar.to<int64_t>();
-      ctx.template Alloc<int64_t>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(int64_t));
-    } else if (scalar.dtype() == phi::DataType::BOOL) {
-      uint8_t val = static_cast<uint8_t>(scalar.to<bool>());
-      ctx.template Alloc<uint8_t>(tensor);
-      AsyncMemCpyH2D(nullptr,
-                     reinterpret_cast<C_Stream>(ctx.stream()),
-                     tensor->data(),
-                     &val,
-                     sizeof(uint8_t));
-    } else {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Can not convert data type %d scalar to tensor", scalar.dtype()));
-    }
-  }
-};
-
-class AclCommand : public NpuCommand {
- public:
-  explicit AclCommand(const std::string &op_type) : NpuCommand(op_type) {}
-
-  ~AclCommand() override {
-    for (auto &t : in_descs_) {
-      aclDestroyTensorDesc(t);
-    }
-
-    for (auto &t : in_buffers_) {
-      aclDestroyDataBuffer(t);
-    }
-
-    for (auto &t : out_descs_) {
-      aclDestroyTensorDesc(t);
-    }
-
-    for (auto &t : out_buffers_) {
-      aclDestroyDataBuffer(t);
-    }
-  }
-
-  void AddInput() override {
-    VLOG(4) << "NoneInput dtype:: None";
-    auto desc =
-        aclCreateTensorDesc(ACL_DT_UNDEFINED, 0, nullptr, ACL_FORMAT_UNDEFINED);
-    auto buffer = AclCommandHelper::CreateBuffer(nullptr, 0);
-    in_descs_.push_back(desc);
-    in_buffers_.push_back(buffer);
-  }
-
-  void AddInput(const phi::Scalar &tensor) override {
-    VLOG(4) << "ScalarInput dtype:" << ConvertToNpuDtype(tensor.dtype()) << " "
-            << "rank:" << 1 << " dims: "
-            << "scalar"
-            << " format:" << ACL_FORMAT_ND;
-    placeholder_storage_.push_back(in_buffers_.size());
-    scalar_storage_.push_back(tensor);
-    storage_.emplace_back();
-
-    in_buffers_.push_back(nullptr);
-    in_descs_.push_back(nullptr);
-  }
-
-  void AddInput(const phi::DenseTensor &tensor) override {
-    AddInput(tensor, TensorDescMaker("", tensor).ChangeStorage());
-  }
-
-  void AddInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    VLOG(4) << "Input dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "NPU ptr: " << tensor.data() << ", size: " << tensor.capacity();
-
-    auto desc = AclCommandHelper::CreateDesc(maker);
-    auto buffer =
-        AclCommandHelper::CreateBuffer(tensor.data(), tensor.capacity());
-
-    in_descs_.push_back(desc);
-    in_buffers_.push_back(buffer);
-  }
-
-  void AddScalarInput(const phi::DenseTensor &tensor) override {
-    AddScalarInput(tensor,
-                   TensorDescMaker("", tensor)
-                       .MarkAsScalar()
-                       .SetDataLayout(phi::DataLayout::ANY));
-  }
-
-  void AddScalarInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    VLOG(4) << "ScalarInput dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "NPU ptr: " << tensor.data() << ", size: " << tensor.capacity();
-
-    auto desc = AclCommandHelper::CreateDesc(maker);
-    auto buffer =
-        AclCommandHelper::CreateBuffer(tensor.data(), tensor.capacity());
-
-    in_descs_.push_back(desc);
-    in_buffers_.push_back(buffer);
-  }
-
-  void AddHostInput(const phi::DenseTensor &tensor) override {
-    AddHostInput(tensor, TensorDescMaker("", tensor).MarkAsHost());
-  }
-
-  void AddHostInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    VLOG(4) << "HostInput dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "NPU ptr: " << tensor.data() << ", size: " << tensor.capacity();
-
-    auto desc = AclCommandHelper::CreateDesc(maker);
-    auto buffer =
-        AclCommandHelper::CreateBuffer(tensor.data(), tensor.capacity());
-
-    in_descs_.push_back(desc);
-    in_buffers_.push_back(buffer);
-  }
-
-  void AddHostScalarInput(const phi::DenseTensor &tensor) override {
-    AddHostScalarInput(tensor, TensorDescMaker("", tensor));
-  }
-
-  void AddHostScalarInput(const phi::DenseTensor &tensor,
-                          TensorDescMaker maker) {
-    AddScalarInput(
-        tensor,
-        maker.MarkAsScalar().MarkAsHost().SetDataLayout(phi::DataLayout::ANY));
-  }
-
-  void AddOutput() override {
-    VLOG(4) << "NoneOutput dtype:: None";
-    auto desc =
-        aclCreateTensorDesc(ACL_DT_UNDEFINED, 0, nullptr, ACL_FORMAT_UNDEFINED);
-    auto buffer = AclCommandHelper::CreateBuffer(nullptr, 0);
-    out_descs_.push_back(desc);
-    out_buffers_.push_back(buffer);
-  }
-
-  void AddOutput(phi::DenseTensor &tensor) override {
-    AddOutput(tensor, TensorDescMaker("", tensor).ChangeStorage());
-  }
-
-  void AddOutput(phi::DenseTensor &tensor, TensorDescMaker maker) {
-    VLOG(4) << "Output dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "NPU ptr: " << tensor.data() << ", size: " << tensor.capacity();
-
-    auto desc = AclCommandHelper::CreateDesc(maker);
-    auto buffer =
-        AclCommandHelper::CreateBuffer(tensor.data(), tensor.capacity());
-
-    out_descs_.push_back(desc);
-    out_buffers_.push_back(buffer);
-  }
-
-  void AddAttribute(const std::string &name,
-                    const NpuAttribute &attr) override {
-    if (!attr_) {
-      attr_ = aclopCreateAttr();
-    }
-    if (attr.type() == typeid(bool)) {
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrBool(attr_, name.c_str(), paddle::get<bool>(attr)));
-    } else if (attr.type() == typeid(int)) {
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrInt(attr_, name.c_str(), paddle::get<int32_t>(attr)));
-    } else if (attr.type() == typeid(int64_t)) {
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrInt(attr_, name.c_str(), paddle::get<int64_t>(attr)));
-    } else if (attr.type() == typeid(float)) {
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrFloat(attr_, name.c_str(), paddle::get<float>(attr)));
-    } else if (attr.type() == typeid(std::vector<bool>)) {
-      auto a = paddle::get<std::vector<bool>>(attr);
-      std::vector<uint8_t> cast_a;
-      for (auto it : a) {
-        cast_a.push_back(static_cast<uint8_t>(it));
-      }
-      PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrListBool(
-          attr_, name.c_str(), cast_a.size(), cast_a.data()));
-    } else if (attr.type() == typeid(std::vector<int32_t>)) {
-      auto a = paddle::get<std::vector<int32_t>>(attr);
-      std::vector<int64_t> cast_a;
-      for (auto it : a) {
-        cast_a.push_back(static_cast<int64_t>(it));
-      }
-      PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrListInt(
-          attr_, name.c_str(), cast_a.size(), cast_a.data()));
-    } else if (attr.type() == typeid(std::vector<int64_t>)) {
-      auto a = paddle::get<std::vector<int64_t>>(attr);
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrListInt(attr_, name.c_str(), a.size(), a.data()));
-    } else if (attr.type() == typeid(std::vector<float>)) {
-      auto a = paddle::get<std::vector<float>>(attr);
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrListFloat(attr_, name.c_str(), a.size(), a.data()));
-    } else if (attr.type() == typeid(std::string)) {
-      auto a = paddle::get<std::string>(attr);
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrString(attr_, name.c_str(), a.c_str()));
-    } else if (attr.type() == typeid(std::vector<std::string>)) {
-      auto a = paddle::get<std::vector<std::string>>(attr);
-      std::vector<const char *> s;
-      for (auto &it : a) {
-        s.push_back(it.data());
-      }
-      PADDLE_ENFORCE_NPU_SUCCESS(
-          aclopSetAttrListString(attr_, name.c_str(), s.size(), s.data()));
-    } else if (attr.type() == typeid(std::vector<std::vector<int64_t>>)) {
-      auto a = paddle::get<std::vector<std::vector<int64_t>>>(attr);
-      std::vector<int64_t *> data;
-      std::vector<int> num;
-      for (auto &&v : a) {
-        data.push_back(v.data());
-        num.push_back(v.size());
-      }
-      PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrListListInt(
-          attr_, name.c_str(), data.size(), num.data(), data.data()));
-    } else {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Can not convert attribubte '%s' to convert to aclopAttr", name));
-    }
-  }
-
-  void Run(const phi::CustomContext &ctx) override {
-    ProcessScalarPlaceholder(ctx);
-
-    auto stream = reinterpret_cast<C_Stream>(ctx.stream());
-
-    PADDLE_ENFORCE_NOT_NULL(
-        stream,
-        phi::errors::External("Stream should not be null, please check."));
-
-    VLOG(5) << "NpuOpRunner(" << this << ") Run:";
-    VLOG(4) << "op_type: " << op_type_;
-    VLOG(4) << "input_desc.size: " << in_descs_.size();
-    VLOG(4) << "output_desc.size: " << out_buffers_.size();
-    VLOG(4) << "attr: " << attr_;
-    VLOG(4) << "stream: " << stream;
-    aclError ret;
-
-    // Ensure that the Gil has been released before running
-    // aclopCompileAndExecute.
-    RELEASE_GIL_THEN_RUN({
-      ret = aclopCompileAndExecute(op_type_.c_str(),
-                                   in_descs_.size(),
-                                   in_descs_.data(),
-                                   in_buffers_.data(),
-                                   out_descs_.size(),
-                                   out_descs_.data(),
-                                   out_buffers_.data(),
-                                   attr_,
-                                   ACL_ENGINE_SYS,
-                                   ACL_COMPILE_SYS,
-                                   NULL,
-                                   stream);
-    });
-    VLOG(4) << "after aclopCompileAndExecute: " << ret;
-    //   ret = aclrtSynchronizeStream(stream);
-    //   VLOG(4) << "after aclrtSynchronizeStream: " << ret;
-    PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  }
-
-  void ProcessScalarPlaceholder(const phi::CustomContext &ctx) {
-    for (auto i = 0; i < storage_.size(); ++i) {
-      auto &tensor = storage_[i];
-      auto &scalar = scalar_storage_[i];
-      AclCommandHelper::ConvertScalarToDeviceTensor(ctx, scalar, &tensor);
-      auto desc = AclCommandHelper::CreateDesc(
-          TensorDescMaker("", tensor)
-              .MarkAsScalar()
-              .MarkAsHost()
-              .SetDataLayout(phi::DataLayout::ANY));
-      auto buffer =
-          AclCommandHelper::CreateBuffer(tensor.data(), tensor.capacity());
-      in_descs_[placeholder_storage_[i]] = desc;
-      in_buffers_[placeholder_storage_[i]] = buffer;
-    }
-  }
-
- private:
-  std::vector<aclDataBuffer *> in_buffers_;
-  std::vector<aclTensorDesc *> in_descs_;
-  std::vector<aclDataBuffer *> out_buffers_;
-  std::vector<aclTensorDesc *> out_descs_;
-
-  std::vector<int> placeholder_storage_;
-  std::vector<phi::Scalar> scalar_storage_;
-  std::vector<phi::DenseTensor> storage_;
-  aclopAttr *attr_{nullptr};
-};
-
-// graph command
-
-class GraphCommandHelper {
- public:
-  static C_GE_Tensor *ConvertDenseTensorToGETensor(const phi::DenseTensor &t) {
-    auto r = CreateTensor();
-    auto dims = phi::vectorize(t.dims());
-    SetTensor(r,
-              const_cast<void *>(t.data()),
-              dims.data(),
-              dims.size(),
-              experimental::ConvertToGEDtype(t.dtype()),
-              ge::Format::FORMAT_ND);
-    return r;
-  }
-
-  static C_GE_Tensor *ConvertDenseTensorToGETensor(const phi::DenseTensor &t,
-                                                   phi::DataLayout layout) {
-    auto r = CreateTensor();
-    auto dims = phi::vectorize(t.dims());
-    SetTensor(r,
-              const_cast<void *>(t.data()),
-              dims.data(),
-              dims.size(),
-              experimental::ConvertToGEDtype(t.dtype()),
-              experimental::ConvertToGEFormat(layout));
-    return r;
-  }
-
-  static C_GE_Tensor *ConvertScalarToGETensor(const phi::Scalar &scalar) {
-    auto r = CreateTensor();
-    std::vector<int64_t> dims({1});
-    if (scalar.dtype() == phi::DataType::FLOAT16) {
-      auto data = scalar.to<phi::dtype::float16>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::FLOAT32) {
-      auto data = scalar.to<float>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::FLOAT64) {
-      auto data = scalar.to<double>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::INT8) {
-      auto data = scalar.to<int8_t>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::INT16) {
-      auto data = scalar.to<int16_t>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::INT32) {
-      auto data = scalar.to<int32_t>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::INT64) {
-      auto data = scalar.to<int64_t>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else if (scalar.dtype() == phi::DataType::BOOL) {
-      auto data = scalar.to<bool>();
-      SetTensor(r,
-                reinterpret_cast<void *>(&data),
-                dims.data(),
-                dims.size(),
-                experimental::ConvertToGEDtype(scalar.dtype()),
-                ge::Format::FORMAT_ND);
-    } else {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Can not convert data type %d scalar to tensor", scalar.dtype()));
-    }
-    return r;
-  }
-
-  static void ConvertScalarToHostTensor(const phi::CustomContext &ctx,
-                                        phi::Scalar &scalar,
-                                        phi::DenseTensor *tensor) {
-    tensor->Resize({1});
-    if (scalar.dtype() == phi::DataType::FLOAT16) {
-      auto data = ctx.template HostAlloc<phi::dtype::float16>(tensor);
-      *data = scalar.to<phi::dtype::float16>();
-    } else if (scalar.dtype() == phi::DataType::FLOAT32) {
-      auto data = ctx.template HostAlloc<float>(tensor);
-      *data = scalar.to<float>();
-    } else if (scalar.dtype() == phi::DataType::FLOAT64) {
-      auto data = ctx.template HostAlloc<double>(tensor);
-      *data = scalar.to<double>();
-    } else if (scalar.dtype() == phi::DataType::INT8) {
-      auto data = ctx.template HostAlloc<int8_t>(tensor);
-      *data = scalar.to<int8_t>();
-    } else if (scalar.dtype() == phi::DataType::INT16) {
-      auto data = ctx.template HostAlloc<int16_t>(tensor);
-      *data = scalar.to<int16_t>();
-    } else if (scalar.dtype() == phi::DataType::INT32) {
-      auto data = ctx.template HostAlloc<int32_t>(tensor);
-      *data = scalar.to<int32_t>();
-    } else if (scalar.dtype() == phi::DataType::INT64) {
-      auto data = ctx.template HostAlloc<int64_t>(tensor);
-      *data = scalar.to<int64_t>();
-    } else if (scalar.dtype() == phi::DataType::BOOL) {
-      auto data = ctx.template HostAlloc<uint8_t>(tensor);
-      *data = static_cast<uint8_t>(scalar.to<bool>());
-    } else {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Can not convert data type %d scalar to tensor", scalar.dtype()));
-    }
-  }
-
-  static std::shared_ptr<OpNode> ConvertHostTensorToConstOp(
-      const phi::DenseTensor &t) {
-    auto ge_tensor = GraphCommandHelper::ConvertDenseTensorToGETensor(t);
-    auto const_op = std::make_shared<OpNode>("Const");
-    OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
-    DestroyTensor(ge_tensor);
-
-    auto dims = phi::vectorize(t.dims());
-    OperatorUpdateOutputDesc(
-        const_op->ge_op_,
-        "y",
-        dims.data(),
-        dims.size(),
-        custom_kernel::experimental::ConvertToGEDtype(t.dtype()),
-        ge::Format::FORMAT_ND);
-    return std::move(const_op);
-  }
-
-  static std::shared_ptr<OpNode> ConvertHostTensorToConstOp(
-      const phi::DenseTensor &t,
-      const std::vector<int64_t> &dims,
-      phi::DataType dtype,
-      phi::DataLayout format) {
-    auto ge_tensor = GraphCommandHelper::ConvertDenseTensorToGETensor(t);
-    auto const_op = std::make_shared<OpNode>("Const");
-    OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
-    DestroyTensor(ge_tensor);
-
-    OperatorUpdateOutputDesc(
-        const_op->ge_op_,
-        "y",
-        const_cast<int64_t *>(dims.data()),
-        dims.size(),
-        custom_kernel::experimental::ConvertToGEDtype(dtype),
-        custom_kernel::experimental::ConvertToGEFormat(format));
-    return std::move(const_op);
-  }
-
-  static std::shared_ptr<OpNode> ConvertScalarToConstOp(const phi::Scalar &t) {
-    auto ge_tensor = GraphCommandHelper::ConvertScalarToGETensor(t);
-    auto const_op = std::make_shared<OpNode>("Const");
-    OperatorSetAttrTensor(const_op->ge_op_, "value", ge_tensor);
-    DestroyTensor(ge_tensor);
-
-    std::vector<int64_t> dims({1});
-    OperatorUpdateOutputDesc(
-        const_op->ge_op_,
-        "y",
-        dims.data(),
-        dims.size(),
-        custom_kernel::experimental::ConvertToGEDtype(t.dtype()),
-        ge::Format::FORMAT_ND);
-    return std::move(const_op);
-  }
-};
-
-class GraphCommand : public NpuCommand {
- public:
-  explicit GraphCommand(const std::string &op_type)
-      : NpuCommand(op_type), op_type_(op_type) {
-    node_ = std::make_shared<OpNode>(op_type);
-  }
-
-  ~GraphCommand() override {}
-
-  void AddInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    auto ge_tensor = const_cast<TensorNode *>(
-        reinterpret_cast<const TensorNode *>(tensor.data()));
-
-    VLOG(4) << "Input dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    if (!ge_tensor->WithoutNode()) {
-      OperatorSetInput(node_->ge_op_,
-                       in_index_,
-                       ge_tensor->in_->ge_op_,
-                       ge_tensor->in_index_);
-    } else {
-      ge_tensor->SetTag(TensorNodeTag::UNDEFINED);
-    }
-
-    node_->PushInput(ge_tensor);
-    ge_tensor->PushOutput(node_, in_index_);
-    in_index_++;
-
-    if (maker.Valid()) {
-      auto dims = phi::vectorize(maker.dims_);
-      OperatorUpdateInputDesc(node_->ge_op_,
-                              maker.desc_name_.c_str(),
-                              dims.data(),
-                              dims.size(),
-                              ConvertToGEDtype(maker.dtype_),
-                              ConvertToGEFormat(maker.layout_));
-    }
-  }
-
-  void AddHostInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    auto ge_tensor = TensorNode::malloc();
-
-    VLOG(4) << "HostInput dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(tensor),
-                        0);
-    ge_tensor->PushOutput(node_, in_index_);
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
-    node_->PushInput(ge_tensor);
-    in_index_++;
-
-    if (maker.Valid()) {
-      auto dims = phi::vectorize(tensor.dims());
-      OperatorUpdateInputDesc(node_->ge_op_,
-                              maker.desc_name_.c_str(),
-                              dims.data(),
-                              dims.size(),
-                              ConvertToGEDtype(maker.dtype_),
-                              ConvertToGEFormat(maker.layout_));
-    }
-  }
-
-  void AddScalarInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
-    auto ge_tensor = TensorNode::malloc();
-    VLOG(4) << "ScalarInput dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(
-                            tensor, {}, tensor.dtype(), phi::DataLayout::ANY),
-                        0);
-    ge_tensor->PushOutput(node_, in_index_);
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
-    node_->PushInput(ge_tensor);
-    in_index_++;
-
-    if (maker.Valid()) {
-      auto dims = phi::vectorize(tensor.dims());
-      OperatorUpdateInputDesc(node_->ge_op_,
-                              maker.desc_name_.c_str(),
-                              dims.data(),
-                              dims.size(),
-                              ConvertToGEDtype(maker.dtype_),
-                              ConvertToGEFormat(maker.layout_));
-    }
-  }
-
-  void AddHostScalarInput(const phi::DenseTensor &tensor,
-                          TensorDescMaker maker) {
-    auto ge_tensor = TensorNode::malloc();
-    VLOG(4) << "HostScalarInput dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    ge_tensor->SetInput(GraphCommandHelper::ConvertHostTensorToConstOp(
-                            tensor, {}, tensor.dtype(), phi::DataLayout::ANY),
-                        0);
-    ge_tensor->PushOutput(node_, in_index_);
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
-    node_->PushInput(ge_tensor);
-    in_index_++;
-
-    if (maker.Valid()) {
-      auto dims = phi::vectorize(tensor.dims());
-      OperatorUpdateInputDesc(node_->ge_op_,
-                              maker.desc_name_.c_str(),
-                              dims.data(),
-                              dims.size(),
-                              ConvertToGEDtype(maker.dtype_),
-                              ConvertToGEFormat(maker.layout_));
-    }
-  }
-
-  void AddOutput(phi::DenseTensor &tensor, TensorDescMaker maker) {
-    auto ge_tensor = reinterpret_cast<TensorNode *>(tensor.data());
-    VLOG(4) << "Output dtype:" << maker.dtype_
-            << ", rank: " << maker.dims_.size() << ", dims: " << maker.dims_
-            << ", format: " << maker.layout_;
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    ge_tensor->SetInput(node_, out_index_++);
-
-    if (WithoutInput()) {
-      ge_tensor->SetTag(TensorNodeTag::IN);
-      ge_tensor->Cache();
-    } else {
-      ge_tensor->SetTag(TensorNodeTag::EDGE);
-    }
-
-    if (maker.Valid()) {
-      auto dims = phi::vectorize(maker.dims_);
-      OperatorUpdateOutputDesc(node_->ge_op_,
-                               maker.desc_name_.c_str(),
-                               dims.data(),
-                               dims.size(),
-                               ConvertToGEDtype(maker.dtype_),
-                               ConvertToGEFormat(maker.layout_));
-    }
-  }
-
-  void AddInput() override {
-    VLOG(4) << "Input dtype: None";
-    in_index_++;
-  }
-
-  void AddInput(const phi::DenseTensor &tensor) override {
-    AddInput(tensor, TensorDescMaker(""));
-  }
-
-  void AddInput(const phi::Scalar &scalar) override {
-    auto ge_tensor = TensorNode::malloc();
-
-    VLOG(4) << "ScalarInput dtype:" << scalar.dtype();
-    VLOG(4) << "ptr=" << ge_tensor;
-
-    ge_tensor->SetInput(GraphCommandHelper::ConvertScalarToConstOp(scalar), 0);
-    ge_tensor->PushOutput(node_, in_index_);
-    OperatorSetInput(
-        node_->ge_op_, in_index_, ge_tensor->in_->ge_op_, ge_tensor->in_index_);
-    node_->PushInput(ge_tensor);
-    in_index_++;
-  }
-
-  void AddHostInput(const phi::DenseTensor &tensor) override {
-    AddHostInput(tensor, TensorDescMaker(""));
-  }
-
-  void AddScalarInput(const phi::DenseTensor &tensor) override {
-    AddScalarInput(tensor, TensorDescMaker(""));
-  }
-
-  void AddHostScalarInput(const phi::DenseTensor &tensor) override {
-    AddHostScalarInput(tensor, TensorDescMaker(""));
-  }
-
-  void AddOutput() override {
-    VLOG(4) << "Output dtype: None";
-    out_index_++;
-  }
-
-  void AddOutput(phi::DenseTensor &tensor) override {
-    AddOutput(tensor, TensorDescMaker(""));
-  }
-
-  void AddAttribute(const std::string &name,
-                    const NpuAttribute &attr) override {
-    if (attr.type() == typeid(bool)) {
-      OperatorSetAttrBool(node_->ge_op_, name.c_str(), paddle::get<bool>(attr));
-    } else if (attr.type() == typeid(int)) {
-      OperatorSetAttrInt32(
-          node_->ge_op_, name.c_str(), paddle::get<int32_t>(attr));
-    } else if (attr.type() == typeid(int64_t)) {
-      OperatorSetAttrInt64(
-          node_->ge_op_, name.c_str(), paddle::get<int64_t>(attr));
-    } else if (attr.type() == typeid(float)) {
-      OperatorSetAttrFloat(
-          node_->ge_op_, name.c_str(), paddle::get<float>(attr));
-    } else if (attr.type() == typeid(std::vector<bool>)) {
-      auto a = paddle::get<std::vector<bool>>(attr);
-      std::vector<uint8_t> cast_a;
-      for (auto it : a) {
-        cast_a.push_back(static_cast<uint8_t>(it));
-      }
-      OperatorSetAttrBoolList(
-          node_->ge_op_, name.c_str(), cast_a.data(), cast_a.size());
-    } else if (attr.type() == typeid(std::vector<int32_t>)) {
-      auto a = paddle::get<std::vector<int32_t>>(attr);
-      OperatorSetAttrInt32List(node_->ge_op_, name.c_str(), a.data(), a.size());
-    } else if (attr.type() == typeid(std::vector<int64_t>)) {
-      auto a = paddle::get<std::vector<int64_t>>(attr);
-      OperatorSetAttrInt64List(node_->ge_op_, name.c_str(), a.data(), a.size());
-    } else if (attr.type() == typeid(std::vector<float>)) {
-      auto a = paddle::get<std::vector<float>>(attr);
-      OperatorSetAttrFloatList(node_->ge_op_, name.c_str(), a.data(), a.size());
-    } else if (attr.type() == typeid(std::string)) {
-      auto a = paddle::get<std::string>(attr);
-      OperatorSetAttrString(node_->ge_op_, name.c_str(), a.data());
-    } else if (attr.type() == typeid(std::vector<std::string>)) {
-      auto a = paddle::get<std::vector<std::string>>(attr);
-      std::vector<const char *> s;
-      for (auto &it : a) {
-        s.push_back(it.data());
-      }
-      OperatorSetAttrStringList(
-          node_->ge_op_, name.c_str(), s.data(), s.size());
-    } else if (attr.type() == typeid(phi::DenseTensor)) {
-      auto &a = paddle::get<phi::DenseTensor>(attr);
-      auto cast_a = GraphCommandHelper::ConvertDenseTensorToGETensor(a);
-      OperatorSetAttrTensor(node_->ge_op_, name.c_str(), cast_a);
-      DestroyTensor(cast_a);
-    } else {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Can not convert attribubte '%s' to convert to OperatorAttr", name));
-    }
-  }
-
-  void Run(const phi::CustomContext &dev_ctx) override {
-    VLOG(10) << "op_type: " << op_type_;
-  }
-
- private:
-  bool WithoutInput() const { return in_index_ == 0; }
-
- private:
-  std::shared_ptr<OpNode> node_{nullptr};
-  size_t in_index_{0};
-  size_t out_index_{0};
-
-  std::vector<std::tuple<size_t, phi::Scalar *>> scalar_inputs_;
-  std::string op_type_;
-};
 
 OpCommand::OpCommand(const std::string &op_type) {
   ACL_RUN(cmd_ = std::make_shared<AclCommand>(op_type));
@@ -1025,9 +173,13 @@ void OpCommandHelper::Assign(const phi::CustomContext &ctx,
                              const phi::DenseTensor &src,
                              phi::DenseTensor *dst) {
   ACL_RUN({ custom_kernel::TensorCopy(ctx, src, false, dst); });
+  GRAPH_RUN({ *dst = src; });
+}
+
+void OpCommandHelper::MarkAsParameter(phi::DenseTensor *dst) {
   GRAPH_RUN({
-    *reinterpret_cast<TensorNode *>(dst->data()) =
-        *reinterpret_cast<const TensorNode *>(src.data());
+    reinterpret_cast<TensorNode *>(dst->data())
+        ->SetTag(custom_kernel::experimental::TensorNodeTag::PARAMETER);
   });
 }
 
@@ -1046,6 +198,8 @@ C_Status graph_engine_prepare_graph(const C_Device device,
                                     const C_Stream stream,
                                     const C_Scope c_scope,
                                     const C_Graph c_graph) {
+  VLOG(10) << "graph_engine_prepare_graph: " << stream << ", " << c_scope
+           << ", " << c_graph;
   auto session = GetSession(c_scope);
   if (graph_cache.find(c_graph) == graph_cache.end()) {
     std::string graph_name = "graph_" + std::to_string(graph_cache.size());
@@ -1054,6 +208,83 @@ C_Status graph_engine_prepare_graph(const C_Device device,
     graph_cache_hit = false;
   } else {
     graph_cache_hit = true;
+  }
+}
+
+void global_variable_initializer(const C_Scope c_scope, const C_Graph c_graph) {
+  std::vector<C_GE_Operator *> input_ops, output_ops;
+  std::vector<size_t> output_ops_index;
+  auto session = GetSession(c_scope);
+
+  std::vector<custom_kernel::experimental::TensorNode *> parameters;
+  std::vector<std::shared_ptr<custom_kernel::experimental::OpNode>> variables;
+  std::vector<custom_kernel::experimental::TensorDescMaker> descs;
+
+  for (auto tensor : custom_kernel::experimental::TensorNode::storage()) {
+    if (tensor->IsParameter()) {
+      auto variable_node =
+          std::make_shared<custom_kernel::experimental::OpNode>("Variable");
+      auto assign_node =
+          std::make_shared<custom_kernel::experimental::OpNode>("Assign");
+
+      auto desc = tensor->Node()->OutputDescs()[tensor->NodeIndex()];
+      auto dims = phi::vectorize(desc.dims_);
+
+      PADDLE_ENFORCE(
+          desc.Valid(),
+          phi::errors::Unavailable("Parameter %s's desc must be valid.",
+                                   variable_node->Name()));
+
+      OperatorUpdateOutputDesc(
+          variable_node->GeOp(),
+          "y",
+          dims.data(),
+          dims.size(),
+          custom_kernel::experimental::ConvertToGEDtype(desc.dtype_),
+          custom_kernel::experimental::ConvertToGEFormat(desc.layout_));
+
+      OperatorSetInput(assign_node->GeOp(), 0, variable_node->GeOp(), 0);
+      OperatorUpdateInputDesc(
+          assign_node->GeOp(),
+          "ref",
+          dims.data(),
+          dims.size(),
+          custom_kernel::experimental::ConvertToGEDtype(desc.dtype_),
+          custom_kernel::experimental::ConvertToGEFormat(desc.layout_));
+
+      OperatorSetInput(assign_node->GeOp(), 1, tensor->NodeGeOp(), 0);
+      OperatorUpdateInputDesc(
+          assign_node->GeOp(),
+          "value",
+          dims.data(),
+          dims.size(),
+          custom_kernel::experimental::ConvertToGEDtype(desc.dtype_),
+          custom_kernel::experimental::ConvertToGEFormat(desc.layout_));
+
+      input_ops.push_back(tensor->NodeGeOp());
+      variables.push_back(variable_node);
+      parameters.push_back(tensor.get());
+      descs.push_back(desc);
+    }
+  }
+
+  if (input_ops.size()) {
+    GraphSetInput(
+        graph_cache[c_graph].graph, input_ops.data(), input_ops.size());
+    GraphSetOutput(graph_cache[c_graph].graph, nullptr, nullptr, 0);
+    SessionAddGraph(
+        session, graph_cache[c_graph].graph_id, graph_cache[c_graph].graph);
+    SessionRunGraph(
+        session, graph_cache[c_graph].graph_id, nullptr, 0, nullptr, 0);
+
+    std::string graph_name = "graph_" + std::to_string(graph_cache.size());
+    auto graph_id = graph_cache.size();
+    graph_cache[c_graph] = {graph_id, CreateGraph(c_scope, graph_name.c_str())};
+  }
+
+  for (auto i = 0; i < parameters.size(); ++i) {
+    variables[i]->AddOutput(parameters[i], descs[i]);
+    parameters[i]->ResetFromOther(variables[i], 0);
   }
 }
 
@@ -1087,53 +318,140 @@ C_Status graph_engine_execute_graph(const C_Device device,
 
       // NOTE(wangran16): run graph failed when the Data node not be linked to
       // other node.
-      if (graph_tensor->outs_.size()) {
-        auto node =
-            std::make_shared<custom_kernel::experimental::OpNode>("Data");
-        graph_tensor->SetInput(node, 0);
-        for (auto &t : graph_tensor->outs_) {
-          OperatorSetInput(t.second->ge_op_,
-                           t.first,
-                           graph_tensor->in_->ge_op_,
-                           graph_tensor->in_index_);
-        }
+      if (graph_tensor->Links().size()) {
         graph_tensor->SetTag(custom_kernel::experimental::TensorNodeTag::IN);
-        graph_tensor->Cache();
+        auto data_node =
+            std::make_shared<custom_kernel::experimental::OpNode>("Data");
+        data_node->AddOutput(
+            graph_tensor,
+            custom_kernel::experimental::TensorDescMaker("y", *dense_tensor)
+                .SetDataLayout(phi::DataLayout::ANY));
+        graph_tensor->FromOther(data_node, 0);
+        LOG(INFO) << "tensor: " << dense_tensor
+                  << " insert node: " << data_node->Name();
+      }
+    }
+
+    global_variable_initializer(c_scope, c_graph);
+
+    for (auto tensor : custom_kernel::experimental::TensorNode::storage()) {
+      LOG(INFO) << "tensor: " << tensor
+                << ", has node: " << !tensor->WithoutNode()
+                << ", tag: " << tensor->Tag() << ", node: " << tensor->Node()
+                << ", type: "
+                << (tensor->WithoutNode() ? "None" : tensor->Node()->Type())
+                << ", name: "
+                << (tensor->WithoutNode() ? "None" : tensor->Node()->Name())
+                << "\n\n";
+
+      if (!tensor->WithoutNode()) {
+        tensor->Node()->UpdateOutputDesc(tensor->NodeIndex());
+        auto desc = tensor->Node()->OutputDescs()[tensor->NodeIndex()];
+        if (desc.Valid()) {
+          LOG(INFO) << "\tupdate " << tensor->Node()->Name() << " output "
+                    << desc.desc_name_ << " dims=" << desc.dims_
+                    << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_
+                    << "\n\n";
+        }
+      }
+
+      for (auto link : tensor->Links()) {
+        LOG(INFO) << "\tlink " << tensor->Node()->Name() << " -> "
+                  << link.first->Name() << std::endl;
+        auto link_input = tensor->NodeGeOp();
+        auto link_input_index = tensor->NodeIndex();
+
+        link.first->UpdateInputDesc(link.second);
+        auto desc = link.first->InputDescs()[link.second];
+        if (desc.Valid()) {
+          LOG(INFO) << "\tupdate " << link.first->Name() << " input "
+                    << desc.desc_name_ << " dims=" << desc.dims_
+                    << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_
+                    << std::endl;
+          auto origin_dims = phi::make_ddim(tensor->NodeShape<int64_t>());
+          if (origin_dims != desc.dims_ && origin_dims.size()) {
+            LOG(INFO) << "\treshape " << origin_dims << " -> " << desc.dims_;
+            // x -> reshape -> op
+            auto shape =
+                std::make_shared<custom_kernel::experimental::OpNode>("Const");
+            auto shape_ge_tensor = custom_kernel::experimental::GETensorHelper::
+                ConvertVectorToGETensor<int32_t>(
+                    phi::vectorize<int32_t>(desc.dims_));
+            OperatorSetAttrTensor(shape->GeOp(), "value", shape_ge_tensor);
+
+            auto reshape =
+                std::make_shared<custom_kernel::experimental::OpNode>(
+                    "Reshape");
+            OperatorSetInput(
+                reshape->GeOp(), 0, tensor->NodeGeOp(), tensor->NodeIndex());
+            OperatorSetInput(reshape->GeOp(), 1, shape->GeOp(), 0);
+
+            link_input = reshape->GeOp();
+            link_input_index = 0;
+          }
+        }
+        OperatorSetInput(
+            link.first->GeOp(), link.second, link_input, link_input_index);
+        LOG(INFO) << std::endl;
+      }
+    }
+
+    for (auto i = 0; i < feed_tensor_num; ++i) {
+      auto dense_tensor =
+          reinterpret_cast<phi::DenseTensor *>(feed_tensor_name[i]);
+      auto graph_tensor =
+          reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+              dense_tensor->data());
+      if (!graph_tensor->WithoutNode() && graph_tensor->Links().size()) {
+        LOG(INFO) << "graph add input: " << graph_tensor << ", "
+                  << graph_tensor->Node()->Name() << ", "
+                  << graph_tensor->NodeGeOp();
+        input_ops.push_back(graph_tensor->NodeGeOp());
       }
     }
 
     for (auto graph_tensor :
          custom_kernel::experimental::TensorNode::storage()) {
-      if (graph_tensor->IsInput()) {
-        VLOG(10) << "add in_ops: " << graph_tensor->in_->ge_op_;
-        input_ops.push_back(graph_tensor->in_->ge_op_);
+      if (graph_tensor->IsInput() &&
+          std::find(input_ops.cbegin(),
+                    input_ops.cend(),
+                    graph_tensor->NodeGeOp()) == input_ops.cend()) {
+        LOG(INFO) << "graph add input: " << graph_tensor << ", "
+                  << graph_tensor->Node()->Name() << ", "
+                  << graph_tensor->NodeGeOp();
+        input_ops.push_back(graph_tensor->NodeGeOp());
       }
     }
 
     for (auto i = 0; i < fetch_tensor_num; ++i) {
       auto dense_tensor =
           reinterpret_cast<phi::DenseTensor *>(fetch_tensor_name[i]);
-      auto &graph_tensor =
-          *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+      auto graph_tensor =
+          reinterpret_cast<custom_kernel::experimental::TensorNode *>(
               dense_tensor->data());
-      VLOG(10) << "add out_ops: " << graph_tensor.in_->ge_op_;
-      output_ops.push_back(graph_tensor.in_->ge_op_);
-      output_ops_index.push_back(graph_tensor.in_index_);
+
+      LOG(INFO) << "graph add output: " << graph_tensor << ", "
+                << graph_tensor->Node()->Name() << ", "
+                << graph_tensor->NodeGeOp();
+      output_ops.push_back(graph_tensor->NodeGeOp());
+      output_ops_index.push_back(graph_tensor->NodeIndex());
     }
 
-    std::cerr << "input_ops size=" << input_ops.size() << std::endl;
-    std::cerr << "output_ops size=" << output_ops.size() << std::endl;
+    LOG(INFO) << "input_ops size=" << input_ops.size() << std::endl;
+    LOG(INFO) << "output_ops size=" << output_ops.size() << std::endl;
     if (input_ops.size() == 0) {
       return C_FAILED;
     }
     VLOG(10) << "Set inputs: ";
     for (auto in : input_ops) {
-      VLOG(10) << "in: " << in << ", type: " << OperatorGetOpType(in);
+      VLOG(10) << "in: " << in << ", type: " << OperatorGetOpType(in)
+               << ", name: " << OperatorGetOpName(in);
     }
     GraphSetInput(
         graph_cache[c_graph].graph, input_ops.data(), input_ops.size());
     for (auto in : output_ops) {
-      VLOG(10) << "out: " << in << ", type: " << OperatorGetOpType(in);
+      VLOG(10) << "out: " << in << ", type: " << OperatorGetOpType(in)
+               << ", name: " << OperatorGetOpName(in);
     }
     GraphSetOutput(graph_cache[c_graph].graph,
                    output_ops.data(),
@@ -1148,10 +466,10 @@ C_Status graph_engine_execute_graph(const C_Device device,
   for (auto i = 0; i < feed_tensor_num; ++i) {
     auto dense_tensor =
         reinterpret_cast<phi::DenseTensor *>(feed_tensor_name[i]);
-    auto &graph_tensor =
-        *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
+    auto graph_tensor =
+        reinterpret_cast<custom_kernel::experimental::TensorNode *>(
             dense_tensor->data());
-    if (graph_tensor.outs_.size()) {
+    if (!graph_tensor->WithoutNode() && graph_tensor->Links().size()) {
       auto dims = phi::vectorize(dense_tensor->dims());
       auto tensor = CreateTensor();
       PADDLE_ENFORCE(tensor, phi::errors::Fatal("CreateTensor failed."));
@@ -1168,11 +486,6 @@ C_Status graph_engine_execute_graph(const C_Device device,
   }
 
   for (auto i = 0; i < fetch_tensor_num; ++i) {
-    auto dense_tensor =
-        reinterpret_cast<phi::DenseTensor *>(fetch_tensor_name[i]);
-    auto &graph_tensor =
-        *reinterpret_cast<custom_kernel::experimental::TensorNode *>(
-            dense_tensor->data());
     auto tensor = CreateTensor();
     PADDLE_ENFORCE(tensor, phi::errors::Fatal("CreateTensor failed."));
     output_tensors.push_back(tensor);
@@ -1210,14 +523,7 @@ C_Status graph_engine_initialize(const C_Device device, const C_Stream stream) {
 }
 
 C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
-  for (auto graph_tensor : custom_kernel::experimental::TensorNode::storage()) {
-    // if (graph_tensor->is_feed_ == false) {
-    //   VLOG(10) << "graph_engine_finalize deallocate: ptr=" << graph_tensor;
-    //   delete graph_tensor;
-    // }
-    custom_kernel::experimental::TensorNode::storage().clear();
-  }
-
+  custom_kernel::experimental::TensorNode::storage().clear();
   graph_finalize(device, stream);
   return C_SUCCESS;
 }
@@ -1225,7 +531,7 @@ C_Status graph_engine_finalize(const C_Device device, const C_Stream stream) {
 C_Status graph_engine_allocator_allocate(const C_Device device,
                                          void **ptr,
                                          size_t byte_size) {
-  *ptr = new custom_kernel::experimental::TensorNode;
+  *ptr = custom_kernel::experimental::TensorNode::malloc();
   VLOG(10) << "graph_engine_allocator_allocate: ptr=" << *ptr
            << ", byte_size=" << byte_size;
   return C_SUCCESS;

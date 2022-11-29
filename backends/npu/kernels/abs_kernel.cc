@@ -22,7 +22,14 @@ void AbsKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  experimental::OpCommand("Abs").Input(x).Output(*out).Run(dev_ctx);
+  experimental::OpCommand("Abs")
+      .Input(x,
+             experimental::TensorDescMaker("x", x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y", *out).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -31,8 +38,17 @@ void AbsGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-  experimental::OpCommand("AbsGrad").Input(x).Input(dout).Output(*dx).Run(
-      dev_ctx);
+  experimental::OpCommand("AbsGrad")
+      .Input(x,
+             experimental::TensorDescMaker("x", x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Input(dout,
+             experimental::TensorDescMaker("dy", dout)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*dx,
+              experimental::TensorDescMaker("z", *dx).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

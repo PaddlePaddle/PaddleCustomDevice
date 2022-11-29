@@ -168,12 +168,30 @@ void OperatorUpdateOutputDesc(C_GE_Operator* self,
 
 char* OperatorGetOpType(C_GE_Operator* self);
 
+char* OperatorGetOpName(C_GE_Operator* self);
+
+int64_t OperatorGetOutputShapeNumByIndex(C_GE_Operator* self, int64_t index);
+
+int64_t OperatorGetOutputShapeItemByIndex(C_GE_Operator* self,
+                                          int64_t index,
+                                          int64_t i);
+
 C_Status graph_initialize(const C_Device device, const C_Stream stream);
 C_Status graph_finalize(const C_Device device, const C_Stream stream);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+template <typename T>
+std::vector<T> OperatorGetOutputShapeByIndex(C_GE_Operator* self,
+                                             size_t index) {
+  std::vector<T> ret;
+  for (auto i = 0; i < OperatorGetOutputShapeNumByIndex(self, index); ++i) {
+    ret.push_back(OperatorGetOutputShapeItemByIndex(self, index, i));
+  }
+  return ret;
+}
 
 template <typename T>
 inline void OperatorSetAttr(C_GE_Operator* self,

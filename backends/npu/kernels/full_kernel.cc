@@ -65,39 +65,50 @@ void FullLikeKernel(const Context& dev_ctx,
   out->Resize(x.dims());
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor value_tensor;
-  value_tensor.Resize({1});
-  dev_ctx.template HostAlloc<T>(&value_tensor);
-  *(value_tensor.data<T>()) = val.to<T>();
+  GRAPH_RUN({
+    phi::DenseTensor value_tensor;
+    value_tensor.Resize(x.dims());
+    dev_ctx.template HostAlloc<T>(&value_tensor);
+    auto ptr = value_tensor.data<T>();
+    for (auto i = 0; i < x.numel(); ++i) {
+      ptr[i] = val.to<T>();
+    }
 
-  if (out->numel() == 1) {
-    GRAPH_RUN({
-      experimental::OpCommand("Const")
-          .Output(*out,
-                  experimental::TensorDescMaker("y", *out).SetDataLayout(
-                      phi::DataLayout::ANY))
-          .Attr("value", value_tensor)
-          .Run(dev_ctx);
-    });
-    ACL_RUN({ TensorCopy(dev_ctx, value_tensor, false, out); });
-  } else {
-    // NOTE(wangran16): There is a bug when fill a tensor of dim [1]
-    phi::DenseTensor x_dims;
-    TensorFromVector(
-        dev_ctx, phi::vectorize(x.dims()), phi::CPUContext(), &x_dims);
-
-    experimental::OpCommand("Fill")
-        .Input(x_dims,
-               experimental::TensorDescMaker("dims", x_dims)
-                   .SetDataLayout(phi::DataLayout::ANY))
-        .ScalarInput(value_tensor,
-                     experimental::TensorDescMaker("value", value_tensor)
-                         .SetDataLayout(phi::DataLayout::ANY))
+    experimental::OpCommand("Const")
         .Output(*out,
                 experimental::TensorDescMaker("y", *out).SetDataLayout(
                     phi::DataLayout::ANY))
+        .Attr("value", value_tensor)
         .Run(dev_ctx);
-  }
+    return;
+  });
+  ACL_RUN({
+    phi::DenseTensor value_tensor;
+    value_tensor.Resize({1});
+    dev_ctx.template HostAlloc<T>(&value_tensor);
+    *(value_tensor.data<T>()) = val.to<T>();
+
+    if (out->numel() == 1) {
+      ACL_RUN({ TensorCopy(dev_ctx, value_tensor, false, out); });
+    } else {
+      // NOTE(wangran16): There is a bug when fill a tensor of dim [1]
+      phi::DenseTensor x_dims;
+      TensorFromVector(
+          dev_ctx, phi::vectorize(x.dims()), phi::CPUContext(), &x_dims);
+
+      experimental::OpCommand("Fill")
+          .Input(x_dims,
+                 experimental::TensorDescMaker("dims", x_dims)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .ScalarInput(value_tensor,
+                       experimental::TensorDescMaker("value", value_tensor)
+                           .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*out,
+                  experimental::TensorDescMaker("y", *out).SetDataLayout(
+                      phi::DataLayout::ANY))
+          .Run(dev_ctx);
+    }
+  });
 }
 
 template <typename T, typename Context>

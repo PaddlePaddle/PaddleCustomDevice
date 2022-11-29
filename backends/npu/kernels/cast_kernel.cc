@@ -46,8 +46,12 @@ void CastKernel(const Context& dev_ctx,
   }
 
   experimental::OpCommand("Cast")
-      .Input(x)
-      .Output(*out)
+      .Input(x,
+             experimental::TensorDescMaker("x", x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y", *out).SetDataLayout(
+                  phi::DataLayout::ANY))
       .Attr("dst_type", static_cast<int32_t>(ConvertToNpuDtype(dtype)))
       .Run(dev_ctx);
 }

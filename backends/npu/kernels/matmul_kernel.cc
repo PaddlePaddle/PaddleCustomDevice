@@ -23,8 +23,8 @@ static void BMMBroadcastTo(const Context& dev_ctx,
                            const std::vector<int>& x_broadcast_dims,
                            const phi::DenseTensor& x,
                            phi::DenseTensor* x_broadcast) {
-  VLOG(10) << "BMMBroadcastTo: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(x_broadcast_dims);
+  VLOG(10) << "BMMBroadcastTo: (" << phi::make_ddim(x_dims) << "), ("
+           << phi::make_ddim(x_broadcast_dims) << ")";
 
   x_broadcast->Resize(phi::make_ddim(x_broadcast_dims));
   dev_ctx.template Alloc<T>(x_broadcast);
@@ -56,8 +56,10 @@ static void BMMKernel(const Context& dev_ctx,
                       bool transpose_x,
                       bool transpose_y,
                       phi::DenseTensor* out) {
-  VLOG(10) << "BMMKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
+  VLOG(10) << "BMMKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   dev_ctx.template Alloc<T>(out);
 
@@ -129,15 +131,16 @@ static void MMKernel(const Context& dev_ctx,
                      bool transpose_x,
                      bool transpose_y,
                      phi::DenseTensor* out) {
-  VLOG(10) << "MMKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
-
-  dev_ctx.template Alloc<T>(out);
+  VLOG(10) << "MMKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
 
   if (x_ndim == 2 && y_ndim == 2) {
+    dev_ctx.template Alloc<T>(out);
     experimental::OpCommand("MatMul")
         .Input(x,
                experimental::TensorDescMaker("x1", x)
@@ -189,15 +192,17 @@ static void MVKernel(const Context& dev_ctx,
                      bool transpose_x,
                      bool transpose_y,
                      phi::DenseTensor* out) {
-  VLOG(10) << "MVKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
-
-  dev_ctx.template Alloc<T>(out);
+  VLOG(10) << "MVKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
 
   if (x_ndim == 1 && y_ndim == 1) {
+    dev_ctx.template Alloc<T>(out);
+
     experimental::OpCommand("Dot")
         .Input(x,
                experimental::TensorDescMaker("input_x", x)
@@ -292,8 +297,10 @@ void BMMGradKernel(const Context& dev_ctx,
                    bool transpose_y,
                    phi::DenseTensor* dx,
                    phi::DenseTensor* dy) {
-  VLOG(10) << "BMMGradKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
+  VLOG(10) << "BMMGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
@@ -471,8 +478,10 @@ void MMGradKernel(const Context& dev_ctx,
                   bool transpose_y,
                   phi::DenseTensor* dx,
                   phi::DenseTensor* dy) {
-  VLOG(10) << "MMGradKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
+  VLOG(10) << "MMGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
@@ -556,8 +565,10 @@ void MVGradKernel(const Context& dev_ctx,
                   bool transpose_y,
                   phi::DenseTensor* dx,
                   phi::DenseTensor* dy) {
-  VLOG(10) << "MVGradKernel: " << phi::make_ddim(x_dims) << ", "
-           << phi::make_ddim(y_dims) << ", " << phi::make_ddim(out_dims);
+  VLOG(10) << "MVGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
   int x_ndim = x_dims.size();
   int out_ndim = out_dims.size();

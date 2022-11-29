@@ -266,7 +266,7 @@ class TestPool2D_Op_Mixin(object):
     def setUp(self):
         paddle.enable_static()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace('npu', 0)
 
         self.op_type = "pool2d"
         self.init_data_type()

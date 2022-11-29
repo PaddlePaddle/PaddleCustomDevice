@@ -106,7 +106,6 @@ class TestMatMulV2Op(OpTest):
             numeric_place=paddle.CPUPlace())
 
 
-@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestMatMulOp2(TestMatMulV2Op):
     """
     case 2

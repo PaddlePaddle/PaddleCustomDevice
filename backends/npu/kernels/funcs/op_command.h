@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "acl/acl_op_compiler.h"
 #include "glog/logging.h"
 #include "graph/types.h"
 #include "kernels/funcs/npu_enforce.h"
@@ -21,8 +22,17 @@
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
+#include "pybind11/pybind11.h"
 #include "runtime/ge_c_api.h"
 #include "runtime/runtime.h"
+
+#define RELEASE_GIL_THEN_RUN(expr)        \
+  if (PyGILState_Check()) {               \
+    pybind11::gil_scoped_release release; \
+    expr;                                 \
+  } else {                                \
+    expr;                                 \
+  }
 
 USE_ENV_bool(use_graph_engine);
 
@@ -34,11 +44,42 @@ USE_ENV_bool(use_graph_engine);
   if (!FLAGS_use_graph_engine) { \
     expr;                        \
   }
+#define GRAPH_RUN_THEN_RETURN(expr) \
+  if (FLAGS_use_graph_engine) {     \
+    expr;                           \
+    return;                         \
+  }
+#define ACL_RUN_THEN_RETURN(expr) \
+  if (!FLAGS_use_graph_engine) {  \
+    expr;                         \
+    return;                       \
+  }
 
 namespace custom_kernel {
 namespace experimental {
 
+using NpuAttribute = paddle::variant<paddle::blank,
+                                     int,
+                                     float,
+                                     std::string,
+                                     std::vector<int>,
+                                     std::vector<float>,
+                                     std::vector<std::string>,
+                                     bool,
+                                     std::vector<bool>,
+                                     int64_t,
+                                     std::vector<int64_t>,
+                                     std::vector<double>,
+                                     std::vector<std::vector<int64_t>>,
+                                     phi::DenseTensor>;
+aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
+ge::DataType ConvertToGEDtype(paddle::experimental::DataType dtype);
+aclFormat ConvertToNpuFormat(phi::DataLayout layout);
+ge::Format ConvertToGEFormat(phi::DataLayout layout);
+
 struct TensorDescMaker {
+  TensorDescMaker() {}
+
   explicit TensorDescMaker(const std::string& desc_name)
       : desc_name_(desc_name) {}
 
@@ -97,100 +138,6 @@ struct TensorDescMaker {
   bool is_host_{false};
   bool is_const_{false};
   bool is_scalar_{false};
-};
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
-aclFormat ConvertToNpuFormat(phi::DataLayout layout);
-ge::DataType ConvertToGEDtype(paddle::experimental::DataType dtype);
-ge::Format ConvertToGEFormat(phi::DataLayout layout);
-
-using NpuAttribute = paddle::variant<paddle::blank,
-                                     int,
-                                     float,
-                                     std::string,
-                                     std::vector<int>,
-                                     std::vector<float>,
-                                     std::vector<std::string>,
-                                     bool,
-                                     std::vector<bool>,
-                                     int64_t,
-                                     std::vector<int64_t>,
-                                     std::vector<double>,
-                                     std::vector<std::vector<int64_t>>,
-                                     phi::DenseTensor>;
-
-struct TensorNode;
-
-struct OpNode {
-  explicit OpNode(const std::string& op_type) {
-    static std::unordered_map<std::string, size_t> op_count;
-    auto op_name_ = op_type + std::to_string(op_count[op_type]++);
-    ge_op_ = CreateOperator(op_name_.c_str(), op_type.c_str());
-  }
-
-  ~OpNode() {
-    if (ge_op_) {
-      DestroyOperator(ge_op_);
-      ge_op_ = nullptr;
-    }
-  }
-
-  void PushInput(TensorNode* in) { ins_.push_back(in); }
-
-  std::vector<TensorNode*> ins_;
-  C_GE_Operator* ge_op_{nullptr};
-};
-
-enum TensorNodeTag {
-  UNDEFINED = 0,
-  IN,
-  OUT,
-  EDGE,
-};
-
-struct TensorNode {
-  static std::vector<TensorNode*>& storage() {
-    static std::vector<TensorNode*> ins;
-    return ins;
-  }
-
-  static TensorNode* malloc() {
-    auto ptr = new TensorNode;
-    ptr->SetTag(TensorNodeTag::IN);
-    ptr->Cache();
-    VLOG(10) << "TensorNode::malloc " << ptr;
-    return ptr;
-  }
-
-  static void free(TensorNode* ptr) {
-    VLOG(10) << "TensorNode::free " << ptr;
-    delete ptr;
-  }
-
-  TensorNode() {}
-
-  bool WithoutNode() { return !in_; }
-
-  void SetInput(std::shared_ptr<OpNode> in, size_t index) {
-    in_ = in;
-    in_index_ = index;
-  }
-
-  void PushOutput(std::shared_ptr<OpNode> out, size_t index) {
-    outs_.push_back({index, out.get()});
-  }
-
-  void SetTag(TensorNodeTag tag) { tag_ = tag; }
-
-  void Cache() { storage().push_back(this); }
-
-  bool IsInput() { return tag_ == TensorNodeTag::IN; }
-
-  std::shared_ptr<OpNode> in_{nullptr};
-  size_t in_index_{0};
-  std::vector<std::pair<int, OpNode*>> outs_;
-
-  TensorNodeTag tag_{TensorNodeTag::UNDEFINED};
 };
 
 class NpuCommand {
@@ -370,23 +317,30 @@ struct OpCommandHelper {
           .Attr("keep_dims", false)
           .Run(dev_ctx);
 
-      GRAPH_RUN({
-        phi::DenseTensor out_dims_tensor;
-        experimental::OpCommandHelper::VectorToHostTensor(
-            dev_ctx, phi::vectorize<int>(dx->dims()), &out_dims_tensor);
-        experimental::OpCommand("Reshape")
-            .Input(*dx,
-                   experimental::TensorDescMaker("x", *dx)
-                       .SetDataLayout(phi::DataLayout::ANY)
-                       .SetDims(phi::make_ddim(dst_dims_vec)))
-            .Input(out_dims_tensor)
-            .Output(*dx,
-                    experimental::TensorDescMaker("y", *dx).SetDataLayout(
-                        phi::DataLayout::ANY))
-            .Run(dev_ctx);
-      });
+      // GRAPH_RUN({
+      //   phi::DenseTensor out_dims_tensor;
+      //   experimental::OpCommandHelper::VectorToHostTensor(
+      //       dev_ctx, phi::vectorize<int>(dx->dims()), &out_dims_tensor);
+      //   experimental::OpCommand("Reshape")
+      //       .Input(*dx,
+      //              experimental::TensorDescMaker("x", *dx)
+      //                  .SetDataLayout(phi::DataLayout::ANY)
+      //                  .SetDims(phi::make_ddim(dst_dims_vec)))
+      //       .Input(out_dims_tensor)
+      //       .Output(*dx,
+      //               experimental::TensorDescMaker("y", *dx).SetDataLayout(
+      //                   phi::DataLayout::ANY))
+      //       .Run(dev_ctx);
+      // });
     }
   }
+
+  static void Copy(const phi::CustomContext& dev_ctx,
+                   const phi::DenseTensor& src,
+                   bool blocking,
+                   phi::DenseTensor* dst);
+
+  static void MarkAsParameter(phi::DenseTensor* dst);
 };
 }  // namespace experimental
 }  // namespace custom_kernel

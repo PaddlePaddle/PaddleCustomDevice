@@ -221,6 +221,24 @@ char* OperatorGetOpType(C_GE_Operator* self) {
   return op_type;
 }
 
+char* OperatorGetOpName(C_GE_Operator* self) {
+  auto name = GE_OP(self)->GetName();
+  auto op_name = new char[name.size() + 1];
+  memcpy(op_name, name.data(), name.size());
+  op_name[name.size()] = '\0';
+  return op_name;
+}
+
+int64_t OperatorGetOutputShapeNumByIndex(C_GE_Operator* self, int64_t index) {
+  return GE_OP(self)->GetOutputDesc(index).GetShape().GetDimNum();
+}
+
+int64_t OperatorGetOutputShapeItemByIndex(C_GE_Operator* self,
+                                          int64_t index,
+                                          int64_t i) {
+  return GE_OP(self)->GetOutputDesc(index).GetShape().GetDim(i);
+}
+
 namespace c_api {
 
 bool ge_initialized = false;
@@ -275,7 +293,9 @@ void SessionRunGraph(C_GE_Session* session,
     std::cerr << "[ERROR] run graph " << graph_id << " failed\n";
   }
   if (outputs.size() != outs_count) {
-    std::cerr << "[ERROR] SessionRunGraph outputs size != outs_count\n";
+    std::cerr << "[ERROR] SessionRunGraph outputs size: " << outputs.size()
+              << " != "
+              << " the expected outs_count: " << outs_count << std::endl;
   }
   for (auto i = 0; i < outputs.size(); ++i) {
     *reinterpret_cast<ge::Tensor*>(outs[i]) = outputs[i];

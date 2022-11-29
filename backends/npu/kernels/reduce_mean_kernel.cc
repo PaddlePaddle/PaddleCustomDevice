@@ -34,11 +34,17 @@ void MeanRawKernel(const Context& dev_ctx,
                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  auto dims = axes.GetData();
+  auto axes_data = axes.GetData();
+
+  std::vector<int32_t> dims;
   if (reduce_all) {
-    dims.clear();
     for (auto i = 0; i < x.dims().size(); ++i) {
-      dims.push_back(static_cast<int>(i));
+      dims.push_back(i);
+    }
+  } else {
+    for (auto i = 0; i < axes_data.size(); ++i) {
+      dims.push_back(axes_data[i] < 0 ? x.dims().size() + axes_data[i]
+                                      : axes_data[i]);
     }
   }
 
@@ -46,9 +52,15 @@ void MeanRawKernel(const Context& dev_ctx,
   experimental::OpCommandHelper::VectorToHostTensor(
       dev_ctx, dims, &reduce_axes);
   experimental::OpCommand("ReduceMean")
-      .Input(x)
-      .Input(reduce_axes)
-      .Output(*out)
+      .Input(x,
+             experimental::TensorDescMaker("x", x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Input(reduce_axes,
+             experimental::TensorDescMaker("axes", reduce_axes)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y", *out).SetDataLayout(
+                  phi::DataLayout::ANY))
       .Attr("keep_dims", keep_dim)
       .Run(dev_ctx);
 }
@@ -103,14 +115,10 @@ void MeanGradKernel(const Context& dev_ctx,
                                         x.dtype(),
                                         &reciprocal_reduce_numel);
 
-  phi::DenseTensor reshape_out_grad;
-  experimental::OpCommandHelper::Reshape(
-      dev_ctx, out_grad, phi::vectorize<int>(out_grad_dims), &reshape_out_grad);
-
   dev_ctx.template Alloc<T>(x_grad);
   experimental::OpCommand("Mul")
-      .Input(reshape_out_grad,
-             experimental::TensorDescMaker("x1", reshape_out_grad)
+      .Input(out_grad,
+             experimental::TensorDescMaker("x1", out_grad)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(reciprocal_reduce_numel,
              experimental::TensorDescMaker("x2", reciprocal_reduce_numel)

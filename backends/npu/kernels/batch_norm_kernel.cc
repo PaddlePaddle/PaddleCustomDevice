@@ -83,9 +83,10 @@ void BatchNormKernel(const Context& dev_ctx,
         .Input(running_var,
                experimental::TensorDescMaker("variance", running_var)
                    .SetDataLayout(phi::DataLayout::ANY))
-        .Output(
-            *y,
-            experimental::TensorDescMaker("y", *y).SetDataLayout(data_layout))
+        .Output(*y,
+                experimental::TensorDescMaker("y", *y)
+                    .SetDataLayout(data_layout)
+                    .SetDims(phi::make_ddim(x_dims)))
         .Attr("epsilon", epsilon)
         .Run(dev_ctx);
   } else {
@@ -113,6 +114,15 @@ void BatchNormKernel(const Context& dev_ctx,
                     .SetDataLayout(phi::DataLayout::ANY))
         .Run(dev_ctx);
 
+    phi::DenseTensor tmp_mean, tmp_variance;
+    tmp_mean.Resize(mean_out->dims());
+    dev_ctx.template Alloc<T>(&tmp_mean);
+    tmp_variance.Resize(variance_out->dims());
+    dev_ctx.template Alloc<T>(&tmp_variance);
+    // NOTE(wangran16): ref input must be variable
+    experimental::OpCommandHelper::MarkAsParameter(mean_out);
+    experimental::OpCommandHelper::MarkAsParameter(variance_out);
+
     experimental::OpCommand("BNTrainingUpdate")
         .Input(x,
                experimental::TensorDescMaker("x", x)
@@ -139,11 +149,11 @@ void BatchNormKernel(const Context& dev_ctx,
         .Output(
             *y,
             experimental::TensorDescMaker("y", *y).SetDataLayout(data_layout))
-        .Output(*mean_out,
-                experimental::TensorDescMaker("mean", *mean_out)
+        .Output(tmp_mean,
+                experimental::TensorDescMaker("mean", tmp_mean)
                     .SetDataLayout(phi::DataLayout::ANY))
-        .Output(*variance_out,
-                experimental::TensorDescMaker("variance", *variance_out)
+        .Output(tmp_variance,
+                experimental::TensorDescMaker("variance", tmp_variance)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Output(*saved_mean,
                 experimental::TensorDescMaker("batch_mean", *saved_mean)

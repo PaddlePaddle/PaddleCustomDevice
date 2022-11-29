@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -23,6 +24,10 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                            const phi::DenseTensor& t_scale,
                            std::vector<phi::DenseTensor*> outs,
                            phi::DenseTensor* found_inf) {
+  GRAPH_RUN_THEN_RETURN({
+    LOG(INFO) << "Skip amp kernel in graph mode.";
+    return;
+  });
   auto stream = dev_ctx.stream();
   auto scale = &t_scale;
 

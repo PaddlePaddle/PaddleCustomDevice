@@ -129,8 +129,13 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
       dev_ctx, static_cast<int32_t>(softmax.dims()[1]), &depth);
   dev_ctx.template Alloc<T>(logits_grad);
 
+  auto label_dims = phi::vectorize(labels.dims());
+  if (label_dims.back() == 1) {
+    label_dims.erase(label_dims.cbegin() + label_dims.size() - 1);
+  }
+
   phi::DenseTensor labels_int32, one_hot, softmax_sub_one_hot;
-  labels_int32.Resize(labels.dims());
+  labels_int32.Resize(phi::make_ddim(label_dims));
   one_hot.Resize(softmax.dims());
   softmax_sub_one_hot.Resize(softmax.dims());
   dev_ctx.template Alloc<int32_t>(&labels_int32);
@@ -142,8 +147,10 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
              experimental::TensorDescMaker("x", labels)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(labels_int32,
-              experimental::TensorDescMaker("y", labels_int32)
-                  .SetDataLayout(phi::DataLayout::ANY))
+              experimental::TensorDescMaker("y", labels)
+                  .SetDataLayout(
+                      phi::DataLayout::ANY))  // the dimention of labels and
+                                              // labels_int32 maybe different.
       .Attr("dst_type",
             static_cast<int>(
                 experimental::ConvertToNpuDtype(labels_int32.dtype())))

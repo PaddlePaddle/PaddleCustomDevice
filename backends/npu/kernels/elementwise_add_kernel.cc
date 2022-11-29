@@ -70,7 +70,17 @@ void AddRawKernel(const Context& dev_ctx,
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
   if (direct_compute) {
-    experimental::OpCommand("Add").Input(x).Input(y).Output(*out).Run(dev_ctx);
+    experimental::OpCommand("Add")
+        .Input(x,
+               experimental::TensorDescMaker("x1", x).SetDataLayout(
+                   phi::DataLayout::ANY))
+        .Input(y,
+               experimental::TensorDescMaker("x2", y).SetDataLayout(
+                   phi::DataLayout::ANY))
+        .Output(*out,
+                experimental::TensorDescMaker("y", *out).SetDataLayout(
+                    phi::DataLayout::ANY))
+        .Run(dev_ctx);
   } else {
     phi::DenseTensor transformed_x, transformed_y;
     transformed_x.Resize(out->dims());
@@ -82,9 +92,15 @@ void AddRawKernel(const Context& dev_ctx,
     experimental::OpCommandHelper::BroadcastTo(
         dev_ctx, y, axis, &transformed_y);
     experimental::OpCommand("Add")
-        .Input(transformed_x)
-        .Input(transformed_y)
-        .Output(*out)
+        .Input(transformed_x,
+               experimental::TensorDescMaker("x1", transformed_x)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(transformed_y,
+               experimental::TensorDescMaker("x2", transformed_y)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*out,
+                experimental::TensorDescMaker("y", *out).SetDataLayout(
+                    phi::DataLayout::ANY))
         .Run(dev_ctx);
   }
 }

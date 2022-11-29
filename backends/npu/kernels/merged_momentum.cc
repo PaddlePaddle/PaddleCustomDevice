@@ -203,9 +203,15 @@ void MergedMomentumKernel(
     phi::DenseTensor tmp_out;
     tmp_out.Resize(param_out_data->dims());
     dev_ctx.template Alloc<T>(&tmp_out);
+    experimental::OpCommandHelper::MarkAsParameter(param_out_data);
+    experimental::OpCommandHelper::MarkAsParameter(velocity_out_data);
     experimental::OpCommand("ApplyMomentum")
-        .Input(*param_out_data)
-        .Input(*velocity_out_data)
+        .Input(*param_out_data,
+               experimental::TensorDescMaker("var", *param_out_data)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(*velocity_out_data,
+               experimental::TensorDescMaker("accum", *velocity_out_data)
+                   .SetDataLayout(phi::DataLayout::ANY))
         .Input(*lr_data)
         .Input(regularized_grad)
         .ScalarInput(host_mu)

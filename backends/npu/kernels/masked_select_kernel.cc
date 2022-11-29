@@ -66,6 +66,8 @@ void MaskedSelectKernel(const Context& dev_ctx,
     // wait for ReduceSum complete
     dev_ctx.Wait();
     TensorToVector(dev_ctx, out_size, dev_ctx, &out_size_vec);
+    // wait for copy complete
+    dev_ctx.Wait();
   }
 
   out->Resize(phi::make_ddim({out_size_vec[0]}));
@@ -202,7 +204,9 @@ PD_REGISTER_PLUGIN_KERNEL(masked_select,
                           phi::dtype::float16,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select_grad,
                           npu,
@@ -211,4 +215,6 @@ PD_REGISTER_PLUGIN_KERNEL(masked_select_grad,
                           phi::dtype::float16,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
+}

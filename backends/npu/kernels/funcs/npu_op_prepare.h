@@ -20,7 +20,7 @@ namespace custom_kernel {
 
 inline std::string DebugNPUTensor(const phi::DenseTensor& tensor) {
   std::stringstream ss;
-  if (tensor->initialized()) {
+  if (tensor.initialized()) {
     ss << ": format: " << tensor.layout() << ", dims: [" << tensor.dims() << "]"
        << ", capacity: <" << tensor.capacity() << ">, ";
   } else {
@@ -83,7 +83,7 @@ template <typename T, typename Context>
 inline void AllocNPUTensor(const Context& dev_ctx,
                            const aclFormat format,
                            phi::DenseTensor* tensor) {
-  auto requested_size = PrepareTensorWithFormat(*tensor, format);
+  auto requested_size = PrepareTensorWithFormat(tensor, format);
   dev_ctx.template Alloc<T>(
       tensor, requested_size * paddle::experimental::SizeOf(tensor->dtype()));
 }

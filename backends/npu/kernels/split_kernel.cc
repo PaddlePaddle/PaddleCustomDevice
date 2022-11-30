@@ -23,24 +23,22 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
+  int axis = axis_scalar.to<int>();
+  auto sections = num_or_sections.GetData();
   // need to infershape output
-  if (num_or_sections.FromTensor() || axis_scalar.FromTensor()) {
-    std::vector<phi::MetaTensor> out_metas;
-    out_metas.reserve(outs.size());
-    std::vector<phi::MetaTensor*> out_metas_ptr;
-    for (size_t i = 0; i < outs.size(); ++i) {
-      out_metas.push_back(outs[i]);
-      out_metas_ptr.push_back(&out_metas.back());
-    }
-
-    phi::SplitInferMeta(x, num_or_sections, axis_scalar, out_metas_ptr);
-
-    for (size_t i = 0; i < out_metas.size(); ++i) {
-      outs[i]->Resize(out_metas[i].dims());
-    }
+  std::vector<phi::MetaTensor> out_metas;
+  out_metas.reserve(outs.size());
+  std::vector<phi::MetaTensor*> out_metas_ptr;
+  for (size_t i = 0; i < outs.size(); ++i) {
+    out_metas.push_back(outs[i]);
+    out_metas_ptr.push_back(&out_metas.back());
   }
 
-  int axis = axis_scalar.to<int>();
+  phi::SplitInferMeta(x, num_or_sections, axis_scalar, out_metas_ptr);
+
+  for (size_t i = 0; i < out_metas.size(); ++i) {
+    outs[i]->Resize(out_metas[i].dims());
+  }
 
   std::vector<phi::DenseTensor> outputs;
   for (size_t j = 0; j < outs.size(); ++j) {
@@ -48,28 +46,15 @@ void SplitKernel(const Context& dev_ctx,
     outputs.push_back(*outs[j]);
   }
 
-  auto sections = num_or_sections.GetData();
-
-  if (sections.size() == 1) {
-    NpuOpRunner runner;
-    runner.SetType("Split")
-        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
-        .AddInput(x)
-        .AddOutputs(outputs)
-        .AddAttrs({{"num_split", static_cast<int32_t>(sections[0])}});
-    auto stream = dev_ctx.stream();
-    runner.Run(stream);
-  } else {
-    NpuOpRunner runner;
-    runner.SetType("SplitV")
-        .AddInput(x)
-        .AddInput(dev_ctx, std::move(sections))
-        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
-        .AddOutputs(outputs)
-        .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
-    auto stream = dev_ctx.stream();
-    runner.Run(stream);
-  }
+  NpuOpRunner runner;
+  runner.SetType("SplitV")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(sections))
+      .AddInput(dev_ctx, std::vector<int32_t>({axis}))
+      .AddOutputs(outputs)
+      .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>

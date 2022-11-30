@@ -12,30 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/npu_funcs.h"
-#include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SizeKernel(const Context& dev_ctx,
-                const phi::DenseTensor& input,
-                phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-
-  phi::DenseTensor cpu_tensor;
-  cpu_tensor.Resize(out->dims());
-  auto cpu_data = dev_ctx.template HostAlloc<int64_t>(&cpu_tensor);
-  cpu_data[0] = input.numel();
-  TensorCopy(dev_ctx, cpu_tensor, true, out);
+void NumelKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& input,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<int64_t>(out);
+  int64_t size = input.numel();
+  FillMLUTensorWithHostValue<int64_t>(dev_ctx, size, out);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(size,
-                          npu,
+PD_REGISTER_PLUGIN_KERNEL(numel,
+                          CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::SizeKernel,
+                          custom_kernel::NumelKernel,
                           int,
                           int64_t,
                           phi::dtype::float16,

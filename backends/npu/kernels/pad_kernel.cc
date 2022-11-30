@@ -48,7 +48,7 @@ template <typename T, typename Context>
 void PadGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    const std::vector<int>& paddings,
-                   float pad_value,
+                   const phi::Scalar& pad_value,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();

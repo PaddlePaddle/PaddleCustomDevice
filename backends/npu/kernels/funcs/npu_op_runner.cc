@@ -27,47 +27,6 @@ static aclTensorDesc *float_status_desc_;
 
 ENV_uint64(ascend_check_nan_inf, 0);
 
-static std::map<paddle::experimental::DataType, aclDataType>  //
-    DTYPE_2_ACL_DTYPE = {
-        {paddle::experimental::DataType::BOOL, ACL_BOOL},
-        {paddle::experimental::DataType::UINT8, ACL_UINT8},
-        {paddle::experimental::DataType::INT8, ACL_INT8},
-        {paddle::experimental::DataType::INT16, ACL_INT16},
-        {paddle::experimental::DataType::INT32, ACL_INT32},
-        {paddle::experimental::DataType::INT64, ACL_INT64},
-        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
-        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
-        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
-};
-
-static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
-    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
-    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
-    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
-    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
-    {phi::DataLayout::ANY, ACL_FORMAT_ND},
-};
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
-  auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DTYPE_2_ACL_DTYPE.end(),
-      phi::errors::NotFound(
-          "The data type %s can not convert to ACL data type.", dtype));
-  return iter->second;
-}
-
-aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
-  auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DATA_LAYOUT_2_ACL_FORMAT.end(),
-      phi::errors::NotFound(
-          "The data type (%s) can not convert to ACL data type.", layout));
-  return iter->second;
-}
-
 NpuOpRunner::NpuOpRunner() {}
 
 NpuOpRunner::NpuOpRunner(const std::string &op_type) : op_type_(op_type) {}
@@ -225,8 +184,9 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
 }
 
 template <typename T>
-void NpuOpRunner::AddConstantInputHelper(const phi::CustomContext &dev_ctx,
-                                         const std::vector<T> &values) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   const std::vector<T> &&values,
+                                   const bool is_const) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
@@ -237,39 +197,25 @@ void NpuOpRunner::AddConstantInputHelper(const phi::CustomContext &dev_ctx,
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
   // set tensor const
-  PADDLE_ENFORCE_NPU_SUCCESS(
-      aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int32_t> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
+  if (is_const) {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
+  }
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int64_t> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<float> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<double> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<bool> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
+#define ADD_INPUT_IMPL_GET_DTYPE(cpp_type)               \
+  template NpuOpRunner &NpuOpRunner::AddInput<cpp_type>( \
+      const phi::CustomContext &dev_ctx,                 \
+      const std::vector<cpp_type> &&values,              \
+      const bool is_const);
+ADD_INPUT_IMPL_GET_DTYPE(bool);
+ADD_INPUT_IMPL_GET_DTYPE(int32_t);
+ADD_INPUT_IMPL_GET_DTYPE(int64_t);
+ADD_INPUT_IMPL_GET_DTYPE(float);
+ADD_INPUT_IMPL_GET_DTYPE(double);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::float16);
+#undef ADD_INPUT_IMPL_GET_DTYPE
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
   // create aclTensorDesc

@@ -87,18 +87,8 @@ void TriuKernel(const Context& ctx,
                 phi::DenseTensor* out) {
   custom_kernel::TrilTriuKernel<T, Context>(ctx, x, diagonal, false, out);
 }
-
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(tril_triu,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::TrilTriuKernel,
-                          bool,
-                          float,
-                          int,
-                          phi::dtype::float16) {}
-                          
 PD_REGISTER_PLUGIN_KERNEL(tril,
                           npu,
                           ALL_LAYOUT,
@@ -109,10 +99,10 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu,
-        npu,
-        ALL_LAYOUT,
-        custom_kernel::TriuKernel,
-        bool,
-        float,
-        int,
-        phi::dtype::float16) {}
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::TriuKernel,
+                          bool,
+                          float,
+                          int,
+                          phi::dtype::float16) {}

@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -41,9 +42,7 @@ void BatchNormKernel(const Context& dev_ctx,
 
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
 
-  dev_ctx.template Alloc<T>(y);
-  phi::DenseTensor x_tensor(x), y_tensor(*y);
-  const auto& x_dims = x.dims();
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
 
   PADDLE_ENFORCE_EQ(
       x_dims.size() >= 2 && x_dims.size() <= 5,
@@ -52,37 +51,50 @@ void BatchNormKernel(const Context& dev_ctx,
           "The size of input's dimensions should be between 2 and 5"
           "But received: the size of input's dimensions is [%d]",
           x_dims.size()));
+
   if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
     data_layout = phi::DataLayout::kNCHW;
-  }
-  // transform 3d tensor to 4d tensor to satisfy the format
-  if (x.dims().size() == 3) {
-    auto x_shape_vec = phi::vectorize(x.dims());
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
     if (data_layout == phi::DataLayout::kNCHW) {
-      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+      x_dims.push_back(1);  // expand NCL -> NCL1
     } else {
-      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
     }
-    auto x_new_shape = phi::make_ddim(x_shape_vec);
-    x_tensor.Resize(x_new_shape);
-  }
-  if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta y_meta = {
-        y->dtype(), y->dims(), phi::DataLayout::kNHWC};
-    x_tensor.set_meta(x_meta);
-    y_tensor.set_meta(y_meta);
   }
 
-  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(y);
+
   if (!training) {
-    const auto& runner_infer =
-        NpuOpRunner("BNInfer",
-                    {x_tensor, scale, bias, running_mean, running_var},
-                    {y_tensor},
-                    {{"epsilon", epsilon}});
-    runner_infer.Run(stream);
+    experimental::OpCommand("BNInfer")
+        .Input(x,
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
+                   .SetDataLayout(data_layout)
+                   .SetDims(phi::make_ddim(x_dims)))
+        .Input(scale,
+               experimental::TensorDescMaker("scale")
+                   .FromTensor(scale)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(bias,
+               experimental::TensorDescMaker("offset")
+                   .FromTensor(bias)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(running_mean,
+               experimental::TensorDescMaker("mean")
+                   .FromTensor(running_mean)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(running_var,
+               experimental::TensorDescMaker("variance")
+                   .FromTensor(running_var)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*y,
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*y)
+                    .SetDataLayout(data_layout)
+                    .SetDims(phi::make_ddim(x_dims)))
+        .Attr("epsilon", epsilon)
+        .Run(dev_ctx);
   } else {
     dev_ctx.template Alloc<float>(mean_out);
     dev_ctx.template Alloc<float>(variance_out);
@@ -95,18 +107,83 @@ void BatchNormKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&sum);
     dev_ctx.template Alloc<float>(&square_sum);
 
-    const auto& runner_reduce = NpuOpRunner("BNTrainingReduce",
-                                            {x_tensor},
-                                            {sum, square_sum},
-                                            {{"epsilon", epsilon}});
-    runner_reduce.Run(stream);
+    experimental::OpCommand("BNTrainingReduce")
+        .Input(x,
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
+                   .SetDataLayout(data_layout)
+                   .SetDims(phi::make_ddim(x_dims)))
+        .Output(
+            sum,
+            experimental::TensorDescMaker("sum").FromTensor(sum).SetDataLayout(
+                phi::DataLayout::ANY))
+        .Output(square_sum,
+                experimental::TensorDescMaker("square_sum")
+                    .FromTensor(square_sum)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Run(dev_ctx);
 
-    const auto& runner_update = NpuOpRunner(
-        "BNTrainingUpdate",
-        {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
-        {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
-        {{"factor", momentum}, {"epsilon", epsilon}});
-    runner_update.Run(stream);
+    phi::DenseTensor tmp_mean, tmp_variance;
+    tmp_mean.Resize(mean_out->dims());
+    dev_ctx.template Alloc<T>(&tmp_mean);
+    tmp_variance.Resize(variance_out->dims());
+    dev_ctx.template Alloc<T>(&tmp_variance);
+    // NOTE(wangran16): ref input must be variable
+    experimental::OpCommandHelper::MarkAsParameter(mean_out);
+    experimental::OpCommandHelper::MarkAsParameter(variance_out);
+
+    experimental::OpCommand("BNTrainingUpdate")
+        .Input(x,
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
+                   .SetDataLayout(data_layout)
+                   .SetDims(phi::make_ddim(x_dims)))
+        .Input(
+            sum,
+            experimental::TensorDescMaker("sum").FromTensor(sum).SetDataLayout(
+                phi::DataLayout::ANY))
+        .Input(square_sum,
+               experimental::TensorDescMaker("square_sum")
+                   .FromTensor(square_sum)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(scale,
+               experimental::TensorDescMaker("scale")
+                   .FromTensor(scale)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(bias,
+               experimental::TensorDescMaker("offset")
+                   .FromTensor(bias)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(running_mean,
+               experimental::TensorDescMaker("mean")
+                   .FromTensor(running_mean)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(running_var,
+               experimental::TensorDescMaker("variance")
+                   .FromTensor(running_var)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*y,
+                experimental::TensorDescMaker("y").FromTensor(*y).SetDataLayout(
+                    data_layout))
+        .Output(tmp_mean,
+                experimental::TensorDescMaker("mean")
+                    .FromTensor(tmp_mean)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Output(tmp_variance,
+                experimental::TensorDescMaker("variance")
+                    .FromTensor(tmp_variance)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*saved_mean,
+                experimental::TensorDescMaker("batch_mean")
+                    .FromTensor(*saved_mean)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*saved_variance,
+                experimental::TensorDescMaker("batch_variance")
+                    .FromTensor(*saved_variance)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Attr("epsilon", epsilon)
+        .Attr("factor", momentum)
+        .Run(dev_ctx);
   }
 }
 
@@ -135,28 +212,6 @@ void BatchNormGradKernel(
 
   use_global_stats = is_test || use_global_stats;
 
-  phi::DenseTensor x_tensor(x), dy_tensor(d_y);
-
-  if (x.dims().size() == 3) {
-    auto x_shape_vec = phi::vectorize(x.dims());
-    if (data_layout == phi::DataLayout::kNCHW) {
-      x_shape_vec.push_back(1);  // expand NCL -> NCL1
-    } else {
-      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
-    }
-    auto x_new_shape = phi::make_ddim(x_shape_vec);
-    x_tensor.Resize(x_new_shape);
-    dy_tensor.Resize(x_new_shape);
-  }
-  if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta dy_meta = {
-        d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
-    x_tensor.set_meta(x_meta);
-    dy_tensor.set_meta(dy_meta);
-  }
-
   phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
   scale_grad_tmp.Resize(scale.dims());
   bias_grad_tmp.Resize(bias.dims());
@@ -170,7 +225,27 @@ void BatchNormGradKernel(
     d_bias = &bias_grad_tmp;
   }
 
-  auto stream = dev_ctx.stream();
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
+    if (data_layout == phi::DataLayout::kNCHW) {
+      x_dims.push_back(1);  // expand NCL -> NCL1
+    } else {
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
+    }
+  }
+
   if (d_scale && d_bias) {
     dev_ctx.template Alloc<float>(d_scale);
     dev_ctx.template Alloc<float>(d_bias);
@@ -178,49 +253,128 @@ void BatchNormGradKernel(
     if (use_global_stats) {
       const auto* running_mean = mean.get_ptr();
       const auto* running_variance = variance.get_ptr();
-      const auto& runner_update =
-          NpuOpRunner("BNTrainingUpdateGrad",
-                      {dy_tensor, x_tensor, *running_mean, *running_variance},
-                      {*d_scale, *d_bias},
-                      {{"epsilon", epsilon}});
-      runner_update.Run(stream);
+
+      experimental::OpCommand("BNTrainingUpdateGrad")
+          .Input(d_y,
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(x,
+                 experimental::TensorDescMaker("x")
+                     .FromTensor(x)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(*running_mean,
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(*running_mean)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(*running_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(*running_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*d_scale,
+                  experimental::TensorDescMaker("diff_scale")
+                      .FromTensor(*d_scale)
+                      .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*d_bias,
+                  experimental::TensorDescMaker("diff_offset")
+                      .FromTensor(*d_bias)
+                      .SetDataLayout(phi::DataLayout::ANY))
+          .Attr("epsilon", epsilon)
+          .Run(dev_ctx);
     } else {
-      const auto& runner_update =
-          NpuOpRunner("BNTrainingUpdateGrad",
-                      {dy_tensor, x_tensor, saved_mean, saved_inv_variance},
-                      {*d_scale, *d_bias},
-                      {{"epsilon", epsilon}});
-      runner_update.Run(stream);
+      experimental::OpCommand("BNTrainingUpdateGrad")
+          .Input(d_y,
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(x,
+                 experimental::TensorDescMaker("x")
+                     .FromTensor(x)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(saved_mean,
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(saved_mean)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(saved_inv_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(saved_inv_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*d_scale,
+                  experimental::TensorDescMaker("diff_scale")
+                      .FromTensor(*d_scale)
+                      .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*d_bias,
+                  experimental::TensorDescMaker("diff_offset")
+                      .FromTensor(*d_bias)
+                      .SetDataLayout(phi::DataLayout::ANY))
+          .Attr("epsilon", epsilon)
+          .Run(dev_ctx);
     }
   }
   if (d_x) {
     dev_ctx.template Alloc<T>(d_x);
-    phi::DenseTensor dx_tensor(*d_x);
-    if (data_layout == phi::DataLayout::kNHWC) {
-      phi::DenseTensorMeta dx_meta = {
-          d_x->dtype(), d_x->dims(), phi::DataLayout::kNHWC};
-      dx_tensor.set_meta(dx_meta);
-    }
     if (use_global_stats) {
       const auto* running_variance = variance.get_ptr();
-      const auto& runner_infer =
-          NpuOpRunner("BNInferGrad",
-                      {dy_tensor, scale, *running_variance},
-                      {dx_tensor},
-                      {{"epsilon", epsilon}});
-      runner_infer.Run(stream);
+      experimental::OpCommand("BNInferGrad")
+          .Input(d_y,
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
+                     .SetDataLayout(data_layout)
+                     .SetDims(phi::make_ddim(x_dims)))
+          .Input(scale,
+                 experimental::TensorDescMaker("scale")
+                     .FromTensor(scale)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(*running_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(*running_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Output(*d_x,
+                  experimental::TensorDescMaker("x_backprop")
+                      .FromTensor(*d_x)
+                      .SetDataLayout(phi::DataLayout::ANY)
+                      .SetDims(phi::make_ddim(x_dims)))
+          .Attr("epsilon", epsilon)
+          .Run(dev_ctx);
     } else {
-      const auto& runner_reduce = NpuOpRunner("BNTrainingReduceGrad",
-                                              {dy_tensor,
-                                               x_tensor,
-                                               *d_scale,
-                                               *d_bias,
-                                               scale,
-                                               saved_mean,
-                                               saved_inv_variance},
-                                              {dx_tensor},
-                                              {{"epsilon", epsilon}});
-      runner_reduce.Run(stream);
+      experimental::OpCommand("BNTrainingReduceGrad")
+          .Input(d_y,
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
+                     .SetDataLayout(data_layout))
+          .Input(x,
+                 experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                     data_layout))
+          .Input(*d_scale,
+                 experimental::TensorDescMaker("diff_scale")
+                     .FromTensor(*d_scale)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(*d_bias,
+                 experimental::TensorDescMaker("diff_offset")
+                     .FromTensor(*d_bias)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(scale,
+                 experimental::TensorDescMaker("scale")
+                     .FromTensor(scale)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(saved_mean,
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(saved_mean)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(saved_inv_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(saved_inv_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Output(
+              *d_x,
+              experimental::TensorDescMaker("y").FromTensor(*d_x).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Attr("epsilon", epsilon)
+          .Run(dev_ctx);
     }
   }
 }
@@ -240,12 +394,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
                           phi::DenseTensor* variance_out) {
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
 
-  const auto& x_dims = x.dims();
-
-  dev_ctx.template Alloc<T>(y);
-
-  phi::DenseTensor x_tensor(x);
-  phi::DenseTensor y_tensor(*y);
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
 
   PADDLE_ENFORCE_EQ(
       x_dims.size() >= 2 && x_dims.size() <= 5,
@@ -257,33 +406,45 @@ void BatchNormInferKernel(const Context& dev_ctx,
 
   if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
     data_layout = phi::DataLayout::kNCHW;
-  }
-  if (x_dims.size() == 3) {
-    auto x_shape_vec = phi::vectorize(x_dims);
+  } else if (x_dims.size() ==
+             3) {  // transform 3d tensor to 4d tensor to satisfy the format
     if (data_layout == phi::DataLayout::kNCHW) {
-      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+      x_dims.push_back(1);  // expand NCL -> NCL1
     } else {
-      x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
+      x_dims.insert(x_dims.begin() + 2, 1);  // expand NLC -> NL1C
     }
-    auto x_new_shape = phi::make_ddim(x_shape_vec);
-    x_tensor.Resize(x_new_shape);
-  }
-  if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta y_meta = {
-        y->dtype(), y->dims(), phi::DataLayout::kNHWC};
-    x_tensor.set_meta(x_meta);
-    y_tensor.set_meta(y_meta);
   }
 
-  auto stream = dev_ctx.stream();
-  const auto& runner_infer =
-      NpuOpRunner("BNInfer",
-                  {x_tensor, scale, bias, mean, variance},
-                  {y_tensor},
-                  {{"epsilon", epsilon}});
-  runner_infer.Run(stream);
+  dev_ctx.template Alloc<T>(y);
+  experimental::OpCommand("BNInfer")
+      .Input(x,
+             experimental::TensorDescMaker("x")
+                 .FromTensor(x)
+                 .SetDataLayout(data_layout)
+                 .SetDims(phi::make_ddim(x_dims)))
+      .Input(scale,
+             experimental::TensorDescMaker("scale")
+                 .FromTensor(scale)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(bias,
+             experimental::TensorDescMaker("offset")
+                 .FromTensor(bias)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          mean,
+          experimental::TensorDescMaker("mean").FromTensor(mean).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Input(variance,
+             experimental::TensorDescMaker("variance")
+                 .FromTensor(variance)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*y,
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*y)
+                  .SetDataLayout(data_layout)
+                  .SetDims(phi::make_ddim(x_dims)))
+      .Attr("epsilon", epsilon)
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

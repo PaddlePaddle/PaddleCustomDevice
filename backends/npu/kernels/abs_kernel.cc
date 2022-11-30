@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/npu_funcs.h"
-#include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -22,10 +22,14 @@ void AbsKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Abs", {x}, {*out}, {});
-  runner.Run(stream);
+  experimental::OpCommand("Abs")
+      .Input(x,
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -34,16 +38,33 @@ void AbsGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
-  runner.Run(stream);
+  experimental::OpCommand("AbsGrad")
+      .Input(x,
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Input(dout,
+             experimental::TensorDescMaker("dy").FromTensor(dout).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*dx,
+              experimental::TensorDescMaker("z").FromTensor(*dx).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    abs, npu, ALL_LAYOUT, custom_kernel::AbsKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(abs,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::AbsKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    abs_grad, npu, ALL_LAYOUT, custom_kernel::AbsGradKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(abs_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::AbsGradKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}

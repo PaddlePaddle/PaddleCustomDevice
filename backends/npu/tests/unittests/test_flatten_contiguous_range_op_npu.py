@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -33,7 +34,7 @@ class TestFlattenOp(OpTest):
 
         self.start_axis = 0
         self.stop_axis = -1
-        self.dtype = np.float64
+        self.dtype = np.float32
         self.init_test_case()
         self.inputs = {"X": np.random.random(self.in_shape).astype(self.dtype)}
         self.init_attrs()
@@ -235,6 +236,7 @@ class TestFlattenOp_int64(TestFlattenOp):
         pass
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlatten2OpError(unittest.TestCase):
     def test_errors(self):
         image_shape = (2, 3, 4, 4)
@@ -280,6 +282,7 @@ class TestFlatten2OpError(unittest.TestCase):
         self.assertRaises(ValueError, test_InputError)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestStaticFlattenPythonAPI(unittest.TestCase):
     def execute_api(self, x, start_axis=0, stop_axis=-1):
         return paddle.flatten(x, start_axis, stop_axis)
@@ -299,11 +302,13 @@ class TestStaticFlattenPythonAPI(unittest.TestCase):
         self.assertTrue((2, 3, 16) == fetch_out[0].shape)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestStaticInplaceFlattenPythonAPI(TestStaticFlattenPythonAPI):
     def execute_api(self, x, start_axis=0, stop_axis=-1):
         return x.flatten_(start_axis, stop_axis)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestFlattenPython(unittest.TestCase):
     def test_python_api(self):
         image_shape = (2, 3, 4, 4)

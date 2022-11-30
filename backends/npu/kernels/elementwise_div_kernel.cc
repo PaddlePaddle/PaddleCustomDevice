@@ -56,9 +56,8 @@ void DivideGradKernel(const Context& dev_ctx,
     phi::DenseTensor tensor_one;
     phi::DenseTensorMeta tensor_one_meta = {y.dtype(), phi::make_ddim({1})};
     tensor_one.set_meta(tensor_one_meta);
-    dev_ctx.template Alloc<float>(&tensor_one);
-    FillNpuTensorWithConstant<float>(
-        &tensor_one, dev_ctx, static_cast<float>(1.0));
+    dev_ctx.template Alloc<T>(&tensor_one);
+    FillNpuTensorWithConstant<T>(&tensor_one, dev_ctx, static_cast<T>(1.0));
 
     // Use `Div` CANN OP to achieve `1/y` instead of `Power` CANN OP.
     // Because `Power` will cause precision overflow, that is, `float_status`

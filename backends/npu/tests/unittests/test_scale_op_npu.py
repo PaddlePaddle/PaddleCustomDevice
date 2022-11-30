@@ -63,11 +63,6 @@ class TestScaleInt(TestScale):
         self.dtype = np.int32
 
 
-class TestScaleInt64(TestScale):
-    def init_dtype(self):
-        self.dtype = np.int64
-
-
 class TestBiasAfterScale(OpTest):
     def setUp(self):
         self.set_npu()

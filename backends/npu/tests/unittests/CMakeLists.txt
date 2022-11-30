@@ -47,3 +47,30 @@ set_tests_properties(test_tanh_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALON
 set_tests_properties(test_relu6_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_relu_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_with_cross_entropy_op_npu PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+
+set(GRAPH_ENGINE_TEST 
+test_abs_op_npu.py
+test_fill_any_like_op_npu.py
+test_fill_constant_op_npu.py
+test_flatten_contiguous_range_op_npu.py
+test_cast_op_npu.py
+test_conv2d_op_npu.py
+test_pool2d_op_npu.py
+test_relu_op_npu.py
+test_scale_op_npu.py
+test_top_k_v2_op_npu.py
+test_uniform_random_op_npu.py
+test_gaussian_random_op_npu.py
+test_elementwise_add_op_npu.py
+test_elementwise_mul_op_npu.py
+test_reduce_mean_op_npu.py
+test_batch_norm_op_npu.py
+test_softmax_with_cross_entropy_op_npu.py
+test_accuracy_op_npu.py
+test_matmulv2_op_npu.py)
+
+foreach(TEST_OP ${GRAPH_ENGINE_TEST})
+    string(REPLACE ".py" "_graph_engine" TEST_NAME ${TEST_OP})
+    string(REPLACE ".py" "" TEST_OP ${TEST_OP})
+    py_test_modules(${TEST_NAME} MODULES ${TEST_OP} ENVS FLAGS_use_graph_engine=1)
+endforeach(TEST_OP)

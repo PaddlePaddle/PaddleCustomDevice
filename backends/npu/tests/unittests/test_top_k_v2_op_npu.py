@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import unittest
 import numpy as np
 import sys
@@ -204,6 +205,7 @@ class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
         self.input_data = np.random.rand(10, 20).astype(self.dtype)
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestTopKAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True

@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -26,20 +27,18 @@ void SGDKernel(const Context& dev_ctx,
                bool multi_precision,
                phi::DenseTensor* param_out,
                phi::DenseTensor* master_param_out) {
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-  dev_ctx.template Alloc<T>(param_out);
-
-  const auto& runner = NpuOpRunner("ApplyGradientDescent",
-                                   {param_var, learning_rate, grad_var},
-                                   {*param_out},
-                                   {});
-  runner.Run(stream);
-
-  // NOTE(zhiqiu): ApplyGradientDescent updates params inplace, so
-  // if param and param_out is not same, we need to do copy.
-  if (param_out->data<T>() != param_var.data<T>()) {
-    TensorCopy(dev_ctx, param_var, false, param_out);
+  if (param_out != &param_var) {
+    PADDLE_THROW(phi::errors::Unavailable(
+        "SGDKernel is an inplace op, but the param_out "
+        "and param_var is different."));
   }
+
+  experimental::OpCommandHelper::MarkAsParameter(param_out);
+  experimental::OpCommand("ApplyGradientDescent")
+      .Input(param_var)
+      .Input(learning_rate)
+      .Input(grad_var)
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

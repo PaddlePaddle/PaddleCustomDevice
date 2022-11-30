@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include(paddle)
 include(generic)
+include(third_party)
 include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -38,19 +39,25 @@ if (WITH_KERNELS)
 endif()
 
 # C++ infer lib need to compatiable with CXX11
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 if (ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
 
+# NOTE(wangran16): we need to avoid the ge required macro '_GLIBCXX_USE_CXX11_ABI' affecting the plugin compilation
+add_library(ge_c_api STATIC runtime/ge_c_api.cc)
+target_link_libraries(ge_c_api PRIVATE graph ge_runner)
+target_compile_options(ge_c_api PRIVATE -fPIC)
+target_compile_definitions(ge_c_api PRIVATE -D_GLIBCXX_USE_CXX11_ABI=0)
+
 # build shared library
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
+target_compile_definitions(${CUSTOM_NPU_NAME} PRIVATE -D_GLIBCXX_USE_CXX11_ABI=1)
+
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib} ${ascend_hccl_lib})
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib} ge_c_api)
 
 # link paddle shared library
-include(third_party)
 add_dependencies(${CUSTOM_NPU_NAME} third_party)
 if (ON_INFER)
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE paddle_inference)

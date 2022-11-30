@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 #include "paddle/phi/common/int_array.h"
 #include "paddle/phi/core/meta_tensor.h"
 
@@ -166,15 +167,19 @@ void ReshapeWithXShapeKernel(const Context& dev_ctx,
                              phi::DenseTensor* xshape) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
+  dev_ctx.Alloc(out, x.dtype());
   if (x.initialized() && x.IsSharedWith(*out)) {
-    dev_ctx.Alloc(out, x.dtype());
     return;
   }
-  dev_ctx.Alloc(out, x.dtype());
 
-  auto dims = out->dims();
-  TensorCopy(dev_ctx, x, false, out);
-  out->Resize(dims);
+  phi::DenseTensor out_dims;
+  custom_kernel::experimental::OpCommandHelper::VectorToHostTensor(
+      dev_ctx, phi::vectorize<int32_t>(out->dims()), &out_dims);
+  custom_kernel::experimental::OpCommand("Reshape")
+      .Input(x)
+      .Input(out_dims)
+      .Output(*out)
+      .Run(dev_ctx);
   // out->ResetLoD(x.lod());
 }
 
@@ -183,9 +188,15 @@ void ReshapeGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& out_grad,
                        phi::DenseTensor* x_grad) {
   dev_ctx.Alloc(x_grad, out_grad.dtype());
-  auto x_dims = x_grad->dims();
-  TensorCopy(dev_ctx, out_grad, false, x_grad);
-  x_grad->Resize(x_dims);
+
+  phi::DenseTensor x_grad_dims;
+  custom_kernel::experimental::OpCommandHelper::VectorToHostTensor(
+      dev_ctx, phi::vectorize<int32_t>(x_grad->dims()), &x_grad_dims);
+  custom_kernel::experimental::OpCommand("Reshape")
+      .Input(out_grad)
+      .Input(x_grad_dims)
+      .Output(*x_grad)
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

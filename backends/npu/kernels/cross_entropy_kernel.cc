@@ -14,6 +14,7 @@ limitations under the License. */
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -68,34 +69,50 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(loss);
   dev_ctx.template Alloc<T>(softmax);
 
-  phi::DenseTensor logits_2d(logits), labels_1d(labels), loss_1d(*loss),
-      softmax_2d(*softmax);
-  logits_2d.Resize({n, d});
-  labels_1d.Resize({n});
-  loss_1d.Resize({n});
-  softmax_2d.Resize({n, d});
-
-  auto stream = dev_ctx.stream();
-
   std::vector<int> axes;
   for (auto i = use_axis; i < logits.dims().size(); ++i) {
     axes.push_back(i);
   }
-  const auto& runner_softmax =
-      NpuOpRunner("SoftmaxV2", {logits}, {*softmax}, {{"axes", axes}});
-  runner_softmax.Run(stream);
 
-  // SparseSoftmaxCrossEntropyWithLogits
+  experimental::OpCommand("SoftmaxV2")
+      .Input(
+          logits,
+          experimental::TensorDescMaker("x").FromTensor(logits).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(
+          *softmax,
+          experimental::TensorDescMaker("y").FromTensor(*softmax).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Attr("axes", axes)
+      .Run(dev_ctx);
+
   phi::DenseTensor backprop_2d;
   phi::DenseTensorMeta meta = {logits.dtype(), {n, d}};
   backprop_2d.set_meta(meta);
   dev_ctx.template Alloc<T>(&backprop_2d);
 
-  const auto& runner_s = NpuOpRunner("SparseSoftmaxCrossEntropyWithLogits",
-                                     {logits_2d, labels_1d},
-                                     {loss_1d, backprop_2d},
-                                     {});
-  runner_s.Run(stream);
+  experimental::OpCommand("SparseSoftmaxCrossEntropyWithLogits")
+      .Input(logits,
+             experimental::TensorDescMaker("features")
+                 .FromTensor(logits)
+                 .SetDataLayout(phi::DataLayout::ANY)
+                 .SetDims(phi::make_ddim(std::vector<int>({n, d}))))
+      .Input(labels,
+             experimental::TensorDescMaker("labels")
+                 .FromTensor(labels)
+                 .SetDataLayout(phi::DataLayout::ANY)
+                 .SetDims(phi::make_ddim(std::vector<int>({n}))))
+      .Output(*loss,
+              experimental::TensorDescMaker("loss")
+                  .FromTensor(*loss)
+                  .SetDataLayout(phi::DataLayout::ANY)
+                  .SetDims(phi::make_ddim(std::vector<int>({n}))))
+      .Output(backprop_2d,
+              experimental::TensorDescMaker("backprop")
+                  .FromTensor(backprop_2d)
+                  .SetDataLayout(phi::DataLayout::ANY)
+                  .SetDims(phi::make_ddim(std::vector<int>({n, d}))))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
@@ -109,85 +126,96 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
                                        int ignore_index,
                                        int axis,
                                        phi::DenseTensor* logits_grad) {
-  int cls_num = softmax.dims()[softmax.dims().size() - 1];
-  auto stream = dev_ctx.stream();
-
-  // cast label from int64/int32 to int32 for OneHotD
-  phi::DenseTensor casted_labels;
-  if (labels.dtype() != phi::DataType::INT32) {
-    phi::DenseTensorMeta casted_labels_meta = {phi::DataType::INT32,
-                                               labels.dims()};
-    casted_labels.set_meta(casted_labels_meta);
-    dev_ctx.template Alloc<int32_t>(&casted_labels);
-    auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT32);
-    const auto& runner_cast_label =
-        NpuOpRunner("Cast",
-                    {labels},
-                    {casted_labels},
-                    {{"dst_type", static_cast<int>(dst_dtype)}});
-    runner_cast_label.Run(stream);
-  } else {
-    casted_labels = labels;
-  }
-
-  // on and off
-  phi::DenseTensor on_tensor, off_tensor;
-  phi::DenseTensorMeta on_off_meta = {phi::DataType::INT32, {1}};
-  on_tensor.set_meta(on_off_meta);
-  off_tensor.set_meta(on_off_meta);
-  dev_ctx.template Alloc<int32_t>(&on_tensor);
-  dev_ctx.template Alloc<int32_t>(&off_tensor);
-  FillNpuTensorWithConstant<int32_t>(&on_tensor, dev_ctx, static_cast<int>(1));
-  FillNpuTensorWithConstant<int32_t>(&off_tensor, dev_ctx, static_cast<int>(0));
-
-  // one_hot
-  phi::DenseTensor tmp_onehot;
-  phi::DenseTensorMeta tmp_onehot_meta = {on_tensor.dtype(), softmax.dims()};
-  tmp_onehot.set_meta(tmp_onehot_meta);
-  dev_ctx.template Alloc<int32_t>(&tmp_onehot);
-
-  NpuOpRunner runner_onehot;
-  runner_onehot.SetType("OneHot")
-      .AddInput(casted_labels)
-      .AddInput(dev_ctx, std::vector<int32_t>(1, static_cast<int32_t>(cls_num)))
-      .AddInput(on_tensor)
-      .AddInput(off_tensor)
-      .AddOutput(tmp_onehot)
-      .AddAttr("axis", -1);
-  runner_onehot.Run(stream);
-
-  // cast one_hot from int32 to T
-  phi::DenseTensor casted_onehot;
-  if (softmax.dtype() != phi::DataType::INT32) {
-    phi::DenseTensorMeta onehot_meta = {softmax.dtype(), tmp_onehot.dims()};
-    casted_onehot.set_meta(onehot_meta);
-    dev_ctx.template Alloc<T>(&casted_onehot);
-    auto dst_dtype = ConvertToNpuDtype(softmax.dtype());
-    const auto& runner_cast_onehot =
-        NpuOpRunner("Cast",
-                    {tmp_onehot},
-                    {casted_onehot},
-                    {{"dst_type", static_cast<int>(dst_dtype)}});
-    runner_cast_onehot.Run(stream);
-  } else {
-    casted_onehot = tmp_onehot;
-  }
-
-  // sub
-  phi::DenseTensor tmp_sub;
-  phi::DenseTensorMeta tmp_sub_meta = {softmax.dtype(), softmax.dims()};
-  tmp_sub.set_meta(tmp_sub_meta);
-  dev_ctx.template Alloc<T>(&tmp_sub);
-
-  const auto& runner_sub =
-      NpuOpRunner("Sub", {softmax, casted_onehot}, {tmp_sub}, {});
-  runner_sub.Run(stream);
-
-  // mul
+  phi::DenseTensor on_tensor, off_tensor, depth;
+  experimental::OpCommandHelper::ScalarToHostTensor(
+      dev_ctx, static_cast<T>(1), &on_tensor);
+  experimental::OpCommandHelper::ScalarToHostTensor(
+      dev_ctx, static_cast<T>(0), &off_tensor);
+  experimental::OpCommandHelper::ScalarToHostTensor(
+      dev_ctx, static_cast<int32_t>(softmax.dims()[1]), &depth);
   dev_ctx.template Alloc<T>(logits_grad);
-  const auto& runner_mul =
-      NpuOpRunner("Mul", {loss_grad, tmp_sub}, {*logits_grad}, {});
-  runner_mul.Run(stream);
+
+  auto label_dims = phi::vectorize(labels.dims());
+  if (label_dims.back() == 1) {
+    label_dims.erase(label_dims.cbegin() + label_dims.size() - 1);
+  }
+
+  phi::DenseTensor labels_int32, one_hot, softmax_sub_one_hot;
+  labels_int32.Resize(phi::make_ddim(label_dims));
+  one_hot.Resize(softmax.dims());
+  softmax_sub_one_hot.Resize(softmax.dims());
+  dev_ctx.template Alloc<int32_t>(&labels_int32);
+  dev_ctx.template Alloc<T>(&one_hot);
+  dev_ctx.template Alloc<T>(&softmax_sub_one_hot);
+
+  experimental::OpCommand("Cast")
+      .Input(
+          labels,
+          experimental::TensorDescMaker("x").FromTensor(labels).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(
+          labels_int32,
+          experimental::TensorDescMaker("y").FromTensor(labels).SetDataLayout(
+              phi::DataLayout::ANY))  // the dimention of labels and
+                                      // labels_int32 maybe different.
+      .Attr("dst_type",
+            static_cast<int>(
+                experimental::ConvertToNpuDtype(labels_int32.dtype())))
+      .Run(dev_ctx);
+
+  experimental::OpCommand("OneHot")
+      .Input(labels_int32,
+             experimental::TensorDescMaker("x")
+                 .FromTensor(labels_int32)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .ScalarInput(depth,
+                   experimental::TensorDescMaker("depth")
+                       .FromTensor(depth)
+                       .SetDataLayout(phi::DataLayout::ANY))
+      .ScalarInput(on_tensor,
+                   experimental::TensorDescMaker("on_value")
+                       .FromTensor(on_tensor)
+                       .SetDataLayout(phi::DataLayout::ANY))
+      .ScalarInput(off_tensor,
+                   experimental::TensorDescMaker("off_value")
+                       .FromTensor(off_tensor)
+                       .SetDataLayout(phi::DataLayout::ANY))
+      .Output(
+          one_hot,
+          experimental::TensorDescMaker("y").FromTensor(one_hot).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Attr("axis", -1)
+      .Run(dev_ctx);
+
+  experimental::OpCommand("Sub")
+      .Input(
+          softmax,
+          experimental::TensorDescMaker("x1").FromTensor(softmax).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Input(
+          one_hot,
+          experimental::TensorDescMaker("x2").FromTensor(one_hot).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(softmax_sub_one_hot,
+              experimental::TensorDescMaker("y")
+                  .FromTensor(softmax_sub_one_hot)
+                  .SetDataLayout(phi::DataLayout::ANY))
+      .Run(dev_ctx);
+
+  experimental::OpCommand("Mul")
+      .Input(loss_grad,
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(loss_grad)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(softmax_sub_one_hot,
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(softmax_sub_one_hot)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*logits_grad,
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*logits_grad)
+                  .SetDataLayout(phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

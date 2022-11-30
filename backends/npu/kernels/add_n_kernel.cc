@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -22,28 +23,23 @@ void AddNKernel(const Context& dev_ctx,
                 const std::vector<const phi::DenseTensor*>& x,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
 
   int n = static_cast<int>(x.size());
-  if (n == 1) {
-    TensorCopy(dev_ctx, *x[0], false, out);
-    return;
+  PADDLE_ENFORCE_GT(n,
+                    0,
+                    phi::errors::InvalidArgument(
+                        "Expected size of Input(x) must greater than 0."));
+  phi::DenseTensor tmp;
+  tmp = *x[0];
+  for (int i = 1; i < n; ++i) {
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(out->dims());
+    dev_ctx.template Alloc<T>(&tmp_out);
+    experimental::OpCommand("Add").Input(*x[i]).Input(tmp).Output(tmp_out).Run(
+        dev_ctx);
+    tmp = tmp_out;
   }
-
-  std::vector<phi::DenseTensor> inputs;
-  std::vector<std::string> names;
-  int actual_n = 0;
-  for (int i = 0; i < n; ++i) {
-    if (x[i] && x[i]->numel() > 0) {
-      inputs.push_back(*x[i]);
-      names.push_back("x" + std::to_string(i));
-      ++actual_n;
-    }
-  }
-
-  NpuOpRunner runner{"AddN", {inputs}, {*out}, {{"N", actual_n}}};
-  runner.AddInputNames(names);
-  runner.Run(stream);
+  *out = tmp;
 }
 
 }  // namespace custom_kernel

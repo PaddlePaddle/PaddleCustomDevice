@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import unittest
 import numpy as np
 import sys
@@ -489,8 +490,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
         for data_format in self.data_formats:
             test_with_place(
                 core.CustomPlace('npu', 0), data_format, [2, 3, 4, 5])
-            test_with_place(
-                core.CustomPlace('npu', 0), data_format, [3, 8, 5])
+            test_with_place(core.CustomPlace('npu', 0), data_format, [3, 8, 5])
             test_with_place(core.CustomPlace('npu', 0), data_format, [2, 3])
 
     def init_kernel_type(self):
@@ -624,6 +624,7 @@ class TestBatchNormOpFreezeStatsAndScaleBiasTraining(
         self.fetch_list = ['y', 'mean', 'variance', 'x@GRAD']
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestDygraphBatchNormTrainableStats(unittest.TestCase):
     def test_dygraph(self):
         places = [fluid.CustomPlace('npu', 0)]

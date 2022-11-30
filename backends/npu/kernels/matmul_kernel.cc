@@ -13,66 +13,246 @@
 // limitations under the License.
 
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
-static void MatMul2D(const Context& dev_ctx,
-                     const aclrtStream& stream,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
-                     const bool transpose_x,
-                     const bool transpose_y) {
-  dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner(
-      "MatMul",
-      {X, Y},
-      {*out},
-      {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}});
-  runner.Run(stream);
+static void BMMBroadcastTo(const Context& dev_ctx,
+                           const std::vector<int>& x_dims,
+                           const std::vector<int>& x_broadcast_dims,
+                           const phi::DenseTensor& x,
+                           phi::DenseTensor* x_broadcast) {
+  VLOG(10) << "BMMBroadcastTo: (" << phi::make_ddim(x_dims) << "), ("
+           << phi::make_ddim(x_broadcast_dims) << ")";
+
+  x_broadcast->Resize(phi::make_ddim(x_broadcast_dims));
+  dev_ctx.template Alloc<T>(x_broadcast);
+
+  phi::DenseTensor broadcast_shape;
+  experimental::OpCommandHelper::VectorToHostTensor(
+      dev_ctx, x_broadcast_dims, &broadcast_shape);
+  experimental::OpCommand("BroadcastTo")
+      .Input(x,
+             experimental::TensorDescMaker("x")
+                 .FromTensor(x)
+                 .SetDataLayout(phi::DataLayout::ANY)
+                 .SetDims(phi::make_ddim(x_dims)))
+      .Input(broadcast_shape,
+             experimental::TensorDescMaker("shape")
+                 .FromTensor(broadcast_shape)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Output(*x_broadcast,
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*x_broadcast)
+                  .SetDataLayout(phi::DataLayout::ANY))
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
-static void MatMulND(const Context& dev_ctx,
-                     const aclrtStream& stream,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
-                     const bool transpose_x,
-                     const bool transpose_y) {
+static void BMMKernel(const Context& dev_ctx,
+                      const std::vector<int>& x_dims,
+                      const std::vector<int>& y_dims,
+                      const std::vector<int>& out_dims,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      bool transpose_x,
+                      bool transpose_y,
+                      phi::DenseTensor* out) {
+  VLOG(10) << "BMMKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
+
   dev_ctx.template Alloc<T>(out);
-  const auto& runner =
-      NpuOpRunner("BatchMatMul",
-                  {X, Y},
-                  {*out},
-                  {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}});
-  runner.Run(stream);
+
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  int out_ndim = out_dims.size();
+
+  auto x_batch_size = std::accumulate(
+      x_dims.cbegin(), x_dims.cend() - 2, 1, std::multiplies<int>());
+  auto y_batch_size = std::accumulate(
+      y_dims.cbegin(), y_dims.cend() - 2, 1, std::multiplies<int>());
+  auto batch_size = std::accumulate(
+      out_dims.cbegin(), out_dims.cend() - 2, 1, std::multiplies<int>());
+
+  phi::DenseTensor x_broadcast, y_broadcast;
+  if (x_batch_size != batch_size) {
+    std::vector<int> broadcast_shape_vec(out_dims.cbegin(),
+                                         out_dims.cend() - 2);
+    broadcast_shape_vec.push_back(x_dims[x_ndim - 2]);
+    broadcast_shape_vec.push_back(x_dims[x_ndim - 1]);
+    BMMBroadcastTo<T, Context>(
+        dev_ctx, x_dims, broadcast_shape_vec, x, &x_broadcast);
+  } else {
+    experimental::OpCommandHelper::Assign(dev_ctx, x, &x_broadcast);
+  }
+
+  if (y_batch_size != batch_size) {
+    std::vector<int> broadcast_shape_vec(out_dims.cbegin(),
+                                         out_dims.cend() - 2);
+    broadcast_shape_vec.push_back(y_dims[y_ndim - 2]);
+    broadcast_shape_vec.push_back(y_dims[y_ndim - 1]);
+    BMMBroadcastTo<T, Context>(
+        dev_ctx, y_dims, broadcast_shape_vec, y, &y_broadcast);
+  } else {
+    experimental::OpCommandHelper::Assign(dev_ctx, y, &y_broadcast);
+  }
+
+  experimental::OpCommand("BatchMatMul")
+      .Input(x_broadcast,
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(x_broadcast)
+                 .SetDataLayout(phi::DataLayout::ANY)
+                 .SetDims({batch_size,
+                           x_dims[x_dims.size() - 2],
+                           x_dims[x_dims.size() - 1]}))
+      .Input(y_broadcast,
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(y_broadcast)
+                 .SetDataLayout(phi::DataLayout::ANY)
+                 .SetDims({batch_size,
+                           y_dims[y_dims.size() - 2],
+                           y_dims[y_dims.size() - 1]}))
+      .Output(*out,
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*out)
+                  .SetDataLayout(phi::DataLayout::ANY)
+                  .SetDims({batch_size,
+                            out_dims[out_dims.size() - 2],
+                            out_dims[out_dims.size() - 1]}))
+      .Attr("adj_x1", transpose_x)
+      .Attr("adj_x2", transpose_y)
+      .Run(dev_ctx);
 }
 
 template <typename T, typename Context>
-static void ReduceDims(const Context& dev_ctx,
-                       const aclrtStream& stream,
-                       const std::vector<int64_t>& dims,
-                       const std::vector<int64_t>& brd_dims,
-                       const phi::DenseTensor& in,
-                       phi::DenseTensor* out) {
-  std::vector<int64_t> axes;
-  int64_t size = brd_dims.size();
-  int64_t diff = brd_dims.size() - dims.size();
-  for (int64_t i = 0; i < size; ++i) {
-    if (i < diff) {
-      axes.push_back(i);
-      continue;
-    }
-    if (brd_dims[i] > dims[i - diff]) {
-      axes.push_back(i);
+static void MMKernel(const Context& dev_ctx,
+                     const std::vector<int>& x_dims,
+                     const std::vector<int>& y_dims,
+                     const std::vector<int>& out_dims,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     bool transpose_x,
+                     bool transpose_y,
+                     phi::DenseTensor* out) {
+  VLOG(10) << "MMKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
+
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+
+  if (x_ndim == 2 && y_ndim == 2) {
+    dev_ctx.template Alloc<T>(out);
+    experimental::OpCommand("MatMul")
+        .Input(x,
+               experimental::TensorDescMaker("x1")
+                   .FromTensor(x)
+                   .SetDataLayout(phi::DataLayout::ANY)
+                   .SetDims(phi::make_ddim(x_dims)))
+        .Input(y,
+               experimental::TensorDescMaker("x2")
+                   .FromTensor(y)
+                   .SetDataLayout(phi::DataLayout::ANY)
+                   .SetDims(phi::make_ddim(y_dims)))
+        .Output(*out,
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*out)
+                    .SetDataLayout(phi::DataLayout::ANY)
+                    .SetDims(phi::make_ddim(out_dims)))
+        .Attr("transpose_x1", transpose_x)
+        .Attr("transpose_x2", transpose_y)
+        .Run(dev_ctx);
+  } else {  // x_ndim == 2 || y_ndim == 2
+    if (x_ndim == 2) {
+      BMMKernel<T, Context>(dev_ctx,
+                            {1, x_dims[0], x_dims[1]},
+                            y_dims,
+                            out_dims,
+                            x,
+                            y,
+                            transpose_x,
+                            transpose_y,
+                            out);
+    } else {  // y_ndim == 2
+      BMMKernel<T, Context>(dev_ctx,
+                            x_dims,
+                            {1, y_dims[0], y_dims[1]},
+                            out_dims,
+                            x,
+                            y,
+                            transpose_x,
+                            transpose_y,
+                            out);
     }
   }
-  dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner(
-      "ReduceSumD", {in}, {*out}, {{"axes", axes}, {"keep_dims", false}});
-  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+static void MVKernel(const Context& dev_ctx,
+                     const std::vector<int>& x_dims,
+                     const std::vector<int>& y_dims,
+                     const std::vector<int>& out_dims,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     bool transpose_x,
+                     bool transpose_y,
+                     phi::DenseTensor* out) {
+  VLOG(10) << "MVKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
+
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+
+  if (x_ndim == 1 && y_ndim == 1) {
+    dev_ctx.template Alloc<T>(out);
+
+    experimental::OpCommand("Dot")
+        .Input(x,
+               experimental::TensorDescMaker("input_x")
+                   .FromTensor(x)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(y,
+               experimental::TensorDescMaker("input_y")
+                   .FromTensor(y)
+                   .SetDataLayout(phi::DataLayout::ANY))
+        .Output(*out,
+                experimental::TensorDescMaker("output")
+                    .FromTensor(*out)
+                    .SetDataLayout(phi::DataLayout::ANY))
+        .Run(dev_ctx);
+  } else {  // x_ndim == 1 || y_ndim == 1
+    if (x_ndim == 1) {
+      std::vector<int> out_dims_temp = out_dims;
+      out_dims_temp.insert(out_dims_temp.cend() - 1, 1);
+      MMKernel<T, Context>(dev_ctx,
+                           {1, x.numel()},
+                           y_dims,
+                           out_dims_temp,
+                           x,
+                           y,
+                           transpose_x,
+                           transpose_y,
+                           out);
+    } else {
+      std::vector<int> out_dims_temp = out_dims;
+      out_dims_temp.push_back(1);
+      MMKernel<T, Context>(dev_ctx,
+                           x_dims,
+                           {y.numel(), 1},
+                           out_dims_temp,
+                           x,
+                           y,
+                           transpose_x,
+                           transpose_y,
+                           out);
+    }
+  }
 }
 
 template <typename T, typename Context>
@@ -82,134 +262,395 @@ void MatmulKernel(const Context& dev_ctx,
                   bool transpose_x,
                   bool transpose_y,
                   phi::DenseTensor* out) {
-  std::vector<int64_t> x_dims = phi::vectorize(x.dims());
-  std::vector<int64_t> y_dims = phi::vectorize(y.dims());
-  std::vector<int64_t> out_dims = phi::vectorize(out->dims());
+  auto x_dims = phi::vectorize<int>(x.dims());
+  auto y_dims = phi::vectorize<int>(y.dims());
+  auto out_dims = phi::vectorize<int>(out->dims());
+
+  if (x_dims.size() == 1 || y_dims.size() == 1) {
+    MVKernel<T, Context>(
+        dev_ctx, x_dims, y_dims, out_dims, x, y, transpose_x, transpose_y, out);
+  } else if (x_dims.size() == 2 || y_dims.size() == 2) {
+    MMKernel<T, Context>(
+        dev_ctx, x_dims, y_dims, out_dims, x, y, transpose_x, transpose_y, out);
+  } else {  // x_dims.size() > 2 && y_dims.size() > 2
+    BMMKernel<T, Context>(
+        dev_ctx, x_dims, y_dims, out_dims, x, y, transpose_x, transpose_y, out);
+  }
+}
+
+template <typename T, typename Context>
+void BMMGradReduceSum(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const std::vector<int>& reduce_axes,
+                      bool keep_dims,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  experimental::OpCommand("ReduceSumD")
+      .Input(x,
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Attr("axes", reduce_axes)
+      .Attr("keep_dims", keep_dims)
+      .Run(dev_ctx);
+}
+
+template <typename T, typename Context>
+void BMMGradKernel(const Context& dev_ctx,
+                   const std::vector<int>& x_dims,
+                   const std::vector<int>& y_dims,
+                   const std::vector<int>& out_dims,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& y,
+                   const phi::DenseTensor& dout,
+                   bool transpose_x,
+                   bool transpose_y,
+                   phi::DenseTensor* dx,
+                   phi::DenseTensor* dy) {
+  VLOG(10) << "BMMGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
+
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
   int out_ndim = out_dims.size();
 
-  auto stream = dev_ctx.stream();
+  auto x_batch_size = std::accumulate(
+      x_dims.cbegin(), x_dims.cend() - 2, 1, std::multiplies<int>());
+  auto y_batch_size = std::accumulate(
+      y_dims.cbegin(), y_dims.cend() - 2, 1, std::multiplies<int>());
+  auto batch_size = std::accumulate(
+      out_dims.cbegin(), out_dims.cend() - 2, 1, std::multiplies<int>());
 
-  // Case 1: [K] x [K] = [1]
-  if (x_ndim == 1 && y_ndim == 1) {
-    PADDLE_ENFORCE_EQ(
-        x.numel(),
-        y.numel(),
-        phi::errors::InvalidArgument(
-            "X's numbers must be equal to Y's numbers,"
-            "when X/Y's dims =1. But received X has [%d] elements,"
-            "received Y has [%d] elements",
-            x.numel(),
-            y.numel()));
-    out->Resize({1});
-    dev_ctx.template Alloc<T>(out);
+  if (dx) {
+    if (x_batch_size == batch_size) {
+      if (transpose_x) {
+        BMMKernel<T, Context>(
+            dev_ctx, y_dims, out_dims, x_dims, y, dout, transpose_y, true, dx);
+      } else {
+        BMMKernel<T, Context>(dev_ctx,
+                              out_dims,
+                              y_dims,
+                              x_dims,
+                              dout,
+                              y,
+                              false,
+                              !transpose_y,
+                              dx);
+      }
+    } else {
+      std::vector<int> dx_temp_dims(out_dims.cbegin(), out_dims.cend() - 2);
+      dx_temp_dims.push_back(x_dims[x_ndim - 2]);
+      dx_temp_dims.push_back(x_dims[x_ndim - 1]);
 
-    const auto& runner = NpuOpRunner("Dot", {x, y}, {*out});
-    runner.Run(stream);
-    return;
+      phi::DenseTensor dx_temp;
+      dx_temp.Resize(phi::make_ddim(dx_temp_dims));
+      if (transpose_x) {
+        BMMKernel<T, Context>(dev_ctx,
+                              y_dims,
+                              out_dims,
+                              dx_temp_dims,
+                              y,
+                              dout,
+                              transpose_y,
+                              true,
+                              &dx_temp);
+      } else {
+        BMMKernel<T, Context>(dev_ctx,
+                              out_dims,
+                              y_dims,
+                              dx_temp_dims,
+                              dout,
+                              y,
+                              false,
+                              !transpose_y,
+                              &dx_temp);
+      }
+
+      std::vector<int> reduce_axes;
+      for (auto i = 0; i < out_ndim - x_ndim; ++i) {
+        reduce_axes.push_back(i);
+      }
+      phi::DenseTensor dx_temp_reduce_sum;
+      if (reduce_axes.size()) {
+        dx_temp_reduce_sum.Resize(phi::make_ddim(std::vector<int>(
+            dx_temp_dims.cbegin() + out_ndim - x_ndim, dx_temp_dims.cend())));
+        BMMGradReduceSum<T, Context>(
+            dev_ctx, dx_temp, reduce_axes, false, &dx_temp_reduce_sum);
+      } else {
+        experimental::OpCommandHelper::Assign(
+            dev_ctx, dx_temp, &dx_temp_reduce_sum);
+      }
+
+      reduce_axes.clear();
+      for (auto i = 0; i < x_ndim - 2; ++i) {
+        if (x_dims[i] != out_dims[i + out_ndim - x_ndim]) {
+          reduce_axes.push_back(i);
+        }
+      }
+      if (reduce_axes.size()) {
+        BMMGradReduceSum<T, Context>(
+            dev_ctx, dx_temp_reduce_sum, reduce_axes, true, dx);
+      } else {
+        dev_ctx.template Alloc<T>(dx);
+        experimental::OpCommandHelper::Assign(dev_ctx, dx_temp_reduce_sum, dx);
+      }
+    }
   }
+  if (dy) {
+    if (y_batch_size == batch_size) {
+      if (transpose_y) {
+        BMMKernel<T, Context>(
+            dev_ctx, out_dims, x_dims, y_dims, dout, x, true, transpose_x, dy);
+      } else {
+        BMMKernel<T, Context>(dev_ctx,
+                              x_dims,
+                              out_dims,
+                              y_dims,
+                              x,
+                              dout,
+                              !transpose_x,
+                              false,
+                              dy);
+      }
+    } else {
+      std::vector<int> dy_temp_dims(out_dims.cbegin(), out_dims.cend() - 2);
+      dy_temp_dims.push_back(y_dims[y_ndim - 2]);
+      dy_temp_dims.push_back(y_dims[y_ndim - 1]);
 
-  // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp(y);
-  if (x_ndim == 1) {
-    x_dims.insert(x_dims.begin(), 1);
-    out_dims.insert(out_dims.end() - 1, 1);
-    x_temp.Resize(phi::make_ddim(x_dims));
-    x_ndim = 2;
-    out_ndim += 1;
-  }
-  if (y_ndim == 1) {
-    y_dims.push_back(1);
-    out_dims.push_back(1);
-    y_temp.Resize(phi::make_ddim(y_dims));
-    y_ndim = 2;
-    out_ndim += 1;
-  }
+      phi::DenseTensor dy_temp;
+      dy_temp.Resize(phi::make_ddim(dy_temp_dims));
 
-  const int K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-  if (transpose_y) {
-    PADDLE_ENFORCE_EQ(
-        y_dims[y_ndim - 1],
-        K,
-        phi::errors::InvalidArgument("Input(Y) has error dim."
-                                     "Y'dims[%d] must be equal to %d"
-                                     "But received Y'dims[%d] is %d",
-                                     y_ndim - 1,
-                                     K,
-                                     y_ndim - 1,
-                                     y_dims[y_ndim - 1]));
-  } else {
-    PADDLE_ENFORCE_EQ(
-        y_dims[y_ndim - 2],
-        K,
-        phi::errors::InvalidArgument("Input(Y) has error dim."
-                                     "Y'dims[%d] must be equal to %d"
-                                     "But received Y'dims[%d] is %d",
-                                     y_ndim - 2,
-                                     K,
-                                     y_ndim - 2,
-                                     y_dims[y_ndim - 2]));
-  }
+      if (transpose_y) {
+        BMMKernel<T, Context>(dev_ctx,
+                              out_dims,
+                              x_dims,
+                              dy_temp_dims,
+                              dout,
+                              x,
+                              true,
+                              transpose_x,
+                              &dy_temp);
+      } else {
+        BMMKernel<T, Context>(dev_ctx,
+                              x_dims,
+                              out_dims,
+                              dy_temp_dims,
+                              x,
+                              dout,
+                              !transpose_x,
+                              false,
+                              &dy_temp);
+      }
 
-  // Case 2: [M, K] x [K, N] = [M, N]
-  if (x_ndim == 2 && y_ndim == 2) {
-    MatMul2D<T>(dev_ctx, stream, x_temp, y_temp, out, transpose_x, transpose_y);
-    return;
-  }
+      std::vector<int> reduce_axes;
+      for (auto i = 0; i < out_ndim - y_ndim; ++i) {
+        reduce_axes.push_back(i);
+      }
+      phi::DenseTensor dy_temp_reduce_sum;
+      if (reduce_axes.size()) {
+        dy_temp_reduce_sum.Resize(phi::make_ddim(std::vector<int>(
+            dy_temp_dims.cbegin() + out_ndim - y_ndim, dy_temp_dims.cend())));
+        BMMGradReduceSum<T, Context>(
+            dev_ctx, dy_temp, reduce_axes, false, &dy_temp_reduce_sum);
+      } else {
+        experimental::OpCommandHelper::Assign(
+            dev_ctx, dy_temp, &dy_temp_reduce_sum);
+      }
 
-  // Case 3: [B, M, K] x [K, N] =  [B, M, N], when transpose_x = false
-  // Equal: [B * M, K] x [K, N] = [B * M, N] => [B, M, N]
-  if (transpose_x == false && y_ndim == 2) {
-    std::vector<int64_t> vec_dim = {x_temp.numel() / K, K};
-    x_temp.Resize(phi::make_ddim(vec_dim));
-    MatMul2D<T>(dev_ctx, stream, x_temp, y_temp, out, transpose_x, transpose_y);
-    return;
+      reduce_axes.clear();
+      for (auto i = 0; i < y_ndim - 2; ++i) {
+        if (y_dims[i] != out_dims[i + out_ndim - y_ndim]) {
+          reduce_axes.push_back(i);
+        }
+      }
+      if (reduce_axes.size()) {
+        BMMGradReduceSum<T, Context>(
+            dev_ctx, dy_temp_reduce_sum, reduce_axes, true, dy);
+      } else {
+        dev_ctx.template Alloc<T>(dy);
+        experimental::OpCommandHelper::Assign(dev_ctx, dy_temp_reduce_sum, dy);
+      }
+    }
   }
+}
 
-  // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
-  std::vector<int64_t> x_broadcast_dims(out_ndim, 1);
-  std::vector<int64_t> y_broadcast_dims(out_ndim, 1);
-  std::copy(out_dims.begin(), out_dims.end() - 2, x_broadcast_dims.begin());
-  std::copy(out_dims.begin(), out_dims.end() - 2, y_broadcast_dims.begin());
-  std::copy(x_dims.end() - 2, x_dims.end(), x_broadcast_dims.end() - 2);
-  std::copy(y_dims.end() - 2, y_dims.end(), y_broadcast_dims.end() - 2);
+template <typename T, typename Context>
+void MMGradKernel(const Context& dev_ctx,
+                  const std::vector<int>& x_dims,
+                  const std::vector<int>& y_dims,
+                  const std::vector<int>& out_dims,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& y,
+                  const phi::DenseTensor& dout,
+                  bool transpose_x,
+                  bool transpose_y,
+                  phi::DenseTensor* dx,
+                  phi::DenseTensor* dy) {
+  VLOG(10) << "MMGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
 
-  phi::DenseTensor x_temp_brd;
-  phi::DenseTensorMeta x_temp_brd_meta = {x.dtype(), {}};
-  x_temp_brd.set_meta(x_temp_brd_meta);
-  if (x_dims == x_broadcast_dims) {
-    x_temp_brd = x;
-    x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
-  } else {
-    x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
-    dev_ctx.template Alloc<T>(&x_temp_brd);
-    NpuOpRunner runner_brd;
-    runner_brd.SetType("BroadcastTo")
-        .AddInput(x_temp)
-        .AddInput(dev_ctx, std::move(x_broadcast_dims))
-        .AddOutput(x_temp_brd)
-        .Run(stream);
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  int out_ndim = out_dims.size();
+
+  if (out_ndim == 2) {
+    if (dx) {
+      if (transpose_x) {
+        MMKernel<T, Context>(
+            dev_ctx, y_dims, out_dims, x_dims, y, dout, transpose_y, true, dx);
+      } else {
+        MMKernel<T, Context>(dev_ctx,
+                             out_dims,
+                             y_dims,
+                             x_dims,
+                             dout,
+                             y,
+                             false,
+                             !transpose_y,
+                             dx);
+      }
+    }
+    if (dy) {
+      if (transpose_y) {
+        MMKernel<T, Context>(
+            dev_ctx, out_dims, x_dims, y_dims, dout, x, true, transpose_x, dy);
+      } else {
+        MMKernel<T, Context>(dev_ctx,
+                             x_dims,
+                             out_dims,
+                             y_dims,
+                             x,
+                             dout,
+                             !transpose_x,
+                             false,
+                             dy);
+      }
+    }
+  } else {  // x_ndim == 2 || y_ndim == 2
+    if (x_ndim == 2) {
+      auto x_dims_tmp = x_dims;
+      x_dims_tmp.insert(x_dims_tmp.cbegin(), 1);
+      BMMGradKernel<T, Context>(dev_ctx,
+                                x_dims_tmp,
+                                y_dims,
+                                out_dims,
+                                x,
+                                y,
+                                dout,
+                                transpose_x,
+                                transpose_y,
+                                dx,
+                                dy);
+    } else {  // y_ndim == 2
+      auto y_dims_tmp = y_dims;
+      y_dims_tmp.insert(y_dims_tmp.cbegin(), 1);
+      BMMGradKernel<T, Context>(dev_ctx,
+                                x_dims,
+                                y_dims_tmp,
+                                out_dims,
+                                x,
+                                y,
+                                dout,
+                                transpose_x,
+                                transpose_y,
+                                dx,
+                                dy);
+    }
   }
+}
 
-  phi::DenseTensor y_temp_brd;
-  phi::DenseTensorMeta y_temp_brd_meta = {y.dtype(), {}};
-  y_temp_brd.set_meta(y_temp_brd_meta);
-  if (y_dims == y_broadcast_dims) {
-    y_temp_brd = y;
-    y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
-  } else {
-    y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
-    dev_ctx.template Alloc<T>(&y_temp_brd);
-    NpuOpRunner runner_brd;
-    runner_brd.SetType("BroadcastTo")
-        .AddInput(y_temp)
-        .AddInput(dev_ctx, std::move(y_broadcast_dims))
-        .AddOutput(y_temp_brd)
-        .Run(stream);
+template <typename T, typename Context>
+void MVGradKernel(const Context& dev_ctx,
+                  const std::vector<int>& x_dims,
+                  const std::vector<int>& y_dims,
+                  const std::vector<int>& out_dims,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& y,
+                  const phi::DenseTensor& dout,
+                  bool transpose_x,
+                  bool transpose_y,
+                  phi::DenseTensor* dx,
+                  phi::DenseTensor* dy) {
+  VLOG(10) << "MVGradKernel: "
+           << "(" << phi::make_ddim(x_dims) << "), "
+           << "(" << phi::make_ddim(y_dims) << "), "
+           << "(" << phi::make_ddim(out_dims) << ")";
+
+  int x_ndim = x_dims.size();
+  int out_ndim = out_dims.size();
+
+  if (out_ndim == 1) {
+    if (dx) {
+      dev_ctx.template Alloc<T>(dx);
+      experimental::OpCommand("Mul")
+          .Input(dout,
+                 experimental::TensorDescMaker("x1")
+                     .FromTensor(dout)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(
+              y,
+              experimental::TensorDescMaker("x2").FromTensor(y).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Output(
+              *dx,
+              experimental::TensorDescMaker("y").FromTensor(*dx).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Run(dev_ctx);
+    }
+    if (dy) {
+      dev_ctx.template Alloc<T>(dy);
+      experimental::OpCommand("Mul")
+          .Input(dout,
+                 experimental::TensorDescMaker("x1")
+                     .FromTensor(dout)
+                     .SetDataLayout(phi::DataLayout::ANY))
+          .Input(
+              x,
+              experimental::TensorDescMaker("x2").FromTensor(x).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Output(
+              *dy,
+              experimental::TensorDescMaker("y").FromTensor(*dy).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Run(dev_ctx);
+    }
+  } else {  // x_ndim == 1 || y_ndim == 1
+    if (x_ndim == 1) {
+      auto out_dims_tmp = out_dims;
+      out_dims_tmp.insert(out_dims_tmp.cend() - 1, 1);
+      MMGradKernel<T, Context>(dev_ctx,
+                               {1, x.numel()},
+                               y_dims,
+                               out_dims_tmp,
+                               x,
+                               y,
+                               dout,
+                               transpose_x,
+                               transpose_y,
+                               dx,
+                               dy);
+    } else {
+      auto out_dims_tmp = out_dims;
+      out_dims_tmp.push_back(1);
+      MMGradKernel<T, Context>(dev_ctx,
+                               x_dims,
+                               {y.numel(), 1},
+                               out_dims_tmp,
+                               x,
+                               y,
+                               dout,
+                               transpose_x,
+                               transpose_y,
+                               dx,
+                               dy);
+    }
   }
-  MatMulND<T>(
-      dev_ctx, stream, x_temp_brd, y_temp_brd, out, transpose_x, transpose_y);
 }
 
 template <typename T, typename Context>
@@ -221,219 +662,46 @@ void MatmulGradKernel(const Context& dev_ctx,
                       bool transpose_y,
                       phi::DenseTensor* dx,
                       phi::DenseTensor* dy) {
-  std::vector<int64_t> x_dims = phi::vectorize(x.dims());
-  std::vector<int64_t> y_dims = phi::vectorize(y.dims());
-  std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
-  int x_ndim = x_dims.size();
-  int y_ndim = y_dims.size();
-  int out_ndim = out_dims.size();
+  auto x_dims = phi::vectorize<int>(x.dims());
+  auto y_dims = phi::vectorize<int>(y.dims());
+  auto out_dims = phi::vectorize<int>(dout.dims());
 
-  auto stream = dev_ctx.stream();
-
-  // Case 1: [K] x [K] = [1]
-  if (x_ndim == 1 && y_ndim == 1) {
-    phi::DenseTensor dout_temp;
-    phi::DenseTensorMeta dout_temp_meta = {dout.dtype(), x.dims()};
-    dout_temp.set_meta(dout_temp_meta);
-    dev_ctx.template Alloc<T>(&dout_temp);
-    NpuOpRunner runner;
-    runner.SetType("BroadcastTo")
-        .AddInput(dout)
-        .AddInput(dev_ctx, std::move(x_dims))
-        .AddOutput(dout_temp)
-        .Run(stream);
-
-    if (dx) {
-      dev_ctx.template Alloc<T>(dx);
-      const auto& runner_dx = NpuOpRunner("Mul", {dout_temp, y}, {*dx}, {});
-      runner_dx.Run(stream);
-    }
-    if (dy) {
-      dev_ctx.template Alloc<T>(dy);
-      const auto& runner_dy = NpuOpRunner("Mul", {dout_temp, x}, {*dy}, {});
-      runner_dy.Run(stream);
-    }
-    return;
-  }
-
-  // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp(y), dout_temp(dout);
-  if (x_ndim == 1) {
-    x_dims.insert(x_dims.begin(), 1);
-    out_dims.insert(out_dims.end() - 1, 1);
-    x_temp.Resize(phi::make_ddim(x_dims));
-    dout_temp.Resize(phi::make_ddim(out_dims));
-    x_ndim = 2;
-    out_ndim += 1;
-  }
-  if (y_ndim == 1) {
-    y_dims.push_back(1);
-    out_dims.push_back(1);
-    y_temp.Resize(phi::make_ddim(y_dims));
-    dout_temp.Resize(phi::make_ddim(out_dims));
-    y_ndim = 2;
-    out_ndim += 1;
-  }
-
-  // Case 2: [M, K] x [K, N] = [M, N]
-  if (out_ndim == 2) {
-    if (dx) {
-      dx->Resize(phi::make_ddim(x_dims));
-      if (transpose_x) {
-        MatMul2D<T>(dev_ctx, stream, y_temp, dout_temp, dx, transpose_y, true);
-      } else {
-        MatMul2D<T>(
-            dev_ctx, stream, dout_temp, y_temp, dx, false, !transpose_y);
-      }
-      dx->Resize(x.dims());
-    }
-    if (dy) {
-      dy->Resize(phi::make_ddim(y_dims));
-      if (transpose_y) {
-        MatMul2D<T>(dev_ctx, stream, dout_temp, x_temp, dy, true, transpose_x);
-      } else {
-        MatMul2D<T>(
-            dev_ctx, stream, x_temp, dout_temp, dy, !transpose_x, false);
-      }
-      dy->Resize(y.dims());
-    }
-    return;
-  }
-
-  const int K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-  const int N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-
-  // Case 3: [B, M, K] x [K, N] =  [B, M, N], when transpose_x = false
-  // Equal: [B * M, K] x [K, N] = [B * M, N] => [B, M, N]
-  if (transpose_x == false && y_ndim == 2) {
-    std::vector<int64_t> x_vec_dim = {x_temp.numel() / K, K};
-    dout_temp.Resize(
-        phi::make_ddim(std::vector<int64_t>{dout_temp.numel() / N, N}));
-    if (dx) {
-      dx->Resize(phi::make_ddim(x_vec_dim));
-      MatMul2D<T>(dev_ctx, stream, dout_temp, y_temp, dx, false, !transpose_y);
-      dx->Resize(x.dims());
-    }
-    if (dy) {
-      x_temp.Resize(phi::make_ddim(x_vec_dim));
-      if (transpose_y) {
-        MatMul2D<T>(dev_ctx, stream, dout_temp, x_temp, dy, true, false);
-      } else {
-        MatMul2D<T>(dev_ctx, stream, x_temp, dout_temp, dy, true, false);
-      }
-    }
-    return;
-  }
-
-  // Case 4: [B, M, K] x  [B, K, N] = [B, M, N]
-  std::vector<int64_t> x_broadcast_dims(out_ndim, 1);
-  std::vector<int64_t> y_broadcast_dims(out_ndim, 1);
-  std::copy(out_dims.begin(), out_dims.end() - 2, x_broadcast_dims.begin());
-  std::copy(out_dims.begin(), out_dims.end() - 2, y_broadcast_dims.begin());
-  std::copy(x_dims.end() - 2, x_dims.end(), x_broadcast_dims.end() - 2);
-  std::copy(y_dims.end() - 2, y_dims.end(), y_broadcast_dims.end() - 2);
-
-  phi::DenseTensor x_temp_brd;
-  phi::DenseTensorMeta x_temp_brd_meta = {x.dtype(), {}};
-  x_temp_brd.set_meta(x_temp_brd_meta);
-  if (x_dims == x_broadcast_dims) {
-    x_temp_brd = x;
-    x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
-  } else {
-    x_temp_brd.Resize(phi::make_ddim(x_broadcast_dims));
-    dev_ctx.template Alloc<T>(&x_temp_brd);
-    NpuOpRunner runner_brd;
-    runner_brd.SetType("BroadcastTo")
-        .AddInput(x_temp)
-        .AddInput(dev_ctx, std::move(x_broadcast_dims))
-        .AddOutput(x_temp_brd)
-        .Run(stream);
-  }
-
-  phi::DenseTensor y_temp_brd;
-  phi::DenseTensorMeta y_temp_brd_meta = {y.dtype(), {}};
-  y_temp_brd.set_meta(y_temp_brd_meta);
-  if (y_dims == y_broadcast_dims) {
-    y_temp_brd = y;
-    y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
-  } else {
-    y_temp_brd.Resize(phi::make_ddim(y_broadcast_dims));
-    dev_ctx.template Alloc<T>(&y_temp_brd);
-    NpuOpRunner runner_brd;
-    runner_brd.SetType("BroadcastTo")
-        .AddInput(y_temp)
-        .AddInput(dev_ctx, std::move(y_broadcast_dims))
-        .AddOutput(y_temp_brd)
-        .Run(stream);
-  }
-
-  if (dx) {
-    if (x_dims == x_broadcast_dims) {
-      if (transpose_x) {
-        MatMulND<T>(
-            dev_ctx, stream, y_temp_brd, dout_temp, dx, transpose_y, true);
-      } else {
-        MatMulND<T>(
-            dev_ctx, stream, dout_temp, y_temp_brd, dx, false, !transpose_y);
-      }
-    } else {
-      phi::DenseTensor dx_temp;
-      phi::DenseTensorMeta dx_temp_meta = {x.dtype(),
-                                           phi::make_ddim(x_broadcast_dims)};
-      dx_temp.set_meta(dx_temp_meta);
-      if (transpose_x) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    y_temp_brd,
-                    dout_temp,
-                    &dx_temp,
-                    transpose_y,
-                    true);
-      } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    y_temp_brd,
-                    &dx_temp,
-                    false,
-                    !transpose_y);
-      }
-      ReduceDims<T>(dev_ctx, stream, x_dims, x_broadcast_dims, dx_temp, dx);
-    }
-  }
-  if (dy) {
-    if (y_dims == y_broadcast_dims) {
-      if (transpose_y) {
-        MatMulND<T>(
-            dev_ctx, stream, dout_temp, x_temp_brd, dy, true, transpose_x);
-      } else {
-        MatMulND<T>(
-            dev_ctx, stream, x_temp_brd, dout_temp, dy, !transpose_x, false);
-      }
-    } else {
-      phi::DenseTensor dy_temp;
-      phi::DenseTensorMeta dy_temp_meta = {y.dtype(),
-                                           phi::make_ddim(y_broadcast_dims)};
-      dy_temp.set_meta(dy_temp_meta);
-      if (transpose_y) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    x_temp_brd,
-                    &dy_temp,
-                    true,
-                    transpose_x);
-      } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    x_temp_brd,
-                    dout_temp,
-                    &dy_temp,
-                    !transpose_x,
-                    false);
-      }
-      ReduceDims<T>(dev_ctx, stream, y_dims, y_broadcast_dims, dy_temp, dy);
-    }
+  if (x_dims.size() == 1 || y_dims.size() == 1) {
+    MVGradKernel<T, Context>(dev_ctx,
+                             x_dims,
+                             y_dims,
+                             out_dims,
+                             x,
+                             y,
+                             dout,
+                             transpose_x,
+                             transpose_y,
+                             dx,
+                             dy);
+  } else if (x_dims.size() == 2 || y_dims.size() == 2) {
+    MMGradKernel<T, Context>(dev_ctx,
+                             x_dims,
+                             y_dims,
+                             out_dims,
+                             x,
+                             y,
+                             dout,
+                             transpose_x,
+                             transpose_y,
+                             dx,
+                             dy);
+  } else {  // x_dims.size() > 2 && y_dims.size() > 2
+    BMMGradKernel<T, Context>(dev_ctx,
+                              x_dims,
+                              y_dims,
+                              out_dims,
+                              x,
+                              y,
+                              dout,
+                              transpose_x,
+                              transpose_y,
+                              dx,
+                              dy);
   }
 }
 

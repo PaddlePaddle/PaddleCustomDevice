@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import sys
 import subprocess
 import unittest
@@ -33,6 +34,7 @@ paddle.enable_static()
 
 class TestUniformRandomOp(OpTest):
     def setUp(self):
+        self.set_npu()
         self.op_type = "uniform_random"
         self.python_api = paddle.uniform
         self.inputs = {}
@@ -47,6 +49,10 @@ class TestUniformRandomOp(OpTest):
             "seed": 10
         }
         self.output_hist = output_hist
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace('ascend', 0)
 
     def test_check_output(self):
         self.check_output_customized(self.verify_output)
@@ -69,7 +75,11 @@ class TestUniformRandomOp(OpTest):
         with _test_eager_guard():
             self.test_check_api()
 
+    def _get_places(self):
+        return []
 
+
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
@@ -140,7 +150,11 @@ class TestNPUUniformRandomOp(OpTest):
             np.allclose(
                 hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
 
+    def _get_places(self):
+        return []
 
+
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]

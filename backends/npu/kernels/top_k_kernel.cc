@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -30,8 +31,7 @@ void TopkKernel(const Context& dev_ctx,
     axis += x.dims().size();
   }
 
-  int k = k_scalar.to<int>();
-
+  auto k = k_scalar.to<int>();
   phi::DDim output_dims = x.dims();
   output_dims[axis] = k;
 
@@ -46,27 +46,31 @@ void TopkKernel(const Context& dev_ctx,
   indices_int32.set_meta(indices_int32_meta);
   dev_ctx.template Alloc<int32_t>(&indices_int32);
 
-  auto npu_stream = dev_ctx.stream();
+  phi::DenseTensor k_tensor;
+  k_tensor.Resize({1});
+  dev_ctx.template HostAlloc<int32_t>(&k_tensor);
+  *(k_tensor.data<int32_t>()) = k;
 
-  NpuOpRunner npu_op_runner_topkv2;
-  npu_op_runner_topkv2.SetType("TopKV2")
-      .AddInput(x)
-      .AddInput(dev_ctx, std::vector<int32_t>{k})
-      .AddOutput(*out)
-      .AddOutput(indices_int32)
-      .AddAttr("sorted", sorted)
-      .AddAttr("dim", axis)
-      .AddAttr("largest", largest)
-      .Run(npu_stream);
+  experimental::OpCommand("TopKV2")
+      .Input(x,
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Input(
+          k_tensor,
+          experimental::TensorDescMaker("k").FromTensor(k_tensor).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(*out)
+      .Output(indices_int32)
+      .Attr("sorted", sorted)
+      .Attr("dim", axis)
+      .Attr("largest", largest)
+      .Run(dev_ctx);
 
-  // Cast 'indices_int32' to 'indices', from INT32 to INT64
-  auto dst_dtype = ConvertToNpuDtype(indices->dtype());
-  const auto& npu_op_runner_cast =
-      NpuOpRunner("Cast",
-                  {indices_int32},
-                  {*indices},
-                  {{"dst_type", static_cast<int>(dst_dtype)}});
-  npu_op_runner_cast.Run(npu_stream);
+  experimental::OpCommand("Cast")
+      .Input(indices_int32)
+      .Output(*indices)
+      .Attr("dst_type", static_cast<int>(ConvertToNpuDtype(indices->dtype())))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

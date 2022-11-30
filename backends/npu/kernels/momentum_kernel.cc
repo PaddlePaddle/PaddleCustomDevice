@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -33,39 +34,47 @@ void MomentumKernel(const Context& dev_ctx,
                     phi::DenseTensor* param_out,
                     phi::DenseTensor* velocity_out,
                     phi::DenseTensor* master_param_out) {
-  auto mu = static_cast<T>(mu_f);
-
   dev_ctx.template Alloc<T>(param_out);
   dev_ctx.template Alloc<T>(velocity_out);
 
-  phi::DenseTensor mu_tensor;
-  mu_tensor.Resize({1});
-  dev_ctx.template Alloc<T>(&mu_tensor);
-  FillNpuTensorWithConstant<T>(&mu_tensor, dev_ctx, mu);
+  phi::DenseTensor host_mu;
+  experimental::OpCommandHelper::ScalarToHostTensor(
+      dev_ctx, static_cast<T>(mu_f), &host_mu);
 
   phi::DenseTensor regularized_grad;
   if (regularization_method == "l2_decay") {
     regularized_grad.Resize(grad.dims());
     dev_ctx.template Alloc<T>(&regularized_grad);
-
-    const auto& runner1 = NpuOpRunner(
-        "Muls", {param}, {regularized_grad}, {{"value", regularization_coeff}});
-    runner1.Run(dev_ctx.stream());
-    const auto& runner2 =
-        NpuOpRunner("Add", {regularized_grad, grad}, {regularized_grad}, {});
-    runner2.Run(dev_ctx.stream());
+    experimental::OpCommand("Axpy")
+        .Input(grad)
+        .Input(param)
+        .Output(regularized_grad)
+        .Attr("alpha", regularization_coeff)
+        .Run(dev_ctx);
   } else {
     regularized_grad = grad;
   }
-  TensorCopy(dev_ctx, param, false, param_out);
-  TensorCopy(dev_ctx, velocity, false, velocity_out);
   // NOTE: ApplyMomentum will change the input
-  const auto& runner = NpuOpRunner(
-      "ApplyMomentum",
-      {*param_out, *velocity_out, learning_rate, regularized_grad, mu_tensor},
-      {*param_out},
-      {{"use_nesterov", use_nesterov}});
-  runner.Run(dev_ctx.stream());
+  experimental::OpCommandHelper::MarkAsParameter(param_out);
+  experimental::OpCommandHelper::MarkAsParameter(velocity_out);
+  phi::DenseTensor tmp_out;
+  tmp_out.Resize(param_out->dims());
+  dev_ctx.template Alloc<T>(&tmp_out);
+  experimental::OpCommand("ApplyMomentum")
+      .Input(*param_out,
+             experimental::TensorDescMaker("var")
+                 .FromTensor(*param_out)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(*velocity_out,
+             experimental::TensorDescMaker("accum")
+                 .FromTensor(*velocity_out)
+                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(learning_rate)
+      .Input(regularized_grad)
+      .ScalarInput(host_mu)
+      .Attr("use_nesterov", use_nesterov)
+      .Output(tmp_out)
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

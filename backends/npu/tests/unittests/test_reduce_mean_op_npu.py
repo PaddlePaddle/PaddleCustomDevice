@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import numpy as np
 import unittest
 import sys
@@ -123,6 +124,7 @@ class Test3DReduce1(Test1DReduce):
         }
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test3DReduce2(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -134,6 +136,7 @@ class Test3DReduce2(Test1DReduce):
         }
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class Test3DReduce3(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -145,6 +148,7 @@ class Test3DReduce3(Test1DReduce):
         }
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestKeepDimReduce(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -157,6 +161,7 @@ class TestKeepDimReduce(Test1DReduce):
         }
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestKeepDim8DReduce(Test1DReduce):
     def setUp(self):
         self.set_npu()
@@ -171,6 +176,7 @@ class TestKeepDim8DReduce(Test1DReduce):
         }
 
 
+@unittest.skipIf(os.getenv('FLAGS_use_graph_engine', None) == '1', "cann error")
 class TestReduceAll(Test1DReduce):
     def setUp(self):
         self.set_npu()

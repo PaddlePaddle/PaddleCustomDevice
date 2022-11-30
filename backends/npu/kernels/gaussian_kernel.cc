@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -28,8 +29,7 @@ void GaussianKernel(const Context& ctx,
   ctx.template Alloc<T>(out);
 
   phi::DenseTensor cpu_tensor;
-  phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
-  cpu_tensor.set_meta(cpu_meta);
+  cpu_tensor.Resize(out->dims());
   T* cpu_data = ctx.template HostAlloc<T>(&cpu_tensor);
   std::normal_distribution<T> dist(mean, std);
 
@@ -42,7 +42,16 @@ void GaussianKernel(const Context& ctx,
   for (int64_t i = 0; i < size; ++i) {
     cpu_data[i] = dist(*engine);
   }
-  TensorCopy(ctx, cpu_tensor, true, out);
+  ACL_RUN({ TensorCopy(ctx, cpu_tensor, false, out); });
+  GRAPH_RUN({
+    experimental::OpCommand("Const")
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                phi::DataLayout::ANY))
+        .Attr("value", cpu_tensor)
+        .Run(ctx);
+  });
 }
 
 }  // namespace custom_kernel

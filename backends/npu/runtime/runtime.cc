@@ -23,6 +23,8 @@
 
 #include "glog/logging.h"
 
+ENV_bool(use_graph_engine, false);
+
 class AlignnedAllocator {
  public:
   void *Alloc(size_t size, size_t align) {
@@ -657,4 +659,15 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+
+  // graph
+  params->interface->graph_engine_initialize = graph_engine_initialize;
+  params->interface->graph_engine_finalize = graph_engine_finalize;
+  params->interface->graph_engine_prepare_graph = graph_engine_prepare_graph;
+  params->interface->graph_engine_execute_graph = graph_engine_execute_graph;
+
+  params->interface->device_allocator_allocate =
+      graph_engine_allocator_allocate;
+  params->interface->device_allocator_deallocate =
+      graph_engine_allocator_deallocate;
 }

@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 
 namespace custom_kernel {
 
@@ -48,8 +49,7 @@ void UniformRawKernel(const Context& dev_ctx,
 
   // 1. CPU implement
   phi::DenseTensor cpu_out;
-  phi::DenseTensorMeta cpu_out_meta = {out->dtype(), out->dims()};
-  cpu_out.set_meta(cpu_out_meta);
+  cpu_out.Resize(out->dims());
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 
   std::shared_ptr<std::mt19937_64> engine;
@@ -80,7 +80,16 @@ void UniformRawKernel(const Context& dev_ctx,
   }
 
   // 2. CPU Copy to NPU
-  TensorCopy(dev_ctx, cpu_out, true, out);
+  ACL_RUN({ TensorCopy(dev_ctx, cpu_out, false, out); });
+  GRAPH_RUN({
+    experimental::OpCommand("Const")
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                phi::DataLayout::ANY))
+        .Attr("value", cpu_out)
+        .Run(dev_ctx);
+  });
 }
 
 template <typename T, typename Context>

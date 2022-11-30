@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 
+import os
 import sys
 import unittest
 import numpy as np
@@ -47,6 +48,9 @@ class TestNPUGaussianRandomOp(OpTest):
     def set_attrs(self):
         self.mean = 1.0
         self.std = 2.
+
+    def _get_places(self):
+        return []
 
     def set_npu(self):
         self.__class__.use_custom_device = True

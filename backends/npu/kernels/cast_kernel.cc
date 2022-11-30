@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/npu_funcs.h"
-#include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/op_command.h"
 #include "paddle/phi/core/tensor_meta.h"
 
 namespace custom_kernel {
@@ -23,14 +23,6 @@ void CastKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DenseTensorMeta::DataType dtype,
                 phi::DenseTensor* out) {
-  if (x.dtype() == dtype) {
-    dev_ctx.template Alloc<T>(out);
-    TensorCopy(dev_ctx, x, false, out);
-    return;
-  }
-
-  int aclDtype = ConvertToNpuDtype(dtype);
-
   if (dtype == phi::DenseTensorMeta::DataType::FLOAT32) {
     dev_ctx.template Alloc<float>(out);
   } else if (dtype == phi::DenseTensorMeta::DataType::FLOAT64) {
@@ -53,11 +45,15 @@ void CastKernel(const Context& dev_ctx,
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }
 
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-
-  const auto& runner = NpuOpRunner(
-      "Cast", {x}, {*out}, {{"dst_type", static_cast<int32_t>(aclDtype)}});
-  runner.Run(stream);
+  experimental::OpCommand("Cast")
+      .Input(x,
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                 phi::DataLayout::ANY))
+      .Output(*out,
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                  phi::DataLayout::ANY))
+      .Attr("dst_type", static_cast<int32_t>(ConvertToNpuDtype(dtype)))
+      .Run(dev_ctx);
 }
 
 }  // namespace custom_kernel

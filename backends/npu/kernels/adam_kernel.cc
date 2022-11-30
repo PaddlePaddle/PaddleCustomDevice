@@ -240,8 +240,7 @@ void AdamwKernel(const Context& dev_ctx,
     // Master Parma is not supported on npu
     if (master_param.is_initialized()) {
       PADDLE_THROW(
-          phi::errors::Unimplemented("Master Parma is not supported on
-          npu"));
+          phi::errors::Unimplemented("Master Parma is not supported on npu"));
     } else {
       dev_ctx.template Alloc<T>(param_out);
 

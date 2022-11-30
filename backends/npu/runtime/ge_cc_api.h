@@ -17,41 +17,83 @@
 namespace ge {
 namespace capi {
 
-template <typename T, T* (*Allocator)(), void (*Deleter)(T*)>
-class GEClassWrapper {};
+class Operator {
+ public:
+  Operator(const std::string& op_type, const std::string& op_name = "") {
+    static std::unordered_map<std::string, size_t> op_count;
+    op_type_ = op_type;
+    if (op_name.size()) {
+      op_name_ = op_name;
+    } else {
+      op_name_ = op_type_ + "_" + std::to_string(op_count[op_type_]);
+      op_count[op_type_] = op_count[op_type_] + 1;
+    }
+    raw_data_ = CreateOperator(op_name_.c_str(), op_type_.c_str());
+    own_data_ = true;
+  }
 
-// struct TensorDesc {
-//   TensorDesc() { raw_data = CreateTensorDesc(); }
+  Operator(const Operator& other) {
+    raw_data_ = other.raw_data_;
+    own_data_ = false;
+  }
 
-//   ~TensorDesc() {
-//     DestroyTensorDesc(raw_data);
-//     raw_data = nullptr;
-//   }
+  Operator(Operator&& other) {
+    raw_data_ = other.raw_data_;
+    own_data_ = other.own_data_;
+    other.own_data_ = false;
+    other.raw_data_ = nullptr;
+  }
 
-//   TensorDesc(const TensorDesc& other) {
+  Operator& operator=(const Operator& other) {
+    raw_data_ = other.raw_data_;
+    own_data_ = false;
+    return *this;
+  }
 
-//   }
+  Operator& operator=(Operator&& other) {
+    raw_data_ = other.raw_data_;
+    own_data_ = other.own_data_;
+    other.own_data_ = false;
+    other.raw_data_ = nullptr;
+    return *this;
+  }
 
-//   TensorDesc& operator=(TensorDesc& other) {
+  ~Operator() {
+    if (own_data_ && raw_data_) {
+      DestroyOperator(raw_data_);
+      raw_data_ = nullptr;
+      own_data_ = false;
+    }
+  }
 
-//     return *this;
-//   }
+  const std::string& Name() const { return op_name_; }
 
-//   void SetShape(const std::vector<int64_t>& shape) {
-//     TensorDescSetShape(
-//         raw_data, const_cast<int64_t*>(shape.data()), shape.size());
-//   }
+  const std::string& Type() const { return op_type_; }
 
-//   void SetDType(ge::DataType dtype) {
-//     TensorDescSetDType(raw_data, static_cast<int64_t>(dtype));
-//   }
+  std::vector<int> GetOutputShape(int index) {
+    return OperatorGetOutputShapeByIndex<int>(raw_data_, index);
+  }
 
-//   void SetFormat(ge::Format format) {
-//     TensorDescSetFormat(raw_data, static_cast<int64_t>(format));
-//   }
+  template <typename T>
+  void SetAttr(const std::string& key, const T& value) {
+    OperatorSetAttr(raw_data, key.c_str(), value);
+  }
 
-//   C_GE_TensorDesc* raw_data{nullptr};
-// };
+  void SetInput(int input_index, Operator* other, int other_output_index) {
+    OperatorSetInput(
+        raw_data_, input_index, other->raw_data_, other_output_index);
+  }
+
+  void AddControlInput(Operator* other) {
+    OperatorAddControlInput(raw_data_, other->raw_data_);
+  }
+
+ private:
+  std::string op_type_;
+  std::string op_name_;
+  C_GE_Operator* raw_data_{nullptr};
+  bool own_data_{false};
+};
 
 }  // namespace capi
 }  // namespace ge

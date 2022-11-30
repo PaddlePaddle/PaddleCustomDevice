@@ -327,36 +327,33 @@ C_Status graph_engine_execute_graph(const C_Device device,
             custom_kernel::experimental::TensorDescMaker("y", *dense_tensor)
                 .SetDataLayout(phi::DataLayout::ANY));
         graph_tensor->FromOther(data_node, 0);
-        LOG(INFO) << "tensor: " << dense_tensor
-                  << " insert node: " << data_node->Name();
       }
     }
 
     global_variable_initializer(c_scope, c_graph);
 
     for (auto tensor : custom_kernel::experimental::TensorNode::storage()) {
+      if (tensor->WithoutNode()) {
+        continue;
+      }
       LOG(INFO) << "tensor: " << tensor
                 << ", has node: " << !tensor->WithoutNode()
                 << ", tag: " << tensor->Tag() << ", node: " << tensor->Node()
                 << ", type: "
                 << (tensor->WithoutNode() ? "None" : tensor->Node()->Type())
                 << ", name: "
-                << (tensor->WithoutNode() ? "None" : tensor->Node()->Name())
-                << "\n\n";
+                << (tensor->WithoutNode() ? "None" : tensor->Node()->Name());
 
-      if (!tensor->WithoutNode()) {
-        tensor->Node()->UpdateOutputDesc(tensor->NodeIndex());
-        auto desc = tensor->Node()->OutputDescs()[tensor->NodeIndex()];
-        if (desc.Valid()) {
-          LOG(INFO) << "\tupdate " << tensor->Node()->Name() << " output "
-                    << desc.desc_name_ << " dims=" << desc.dims_
-                    << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_
-                    << "\n\n";
-        }
+      tensor->Node()->UpdateOutputDesc(tensor->NodeIndex());
+      auto desc = tensor->Node()->OutputDescs()[tensor->NodeIndex()];
+      if (desc.Valid()) {
+        LOG(INFO) << "update " << tensor->Node()->Name() << " output "
+                  << desc.desc_name_ << " dims=" << desc.dims_
+                  << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_;
       }
 
       for (auto link : tensor->Links()) {
-        LOG(INFO) << "\tlink " << tensor->Node()->Name() << " -> "
+        LOG(INFO) << "link " << tensor->Node()->Name() << " -> "
                   << link.first->Name() << std::endl;
         auto link_input = tensor->NodeGeOp();
         auto link_input_index = tensor->NodeIndex();
@@ -364,13 +361,12 @@ C_Status graph_engine_execute_graph(const C_Device device,
         link.first->UpdateInputDesc(link.second);
         auto desc = link.first->InputDescs()[link.second];
         if (desc.Valid()) {
-          LOG(INFO) << "\tupdate " << link.first->Name() << " input "
+          LOG(INFO) << "update " << link.first->Name() << " input "
                     << desc.desc_name_ << " dims=" << desc.dims_
-                    << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_
-                    << std::endl;
+                    << ", dtype=" << desc.dtype_ << ", layout=" << desc.layout_;
           auto origin_dims = phi::make_ddim(tensor->NodeShape<int64_t>());
           if (origin_dims != desc.dims_ && origin_dims.size()) {
-            LOG(INFO) << "\treshape " << origin_dims << " -> " << desc.dims_;
+            LOG(INFO) << "reshape " << origin_dims << " -> " << desc.dims_;
             // x -> reshape -> op
             auto shape =
                 std::make_shared<custom_kernel::experimental::OpNode>("Const");
@@ -392,7 +388,6 @@ C_Status graph_engine_execute_graph(const C_Device device,
         }
         OperatorSetInput(
             link.first->GeOp(), link.second, link_input, link_input_index);
-        LOG(INFO) << std::endl;
       }
     }
 
@@ -404,8 +399,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
               dense_tensor->data());
       if (!graph_tensor->WithoutNode() && graph_tensor->Links().size()) {
         LOG(INFO) << "graph add input: " << graph_tensor << ", "
-                  << graph_tensor->Node()->Name() << ", "
-                  << graph_tensor->NodeGeOp();
+                  << graph_tensor->Node()->Name();
         input_ops.push_back(graph_tensor->NodeGeOp());
       }
     }
@@ -417,8 +411,7 @@ C_Status graph_engine_execute_graph(const C_Device device,
                     input_ops.cend(),
                     graph_tensor->NodeGeOp()) == input_ops.cend()) {
         LOG(INFO) << "graph add input: " << graph_tensor << ", "
-                  << graph_tensor->Node()->Name() << ", "
-                  << graph_tensor->NodeGeOp();
+                  << graph_tensor->Node()->Name();
         input_ops.push_back(graph_tensor->NodeGeOp());
       }
     }
@@ -431,28 +424,18 @@ C_Status graph_engine_execute_graph(const C_Device device,
               dense_tensor->data());
 
       LOG(INFO) << "graph add output: " << graph_tensor << ", "
-                << graph_tensor->Node()->Name() << ", "
-                << graph_tensor->NodeGeOp();
+                << graph_tensor->Node()->Name();
       output_ops.push_back(graph_tensor->NodeGeOp());
       output_ops_index.push_back(graph_tensor->NodeIndex());
     }
 
-    LOG(INFO) << "input_ops size=" << input_ops.size() << std::endl;
-    LOG(INFO) << "output_ops size=" << output_ops.size() << std::endl;
+    LOG(INFO) << "graph input size: " << input_ops.size() << std::endl;
+    LOG(INFO) << "graph output size: " << output_ops.size() << std::endl;
     if (input_ops.size() == 0) {
       return C_FAILED;
     }
-    VLOG(10) << "Set inputs: ";
-    for (auto in : input_ops) {
-      VLOG(10) << "in: " << in << ", type: " << OperatorGetOpType(in)
-               << ", name: " << OperatorGetOpName(in);
-    }
     GraphSetInput(
         graph_cache[c_graph].graph, input_ops.data(), input_ops.size());
-    for (auto in : output_ops) {
-      VLOG(10) << "out: " << in << ", type: " << OperatorGetOpType(in)
-               << ", name: " << OperatorGetOpName(in);
-    }
     GraphSetOutput(graph_cache[c_graph].graph,
                    output_ops.data(),
                    output_ops_index.data(),
@@ -540,8 +523,5 @@ C_Status graph_engine_allocator_allocate(const C_Device device,
 C_Status graph_engine_allocator_deallocate(const C_Device device,
                                            void *ptr,
                                            size_t byte_size) {
-  // VLOG(10) << "graph_engine_allocator_deallocate: ptr=" << ptr
-  //          << ", byte_size=" << byte_size;
-  // delete reinterpret_cast<custom_kernel::experimental::TensorNode *>(ptr);
   return C_SUCCESS;
 }

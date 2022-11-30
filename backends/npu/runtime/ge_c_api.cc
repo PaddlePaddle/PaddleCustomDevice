@@ -268,12 +268,8 @@ void SessionAddGraph(C_GE_Session* session,
 
   if (reinterpret_cast<ge::Session*>(session)->AddGraph(
           graph_id, *reinterpret_cast<ge::Graph*>(graph)) != ge::SUCCESS) {
-    // std::cerr << "[ERROR] add graph  " << graph_id << ": " << graph
-    //           << " failed." << std::endl;
-  } else {
-    // std::cerr << "[INFO] add graph " << graph_id << ": " << graph << "
-    // success."
-    //           << std::endl;
+    std::cerr << "[ERROR] add graph  " << graph_id << ": " << graph
+              << " failed." << std::endl;
   }
 }
 
@@ -336,12 +332,6 @@ void GraphSetTarget(C_GE_Graph* graph, C_GE_Operator** ops, size_t count) {
 
 C_GE_Tensor* CreateTensor() { return C_TENSOR(new ge::Tensor); }
 
-// C_GE_Tensor* CreateTensor(C_GE_TensorDesc* desc,
-//                           ge::DataType dtype,
-//                           ge::Format format) {
-//   return C_TENSOR(new ge::Tensor(*GE_DESC(desc), dtype, format));
-// }
-
 uint8_t* TensorGetData(C_GE_Tensor* tensor) {
   return GE_TENSOR(tensor)->GetData();
 }
@@ -391,10 +381,9 @@ C_Status graph_initialize(const C_Device device, const C_Stream stream) {
 
     ge::Status ret = ge::GEInitialize(c_api::config);
     if (ret != ge::SUCCESS) {
-      // std::cerr << "[ERROR] graph_engine_initialize failed." << std::endl;
+      std::cerr << "[ERROR] graph_engine_initialize failed." << std::endl;
       return C_FAILED;
     }
-    // std::cerr << "[INFO] graph_engine_initialize success." << std::endl;
   }
   return C_SUCCESS;
 }
@@ -403,18 +392,15 @@ C_Status graph_finalize(const C_Device device, const C_Stream stream) {
   if (c_api::ge_initialized) {
     c_api::ge_initialized = false;
     if (c_api::session) {
-      //   graph_cache.clear();
-      //   custom_graph::Tensor::TensorStorage().clear();
       delete c_api::session;
       c_api::session = nullptr;
     }
 
     ge::Status ret = ge::GEFinalize();
     if (ret != ge::SUCCESS) {
-      // std::cerr << "[ERROR] graph_engine_finalize failed." << std::endl;
+      std::cerr << "[ERROR] graph_engine_finalize failed." << std::endl;
       return C_FAILED;
     }
-    // std::cerr << "[INFO] graph_engine_finalize success." << std::endl;
   }
   return C_SUCCESS;
 }

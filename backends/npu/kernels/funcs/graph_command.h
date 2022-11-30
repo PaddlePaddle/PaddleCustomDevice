@@ -296,8 +296,9 @@ struct TensorNode {
   }
 
   void ResetFromOther(std::shared_ptr<OpNode> other, size_t index) {
-    LOG(INFO) << "Reset FromOther: " << (node_.get() ? node_->Name() : "None")
-              << ":" << index_ << " -> " << other->Name() << ":" << index;
+    LOG(INFO) << "Reset tensor " << this
+              << " FromOther: " << (node_.get() ? node_->Name() : "None") << ":"
+              << index_ << " -> " << other->Name() << ":" << index;
     node_ = other;
     index_ = index;
   }

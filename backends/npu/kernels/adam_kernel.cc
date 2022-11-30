@@ -238,17 +238,17 @@ void AdamwKernel(const Context& dev_ctx,
     runner2.Run(stream);
 
     // Master Parma is not supported on npu
-    // if (master_param.is_initialized()) {
-    //   PADDLE_THROW(
-    //       phi::errors::Unimplemented("Master Parma is not supported on
-    //       npu"));
-    // } else {
-    dev_ctx.template Alloc<T>(param_out);
+    if (master_param.is_initialized()) {
+      PADDLE_THROW(
+          phi::errors::Unimplemented("Master Parma is not supported on
+          npu"));
+    } else {
+      dev_ctx.template Alloc<T>(param_out);
 
-    const auto& runner = NpuOpRunner(
-        "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
-    runner.Run(stream);
-    // }
+      const auto& runner = NpuOpRunner(
+          "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
+      runner.Run(stream);
+    }
   }
 
   custom_kernel::AdamKernel<T, Context>(dev_ctx,
@@ -274,13 +274,16 @@ void AdamwKernel(const Context& dev_ctx,
                                         beta1_pow_out,
                                         beta2_pow_out,
                                         master_param_outs);
-  // if (master_param_outs) {
-  //   dev_ctx.template Alloc<float>(master_param_outs);
-  //   const auto& runner_cast = NpuOpRunner("Cast", {*param_out},
-  //   {*master_param_outs}, {{"dst_dtype",
-  //   static_cast<int32_t>(cpp_type_to_acl_dtype<float>::value())}});
-  //   runner_cast.Run(stream);
-  // }
+  if (master_param_outs) {
+    dev_ctx.template Alloc<float>(master_param_outs);
+    const auto& runner_cast = NpuOpRunner(
+        "Cast",
+        {*param_out},
+        {*master_param_outs},
+        {{"dst_dtype",
+          static_cast<int32_t>(cpp_type_to_acl_dtype<float>::value())}});
+    runner_cast.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel

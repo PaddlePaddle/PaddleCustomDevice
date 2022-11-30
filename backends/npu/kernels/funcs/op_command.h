@@ -316,22 +316,6 @@ struct OpCommandHelper {
           .Attr("axes", reduce_axes)
           .Attr("keep_dims", false)
           .Run(dev_ctx);
-
-      // GRAPH_RUN({
-      //   phi::DenseTensor out_dims_tensor;
-      //   experimental::OpCommandHelper::VectorToHostTensor(
-      //       dev_ctx, phi::vectorize<int>(dx->dims()), &out_dims_tensor);
-      //   experimental::OpCommand("Reshape")
-      //       .Input(*dx,
-      //              experimental::TensorDescMaker("x", *dx)
-      //                  .SetDataLayout(phi::DataLayout::ANY)
-      //                  .SetDims(phi::make_ddim(dst_dims_vec)))
-      //       .Input(out_dims_tensor)
-      //       .Output(*dx,
-      //               experimental::TensorDescMaker("y", *dx).SetDataLayout(
-      //                   phi::DataLayout::ANY))
-      //       .Run(dev_ctx);
-      // });
     }
   }
 

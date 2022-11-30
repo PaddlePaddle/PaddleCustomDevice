@@ -18,33 +18,6 @@
 
 namespace custom_kernel {
 
-// template <typename T, typename Context>
-// static void ReduceDims(const Context& dev_ctx,
-//                        const aclrtStream& stream,
-//                        const int axis,
-//                        const phi::DDim& ddims,
-//                        const phi::DDim& brd_ddims,
-//                        const phi::DenseTensor& in,
-//                        phi::DenseTensor* out) {
-//   std::vector<int64_t> axes;
-//   int64_t brd_size = brd_ddims.size();
-//   int64_t org_size = ddims.size();
-//   // int64_t diff = brd_dims.size() - dims.size();
-//   for (int64_t i = 0; i < brd_size; ++i) {
-//     if (i < axis || i >= org_size + axis) {
-//       axes.push_back(i);
-//       continue;
-//     }
-//     if (brd_ddims[i] > ddims[i - axis]) {
-//       axes.push_back(i);
-//     }
-//   }
-//   dev_ctx.template Alloc<T>(out);
-//   const auto& runner = NpuOpRunner(
-//       "ReduceSumD", {in}, {*out}, {{"axes", axes}, {"keep_dims", false}});
-//   runner.Run(stream);
-// }
-
 template <typename T, typename Context>
 void MultiplyRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
@@ -117,8 +90,6 @@ void MultiplyGradKernel(const Context& dev_ctx,
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
     if (dx->dims() == dout.dims()) {
-      // const auto& runner_dx = NpuOpRunner("Mul", {dout, trans_y}, {*dx}, {});
-      // runner_dx.Run(stream);
       experimental::OpCommand("Mul").Input(dout).Input(trans_y).Output(*dx).Run(
           dev_ctx);
     } else {
@@ -127,11 +98,6 @@ void MultiplyGradKernel(const Context& dev_ctx,
       dx_temp.set_meta(dx_temp_meta);
       dev_ctx.template Alloc<T>(&dx_temp);
 
-      // const auto& runner_dx =
-      //     NpuOpRunner("Mul", {dout, trans_y}, {dx_temp}, {});
-      // runner_dx.Run(stream);
-      // ReduceDims<T>(
-      //     dev_ctx, stream, axis, dx->dims(), trans_x.dims(), dx_temp, dx);
       experimental::OpCommand("Mul")
           .Input(dout)
           .Input(trans_y)
@@ -144,8 +110,6 @@ void MultiplyGradKernel(const Context& dev_ctx,
   if (dy) {
     dev_ctx.template Alloc<T>(dy);
     if (dy->dims() == dout.dims()) {
-      // const auto& runner_dy = NpuOpRunner("Mul", {trans_x, dout}, {*dy}, {});
-      // runner_dy.Run(stream);
       experimental::OpCommand("Mul").Input(trans_x).Input(dout).Output(*dy).Run(
           dev_ctx);
     } else {
@@ -154,11 +118,6 @@ void MultiplyGradKernel(const Context& dev_ctx,
       dy_temp.set_meta(dy_temp_meta);
       dev_ctx.template Alloc<T>(&dy_temp);
 
-      // const auto& runner_dy =
-      //     NpuOpRunner("Mul", {trans_x, dout}, {dy_temp}, {});
-      // runner_dy.Run(stream);
-      // ReduceDims<T>(
-      //     dev_ctx, stream, axis, dy->dims(), trans_y.dims(), dy_temp, dy);
       experimental::OpCommand("Mul")
           .Input(trans_x)
           .Input(dout)

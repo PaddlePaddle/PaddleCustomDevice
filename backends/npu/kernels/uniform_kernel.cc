@@ -83,9 +83,10 @@ void UniformRawKernel(const Context& dev_ctx,
   ACL_RUN({ TensorCopy(dev_ctx, cpu_out, false, out); });
   GRAPH_RUN({
     experimental::OpCommand("Const")
-        .Output(*out,
-                experimental::TensorDescMaker("y", *out).SetDataLayout(
-                    phi::DataLayout::ANY))
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                phi::DataLayout::ANY))
         .Attr("value", cpu_out)
         .Run(dev_ctx);
   });

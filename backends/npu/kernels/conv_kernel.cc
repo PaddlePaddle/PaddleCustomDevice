@@ -96,17 +96,17 @@ void Conv2dKernel(const Context& dev_ctx,
 
   experimental::OpCommand("Conv2D")
       .Input(input,
-             experimental::TensorDescMaker("x", input)
-                 .SetDataLayout(channel_last ? phi::DataLayout::NHWC
-                                             : phi::DataLayout::NCHW))
+             experimental::TensorDescMaker("x").FromTensor(input).SetDataLayout(
+                 channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
       .Input(filter,
-             experimental::TensorDescMaker("filter", filter)
+             experimental::TensorDescMaker("filter")
+                 .FromTensor(filter)
                  .SetDataLayout(phi::DataLayout::NCHW))
 
-      .Output(*output,
-              experimental::TensorDescMaker("y", *output)
-                  .SetDataLayout(channel_last ? phi::DataLayout::NHWC
-                                              : phi::DataLayout::NCHW))
+      .Output(
+          *output,
+          experimental::TensorDescMaker("y").FromTensor(*output).SetDataLayout(
+              channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
       .Attr("strides", strides_vec)
       .Attr("pads", paddings)
       .Attr("dilations", dilations_vec)
@@ -175,17 +175,19 @@ void Conv2dGradKernel(const Context& dev_ctx,
     TensorFromVector(
         dev_ctx, filter_shape_vec, phi::CPUContext(), &filter_size);
     experimental::OpCommand("Conv2DBackpropFilter")
-        .Input(input,
-               experimental::TensorDescMaker("x", input)
-                   .SetDataLayout(channel_last ? phi::DataLayout::NHWC
-                                               : phi::DataLayout::NCHW))
+        .Input(
+            input,
+            experimental::TensorDescMaker("x").FromTensor(input).SetDataLayout(
+                channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
         .Input(filter_size)
         .Input(output_grad,
-               experimental::TensorDescMaker("out_backprop", output_grad)
+               experimental::TensorDescMaker("out_backprop")
+                   .FromTensor(output_grad)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Output(*filter_grad,
-                experimental::TensorDescMaker("y", *filter_grad)
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*filter_grad)
                     .SetDataLayout(phi::DataLayout::NCHW))
         .Attr("strides", strides_vec)
         .Attr("pads", paddings)
@@ -203,14 +205,17 @@ void Conv2dGradKernel(const Context& dev_ctx,
     experimental::OpCommand("Conv2DBackpropInput")
         .Input(input_size)
         .Input(filter,
-               experimental::TensorDescMaker("filter", filter)
+               experimental::TensorDescMaker("filter")
+                   .FromTensor(filter)
                    .SetDataLayout(phi::DataLayout::NCHW))
         .Input(output_grad,
-               experimental::TensorDescMaker("out_backprop", output_grad)
+               experimental::TensorDescMaker("out_backprop")
+                   .FromTensor(output_grad)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Output(*input_grad,
-                experimental::TensorDescMaker("y", *input_grad)
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*input_grad)
                     .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                 : phi::DataLayout::NCHW))
         .Attr("strides", strides_vec)

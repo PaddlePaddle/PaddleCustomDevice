@@ -75,9 +75,10 @@ void FullLikeKernel(const Context& dev_ctx,
     }
 
     experimental::OpCommand("Const")
-        .Output(*out,
-                experimental::TensorDescMaker("y", *out).SetDataLayout(
-                    phi::DataLayout::ANY))
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                phi::DataLayout::ANY))
         .Attr("value", value_tensor)
         .Run(dev_ctx);
     return;
@@ -98,14 +99,17 @@ void FullLikeKernel(const Context& dev_ctx,
 
       experimental::OpCommand("Fill")
           .Input(x_dims,
-                 experimental::TensorDescMaker("dims", x_dims)
+                 experimental::TensorDescMaker("dims")
+                     .FromTensor(x_dims)
                      .SetDataLayout(phi::DataLayout::ANY))
           .ScalarInput(value_tensor,
-                       experimental::TensorDescMaker("value", value_tensor)
+                       experimental::TensorDescMaker("value")
+                           .FromTensor(value_tensor)
                            .SetDataLayout(phi::DataLayout::ANY))
-          .Output(*out,
-                  experimental::TensorDescMaker("y", *out).SetDataLayout(
-                      phi::DataLayout::ANY))
+          .Output(
+              *out,
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                  phi::DataLayout::ANY))
           .Run(dev_ctx);
     }
   });

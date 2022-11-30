@@ -53,11 +53,12 @@ void TopkKernel(const Context& dev_ctx,
 
   experimental::OpCommand("TopKV2")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
                  phi::DataLayout::ANY))
-      .Input(k_tensor,
-             experimental::TensorDescMaker("k", k_tensor)
-                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          k_tensor,
+          experimental::TensorDescMaker("k").FromTensor(k_tensor).SetDataLayout(
+              phi::DataLayout::ANY))
       .Output(*out)
       .Output(indices_int32)
       .Attr("sorted", sorted)

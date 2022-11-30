@@ -68,23 +68,29 @@ void BatchNormKernel(const Context& dev_ctx,
   if (!training) {
     experimental::OpCommand("BNInfer")
         .Input(x,
-               experimental::TensorDescMaker("x", x)
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
                    .SetDataLayout(data_layout)
                    .SetDims(phi::make_ddim(x_dims)))
         .Input(scale,
-               experimental::TensorDescMaker("scale", scale)
+               experimental::TensorDescMaker("scale")
+                   .FromTensor(scale)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(bias,
-               experimental::TensorDescMaker("offset", bias)
+               experimental::TensorDescMaker("offset")
+                   .FromTensor(bias)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(running_mean,
-               experimental::TensorDescMaker("mean", running_mean)
+               experimental::TensorDescMaker("mean")
+                   .FromTensor(running_mean)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(running_var,
-               experimental::TensorDescMaker("variance", running_var)
+               experimental::TensorDescMaker("variance")
+                   .FromTensor(running_var)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Output(*y,
-                experimental::TensorDescMaker("y", *y)
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*y)
                     .SetDataLayout(data_layout)
                     .SetDims(phi::make_ddim(x_dims)))
         .Attr("epsilon", epsilon)
@@ -103,14 +109,17 @@ void BatchNormKernel(const Context& dev_ctx,
 
     experimental::OpCommand("BNTrainingReduce")
         .Input(x,
-               experimental::TensorDescMaker("x", x)
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
                    .SetDataLayout(data_layout)
                    .SetDims(phi::make_ddim(x_dims)))
-        .Output(sum,
-                experimental::TensorDescMaker("sum", sum)
-                    .SetDataLayout(phi::DataLayout::ANY))
+        .Output(
+            sum,
+            experimental::TensorDescMaker("sum").FromTensor(sum).SetDataLayout(
+                phi::DataLayout::ANY))
         .Output(square_sum,
-                experimental::TensorDescMaker("square_sum", square_sum)
+                experimental::TensorDescMaker("square_sum")
+                    .FromTensor(square_sum)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Run(dev_ctx);
 
@@ -125,41 +134,52 @@ void BatchNormKernel(const Context& dev_ctx,
 
     experimental::OpCommand("BNTrainingUpdate")
         .Input(x,
-               experimental::TensorDescMaker("x", x)
+               experimental::TensorDescMaker("x")
+                   .FromTensor(x)
                    .SetDataLayout(data_layout)
                    .SetDims(phi::make_ddim(x_dims)))
-        .Input(sum,
-               experimental::TensorDescMaker("sum", sum)
-                   .SetDataLayout(phi::DataLayout::ANY))
+        .Input(
+            sum,
+            experimental::TensorDescMaker("sum").FromTensor(sum).SetDataLayout(
+                phi::DataLayout::ANY))
         .Input(square_sum,
-               experimental::TensorDescMaker("square_sum", square_sum)
+               experimental::TensorDescMaker("square_sum")
+                   .FromTensor(square_sum)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(scale,
-               experimental::TensorDescMaker("scale", scale)
+               experimental::TensorDescMaker("scale")
+                   .FromTensor(scale)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(bias,
-               experimental::TensorDescMaker("offset", bias)
+               experimental::TensorDescMaker("offset")
+                   .FromTensor(bias)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(running_mean,
-               experimental::TensorDescMaker("mean", running_mean)
+               experimental::TensorDescMaker("mean")
+                   .FromTensor(running_mean)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(running_var,
-               experimental::TensorDescMaker("variance", running_var)
+               experimental::TensorDescMaker("variance")
+                   .FromTensor(running_var)
                    .SetDataLayout(phi::DataLayout::ANY))
-        .Output(
-            *y,
-            experimental::TensorDescMaker("y", *y).SetDataLayout(data_layout))
+        .Output(*y,
+                experimental::TensorDescMaker("y").FromTensor(*y).SetDataLayout(
+                    data_layout))
         .Output(tmp_mean,
-                experimental::TensorDescMaker("mean", tmp_mean)
+                experimental::TensorDescMaker("mean")
+                    .FromTensor(tmp_mean)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Output(tmp_variance,
-                experimental::TensorDescMaker("variance", tmp_variance)
+                experimental::TensorDescMaker("variance")
+                    .FromTensor(tmp_variance)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Output(*saved_mean,
-                experimental::TensorDescMaker("batch_mean", *saved_mean)
+                experimental::TensorDescMaker("batch_mean")
+                    .FromTensor(*saved_mean)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Output(*saved_variance,
-                experimental::TensorDescMaker("batch_variance", *saved_variance)
+                experimental::TensorDescMaker("batch_variance")
+                    .FromTensor(*saved_variance)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Attr("epsilon", epsilon)
         .Attr("factor", momentum)
@@ -236,50 +256,60 @@ void BatchNormGradKernel(
 
       experimental::OpCommand("BNTrainingUpdateGrad")
           .Input(d_y,
-                 experimental::TensorDescMaker("grads", d_y)
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
                      .SetDataLayout(data_layout)
                      .SetDims(phi::make_ddim(x_dims)))
           .Input(x,
-                 experimental::TensorDescMaker("x", x)
+                 experimental::TensorDescMaker("x")
+                     .FromTensor(x)
                      .SetDataLayout(data_layout)
                      .SetDims(phi::make_ddim(x_dims)))
           .Input(*running_mean,
-                 experimental::TensorDescMaker("batch_mean", *running_mean)
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(*running_mean)
                      .SetDataLayout(phi::DataLayout::ANY))
-          .Input(
-              *running_variance,
-              experimental::TensorDescMaker("batch_variance", *running_variance)
-                  .SetDataLayout(phi::DataLayout::ANY))
+          .Input(*running_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(*running_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
           .Output(*d_scale,
-                  experimental::TensorDescMaker("diff_scale", *d_scale)
+                  experimental::TensorDescMaker("diff_scale")
+                      .FromTensor(*d_scale)
                       .SetDataLayout(phi::DataLayout::ANY))
           .Output(*d_bias,
-                  experimental::TensorDescMaker("diff_offset", *d_bias)
+                  experimental::TensorDescMaker("diff_offset")
+                      .FromTensor(*d_bias)
                       .SetDataLayout(phi::DataLayout::ANY))
           .Attr("epsilon", epsilon)
           .Run(dev_ctx);
     } else {
       experimental::OpCommand("BNTrainingUpdateGrad")
           .Input(d_y,
-                 experimental::TensorDescMaker("grads", d_y)
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
                      .SetDataLayout(data_layout)
                      .SetDims(phi::make_ddim(x_dims)))
           .Input(x,
-                 experimental::TensorDescMaker("x", x)
+                 experimental::TensorDescMaker("x")
+                     .FromTensor(x)
                      .SetDataLayout(data_layout)
                      .SetDims(phi::make_ddim(x_dims)))
           .Input(saved_mean,
-                 experimental::TensorDescMaker("batch_mean", saved_mean)
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(saved_mean)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Input(saved_inv_variance,
-                 experimental::TensorDescMaker("batch_variance",
-                                               saved_inv_variance)
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(saved_inv_variance)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Output(*d_scale,
-                  experimental::TensorDescMaker("diff_scale", *d_scale)
+                  experimental::TensorDescMaker("diff_scale")
+                      .FromTensor(*d_scale)
                       .SetDataLayout(phi::DataLayout::ANY))
           .Output(*d_bias,
-                  experimental::TensorDescMaker("diff_offset", *d_bias)
+                  experimental::TensorDescMaker("diff_offset")
+                      .FromTensor(*d_bias)
                       .SetDataLayout(phi::DataLayout::ANY))
           .Attr("epsilon", epsilon)
           .Run(dev_ctx);
@@ -291,18 +321,21 @@ void BatchNormGradKernel(
       const auto* running_variance = variance.get_ptr();
       experimental::OpCommand("BNInferGrad")
           .Input(d_y,
-                 experimental::TensorDescMaker("grads", d_y)
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
                      .SetDataLayout(data_layout)
                      .SetDims(phi::make_ddim(x_dims)))
           .Input(scale,
-                 experimental::TensorDescMaker("scale", scale)
+                 experimental::TensorDescMaker("scale")
+                     .FromTensor(scale)
                      .SetDataLayout(phi::DataLayout::ANY))
-          .Input(
-              *running_variance,
-              experimental::TensorDescMaker("batch_variance", *running_variance)
-                  .SetDataLayout(phi::DataLayout::ANY))
+          .Input(*running_variance,
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(*running_variance)
+                     .SetDataLayout(phi::DataLayout::ANY))
           .Output(*d_x,
-                  experimental::TensorDescMaker("x_backprop", *d_x)
+                  experimental::TensorDescMaker("x_backprop")
+                      .FromTensor(*d_x)
                       .SetDataLayout(phi::DataLayout::ANY)
                       .SetDims(phi::make_ddim(x_dims)))
           .Attr("epsilon", epsilon)
@@ -310,30 +343,36 @@ void BatchNormGradKernel(
     } else {
       experimental::OpCommand("BNTrainingReduceGrad")
           .Input(d_y,
-                 experimental::TensorDescMaker("grads", d_y)
+                 experimental::TensorDescMaker("grads")
+                     .FromTensor(d_y)
                      .SetDataLayout(data_layout))
-          .Input(
-              x,
-              experimental::TensorDescMaker("x", x).SetDataLayout(data_layout))
+          .Input(x,
+                 experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
+                     data_layout))
           .Input(*d_scale,
-                 experimental::TensorDescMaker("diff_scale", *d_scale)
+                 experimental::TensorDescMaker("diff_scale")
+                     .FromTensor(*d_scale)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Input(*d_bias,
-                 experimental::TensorDescMaker("diff_offset", *d_bias)
+                 experimental::TensorDescMaker("diff_offset")
+                     .FromTensor(*d_bias)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Input(scale,
-                 experimental::TensorDescMaker("scale", scale)
+                 experimental::TensorDescMaker("scale")
+                     .FromTensor(scale)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Input(saved_mean,
-                 experimental::TensorDescMaker("batch_mean", saved_mean)
+                 experimental::TensorDescMaker("batch_mean")
+                     .FromTensor(saved_mean)
                      .SetDataLayout(phi::DataLayout::ANY))
           .Input(saved_inv_variance,
-                 experimental::TensorDescMaker("batch_variance",
-                                               saved_inv_variance)
+                 experimental::TensorDescMaker("batch_variance")
+                     .FromTensor(saved_inv_variance)
                      .SetDataLayout(phi::DataLayout::ANY))
-          .Output(*d_x,
-                  experimental::TensorDescMaker("y", *d_x).SetDataLayout(
-                      phi::DataLayout::ANY))
+          .Output(
+              *d_x,
+              experimental::TensorDescMaker("y").FromTensor(*d_x).SetDataLayout(
+                  phi::DataLayout::ANY))
           .Attr("epsilon", epsilon)
           .Run(dev_ctx);
     }
@@ -379,23 +418,29 @@ void BatchNormInferKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(y);
   experimental::OpCommand("BNInfer")
       .Input(x,
-             experimental::TensorDescMaker("x", x)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(x)
                  .SetDataLayout(data_layout)
                  .SetDims(phi::make_ddim(x_dims)))
       .Input(scale,
-             experimental::TensorDescMaker("scale", scale)
+             experimental::TensorDescMaker("scale")
+                 .FromTensor(scale)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(bias,
-             experimental::TensorDescMaker("offset", bias)
+             experimental::TensorDescMaker("offset")
+                 .FromTensor(bias)
                  .SetDataLayout(phi::DataLayout::ANY))
-      .Input(mean,
-             experimental::TensorDescMaker("mean", mean)
-                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          mean,
+          experimental::TensorDescMaker("mean").FromTensor(mean).SetDataLayout(
+              phi::DataLayout::ANY))
       .Input(variance,
-             experimental::TensorDescMaker("variance", variance)
+             experimental::TensorDescMaker("variance")
+                 .FromTensor(variance)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*y,
-              experimental::TensorDescMaker("y", *y)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*y)
                   .SetDataLayout(data_layout)
                   .SetDims(phi::make_ddim(x_dims)))
       .Attr("epsilon", epsilon)

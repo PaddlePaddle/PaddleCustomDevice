@@ -62,10 +62,12 @@ void MomentumKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&tmp_out);
   experimental::OpCommand("ApplyMomentum")
       .Input(*param_out,
-             experimental::TensorDescMaker("var", *param_out)
+             experimental::TensorDescMaker("var")
+                 .FromTensor(*param_out)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(*velocity_out,
-             experimental::TensorDescMaker("accum", *velocity_out)
+             experimental::TensorDescMaker("accum")
+                 .FromTensor(*velocity_out)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(learning_rate)
       .Input(regularized_grad)

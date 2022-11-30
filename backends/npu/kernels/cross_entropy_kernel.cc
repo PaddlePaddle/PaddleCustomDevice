@@ -75,12 +75,14 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
   }
 
   experimental::OpCommand("SoftmaxV2")
-      .Input(logits,
-             experimental::TensorDescMaker("x", logits)
-                 .SetDataLayout(phi::DataLayout::ANY))
-      .Output(*softmax,
-              experimental::TensorDescMaker("y", *softmax)
-                  .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          logits,
+          experimental::TensorDescMaker("x").FromTensor(logits).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(
+          *softmax,
+          experimental::TensorDescMaker("y").FromTensor(*softmax).SetDataLayout(
+              phi::DataLayout::ANY))
       .Attr("axes", axes)
       .Run(dev_ctx);
 
@@ -91,19 +93,23 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
 
   experimental::OpCommand("SparseSoftmaxCrossEntropyWithLogits")
       .Input(logits,
-             experimental::TensorDescMaker("features", logits)
+             experimental::TensorDescMaker("features")
+                 .FromTensor(logits)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims(phi::make_ddim(std::vector<int>({n, d}))))
       .Input(labels,
-             experimental::TensorDescMaker("labels", labels)
+             experimental::TensorDescMaker("labels")
+                 .FromTensor(labels)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims(phi::make_ddim(std::vector<int>({n}))))
       .Output(*loss,
-              experimental::TensorDescMaker("loss", *loss)
+              experimental::TensorDescMaker("loss")
+                  .FromTensor(*loss)
                   .SetDataLayout(phi::DataLayout::ANY)
                   .SetDims(phi::make_ddim(std::vector<int>({n}))))
       .Output(backprop_2d,
-              experimental::TensorDescMaker("backprop", backprop_2d)
+              experimental::TensorDescMaker("backprop")
+                  .FromTensor(backprop_2d)
                   .SetDataLayout(phi::DataLayout::ANY)
                   .SetDims(phi::make_ddim(std::vector<int>({n, d}))))
       .Run(dev_ctx);
@@ -143,14 +149,15 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&softmax_sub_one_hot);
 
   experimental::OpCommand("Cast")
-      .Input(labels,
-             experimental::TensorDescMaker("x", labels)
-                 .SetDataLayout(phi::DataLayout::ANY))
-      .Output(labels_int32,
-              experimental::TensorDescMaker("y", labels)
-                  .SetDataLayout(
-                      phi::DataLayout::ANY))  // the dimention of labels and
-                                              // labels_int32 maybe different.
+      .Input(
+          labels,
+          experimental::TensorDescMaker("x").FromTensor(labels).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Output(
+          labels_int32,
+          experimental::TensorDescMaker("y").FromTensor(labels).SetDataLayout(
+              phi::DataLayout::ANY))  // the dimention of labels and
+                                      // labels_int32 maybe different.
       .Attr("dst_type",
             static_cast<int>(
                 experimental::ConvertToNpuDtype(labels_int32.dtype())))
@@ -158,44 +165,55 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
 
   experimental::OpCommand("OneHot")
       .Input(labels_int32,
-             experimental::TensorDescMaker("x", labels_int32)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(labels_int32)
                  .SetDataLayout(phi::DataLayout::ANY))
       .ScalarInput(depth,
-                   experimental::TensorDescMaker("depth", depth)
+                   experimental::TensorDescMaker("depth")
+                       .FromTensor(depth)
                        .SetDataLayout(phi::DataLayout::ANY))
       .ScalarInput(on_tensor,
-                   experimental::TensorDescMaker("on_value", on_tensor)
+                   experimental::TensorDescMaker("on_value")
+                       .FromTensor(on_tensor)
                        .SetDataLayout(phi::DataLayout::ANY))
       .ScalarInput(off_tensor,
-                   experimental::TensorDescMaker("off_value", off_tensor)
+                   experimental::TensorDescMaker("off_value")
+                       .FromTensor(off_tensor)
                        .SetDataLayout(phi::DataLayout::ANY))
-      .Output(one_hot,
-              experimental::TensorDescMaker("y", one_hot)
-                  .SetDataLayout(phi::DataLayout::ANY))
+      .Output(
+          one_hot,
+          experimental::TensorDescMaker("y").FromTensor(one_hot).SetDataLayout(
+              phi::DataLayout::ANY))
       .Attr("axis", -1)
       .Run(dev_ctx);
 
   experimental::OpCommand("Sub")
-      .Input(softmax,
-             experimental::TensorDescMaker("x1", softmax)
-                 .SetDataLayout(phi::DataLayout::ANY))
-      .Input(one_hot,
-             experimental::TensorDescMaker("x2", one_hot)
-                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          softmax,
+          experimental::TensorDescMaker("x1").FromTensor(softmax).SetDataLayout(
+              phi::DataLayout::ANY))
+      .Input(
+          one_hot,
+          experimental::TensorDescMaker("x2").FromTensor(one_hot).SetDataLayout(
+              phi::DataLayout::ANY))
       .Output(softmax_sub_one_hot,
-              experimental::TensorDescMaker("y", softmax_sub_one_hot)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(softmax_sub_one_hot)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Run(dev_ctx);
 
   experimental::OpCommand("Mul")
       .Input(loss_grad,
-             experimental::TensorDescMaker("x1", loss_grad)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(loss_grad)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(softmax_sub_one_hot,
-             experimental::TensorDescMaker("x2", softmax_sub_one_hot)
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(softmax_sub_one_hot)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*logits_grad,
-              experimental::TensorDescMaker("y", *logits_grad)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*logits_grad)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Run(dev_ctx);
 }

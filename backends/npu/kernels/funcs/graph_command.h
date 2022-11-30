@@ -311,8 +311,6 @@ struct TensorNode {
     link_to_.push_back({node, index});
   }
 
-  void BreakConnect() {}
-
   void SetTag(TensorNodeTag tag) { tag_ = tag; }
 
   TensorNodeTag Tag() const { return tag_; }

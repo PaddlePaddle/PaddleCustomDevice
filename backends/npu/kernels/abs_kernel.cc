@@ -24,10 +24,10 @@ void AbsKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   experimental::OpCommand("Abs")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
                  phi::DataLayout::ANY))
       .Output(*out,
-              experimental::TensorDescMaker("y", *out).SetDataLayout(
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
                   phi::DataLayout::ANY))
       .Run(dev_ctx);
 }
@@ -40,13 +40,13 @@ void AbsGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(dx);
   experimental::OpCommand("AbsGrad")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
                  phi::DataLayout::ANY))
       .Input(dout,
-             experimental::TensorDescMaker("dy", dout)
-                 .SetDataLayout(phi::DataLayout::ANY))
+             experimental::TensorDescMaker("dy").FromTensor(dout).SetDataLayout(
+                 phi::DataLayout::ANY))
       .Output(*dx,
-              experimental::TensorDescMaker("z", *dx).SetDataLayout(
+              experimental::TensorDescMaker("z").FromTensor(*dx).SetDataLayout(
                   phi::DataLayout::ANY))
       .Run(dev_ctx);
 }

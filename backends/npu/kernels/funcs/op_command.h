@@ -83,17 +83,13 @@ struct TensorDescMaker {
   explicit TensorDescMaker(const std::string& desc_name)
       : desc_name_(desc_name) {}
 
-  TensorDescMaker(const std::string& desc_name, const phi::DenseTensor& tensor)
-      : desc_name_(desc_name),
-        dims_(tensor.dims()),
-        layout_(tensor.layout()),
-        dtype_(tensor.dtype()) {
-    if (tensor.place() == phi::CPUPlace()) {
-      MarkAsHost();
-    }
-  }
-
   bool Valid() { return desc_name_.size(); }
+
+  TensorDescMaker& FromTensor(const phi::DenseTensor& tensor) {
+    dims_ = tensor.dims();
+    layout_ = tensor.layout();
+    dtype_ = tensor.dtype();
+  }
 
   TensorDescMaker& SetDims(const phi::DDim& dims) {
     dims_ = dims;
@@ -276,15 +272,18 @@ struct OpCommandHelper {
 
     experimental::OpCommand("BroadcastTo")
         .Input(src,
-               experimental::TensorDescMaker("x", src)
+               experimental::TensorDescMaker("x")
+                   .FromTensor(src)
                    .SetDataLayout(phi::DataLayout::ANY)
                    .SetDims(phi::make_ddim(src_dims)))
         .Input(dst_dims,
-               experimental::TensorDescMaker("shape", dst_dims)
+               experimental::TensorDescMaker("shape")
+                   .FromTensor(dst_dims)
                    .SetDataLayout(phi::DataLayout::ANY))
-        .Output(*dst,
-                experimental::TensorDescMaker("y", *dst).SetDataLayout(
-                    phi::DataLayout::ANY))
+        .Output(
+            *dst,
+            experimental::TensorDescMaker("y").FromTensor(*dst).SetDataLayout(
+                phi::DataLayout::ANY))
         .Run(dev_ctx);
   }
 
@@ -310,7 +309,8 @@ struct OpCommandHelper {
       experimental::OpCommand("ReduceSumD")
           .Input(dout)
           .Output(*dx,
-                  experimental::TensorDescMaker("y", *dx)
+                  experimental::TensorDescMaker("y")
+                      .FromTensor(*dx)
                       .SetDataLayout(phi::DataLayout::ANY)
                       .SetDims(phi::make_ddim(dst_dims_vec)))
           .Attr("axes", reduce_axes)
@@ -318,11 +318,6 @@ struct OpCommandHelper {
           .Run(dev_ctx);
     }
   }
-
-  static void Copy(const phi::CustomContext& dev_ctx,
-                   const phi::DenseTensor& src,
-                   bool blocking,
-                   phi::DenseTensor* dst);
 
   static void MarkAsParameter(phi::DenseTensor* dst);
 };

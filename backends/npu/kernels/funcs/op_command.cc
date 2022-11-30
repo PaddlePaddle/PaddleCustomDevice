@@ -322,10 +322,10 @@ C_Status graph_engine_execute_graph(const C_Device device,
         graph_tensor->SetTag(custom_kernel::experimental::TensorNodeTag::IN);
         auto data_node =
             std::make_shared<custom_kernel::experimental::OpNode>("Data");
-        data_node->AddOutput(
-            graph_tensor,
-            custom_kernel::experimental::TensorDescMaker("y", *dense_tensor)
-                .SetDataLayout(phi::DataLayout::ANY));
+        data_node->AddOutput(graph_tensor,
+                             custom_kernel::experimental::TensorDescMaker("y")
+                                 .FromTensor(*dense_tensor)
+                                 .SetDataLayout(phi::DataLayout::ANY));
         graph_tensor->FromOther(data_node, 0);
       }
     }

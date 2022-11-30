@@ -152,11 +152,11 @@ void Pool2dKernel(const Context& dev_ctx,
     experimental::OpCommand(pooling_mode)
         .Input(
             in_x,
-            experimental::TensorDescMaker("x", in_x).SetDataLayout(
+            experimental::TensorDescMaker("x").FromTensor(in_x).SetDataLayout(
                 channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
         .Output(
             *out,
-            experimental::TensorDescMaker("y", *out).SetDataLayout(
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
                 channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
         .Attr("output_size", phi::vectorize<int>(out_data_dims))
         .Run(dev_ctx);
@@ -168,11 +168,11 @@ void Pool2dKernel(const Context& dev_ctx,
     experimental::OpCommand(pooling_mode)
         .Input(
             in_x,
-            experimental::TensorDescMaker("x", in_x).SetDataLayout(
+            experimental::TensorDescMaker("x").FromTensor(in_x).SetDataLayout(
                 channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
         .Output(
             *out,
-            experimental::TensorDescMaker("y", *out).SetDataLayout(
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
                 channel_last ? phi::DataLayout::NHWC : phi::DataLayout::NCHW))
         .Attr("ksize", ksize_vec)
         .Attr("strides", strides_vec)
@@ -293,19 +293,23 @@ void Pool2dGradKernel(const Context& dev_ctx,
 
     experimental::OpCommand("MaxPoolV3Grad")
         .Input(in_x,
-               experimental::TensorDescMaker("orig_input", in_x)
+               experimental::TensorDescMaker("orig_input")
+                   .FromTensor(in_x)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Input(out,
-               experimental::TensorDescMaker("orig_output", out)
+               experimental::TensorDescMaker("orig_output")
+                   .FromTensor(out)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Input(out_grad,
-               experimental::TensorDescMaker("grad", out_grad)
+               experimental::TensorDescMaker("grad")
+                   .FromTensor(out_grad)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Output(*in_x_grad,
-                experimental::TensorDescMaker("out_grad", *in_x_grad)
+                experimental::TensorDescMaker("out_grad")
+                    .FromTensor(*in_x_grad)
                     .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                 : phi::DataLayout::NCHW))
         .Attr("ksize", ksize_vec)
@@ -330,14 +334,17 @@ void Pool2dGradKernel(const Context& dev_ctx,
 
     experimental::OpCommand("AvgPoolV2Grad")
         .Input(in_x_dims,
-               experimental::TensorDescMaker("orig_input_shape", in_x_dims)
+               experimental::TensorDescMaker("orig_input_shape")
+                   .FromTensor(in_x_dims)
                    .SetDataLayout(phi::DataLayout::NCHW))
         .Input(out_grad,
-               experimental::TensorDescMaker("input_grad", out_grad)
+               experimental::TensorDescMaker("input_grad")
+                   .FromTensor(out_grad)
                    .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                : phi::DataLayout::NCHW))
         .Output(*in_x_grad,
-                experimental::TensorDescMaker("out_grad", *in_x_grad)
+                experimental::TensorDescMaker("out_grad")
+                    .FromTensor(*in_x_grad)
                     .SetDataLayout(channel_last ? phi::DataLayout::NHWC
                                                 : phi::DataLayout::NCHW))
         .Attr("ksize", ksize_vec)

@@ -53,13 +53,14 @@ void MeanRawKernel(const Context& dev_ctx,
       dev_ctx, dims, &reduce_axes);
   experimental::OpCommand("ReduceMean")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
                  phi::DataLayout::ANY))
       .Input(reduce_axes,
-             experimental::TensorDescMaker("axes", reduce_axes)
+             experimental::TensorDescMaker("axes")
+                 .FromTensor(reduce_axes)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*out,
-              experimental::TensorDescMaker("y", *out).SetDataLayout(
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
                   phi::DataLayout::ANY))
       .Attr("keep_dims", keep_dim)
       .Run(dev_ctx);
@@ -118,14 +119,17 @@ void MeanGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(x_grad);
   experimental::OpCommand("Mul")
       .Input(out_grad,
-             experimental::TensorDescMaker("x1", out_grad)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(out_grad)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(reciprocal_reduce_numel,
-             experimental::TensorDescMaker("x2", reciprocal_reduce_numel)
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(reciprocal_reduce_numel)
                  .SetDataLayout(phi::DataLayout::ANY))
-      .Output(*x_grad,
-              experimental::TensorDescMaker("y", *x_grad)
-                  .SetDataLayout(phi::DataLayout::ANY))
+      .Output(
+          *x_grad,
+          experimental::TensorDescMaker("y").FromTensor(*x_grad).SetDataLayout(
+              phi::DataLayout::ANY))
       .Run(dev_ctx);
 }
 

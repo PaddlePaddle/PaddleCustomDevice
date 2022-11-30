@@ -8,7 +8,7 @@ include(paddle)
 include(generic)
 include(third_party)
 include(external/ascend)
-include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR})
 
 option(WITH_MKLDNN     "compile with MKLDNN support"      ON)
 option(WITH_KERNELS    "compile with custom kernels"      ON)

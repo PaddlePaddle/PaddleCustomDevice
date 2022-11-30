@@ -50,15 +50,18 @@ void AccuracyRawKernel(const Context& dev_ctx,
 
   experimental::OpCommand("Equal")
       .Input(indices,
-             experimental::TensorDescMaker("x1", indices)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(indices)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims({num_samples, class_dim}))
       .Input(label,
-             experimental::TensorDescMaker("x2", label)
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(label)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims({num_samples, 1}))
       .Output(equal,
-              experimental::TensorDescMaker("y", equal)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(equal)
                   .SetDataLayout(phi::DataLayout::ANY)
                   .SetDims({num_samples, class_dim}))
       .Run(dev_ctx);
@@ -68,11 +71,13 @@ void AccuracyRawKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int>(&equal_int);
   experimental::OpCommand("Cast")
       .Input(equal,
-             experimental::TensorDescMaker("x", equal)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(equal)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims({num_samples, class_dim}))
       .Output(equal_int,
-              experimental::TensorDescMaker("y", equal_int)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(equal_int)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Attr(
           "dst_type",
@@ -88,13 +93,16 @@ void AccuracyRawKernel(const Context& dev_ctx,
       dev_ctx, std::vector<int>({1}), &reduce_max_axes);
   experimental::OpCommand("ReduceMax")
       .Input(equal_int,
-             experimental::TensorDescMaker("x", equal_int)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(equal_int)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(reduce_max_axes,
-             experimental::TensorDescMaker("axes", reduce_max_axes)
+             experimental::TensorDescMaker("axes")
+                 .FromTensor(reduce_max_axes)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(reduce_max,
-              experimental::TensorDescMaker("y", reduce_max)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(reduce_max)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Attr("keep_dims", false)
       .Run(dev_ctx);
@@ -104,14 +112,17 @@ void AccuracyRawKernel(const Context& dev_ctx,
       dev_ctx, std::vector<int>({0}), &reduce_sum_axes);
   experimental::OpCommand("ReduceSum")
       .Input(reduce_max,
-             experimental::TensorDescMaker("x", reduce_max)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(reduce_max)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(reduce_sum_axes,
-             experimental::TensorDescMaker("axes", reduce_sum_axes)
+             experimental::TensorDescMaker("axes")
+                 .FromTensor(reduce_sum_axes)
                  .SetDataLayout(phi::DataLayout::ANY))
-      .Output(*correct,
-              experimental::TensorDescMaker("y", *correct)
-                  .SetDataLayout(phi::DataLayout::ANY))
+      .Output(
+          *correct,
+          experimental::TensorDescMaker("y").FromTensor(*correct).SetDataLayout(
+              phi::DataLayout::ANY))
       .Attr("keep_dims", false)
       .Run(dev_ctx);
 
@@ -128,11 +139,13 @@ void AccuracyRawKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<float>(&total_float);
 
   experimental::OpCommand("Cast")
-      .Input(*correct,
-             experimental::TensorDescMaker("x", *correct)
-                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          *correct,
+          experimental::TensorDescMaker("x").FromTensor(*correct).SetDataLayout(
+              phi::DataLayout::ANY))
       .Output(correct_float,
-              experimental::TensorDescMaker("y", correct_float)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(correct_float)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Attr("dst_type",
             static_cast<int>(
@@ -140,11 +153,13 @@ void AccuracyRawKernel(const Context& dev_ctx,
       .Run(dev_ctx);
 
   experimental::OpCommand("Cast")
-      .Input(*total,
-             experimental::TensorDescMaker("x", *total)
-                 .SetDataLayout(phi::DataLayout::ANY))
+      .Input(
+          *total,
+          experimental::TensorDescMaker("x").FromTensor(*total).SetDataLayout(
+              phi::DataLayout::ANY))
       .Output(total_float,
-              experimental::TensorDescMaker("y", total_float)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(total_float)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Attr("dst_type",
             static_cast<int>(
@@ -153,13 +168,16 @@ void AccuracyRawKernel(const Context& dev_ctx,
 
   experimental::OpCommand("Div")
       .Input(correct_float,
-             experimental::TensorDescMaker("x1", correct_float)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(correct_float)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(total_float,
-             experimental::TensorDescMaker("x2", total_float)
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(total_float)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*accuracy,
-              experimental::TensorDescMaker("y", *accuracy)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*accuracy)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Run(dev_ctx);
 }

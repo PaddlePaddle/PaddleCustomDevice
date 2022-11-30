@@ -34,14 +34,17 @@ static void BMMBroadcastTo(const Context& dev_ctx,
       dev_ctx, x_broadcast_dims, &broadcast_shape);
   experimental::OpCommand("BroadcastTo")
       .Input(x,
-             experimental::TensorDescMaker("x", x)
+             experimental::TensorDescMaker("x")
+                 .FromTensor(x)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims(phi::make_ddim(x_dims)))
       .Input(broadcast_shape,
-             experimental::TensorDescMaker("shape", broadcast_shape)
+             experimental::TensorDescMaker("shape")
+                 .FromTensor(broadcast_shape)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Output(*x_broadcast,
-              experimental::TensorDescMaker("y", *x_broadcast)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*x_broadcast)
                   .SetDataLayout(phi::DataLayout::ANY))
       .Run(dev_ctx);
 }
@@ -99,19 +102,22 @@ static void BMMKernel(const Context& dev_ctx,
 
   experimental::OpCommand("BatchMatMul")
       .Input(x_broadcast,
-             experimental::TensorDescMaker("x1", x_broadcast)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(x_broadcast)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims({batch_size,
                            x_dims[x_dims.size() - 2],
                            x_dims[x_dims.size() - 1]}))
       .Input(y_broadcast,
-             experimental::TensorDescMaker("x2", y_broadcast)
+             experimental::TensorDescMaker("x2")
+                 .FromTensor(y_broadcast)
                  .SetDataLayout(phi::DataLayout::ANY)
                  .SetDims({batch_size,
                            y_dims[y_dims.size() - 2],
                            y_dims[y_dims.size() - 1]}))
       .Output(*out,
-              experimental::TensorDescMaker("y", *out)
+              experimental::TensorDescMaker("y")
+                  .FromTensor(*out)
                   .SetDataLayout(phi::DataLayout::ANY)
                   .SetDims({batch_size,
                             out_dims[out_dims.size() - 2],
@@ -143,15 +149,18 @@ static void MMKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(out);
     experimental::OpCommand("MatMul")
         .Input(x,
-               experimental::TensorDescMaker("x1", x)
+               experimental::TensorDescMaker("x1")
+                   .FromTensor(x)
                    .SetDataLayout(phi::DataLayout::ANY)
                    .SetDims(phi::make_ddim(x_dims)))
         .Input(y,
-               experimental::TensorDescMaker("x2", y)
+               experimental::TensorDescMaker("x2")
+                   .FromTensor(y)
                    .SetDataLayout(phi::DataLayout::ANY)
                    .SetDims(phi::make_ddim(y_dims)))
         .Output(*out,
-                experimental::TensorDescMaker("y", *out)
+                experimental::TensorDescMaker("y")
+                    .FromTensor(*out)
                     .SetDataLayout(phi::DataLayout::ANY)
                     .SetDims(phi::make_ddim(out_dims)))
         .Attr("transpose_x1", transpose_x)
@@ -205,13 +214,16 @@ static void MVKernel(const Context& dev_ctx,
 
     experimental::OpCommand("Dot")
         .Input(x,
-               experimental::TensorDescMaker("input_x", x)
+               experimental::TensorDescMaker("input_x")
+                   .FromTensor(x)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(y,
-               experimental::TensorDescMaker("input_y", y)
+               experimental::TensorDescMaker("input_y")
+                   .FromTensor(y)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Output(*out,
-                experimental::TensorDescMaker("output", *out)
+                experimental::TensorDescMaker("output")
+                    .FromTensor(*out)
                     .SetDataLayout(phi::DataLayout::ANY))
         .Run(dev_ctx);
   } else {  // x_ndim == 1 || y_ndim == 1
@@ -275,10 +287,10 @@ void BMMGradReduceSum(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   experimental::OpCommand("ReduceSumD")
       .Input(x,
-             experimental::TensorDescMaker("x", x).SetDataLayout(
+             experimental::TensorDescMaker("x").FromTensor(x).SetDataLayout(
                  phi::DataLayout::ANY))
       .Output(*out,
-              experimental::TensorDescMaker("y", *out).SetDataLayout(
+              experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
                   phi::DataLayout::ANY))
       .Attr("axes", reduce_axes)
       .Attr("keep_dims", keep_dims)
@@ -578,28 +590,34 @@ void MVGradKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<T>(dx);
       experimental::OpCommand("Mul")
           .Input(dout,
-                 experimental::TensorDescMaker("x1", dout)
+                 experimental::TensorDescMaker("x1")
+                     .FromTensor(dout)
                      .SetDataLayout(phi::DataLayout::ANY))
-          .Input(y,
-                 experimental::TensorDescMaker("x2", y).SetDataLayout(
-                     phi::DataLayout::ANY))
-          .Output(*dx,
-                  experimental::TensorDescMaker("y", *dx).SetDataLayout(
-                      phi::DataLayout::ANY))
+          .Input(
+              y,
+              experimental::TensorDescMaker("x2").FromTensor(y).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Output(
+              *dx,
+              experimental::TensorDescMaker("y").FromTensor(*dx).SetDataLayout(
+                  phi::DataLayout::ANY))
           .Run(dev_ctx);
     }
     if (dy) {
       dev_ctx.template Alloc<T>(dy);
       experimental::OpCommand("Mul")
           .Input(dout,
-                 experimental::TensorDescMaker("x1", dout)
+                 experimental::TensorDescMaker("x1")
+                     .FromTensor(dout)
                      .SetDataLayout(phi::DataLayout::ANY))
-          .Input(x,
-                 experimental::TensorDescMaker("x2", x).SetDataLayout(
-                     phi::DataLayout::ANY))
-          .Output(*dy,
-                  experimental::TensorDescMaker("y", *dy).SetDataLayout(
-                      phi::DataLayout::ANY))
+          .Input(
+              x,
+              experimental::TensorDescMaker("x2").FromTensor(x).SetDataLayout(
+                  phi::DataLayout::ANY))
+          .Output(
+              *dy,
+              experimental::TensorDescMaker("y").FromTensor(*dy).SetDataLayout(
+                  phi::DataLayout::ANY))
           .Run(dev_ctx);
     }
   } else {  // x_ndim == 1 || y_ndim == 1

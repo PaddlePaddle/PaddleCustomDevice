@@ -65,15 +65,17 @@ void MeanAllGradKernel(const Context& dev_ctx,
 
   experimental::OpCommand("Mul")
       .Input(mean_tensor,
-             experimental::TensorDescMaker("x1", mean_tensor)
+             experimental::TensorDescMaker("x1")
+                 .FromTensor(mean_tensor)
                  .SetDataLayout(phi::DataLayout::ANY))
       .Input(grad,
-             experimental::TensorDescMaker("x2", grad)
-                 .SetDataLayout(phi::DataLayout::ANY))
+             experimental::TensorDescMaker("x2").FromTensor(grad).SetDataLayout(
+                 phi::DataLayout::ANY))
 
-      .Output(*x_grad,
-              experimental::TensorDescMaker("y", *x_grad)
-                  .SetDataLayout(phi::DataLayout::ANY))
+      .Output(
+          *x_grad,
+          experimental::TensorDescMaker("y").FromTensor(*x_grad).SetDataLayout(
+              phi::DataLayout::ANY))
       .Run(dev_ctx);
 }
 

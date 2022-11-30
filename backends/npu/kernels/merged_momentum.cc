@@ -207,10 +207,12 @@ void MergedMomentumKernel(
     experimental::OpCommandHelper::MarkAsParameter(velocity_out_data);
     experimental::OpCommand("ApplyMomentum")
         .Input(*param_out_data,
-               experimental::TensorDescMaker("var", *param_out_data)
+               experimental::TensorDescMaker("var")
+                   .FromTensor(*param_out_data)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(*velocity_out_data,
-               experimental::TensorDescMaker("accum", *velocity_out_data)
+               experimental::TensorDescMaker("accum")
+                   .FromTensor(*velocity_out_data)
                    .SetDataLayout(phi::DataLayout::ANY))
         .Input(*lr_data)
         .Input(regularized_grad)

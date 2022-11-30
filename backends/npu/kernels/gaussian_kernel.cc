@@ -45,9 +45,10 @@ void GaussianKernel(const Context& ctx,
   ACL_RUN({ TensorCopy(ctx, cpu_tensor, false, out); });
   GRAPH_RUN({
     experimental::OpCommand("Const")
-        .Output(*out,
-                experimental::TensorDescMaker("y", *out).SetDataLayout(
-                    phi::DataLayout::ANY))
+        .Output(
+            *out,
+            experimental::TensorDescMaker("y").FromTensor(*out).SetDataLayout(
+                phi::DataLayout::ANY))
         .Attr("value", cpu_tensor)
         .Run(ctx);
   });

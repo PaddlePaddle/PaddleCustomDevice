@@ -177,7 +177,7 @@ class AclCommand : public NpuCommand {
   }
 
   void AddInput(const phi::DenseTensor &tensor) override {
-    AddInput(tensor, TensorDescMaker("", tensor).ChangeStorage());
+    AddInput(tensor, TensorDescMaker("").FromTensor(tensor).ChangeStorage());
   }
 
   void AddInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
@@ -195,10 +195,10 @@ class AclCommand : public NpuCommand {
   }
 
   void AddScalarInput(const phi::DenseTensor &tensor) override {
-    AddScalarInput(tensor,
-                   TensorDescMaker("", tensor)
-                       .MarkAsScalar()
-                       .SetDataLayout(phi::DataLayout::ANY));
+    AddScalarInput(
+        tensor,
+        TensorDescMaker("").FromTensor(tensor).MarkAsScalar().SetDataLayout(
+            phi::DataLayout::ANY));
   }
 
   void AddScalarInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
@@ -216,7 +216,7 @@ class AclCommand : public NpuCommand {
   }
 
   void AddHostInput(const phi::DenseTensor &tensor) override {
-    AddHostInput(tensor, TensorDescMaker("", tensor).MarkAsHost());
+    AddHostInput(tensor, TensorDescMaker("").FromTensor(tensor).MarkAsHost());
   }
 
   void AddHostInput(const phi::DenseTensor &tensor, TensorDescMaker maker) {
@@ -234,7 +234,7 @@ class AclCommand : public NpuCommand {
   }
 
   void AddHostScalarInput(const phi::DenseTensor &tensor) override {
-    AddHostScalarInput(tensor, TensorDescMaker("", tensor));
+    AddHostScalarInput(tensor, TensorDescMaker("").FromTensor(tensor));
   }
 
   void AddHostScalarInput(const phi::DenseTensor &tensor,
@@ -254,7 +254,7 @@ class AclCommand : public NpuCommand {
   }
 
   void AddOutput(phi::DenseTensor &tensor) override {
-    AddOutput(tensor, TensorDescMaker("", tensor).ChangeStorage());
+    AddOutput(tensor, TensorDescMaker("").FromTensor(tensor).ChangeStorage());
   }
 
   void AddOutput(phi::DenseTensor &tensor, TensorDescMaker maker) {
@@ -385,7 +385,8 @@ class AclCommand : public NpuCommand {
       auto &scalar = scalar_storage_[i];
       AclCommandHelper::ConvertScalarToDeviceTensor(ctx, scalar, &tensor);
       auto desc = AclCommandHelper::CreateDesc(
-          TensorDescMaker("", tensor)
+          TensorDescMaker("")
+              .FromTensor(tensor)
               .MarkAsScalar()
               .MarkAsHost()
               .SetDataLayout(phi::DataLayout::ANY));

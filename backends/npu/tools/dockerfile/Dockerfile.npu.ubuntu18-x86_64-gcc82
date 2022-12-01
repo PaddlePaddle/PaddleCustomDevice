@@ -65,8 +65,8 @@ ENV HCCL_SECURITY_MODE=1
 RUN rm -rf /usr/local/Ascend/driver
 
 # install paddlepaddle-cpu whl package
-RUN wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && \
-    pip install paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl  && rm -rf paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+RUN wget -q https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && \
+    pip install paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
 
 # Clean
 RUN apt-get clean -y

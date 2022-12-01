@@ -7,7 +7,7 @@ Please refer to the following steps to compile, install and verify the custom de
 ## Get Sources
 
 ```bash
-# clone source 
+# clone source
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
@@ -47,7 +47,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # run a simple model
 python tests/test_MNIST_model.py
 
-# expected similar output 
+# expected similar output
 ... ...
 Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
 Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
@@ -104,11 +104,11 @@ Using PaddleInference
 pushd Paddle-Inference-Demo/c++/resnet50
 
 # Modify resnet50_test.cc, use config.EnableCustomDevice("npu", 0) to replace config.EnableUseGpu(100, 0)
-  
+
 bash run.sh
 ```
 
-expected similar output 
+expected similar output
 
 ```bash
 I0516 14:40:56.197255 114531 resnet50_test.cc:74] run avg time is 115421 ms
@@ -123,3 +123,21 @@ I0516 14:40:56.197504 114531 resnet50_test.cc:89] 700 : 1.92904e-23
 I0516 14:40:56.197512 114531 resnet50_test.cc:89] 800 : 3.80365e-25
 I0516 14:40:56.197522 114531 resnet50_test.cc:89] 900 : 1.46266e-30
 ```
+
+### Enviroment variable
+
+**FLAGS_ascend_blocking_npu_runner**
+
+> Synchronous execution kernel
+
+**FLAGS_ascend_profiling_dir**
+
+> The output directory of profiling data
+
+**FLAGS_ascend_profiling_data_type**
+
+> The type of profiling data
+
+**FLAGS_ascend_profiling_metrics**
+
+> AI Core performance metrics

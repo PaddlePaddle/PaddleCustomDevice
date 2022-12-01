@@ -161,3 +161,21 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 # I0525 11:07:28.354880 40116 resnet50_test.cc:113] 800 : 3.85244e-25
 # I0525 11:07:28.354895 40116 resnet50_test.cc:113] 900 : 8.76171e-29
 ```
+
+### 环境变量
+
+**FLAGS_ascend_blocking_npu_runner**
+
+> 同步执行 kernel
+
+**FLAGS_ascend_profiling_dir**
+
+> 设置 Profiling 数据保存目录
+
+**FLAGS_ascend_profiling_data_type**
+
+> 指定需要采集的 Profiling 数据类型
+
+**FLAGS_ascend_profiling_metrics**
+
+> AI Core 性能指标采集项

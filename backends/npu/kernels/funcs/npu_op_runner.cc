@@ -26,6 +26,7 @@ static aclDataBuffer *float_status_buffer_;
 static aclTensorDesc *float_status_desc_;
 
 ENV_uint64(ascend_check_nan_inf, 0);
+ENV_uint64(ascend_blocking_npu_runner, 0);
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -617,7 +618,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  stream);
   }
   VLOG(4) << "after aclopCompileAndExecute: " << ret;
-  if (sync) {
+  if (sync || FLAGS_ascend_blocking_npu_runner) {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);

@@ -40,8 +40,9 @@ cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
 # 默认 NPU 开发镜像中已经装有飞桨 CPU 安装包 (飞桨 develop 分支的 nightly build 版本)
-# 也可以通过如下命令安装，如果是 aarch64 环境，则需要源码编译得到 Paddle CPU 的 WHL 安装包
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+# 也可以通过如下地址下载得到 PaddlePaddle develop 分支的 nightly build 版本的安装包
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF

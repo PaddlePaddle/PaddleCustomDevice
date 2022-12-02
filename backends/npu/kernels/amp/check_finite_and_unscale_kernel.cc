@@ -57,6 +57,9 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&float_status);
   dev_ctx.template Alloc<T>(&tmp);
 
+  const auto& runner_alloc_status =
+      NpuOpRunner("NPUAllocFloatStatus", {}, {float_status});
+  runner_alloc_status.Run(stream);
   // NOTE(zhiqiu): NPUGetFloatStatus updates data on input in-place.
   // tmp is only placeholder.
   const auto& runner_float_status =

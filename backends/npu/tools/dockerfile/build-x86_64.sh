@@ -43,7 +43,7 @@ fi
 export proxy=http://172.19.57.45:3128
 # export proxy=http://172.19.56.199:3128
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
-docker build --network=host -f Dockerfile.npu.ubuntu18-x86_64-gcc82 \
+docker build --no-cache --network=host -f Dockerfile.npu.ubuntu18-x86_64-gcc82 \
        --build-arg CANN_VERSION=${CANN_VERSION} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \

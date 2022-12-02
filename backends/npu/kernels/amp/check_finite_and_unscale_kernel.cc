@@ -91,6 +91,10 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
         NpuOpRunner("Mul", {*x, *tmp_inverse_out}, {*out}, {});
     runner_mul.Run(stream);
   }
+
+  const auto& runner_clear_status =
+      NpuOpRunner("NPUClearFloatStatus", {float_status}, {tmp});
+  runner_clear_status.Run(stream);
 }
 
 }  // namespace custom_kernel

@@ -14,13 +14,12 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
 import paddle.fluid as fluid
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -32,7 +31,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False):
     # transpose X and Y appropriately.
     if transpose_X:
         if X.ndim == 1:
-            X = X.reshape((X.size, ))
+            X = X.reshape((X.size,))
         elif X.ndim == 2:
             X = X.T
         else:
@@ -41,7 +40,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False):
             X = np.transpose(X, tuple(dim))
     if transpose_Y:
         if Y.ndim == 1:
-            Y = Y.reshape((Y.size, ))
+            Y = Y.reshape((Y.size,))
         else:
             dim = [i for i in range(len(Y.shape))]
             dim[-1], dim[len(Y.shape) - 2] = dim[len(Y.shape) - 2], dim[-1]
@@ -64,11 +63,11 @@ class TestMatMulV2Op(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def config(self):
-        self.x_shape = (100, )
-        self.y_shape = (100, )
+        self.x_shape = (100,)
+        self.y_shape = (100,)
         self.trans_x = False
         self.trans_y = False
 
@@ -88,17 +87,23 @@ class TestMatMulV2Op(OpTest):
         result = reference_matmul(x, y, self.trans_x, self.trans_y)
         result = result.astype(self.dtype)
         self.inputs = {
-            'X': x,
-            'Y': y,
+            "X": x,
+            "Y": y,
         }
-        self.attrs = {'trans_x': self.trans_x, 'trans_y': self.trans_y}
-        self.outputs = {'Out': result}
+        self.attrs = {"trans_x": self.trans_x, "trans_y": self.trans_y}
+        self.outputs = {"Out": result}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-7)
+        self.check_output_with_place(self.place, atol=1e-3)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X', 'Y'], 'Out')
+        self.check_grad_with_place(
+            self.place,
+            ["X", "Y"],
+            "Out",
+            numeric_place=paddle.CPUPlace(),
+            max_relative_error=0.01,
+        )
 
 
 class TestMatMulOp2(TestMatMulV2Op):
@@ -107,7 +112,7 @@ class TestMatMulOp2(TestMatMulV2Op):
     """
 
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (1, 3, 2, 100)
         self.trans_x = False
         self.trans_y = True
@@ -119,7 +124,7 @@ class TestMatMulOp3(TestMatMulV2Op):
     """
 
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (1, 1, 100, 2)
         self.trans_x = False
         self.trans_y = False
@@ -131,7 +136,7 @@ class TestMatMulOp4(TestMatMulV2Op):
     """
 
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (1, 2, 100, 2)
         self.trans_x = False
         self.trans_y = False
@@ -144,7 +149,7 @@ class TestMatMulOp5(TestMatMulV2Op):
 
     def config(self):
         self.x_shape = (1, 1, 100, 1)
-        self.y_shape = (100, )
+        self.y_shape = (100,)
         self.trans_x = True
         self.trans_y = False
 
@@ -153,7 +158,8 @@ class TestMatMulOp5(TestMatMulV2Op):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', numeric_place=paddle.CPUPlace())
+            self.place, ["X", "Y"], "Out", numeric_place=paddle.CPUPlace()
+        )
 
 
 class TestMatMulOp6(TestMatMulV2Op):
@@ -163,16 +169,18 @@ class TestMatMulOp6(TestMatMulV2Op):
 
     def config(self):
         self.x_shape = (1, 2, 102, 1)
-        self.y_shape = (102, )
+        self.y_shape = (102,)
         self.trans_x = True
         self.trans_y = False
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X', 'Y'],
-            'Out',
+            self.place,
+            ["X", "Y"],
+            "Out",
             numeric_place=paddle.CPUPlace(),
-            max_relative_error=1e-2)
+            max_relative_error=1e-2,
+        )
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
@@ -185,7 +193,7 @@ class TestMatMulOp7(TestMatMulV2Op):
 
     def config(self):
         self.x_shape = (1, 2, 1, 100)
-        self.y_shape = (100, )
+        self.y_shape = (100,)
         self.trans_x = False
         self.trans_y = False
 
@@ -292,7 +300,7 @@ class TestMatMulOp16(TestMatMulV2Op):
     """
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.y_shape = (1, 2, 2, 100, 2)
         self.trans_x = False
         self.trans_y = False
@@ -305,7 +313,7 @@ class TestMatMulOp17(TestMatMulV2Op):
 
     def config(self):
         self.x_shape = (2, 1, 100)
-        self.y_shape = (100)
+        self.y_shape = 100
         self.trans_x = False
         self.trans_y = False
 
@@ -334,7 +342,7 @@ class TestMatMulOpBroadcast2(TestMatMulV2Op):
         self.trans_y = True
 
 
-#--------------------test matmul fp16--------------------
+# --------------------test matmul fp16--------------------
 
 
 def create_test_fp16_class(parent, atol=0.001, max_relative_error=2.5):
@@ -347,9 +355,8 @@ def create_test_fp16_class(parent, atol=0.001, max_relative_error=2.5):
 
         def test_check_grad(self):
             self.check_grad_with_place(
-                self.place, ['X', 'Y'],
-                'Out',
-                max_relative_error=max_relative_error)
+                self.place, ["X", "Y"], "Out", max_relative_error=max_relative_error
+            )
 
     cls_name = "{0}_{1}".format(parent.__name__, "Fp16")
     TestMatMulOpFp16Case.__name__ = cls_name
@@ -378,7 +385,7 @@ create_test_fp16_class(TestMatMulOp17)
 class TestMatMulV2API(unittest.TestCase):
     def setUp(self):
         self.places = [paddle.CPUPlace()]
-        self.places.append(paddle.CustomPlace('npu', 0))
+        self.places.append(paddle.CustomPlace("npu", 0))
 
     def check_static_result(self, place):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
@@ -391,10 +398,11 @@ class TestMatMulV2API(unittest.TestCase):
             y_np = np.random.random([3, 4]).astype("float32")
 
             exe = fluid.Executor(place)
-            fetches = exe.run(fluid.default_main_program(),
-                              feed={"input_x": x_np,
-                                    "input_y": y_np},
-                              fetch_list=[result])
+            fetches = exe.run(
+                fluid.default_main_program(),
+                feed={"input_x": x_np, "input_y": y_np},
+                fetch_list=[result],
+            )
 
     def test_static(self):
         for place in self.places:
@@ -410,7 +418,7 @@ class TestMatMulV2API(unittest.TestCase):
                 result = paddle.matmul(x, y)
 
     def test_dygraph_fp16(self):
-        place = paddle.CustomPlace('npu', 0)
+        place = paddle.CustomPlace("npu", 0)
         with fluid.dygraph.guard(place):
             input_x = np.random.random([4, 3]).astype("float16")
             input_y = np.random.random([3, 4]).astype("float16")
@@ -419,5 +427,5 @@ class TestMatMulV2API(unittest.TestCase):
             result = paddle.matmul(x, y)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

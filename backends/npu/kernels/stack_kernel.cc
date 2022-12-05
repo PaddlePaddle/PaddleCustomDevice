@@ -26,18 +26,30 @@ void StackKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   if (axis < 0) axis += (x[0]->dims().size() + 1);
-  int num = static_cast<int>(x.size());
+  int num = 0;
+  std::vector<std::string> names;
+
+  std::vector<phi::DenseTensor> x_list;
+  for (int i = 0; i < x.size(); i++) {
+    if (x[i] != nullptr) {
+      x_list.push_back(*x[i]);
+      names.push_back("x" + std::to_string(i));
+      num++;
+    } else {
+      continue;
+    }
+  }
 
   PADDLE_ENFORCE_GT(
       num, 0, phi::errors::InvalidArgument("number of input Tensor <= 0"));
 
-  std::vector<phi::DenseTensor> x_list;
-  for (int i = 0; i < num; i++) {
-    x_list.push_back(*x[i]);
-  }
-
-  const auto& runner =
-      NpuOpRunner("Pack", {x_list}, {*y}, {{"axis", axis}, {"N", num}});
+  NpuOpRunner runner;
+  runner.SetType("Pack")
+      .AddInputs(x_list)
+      .AddOutput(*y)
+      .AddAttr("axis", static_cast<int>(axis))
+      .AddAttr("N", static_cast<int>(num));
+  runner.AddInputNames(names);
   runner.Run(stream);
 }
 

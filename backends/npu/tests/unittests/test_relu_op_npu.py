@@ -14,13 +14,12 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
 import paddle.fluid as fluid
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -30,7 +29,7 @@ class TestRelu(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "relu"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -39,8 +38,8 @@ class TestRelu(OpTest):
         # The same reason with TestAbs
         x[np.abs(x) < 0.005] = 0.02
         out = np.maximum(x, 0)
-        self.inputs = {'X': x}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -54,9 +53,10 @@ class TestRelu(OpTest):
     def test_check_grad(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['X'], 'Out', max_relative_error=0.006)
+                self.place, ["X"], "Out", max_relative_error=0.006
+            )
         else:
-            self.check_grad_with_place(self.place, ['X'], 'Out')
+            self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestReluFp16(TestRelu):
@@ -68,16 +68,16 @@ class TestReluNeg(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "relu"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
         x = np.array([0.1, -0.1, -1.0]).astype(self.dtype)
         out = np.array([0.1, 0.0, 0.0]).astype(self.dtype)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -97,29 +97,28 @@ class TestReluNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             sum = paddle.add(a, b)
             z = paddle.nn.functional.relu(sum)
 
             fc_1 = fluid.layers.fc(input=z, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
+            prediction = fluid.layers.fc(input=fc_1, size=2, act="softmax")
 
             cost = fluid.layers.cross_entropy(input=prediction, label=label)
-            loss = fluid.layers.reduce_mean(cost)
+            loss = paddle.mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -131,13 +130,15 @@ class TestReluNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -149,5 +150,5 @@ class TestReluNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

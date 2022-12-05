@@ -227,23 +227,6 @@ void StridedSliceCompute(const Context& dev_ctx,
     strides_indices_vector[axis_index] = strides[axis];
   }
 
-  phi::DenseTensor starts_indices_tensor;
-  phi::DenseTensor ends_indices_tensor;
-  phi::DenseTensor strides_indices_tensor;
-
-  starts_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&starts_indices_tensor);
-  ends_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&ends_indices_tensor);
-  strides_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&strides_indices_tensor);
-
-  TensorFromVector(
-      dev_ctx, starts_indices_vector, dev_ctx, &starts_indices_tensor);
-  TensorFromVector(dev_ctx, ends_indices_vector, dev_ctx, &ends_indices_tensor);
-  TensorFromVector(
-      dev_ctx, strides_indices_vector, dev_ctx, &strides_indices_tensor);
-
   auto out_dims_origin = out_dims;
   if (decrease_axis.size() > 0) {
     std::vector<int64_t> new_out_shape;
@@ -476,29 +459,10 @@ void StridedSliceGradCompute(const Context& dev_ctx,
     strides_indices_vector[axis_index] = strides[axis];
   }
 
-  phi::DenseTensor starts_indices_tensor;
-  phi::DenseTensor ends_indices_tensor;
-  phi::DenseTensor strides_indices_tensor;
-
-  starts_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&starts_indices_tensor);
-  ends_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&ends_indices_tensor);
-  strides_indices_tensor.Resize({D});
-  dev_ctx.template Alloc<int64_t>(&strides_indices_tensor);
-
-  TensorFromVector(
-      dev_ctx, starts_indices_vector, dev_ctx, &starts_indices_tensor);
-  TensorFromVector(dev_ctx, ends_indices_vector, dev_ctx, &ends_indices_tensor);
-  TensorFromVector(
-      dev_ctx, strides_indices_vector, dev_ctx, &strides_indices_tensor);
-
   std::vector<int64_t> input_dims_vector;
   for (int i = 0; i < input_dims.size(); i++) {
     input_dims_vector.push_back(input_dims[i]);
   }
-  phi::DenseTensor input_dims_tensor;
-  TensorFromVector(dev_ctx, input_dims_vector, dev_ctx, &input_dims_tensor);
 
   bool need_reverse = false;
   for (size_t axis = 0; axis < axes.size(); axis++) {
@@ -523,9 +487,7 @@ void StridedSliceGradCompute(const Context& dev_ctx,
         reverse_axis_vector.push_back(axes[axis]);
       }
     }
-    reverse_axis.Resize({static_cast<int>(reverse_axis_vector.size())});
-    dev_ctx.template Alloc<int>(&reverse_axis);
-    TensorFromVector(dev_ctx, reverse_axis_vector, dev_ctx, &reverse_axis);
+    TensorFromVector<int>(dev_ctx, reverse_axis_vector, dev_ctx, &reverse_axis);
 
     phi::DenseTensor out_grad_tmp;
     out_grad_tmp.Resize(out_grad.dims());
@@ -534,24 +496,26 @@ void StridedSliceGradCompute(const Context& dev_ctx,
         NpuOpRunner("ReverseV2", {out_grad, reverse_axis}, {out_grad_tmp});
     runner_reverse.Run(stream);
 
-    const auto& runner = NpuOpRunner("StridedSliceGrad",
-                                     {input_dims_tensor,
-                                      starts_indices_tensor,
-                                      ends_indices_tensor,
-                                      strides_indices_tensor,
-                                      out_grad_tmp},
-                                     {*x_grad},
-                                     attr_input);
+    NpuOpRunner runner;
+    runner.SetType("StridedSliceGrad")
+        .AddInput(dev_ctx, std::move(input_dims_vector))
+        .AddInput(dev_ctx, std::move(starts_indices_vector))
+        .AddInput(dev_ctx, std::move(ends_indices_vector))
+        .AddInput(dev_ctx, std::move(strides_indices_vector))
+        .AddInput(out_grad_tmp)
+        .AddOutput(*x_grad)
+        .AddAttrs(attr_input);
     runner.Run(stream);
   } else {
-    const auto& runner = NpuOpRunner("StridedSliceGrad",
-                                     {input_dims_tensor,
-                                      starts_indices_tensor,
-                                      ends_indices_tensor,
-                                      strides_indices_tensor,
-                                      out_grad},
-                                     {*x_grad},
-                                     attr_input);
+    NpuOpRunner runner;
+    runner.SetType("StridedSliceGrad")
+        .AddInput(dev_ctx, std::move(input_dims_vector))
+        .AddInput(dev_ctx, std::move(starts_indices_vector))
+        .AddInput(dev_ctx, std::move(ends_indices_vector))
+        .AddInput(dev_ctx, std::move(strides_indices_vector))
+        .AddInput(out_grad)
+        .AddOutput(*x_grad)
+        .AddAttrs(attr_input);
     runner.Run(stream);
   }
 }
@@ -675,15 +639,15 @@ void StridedSliceGradKernel(const Context& dev_ctx,
   std::vector<int> infer_flags(axes.size(), 1);
   std::vector<int> decrease_axis;
   custom_kernel::StridedSliceRawGradKernel<T, Context>(dev_ctx,
-                                        x,
-                                        out_grad,
-                                        axes,
-                                        starts,
-                                        ends,
-                                        strides,
-                                        infer_flags,
-                                        decrease_axis,
-                                        x_grad);
+                                                       x,
+                                                       out_grad,
+                                                       axes,
+                                                       starts,
+                                                       ends,
+                                                       strides,
+                                                       infer_flags,
+                                                       decrease_axis,
+                                                       x_grad);
 }
 
 }  // namespace custom_kernel

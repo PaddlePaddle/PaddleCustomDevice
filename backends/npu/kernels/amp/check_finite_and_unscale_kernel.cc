@@ -44,37 +44,8 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
-  phi::DenseTensor sum;
-  phi::DenseTensorMeta sum_meta = {phi::DataType::FLOAT32, {1}};
-  sum.set_meta(sum_meta);
-  dev_ctx.template Alloc<T>(&sum);
-  FillNpuTensorWithConstant<T>(&sum, dev_ctx, static_cast<T>(0.0));
-
-  phi::DenseTensor float_status, tmp;
-  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {8}};
-  float_status.set_meta(meta);
-  tmp.set_meta(meta);
-  dev_ctx.template Alloc<T>(&float_status);
-  dev_ctx.template Alloc<T>(&tmp);
-
-  // NOTE(zhiqiu): NPUGetFloatStatus updates data on input in-place.
-  // tmp is only placeholder.
-  const auto& runner_float_status =
-      NpuOpRunner("NPUGetFloatStatus",
-                  {float_status},
-                  {tmp},
-                  {{"message", std::string("check_nan_and_inf")}});
-  runner_float_status.Run(stream);
-  const auto& runner_reduce_sum =
-      NpuOpRunner("ReduceSumD",
-                  {float_status},
-                  {sum},
-                  {{"axes", std::vector<int>{0}}, {"keep_dims", true}});
-  runner_reduce_sum.Run(stream);
-
-  const auto& runner_greater =
-      NpuOpRunner("GreaterEqual", {sum, const_tensor}, {*found_inf}, {});
-  runner_greater.Run(stream);
+  bool found_inf_cpu = NpuOpRunner::GetFloatStatus(stream);
+  FillNpuTensorWithConstant<bool>(found_inf, dev_ctx, found_inf_cpu);
 
   // NOTE(zhiqiu): The normal logic is :
   // out = in, if found_inf = true
@@ -91,6 +62,8 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
         NpuOpRunner("Mul", {*x, *tmp_inverse_out}, {*out}, {});
     runner_mul.Run(stream);
   }
+
+  NpuOpRunner::ClearFloatStatus(stream);
 }
 
 }  // namespace custom_kernel

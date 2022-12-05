@@ -32,7 +32,7 @@ link_directories(${PADDLE_LIB_DIR} /usr/lib/habanalabs)
 add_definitions(-std=c++14)
 
 file(GLOB_RECURSE PLUGIN_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc)
-list(APPEND PLUGIN_SRCS runtime/runtime.cc)
+list(APPEND PLUGIN_SRCS runtime/hpu_runtime.cc)
 
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})

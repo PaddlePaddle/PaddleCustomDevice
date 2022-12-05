@@ -76,6 +76,15 @@ synStatus hbmFree(synDeviceId deviceId, uint64_t addr, const char* name)
     return synDeviceFree(deviceId, addr, 0);
 }
 
+synStatus hostAlloc(synDeviceId deviceId, uint64_t size, uint64_t* addr, std::string name)
+{
+
+}
+
+synStatus hostFree(synDeviceId deviceId, uint64_t addr, const char* name)
+{
+}
+
 struct C_Stream_st {
   synDeviceId deviceId;
   synStreamHandle memcpyStreamDevToHost;

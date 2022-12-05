@@ -379,6 +379,7 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   aclopDestroyAttr(attr);
 }
 
@@ -425,6 +426,7 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
   aclDestroyTensorDesc(tmp_desc);
@@ -551,6 +553,7 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   std::vector<float> cpu_data(8, 0);
   auto float_status_size = aclGetTensorDescSize(float_status_desc_);
   auto float_status_ptr = aclGetDataBufferAddr(float_status_buffer_);

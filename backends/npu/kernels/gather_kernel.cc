@@ -62,7 +62,9 @@ void GatherGradKernel(const Context& dev_ctx,
   zeroslike_xout.set_meta(meta);
   dev_ctx.template Alloc<T>(&zeroslike_xout);
 
-  FillNpuTensorWithConstant<T>(&zeroslike_xout, dev_ctx, static_cast<T>(0));
+  const auto& runner_tensor_zeros =
+      NpuOpRunner("ZerosLike", {*x_grad}, {zeroslike_xout}, {});
+  runner_tensor_zeros.Run(stream);
   zeroslike_xout.Resize(x.dims());
 
   // step3: scatter(x_grad)

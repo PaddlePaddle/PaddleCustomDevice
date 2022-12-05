@@ -22,8 +22,8 @@
 #include "pybind11/pybind11.h"
 #include "runtime/runtime.h"
 
-static aclDataBuffer *float_status_buffer_;
-static aclTensorDesc *float_status_desc_;
+static aclDataBuffer *float_status_buffer_ = NULL;
+static aclTensorDesc *float_status_desc_ = NULL;
 
 ENV_uint64(ascend_check_nan_inf, 0);
 ENV_uint64(ascend_blocking_npu_runner, 0);
@@ -379,11 +379,10 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   aclopDestroyAttr(attr);
 }
 
-void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
+void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUClearFloatStatus";
   // Input
   const std::vector<int64_t> dims{8};
@@ -426,7 +425,6 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
   aclDestroyTensorDesc(tmp_desc);
@@ -434,6 +432,14 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
 }
 
 void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
+  // Init float_status_desc_ and float_status_buffer_ once, if
+  // ascend_check_nan_inf is needed, only do ClearFloatStatus here.
+  if (float_status_desc_ && float_status_buffer_) {
+    if (FLAGS_ascend_check_nan_inf) {
+      ClearFloatStatus(stream);
+    }
+    return;
+  }
   // Init float_status_desc_
   const std::vector<int64_t> dims{8};
   float_status_desc_ =
@@ -501,8 +507,7 @@ void NpuOpRunner::PrintOpInfo() const {
     std::vector<float>().swap(cpu_data);
   }
 }
-void NpuOpRunner::GetFloatStatus(aclrtStream stream,
-                                 std::string cur_op_type) const {
+bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUGetFloatStatus";
   // Output
   const std::vector<int64_t> dims{8};
@@ -546,7 +551,6 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
                                  stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   std::vector<float> cpu_data(8, 0);
   auto float_status_size = aclGetTensorDescSize(float_status_desc_);
   auto float_status_ptr = aclGetDataBufferAddr(float_status_buffer_);
@@ -559,27 +563,18 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
   for (int i = 0; i < cpu_data.size(); ++i) {
     sum += cpu_data[i];
   }
-  if (sum > 1.0) {
-    PrintOpInfo();
-  }
-  PADDLE_ENFORCE_LT(sum,
-                    1.0,
-                    phi::errors::PreconditionNotMet(
-                        "Operator %s contains Nan/Inf.", cur_op_type));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
-  // return void
   aclDestroyTensorDesc(tmp_desc);
   aclopDestroyAttr(attr);
+  return sum >= 1.0;
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
-  if (FLAGS_ascend_check_nan_inf) {
-    InitFloatStatus(stream);
-  }
+  InitFloatStatus(stream);
   VLOG(5) << "NpuOpRunner(" << this << ") Run:";
   VLOG(4) << "op_type: " << op_type_;
   VLOG(4) << "input_desc.size: " << input_descs_.size();
@@ -622,7 +617,9 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  if (FLAGS_ascend_check_nan_inf) {
-    GetFloatStatus(stream, op_type_);
+  if (FLAGS_ascend_check_nan_inf && GetFloatStatus(stream)) {
+    PrintOpInfo();
+    PADDLE_THROW(phi::errors::PreconditionNotMet(
+        "Operator %s contains Nan/Inf.", op_type_));
   }
 }

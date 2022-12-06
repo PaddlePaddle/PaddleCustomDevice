@@ -27,7 +27,7 @@ paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace('intel_gpu', 0)]
 
 
 OpTest._get_places = get_places
@@ -448,7 +448,7 @@ class TestSliceAPI(unittest.TestCase):
         out_6 = x[minus_3:3, 0:100, :, 2:-1]
         out_7 = x[minus_1, 0:100, :, 2:minus_1]
 
-        exe = fluid.Executor(place=fluid.CustomPlace('custom_cpu', 0))
+        exe = fluid.Executor(place=fluid.CustomPlace('intel_gpu', 0))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
             fluid.default_main_program(),
             feed={
@@ -469,7 +469,7 @@ class TestSliceAPI(unittest.TestCase):
 
 class TestSliceApiWithTensor(unittest.TestCase):
     def test_starts_ends_is_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             a = paddle.rand(shape=[4, 5, 6], dtype='float32')
             axes = [0, 1, 2]
             starts = [-3, 0, 2]
@@ -486,7 +486,7 @@ class TestSliceApiWithTensor(unittest.TestCase):
             self.assertTrue(np.array_equal(a_1.numpy(), a_2.numpy()))
 
     def test_bool_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             array = (np.arange(60).reshape([3, 4, 5]) % 3).astype('bool')
             tt = paddle.to_tensor(array)
             tt.stop_gradient = False
@@ -504,137 +504,137 @@ class TestSliceApiWithTensor(unittest.TestCase):
 
 # unknown bug (wangran16)
 
-# class TestSliceApiEager(unittest.TestCase):
-#     def test_slice_api(self):
-#         with paddle.fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-#             a = paddle.rand(shape=[4, 5, 6], dtype='float32')
-#             a.stop_gradient = False
-#             axes = [0, 1, 2]
-#             starts = [-3, 0, 2]
-#             ends = [3, 2, 4]
-#             a_1 = paddle.slice(a, axes=axes, starts=starts, ends=ends)
+class TestSliceApiEager(unittest.TestCase):
+    def test_slice_api(self):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
+            a = paddle.rand(shape=[4, 5, 6], dtype='float32')
+            a.stop_gradient = False
+            axes = [0, 1, 2]
+            starts = [-3, 0, 2]
+            ends = [3, 2, 4]
+            a_1 = paddle.slice(a, axes=axes, starts=starts, ends=ends)
 
-#             a_2 = paddle.slice(
-#                 a,
-#                 axes=axes,
-#                 starts=paddle.to_tensor(starts),
-#                 ends=paddle.to_tensor(ends))
+            a_2 = paddle.slice(
+                a,
+                axes=axes,
+                starts=paddle.to_tensor(starts),
+                ends=paddle.to_tensor(ends))
 
-#             a_1.backward()
-#             grad_truth = paddle.zeros_like(a)
-#             grad_truth[-3:3, 0:2, 2:4] = 1
-#             self.assertTrue(np.array_equal(grad_truth, a.gradient()))
+            a_1.backward()
+            grad_truth = paddle.zeros_like(a)
+            grad_truth[-3:3, 0:2, 2:4] = 1
+            self.assertTrue(np.array_equal(grad_truth, a.gradient()))
 
-#             self.assertTrue(np.allclose(a_1.numpy(), a[-3:3, 0:2, 2:4]))
+            self.assertTrue(np.allclose(a_1.numpy(), a[-3:3, 0:2, 2:4]))
 
 
-class TestSliceApiWithLoDTensorArray(unittest.TestCase):
-    def setUp(self):
-        self.shape = (3, 4)
-        self.data = np.random.random(size=self.shape).astype('float32')
-        self.idx = 0
-        self.start = 0
-        self.end = 2
-        self.axis = 1
+# class TestSliceApiWithLoDTensorArray(unittest.TestCase):
+#     def setUp(self):
+#         self.shape = (3, 4)
+#         self.data = np.random.random(size=self.shape).astype('float32')
+#         self.idx = 0
+#         self.start = 0
+#         self.end = 2
+#         self.axis = 1
 
-        self.place = fluid.CustomPlace(
-            'custom_cpu',
-            0) if fluid.is_compiled_with_cuda() else fluid.CustomPlace(
-                'custom_cpu', 0)
-        self.exe = fluid.Executor(self.place)
+#         self.place = fluid.CustomPlace(
+#             'intel_gpu',
+#             0) if fluid.is_compiled_with_cuda() else fluid.CustomPlace(
+#                 'intel_gpu', 0)
+#         self.exe = fluid.Executor(self.place)
 
-    def set_program_and_run(self, main_program, case_num):
-        with fluid.program_guard(main_program):
-            x = [
-                fluid.data(
-                    name='x0', shape=self.shape, dtype="float32"), fluid.data(
-                        name='x1', shape=self.shape, dtype="float32"),
-                fluid.data(
-                    name='x2', shape=self.shape, dtype="float32")
-            ]
+#     def set_program_and_run(self, main_program, case_num):
+#         with fluid.program_guard(main_program):
+#             x = [
+#                 fluid.data(
+#                     name='x0', shape=self.shape, dtype="float32"), fluid.data(
+#                         name='x1', shape=self.shape, dtype="float32"),
+#                 fluid.data(
+#                     name='x2', shape=self.shape, dtype="float32")
+#             ]
 
-            for each_x in x:
-                each_x.stop_gradient = False
+#             for each_x in x:
+#                 each_x.stop_gradient = False
 
-            arr = layers.create_array(dtype="float32")
-            for i in range(3):
-                idx = layers.array_length(arr)
-                arr = layers.array_write(x=x[i], i=idx, array=arr)
+#             arr = layers.create_array(dtype="float32")
+#             for i in range(3):
+#                 idx = layers.array_length(arr)
+#                 arr = layers.array_write(x=x[i], i=idx, array=arr)
 
-            if case_num == 1:
-                self.sliced_arr = output = arr[0]
+#             if case_num == 1:
+#                 self.sliced_arr = output = arr[0]
 
-            elif case_num == 2:
-                end = fluid.layers.array_length(
-                    arr) - 1  # dtype of end is int64
-                self.sliced_arr = slice_arr = arr[self.start:end]
-                output, _ = fluid.layers.tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True)
-            elif case_num == 3:
-                value_int64 = fluid.layers.fill_constant([1], "int64",
-                                                         2147483648)
-                self.sliced_arr = slice_arr = arr[self.start:value_int64]
-                output, _ = fluid.layers.tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True)
+#             elif case_num == 2:
+#                 end = fluid.layers.array_length(
+#                     arr) - 1  # dtype of end is int64
+#                 self.sliced_arr = slice_arr = arr[self.start:end]
+#                 output, _ = fluid.layers.tensor_array_to_tensor(
+#                     slice_arr, axis=self.axis, use_stack=True)
+#             elif case_num == 3:
+#                 value_int64 = fluid.layers.fill_constant([1], "int64",
+#                                                          2147483648)
+#                 self.sliced_arr = slice_arr = arr[self.start:value_int64]
+#                 output, _ = fluid.layers.tensor_array_to_tensor(
+#                     slice_arr, axis=self.axis, use_stack=True)
 
-            loss = fluid.layers.reduce_sum(output)
-            fluid.backward.append_backward(loss)
-            g_vars = list(
-                map(main_program.global_block().var,
-                    [each_x.name + "@GRAD" for each_x in x]))
-            self.out, self.g_x0, self.g_x1, self.g_x2 = \
-                self.exe.run(main_program,
-                             feed = {'x0': self.data,
-                                     'x1': self.data,
-                                     'x2': self.data},
-                             fetch_list=[output] + g_vars)
+#             loss = fluid.layers.reduce_sum(output)
+#             fluid.backward.append_backward(loss)
+#             g_vars = list(
+#                 map(main_program.global_block().var,
+#                     [each_x.name + "@GRAD" for each_x in x]))
+#             self.out, self.g_x0, self.g_x1, self.g_x2 = \
+#                 self.exe.run(main_program,
+#                              feed = {'x0': self.data,
+#                                      'x1': self.data,
+#                                      'x2': self.data},
+#                              fetch_list=[output] + g_vars)
 
-    def test_case_1(self):
-        main_program = fluid.Program()
-        self.set_program_and_run(main_program, 1)
+#     def test_case_1(self):
+#         main_program = fluid.Program()
+#         self.set_program_and_run(main_program, 1)
 
-        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
-        self.assertTrue(np.array_equal(self.out, self.data))
-        self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x1, np.zeros_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
+#         self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR)
+#         self.assertEqual(self.sliced_arr.shape, self.shape)
+#         self.assertTrue(np.array_equal(self.out, self.data))
+#         self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x1, np.zeros_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
 
-    def test_case_2(self):
-        main_program = fluid.Program()
-        self.set_program_and_run(main_program, 2)
+#     def test_case_2(self):
+#         main_program = fluid.Program()
+#         self.set_program_and_run(main_program, 2)
 
-        self.assertTrue(
-            self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
-        self.assertTrue(
-            np.array_equal(
-                self.out, np.stack(
-                    [self.data, self.data], axis=self.axis)))
-        self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
+#         self.assertTrue(
+#             self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+#         self.assertEqual(self.sliced_arr.shape, self.shape)
+#         self.assertTrue(
+#             np.array_equal(
+#                 self.out, np.stack(
+#                     [self.data, self.data], axis=self.axis)))
+#         self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
 
-    def test_case_3(self):
-        main_program = fluid.Program()
-        self.set_program_and_run(main_program, 3)
+#     def test_case_3(self):
+#         main_program = fluid.Program()
+#         self.set_program_and_run(main_program, 3)
 
-        self.assertTrue(
-            self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
-        self.assertTrue(
-            np.array_equal(
-                self.out,
-                np.stack(
-                    [self.data, self.data, self.data], axis=self.axis)))
-        self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
-        self.assertTrue(np.array_equal(self.g_x2, np.ones_like(self.data)))
+#         self.assertTrue(
+#             self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+#         self.assertEqual(self.sliced_arr.shape, self.shape)
+#         self.assertTrue(
+#             np.array_equal(
+#                 self.out,
+#                 np.stack(
+#                     [self.data, self.data, self.data], axis=self.axis)))
+#         self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
+#         self.assertTrue(np.array_equal(self.g_x2, np.ones_like(self.data)))
 
 
 class TestImperativeVarBaseGetItem(unittest.TestCase):
     def test_getitem_with_long(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
             data = np.random.random((2, 80, 16128)).astype('float32')
             var = fluid.dygraph.to_variable(data)
             sliced = var[:, 10:, :var.shape[1]]  # var.shape[1] is 80L here
@@ -645,7 +645,7 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 
     def test_getitem_with_float(self):
         def test_float_in_slice_item():
-            with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+            with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
                 data = np.random.random((2, 80, 16128)).astype('float32')
                 var = fluid.dygraph.to_variable(data)
                 sliced = var[:, 1.1:, :var.shape[1]]
@@ -653,7 +653,7 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
         self.assertRaises(Exception, test_float_in_slice_item)
 
         def test_float_in_index():
-            with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+            with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
                 data = np.random.random((2, 80, 16128)).astype('float32')
                 var = fluid.dygraph.to_variable(data)
                 sliced = var[1.1]
@@ -673,7 +673,7 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 #     def test_axis_less_than_zero(self):
 
 #         # Using paddle.disable_static will make other unittests fail.
-#         with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+#         with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
 #             x_arr = np.arange(0, 24, dtype=np.float32).reshape([2, 3, 4])
 #             x = paddle.to_tensor(x_arr)
 
@@ -713,13 +713,13 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 #                  "core is not compiled with CUDA")
 # class TestImperativeCUDAPinnedInput(unittest.TestCase):
 #     def test_input_cuda_pinned_var(self):
-#         with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
+#         with fluid.dygraph.guard(paddle.CustomPlace('intel_gpu', 0)):
 #             data = np.random.random((2, 80, 16128)).astype('float32')
 #             var = core.VarBase(
 #                 value=data,
 #                 name='',
 #                 persistable=False,
-#                 place=fluid.CustomPlace('custom_cpu', 0),
+#                 place=fluid.CustomPlace('intel_gpu', 0),
 #                 zero_copy=False)
 #             sliced = var[:, 10:, :var.shape[1]]
 #             self.assertEqual(sliced.shape, [2, 70, 80])

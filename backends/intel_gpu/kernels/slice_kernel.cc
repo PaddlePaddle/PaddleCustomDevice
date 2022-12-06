@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include "dnn_support.hpp"
+#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
@@ -26,6 +27,10 @@ void SliceRawKernel(const phi::Context& ctx,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
                     phi::DenseTensor* out) {
+
+  VLOG(3) << "SliceRawKernel, type="<< dnn_support::type2String<T>::name();
+  show_kernel("SliceRawKernel, type="<< dnn_support::type2String<T>::name());
+
   // Step 1: Get the accurate attribute value of starts and ends
   auto starts = starts_arr.GetData();
   auto ends = ends_arr.GetData();
@@ -33,6 +38,9 @@ void SliceRawKernel(const phi::Context& ctx,
            "The size of starts must be equal to the size of axes.");
   PD_CHECK(ends.size() == axes.size(),
            "The size of ends must be equal to the size of axes.");
+
+  void* stream = const_cast<void*>(ctx.stream());
+  auto* q = static_cast<sycl::queue*>(stream);
 
   // Step 2: Compute output
   auto in = &input;
@@ -75,40 +83,76 @@ void SliceRawKernel(const phi::Context& ctx,
   auto out_data = ctx.template Alloc<T>(out);
 
   std::vector<size_t> in_step(rank, 1);
+
   for (auto i = rank - 1; i > 0; --i) {
     in_step[i - 1] = in_step[i] * in_dims[i];
   }
 
   auto numel = phi::product(slice_dims);
   auto index = std::vector<size_t>(offsets.cbegin(), offsets.cend());
-  for (auto i = 0; i < numel; i += slice_dims.back()) {
-    memcpy(out_data + i,
-           in_data + phi::vec_product(index, in_step),
-           sizeof(T) * slice_dims.back());
-    index[index.size() - 2]++;
-    for (auto j = index.size() - 2; j > 0; --j) {
-      if (index[j] >= offsets[j] + extents[j]) {
-        index[j] = offsets[j];
-        index[j - 1] += 1;
-      } else {
-        break;
-      }
+
+  std::vector<size_t> temp(numel/slice_dims.back()*2, 0);
+  try {
+    {
+    sycl::buffer temp_buf(temp);
+    sycl::buffer<size_t> index_buf(index);
+    sycl::buffer<size_t> offsets_buf(offsets);
+    sycl::buffer<size_t> extents_buf(extents);
+    sycl::buffer<size_t> in_step_buf(in_step);
+
+    auto e1 = q->submit([&](sycl::handler& h) {
+      sycl::accessor a_index(index_buf, h, sycl::read_write);
+      sycl::accessor a_temp(temp_buf, h, sycl::write_only, sycl::no_init);
+      sycl::accessor a_offsets(offsets_buf, h, sycl::read_only);
+      sycl::accessor a_extents(extents_buf, h, sycl::read_only);
+      sycl::accessor a_in_step(in_step_buf, h, sycl::read_only);
+      h.single_task([numel, a_index, a_offsets, a_extents, a_in_step,
+          slice_dims_back=slice_dims.back(), a_temp, out, index_size=index.size()]()  {
+        for (auto i = 0; i < numel; i += slice_dims_back) {
+          auto wyn = phi::vec_product(
+            &a_index[0],
+            &a_in_step[0],
+            index_size);
+          a_temp[i/slice_dims_back*2] = i;
+          a_temp[i/slice_dims_back*2+1] = wyn;
+
+          a_index[index_size - 2]++;
+          for (auto j = index_size - 2; j > 0; --j) {
+            if (a_index[j] >= a_offsets[j] + a_extents[j]) {
+              a_index[j] = a_offsets[j];
+              a_index[j - 1] += 1;
+            } else {
+              break;
+            }
+          }
+        }
+      });
+    });
     }
-  }
+
+    for (auto i = 0 ; i < numel/slice_dims.back()*2; i+=2)  {
+      q->submit([&](sycl::handler& h) {
+        h.memcpy(out_data +  temp[i],
+              in_data +  temp[i+1],
+              sizeof(T) * slice_dims.back());
+      });
+    }
+ q->wait();
+
+} catch (sycl::exception& e) {
+  show_error(" Catch error=" << e.what());
+  throw e;
+}
   out->Resize(out_dims);
 }
 
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(slice,
-                    custom_cpu,
+                    intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::SliceRawKernel,
-                    bool,
-                    int8_t,
-                    int16_t,
-                    int32_t,
                     int64_t,
-                    uint8_t,
                     float,
-                    double) {}
+                    double
+                    ) {}

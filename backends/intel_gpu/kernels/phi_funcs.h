@@ -94,6 +94,14 @@ T vec_product(const std::vector<T>& a, const std::vector<T>& b) {
   return ret;
 }
 
+template <typename T>
+T vec_product(const T* a,const  T* b, size_t a_size) {
+  T ret = 0;
+  for (auto i = 0; i < a_size; ++i) {
+    ret += a[i] * b[i];
+  }
+  return ret;
+} 
 namespace funcs {
 
 static inline int CanonicalAxis(const int axis, const int rank) {

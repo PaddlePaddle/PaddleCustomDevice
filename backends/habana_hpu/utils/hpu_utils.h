@@ -17,3 +17,4 @@ class hpu_logging {
 #define FUNCALL_E {LOG(INFO) << "Exit  " << __FUNCTION__ << std::endl;};
 
 #define CHKSTATUS(errstr) assert(status == synSuccess && errstr)
+

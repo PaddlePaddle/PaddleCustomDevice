@@ -16,6 +16,10 @@ cmake_minimum_required(VERSION 3.10)
 
 project(paddle-habana-hpu CXX C)
 
+SET(CMAKE_BUILD_TYPE "Debug")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_TESTING    "compile with unit testing"        ON)
@@ -31,7 +35,7 @@ link_directories(${PADDLE_LIB_DIR} /usr/lib/habanalabs)
 
 add_definitions(-std=c++14)
 
-file(GLOB_RECURSE PLUGIN_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc)
+file(GLOB_RECURSE PLUGIN_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc utils/*.cc)
 list(APPEND PLUGIN_SRCS runtime/hpu_runtime.cc)
 
 # build shared library

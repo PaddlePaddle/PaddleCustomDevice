@@ -1,0 +1,5 @@
+disable_ut_npu
+test_assign_value_op_npu
+test_log_loss_op_npu
+test_zero_dim_tensor_npu
+test_argsort_op_npu

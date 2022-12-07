@@ -99,13 +99,24 @@ function main() {
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
 
+    # read disable ut list
+    IFS=$'\n'
+    disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+    disable_ut_list=''
+    while read -r line; do
+        disable_ut_list+="^"${line}"$|"
+    done <<< "$disable_ut_npu";
+    disable_ut_list+="^disable_ut_npu$"
+    echo "disable_ut_list=${disable_ut_list}"
+
     # run ut
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-    ctest --output-on-failure | tee $tmpfile;
+    ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
     collect_failed_tests
     set +x
+
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0

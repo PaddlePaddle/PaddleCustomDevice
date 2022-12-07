@@ -40,7 +40,6 @@ void BatchNormKernel(const Context& dev_ctx,
   bool training = !test_mode && !use_global_stats;
 
   phi::DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
-
   dev_ctx.template Alloc<T>(y);
   phi::DenseTensor x_tensor(x), y_tensor(*y);
   const auto& x_dims = x.dims();
@@ -52,6 +51,7 @@ void BatchNormKernel(const Context& dev_ctx,
           "The size of input's dimensions should be between 2 and 5"
           "But received: the size of input's dimensions is [%d]",
           x_dims.size()));
+
   if (x_dims.size() == 2 && data_layout == phi::DataLayout::kNHWC) {
     data_layout = phi::DataLayout::kNCHW;
   }
@@ -66,13 +66,26 @@ void BatchNormKernel(const Context& dev_ctx,
     auto x_new_shape = phi::make_ddim(x_shape_vec);
     x_tensor.Resize(x_new_shape);
   }
-  if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta y_meta = {
-        y->dtype(), y->dims(), phi::DataLayout::kNHWC};
+  if (x.dims().size() == 5) {
+    phi::DenseTensorMeta x_meta, y_meta;
+    if (data_layout == phi::DataLayout::kNHWC) {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNDHWC};
+      y_meta = {y->dtype(), y->dims(), phi::DataLayout::kNDHWC};
+    } else {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNCDHW};
+      y_meta = {y->dtype(), y->dims(), phi::DataLayout::kNCDHW};
+    }
     x_tensor.set_meta(x_meta);
     y_tensor.set_meta(y_meta);
+  } else {
+    if (data_layout == phi::DataLayout::kNHWC) {
+      phi::DenseTensorMeta x_meta = {
+          x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
+      phi::DenseTensorMeta y_meta = {
+          y->dtype(), y->dims(), phi::DataLayout::kNHWC};
+      x_tensor.set_meta(x_meta);
+      y_tensor.set_meta(y_meta);
+    }
   }
 
   auto stream = dev_ctx.stream();
@@ -95,14 +108,16 @@ void BatchNormKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&sum);
     dev_ctx.template Alloc<float>(&square_sum);
 
-    const auto& runner_reduce = NpuOpRunner("BNTrainingReduce",
-                                            {x_tensor},
-                                            {sum, square_sum},
-                                            {{"epsilon", epsilon}});
+    std::string reduce_name =
+        (x.dims().size() == 5) ? "BN3DTrainingReduce" : "BNTrainingReduce";
+    const auto& runner_reduce = NpuOpRunner(
+        reduce_name, {x_tensor}, {sum, square_sum}, {{"epsilon", epsilon}});
     runner_reduce.Run(stream);
 
+    std::string update_name =
+        (x.dims().size() == 5) ? "BN3DTrainingUpdate" : "BNTrainingUpdate";
     const auto& runner_update = NpuOpRunner(
-        "BNTrainingUpdate",
+        update_name,
         {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
         {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
         {{"factor", momentum}, {"epsilon", epsilon}});
@@ -137,6 +152,13 @@ void BatchNormGradKernel(
 
   phi::DenseTensor x_tensor(x), dy_tensor(d_y);
 
+  std::string update_name = (x.dims().size() == 5) ? "BN3DTrainingUpdateGrad"
+                                                   : "BNTrainingUpdateGrad";
+  std::string reduce_name = (x.dims().size() == 5) ? "BN3DTrainingReduceGrad"
+                                                   : "BNTrainingReduceGrad";
+  if (x.dims().size() == 2 && data_layout == phi::DataLayout::kNHWC) {
+    data_layout = phi::DataLayout::kNCHW;
+  }
   if (x.dims().size() == 3) {
     auto x_shape_vec = phi::vectorize(x.dims());
     if (data_layout == phi::DataLayout::kNCHW) {
@@ -148,13 +170,26 @@ void BatchNormGradKernel(
     x_tensor.Resize(x_new_shape);
     dy_tensor.Resize(x_new_shape);
   }
-  if (data_layout == phi::DataLayout::kNHWC) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta dy_meta = {
-        d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
+  if (x.dims().size() == 5) {
+    phi::DenseTensorMeta x_meta, dy_meta;
+    if (data_layout == phi::DataLayout::kNHWC) {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNDHWC};
+      dy_meta = {d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNDHWC};
+    } else {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNCDHW};
+      dy_meta = {d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNCDHW};
+    }
     x_tensor.set_meta(x_meta);
     dy_tensor.set_meta(dy_meta);
+  } else {
+    if (data_layout == phi::DataLayout::kNHWC) {
+      phi::DenseTensorMeta x_meta = {
+          x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
+      phi::DenseTensorMeta dy_meta = {
+          d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
+      x_tensor.set_meta(x_meta);
+      dy_tensor.set_meta(dy_meta);
+    }
   }
 
   phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
@@ -179,14 +214,14 @@ void BatchNormGradKernel(
       const auto* running_mean = mean.get_ptr();
       const auto* running_variance = variance.get_ptr();
       const auto& runner_update =
-          NpuOpRunner("BNTrainingUpdateGrad",
+          NpuOpRunner(update_name,
                       {dy_tensor, x_tensor, *running_mean, *running_variance},
                       {*d_scale, *d_bias},
                       {{"epsilon", epsilon}});
       runner_update.Run(stream);
     } else {
       const auto& runner_update =
-          NpuOpRunner("BNTrainingUpdateGrad",
+          NpuOpRunner(update_name,
                       {dy_tensor, x_tensor, saved_mean, saved_inv_variance},
                       {*d_scale, *d_bias},
                       {{"epsilon", epsilon}});
@@ -196,10 +231,19 @@ void BatchNormGradKernel(
   if (d_x) {
     dev_ctx.template Alloc<T>(d_x);
     phi::DenseTensor dx_tensor(*d_x);
-    if (data_layout == phi::DataLayout::kNHWC) {
-      phi::DenseTensorMeta dx_meta = {
-          d_x->dtype(), d_x->dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta dx_meta;
+    if (d_x->dims().size() == 5) {
+      if (data_layout == phi::DataLayout::kNHWC) {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNDHWC};
+      } else {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNCDHW};
+      }
       dx_tensor.set_meta(dx_meta);
+    } else {
+      if (data_layout == phi::DataLayout::kNHWC) {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNHWC};
+        dx_tensor.set_meta(dx_meta);
+      }
     }
     if (use_global_stats) {
       const auto* running_variance = variance.get_ptr();
@@ -210,7 +254,7 @@ void BatchNormGradKernel(
                       {{"epsilon", epsilon}});
       runner_infer.Run(stream);
     } else {
-      const auto& runner_reduce = NpuOpRunner("BNTrainingReduceGrad",
+      const auto& runner_reduce = NpuOpRunner(reduce_name,
                                               {dy_tensor,
                                                x_tensor,
                                                *d_scale,

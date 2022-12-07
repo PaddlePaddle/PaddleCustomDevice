@@ -52,6 +52,20 @@ void MultiplyRawKernel(const Context& dev_ctx,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
+  phi::DenseTensor tmp_y;
+  if(x.dtype() != y.dtype()) {
+    tmp_y.Resize(y.dims());
+    auto dst_type = x.dtype();
+    dev_ctx.template Alloc<T>(&tmp_y);
+    const auto& runner_cast =
+        NpuOpRunner("Cast",
+                    {y},
+                    {tmp_y},
+                    {{"dst_type", static_cast<int>(dst_type)}});
+    runner_cast.Run(stream);
+  } else {
+    tmp_y = y;
+  }
 
   bool direct_compute = false;
   auto x_dims = x.dims();
@@ -64,11 +78,11 @@ void MultiplyRawKernel(const Context& dev_ctx,
   }
 
   if (direct_compute) {
-    const auto& runner = NpuOpRunner("Mul", {x, y}, {*out}, {});
+    const auto& runner = NpuOpRunner("Mul", {x, tmp_y}, {*out}, {});
     runner.Run(stream);
   } else {
     phi::DenseTensor trans_x, trans_y;
-    NpuElementWiseOpBroadcast<T>(dev_ctx, &x, &y, axis, &trans_x, &trans_y);
+    NpuElementWiseOpBroadcast<T>(dev_ctx, &x, &tmp_y, axis, &trans_x, &trans_y);
     const auto& runner = NpuOpRunner("Mul", {trans_x, trans_y}, {*out}, {});
     runner.Run(stream);
   }

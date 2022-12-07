@@ -60,15 +60,28 @@ void AddRawKernel(const Context& dev_ctx,
   } else {
     dev_ctx.template Alloc<T>(out);
   }
-
   auto stream = dev_ctx.stream();
+  phi::DenseTensor tmp_y;
+  if(x.dtype() != y.dtype()) {
+    tmp_y.Resize(y.dims());
+    auto dst_type = x.dtype();
+    dev_ctx.template Alloc<T>(&tmp_y);
+    const auto& runner_cast =
+        NpuOpRunner("Cast",
+                    {y},
+                    {tmp_y},
+                    {{"dst_type", static_cast<int>(dst_type)}});
+    runner_cast.Run(stream);
+  } else {
+    tmp_y = y;
+  }
 
   bool direct_compute = false;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
-  phi::DenseTensor x_tensor(x), y_tensor(y);
+  phi::DenseTensor x_tensor(x), y_tensor(tmp_y);
   if (x_dims.size() >= y_dims.size()) {
     y_tensor.Resize(GetDimsWithAxis(x_dims, y_dims, axis));
   } else {

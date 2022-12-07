@@ -106,8 +106,8 @@ void ExpGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -117,14 +117,14 @@ void FloorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
+  const auto& runner =
+      NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
   runner.Run(stream);
 }
-
 
 template <typename T, typename Context>
 void SinKernel(const Context& dev_ctx,
@@ -140,9 +140,9 @@ void SinKernel(const Context& dev_ctx,
 // Swish = x * sigmoid(beta * x)
 template <typename T, typename Context>
 void SwishRawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float beta,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    float beta,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -234,9 +234,9 @@ void ReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float attr,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    float attr,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
 
@@ -366,6 +366,45 @@ void SigmoidGradKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("SigmoidGrad", {out, dout}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float scale,
+                float alpha,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  runner.SetType("Selu")
+      .AddInput(x)
+      .AddOutput(*out)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    float scale,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  // NOTE(songkai05): SeluGrad do not support double dtype
+  runner.SetType("SeluGrad")
+      .AddInput(dout)
+      .AddInput(out)
+      .AddOutput(*dx)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
   runner.Run(stream);
 }
 
@@ -579,11 +618,11 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     float threshold,
-                     float scale,
-                     float offset,
-                     phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        float threshold,
+                        float scale,
+                        float offset,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -650,7 +689,7 @@ template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DenseTensor* out) {
-custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
+  custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>
@@ -1020,21 +1059,21 @@ PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish,
+PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
@@ -1055,4 +1094,18 @@ PD_REGISTER_PLUGIN_KERNEL(reciprocal_grad,
                           custom_kernel::ReciprocalGradKernel,
                           float,
                           double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluGradKernel,
+                          float,
                           phi::dtype::float16) {}

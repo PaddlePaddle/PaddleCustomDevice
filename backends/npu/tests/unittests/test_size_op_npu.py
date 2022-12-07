@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import unittest
-import numpy as np
-import sys
 
+import numpy as np
 import paddle
 import paddle.fluid as fluid
 from tests.op_test import OpTest
@@ -26,13 +25,13 @@ paddle.enable_static()
 class TestSizeOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "size"
 
         self.config()
         input = np.zeros(self.shape, dtype=self.dtype)
-        self.inputs = {'Input': input}
-        self.outputs = {'Out': np.array([np.size(input)], dtype=np.int64)}
+        self.inputs = {"Input": input}
+        self.outputs = {"Out": np.array([np.size(input)], dtype=np.int64)}
 
     def config(self):
         self.shape = [1, 2]
@@ -84,7 +83,7 @@ class TestSizeOp6(TestSizeOp):
 class TestSizeAPI(unittest.TestCase):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -95,24 +94,22 @@ class TestSizeAPI(unittest.TestCase):
         with fluid.program_guard(main_program, startup_program):
             shape1 = [2, 1, 4, 5]
             shape2 = [1, 4, 5]
-            x_1 = paddle.fluid.data(shape=shape1, dtype='int32', name='x_1')
-            x_2 = paddle.fluid.data(shape=shape2, dtype='int32', name='x_2')
+            x_1 = paddle.fluid.data(shape=shape1, dtype="int32", name="x_1")
+            x_2 = paddle.fluid.data(shape=shape2, dtype="int32", name="x_2")
             input_1 = np.random.random(shape1).astype("int32")
             input_2 = np.random.random(shape2).astype("int32")
-            out_1 = paddle.fluid.layers.size(x_1)
-            out_2 = paddle.fluid.layers.size(x_2)
+            out_1 = paddle.numel(x_1)
+            out_2 = paddle.numel(x_2)
             exe = paddle.static.Executor(place=self.place)
-            res_1, res_2 = exe.run(feed={
-                "x_1": input_1,
-                "x_2": input_2,
-            },
-                                   fetch_list=[out_1, out_2])
-            assert (np.array_equal(res_1,
-                                   np.array(
-                                       [np.size(input_1)]).astype("int64")))
-            assert (np.array_equal(res_2,
-                                   np.array(
-                                       [np.size(input_2)]).astype("int64")))
+            res_1, res_2 = exe.run(
+                feed={
+                    "x_1": input_1,
+                    "x_2": input_2,
+                },
+                fetch_list=[out_1, out_2],
+            )
+            assert np.array_equal(res_1, np.array([np.size(input_1)]).astype("int64"))
+            assert np.array_equal(res_2, np.array([np.size(input_2)]).astype("int64"))
 
     def test_size_imperative(self):
         paddle.disable_static(self.place)
@@ -120,10 +117,10 @@ class TestSizeAPI(unittest.TestCase):
         input_2 = np.random.random([1, 4, 5]).astype("int32")
         x_1 = paddle.to_tensor(input_1)
         x_2 = paddle.to_tensor(input_2)
-        out_1 = paddle.fluid.layers.size(x_1)
-        out_2 = paddle.fluid.layers.size(x_2)
-        assert (np.array_equal(out_1.numpy().item(0), np.size(input_1)))
-        assert (np.array_equal(out_2.numpy().item(0), np.size(input_2)))
+        out_1 = paddle.numel(x_1)
+        out_2 = paddle.numel(x_2)
+        assert np.array_equal(out_1.numpy().item(0), np.size(input_1))
+        assert np.array_equal(out_2.numpy().item(0), np.size(input_2))
         paddle.enable_static()
 
     def test_error(self):
@@ -134,10 +131,10 @@ class TestSizeAPI(unittest.TestCase):
             def test_x_type():
                 shape = [1, 4, 5]
                 input_1 = np.random.random(shape).astype("int32")
-                out_1 = paddle.fluid.layers.size(input_1)
+                out_1 = paddle.numel(input_1)
 
             self.assertRaises(TypeError, test_x_type)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

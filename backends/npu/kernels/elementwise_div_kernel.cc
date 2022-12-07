@@ -177,19 +177,28 @@ PD_REGISTER_PLUGIN_KERNEL(divide_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideRawKernel,
+                          int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideKernel,
+                          int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::DivideGradKernel,
+                          int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

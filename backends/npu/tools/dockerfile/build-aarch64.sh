@@ -17,25 +17,18 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=5.1.RC2
-# export CANN_VERSION=6.0.0.alpha001
+# export CANN_VERSION=6.0.0.alpha002
 # bash build-aarch64.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha001} # default 6.0.0.alpha001
+CANN_VERSION=${1:-6.0.0.alpha002} # default 6.0.0.alpha002
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
 
 DOCKER_VERSION=${CANN_VERSION//[^0-9]/}
 DOCKER_VERSION=${DOCKER_VERSION:0:3}
 
 # download aarch64 pkgs
-if [ ${DOCKER_VERSION} -eq 512 ]; then
-   CANN_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%20${CANN_VERSION}/${CANN_TOOLKIT}
-else
-   CANN_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
-fi
-
 if [ ! -f ${CANN_TOOLKIT} ]; then
-    wget ${CANN_URL}
+    wget -q https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
 fi
 
 # copy file to current directory
@@ -50,7 +43,7 @@ fi
 export proxy=http://172.19.57.45:3128
 # export proxy=http://172.19.56.199:3128
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
-docker build --network=host -f Dockerfile.npu.ubuntu18-aarch64-gcc82 \
+docker build --no-cache --network=host -f Dockerfile.npu.ubuntu18-aarch64-gcc82 \
        --build-arg CANN_VERSION=${CANN_VERSION} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \

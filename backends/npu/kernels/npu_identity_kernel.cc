@@ -18,27 +18,33 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SizeKernel(const Context& dev_ctx,
-                const phi::DenseTensor& input,
-                phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+void NPUIdentityKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const int format,
+                       phi::DenseTensor* out) {
+  if (format < 0) {
+    dev_ctx.template Alloc<T>(out);
+  } else {
+    AllocNPUTensor<T>(dev_ctx, aclFormat(format), out);
+  }
 
-  phi::DenseTensor cpu_tensor;
-  cpu_tensor.Resize(out->dims());
-  auto cpu_data = dev_ctx.template HostAlloc<int64_t>(&cpu_tensor);
-  cpu_data[0] = input.numel();
-  TensorCopy(dev_ctx, cpu_tensor, true, out);
+  auto stream = dev_ctx.stream();
+  NpuOpRunner runner_identity;
+  runner_identity.SetType("Identity").AddInput(x).AddOutput(*out).Run(stream);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(size,
+PD_REGISTER_PLUGIN_KERNEL(npu_identity,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::SizeKernel,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
+                          custom_kernel::NPUIdentityKernel,
                           float,
                           double,
-                          bool) {}
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          bool,
+                          phi::dtype::float16) {}

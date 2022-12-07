@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
@@ -316,6 +317,122 @@ void SliceGradRawKernel(const Context& dev_ctx,
       NpuOpRunner("PadD", {tmp_dout}, {*x_grad}, {{"paddings", paddings}});
   runner.Run(stream);
 }
+
+template <typename T, typename Context>
+void SliceArrayKernel(const Context& dev_ctx,
+                      const phi::TensorArray& input,
+                      const phi::IntArray& starts,
+                      const phi::IntArray& ends,
+                      phi::TensorArray* out) {
+  int64_t in_size = input.size();
+  int64_t start = starts[0] < 0 ? (starts[0] + in_size) : starts[0];
+  int64_t end = ends[0] < 0 ? (ends[0] + in_size) : ends[0];
+
+  start = std::max(start, static_cast<int64_t>(0));
+  end = std::max(end, static_cast<int64_t>(0));
+  end = std::min(end, in_size);
+
+  if (starts[0] == -1 && end == 0) {
+    end = start + 1;
+  }
+
+  PADDLE_ENFORCE_GT(end,
+                    start,
+                    phi::errors::InvalidArgument(
+                        "Attr(ends) should be greater than attr(starts) in "
+                        "slice op. But received end = %d, start = %d.",
+                        ends[0],
+                        starts[0]));
+  int64_t out_size = end - start;
+
+  out->resize(out_size);
+  for (int i = 0; i < out_size; ++i) {
+    auto* out_tensor = &out->at(i);
+    const auto& in_tensor = input.at(i + start);
+    out_tensor->Resize(in_tensor.dims());
+    if (in_tensor.initialized() && in_tensor.numel() > 0) {
+      phi::Copy<Context>(
+          dev_ctx, in_tensor, dev_ctx.GetPlace(), false, out_tensor);
+    } else {
+      VLOG(10) << "WARNING: The input tensor 'x_tensor' holds no memory, so "
+                  "nothing has been written to output array["
+               << i << "].";
+    }
+  }
+}
+
+template <typename T, typename Context>
+void SliceArrayDenseKernel(const Context& dev_ctx,
+                           const phi::TensorArray& input,
+                           const phi::IntArray& starts,
+                           phi::DenseTensor* out) {
+  int64_t in_size = input.size();
+  int64_t start = starts[0] < 0 ? (starts[0] + in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  out->Resize(input[start].dims());
+  phi::Copy<Context>(dev_ctx, input[start], dev_ctx.GetPlace(), false, out);
+}
+
+template <typename T, typename Context>
+void SliceArrayGradKernel(const Context& dev_ctx,
+                          const phi::TensorArray& input,
+                          const phi::TensorArray& out_grad,
+                          const phi::IntArray& starts,
+                          const phi::IntArray& ends,
+                          phi::TensorArray* input_grad) {
+  int64_t d_in_size = input.size();
+  input_grad->resize(d_in_size);
+  // If the input is TensorArray, the rank of input is 1.
+  // So only use the 0th element of starts.
+  int64_t start = starts[0] < 0 ? (starts[0] + d_in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  // set zero
+  for (int i = 0; i < d_in_size; ++i) {
+    const auto& dim = input.at(i).dims();
+    auto* in_grad_tensor = &input_grad->at(i);
+    in_grad_tensor->Resize(dim);
+    dev_ctx.template Alloc<T>(in_grad_tensor);
+    FillNpuTensorWithConstant<T>(in_grad_tensor, dev_ctx, static_cast<T>(0));
+    in_grad_tensor->Resize(dim);
+  }
+
+  int d_out_size = out_grad.size();
+  for (int i = 0; i < d_out_size; ++i) {
+    input_grad->at(start + i).Resize(out_grad[i].dims());
+    phi::Copy<Context>(dev_ctx,
+                       out_grad[i],
+                       dev_ctx.GetPlace(),
+                       false,
+                       &input_grad->at(start + i));
+  }
+}
+
+template <typename T, typename Context>
+void SliceArrayDenseGradKernel(const Context& dev_ctx,
+                               const phi::TensorArray& input,
+                               const phi::DenseTensor& out_grad,
+                               const phi::IntArray& starts,
+                               phi::TensorArray* input_grad) {
+  int64_t d_in_size = input.size();
+  input_grad->resize(d_in_size);
+  // If the input is TensorArray, the rank of input is 1.
+  // So only use the 0th element of starts.
+  int64_t start = starts[0] < 0 ? (starts[0] + d_in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  // set zero
+  for (int i = 0; i < d_in_size; ++i) {
+    const auto& dim = input.at(i).dims();
+    auto* in_grad_tensor = &input_grad->at(i);
+    in_grad_tensor->Resize(dim);
+    dev_ctx.template Alloc<T>(in_grad_tensor);
+    FillNpuTensorWithConstant<T>(in_grad_tensor, dev_ctx, static_cast<T>(0));
+    in_grad_tensor->Resize(dim);
+  }
+
+  phi::Copy<Context>(
+      dev_ctx, out_grad, dev_ctx.GetPlace(), false, &input_grad->at(start));
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
@@ -329,10 +446,59 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           int32_t,
                           int64_t,
                           bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_dense,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayDenseKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SliceGradRawKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayGradKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_dense_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayDenseGradKernel,
                           phi::dtype::float16,
                           float,
                           double,

@@ -17,21 +17,21 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void GenerateProposalsV2Kernel(const Context& dev_ctx,
-                               const phi::DenseTensor& scores,
-                               const phi::DenseTensor& bbox_deltas,
-                               const phi::DenseTensor& im_shape,
-                               const phi::DenseTensor& anchors,
-                               const phi::DenseTensor& variances,
-                               int pre_nms_top_n,
-                               int post_nms_top_n,
-                               float nms_thresh,
-                               float min_size,
-                               float eta,
-                               bool pixel_offset,
-                               phi::DenseTensor* rpn_rois,
-                               phi::DenseTensor* rpn_roi_probs,
-                               phi::DenseTensor* rpn_rois_num) {
+void GenerateProposalsKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& scores,
+                             const phi::DenseTensor& bbox_deltas,
+                             const phi::DenseTensor& im_shape,
+                             const phi::DenseTensor& anchors,
+                             const phi::DenseTensor& variances,
+                             int pre_nms_top_n,
+                             int post_nms_top_n,
+                             float nms_thresh,
+                             float min_size,
+                             float eta,
+                             bool pixel_offset,
+                             phi::DenseTensor* rpn_rois,
+                             phi::DenseTensor* rpn_roi_probs,
+                             phi::DenseTensor* rpn_rois_num) {
   PADDLE_ENFORCE_GE(eta,
                     1.,
                     phi::errors::InvalidArgument(
@@ -118,8 +118,8 @@ void GenerateProposalsV2Kernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(generate_proposals_v2,
+PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
                           CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::GenerateProposalsV2Kernel,
+                          custom_kernel::GenerateProposalsKernel,
                           float) {}

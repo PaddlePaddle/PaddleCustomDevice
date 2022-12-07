@@ -26,12 +26,20 @@ void MultinomialKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int64_t>(out);
   auto num_samples = num.to<int>();
   auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("MultinomialWithReplacementD",
-                  {x},
-                  {*out},
-                  {{"num_samples", static_cast<int64_t>(num_samples)},
-                   {"replacement", replacement}});
+  phi::DenseTensor seed, offset;
+  seed.Resize({1});
+  offset.Resize({1});
+  FillNpuTensorWithConstant<int64_t>(&seed, dev_ctx, -1);
+  FillNpuTensorWithConstant<int64_t>(&offset, dev_ctx, 0);
+
+  NpuOpRunner runner;
+  runner.SetType("MultinomialWithReplacement")
+      .AddInput(x)
+      .AddInput(seed)
+      .AddInput(offset)
+      .AddOutput(*out)
+      .AddAttr("numsamples", num_samples)
+      .AddAttr("replacement", replacement);
   runner.Run(stream);
 }
 

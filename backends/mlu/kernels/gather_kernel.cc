@@ -35,10 +35,10 @@ void GatherKernel(const Context& dev_ctx,
             index_dims[1]));
   } else {
     PADDLE_ENFORCE_EQ(
-        index_dims.size(),
-        1,
+        index_dims.size() == 1 || index_dims.size() == 0,
+        true,
         phi::errors::InvalidArgument(
-            "The index should be 1D, when it is not 2D, but we get %d",
+            "The index should be 0D or 1D, when it is not 2D, but we get %d",
             index_dims.size()));
   }
 
@@ -80,10 +80,10 @@ void GatherGradKernel(const Context& dev_ctx,
             index_dims[1]));
   } else {
     PADDLE_ENFORCE_EQ(
-        index_dims.size(),
-        1,
+        index_dims.size() == 1 || index_dims.size() == 0,
+        true,
         phi::errors::InvalidArgument(
-            "The index should be 1D, when it is not 2D, but we get %d",
+            "The index should be 0D or 1D, when it is not 2D, but we get %d",
             index_dims.size()));
   }
 

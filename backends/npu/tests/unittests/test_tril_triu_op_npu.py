@@ -50,6 +50,16 @@ class TestNPUTrilTriu(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            check_eager=False,
+            max_relative_error=0.009,
+            numeric_place=paddle.CPUPlace(),
+        )
+
     def set_npu(self):
         self.__class__.use_custom_device = True
 
@@ -192,6 +202,9 @@ class TestTrilTriuOpAPI(unittest.TestCase):
 class TestNPUTrilTriu_bool(TestNPUTrilTriu):
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        pass
 
     def init_dtype(self):
         self.dtype = np.bool_

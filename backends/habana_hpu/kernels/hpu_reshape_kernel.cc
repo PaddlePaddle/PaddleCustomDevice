@@ -24,16 +24,13 @@ namespace custom_kernel {
 class ReshapeOperator : public HpuOperator {
   public:
   ReshapeOperator() : HpuOperator("reshape") {}
-  void AddNode(const std::vector<int64_t>& shape,
-              const std::vector<int64_t>& in_dims) {
-    unsigned int in[in_dims.size()];
-    unsigned int out[shape.size()];
+  void AddNode(const std::vector<DIMS>& ins, 
+              const std::vector<DIMS>& outs) {
+    assert(ins.size() == 1 && "input size should be 1");
+    assert(outs.size() == 1 && "output size should be 1");
 
-    vector2ints(in_dims, in);
-    vector2ints(shape, out);
-
-    synTensor inputs[1]  = {createTensor(in_dims.size(), syn_type_float, in, true, "input_tensor")};
-    synTensor outputs[1] = {createTensor(shape.size(), syn_type_float, out, true, "output_tensor")};
+    synTensor inputs[1]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
+    synTensor outputs[1] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
     synStatus status = synNodeCreate(graphHandle_, inputs, outputs, 1, 1, nullptr, 0, "reshape", "reshape_op", nullptr, nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
   }
@@ -150,10 +147,10 @@ void ReshapeKernel(const phi::Context& dev_ctx,
   auto out_dims = ValidateShape(shape.GetData(), x_dims);
 
   // ReshapeOperator op;
-  // op.AddNode(out_dims, x_dims);
+  // op.AddNode({x_dims}, {out_dims});
   // std::map<std::string, uint64_t> tensors;
-  // tensors["input_tensor"] = reinterpret_cast<uint64_t> (x.data<T>());
-  // tensors["output_tensor"] = reinterpret_cast<uint64_t> (x.data<T>());
+  // tensors["input"] = reinterpret_cast<uint64_t> (x.data<T>());
+  // tensors["output"] = reinterpret_cast<uint64_t> (x.data<T>());
   // op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 
   out->Resize(out_dims);

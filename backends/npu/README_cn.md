@@ -19,7 +19,7 @@ docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann600-$(uname -m)-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -114,10 +114,10 @@ cd backends/npu
 export ON_INFER=ON # 是否打开推理库编译，默认为 OFF
 export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_dir
 
-# 4) 执行编译脚本
+# 3) 执行编译脚本
 bash tools/compile.sh
 
-# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
+# 4) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
 export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
 ```
 

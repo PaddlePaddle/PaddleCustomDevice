@@ -144,7 +144,8 @@ PD_REGISTER_PLUGIN_KERNEL(index_select,
                           custom_kernel::IndexSelectNPUKernel,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(index_select_grad,
                           npu,
@@ -152,4 +153,5 @@ PD_REGISTER_PLUGIN_KERNEL(index_select_grad,
                           custom_kernel::IndexSelectGradNPUKernel,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::float16) {}

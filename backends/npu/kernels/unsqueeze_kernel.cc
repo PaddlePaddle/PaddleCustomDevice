@@ -141,7 +141,8 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
                           int8_t,
                           int64_t,
                           phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<double>,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
                           npu,
@@ -157,4 +158,5 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16) {}

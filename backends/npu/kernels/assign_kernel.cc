@@ -22,10 +22,7 @@ void AssignKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  const auto& runner = NpuOpRunner("Assign", {*out, x}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  TensorCopy(dev_ctx, x, true, out);
 }
 
 template <typename T, typename Context>

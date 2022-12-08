@@ -15,14 +15,13 @@
 from __future__ import print_function
 
 import unittest
-import numpy
-import sys
 
-from tests.op_test import OpTest
+import numpy
 import paddle
 import paddle.fluid as fluid
 import paddle.fluid.framework as framework
 import paddle.fluid.layers as layers
+from tests.op_test import OpTest
 
 paddle.enable_static()
 numpy.random.seed(2021)
@@ -31,7 +30,7 @@ numpy.random.seed(2021)
 class TestAssignValueNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.op_type = "assign_value"
         self.inputs = {}
@@ -39,8 +38,7 @@ class TestAssignValueNPUOp(OpTest):
         self.init_data()
 
         self.attrs["shape"] = self.value.shape
-        self.attrs["dtype"] = framework.convert_np_dtype_to_dtype_(
-            self.value.dtype)
+        self.attrs["dtype"] = framework.convert_np_dtype_to_dtype_(self.value.dtype)
         self.outputs = {"Out": self.value}
 
     def set_npu(self):
@@ -68,17 +66,17 @@ class TestAssignValueNPUOp3(TestAssignValueNPUOp):
 
 class TestAssignValueNPUOp4(TestAssignValueNPUOp):
     def init_data(self):
-        self.value = numpy.random.choice(
-            a=[False, True], size=(2, 5)).astype(numpy.bool)
+        self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
+            numpy.bool
+        )
         self.attrs["bool_values"] = [int(v) for v in self.value.flat]
 
 
 class TestAssignApi(unittest.TestCase):
     def setUp(self):
         self.init_dtype()
-        self.value = (
-            -100 + 200 * numpy.random.random(size=(2, 5))).astype(self.dtype)
-        self.place = paddle.CustomPlace('npu', 0)
+        self.value = (-100 + 200 * numpy.random.random(size=(2, 5))).astype(self.dtype)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -86,14 +84,15 @@ class TestAssignApi(unittest.TestCase):
     def test_assign(self):
         main_program = fluid.Program()
         with fluid.program_guard(main_program):
-            x = layers.create_tensor(dtype=self.dtype)
+            x = paddle.tensor.create_tensor(dtype=self.dtype)
             layers.assign(input=self.value, output=x)
 
         exe = fluid.Executor(self.place)
         [fetched_x] = exe.run(main_program, feed={}, fetch_list=[x])
         self.assertTrue(
             numpy.array_equal(fetched_x, self.value),
-            "fetch_x=%s val=%s" % (fetched_x, self.value))
+            "fetch_x=%s val=%s" % (fetched_x, self.value),
+        )
         self.assertEqual(fetched_x.dtype, self.value.dtype)
 
 
@@ -110,13 +109,14 @@ class TestAssignApi3(TestAssignApi):
 class TestAssignApi4(TestAssignApi):
     def setUp(self):
         self.init_dtype()
-        self.value = numpy.random.choice(
-            a=[False, True], size=(2, 5)).astype(numpy.bool)
-        self.place = paddle.CustomPlace('npu', 0)
+        self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
+            numpy.bool
+        )
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = "bool"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

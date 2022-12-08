@@ -91,40 +91,28 @@ void EmbeddingGradKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
 
-  const auto& runner_zeros =
-      NpuOpRunner("ZerosLike", {*weight_grad}, {*weight_grad});
-  runner_zeros.Run(stream);
-
-  if (padding_idx == kNoPadding) {
-    // NOTE(zhiqiu): It seems in cann 20.1, the first input and output
-    // can be different tensor, but in cann 20.2+, it does inplace operation.
-    // Thus, the first input and output should be same tensor.
-    const auto& runner_scatter = NpuOpRunner("ScatterAdd",
-                                             {*weight_grad, input, out_grad},
-                                             {*weight_grad},
-                                             {{"use_locking", true}});
+  if (input.dtype() == phi::DataType::INT64) {
+    phi::DenseTensor input_int32;
+    input_int32.Resize(input.dims());
+    dev_ctx.template Alloc<int32_t>(&input_int32);
+    const auto& cast_runner =
+        NpuOpRunner("Cast", {input}, {input_int32}, {{"dst_type", ACL_INT32}});
+    cast_runner.Run(stream);
+    const auto& runner_scatter =
+        NpuOpRunner("EmbeddingDenseGrad",
+                    {out_grad, input_int32},
+                    {*weight_grad},
+                    {{"num_weights", weight_grad->dims()[0]},
+                     {"padding_idx", padding_idx}});
     runner_scatter.Run(stream);
   } else {
-    phi::DenseTensor casted_inputx;
-    if (input.dtype() != phi::DataType::INT32) {
-      phi::DenseTensorMeta meta = {phi::DataType::INT32, input.dims()};
-      casted_inputx.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&casted_inputx);
-      const auto& cast_runner = NpuOpRunner(
-          "Cast", {input}, {casted_inputx}, {{"dst_type", ACL_INT32}});
-      cast_runner.Run(stream);
-    } else {
-      casted_inputx = input;
-    }
-    auto table_grad_dims = weight_grad->dims();
-
-    NpuOpRunner runner;
-    runner.SetType("UnsortedSegmentSum")
-        .AddInput(out_grad)
-        .AddInput(casted_inputx)
-        .AddInput(dev_ctx, std::vector<int64_t>{table_grad_dims[0]})
-        .AddOutput(*weight_grad);
-    runner.Run(stream);
+    const auto& runner_scatter =
+        NpuOpRunner("EmbeddingDenseGrad",
+                    {out_grad, input},
+                    {*weight_grad},
+                    {{"num_weights", weight_grad->dims()[0]},
+                     {"padding_idx", padding_idx}});
+    runner_scatter.Run(stream);
   }
 }
 

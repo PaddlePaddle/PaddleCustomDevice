@@ -63,9 +63,7 @@ void DropoutRawKernel(const Context& dev_ctx,
     int seed2 = 0;
     float keep_prob = 1. - dropout_prob;
     if (seed_tensor) {
-      std::vector<int> seed_data;
-      TensorToVector(dev_ctx, seed_tensor.get(), dev_ctx, &seed_data);
-      seed = seed_data[0];
+      MemCpyD2H(nullptr, &seed, seed_tensor->data(), sizeof(int));
     } else {
       seed = fix_seed ? seed : 0;
     }

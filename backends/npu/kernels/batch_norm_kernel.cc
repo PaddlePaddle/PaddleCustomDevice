@@ -110,13 +110,14 @@ void BatchNormKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<float>(saved_variance);
     }
 
-    phi::DenseTensorMeta meta = {x.dtype(), mean_out->dims(), x.layout()};
+    phi::DenseTensorMeta meta = {
+        phi::DataType::FLOAT32, mean_out->dims(), x.layout()};
     phi::DenseTensor sum, square_sum;
     sum.set_meta(meta);
     square_sum.set_meta(meta);
     if (FLAGS_npu_storage_format) {
-      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &sum);
-      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &square_sum);
+      AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, &sum);
+      AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, &square_sum);
     } else {
       dev_ctx.template Alloc<float>(&sum);
       dev_ctx.template Alloc<float>(&square_sum);

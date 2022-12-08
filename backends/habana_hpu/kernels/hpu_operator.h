@@ -2,12 +2,14 @@
 #include "synapse_common_types.h"
 #include "utils/hpu_helper.h"
 
+typedef std::vector<int64_t> DIMS;
+
 #define CHKSTATUS(errstr) assert(status == synSuccess && errstr)
 
-static void vector2ints(std::vector<int64_t> vectors, unsigned int* outs){
-  for (int i=0; i < vectors.size(); i++)
-    outs[i] = vectors[i];
-}
+// static void vector2ints(DIMS vectors, unsigned int* outs){
+//   for (int i=0; i < vectors.size(); i++)
+//     outs[i] = vectors[i];
+// }
 
 typedef std::pair<synSectionHandle, bool> sectionWithFirstIndication;
 static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
@@ -81,7 +83,7 @@ class HpuOperator {
     }
 
     // protected:
-    synTensor createTensor(unsigned dims, synDataType data_type, const unsigned* tensor_size,
+    synTensor createTensor(unsigned dims, synDataType data_type, DIMS tensor_size, /*const unsigned* tensor_size,*/
                        bool is_presist, const char* name)
 
     {

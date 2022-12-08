@@ -52,68 +52,68 @@ class TestCastOpFp32ToFp64(OpTest):
         self.check_grad(['X'], ['Out'])
 
 
-class TestCastOpFp16ToFp32(OpTest):
-    def setUp(self):
-        ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float16')}
-        self.outputs = {'Out': ipt.astype('float32')}
-        self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
-        }
-        self.op_type = 'cast'
-        self.__class__.no_need_check_grad = True
+# class TestCastOpFp16ToFp32(OpTest):
+#     def setUp(self):
+#         ipt = np.random.random(size=[10, 10])
+#         self.inputs = {'X': ipt.astype('float16')}
+#         self.outputs = {'Out': ipt.astype('float32')}
+#         self.attrs = {
+#             'in_dtype': int(core.VarDesc.VarType.FP16),
+#             'out_dtype': int(core.VarDesc.VarType.FP32)
+#         }
+#         self.op_type = 'cast'
+#         self.__class__.no_need_check_grad = True
 
-    def test_check_output(self):
-        self.check_output(atol=1e-3)
-
-
-class TestCastOpFp32ToFp16(OpTest):
-    def setUp(self):
-        ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float16')}
-        self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP16)
-        }
-        self.op_type = 'cast'
-        self.__class__.no_need_check_grad = True
-
-    def test_check_output(self):
-        self.check_output(atol=1e-3)
+#     def test_check_output(self):
+#         self.check_output(atol=1e-3)
 
 
-class TestCastOpBf16ToFp32(OpTest):
-    def setUp(self):
-        ipt = np.array(np.random.randint(10, size=[10, 10])).astype('uint16')
-        self.inputs = {'X': ipt}
-        self.outputs = {'Out': convert_uint16_to_float(ipt)}
-        self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.BF16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
-        }
-        self.op_type = 'cast'
-        self.__class__.no_need_check_grad = True
+# class TestCastOpFp32ToFp16(OpTest):
+#     def setUp(self):
+#         ipt = np.random.random(size=[10, 10])
+#         self.inputs = {'X': ipt.astype('float32')}
+#         self.outputs = {'Out': ipt.astype('float16')}
+#         self.attrs = {
+#             'in_dtype': int(core.VarDesc.VarType.FP32),
+#             'out_dtype': int(core.VarDesc.VarType.FP16)
+#         }
+#         self.op_type = 'cast'
+#         self.__class__.no_need_check_grad = True
 
-    def test_check_output(self):
-        self.check_output()
+#     def test_check_output(self):
+#         self.check_output(atol=1e-3)
 
 
-class TestCastOpFp32ToBf16(OpTest):
-    def setUp(self):
-        ipt = np.random.random(size=[10, 10]).astype('float32')
-        self.inputs = {'X': ipt}
-        self.outputs = {'Out': convert_float_to_uint16(ipt)}
-        self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.BF16)
-        }
-        self.op_type = 'cast'
-        self.__class__.no_need_check_grad = True
+# class TestCastOpBf16ToFp32(OpTest):
+#     def setUp(self):
+#         ipt = np.array(np.random.randint(10, size=[10, 10])).astype('uint16')
+#         self.inputs = {'X': ipt}
+#         self.outputs = {'Out': convert_uint16_to_float(ipt)}
+#         self.attrs = {
+#             'in_dtype': int(core.VarDesc.VarType.BF16),
+#             'out_dtype': int(core.VarDesc.VarType.FP32)
+#         }
+#         self.op_type = 'cast'
+#         self.__class__.no_need_check_grad = True
 
-    def test_check_output(self):
-        self.check_output()
+#     def test_check_output(self):
+#         self.check_output()
+
+
+# class TestCastOpFp32ToBf16(OpTest):
+#     def setUp(self):
+#         ipt = np.random.random(size=[10, 10]).astype('float32')
+#         self.inputs = {'X': ipt}
+#         self.outputs = {'Out': convert_float_to_uint16(ipt)}
+#         self.attrs = {
+#             'in_dtype': int(core.VarDesc.VarType.FP32),
+#             'out_dtype': int(core.VarDesc.VarType.BF16)
+#         }
+#         self.op_type = 'cast'
+#         self.__class__.no_need_check_grad = True
+
+#     def test_check_output(self):
+#         self.check_output()
 
 
 class TestCastOpError(unittest.TestCase):

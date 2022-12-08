@@ -14,6 +14,7 @@
 
 
 #include "dnn_support.hpp"
+#include "glog/logging.h"
 #include <cmath>
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
@@ -26,7 +27,9 @@ void AssignValueKernel(const phi::Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  show_kernel("AssignValue-SYCL");
+  VLOG(3) << "AssignValue-SYCL, type="<< dnn_support::type2String<T>::name();
+  show_kernel("AssignValue-SYCL, type="<< dnn_support::type2String<T>::name());
+  
   auto template_dtype = phi::capi::CppTypeToPDType<T>::Type();
   PD_CHECK(dtype == template_dtype,
            "Argument dtype mismatch for kernel dtype, "
@@ -44,13 +47,7 @@ void AssignValueKernel(const phi::Context& dev_ctx,
   for (const auto& val : values) {
       assign_values.emplace_back( val.to<T>());
   }
-  {
-    sycl::buffer<T> assign_value_buf(assign_values);
-    q->submit([&](sycl::handler& h) {
-      auto a_in = assign_value_buf.template get_access<sycl::access::mode::read>(h);
-      h.copy(a_in, out_data);
-    });
-  }
+  q->memcpy( out_data, &assign_values[0],  assign_values.size()*sizeof(T));
   q-> wait();  //needed, runtime does sync ??
   out->Resize(std::vector<int64_t>(shape.cbegin(), shape.cend()));
 }
@@ -61,7 +58,7 @@ void AssignKernel(const phi::Context& dev_ctx,
                   phi::DenseTensor* out) {
   auto out_data = dev_ctx.template Alloc<T>(out);
   auto x_data = x.data<T>();
-  std::cout << "***** Tutaj assign Kernel" << std::endl;
+  // std::cout << "***** Tutaj assign Kernel" << std::endl;
   std::memcpy(out_data, x_data, sizeof(T) * x.numel());
 }
 
@@ -69,7 +66,9 @@ template <typename T>
 void AssignRawKernel(const phi::Context& dev_ctx,
                      const paddle::optional<phi::DenseTensor>& x,
                      phi::DenseTensor* out) {
-  show_kernel("AssignRaw-SYCL");
+  VLOG(3) << "AssignRaw-SYCL, type="<< dnn_support::type2String<T>::name();
+  show_kernel("AssignRaw-SYCL, type="<< dnn_support::type2String<T>::name());
+
   if (x) {
     if (!x->initialized()) {
       return;
@@ -78,7 +77,7 @@ void AssignRawKernel(const phi::Context& dev_ctx,
     auto out_data = dev_ctx.template Alloc<T>(out);
 
     auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
-    q->copy(x_data, out_data, x->numel());
+    q->memcpy(out_data, x_data, x->numel());
     q->wait();
   }
 }

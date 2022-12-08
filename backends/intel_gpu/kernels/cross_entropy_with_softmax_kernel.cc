@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "dnn_support.hpp"
+#include "glog/logging.h"
 #include "kernels.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
@@ -84,6 +85,9 @@ void CrossEntropyKernel(const phi::Context& dev_ctx,
                         int ignore_index,
                         int axis,
                         phi::DenseTensor* out) {
+  VLOG(3) <<"CrossEntropy type=" << dnn_support::type2String<T>::name()<< ", soft_label=" << soft_label;
+  show_kernel("CrossEntropy type=" << dnn_support::type2String<T>::name()<< ", soft_label=" << soft_label);
+
   auto x_dims = x.dims();
   const int rank = x_dims.size();
   const int axis_v = phi::funcs::CanonicalAxis(axis, rank);
@@ -201,6 +205,11 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
                                           int ignore_index,
                                           int axis,
                                           phi::DenseTensor* logits_grad) {
+  VLOG(3) <<"CrossEntropyGrad type=" << dnn_support::type2String<T>::name()
+    << ", soft_label=" << soft_label << ", use_softmax=" << use_softmax;
+  show_kernel("CrossEntropyGrad type=" << dnn_support::type2String<T>::name()
+    << ", soft_label=" << soft_label << ", use_softmax=" << use_softmax);
+
   const phi::DenseTensor* out_grad = &loss_grad;
   phi::DenseTensor* logit_grad = logits_grad;
   logits_grad->Resize(softmax.dims());
@@ -446,12 +455,14 @@ PD_BUILD_PHI_KERNEL(cross_entropy_with_softmax,
                     intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::CrossEntropyWithSoftmaxKernel,
-                    float,
-                    double) {}
+                    float
+                    // , double
+                    ) {}
 
 PD_BUILD_PHI_KERNEL(cross_entropy_with_softmax_grad,
                     intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::CrossEntropyWithSoftmaxGradKernel,
-                    float,
-                    double) {}
+                    float
+                    // , double
+                    ) {}

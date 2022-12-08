@@ -42,6 +42,7 @@
 
 #define ACL_CHECK(func) RUNTIME_CHECK(func, ACL_ERROR_NONE)
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
+#define CHECK(func) RUNTIME_CHECK(func, true)
 
 #define ENV_Cat(x, y) x##y
 #define ENV_Str(x) #x
@@ -190,4 +191,31 @@ class AscendProfiler {
   aclrtStream stream_ = nullptr;
 
   bool start_ = false;
+};
+
+struct SecondaryStream {
+  static SecondaryStream &Instance() {
+    static SecondaryStream ins;
+    return ins;
+  }
+
+  aclrtStream Get(aclrtStream aicore_stream);
+
+  void Create(aclrtStream aicore_stream);
+
+  void Destroy(aclrtStream aicore_stream);
+
+  // aicpu  --
+  //           \
+  // aicore ----  aicore
+  void RecordBefore(aclrtStream aicore_stream);
+
+  //          -- aicpu
+  //        /
+  // aicore ---- aicore
+  void RecordAfter(aclrtStream aicore_stream);
+
+ private:
+  SecondaryStream() = default;
+  std::unordered_map<aclrtStream, aclrtStream> aicpu_streams;
 };

@@ -21,6 +21,7 @@ import paddle
 import paddle.fluid as fluid
 import paddle.fluid.core as core
 from paddle.fluid import Program, program_guard
+from paddle.fluid.framework import set_flags
 from tests.op_test import _set_use_system_allocator
 
 _set_use_system_allocator(False)
@@ -202,11 +203,13 @@ class TestBatchNormOpInference(unittest.TestCase):
         self.dtype = np.float32
         self.init_kernel_type()
         self.data_formats = ["NCHW", "NHWC"]
+        self.npu_storages = [True, False]
 
     def __assert_close(self, tensor, np_array, msg, atol=1e-4):
         self.assertTrue(np.allclose(np.array(tensor), np_array, atol=atol), msg)
 
-    def check_with_place(self, place, data_layout, dtype, shape):
+    def check_with_place(self, place, data_layout, dtype, shape, npu_storage):
+        set_flags({"FLAGS_npu_storage_format": npu_storage})
         epsilon = epsilon = 0.00001
         if len(shape) == 2:
             x_shape = shape
@@ -294,9 +297,18 @@ class TestBatchNormOpInference(unittest.TestCase):
     def test_check_output(self):
         place = paddle.CustomPlace("npu", 0)
         for data_format in self.data_formats:
-            self.check_with_place(place, data_format, self.dtype, [2, 3, 4, 5])
-            self.check_with_place(place, data_format, self.dtype, [3, 8, 5])
-            self.check_with_place(place, data_format, self.dtype, [2, 4])
+            for npu_storage in self.npu_storages:
+                if data_format == "NHWC" and npu_storage:
+                    continue
+                self.check_with_place(
+                    place, data_format, self.dtype, [2, 3, 4, 5], npu_storage
+                )
+                self.check_with_place(
+                    place, data_format, self.dtype, [3, 8, 5], npu_storage
+                )
+                self.check_with_place(
+                    place, data_format, self.dtype, [2, 4], npu_storage
+                )
 
     def init_kernel_type(self):
         pass
@@ -307,6 +319,7 @@ class TestFP16BatchNormOpInference(TestBatchNormOpInference):
         self.dtype = np.float16
         self.init_kernel_type()
         self.data_formats = ["NCHW", "NHWC"]
+        self.npu_storages = [True, False]
 
 
 class TestBatchNormOpTraining(unittest.TestCase):
@@ -319,6 +332,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
         self.use_mkldnn = False
         self.fuse_with_relu = False
         self.data_formats = ["NCHW", "NHWC"]
+        self.npu_storages = [True, False]
         self.momentum = 0.9
         self.use_momentum_variable = False
         self.epsilon = 0.00001
@@ -393,7 +407,8 @@ class TestBatchNormOpTraining(unittest.TestCase):
         return mean, variance
 
     def test_forward_backward(self):
-        def test_with_place(place, data_layout, shape):
+        def test_with_place(place, data_layout, shape, npu_storage):
+            set_flags({"FLAGS_npu_storage_format": npu_storage})
             # attr
             epsilon = self.epsilon
             momentum = self.momentum
@@ -552,9 +567,18 @@ class TestBatchNormOpTraining(unittest.TestCase):
             print("op test forward passed: ", str(place), data_layout)
 
         for data_format in self.data_formats:
-            test_with_place(core.CustomPlace("npu", 0), data_format, [2, 3, 4, 5])
-            test_with_place(core.CustomPlace("npu", 0), data_format, [3, 8, 5])
-            test_with_place(core.CustomPlace("npu", 0), data_format, [2, 3])
+            for npu_storage in self.npu_storages:
+                if data_format == "NHWC" and npu_storage:
+                    continue
+                test_with_place(
+                    paddle.CustomPlace("npu", 0), data_format, [2, 3, 4, 5], npu_storage
+                )
+                test_with_place(
+                    paddle.CustomPlace("npu", 0), data_format, [3, 8, 5], npu_storage
+                )
+                test_with_place(
+                    paddle.CustomPlace("npu", 0), data_format, [2, 3], npu_storage
+                )
 
     def init_kernel_type(self):
         pass
@@ -710,50 +734,75 @@ class TestBatchNormOpFreezeStatsAndScaleBiasTraining(
         self.fetch_list = ["y", "mean", "variance", "x@GRAD"]
 
 
+# TODO(qili93): fix with npu storage flags
 class TestDygraphBatchNormTrainableStats(unittest.TestCase):
     def test_dygraph(self):
-        places = [fluid.CustomPlace("npu", 0)]
-        for p in places:
-            shape = [4, 10, 4, 4]
+        shape = [4, 10, 4, 4]
 
-            def compute(x, is_test, trainable_statistics):
-                with fluid.dygraph.guard(p):
-                    bn = fluid.dygraph.BatchNorm(
-                        shape[1],
-                        is_test=is_test,
-                        trainable_statistics=trainable_statistics,
-                    )
-                    y = bn(fluid.dygraph.to_variable(x))
-                return y.numpy()
+        def compute(x, is_test, trainable_statistics, npu_storage):
+            set_flags({"FLAGS_npu_storage_format": npu_storage})
+            with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+                bn = fluid.dygraph.BatchNorm(
+                    shape[1],
+                    is_test=is_test,
+                    trainable_statistics=trainable_statistics,
+                )
+                x = paddle.to_tensor(x)
+                if npu_storage:
+                    x = paddle.incubate._npu_identity(x, 3)  # ACL_FORMAT_NC1HWC0
+                y = bn(x)
+            return y.numpy()
 
-            x = np.random.randn(*shape).astype("float32")
-            y1 = compute(x, False, False)
-            y2 = compute(x, True, True)
-            self.assertTrue(np.allclose(y1, y2))
+        x = np.random.randn(*shape).astype("float32")
+        y1 = compute(x, False, False, False)
+        y2 = compute(x, False, False, True)
+        y3 = compute(x, True, True, False)
+        y4 = compute(x, True, True, True)
+        np.testing.assert_allclose(y1, y2, rtol=1e-05)
+        np.testing.assert_allclose(y3, y4, rtol=1e-05)
+        np.testing.assert_allclose(y1, y3, rtol=1e-05)
+        np.testing.assert_allclose(y2, y4, rtol=1e-05)
 
     def test_static(self):
-        places = [fluid.CustomPlace("npu", 0)]
-        for p in places:
-            exe = fluid.Executor(p)
-            shape = [4, 10, 16, 16]
+        exe = fluid.Executor(paddle.CustomPlace("npu", 0))
+        shape = [4, 10, 16, 16]
 
-            def compute(x_np, is_test, trainable_statistics):
-                with program_guard(Program(), Program()):
-                    bn = fluid.dygraph.BatchNorm(
-                        shape[1],
-                        is_test=is_test,
-                        trainable_statistics=trainable_statistics,
-                    )
-                    x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
-                    y = bn(x)
-                    exe.run(fluid.default_startup_program())
-                    r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
-                return r
+        def compute(x_np, is_test, trainable_statistics):
+            with program_guard(Program(), Program()):
+                bn = fluid.dygraph.BatchNorm(
+                    shape[1],
+                    is_test=is_test,
+                    trainable_statistics=trainable_statistics,
+                )
+                x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
+                y = bn(x)
+                exe.run(fluid.default_startup_program())
+                r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
+            return r
 
-            x = np.random.randn(*shape).astype("float32")
-            y1 = compute(x, False, False)
-            y2 = compute(x, True, True)
-            self.assertTrue(np.allclose(y1, y2, atol=1e-5))
+        def compute_npu_storage(x_np, is_test, trainable_statistics):
+            set_flags({"FLAGS_npu_storage_format": True})
+            with program_guard(Program(), Program()):
+                bn = fluid.dygraph.BatchNorm(
+                    shape[1], is_test=is_test, trainable_statistics=trainable_statistics
+                )
+                x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
+                x = paddle.incubate._npu_identity(x, 3)  # ACL_FORMAT_NC1HWC0
+                y = bn(x)
+                exe.run(fluid.default_startup_program())
+                r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
+            return r
+
+        x = np.random.randn(*shape).astype("float32")
+        y1 = compute(x, False, False)
+        y2 = compute(x, True, True)
+        y3 = compute_npu_storage(x, False, False)
+        y4 = compute_npu_storage(x, True, True)
+
+        np.testing.assert_allclose(y1, y2, atol=1e-05)
+        np.testing.assert_allclose(y3, y4, atol=1e-05)
+        np.testing.assert_allclose(y1, y3, atol=1e-05)
+        np.testing.assert_allclose(y2, y4, atol=1e-05)
 
 
 class TestBatchNormChannelLast(unittest.TestCase):

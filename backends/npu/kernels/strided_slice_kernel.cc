@@ -318,6 +318,156 @@ void StridedSliceCompute(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context, size_t D>
+void StridedSliceCompute(const Context& dev_ctx,
+                         const phi::TensorArray& x,
+                         const std::vector<int>& axes,
+                         const phi::IntArray& starts,
+                         const phi::IntArray& ends,
+                         const phi::IntArray& strides,
+                         const std::vector<int>& infer_flags,
+                         const std::vector<int>& decrease_axis,
+                         phi::TensorArray* out) {
+  const int64_t size = x.size();
+  auto in_dims = phi::make_ddim({size});
+
+  auto starts_ = starts.GetData();
+  auto ends_ = ends.GetData();
+  auto strides_ = strides.GetData();
+  std::vector<int64_t> out_dims_vector(in_dims.size(), -1);
+
+  custom_kernel::StridedSliceOutDims(starts_,
+                                     ends_,
+                                     strides_,
+                                     axes,
+                                     infer_flags,
+                                     in_dims,
+                                     decrease_axis,
+                                     out_dims_vector.data(),
+                                     axes.size(),
+                                     false);
+  phi::DDim out_dims(phi::make_ddim(out_dims_vector));
+
+  std::vector<int> reverse_vector(starts.size(), 0);
+  custom_kernel::StridedSliceFunctor(starts_.data(),
+                                     ends_.data(),
+                                     strides_.data(),
+                                     axes.data(),
+                                     reverse_vector.data(),
+                                     in_dims,
+                                     infer_flags,
+                                     decrease_axis,
+                                     starts.size());
+
+  std::vector<int64_t> starts_indices_vector(D, 0);
+  std::vector<int64_t> ends_indices_vector(out_dims_vector.begin(),
+                                           out_dims_vector.end());
+  std::vector<int64_t> strides_indices_vector(D, 1);
+  std::vector<bool> reverse_axis(D, 0);
+
+  for (size_t axis = 0; axis < D; axis++) {
+    starts_indices_vector[axis] = 0;
+    ends_indices_vector[axis] = out_dims[axis];
+    strides_indices_vector[axis] = 1;
+    reverse_vector[axis] = false;
+  }
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    int axis_index = axes[axis];
+    starts_indices_vector[axis_index] = starts_[axis];
+    ends_indices_vector[axis_index] = ends_[axis];
+    strides_indices_vector[axis_index] = strides_[axis];
+    reverse_axis[axis_index] = (reverse_vector[axis] == 1) ? true : false;
+  }
+
+  auto out_dims_origin = out_dims;
+  if (decrease_axis.size() > 0) {
+    std::vector<int64_t> new_out_shape;
+    for (size_t i = 0; i < decrease_axis.size(); ++i) {
+      PADDLE_ENFORCE_EQ(
+          out_dims[decrease_axis[i]],
+          1,
+          phi::errors::InvalidArgument(
+              "the size of decrease dimension should be 1, but received %d.",
+              out_dims[decrease_axis[i]]));
+      out_dims_origin[decrease_axis[i]] = 0;
+    }
+
+    for (int i = 0; i < out_dims_origin.size(); ++i) {
+      if (out_dims_origin[i] != 0) {
+        new_out_shape.push_back(out_dims_origin[i]);
+      }
+    }
+    if (new_out_shape.size() == 0) {
+      new_out_shape.push_back(1);
+    }
+    out_dims_origin = phi::make_ddim(new_out_shape);
+  }
+
+  bool need_reverse = false;
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    if (reverse_vector[axis] == 1) {
+      need_reverse = true;
+      break;
+    }
+  }
+
+  PADDLE_ENFORCE_EQ(
+      starts_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_op' is `TensorArray`, the "
+          "dimension of start index  should be 1, but received %d.",
+          starts_indices_vector.size()));
+
+  PADDLE_ENFORCE_EQ(
+      ends_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_op' is `TensorArray`, the "
+          "dimension of end index should be 1, but received %d.",
+          ends_indices_vector.size()));
+
+  PADDLE_ENFORCE_EQ(
+      strides_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_op' is `TensorArray`, the "
+          "dimension of stride should be 1, but received %d.",
+          strides_indices_vector.size()));
+
+  PADDLE_ENFORCE_EQ(
+      out_dims_origin.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_op' is `TensorArray`, the "
+          "dimension of Output should be 1, but received %d",
+          out_dims_origin.size()));
+
+  out->resize(out_dims_origin[0]);
+  size_t const in_array_size = x.size();
+  for (size_t i = 0; i < out->size(); i++) {
+    size_t in_offset = (starts_indices_vector[0] % in_array_size) +
+                       i * strides_indices_vector[0];
+
+    int64_t out_offset = i;
+    if (need_reverse) {
+      out_offset = out->size() - i - 1;
+    }
+
+    auto& in_tensor = x.at(in_offset);
+    PADDLE_ENFORCE_GT(
+        in_tensor.numel(),
+        0,
+        phi::errors::PreconditionNotMet(
+            "The input LoDTensorArray Input[%d] holds no memory.", in_offset));
+    auto& out_tensor = out->at(out_offset);
+    out_tensor.Resize(in_tensor.dims());
+
+    phi::Copy<Context>(
+        dev_ctx, in_tensor, dev_ctx.GetPlace(), false, &out_tensor);
+    out_tensor.Resize(in_tensor.dims());
+  }
+}
 template <typename T, typename Context>
 void StridedSliceRawKernel(const Context& dev_ctx,
                            const phi::DenseTensor& x,
@@ -520,6 +670,136 @@ void StridedSliceGradCompute(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context, size_t D>
+void StridedSliceGradCompute(const Context& dev_ctx,
+                             const phi::TensorArray& x,
+                             const phi::TensorArray& out_grad,
+                             const std::vector<int>& axes,
+                             const phi::IntArray& starts,
+                             const phi::IntArray& ends,
+                             const phi::IntArray& strides,
+                             const std::vector<int>& infer_flags,
+                             const std::vector<int>& decrease_axis,
+                             phi::TensorArray* x_grad) {
+  // Note(weixin):Since the shape of `framework::GradVarName("Input")` of
+  // StridedSliceGrad cannot be calculated by
+  // `framework::GradVarName("Output")`, the dim of "Input" is used to
+  // calculate the output shape. when set it to inplace OP, there may be
+  // some problems.
+  const int64_t size = x.size();
+  phi::DDim out_dims = phi::make_ddim({size});
+  auto out_dims_vector = phi::vectorize(out_dims);
+  auto starts_ = starts.GetData();
+  auto ends_ = ends.GetData();
+  auto strides_ = strides.GetData();
+  std::vector<int> reverse_vector(starts_.size(), 0);
+
+  custom_kernel::StridedSliceFunctor(starts_.data(),
+                                     ends_.data(),
+                                     strides_.data(),
+                                     axes.data(),
+                                     reverse_vector.data(),
+                                     out_dims,
+                                     infer_flags,
+                                     decrease_axis,
+                                     starts_.size());
+
+  std::vector<int64_t> starts_indices_vector(D, 0);
+  std::vector<int64_t> ends_indices_vector(out_dims_vector.begin(),
+                                           out_dims_vector.end());
+  std::vector<int64_t> strides_indices_vector(D, 1);
+
+  for (size_t axis = 0; axis < D; axis++) {
+    starts_indices_vector[axis] = 0;
+    ends_indices_vector[axis] = out_dims[axis];
+    strides_indices_vector[axis] = 1;
+  }
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    int axis_index = axes[axis];
+    starts_indices_vector[axis_index] = starts_[axis];
+    ends_indices_vector[axis_index] = ends_[axis];
+    strides_indices_vector[axis_index] = strides_[axis];
+    reverse_vector[axis_index] = (reverse_vector[axis] == 1) ? true : false;
+  }
+
+  bool need_reverse = false;
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    if (reverse_vector[axis] == 1) {
+      need_reverse = true;
+      break;
+    }
+  }
+  PADDLE_ENFORCE_EQ(
+      starts_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_grad_op' is `TensorArray`, the "
+          "dimension of start index  should be 1, but received %d.",
+          starts_indices_vector.size()));
+  PADDLE_ENFORCE_EQ(
+      ends_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_op' is `TensorArray`, the "
+          "dimension of end index should be 1, but received %d.",
+          ends_indices_vector.size()));
+  PADDLE_ENFORCE_EQ(
+      strides_indices_vector.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the input of 'strided_slice_grad_op' is `TensorArray`, the "
+          "dimension of stride should be 1, but received %d.",
+          strides_indices_vector.size()));
+
+  PADDLE_ENFORCE_EQ(
+      out_dims.size(),
+      1,
+      phi::errors::InvalidArgument(
+          "When the output of `strided_slice_grad_op` is `TensorArray`, "
+          "the dimension of output should be 1, but received %d.",
+          out_dims.size()));
+
+  auto const d_out_array_size = x_grad->size();
+
+  for (size_t j = 0; j < d_out_array_size; j++) {
+    auto& dim = x.at(j).dims();
+    auto& d_out_tensor = x_grad->at(j);
+
+    int64_t sub = j - starts_indices_vector[0];
+
+    int64_t in_offset = sub / strides_indices_vector[0];
+
+    if (need_reverse) {
+      in_offset = out_grad.size() - in_offset - 1;
+    }
+
+    if ((sub % strides_indices_vector[0] == 0) && (0 <= in_offset) &&
+        (static_cast<size_t>(in_offset) < out_grad.size())) {
+      auto& in_tensor = out_grad.at(in_offset);
+      PADDLE_ENFORCE_GT(
+          in_tensor.numel(),
+          0,
+          phi::errors::PreconditionNotMet(
+              "The input LoDTensorArray Input[%d] holds no memory.",
+              in_offset));
+
+      phi::Copy<Context>(
+          dev_ctx, in_tensor, dev_ctx.GetPlace(), false, &d_out_tensor);
+      d_out_tensor.Resize(in_tensor.dims());
+    } else {
+      d_out_tensor.Resize(dim);
+
+      if (!d_out_tensor.initialized()) {
+        dev_ctx.template Alloc<T>(&d_out_tensor);
+      }
+
+      custom_kernel::FillNpuTensorWithConstant<T>(
+          &d_out_tensor, dev_ctx, static_cast<T>(0));
+      d_out_tensor.Resize(dim);
+    }
+  }
+}
+
 template <typename T, typename Context>
 void StridedSliceRawGradKernel(const Context& dev_ctx,
                                const phi::DenseTensor& x,
@@ -628,6 +908,20 @@ void StridedSliceKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void StridedSliceArrayKernel(const Context& dev_ctx,
+                             const phi::TensorArray& x,
+                             const std::vector<int>& axes,
+                             const phi::IntArray& starts,
+                             const phi::IntArray& ends,
+                             const phi::IntArray& strides,
+                             const std::vector<int>& infer_flags,
+                             const std::vector<int>& decrease_axis,
+                             phi::TensorArray* out) {
+  custom_kernel::StridedSliceCompute<T, Context, 1>(
+      dev_ctx, x, axes, starts, ends, strides, infer_flags, decrease_axis, out);
+}
+
+template <typename T, typename Context>
 void StridedSliceGradKernel(const Context& dev_ctx,
                             const phi::DenseTensor& x,
                             const phi::DenseTensor& out_grad,
@@ -648,6 +942,29 @@ void StridedSliceGradKernel(const Context& dev_ctx,
                                                        infer_flags,
                                                        decrease_axis,
                                                        x_grad);
+}
+
+template <typename T, typename Context>
+void StridedSliceArrayGradKernel(const Context& dev_ctx,
+                                 const phi::TensorArray& x,
+                                 const phi::TensorArray& out_grad,
+                                 const std::vector<int>& axes,
+                                 const phi::IntArray& starts,
+                                 const phi::IntArray& ends,
+                                 const phi::IntArray& strides,
+                                 const std::vector<int>& infer_flags,
+                                 const std::vector<int>& decrease_axis,
+                                 phi::TensorArray* x_grad) {
+  custom_kernel::StridedSliceGradCompute<T, Context, 1>(dev_ctx,
+                                                        x,
+                                                        out_grad,
+                                                        axes,
+                                                        starts,
+                                                        ends,
+                                                        strides,
+                                                        infer_flags,
+                                                        decrease_axis,
+                                                        x_grad);
 }
 
 }  // namespace custom_kernel
@@ -689,6 +1006,28 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceGradKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice_array,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceArrayKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(strided_slice_array_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::StridedSliceArrayGradKernel,
                           bool,
                           int,
                           int64_t,

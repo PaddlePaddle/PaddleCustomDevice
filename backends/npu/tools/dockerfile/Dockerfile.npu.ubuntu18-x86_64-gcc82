@@ -61,6 +61,9 @@ ENV HCCL_CONNECT_TIMEOUT=7200
 ENV HCCL_WHITELIST_DISABLE=1
 ENV HCCL_SECURITY_MODE=1
 
+# environment for NPU performance
+ENV FLAGS_npu_storage_format=1
+
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver
 

@@ -16,6 +16,16 @@
 
 #include "kernels/funcs/format_utils.h"
 
+/**
+ * Custom Device NPU related FLAG
+ * Name: FLAGS_npu_storage_format
+ * Since Version: 2.5.0
+ * Value Range: bool, default=false
+ * Example:
+ * Note: Enable NPU Storage Format for Ascend910 performance improvement.
+ */
+DECLARE_bool(npu_storage_format);
+
 namespace custom_kernel {
 
 inline std::string DebugNPUTensor(const phi::DenseTensor& tensor) {
@@ -48,18 +58,14 @@ inline int64_t PrepareTensorWithFormat(phi::DenseTensor* tensor,
   VLOG(4) << "Start PrepareTensorWithFormat with format: "
           << static_cast<int>(format) << ", tensor" << DebugNPUTensor(*tensor);
 
-  PADDLE_ENFORCE_EQ(tensor->storage_properties_initialized(),
-                    false,
-                    phi::errors::InvalidArgument(
-                        "The storage properties of the input tensor of "
-                        "PrepareTensorWithFormat must be not intiialized."));
-
-  PADDLE_ENFORCE_NE(ConvertToNpuFormat(tensor->layout()),
-                    format,
-                    phi::errors::InvalidArgument(
-                        "The origin format should not equal to storage format "
-                        "in PrepareTensorWithFormat, but got format [%d].",
-                        static_cast<int>(format)));
+  if (tensor->storage_properties_initialized()) {
+    auto npu_properties =
+        tensor->storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    if (storage_format == static_cast<int>(format)) {
+      return phi::product(npu_properties.storage_dims);
+    }
+  }
 
   auto npu_properties = std::make_unique<phi::NPUStorageProperties>();
   FormatShape origin_shape = phi::vectorize<int64_t>(tensor->dims());

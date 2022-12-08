@@ -14,7 +14,6 @@
 #include "dnn_support.hpp"
 #include <cstring>
 
-#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
@@ -127,7 +126,6 @@ void ReshapeKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::IntArray& shape,
                    phi::DenseTensor* out) {
-  VLOG(3) << "Reshape type=" << dnn_support::type2String<T>::name();
   show_kernel("Reshape type=" << dnn_support::type2String<T>::name());
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape.GetData(), x_dims);

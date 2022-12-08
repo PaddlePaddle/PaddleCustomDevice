@@ -31,7 +31,6 @@ void RawCompareKernelSycl(const phi::Context& dev_ctx,
                  phi::DenseTensor* out,
                  const F& func,
                  const FF& float_func) {
-  VLOG(3) << kernel_name << "-SYCL type="  << dnn_support::type2String<T>::name();
   show_kernel(kernel_name << "-SYCL type="  << dnn_support::type2String<T>::name());
 
   auto x_dims = x.dims();
@@ -72,7 +71,6 @@ void RawCompareKernelDNN(const phi::Context& dev_ctx,
                  const phi::DenseTensor& y,
                  int axis,
                  phi::DenseTensor* out) {
-  VLOG(3) << kernel_name << "-DNN type="  << dnn_support::type2String<T>::name();
   show_kernel(kernel_name << "-DNN type="  << dnn_support::type2String<T>::name());
 
   void* stream = const_cast<void*>(dev_ctx.stream());

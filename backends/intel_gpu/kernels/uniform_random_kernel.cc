@@ -14,7 +14,6 @@
 
 #include "dnn_support.hpp"
 #include <random>
-#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 
 

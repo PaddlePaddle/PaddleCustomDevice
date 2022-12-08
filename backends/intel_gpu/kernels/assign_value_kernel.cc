@@ -14,7 +14,6 @@
 
 
 #include "dnn_support.hpp"
-#include "glog/logging.h"
 #include <cmath>
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "dnn_support.hpp"
-#include "glog/logging.h"
 #include "kernels.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
@@ -80,7 +79,8 @@ void CrossEntropyKernel(const phi::Context& dev_ctx,
                         int ignore_index,
                         int axis,
                         phi::DenseTensor* out) {
-   show_kernel("CrossEntropy type=" << dnn_support::type2String<T>::name()<< ", soft_label=" << soft_label);
+   show_kernel("CrossEntropy type=" << dnn_support::type2String<T>::name()
+      << ", soft_label=" << soft_label);
 
   auto x_dims = x.dims();
   const int rank = x_dims.size();
@@ -199,8 +199,6 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
                                           int ignore_index,
                                           int axis,
                                           phi::DenseTensor* logits_grad) {
-  VLOG(3) <<"CrossEntropyGrad type=" << dnn_support::type2String<T>::name()
-    << ", soft_label=" << soft_label << ", use_softmax=" << use_softmax;
   show_kernel("CrossEntropyGrad type=" << dnn_support::type2String<T>::name()
     << ", soft_label=" << soft_label << ", use_softmax=" << use_softmax);
 

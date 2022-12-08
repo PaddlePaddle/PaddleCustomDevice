@@ -15,7 +15,6 @@
 #include "dnn_support.hpp"
 #include <cmath>
 
-#include "glog/logging.h"
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 
@@ -31,7 +30,6 @@ void ReduceKernel(const phi::Context& dev_ctx,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
-  show_kernel(kernel_name << " type="  << dnn_support::type2String<T>::name());
   auto x_dims = x.dims();
   auto reduce_dims = dims;
 
@@ -52,25 +50,20 @@ void ReduceKernel(const phi::Context& dev_ctx,
     }
     reduce_dims = output_dims;
   }
-
+  show_kernel(
+    kernel_name << "-Sycl type="  << dnn_support::type2String<T>::name() <<
+    ", reduce_all=" << reduce_all << ", x_dims=" << x_dims << ", dims="
+     << dims << ", keep_dim=" << keep_dim<< ", reduce_dims=" << reduce_dims);
   void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
   auto out_data = dev_ctx.template Alloc<T>(out);
 
   if (x_dims == reduce_dims) {
-    VLOG(3) << kernel_name << "-Sycl type="  << dnn_support::type2String<T>::name() <<
-      ", reduce_all=" << reduce_all << ", x_dims=" << x_dims << ", dims=" << dims <<
-      ", keep_dim=" << keep_dim<< ", reduce_dims=" << reduce_dims;
-
     auto x_data = x.data<T>();
     show_debug(kernel_name << " -> memcpy(to="<< std::hex<< out_data << ", from="<< x_data << ", size="<< std::dec << x.memory_size()<<")");
     q->memcpy(out_data, x_data, x.memory_size());
   }
   else {
-    VLOG(3) << kernel_name << "-DNN type="  << dnn_support::type2String<T>::name() <<
-      ", reduce_all=" << reduce_all << ", x_dims=" << x_dims << ", dims=" << dims <<
-      ", keep_dim=" << keep_dim<< ", reduce_dims=" << reduce_dims;
-
     using namespace dnnl;
     using tag = memory::format_tag;
     using dt = memory::data_type;

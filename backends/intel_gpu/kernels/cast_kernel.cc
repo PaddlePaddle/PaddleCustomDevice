@@ -25,7 +25,6 @@ void CastKernel(const phi::Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DataType out_dtype,
                 phi::DenseTensor* out) {
-  VLOG(3) << "Cast-SYCL";
   show_kernel("Cast-SYCL");
 
   auto x_data = x.data<T>();

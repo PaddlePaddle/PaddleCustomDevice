@@ -110,7 +110,7 @@ void MultiplyOneDNNRawKernel(const phi::Context& dev_ctx,
                           int axis,
                           phi::DenseTensor* out) {
   show_kernel("ElementWise-ONEDNN type=" << dnn_support::type2String<T>::name());
-  //void* stream = const_cast<void*>(dev_ctx.stream());
+
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
 
   if (!q) {
@@ -170,32 +170,12 @@ void MultiplyOneDNNKernel(const phi::Context& dev_ctx,
 
 
 
-  // template <typename T>
-  // void MultiplyKernelGPU(const phi::Context& dev_ctx,
-  //                        const phi::DenseTensor& x,
-  //                        const phi::DenseTensor& y,
-  //                        phi::DenseTensor* out) {
-  //   int axis = -1;
-  //   if constexpr (std::is_same<T, float>::value ||
-  //                 std::is_same<T, int>::value) {
-  //     MultiplyOneDNNKernel<T>(dev_ctx, x, y, axis, out);
-  //   } else {
-  //     MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
-  //   }
-  // }
-
 template <typename T>
 void MultiplyMainRaw(const phi::Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& y,
                      int axis,
                      phi::DenseTensor* out) {
-  // if constexpr (std::is_same<T, float>::value ||
-  //               std::is_same<T, int>::value) {
-  //   MultiplyOneDNNKernel<T>(dev_ctx, x, y, axis, out);
-  // } else {
-  //   MultiplyRawKernelGPU<T>(dev_ctx, x, y, axis, out);
-  // }
 
    if constexpr (std::is_same<T, float>::value
                 || std::is_same<T, int32_t>::value
@@ -248,20 +228,3 @@ void MultiplyMainRaw(const phi::Context& dev_ctx,
                                  float,
                                  double) {}
 
-             // PD_BUILD_PHI_KERNEL(multiply_raw,
-             //                     custom_cpu,
-             //                     ALL_LAYOUT,
-             //                     custom_kernel::MultiplyRawKernel,
-             //                     int32_t,
-             //                     int64_t,
-             //                     float,
-             //                     double) {}
-
-             // PD_BUILD_PHI_KERNEL(multiply,
-             //                     custom_cpu,
-             //                     ALL_LAYOUT,
-             //                     custom_kernel::MultiplyKernel,
-             //                     int32_t,
-             //                     int64_t,
-             //                     float,
-             //                     double) {}

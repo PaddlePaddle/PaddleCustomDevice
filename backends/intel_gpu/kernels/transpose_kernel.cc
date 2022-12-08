@@ -113,18 +113,9 @@ void TransposeKernelGPU(const phi::Context& ctx,
            "axis.size (%d) must be equal the rank of input (%d).",
            axis.size(),
            rank);
-try {
+
   dnnl::memory::dims dims_src = x.dims();
   dnnl::memory::dims dims_dst = out->dims();
-
-
-  // auto md_src = memory::desc(dims_src,
-  //                            dnn_support::toDnnType<T>::type,
-  //                            dnn_support::dims2Tag(dims_src));
-
-  // auto md_dst = memory::desc(dims_src,
-  //                            dnn_support::toDnnType<T>::type,
-  //                            dnn_support::axis2Tag(axis));
 
   std::vector<int> logical_axis(dims_src.size(),0);
   for(auto i=0;i<logical_axis.size();++i)
@@ -158,17 +149,7 @@ try {
   reorder_prim.execute(engine_stream, reorder_args);
   engine_stream.wait();
 
-} catch (std::exception& e) {
-     show_debug(" Catch error=" << e.what());
-     throw e;
 }
-
-show_debug("**** TRANSPOSE OK *** x=" << x.dims())
-
-
-}
-
-
 
 
 

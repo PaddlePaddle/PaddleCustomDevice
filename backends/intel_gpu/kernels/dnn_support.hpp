@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include "glog/logging.h"
 
 #include "oneapi/dnnl/dnnl_sycl.hpp"
 
@@ -85,7 +86,7 @@ const T* shortPath(const T* p) {
 
 #define show_debug(x) show_msg("debug", 1, x)
 #define show_memory(x) show_msg("mem", 2, x)
-#define show_kernel(x) show_msg("kernel", 4, x)
+#define show_kernel(x) VLOG(3)<< x; show_msg("kernel", 4, x)
 #define show_error(x) show_msg("error", config::vError, x)
 #define rise_error(x)                                         \
   {                                                           \

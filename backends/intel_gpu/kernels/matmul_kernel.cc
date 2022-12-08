@@ -684,7 +684,6 @@ if(transpose_y)
 }
 
 
-try {
  auto md_y = memory::desc(
      dims_y, dnn_support::toDnnType<T>::type, dnn_support::dims2Tag(dims_y));
 
@@ -720,10 +719,6 @@ try {
  prim.execute(engine_stream, matmul_args);
  engine_stream.wait();
 
-} catch (std::exception& e) {
-  show_error(" Catch error=" << e.what());
-  throw e;
-}
 
 }
 
@@ -743,19 +738,6 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
                       phi::DenseTensor* dy) {
 
   show_kernel("matmul-dnn-grad type=" << dnn_support::type2String<T>::name() << " dx=" << (dx) << " dy=" << (dy) );
-  // auto x_dims = x.dims();
-  // auto y_dims = y.dims();
-  // auto dout_dims = out_grad.dims();
-
-  // int x_ndim = x_dims.size();
-  // int y_ndim = y_dims.size();
-  // int ndim = dout_dims.size();
-
-  // auto x_data = x.data<T>();
-  // auto y_data = y.data<T>();
-  // auto out_grad_data = out_grad.data<T>();
-  // auto dx_data = static_cast<T*>(nullptr);
-  // auto dy_data = static_cast<T*>(nullptr);
 
   if (dx)
   {

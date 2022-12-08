@@ -44,8 +44,7 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
                             int diag_step,
                             float diag_val,
                             phi::DenseTensor *out) {
-  VLOG(3) << "UniformRandomRaw-SYCL type=" << dnn_support::type2String<T>::name();
-  show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
+   show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
 
   auto shape_data = shape.GetData();
   out->Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
@@ -83,11 +82,6 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
 
   // 2. CPU Copy to IntelGPU
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
-  q->parallel_for(numel, [=](auto& i){
-  //   std::random_device random_device;
-  // std::mt19937 random_engine{random_device()};
-
-  });
   q->memcpy(out_data, cpu_data, numel*sizeof(T));
 }
 
@@ -101,7 +95,6 @@ void UniformRandomKernel(const phi::Context &dev_ctx,
                          const phi::Scalar &max,
                          int seed,
                          phi::DenseTensor *out) {
-  VLOG(3) << "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name();
   show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
    custom_kernel::UniformRandomRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);

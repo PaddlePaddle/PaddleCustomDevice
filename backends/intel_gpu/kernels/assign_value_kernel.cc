@@ -27,9 +27,8 @@ void AssignValueKernel(const phi::Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  VLOG(3) << "AssignValue-SYCL, type="<< dnn_support::type2String<T>::name();
   show_kernel("AssignValue-SYCL, type="<< dnn_support::type2String<T>::name());
-  
+
   auto template_dtype = phi::capi::CppTypeToPDType<T>::Type();
   PD_CHECK(dtype == template_dtype,
            "Argument dtype mismatch for kernel dtype, "
@@ -58,7 +57,6 @@ void AssignKernel(const phi::Context& dev_ctx,
                   phi::DenseTensor* out) {
   auto out_data = dev_ctx.template Alloc<T>(out);
   auto x_data = x.data<T>();
-  // std::cout << "***** Tutaj assign Kernel" << std::endl;
   std::memcpy(out_data, x_data, sizeof(T) * x.numel());
 }
 
@@ -66,7 +64,6 @@ template <typename T>
 void AssignRawKernel(const phi::Context& dev_ctx,
                      const paddle::optional<phi::DenseTensor>& x,
                      phi::DenseTensor* out) {
-  VLOG(3) << "AssignRaw-SYCL, type="<< dnn_support::type2String<T>::name();
   show_kernel("AssignRaw-SYCL, type="<< dnn_support::type2String<T>::name());
 
   if (x) {
@@ -82,25 +79,6 @@ void AssignRawKernel(const phi::Context& dev_ctx,
   }
 }
 
-// template <typename T>
-// void AssignArrayKernel(const phi::Context& dev_ctx,
-//                        const std::vector<const phi::DenseTensor*>& x,
-//                        std::vector<phi::DenseTensor*> out) {
-//   show_kernel("AssignArray-SYCL");
-//   // for (size_t i = 0; i < x.size(); ++i) {
-//     // custom_kernel::AssignKernel<T, Context>(dev_ctx, *x[i], out.at(i));
-//   // }
-
-//   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
-
-//   for (size_t i = 0; i < x.size(); ++i) {
-//     auto x_data = *x[i]->data<T>();
-//     auto out_data = dev_ctx.template Alloc<T>(out[i]);
-//     q->copy(out_data, x_data, x[i]->numel());
-//   }
-//   q-> wait();
-
-// }
 
 }  // namespace custom_kernel
 
@@ -124,12 +102,3 @@ PD_BUILD_PHI_KERNEL(assign_raw,
                     float,
                     double) {}
 
-// PD_BUILD_PHI_KERNEL(assign_array,
-//                     intel_gpu,
-//                     ALL_LAYOUT,
-//                     custom_kernel::AssignArrayKernel,
-//                     // int,
-//                     // int64_t,
-//                     // float,
-//                     double
-//                     ) {}

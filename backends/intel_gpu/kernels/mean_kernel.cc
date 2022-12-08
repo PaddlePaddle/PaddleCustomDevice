@@ -30,7 +30,6 @@ void MeanAllKernel(const phi::Context& dev_ctx,
 
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  VLOG(3) << "MeanAll, size="<< numel;
   show_kernel("MeanAll, size="<< numel);
 
   auto e1 = q->fill(out_data, static_cast<T>(0), 1);
@@ -60,7 +59,6 @@ void MeanAllGradKernel(const phi::Context& dev_ctx,
   auto numel = x_grad->numel();
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
 
-  VLOG(3) << "MeanAllGrad, size="<< numel;
   show_kernel("MeanAllGrad, size="<< numel);
 
   q->parallel_for(numel, [=](auto& i){

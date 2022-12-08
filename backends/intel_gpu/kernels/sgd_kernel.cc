@@ -27,10 +27,6 @@ void sgd_dense_param_dense_grad_impl(sycl::queue* q, const phi::DenseTensor& par
   const T* grad_data = grad.data<T>();
   T* out_data = param_out->data<T>();
 
-  // for (auto i = 0; i < sz; ++i) {
-  //   out_data[i] = param_data[i] - *lr * grad_data[i];
-  // }
-
    q->parallel_for(sz, [=](auto& i){
 
           out_data[i] = param_data[i] - *lr * grad_data[i];

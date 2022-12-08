@@ -28,7 +28,6 @@ void SliceRawKernel(const phi::Context& ctx,
                     const std::vector<int64_t>& decrease_axis,
                     phi::DenseTensor* out) {
 
-  VLOG(3) << "SliceRawKernel, type="<< dnn_support::type2String<T>::name();
   show_kernel("SliceRawKernel, type="<< dnn_support::type2String<T>::name());
 
   // Step 1: Get the accurate attribute value of starts and ends

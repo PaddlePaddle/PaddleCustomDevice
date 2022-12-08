@@ -111,83 +111,6 @@ struct DeviceCtx {
 
 std::vector<DeviceCtx> reg_dev;
 
-// template <class T>
-// auto malloc_gpu(int N = 64) {
-//   show_debug("GPU allocate " << sizeof(T) * N << " bytes");
-//   // return std::unique_ptr<T[],decltype(&sycl_delete<T>)>(
-//   // sycl::malloc_device<T>(N,getQ()) , &sycl_delete<T>  );
-//   // return std::unique_ptr<T[],decltype(&sycl_delete<T>)>(
-//   // sycl::malloc_shared<T>(N,getQ()) , &sycl_delete<T>  );
-//   // return std::unique_ptr<T[],decltype(&sycl_delete<T>)>(
-//   // sycl::malloc_shared<T>(N,getQ()) , &sycl_delete<T>  );
-//   T *ptr = reinterpret_cast<T *>(sycl::aligned_alloc_device(64, N *
-//   sizeof(T), getQ())); return std::unique_ptr<T[],
-//   decltype(&sycl_delete<T>)>(ptr, &sycl_delete<T>);
-//   // sycl::aligned_alloc_device(64, size, getQ());
-// }
-
-// template <class T>
-// void sycl_delete(T *v) {
-//   show_debug("Before Free");
-//   sycl::free(v, getQ());
-//   show_debug("FreeGPU memory");
-// }
-
-// struct Stream_t {
-
-//   using upsycl_t = up_t<sycl::queue>;
-//   upsycl_t q;
-
-//   Stream_t() {
-
-//     for(auto dev: sycl::device::get_devices(sycl::info::device_type::gpu))
-//     {
-//            const auto name = dev.get_info<sycl::info::device::name>();
-//            if(name.find("Intel")==std::string::npos)
-//            {
-//              continue;
-//            }
-
-//            q = std::make_unique<upsycl_t::element_type>(dev);
-//            break;
-
-//     }
-
-//   //  q = std::make_unique<upsycl_t::element_type>(sycl::gpu_selector{});
-//    // if(!q) { // fail }
-//     //if(q->is_gpu()) { }
-//   }
-
-//   upsycl_t::element_type &getQ() { return *q; }
-
-//   template <class T>
-//   const std::string getDevProp() const {
-//    // return  q->get_device().template get_info<P>();
-//    return " ";
-//   }
-
-//  // const std::string getName() const { return
-//  q->get_device().get_info<sycl::info::device::name>(); }
-
-//   const std::string getName() const {
-//   // auto a = getDevProp<sycl::info::device::name>();
-//     return "  "; }
-
-//   bool is_gpu() const { return
-//   q->get_device().get_info<sycl::info::device::device_type>() ==
-//   sycl::info::device_type::gpu; }
-// };
-
-// template <class K, class V>
-// using map_t = std::unordered_map<K, std::set<V>>;
-
-// map_t<int,Stream_t> gmap;
-
-// static sycl::queue& getQ() {
-//    static sycl::queue q{sycl::gpu_selector{}};
-//    return q;
-// }
-
 C_Status InitDevice(const C_Device device) {
   InitializeDevConf();
   show_debug("init-device : device->id=" << device->id);
@@ -413,23 +336,6 @@ C_Status DeviceMemStats(const C_Device device,
   *total_memory = dev_ctx.getMemorySize();
   *free_memory = dev_ctx.getFreeMemorySize();
 
-  //     float memusage;
-  // FILE *fp;
-  // char buffer[1024];
-  // size_t byte_read;
-  // char *pos;
-
-  // fp = fopen("/proc/meminfo", "r");
-  // byte_read = fread(buffer, 1, sizeof(buffer), fp);
-  // fclose(fp);
-  // buffer[byte_read] = '\0';
-  // pos = strstr(buffer, "MemTotal:");
-  // sscanf(pos, "MemTotal: %lu kB", total_memory);
-  // pos = strstr(pos, "MemFree:");
-  // sscanf(pos, "MemFree: %lu kB", free_memory);
-  // *total_memory = *total_memory * 1024;
-  // *free_memory = *free_memory * 1024;
-  // *free_memory = *free_memory * MEMORY_FRACTION;
   show_memory("device-mem-stat device=" << device->id
                                  << " TotalMemory=" << *total_memory
                                  << " FreeMemory=" << *free_memory);
@@ -482,12 +388,6 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->device_type = "intel_gpu";
   params->sub_device_type = "v0.1";
   show_debug("init-plugin " << params->device_type);
-  // show("INFO DEVICE: " <<
-  // getQ().get_device().get_info<sycl::info::device::name>()); for (auto dev :
-  // sycl::device::get_devices(sycl::info::device_type::gpu)) {
-  //   const auto name = dev.get_info<sycl::info::device::name>();
-  //  show("NameList " << name);
-  // }
 
   memset(reinterpret_cast<void *>(params->interface),
          0,

@@ -31,8 +31,6 @@ void MemcpyD2HKernel(const phi::Context& dev_ctx,
                                         << x_data << ", size=" << std::dec
                                         << x.memory_size() << ")");
    q->memcpy(out_data, x_data, x.memory_size());
-  //q->submit([&](sycl::handler& h) { h.memcpy(out_data, x_data, x.memory_size()); });
-  //q->wait();
 }
 
 template <typename T>
@@ -47,10 +45,7 @@ void MemcpyH2DKernel(const phi::Context& dev_ctx,
   void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(stream);
   show_debug("memcpy_h2d -> memcpy(to="<< std::hex<< out_data << ", from="<< x_data << ", size="<< std::dec << x.memory_size()<<")");
-   q->memcpy(out_data, x_data, x.memory_size());
-  // q->submit(
-  //     [&](sycl::handler& h) { h.memcpy(out_data, x_data, x.memory_size()); });
-  // q->wait();
+  q->memcpy(out_data, x_data, x.memory_size());
 }
 
 }  // namespace custom_kernel

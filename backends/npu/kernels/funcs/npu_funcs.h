@@ -144,7 +144,6 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
                    dst_ptr,
                    src_ptr,
                    size);
-    dev_ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -177,7 +176,6 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
                    dst_ptr,
                    src_ptr,
                    size);
-    dev_ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -208,7 +206,6 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
   } else if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
     AsyncMemCpyH2D(
         nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
-    ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -243,8 +240,6 @@ void TensorFromArray(const phi::CustomContext& ctx,
                    dst_ptr,
                    src_ptr,
                    size);
-
-    dev_ctx.Wait();
   } else {  // NOLINT
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromArray on %s is not supported.", dst_place));

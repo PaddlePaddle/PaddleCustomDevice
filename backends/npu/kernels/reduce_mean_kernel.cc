@@ -84,21 +84,27 @@ void MeanGradKernel(const Context& dev_ctx,
     reduce_numel *= input_dims[d];
   }
 
-  phi::DenseTensor tensor_value;
-  phi::DenseTensorMeta value_meta = {x_grad->dtype(), {1}};
-  tensor_value.set_meta(value_meta);
-  dev_ctx.template Alloc<T>(&tensor_value);
-  FillNpuTensorWithConstant<T>(
-      &tensor_value,
-      dev_ctx,
-      static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+  if (x_grad->numel() > 1) {
+    phi::DenseTensor tensor_value;
+    phi::DenseTensorMeta value_meta = {x_grad->dtype(), {1}};
+    tensor_value.set_meta(value_meta);
+    dev_ctx.template Alloc<T>(&tensor_value);
+    FillNpuTensorWithConstant<T>(
+        &tensor_value,
+        dev_ctx,
+        static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
 
-  NpuOpRunner runner;
-  runner.SetType("Fill")
-      .AddInput(dev_ctx, phi::vectorize(input_dims))
-      .AddInput(tensor_value)
-      .AddOutput(*x_grad)
-      .Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, phi::vectorize(input_dims))
+        .AddInput(tensor_value)
+        .AddOutput(*x_grad)
+        .Run(stream);
+  } else {
+    // CANN op Fill/FillD would raise error when output's numel is 1.
+    FillNpuTensorWithConstant<T>(
+        x_grad, dev_ctx, static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+  }
 
   phi::DenseTensor transformed_x_grad, transformed_out_grad;
   phi::DenseTensor tmp_out_grad;

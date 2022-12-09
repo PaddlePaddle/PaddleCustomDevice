@@ -11,9 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include <cstring>
-
 #include "paddle/phi/capi/all.h"
 #include "phi_funcs.h"
 #include "glog/logging.h"
@@ -29,9 +26,9 @@ class ReshapeOperator : public HpuOperator {
     assert(ins.size() == 1 && "input size should be 1");
     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[1]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
-    synTensor outputs[1] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
-    synStatus status = synNodeCreate(graphHandle_, inputs, outputs, 1, 1, nullptr, 0, "reshape", "reshape_op", nullptr, nullptr);
+    synTensor inputs[ins.size()]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
+    synTensor outputs[outs.size()] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
+    synStatus status = synNodeCreate(graphHandle_, inputs, outputs, ins.size(), outs.size(), nullptr, 0, "reshape", "reshape_op", nullptr, nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
   }
 };

@@ -11,27 +11,41 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include <list>
 #include "paddle/phi/capi/all.h"
+#include "perf_lib_layer_params.h"
 #include "phi_funcs.h"
 #include "hpu_operator.h"
-#include "perf_lib_layer_params.h"
 
 namespace custom_kernel {
 
 class MatmulOperator : public HpuOperator {
-  public:
-  MatmulOperator(std::string type) : HpuOperator("matmul_fwd_f32"), nodetype_(type) {}
+ public:
+  MatmulOperator(std::string type)
+      : HpuOperator("matmul_fwd_f32"), nodetype_(type) {}
   void AddNode(const std::vector<DIMS>& ins,
-              const std::vector<DIMS>& outs, bool trans_x, bool trans_y) {
+               const std::vector<DIMS>& outs,
+               bool trans_x,
+               bool trans_y) {
     assert(ins.size() == 2 && "input size should be 2");
     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[ins.size()]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "x"),
-                                    createTensor(ins[1].size(), syn_type_float, ins[1], true, "y")};
-    synTensor outputs[1] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
+    synTensor inputs[ins.size()] = {
+        createTensor(ins[0].size(), syn_type_float, ins[0], true, "x"),
+        createTensor(ins[1].size(), syn_type_float, ins[1], true, "y")};
+    synTensor outputs[outs.size()] = {
+        createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
     synGEMMParams params{trans_x, trans_y};
-    synStatus status = synNodeCreate(graphHandle_, inputs, outputs, ins.size(), outs.size(), &params, sizeof(params), nodetype_.c_str() /*"batch_gemm"*/, "matmul_op", nullptr, nullptr);
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs,
+                                     outputs,
+                                     ins.size(),
+                                     outs.size(),
+                                     &params,
+                                     sizeof(params),
+                                     nodetype_.c_str() /*"batch_gemm"*/,
+                                     "matmul_op",
+                                     nullptr,
+                                     nullptr);
     CHKSTATUS("synNodeCreate batch_gemm failed!");
   }
   std::string nodetype_; /* batch_gemm, gemm */
@@ -137,9 +151,9 @@ void MatmulKernel(const phi::Context& dev_ctx,
     MatmulOperator op("gemm");
     op.AddNode({x_dims, y_dims}, {out->dims()}, false, false);
     std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
+    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
     op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 
     // GEMM(false, false, 1, M, 1, x.data<T>(), y.data<T>(), out_data);
@@ -180,30 +194,33 @@ void MatmulKernel(const phi::Context& dev_ctx,
       MatmulOperator op("gemm");
       op.AddNode({x_dims, y_dims}, {out->dims()}, false, transpose_y);
       std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                           tensors);
 
       // GEMM(false, transpose_y, M, K, N, x_data, y_data, out_data);
     } else {
       MatmulOperator op("batch_gemm");
       op.AddNode({x_dims, y_dims}, {out->dims()}, false, transpose_y);
       std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-    //   BatchedGEMM(false,
-    //               transpose_y,
-    //               M,
-    //               K,
-    //               N,
-    //               x_data,
-    //               y_data,
-    //               out_data,
-    //               y_dims[0],
-    //               false);
+      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                           tensors);
+
+      //   BatchedGEMM(false,
+      //               transpose_y,
+      //               M,
+      //               K,
+      //               N,
+      //               x_data,
+      //               y_data,
+      //               out_data,
+      //               y_dims[0],
+      //               false);
     }
     return;
   } else if (y_ndim == 1) {
@@ -242,19 +259,23 @@ void MatmulKernel(const phi::Context& dev_ctx,
       MatmulOperator op("gemm");
       op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, false);
       std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                           tensors);
+
       // GEMM(transpose_x, false, M, K, N, x_data, y_data, out_data);
     } else {
       MatmulOperator op("batch_gemm");
       op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, false);
       std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                           tensors);
+
       // BatchedGEMM(transpose_x,
       //             false,
       //             M,
@@ -277,13 +298,15 @@ void MatmulKernel(const phi::Context& dev_ctx,
     out->Resize(out_dims);
     auto out_data = dev_ctx.template Alloc<T>(out);
 
+    // MNIST work branch
     MatmulOperator op("gemm");
     op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
     std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
+    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
     op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+
     // GEMM(transpose_x, transpose_y, M, K, N, x_data, y_data, out_data);
   } else if (x_ndim == 3) {
     auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
@@ -315,10 +338,11 @@ void MatmulKernel(const phi::Context& dev_ctx,
     MatmulOperator op("batch_gemm");
     op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
     std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
+    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
     op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+
     // BatchedGEMM(transpose_x,
     //             transpose_y,
     //             M,
@@ -359,10 +383,11 @@ void MatmulKernel(const phi::Context& dev_ctx,
     MatmulOperator op("batch_gemm");
     op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
     std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t> (x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t> (y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t> (out->data<T>());
+    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
     op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+
     // BatchedGEMM(transpose_x,
     //             transpose_y,
     //             M,
@@ -376,22 +401,26 @@ void MatmulKernel(const phi::Context& dev_ctx,
   }
 }
 
-class MatmulGradOperator : public HpuOperator {
-  public:
-  MatmulGradOperator() : HpuOperator("matmul_bwd_f32") {}
-  void AddNode(const std::vector<DIMS>& ins,
-              const std::vector<DIMS>& outs, bool trans_x, bool trans_y) {
-    assert(ins.size() == 2 && "input size should be 2");
-    assert(outs.size() == 1 && "output size should be 1");
+// class MatmulGradOperator : public HpuOperator {
+//   public:
+//   MatmulGradOperator() : HpuOperator("matmul_bwd_f32") {}
+//   void AddNode(const std::vector<DIMS>& ins,
+//               const std::vector<DIMS>& outs, bool trans_x, bool trans_y) {
+//     assert(ins.size() == 2 && "input size should be 2");
+//     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[ins.size()]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "x"),
-                                    createTensor(ins[1].size(), syn_type_float, ins[1], true, "y")};
-    synTensor outputs[1] = {createTensor(outs.size(), syn_type_float, outs[0], true, "output")};
-    synGEMMParams params{trans_x, trans_y};
-    synStatus status = synNodeCreate(graphHandle_, inputs, outputs, ins.size(), outs.size(), &params, sizeof(params), "batch_gemm", "matmul_bwd_op", nullptr, nullptr);
-    CHKSTATUS("synNodeCreate batch_gemm failed!");
-  }
-};
+//     synTensor inputs[ins.size()]  = {createTensor(ins[0].size(),
+//     syn_type_float, ins[0], true, "x"),
+//                                     createTensor(ins[1].size(),
+//                                     syn_type_float, ins[1], true, "y")};
+//     synTensor outputs[outs.size()] = {createTensor(outs[0].size(),
+//     syn_type_float, outs[0], true, "output")}; synGEMMParams params{trans_x,
+//     trans_y}; synStatus status = synNodeCreate(graphHandle_, inputs, outputs,
+//     ins.size(), outs.size(), &params, sizeof(params), "batch_gemm",
+//     "matmul_bwd_op", nullptr, nullptr); CHKSTATUS("synNodeCreate batch_gemm
+//     failed!");
+//   }
+// };
 
 template <typename T>
 void MatmulGradKernel(const phi::Context& dev_ctx,
@@ -425,10 +454,28 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
       auto K = 1;
       auto N = x.numel();
       if (dx) {
-        GEMM(false, false, M, K, N, out_grad_data, y_data, dx_data);
+        MatmulOperator op("gemm");
+        op.AddNode({dout_dims, y_dims}, {dx->dims()}, false, false);
+        std::map<std::string, uint64_t> tensors;
+        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
+        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                             tensors);
+
+        // GEMM(false, false, M, K, N, out_grad_data, y_data, dx_data);
       }
       if (dy) {
-        GEMM(false, false, M, K, N, out_grad_data, x_data, dy_data);
+        MatmulOperator op("gemm");
+        op.AddNode({dout_dims, x_dims}, {dy->dims()}, false, false);
+        std::map<std::string, uint64_t> tensors;
+        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+        tensors["y"] = reinterpret_cast<uint64_t>(x.data<T>());
+        tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
+        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                             tensors);
+
+        // GEMM(false, false, M, K, N, out_grad_data, x_data, dy_data);
       }
       return;
     }
@@ -440,21 +487,39 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
       auto K = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
       auto N = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
       if (y_ndim == 2) {
-        GEMM(false, !transpose_y, M, K, N, out_grad_data, y_data, dx_data);
+        MatmulOperator op("gemm");
+        op.AddNode({dout_dims, y_dims}, {dx->dims()}, false, !transpose_y);
+        std::map<std::string, uint64_t> tensors;
+        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
+        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                             tensors);
+
+        // GEMM(false, !transpose_y, M, K, N, out_grad_data, y_data, dx_data);
       } else {
-        BatchedGEMM(false,
-                    !transpose_y,
-                    M,
-                    K,
-                    N,
-                    out_grad_data,
-                    y_data,
-                    dx_data,
-                    y_dims[0],
-                    false,
-                    false,
-                    true,
-                    true);
+        MatmulOperator op("batch_gemm");
+        op.AddNode({dout_dims, x_dims}, {dy->dims()}, false, !transpose_y);
+        std::map<std::string, uint64_t> tensors;
+        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
+        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
+        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                             tensors);
+
+        // BatchedGEMM(false,
+        //             !transpose_y,
+        //             M,
+        //             K,
+        //             N,
+        //             out_grad_data,
+        //             y_data,
+        //             dx_data,
+        //             y_dims[0],
+        //             false,
+        //             false,
+        //             true,
+        //             true);
       }
     }
     if (dy) {
@@ -462,8 +527,18 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
       auto K = 1;
       auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
       if (y_ndim == 2) {
-        GEMM(
-            false, false, M, K, N, x_data, out_grad_data, dy_data, transpose_y);
+        MatmulOperator op("gemm");
+        op.AddNode({x_dims, dout_dims}, {dy->dims()}, false, false);
+        std::map<std::string, uint64_t> tensors;
+        tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+        tensors["y"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+        tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
+        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                             tensors);
+
+        // GEMM(
+        //     false, false, M, K, N, x_data, out_grad_data, dy_data,
+        //     transpose_y);
       } else {
         BatchedGEMM(false,
                     false,
@@ -550,15 +625,26 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
       auto M = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
       auto K = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
       auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      GEMM(!transpose_x,
-           false,
-           M,
-           K,
-           N,
-           x_data,
-           out_grad_data,
-           dy_data,
-           transpose_y);
+
+      // MNIST work branch
+      MatmulOperator op("gemm");
+      op.AddNode({x_dims, dout_dims}, {dy->dims()}, !transpose_x, false);
+      std::map<std::string, uint64_t> tensors;
+      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+      tensors["y"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
+      tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
+      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
+                           tensors);
+
+      // GEMM(!transpose_x,
+      //      false,
+      //      M,
+      //      K,
+      //      N,
+      //      x_data,
+      //      out_grad_data,
+      //      dy_data,
+      //      transpose_y);
     }
     return;
   } else if (x_ndim == 2) {

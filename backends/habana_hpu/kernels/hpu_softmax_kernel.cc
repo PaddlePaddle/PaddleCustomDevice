@@ -27,8 +27,8 @@ class SoftmaxOperator : public HpuOperator {
     assert(ins.size() == 1 && "input size should be 1");
     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[1]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
-    synTensor outputs[1] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
+    synTensor inputs[ins.size()]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
+    synTensor outputs[outs.size()] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
     ns_Softmax::Params params{ins[0].size() - 1 - axis_dim};
     synStatus status = synNodeCreate(graphHandle_, inputs, outputs, ins.size(), outs.size(), &params, sizeof(params), "softmax_fwd_f32", "softmax_op", nullptr, nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
@@ -130,9 +130,9 @@ class SoftmaxGradOperator : public HpuOperator {
     assert(ins.size() == 2 && "input size should be 2");
     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[2]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input_1"),
+    synTensor inputs[ins.size()]  = {createTensor(ins[0].size(), syn_type_float, ins[0], true, "input_1"),
                             createTensor(ins[1].size(), syn_type_float, ins[1], true, "input_2")};
-    synTensor outputs[1] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
+    synTensor outputs[outs.size()] = {createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
     ns_Softmax::Params params{ins[0].size() - 1 - axis_dim};
     synStatus status = synNodeCreate(graphHandle_, inputs, outputs, ins.size(), outs.size(), &params, sizeof(params), "softmax_bwd_f32", "softmax_bwd_f32_op", nullptr, nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");

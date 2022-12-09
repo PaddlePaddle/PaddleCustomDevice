@@ -44,31 +44,20 @@ void EmbeddingKernel(const Context& dev_ctx,
     tmp_table_t.set_meta(table_meta);
     dev_ctx.template Alloc<T>(&tmp_table_t);
 
-    phi::DenseTensor index;
-    phi::DenseTensorMeta index_meta = {phi::DataType::FLOAT32, {1, 1}};
-    index.set_meta(index_meta);
-    dev_ctx.template Alloc<T>(&index);
-
-    FillNpuTensorWithConstant<int32_t>(
-        &index, dev_ctx, static_cast<int32_t>(padding_idx));
-    index.Resize({1, 1});
-
-    auto updata_dim = phi::make_ddim({1, weight.dims()[1]});
-    phi::DenseTensor update;
-    update.Resize(updata_dim);
-    dev_ctx.template Alloc<T>(&update);
-
-    FillNpuTensorWithConstant<T>(&update, dev_ctx, static_cast<T>(0));
-    update.Resize(updata_dim);
-
-    NpuOpRunner update_runner;
-    update_runner.SetType("TensorScatterUpdate")
-        .AddInput(weight)
-        .AddInput(index)
-        .AddInput(update)
-        .AddOutput(tmp_table_t);
-    update_runner.Run(stream);
-
+    T update = static_cast<T>(0);
+    padding_idx =
+        padding_idx < 0 ? padding_idx + weight.dims()[0] : padding_idx;
+    AsyncMemCpyD2D(nullptr,
+                   reinterpret_cast<C_Stream>(stream),
+                   tmp_table_t.data<T>(),
+                   weight.data<T>(),
+                   weight.numel() * sizeof(T));
+    ACL_CHECK(
+        aclrtMemsetAsync(&tmp_table_t.data<T>()[padding_idx * weight.dims()[1]],
+                         weight.dims()[1] * sizeof(T),
+                         0,
+                         weight.dims()[1] * sizeof(T),
+                         stream));
     NpuOpRunner runner;
     runner.SetType("GatherV2")
         .AddInput(tmp_table_t)

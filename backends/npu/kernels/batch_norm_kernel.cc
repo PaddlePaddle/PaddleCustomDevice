@@ -80,13 +80,26 @@ void BatchNormKernel(const Context& dev_ctx,
     auto x_new_shape = phi::make_ddim(x_shape_vec);
     x_tensor.Resize(x_new_shape);
   }
-  if (channel_last) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta y_meta = {
-        y->dtype(), y->dims(), phi::DataLayout::kNHWC};
+  if (x.dims().size() == 5) {
+    phi::DenseTensorMeta x_meta, y_meta;
+    if (channel_last) {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNDHWC};
+      y_meta = {y->dtype(), y->dims(), phi::DataLayout::kNDHWC};
+    } else {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNCDHW};
+      y_meta = {y->dtype(), y->dims(), phi::DataLayout::kNCDHW};
+    }
     x_tensor.set_meta(x_meta);
     y_tensor.set_meta(y_meta);
+  } else {
+    if (channel_last) {
+      phi::DenseTensorMeta x_meta = {
+          x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
+      phi::DenseTensorMeta y_meta = {
+          y->dtype(), y->dims(), phi::DataLayout::kNHWC};
+      x_tensor.set_meta(x_meta);
+      y_tensor.set_meta(y_meta);
+    }
   }
 
   auto stream = dev_ctx.stream();
@@ -123,31 +136,21 @@ void BatchNormKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<float>(&square_sum);
     }
 
-    NpuOpRunner runner_reduce;
-    runner_reduce.SetType("BNTrainingReduce")
-        .AddInput(x_tensor)
-        .AddOutput(sum)
-        .AddOutput(square_sum)
-        .AddAttrs({{"epsilon", epsilon}})
-        .Run(stream);
+    std::string reduce_name =
+        (x.dims().size() == 5) ? "BN3DTrainingReduce" : "BNTrainingReduce";
+    const auto& runner_reduce = NpuOpRunner(
+        reduce_name, {x_tensor}, {sum, square_sum}, {{"epsilon", epsilon}});
+    runner_reduce.Run(stream);
 
-    NpuOpRunner runner_update;
-    runner_update.SetType("BNTrainingUpdate")
-        .AddInput(x_tensor)
-        .AddInput(sum)
-        .AddInput(square_sum)
-        .AddInput(scale)
-        .AddInput(bias)
-        .AddInput(running_mean)
-        .AddInput(running_var)
-        .AddOutput(y_tensor)
-        .AddOutput(*mean_out)
-        .AddOutput(*variance_out)
-        .AddOutput(*saved_mean)
-        .AddOutput(*saved_variance)
-        .AddAttrs({{"epsilon", static_cast<float>(epsilon)}})
-        .AddAttrs({{"factor", static_cast<float>(momentum)}})
-        .Run(stream);
+    std::string update_name =
+        (x.dims().size() == 5) ? "BN3DTrainingUpdate" : "BNTrainingUpdate";
+    const auto& runner_update = NpuOpRunner(
+        update_name,
+        {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
+        {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
+        {{"factor", static_cast<float>(momentum)},
+         {"epsilon", static_cast<float>(epsilon)}});
+    runner_update.Run(stream);
   }
 }
 
@@ -189,6 +192,12 @@ void BatchNormGradKernel(
   use_global_stats = is_test || use_global_stats;
 
   phi::DenseTensor x_tensor(x), dy_tensor(d_y);
+
+  std::string update_name = (x.dims().size() == 5) ? "BN3DTrainingUpdateGrad"
+                                                   : "BNTrainingUpdateGrad";
+  std::string reduce_name = (x.dims().size() == 5) ? "BN3DTrainingReduceGrad"
+                                                   : "BNTrainingReduceGrad";
+
   if (x.dims().size() == 3) {
     auto x_shape_vec = phi::vectorize(x.dims());
     if (channel_last) {
@@ -200,13 +209,26 @@ void BatchNormGradKernel(
     x_tensor.Resize(x_new_shape);
     dy_tensor.Resize(x_new_shape);
   }
-  if (channel_last) {
-    phi::DenseTensorMeta x_meta = {
-        x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta dy_meta = {
-        d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
+  if (x.dims().size() == 5) {
+    phi::DenseTensorMeta x_meta, dy_meta;
+    if (channel_last) {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNDHWC};
+      dy_meta = {d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNDHWC};
+    } else {
+      x_meta = {x.dtype(), x_tensor.dims(), phi::DataLayout::kNCDHW};
+      dy_meta = {d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNCDHW};
+    }
     x_tensor.set_meta(x_meta);
     dy_tensor.set_meta(dy_meta);
+  } else {
+    if (channel_last) {
+      phi::DenseTensorMeta x_meta = {
+          x.dtype(), x_tensor.dims(), phi::DataLayout::kNHWC};
+      phi::DenseTensorMeta dy_meta = {
+          d_y.dtype(), dy_tensor.dims(), phi::DataLayout::kNHWC};
+      x_tensor.set_meta(x_meta);
+      dy_tensor.set_meta(dy_meta);
+    }
   }
 
   phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
@@ -237,7 +259,7 @@ void BatchNormGradKernel(
         use_global_stats ? variance.get_ptr() : &saved_variance;
 
     NpuOpRunner runner_update;
-    runner_update.SetType("BNTrainingUpdateGrad")
+    runner_update.SetType(update_name)
         .AddInput(dy_tensor)
         .AddInput(x_tensor)
         .AddInput(*running_mean)
@@ -256,10 +278,19 @@ void BatchNormGradKernel(
     }
 
     phi::DenseTensor dx_tensor(*d_x);
-    if (channel_last) {
-      phi::DenseTensorMeta dx_meta = {
-          d_x->dtype(), d_x->dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta dx_meta;
+    if (d_x->dims().size() == 5) {
+      if (channel_last) {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNDHWC};
+      } else {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNCDHW};
+      }
       dx_tensor.set_meta(dx_meta);
+    } else {
+      if (channel_last) {
+        dx_meta = {d_x->dtype(), d_x->dims(), phi::DataLayout::kNHWC};
+        dx_tensor.set_meta(dx_meta);
+      }
     }
 
     if (use_global_stats) {
@@ -270,7 +301,7 @@ void BatchNormGradKernel(
                                              {{"epsilon", epsilon}});
       runner_infer.Run(stream);
     } else {
-      const auto& runner_reduce = NpuOpRunner("BNTrainingReduceGrad",
+      const auto& runner_reduce = NpuOpRunner(reduce_name,
                                               {dy_tensor,
                                                x_tensor,
                                                *d_scale,

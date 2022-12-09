@@ -258,8 +258,6 @@ class TestLayerNormOp(unittest.TestCase):
         test_with_place(self.place, shape, begin_norm_axis)
 
     def test_check_forward_backward_with_scale_and_bias(self):
-        if self.dtype != np.float16:
-            self.check_forward_backward(shape=[1, 1, 1, 1], begin_norm_axis=1)
         self.check_forward_backward(shape=[2, 3, 4, 5], begin_norm_axis=1)
         self.check_forward_backward(
             shape=[2, 3, 4, 5], begin_norm_axis=1, has_scale=False, has_bias=True

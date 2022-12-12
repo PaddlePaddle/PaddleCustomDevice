@@ -170,10 +170,11 @@ function main() {
                     echo "${retry_unittests}"                    
                     for line in ${retry_unittests[@]} ;
                         do
+                            line=${line// /}
                             if [[ "$one_card_retry" == "" ]]; then
-                                one_card_retry="^$line$"
+                                one_card_retry="$line"
                             else
-                                one_card_retry="$one_card_retry|^$line$"
+                                one_card_retry="$one_card_retry|$line"
                             fi
                         done
 

@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
-
 
 namespace custom_kernel {
 
@@ -34,7 +33,7 @@ void CastKernel(const phi::Context& dev_ctx,
   switch (out_dtype) {
     case phi::DataType::BFLOAT16: {
       auto out_data = dev_ctx.template Alloc<phi::dtype::bfloat16>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] =
             static_cast<phi::dtype::bfloat16>(static_cast<float>(x_data[i]));
       });
@@ -42,7 +41,7 @@ void CastKernel(const phi::Context& dev_ctx,
     }
     case phi::DataType::FLOAT16: {
       auto out_data = dev_ctx.template Alloc<phi::dtype::float16>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] =
             static_cast<phi::dtype::float16>(static_cast<float>(x_data[i]));
       });
@@ -50,56 +49,56 @@ void CastKernel(const phi::Context& dev_ctx,
     }
     case phi::DataType::FLOAT32: {
       auto out_data = dev_ctx.template Alloc<float>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<float>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::FLOAT64: {
       auto out_data = dev_ctx.template Alloc<double>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<double>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::INT8: {
       auto out_data = dev_ctx.template Alloc<int8_t>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<int8_t>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::INT16: {
       auto out_data = dev_ctx.template Alloc<int16_t>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<int16_t>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::INT32: {
       auto out_data = dev_ctx.template Alloc<int32_t>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<int32_t>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::INT64: {
       auto out_data = dev_ctx.template Alloc<int64_t>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<int64_t>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::UINT8: {
       auto out_data = dev_ctx.template Alloc<uint8_t>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<uint8_t>(static_cast<float>(x_data[i]));
       });
       break;
     }
     case phi::DataType::BOOL: {
       auto out_data = dev_ctx.template Alloc<bool>(out);
-      q->parallel_for(numel, [=](auto& i){
+      q->parallel_for(numel, [=](auto& i) {
         out_data[i] = static_cast<bool>(static_cast<float>(x_data[i]));
       });
       break;
@@ -111,7 +110,6 @@ void CastKernel(const phi::Context& dev_ctx,
 }
 
 }  // namespace custom_kernel
-
 
 PD_BUILD_PHI_KERNEL(cast,
                     intel_gpu,

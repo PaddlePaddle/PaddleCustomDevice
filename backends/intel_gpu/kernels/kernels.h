@@ -15,19 +15,12 @@
 #pragma once
 
 #include "paddle/phi/capi/all.h"
-
 namespace custom_kernel {
 template <typename T>
-void TransposeKernel(const phi::Context& ctx,
-                     const phi::DenseTensor& x,
-                     const std::vector<int>& axis,
-                     phi::DenseTensor* out);
-
-template <typename T>
 void TransposeKernelGPU(const phi::Context& ctx,
-                     const phi::DenseTensor& x,
-                     const std::vector<int>& axis,
-                     phi::DenseTensor* out);
+                        const phi::DenseTensor& x,
+                        const std::vector<int>& axis,
+                        phi::DenseTensor* out);
 
 template <typename T>
 void SoftmaxKernel(const phi::Context& dev_ctx,

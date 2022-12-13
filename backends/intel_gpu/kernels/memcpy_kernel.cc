@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 namespace custom_kernel {
 
 template <typename T>
@@ -30,7 +30,7 @@ void MemcpyD2HKernel(const phi::Context& dev_ctx,
   show_debug("memcpy_d2h -> memcpy(to=" << std::hex << out_data << ", from="
                                         << x_data << ", size=" << std::dec
                                         << x.memory_size() << ")");
-   q->memcpy(out_data, x_data, x.memory_size());
+  q->memcpy(out_data, x_data, x.memory_size());
 }
 
 template <typename T>
@@ -44,7 +44,9 @@ void MemcpyH2DKernel(const phi::Context& dev_ctx,
 
   void* stream = const_cast<void*>(dev_ctx.stream());
   auto* q = static_cast<sycl::queue*>(stream);
-  show_debug("memcpy_h2d -> memcpy(to="<< std::hex<< out_data << ", from="<< x_data << ", size="<< std::dec << x.memory_size()<<")");
+  show_debug("memcpy_h2d -> memcpy(to=" << std::hex << out_data << ", from="
+                                        << x_data << ", size=" << std::dec
+                                        << x.memory_size() << ")");
   q->memcpy(out_data, x_data, x.memory_size());
 }
 

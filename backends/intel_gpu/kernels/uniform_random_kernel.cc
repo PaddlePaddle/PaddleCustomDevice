@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
-#include <random>
+#include "kernels/dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
-
 
 namespace custom_kernel {
 
@@ -43,7 +41,8 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
                             int diag_step,
                             float diag_val,
                             phi::DenseTensor *out) {
-   show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
+  show_kernel(
+      "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
 
   auto shape_data = shape.GetData();
   out->Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
@@ -63,16 +62,15 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
   UniformRealDistribution<T>(
       cpu_data, numel, min.to<float>(), max.to<float>(), engine);
   if (diag_num > 0) {
-    PD_CHECK(
-        numel,
-        (diag_num - 1) * (diag_step + 1),
-            "ShapeInvalid: the diagonal's elements is equal (num-1) "
-            "* (step-1) with num %d, step %d,"
-            "It should be smaller than %d, but received %d",
-            diag_num,
-            diag_step,
-            (diag_num - 1) * (diag_step + 1),
-            numel);
+    PD_CHECK(numel,
+             (diag_num - 1) * (diag_step + 1),
+             "ShapeInvalid: the diagonal's elements is equal (num-1) "
+             "* (step-1) with num %d, step %d,"
+             "It should be smaller than %d, but received %d",
+             diag_num,
+             diag_step,
+             (diag_num - 1) * (diag_step + 1),
+             numel);
     for (int64_t i = 0; i < diag_num; ++i) {
       int64_t pos = i * diag_step + i;
       cpu_data[pos] = diag_val;
@@ -80,22 +78,23 @@ void UniformRandomRawKernel(const phi::Context &dev_ctx,
   }
 
   // 2. CPU Copy to IntelGPU
-  auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
-  q->memcpy(out_data, cpu_data, numel*sizeof(T));
+  auto *q = static_cast<sycl::queue *>(dev_ctx.stream());
+  q->memcpy(out_data, cpu_data, numel * sizeof(T));
 }
 
 template <typename T>
 void UniformRandomKernel(const phi::Context &dev_ctx,
                          const phi::IntArray &shape,
                          phi::DataType dtype,
-                        //  float min,
-                        //  float max,
+                         //  float min,
+                         //  float max,
                          const phi::Scalar &min,
                          const phi::Scalar &max,
                          int seed,
                          phi::DenseTensor *out) {
-  show_kernel("UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
-   custom_kernel::UniformRandomRawKernel<T>(
+  show_kernel(
+      "UniformRandom-SYCL type=" << dnn_support::type2String<T>::name());
+  custom_kernel::UniformRandomRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
 }  // namespace custom_kernel

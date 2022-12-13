@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
 #include "paddle/phi/capi/all.h"
 
 namespace custom_kernel {
@@ -25,11 +25,9 @@ void FullValue(const phi::Context& dev_ctx,
   auto t = dev_ctx.template Alloc<T>(tensor);
   auto* q = static_cast<sycl::queue*>(dev_ctx.stream());
   auto num = tensor->numel();
-  show_debug("FullValue size="<< num << " sizeof(T)="<< sizeof(T) );
- auto e =  q->submit([&](sycl::handler& h) {
-    h.fill(t, val, num );
-  });
-  q-> wait();
+  show_debug("FullValue size=" << num << " sizeof(T)=" << sizeof(T));
+  auto e = q->submit([&](sycl::handler& h) { h.fill(t, val, num); });
+  q->wait();
 }
 
 template <typename T>

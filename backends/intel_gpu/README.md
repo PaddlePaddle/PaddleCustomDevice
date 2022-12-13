@@ -1,13 +1,12 @@
 # PaddlePaddle Custom Device Implementaion for Custom CPU
 
-English | [简体中文](./README_cn.md)
 
 Please refer to the following steps to compile, install and verify the custom device implementaion for Custom CPU.
 
 ## Get Sources
 
 ```bash
-# clone source 
+# clone source
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
@@ -20,7 +19,7 @@ git submodule update --remote --init --recursive
 
 ```bash
 # navigate to implementaion for Custom CPU
-cd backends/custom_cpu
+cd backends/intel_gpu
 
 # before compiling, ensure that Paddle is installed, you can run the following command
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
@@ -32,7 +31,7 @@ cmake ..
 make -j8
 
 # using pip to install the output
-pip install dist/paddle_custom_cpu*.whl
+pip install dist/paddle_intel_gpu*.whl
 ```
 
 ## Verification
@@ -42,12 +41,12 @@ pip install dist/paddle_custom_cpu*.whl
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 
 # expected output
-['custom_cpu']
+['intel_gpu']
 
 # run a simple model
 python ../tests/test_MNIST_model.py
 
-# expected similar output 
+# expected similar output
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125

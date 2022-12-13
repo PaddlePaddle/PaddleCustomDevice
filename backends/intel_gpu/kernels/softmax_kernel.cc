@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 namespace custom_kernel {
 
 template <typename T>
@@ -78,7 +78,6 @@ void SoftmaxGrad(
   delete[] dot;
 }
 
-
 std::shared_ptr<dnnl::softmax_forward::primitive_desc> softmax_pd = nullptr;
 
 template <typename T>
@@ -97,8 +96,6 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
     return;
   }
 
-
-  using namespace dnnl;
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
 
   auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
@@ -111,127 +108,108 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
     logical_axis[i] = i;
   }
 
-  auto strides =
-      dnn_support::computeStrides(out_dims, logical_axis);
+  auto strides = dnn_support::computeStrides(out_dims, logical_axis);
 
   auto md_out =
-        memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
+      dnnl::memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
 
   auto md_out_grad =
-      memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
+      dnnl::memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
 
   auto md_x_grad =
-      memory::desc(out_dims, dnn_support::toDnnType<T>::type,strides);
+      dnnl::memory::desc(out_dims, dnn_support::toDnnType<T>::type, strides);
 
-  auto dst_memory_p = memory(md_out, eng, out.data<T>());
-  auto diff_dst_memory_p = memory(md_out_grad, eng, out_grad.data<T>());
-  auto diff_src_memory_p = memory(md_x_grad, eng, x_grad->data<T>());
+  auto dst_memory_p = dnnl::memory(md_out, eng, out.data<T>());
+  auto diff_dst_memory_p = dnnl::memory(md_out_grad, eng, out_grad.data<T>());
+  auto diff_src_memory_p = dnnl::memory(md_x_grad, eng, x_grad->data<T>());
 
-  auto bwd_desc = softmax_backward::desc(md_out_grad, md_out, calc_axis);
-  auto bwd_pd_ = softmax_backward::primitive_desc(bwd_desc, eng, *softmax_pd);
+  auto bwd_desc = dnnl::softmax_backward::desc(md_out_grad, md_out, calc_axis);
+  auto bwd_pd_ =
+      dnnl::softmax_backward::primitive_desc(bwd_desc, eng, *softmax_pd);
 
-  auto softmax_bwd_p = softmax_backward(bwd_pd_);
+  auto softmax_bwd_p = dnnl::softmax_backward(bwd_pd_);
 
-  std::unordered_map<int, memory> softmax_args;
-  softmax_args.insert({DNNL_ARG_DST,  dst_memory_p});
+  std::unordered_map<int, dnnl::memory> softmax_args;
+  softmax_args.insert({DNNL_ARG_DST, dst_memory_p});
   softmax_args.insert({DNNL_ARG_DIFF_DST, diff_dst_memory_p});
   softmax_args.insert({DNNL_ARG_DIFF_SRC, diff_src_memory_p});
 
   softmax_bwd_p.execute(engine_stream, softmax_args);
   engine_stream.wait();
-
 }
-
 
 template <typename T>
 void SoftmaxKernel(const phi::Context& ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out) {
+  if constexpr (std::is_same<T, float>::value) {
+    const int rank = x.dims().size();
+    const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
+    int axis_dim = x.dims()[calc_axis];
+    show_kernel("SoftmaxKernelOneDNN() rank="
+                << rank << " calc_axis=" << calc_axis << " axis_dim="
+                << axis_dim << " type=" << dnn_support::type2String<T>::name());
 
+    const int n = phi::funcs::SizeToAxis(calc_axis, x.dims());
+    const int d = phi::funcs::SizeFromAxis(calc_axis, x.dims());
 
-  if constexpr (std::is_same<T,float>::value) {
+    auto x_data = x.data<T>();
+    auto out_data = ctx.template Alloc<T>(out);
 
-  const int rank = x.dims().size();
-  const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
-  int axis_dim = x.dims()[calc_axis];
-  show_kernel("SoftmaxKernelOneDNN() rank=" << rank << " calc_axis=" << calc_axis
-                                      << " axis_dim=" << axis_dim << " type="<< dnn_support::type2String<T>::name());
+    dnnl::memory::dims dims_src = x.dims();
+    dnnl::memory::dims dims_dst = out->dims();
 
+    using tag = dnnl::memory::format_tag;
+    using dt = dnnl::memory::data_type;
+    auto* q = static_cast<sycl::queue*>(const_cast<void*>(ctx.stream()));
 
-  const int n = phi::funcs::SizeToAxis(calc_axis, x.dims());
-  const int d = phi::funcs::SizeFromAxis(calc_axis, x.dims());
+    auto eng =
+        dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
+    auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
 
-  auto x_data = x.data<T>();
-  auto out_data = ctx.template Alloc<T>(out);
+    std::vector<int> logical_axis(dims_src.size(), 0);
+    for (auto i = 0; i < logical_axis.size(); ++i) {
+      logical_axis[i] = i;
+    }
 
-  dnnl::memory::dims dims_src = x.dims();
-  dnnl::memory::dims dims_dst = out->dims();
+    auto strides = dnn_support::computeStrides(dims_src, logical_axis);
 
-  using namespace dnnl;
-  using tag = memory::format_tag;
-  using dt = memory::data_type;
-  auto* q = static_cast<sycl::queue*>(const_cast<void*>(ctx.stream()));
+    auto md_src =
+        dnnl::memory::desc(dims_src, dnn_support::toDnnType<T>::type, strides);
 
-  if (!q) {
-  }
+    auto md_dst =
+        dnnl::memory::desc(dims_src, dnn_support::toDnnType<T>::type, strides);
 
-  auto eng = dnnl::sycl_interop::make_engine(q->get_device(), q->get_context());
-  auto engine_stream = dnnl::sycl_interop::make_stream(eng, *q);
+    show_debug("ComputeStrides = " << strides);
 
-  std::vector<int> logical_axis(dims_src.size(), 0);
-  for (auto i = 0; i < logical_axis.size(); ++i) {
-    logical_axis[i] = i;
-  }
+    auto mem_src = dnnl::memory(md_src, eng, x_data);
+    auto mem_dst = dnnl::memory(md_dst, eng, out_data);
 
-  auto strides =
-      dnn_support::computeStrides(dims_src, logical_axis);
+    auto softmax_d = dnnl::softmax_forward::desc(
+        dnnl::prop_kind::forward_training, md_src, calc_axis);
 
-   auto md_src =
-          memory::desc(dims_src,
-                       dnn_support::toDnnType<T>::type,
-                       strides);
+    softmax_pd =
+        std::make_shared<dnnl::softmax_forward::primitive_desc>(softmax_d, eng);
 
-  auto md_dst =
-      memory::desc(dims_src,
-                   dnn_support::toDnnType<T>::type,
-                   strides);
+    auto softmax_prim = dnnl::softmax_forward(*softmax_pd);
+    std::unordered_map<int, dnnl::memory> softmax_args;
+    softmax_args.insert({DNNL_ARG_SRC, mem_src});
+    softmax_args.insert({DNNL_ARG_DST, mem_dst});
 
-  show_debug("ComputeStrides = " << strides);
-
-   auto mem_src = memory(md_src, eng, x_data);
-  auto mem_dst = memory(md_dst, eng, out_data);
-
-  auto softmax_d =
-      softmax_forward::desc(prop_kind::forward_training, md_src, calc_axis);
-
-   softmax_pd = std::make_shared<softmax_forward::primitive_desc>(softmax_d, eng);
-
-   auto softmax_prim = softmax_forward(*softmax_pd);
-   std::unordered_map<int, memory> softmax_args;
-   softmax_args.insert({DNNL_ARG_SRC, mem_src});
-   softmax_args.insert({DNNL_ARG_DST,  mem_dst});
-
-   // // Primitive execution.
+    // // Primitive execution.
     softmax_prim.execute(engine_stream, softmax_args);
-   // Wait for the computation to finalize.
+    // Wait for the computation to finalize.
     engine_stream.wait();
 
-
   } else {
+    std::stringstream ss;
+    ss << "SoftMax doesn't support type="
+       << dnn_support::type2String<T>::name();
 
-   std::stringstream ss;
-   ss << "SoftMax doesn't support type="
-      << dnn_support::type2String<T>::name();
-
-   show_error(ss.str());
-   throw std::runtime_error(ss.str());
-
+    show_error(ss.str());
+    throw std::runtime_error(ss.str());
   }
-
-
-
-
 }
 
 }  // namespace custom_kernel
@@ -241,14 +219,10 @@ PD_BUILD_PHI_KERNEL(softmax,
                     ALL_LAYOUT,
                     custom_kernel::SoftmaxKernel,
                     float,
-                    double
-                    ) {}
-
-
+                    double) {}
 
 PD_BUILD_PHI_KERNEL(softmax_grad,
                     intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::SoftmaxGradKernel,
-                    float
-                    ) {}
+                    float) {}

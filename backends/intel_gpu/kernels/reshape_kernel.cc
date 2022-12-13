@@ -11,11 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "dnn_support.hpp"
-#include <cstring>
-
+#include "kernels/dnn_support.hpp"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -137,7 +135,8 @@ void ReshapeKernel(const phi::Context& dev_ctx,
   }
 
   if (!(x.initialized() && x.Holder() == out->Holder())) {
-    show_debug("Reshape type initialized=" << dnn_support::type2String<T>::name()) ;
+    show_debug(
+        "Reshape type initialized=" << dnn_support::type2String<T>::name());
     dev_ctx.Alloc(out, x.dtype());
     auto dims = out->dims();
     auto x_data = x.data<T>();
@@ -174,8 +173,7 @@ PD_BUILD_PHI_KERNEL(reshape,
                     int32_t,
                     int64_t,
                     uint8_t,
-                    bool
-                    ) {}
+                    bool) {}
 
 PD_BUILD_PHI_KERNEL(reshape_with_xshape,
                     intel_gpu,
@@ -188,5 +186,4 @@ PD_BUILD_PHI_KERNEL(reshape_with_xshape,
                     int32_t,
                     int64_t,
                     uint8_t,
-                    bool
-                    ) {}
+                    bool) {}

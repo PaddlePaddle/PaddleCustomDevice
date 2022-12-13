@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include "dnn_support.hpp"
-#include <cmath>
+#include "kernels/dnn_support.hpp"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -26,7 +24,7 @@ void AssignValueKernel(const phi::Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  show_kernel("AssignValue-SYCL, type="<< dnn_support::type2String<T>::name());
+  show_kernel("AssignValue-SYCL, type=" << dnn_support::type2String<T>::name());
 
   auto template_dtype = phi::capi::CppTypeToPDType<T>::Type();
   PD_CHECK(dtype == template_dtype,
@@ -43,10 +41,10 @@ void AssignValueKernel(const phi::Context& dev_ctx,
   std::vector<T> assign_values;
   assign_values.reserve(values.size());
   for (const auto& val : values) {
-      assign_values.emplace_back( val.to<T>());
+    assign_values.emplace_back(val.to<T>());
   }
-  q->memcpy( out_data, &assign_values[0],  assign_values.size()*sizeof(T));
-  q-> wait();  //needed, runtime does sync ??
+  q->memcpy(out_data, &assign_values[0], assign_values.size() * sizeof(T));
+  q->wait();  // needed, runtime does sync ??
   out->Resize(std::vector<int64_t>(shape.cbegin(), shape.cend()));
 }
 
@@ -63,7 +61,7 @@ template <typename T>
 void AssignRawKernel(const phi::Context& dev_ctx,
                      const paddle::optional<phi::DenseTensor>& x,
                      phi::DenseTensor* out) {
-  show_kernel("AssignRaw-SYCL, type="<< dnn_support::type2String<T>::name());
+  show_kernel("AssignRaw-SYCL, type=" << dnn_support::type2String<T>::name());
 
   if (x) {
     if (!x->initialized()) {
@@ -78,19 +76,16 @@ void AssignRawKernel(const phi::Context& dev_ctx,
   }
 }
 
-
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(assign_value,
                     intel_gpu,
                     ALL_LAYOUT,
                     custom_kernel::AssignValueKernel,
-                    // bool,
                     int,
                     int64_t,
                     float,
-                    double
-                    ) {}
+                    double) {}
 
 PD_BUILD_PHI_KERNEL(assign_raw,
                     intel_gpu,
@@ -100,4 +95,3 @@ PD_BUILD_PHI_KERNEL(assign_raw,
                     int64_t,
                     float,
                     double) {}
-

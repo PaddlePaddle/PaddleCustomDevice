@@ -84,10 +84,10 @@ const T* shortPath(const T* p) {
   std::cout << "[" << title << "][" << std::hex << std::this_thread::get_id() \
             << std::dec << "]["<< shortPath(__FILE__)<< ":"<< __LINE__ <<"]: "<< x << std::endl; }
 
-#define show_debug(x) show_msg("debug", 1, x)
-#define show_memory(x) show_msg("mem", 2, x)
+#define show_debug(x) VLOG(5)<<x; show_msg("debug", 1, x)
+#define show_memory(x) VLOG(4)<<x; show_msg("mem", 2, x)
 #define show_kernel(x) VLOG(3)<< x; show_msg("kernel", 4, x)
-#define show_error(x) show_msg("error", config::vError, x)
+#define show_error(x) VLOG(0)<<x; show_msg("error", config::vError, x)
 #define rise_error(x)                                         \
   {                                                           \
     std::stringstream ss;                                     \

@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "dnn_support.hpp"
-#include "kernels.h"
+#include "kernels/dnn_support.hpp"
+#include "kernels/kernels.h"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -26,7 +26,8 @@ void CrossEntropy(const T* prob,
                   size_t num_classes,
                   int ignore_index,
                   int axis_dim,
-                  T* out, sycl::queue* q = nullptr) {
+                  T* out,
+                  sycl::queue* q = nullptr) {
   auto num_remain = num_classes / axis_dim;
   if (soft_label) {
     for (auto i = 0; i < batch_size; ++i) {
@@ -40,35 +41,17 @@ void CrossEntropy(const T* prob,
       }
     }
   } else {
-      q->parallel_for(batch_size, [=](auto& i){
-        for (int j = 0; j < num_remain; j++) {
-          int lbl = static_cast<int>(label[i * num_remain + j]);
-          if (lbl != ignore_index) {
-            // PD_CHECK(lbl >= 0,
-            //          "label value should >= 0 when label "
-            //          "value(%f) not equal to ignore_index(%f)",
-            //          lbl,
-            //          ignore_index);
-            // PD_CHECK(lbl < axis_dim,
-            //          "label value should less than the shape of axis dimension "
-            //          "when label value(%f) not equal to ignore_index(%f), But "
-            //          "received label value as %ld and shape of axis dimension "
-            //          "is %d",
-            //          lbl,
-            //          ignore_index,
-            //          lbl,
-            //          axis_dim);
-          }
-          int index = i * num_classes + lbl * num_remain + j;
-          int loss_idx = i * num_remain + j;
-          out[loss_idx] = lbl == ignore_index
-                              ? 0
-                              : -phi::TolerableValue<T>(sycl::log(prob[index]));
-        }
-
+    q->parallel_for(batch_size, [=](auto& i) {
+      for (int j = 0; j < num_remain; j++) {
+        int lbl = static_cast<int>(label[i * num_remain + j]);
+        int index = i * num_classes + lbl * num_remain + j;
+        int loss_idx = i * num_remain + j;
+        out[loss_idx] = lbl == ignore_index
+                            ? 0
+                            : -phi::TolerableValue<T>(sycl::log(prob[index]));
+      }
     });
   }
-
 }
 
 template <typename T>
@@ -79,8 +62,8 @@ void CrossEntropyKernel(const phi::Context& dev_ctx,
                         int ignore_index,
                         int axis,
                         phi::DenseTensor* out) {
-   show_kernel("CrossEntropy type=" << dnn_support::type2String<T>::name()
-      << ", soft_label=" << soft_label);
+  show_kernel("CrossEntropy type=" << dnn_support::type2String<T>::name()
+                                   << ", soft_label=" << soft_label);
 
   auto x_dims = x.dims();
   const int rank = x_dims.size();
@@ -102,63 +85,64 @@ void CrossEntropyKernel(const phi::Context& dev_ctx,
            n);
 
   const int d = phi::funcs::SizeFromAxis(axis_v, x.dims());
-    if (soft_label) {
-      CrossEntropy<T, T>(x.data<T>(),
-                        label.data<T>(),
-                        soft_label,
-                        n,
-                        d,
-                        ignore_index,
-                        axis_dim,
-                        out_data);
-    } else if (label.dtype() == phi::DataType::INT32) {
-      CrossEntropy<T, int32_t>(x.data<T>(),
-                              label.data<int32_t>(),
-                              soft_label,
-                              n,
-                              d,
-                              ignore_index,
-                              axis_dim,
-                              out_data);
-    } else if (label.dtype() == phi::DataType::INT64) {
-      CrossEntropy<T, int64_t>(x.data<T>(),
-                              label.data<int64_t>(),
-                              soft_label,
-                              n,
-                              d,
-                              ignore_index,
-                              axis_dim,
-                              out_data, q);
-    } else if (label.dtype() == phi::DataType::INT16) {
-      CrossEntropy<T, int16_t>(x.data<T>(),
-                              label.data<int16_t>(),
-                              soft_label,
-                              n,
-                              d,
-                              ignore_index,
-                              axis_dim,
-                              out_data);
-    } else if (label.dtype() == phi::DataType::INT8) {
-      CrossEntropy<T, int8_t>(x.data<T>(),
-                              label.data<int8_t>(),
-                              soft_label,
-                              n,
-                              d,
-                              ignore_index,
-                              axis_dim,
-                              out_data);
-    } else if (label.dtype() == phi::DataType::UINT8) {
-      CrossEntropy<T, uint8_t>(x.data<T>(),
-                              label.data<uint8_t>(),
-                              soft_label,
-                              n,
-                              d,
-                              ignore_index,
-                              axis_dim,
-                              out_data);
-    } else {
-      PD_CHECK(false, "The dtype of label must be int.");
-    }
+  if (soft_label) {
+    CrossEntropy<T, T>(x.data<T>(),
+                       label.data<T>(),
+                       soft_label,
+                       n,
+                       d,
+                       ignore_index,
+                       axis_dim,
+                       out_data);
+  } else if (label.dtype() == phi::DataType::INT32) {
+    CrossEntropy<T, int32_t>(x.data<T>(),
+                             label.data<int32_t>(),
+                             soft_label,
+                             n,
+                             d,
+                             ignore_index,
+                             axis_dim,
+                             out_data);
+  } else if (label.dtype() == phi::DataType::INT64) {
+    CrossEntropy<T, int64_t>(x.data<T>(),
+                             label.data<int64_t>(),
+                             soft_label,
+                             n,
+                             d,
+                             ignore_index,
+                             axis_dim,
+                             out_data,
+                             q);
+  } else if (label.dtype() == phi::DataType::INT16) {
+    CrossEntropy<T, int16_t>(x.data<T>(),
+                             label.data<int16_t>(),
+                             soft_label,
+                             n,
+                             d,
+                             ignore_index,
+                             axis_dim,
+                             out_data);
+  } else if (label.dtype() == phi::DataType::INT8) {
+    CrossEntropy<T, int8_t>(x.data<T>(),
+                            label.data<int8_t>(),
+                            soft_label,
+                            n,
+                            d,
+                            ignore_index,
+                            axis_dim,
+                            out_data);
+  } else if (label.dtype() == phi::DataType::UINT8) {
+    CrossEntropy<T, uint8_t>(x.data<T>(),
+                             label.data<uint8_t>(),
+                             soft_label,
+                             n,
+                             d,
+                             ignore_index,
+                             axis_dim,
+                             out_data);
+  } else {
+    PD_CHECK(false, "The dtype of label must be int.");
+  }
 }
 
 template <typename T>
@@ -174,7 +158,6 @@ void CrossEntropyWithSoftmaxKernel(const phi::Context& dev_ctx,
                                    phi::DenseTensor* loss) {
   // do not with softmax op, and input is softmax
   if (!use_softmax) {
-
     auto softmax_data = dev_ctx.template Alloc<T>(softmax);
     CrossEntropyKernel<T>(
         dev_ctx, logits, label, soft_label, ignore_index, axis, loss);
@@ -200,7 +183,8 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
                                           int axis,
                                           phi::DenseTensor* logits_grad) {
   show_kernel("CrossEntropyGrad type=" << dnn_support::type2String<T>::name()
-    << ", soft_label=" << soft_label << ", use_softmax=" << use_softmax);
+                                       << ", soft_label=" << soft_label
+                                       << ", use_softmax=" << use_softmax);
 
   const phi::DenseTensor* out_grad = &loss_grad;
   phi::DenseTensor* logit_grad = logits_grad;
@@ -213,7 +197,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
   auto* q = static_cast<sycl::queue*>(stream);
 
   if (logit_grad != &softmax || !use_softmax) {
-       q->memcpy(logits_grad_data, softmax_data, softmax.numel() * sizeof(T));
+    q->memcpy(logits_grad_data, softmax_data, softmax.numel() * sizeof(T));
   }
 
   const int rank = logit_grad->dims().size();
@@ -224,7 +208,6 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
            "The axis dimention should be larger than 0, but received "
            "axis dimention is %d.",
            axis_dim);
-
 
   const int n = phi::funcs::SizeToAxis(axis_v, logit_grad->dims());
   PD_CHECK(n > 0,
@@ -242,7 +225,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
     // use_softmax step1
     if (soft_label) {
       for (auto i = 0; i < n; ++i) {
-      for (auto j = 0; j < axis_dim; ++j) {
+        for (auto j = 0; j < axis_dim; ++j) {
           for (auto k = 0; k < remain; ++k) {
             auto index = i * d + j * remain + k;
             auto l_index = i * remain + k;
@@ -254,10 +237,9 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
       }
 
     } else {
-
       const int remain = d / axis_dim;
 
-      q->parallel_for(n, [=](auto& i){
+      q->parallel_for(n, [=](auto& i) {
         for (int j = 0; j < remain; j++) {  // for each sample_other_dims
           int idx = i * remain + j;  // this sample's label_idx. for 1d case,
                                      // remain=1 and j=0, so, idx = i
@@ -280,13 +262,10 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
             }
           }
         }
-      }
-      );
-
+      });
     }
     return;
   }
-
 
   if (soft_label) {
     // when soft_label = True, ignore_index is not supported
@@ -310,8 +289,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
     // operation
 
   } else {
-
-    q->parallel_for(n, [=](auto& i){
+    q->parallel_for(n, [=](auto& i) {
       for (auto j = 0; j < axis_dim; ++j) {
         for (auto k = 0; k < remain; ++k) {
           auto index = i * d + j * remain + k;
@@ -321,10 +299,9 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
               out_grad_data[l_index] * logit_grad_data[index];
         }
       }
-    }
-    );
+    });
 
-    q->parallel_for(n, [=](auto& i){
+    q->parallel_for(n, [=](auto& i) {
       for (int j = 0; j < remain; j++) {  // for each sample_other_dims
         int idx = i * remain + j;  // this sample's label_idx. for 1d case,
                                    // remain=1 and j=0, so, idx = i
@@ -349,8 +326,7 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const phi::Context& dev_ctx,
           logit_grad_data[i * d + lbl * remain + j] -= out_grad_data[idx];
         }
       }
-    }
-    );
+    });
   }
 }
 
@@ -444,7 +420,7 @@ PD_BUILD_PHI_KERNEL(cross_entropy_with_softmax,
                     custom_kernel::CrossEntropyWithSoftmaxKernel,
                     float
                     // , double
-                    ) {}
+) {}
 
 PD_BUILD_PHI_KERNEL(cross_entropy_with_softmax_grad,
                     intel_gpu,
@@ -452,4 +428,4 @@ PD_BUILD_PHI_KERNEL(cross_entropy_with_softmax_grad,
                     custom_kernel::CrossEntropyWithSoftmaxGradKernel,
                     float
                     // , double
-                    ) {}
+) {}

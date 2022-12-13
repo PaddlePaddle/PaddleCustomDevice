@@ -1,7 +1,7 @@
 # Docker Image for PaddlePaddle Ascend910 NPU
 
 FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
-MAINTAINER PaddlePaddle Authors <paddle-dev@baidu.com>
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser
 RUN groupadd HwHiAiUser && \
@@ -61,8 +61,10 @@ ENV HCCL_CONNECT_TIMEOUT=7200
 ENV HCCL_WHITELIST_DISABLE=1
 ENV HCCL_SECURITY_MODE=1
 
-# environment for NPU performance
+# environment for PaddlePaddle
 ENV FLAGS_npu_storage_format=1
+ENV FLAGS_allocator_strategy=naive_best_fit
+ENV PADDLE_XCCL_BACKEND=npu
 
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver

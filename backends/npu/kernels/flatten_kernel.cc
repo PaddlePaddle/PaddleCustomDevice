@@ -83,7 +83,8 @@ PD_REGISTER_PLUGIN_KERNEL(flatten,
                           int8_t,
                           int16_t,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
                           npu,
@@ -95,7 +96,8 @@ PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
                           int8_t,
                           int16_t,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(flatten_grad,
                           npu,

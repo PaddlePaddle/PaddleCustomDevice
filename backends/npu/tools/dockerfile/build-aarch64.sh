@@ -17,10 +17,10 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.0.alpha002
+# export CANN_VERSION=6.0.0.alpha003
 # bash build-aarch64.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha002} # default 6.0.0.alpha002
+CANN_VERSION=${1:-6.0.0.alpha003} # default 6.0.0.alpha003
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
 
 DOCKER_VERSION=${CANN_VERSION//[^0-9]/}
@@ -40,8 +40,6 @@ if [ ! -f version.info ]; then
 fi
 
 # ubuntu18-aarch64-gcc82
-export proxy=http://172.19.57.45:3128
-# export proxy=http://172.19.56.199:3128
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
 docker build --no-cache --network=host -f Dockerfile.npu.ubuntu18-aarch64-gcc82 \
        --build-arg CANN_VERSION=${CANN_VERSION} \

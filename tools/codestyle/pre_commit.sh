@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set +x
+set -x
 
 # use pre-commit 2.17
 if ! [[ $(pre-commit --version) == *"2.17.0"* ]]; then
@@ -29,9 +29,9 @@ if ! [[ $(python -V 2>&1 | awk '{print $2}' | awk -F '.' '{print $1$2}') -ge 36 
     exit 1
 fi
 
-diff_files=$(git diff --numstat ${BRANCH} | awk '{print $NF}')
+diff_files=$(git diff --numstat develop | awk '{print $NF}')
 num_diff_files=$(echo "$diff_files" | wc -l)
-echo -e "diff files between pr and ${BRANCH}:\n${diff_files}"
+echo -e "diff files between pr and develop:\n${diff_files}"
 
 echo "Checking code style by pre-commit ..."
 pre-commit run --files ${diff_files};check_error=$?

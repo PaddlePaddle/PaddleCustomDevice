@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
@@ -129,10 +129,10 @@ function main() {
     rerun_ut_startTime_s=`date +%s`
     set +x
     if [ -n "$failed_test_lists" ];then
-        need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
         need_retry_ut_arr=(${need_retry_ut_str})
         need_retry_ut_count=${#need_retry_ut_arr[@]}
-        retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
         while ( [ $exec_times -lt $retry_time ] )
             do
                 if [[ "${exec_times}" == "0" ]] ;then
@@ -142,7 +142,7 @@ function main() {
                         is_retry_execuate=1
                     fi
                 elif [[ "${exec_times}" == "1" ]] ;then
-                    need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                    need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
                     need_retry_ut_arr=(${need_retry_ut_str})
                     need_retry_ut_count=${#need_retry_ut_arr[@]} 
                     if [ $need_retry_ut_count -lt $exec_retry_threshold ];then
@@ -160,7 +160,7 @@ function main() {
                         if [[ "${failed_test_lists}" == "" ]];then
                             break
                         else
-                            retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                            retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
                         fi
                     fi
                     echo "========================================="

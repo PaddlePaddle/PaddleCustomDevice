@@ -25,19 +25,19 @@
 #include "glog/logging.h"
 
 aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
-  CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
   return aicpu_streams[aicore_stream];
 }
 
 void SecondaryStream::Create(aclrtStream aicore_stream) {
-  CHECK(aicpu_streams.find(aicore_stream) == aicpu_streams.cend());
+  RUN_CHECK(aicpu_streams.find(aicore_stream) == aicpu_streams.cend());
   aclrtStream aicpu_stream;
   ACL_CHECK(aclrtCreateStream(&aicpu_stream));
   aicpu_streams[aicore_stream] = aicpu_stream;
 }
 
 void SecondaryStream::Destroy(aclrtStream aicore_stream) {
-  CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
   ACL_CHECK(aclrtDestroyStream(aicpu_streams[aicore_stream]));
   aicpu_streams.erase(aicore_stream);
 }
@@ -45,14 +45,14 @@ void SecondaryStream::Destroy(aclrtStream aicore_stream) {
 void SecondaryStream::RecordBefore(aclrtStream aicore_stream) {
   static std::list<aclrtEvent> events;
 
-  CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
   auto aicpu_stream = aicpu_streams[aicore_stream];
 
   for (auto iter = events.begin(); iter != events.end();) {
     auto event = *iter;
-    aclrtEventStatus status = ACL_EVENT_STATUS_COMPLETE;
-    ACL_CHECK(aclrtQueryEvent(event, &status));
-    if (status == ACL_EVENT_STATUS_COMPLETE) {
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
       ACL_CHECK(aclrtDestroyEvent(event));
       iter = events.erase(iter);
     } else {
@@ -71,14 +71,14 @@ void SecondaryStream::RecordBefore(aclrtStream aicore_stream) {
 void SecondaryStream::RecordAfter(aclrtStream aicore_stream) {
   static std::list<aclrtEvent> events;
 
-  CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
   auto aicpu_stream = aicpu_streams[aicore_stream];
 
   for (auto iter = events.begin(); iter != events.end();) {
     auto event = *iter;
-    aclrtEventStatus status = ACL_EVENT_STATUS_COMPLETE;
-    ACL_CHECK(aclrtQueryEvent(event, &status));
-    if (status == ACL_EVENT_STATUS_COMPLETE) {
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
       ACL_CHECK(aclrtDestroyEvent(event));
       iter = events.erase(iter);
     } else {
@@ -130,10 +130,9 @@ class AlignnedAllocator {
     for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
       aclrtEvent event = it->second.second;
       if (!event) continue;
-      aclrtEventStatus status = ACL_EVENT_STATUS_COMPLETE;
-      ACL_CHECK(aclrtQueryEvent(event, &status));
-
-      if (status == ACL_EVENT_STATUS_COMPLETE) {
+      aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+      ACL_CHECK(aclrtQueryEventStatus(event, &status));
+      if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
         ACL_CHECK(aclrtFreeHost(ptr));
         recorded_events_.erase(it++);

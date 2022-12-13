@@ -42,7 +42,7 @@
 
 #define ACL_CHECK(func) RUNTIME_CHECK(func, ACL_ERROR_NONE)
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
-#define CHECK(func) RUNTIME_CHECK(func, true)
+#define RUN_CHECK(func) RUNTIME_CHECK(func, true)
 
 #define ENV_Cat(x, y) x##y
 #define ENV_Str(x) #x

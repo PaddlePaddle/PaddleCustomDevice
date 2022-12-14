@@ -742,7 +742,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         def compute(x, is_test, trainable_statistics, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
             with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
                     trainable_statistics=trainable_statistics,
@@ -769,7 +769,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
         def compute(x_np, is_test, trainable_statistics):
             with program_guard(Program(), Program()):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
                     trainable_statistics=trainable_statistics,
@@ -783,7 +783,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         def compute_npu_storage(x_np, is_test, trainable_statistics):
             set_flags({"FLAGS_npu_storage_format": True})
             with program_guard(Program(), Program()):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1], is_test=is_test, trainable_statistics=trainable_statistics
                 )
                 x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
@@ -807,6 +807,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
 class TestBatchNormChannelLast(unittest.TestCase):
     def setUp(self):
+        set_flags({"FLAGS_npu_storage_format": False})
         self.original_dtyep = paddle.get_default_dtype()
         paddle.set_default_dtype("float32")
         self.places = [paddle.CPUPlace(), paddle.CustomPlace("npu", 0)]

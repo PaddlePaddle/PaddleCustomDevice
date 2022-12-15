@@ -14,8 +14,6 @@
 
 #include "kernels/funcs/npu_op_runner.h"
 
-#include <map>
-
 #include "acl/acl_op_compiler.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
@@ -311,24 +309,49 @@ std::vector<aclDataBuffer *> &NpuOpRunner::GetOutputBuffers() {
 
 aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
                                              aclMemType mem_type) {
-  auto dtype = ConvertToNpuDtype(tensor.dtype());
-  auto format = ConvertToNpuFormat(tensor.layout());
-  auto dims = phi::vectorize(tensor.dims());
-  int size = dims.size();
+  auto data_type = ConvertToNpuDtype(tensor.dtype());
+  auto origin_format = ConvertToNpuFormat(tensor.layout());
+  auto origin_dims = phi::vectorize(tensor.dims());
 
-  if (op_type_ == "DropOutGenMask" && size == 1 && *(dims.data()) == 1) {
-    size = 0;
+  auto origin_size = origin_dims.size();
+  if (op_type_ == "DropOutGenMask" && origin_size == 1 &&
+      *(origin_dims.data()) == 1) {
+    origin_size = 0;
   }
 
-  VLOG(4) << "NPU dtype:" << dtype << " "
-          << "rank:" << dims.size() << " dims: " << tensor.dims()
-          << " format:" << format;
-
-  auto *desc = aclCreateTensorDesc(dtype, size, dims.data(), format);
+  auto *desc = aclCreateTensorDesc(
+      data_type, origin_size, origin_dims.data(), origin_format);
   PADDLE_ENFORCE_NOT_NULL(
       desc, phi::errors::External("Call aclCreateTensorDesc failed."));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, format));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, size, dims.data()));
+
+  if (tensor.storage_properties_initialized()) {
+    auto npu_properties =
+        tensor.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    auto storage_dims = phi::vectorize(npu_properties.storage_dims);
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)storage_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << storage_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << npu_properties.storage_dims;
+  } else {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)origin_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorShape(desc, origin_size, origin_dims.data()));
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << origin_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << tensor.dims();
+  }
+
   if (mem_type == ACL_MEMTYPE_HOST) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, mem_type));
   }

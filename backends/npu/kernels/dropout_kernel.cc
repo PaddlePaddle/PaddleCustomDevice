@@ -33,12 +33,20 @@ void DropoutRawKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
+  // mask used in `DropOutGenMask` NPU OP is different from
+  // the output `Mask`.
+  uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
+  mask->Resize({length / 8});
+  dev_ctx.template Alloc<uint8_t>(mask);
+
   if (dropout_prob == 1.) {
     const auto& runner_zeros_out = NpuOpRunner("ZerosLike", {*out}, {*out});
     runner_zeros_out.Run(stream);
-    dev_ctx.template Alloc<uint8_t>(mask);
-    const auto& runner_zeros_mask = NpuOpRunner("ZerosLike", {*mask}, {*mask});
-    runner_zeros_mask.Run(stream);
+    ACL_CHECK(aclrtMemsetAsync(mask->data(),
+                               mask->numel() * sizeof(uint8_t),
+                               0,
+                               mask->numel() * sizeof(uint8_t),
+                               stream));
     return;
   }
 
@@ -61,7 +69,7 @@ void DropoutRawKernel(const Context& dev_ctx,
 
     int seed = 0;
     int seed2 = 0;
-    float keep_prob = 1. - dropout_prob;
+    T keep_prob = static_cast<T>(1. - dropout_prob);
     if (seed_tensor) {
       MemCpyD2H(nullptr, &seed, seed_tensor->data(), sizeof(int));
     } else {
@@ -74,15 +82,9 @@ void DropoutRawKernel(const Context& dev_ctx,
     AsyncMemCpyH2D(nullptr,
                    static_cast<C_Stream>(
                        SecondaryStream::Instance().Get(dev_ctx.stream())),
-                   dev_ctx.template Alloc<float>(&keep_prob_tensor),
+                   dev_ctx.template Alloc<T>(&keep_prob_tensor),
                    &keep_prob,
-                   sizeof(float));
-
-    // mask used in `DropOutGenMask` NPU OP is different from
-    // the output `Mask`.
-    uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
-    mask->Resize({length / 8});
-    dev_ctx.template Alloc<uint8_t>(mask);
+                   sizeof(T));
 
     // TODO(pangyoki): `keep_prob` used in `DropOutGenMask` NPU
     // OP must be a scalar with shape[0]. At present, the shape

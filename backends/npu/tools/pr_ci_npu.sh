@@ -30,7 +30,6 @@ failed_test_lists=''
 tmp_dir=`mktemp -d`
 
 function collect_failed_tests() {
-    set +x
     for file in `ls $tmp_dir`; do
         exit_code=0
         grep -q 'The following tests FAILED:' $tmp_dir/$file||exit_code=$?
@@ -42,11 +41,9 @@ function collect_failed_tests() {
             ${failuretest}"
         fi
     done
-    set -x
 }
 
 function show_ut_retry_result() {
-set +x
     SYSTEM=`uname -s`
     if [[ "$is_retry_execuate" != "0" ]]  && [[ "${exec_times}" == "0" ]] ;then
         failed_test_lists_ult=`echo "${failed_test_lists}" | grep -Po '[^ ].*$'`
@@ -84,7 +81,6 @@ set +x
             exit 8;
         fi
     fi
-set -ex
 }
 
 function main() {
@@ -115,7 +111,6 @@ function main() {
     tmpfile=$tmp_dir/$tmpfile_rand
     ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
     collect_failed_tests
-    set +x
 
     # add unit test retry for NPU
     rm -f $tmp_dir/*
@@ -127,7 +122,7 @@ function main() {
     exec_retry_threshold=30
     is_retry_execuate=0
     rerun_ut_startTime_s=`date +%s`
-    set +x
+
     if [ -n "$failed_test_lists" ];then
         need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
         need_retry_ut_arr=(${need_retry_ut_str})
@@ -198,7 +193,6 @@ function main() {
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
     fi
-    set -ex
 }
 
 main $@

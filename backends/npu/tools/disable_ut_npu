@@ -1,3 +1,14 @@
 disable_ut_npu
 test_zero_dim_tensor_npu
 test_argsort_op_npu
+test_adam_op_npu
+test_batch_norm_op_npu
+test_dropout_op_npu
+test_gather_op_npu
+test_group_norm_op_npu
+test_increment_op_npu
+test_slice_op_npu
+test_strided_slice_op_npu
+test_transpose_op_npu
+test_stack_op_npu
+test_concat_op_npu

@@ -5,6 +5,7 @@ build/
 *.tmp
 *.pyc
 *.swp
+*.diff
 
 .vscode
 .idea
@@ -31,4 +32,3 @@ kernel_meta*/
 
 # ignore Paddle change
 Paddle/
-

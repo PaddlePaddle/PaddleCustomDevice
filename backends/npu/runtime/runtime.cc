@@ -24,6 +24,8 @@
 
 #include "glog/logging.h"
 
+thread_local int g_current_device_id(-1);
+
 aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
   RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
   return aicpu_streams[aicore_stream];
@@ -200,7 +202,10 @@ C_Status InitDevice(const C_Device device) {
 }
 
 C_Status SetDevice(const C_Device device) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  if (g_current_device_id != device->id) {
+    ACL_CHECK(aclrtSetDevice(device->id));
+    g_current_device_id = device->id;
+  }
   return C_SUCCESS;
 }
 
@@ -309,7 +314,7 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   void *data;
   aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
   if (data) {
@@ -322,7 +327,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
   void *data = nullptr;
   ACL_CHECK(aclrtMallocHost(&data, size));
   if (data) {
@@ -335,7 +339,7 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
   return C_SUCCESS;
 }

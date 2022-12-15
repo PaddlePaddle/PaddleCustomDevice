@@ -10,3 +10,5 @@ test_increment_op_npu
 test_slice_op_npu
 test_strided_slice_op_npu
 test_transpose_op_npu
+test_stack_op_npu
+test_concat_op_npu

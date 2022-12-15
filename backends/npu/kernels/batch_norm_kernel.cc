@@ -50,7 +50,8 @@ void BatchNormKernel(const Context& dev_ctx,
           data_layout_str,
           FLAGS_npu_storage_format));
 
-  if (FLAGS_npu_storage_format) {
+  if (FLAGS_npu_storage_format &&
+      x_dims.size() == 4) {  // TODO(qili93): add 3D support
     AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, y);
   } else {
     dev_ctx.template Alloc<T>(y);
@@ -111,7 +112,8 @@ void BatchNormKernel(const Context& dev_ctx,
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
   } else {
-    if (FLAGS_npu_storage_format) {
+    if (FLAGS_npu_storage_format &&
+        x_dims.size() == 4) {  // TODO(qili93): add 3D support
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, mean_out);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, variance_out);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, saved_mean);
@@ -123,12 +125,16 @@ void BatchNormKernel(const Context& dev_ctx,
       dev_ctx.template Alloc<float>(saved_variance);
     }
 
+    // BN3DTrainingReduce will throw output size mismatch if output tensor in
+    // NCHW format should change output tensor format same with input tensor
+    // format NDCHW or NDHWC
     phi::DenseTensorMeta meta = {
-        phi::DataType::FLOAT32, mean_out->dims(), x.layout()};
+        phi::DataType::FLOAT32, mean_out->dims(), x_tensor.layout()};
     phi::DenseTensor sum, square_sum;
     sum.set_meta(meta);
     square_sum.set_meta(meta);
-    if (FLAGS_npu_storage_format) {
+    if (FLAGS_npu_storage_format &&
+        x_dims.size() == 4) {  // TODO(qili93): add 3D support
       AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, &sum);
       AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, &square_sum);
     } else {
@@ -138,19 +144,43 @@ void BatchNormKernel(const Context& dev_ctx,
 
     std::string reduce_name =
         (x.dims().size() == 5) ? "BN3DTrainingReduce" : "BNTrainingReduce";
-    const auto& runner_reduce = NpuOpRunner(
-        reduce_name, {x_tensor}, {sum, square_sum}, {{"epsilon", epsilon}});
-    runner_reduce.Run(stream);
+    NpuOpRunner runner_reduce;
+    runner_reduce.SetType(reduce_name)
+        .AddInput(x_tensor)
+        .AddOutput(sum)
+        .AddOutput(square_sum)
+        .AddAttrs({{"epsilon", epsilon}})
+        .Run(stream);
+
+    // BN3DTrainingUpdate will throw output size mismatch if output tensor in
+    // NCHW format should change output tensor format same with input tensor
+    // format NDCHW or NDHWC
+    if (x_dims.size() == 5) {
+      mean_out->set_meta(meta);
+      variance_out->set_meta(meta);
+      saved_mean->set_meta(meta);
+      saved_variance->set_meta(meta);
+    }
 
     std::string update_name =
         (x.dims().size() == 5) ? "BN3DTrainingUpdate" : "BNTrainingUpdate";
-    const auto& runner_update = NpuOpRunner(
-        update_name,
-        {x_tensor, sum, square_sum, scale, bias, running_mean, running_var},
-        {y_tensor, *mean_out, *variance_out, *saved_mean, *saved_variance},
-        {{"factor", static_cast<float>(momentum)},
-         {"epsilon", static_cast<float>(epsilon)}});
-    runner_update.Run(stream);
+    NpuOpRunner runner_update;
+    runner_update.SetType(update_name)
+        .AddInput(x_tensor)
+        .AddInput(sum)
+        .AddInput(square_sum)
+        .AddInput(scale)
+        .AddInput(bias)
+        .AddInput(running_mean)
+        .AddInput(running_var)
+        .AddOutput(y_tensor)
+        .AddOutput(*mean_out)
+        .AddOutput(*variance_out)
+        .AddOutput(*saved_mean)
+        .AddOutput(*saved_variance)
+        .AddAttrs({{"epsilon", static_cast<float>(epsilon)}})
+        .AddAttrs({{"factor", static_cast<float>(momentum)}})
+        .Run(stream);
   }
 }
 
@@ -246,7 +276,8 @@ void BatchNormGradKernel(
 
   auto stream = dev_ctx.stream();
   if (d_scale && d_bias) {
-    if (FLAGS_npu_storage_format) {
+    if (FLAGS_npu_storage_format &&
+        x_dims.size() == 4) {  // TODO(qili93): add 3D support
       AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_scale);
       AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_bias);
     } else {
@@ -271,7 +302,8 @@ void BatchNormGradKernel(
   }
 
   if (d_x) {
-    if (FLAGS_npu_storage_format) {
+    if (FLAGS_npu_storage_format &&
+        x_dims.size() == 4) {  // TODO(qili93): add 3D support
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, d_x);
     } else {
       dev_ctx.template Alloc<T>(d_x);
@@ -332,6 +364,9 @@ void BatchNormInferKernel(const Context& dev_ctx,
   const auto& x_dims = x.dims();
   const bool channel_last = data_layout_str == "NHWC" && x_dims.size() > 2;
 
+  VLOG(1) << "0 -- BatchNormInferKernel: Attr <channel_last> = "
+          << channel_last;
+
   PADDLE_ENFORCE_EQ(
       channel_last && FLAGS_npu_storage_format,
       false,
@@ -343,7 +378,8 @@ void BatchNormInferKernel(const Context& dev_ctx,
           data_layout_str,
           FLAGS_npu_storage_format));
 
-  if (FLAGS_npu_storage_format) {
+  if (FLAGS_npu_storage_format &&
+      x_dims.size() == 4) {  // TODO(qili93): add 3D support
     AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, y);
   } else {
     dev_ctx.template Alloc<T>(y);

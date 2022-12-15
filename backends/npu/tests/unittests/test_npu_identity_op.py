@@ -35,7 +35,7 @@ class TestNPUIdentityOp(unittest.TestCase):
         with paddle.static.program_guard(main_program, startup_program):
             x_data = paddle.static.data(shape=self.shape, name="data", dtype="float32")
             output = paddle.incubate._npu_identity(x=x_data, format=self.format)
-        exe = paddle.static.Executor()
+        exe = paddle.static.Executor(self.place)
         exe.run(startup_program)
         result = exe.run(main_program, feed={x_data.name: self.x}, fetch_list=[output])
 

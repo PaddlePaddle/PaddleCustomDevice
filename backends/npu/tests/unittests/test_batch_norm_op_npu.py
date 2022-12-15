@@ -742,7 +742,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         def compute(x, is_test, trainable_statistics, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
             with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
                     trainable_statistics=trainable_statistics,
@@ -769,7 +769,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
         def compute(x_np, is_test, trainable_statistics):
             with program_guard(Program(), Program()):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
                     trainable_statistics=trainable_statistics,
@@ -783,7 +783,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         def compute_npu_storage(x_np, is_test, trainable_statistics):
             set_flags({"FLAGS_npu_storage_format": True})
             with program_guard(Program(), Program()):
-                bn = fluid.dygraph.BatchNorm(
+                bn = paddle.nn.BatchNorm(
                     shape[1], is_test=is_test, trainable_statistics=trainable_statistics
                 )
                 x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
@@ -807,60 +807,60 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
 class TestBatchNormChannelLast(unittest.TestCase):
     def setUp(self):
-        self.original_dtyep = paddle.get_default_dtype()
-        paddle.set_default_dtype("float32")
-        self.places = [paddle.CPUPlace(), paddle.CustomPlace("npu", 0)]
-
-    def tearDown(self):
-        paddle.set_default_dtype(self.original_dtyep)
+        set_flags({"FLAGS_npu_storage_format": False})
 
     def test_1d(self):
-        for p in self.places:
-            with fluid.dygraph.guard(p):
-                x = paddle.randn([2, 6, 4])
-                net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
-                net2 = paddle.nn.BatchNorm1D(4)
-                net2.weight = net1.weight
-                net2.bias = net1.bias
-                y1 = net1(x)
-                channel_first_x = paddle.transpose(x, [0, 2, 1])
-                y2 = net2(channel_first_x)
-                y2 = paddle.transpose(y2, [0, 2, 1])
-                np.testing.assert_allclose(
-                    y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07
-                )
+        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x = paddle.randn([2, 6, 4])
+            net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
+            net2 = paddle.nn.BatchNorm1D(4)
+            net2.weight = net1.weight
+            net2.bias = net1.bias
+            y1 = net1(x)
+            channel_first_x = paddle.transpose(x, [0, 2, 1])
+            y2 = net2(channel_first_x)
+            y2 = paddle.transpose(y2, [0, 2, 1])
+            np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07)
 
     def test_2d(self):
-        for p in self.places:
-            with fluid.dygraph.guard(p):
-                x = paddle.randn([2, 6, 6, 4])
-                net1 = paddle.nn.BatchNorm2D(4, data_format="NHWC")
-                net2 = paddle.nn.BatchNorm2D(4)
-                net2.weight = net1.weight
-                net2.bias = net1.bias
-                y1 = net1(x)
-                channel_first_x = paddle.transpose(x, [0, 3, 1, 2])
-                y2 = net2(channel_first_x)
-                y2 = paddle.transpose(y2, [0, 2, 3, 1])
-                np.testing.assert_allclose(
-                    y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07
-                )
+        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x_np = np.random.randn(2, 6, 6, 4).astype("float32")
+            channel_first_x_np = np.transpose(x_np, (0, 3, 1, 2))
+            # net1 - NHWC
+            net1 = paddle.nn.BatchNorm2D(4, data_format="NHWC")
+            y1 = net1(paddle.to_tensor(x_np))
+            # net2 - NCHW
+            net2 = paddle.nn.BatchNorm2D(4, data_format="NCHW")
+            net2.weight = net1.weight
+            net2.bias = net1.bias
+            y2 = net2(paddle.to_tensor(channel_first_x_np))  # NCHW
+            # compare
+            np.testing.assert_allclose(
+                y1.numpy(),
+                np.transpose(y2.numpy(), (0, 2, 3, 1)),
+                rtol=1e-05,
+                atol=1e-07,
+            )
 
     def test_3d(self):
-        for p in self.places:
-            with fluid.dygraph.guard(p):
-                x = paddle.randn([2, 6, 6, 6, 4])
-                net1 = paddle.nn.BatchNorm3D(4, data_format="NDHWC")
-                net2 = paddle.nn.BatchNorm3D(4)
-                net2.weight = net1.weight
-                net2.bias = net1.bias
-                y1 = net1(x)
-                channel_first_x = paddle.transpose(x, [0, 4, 1, 2, 3])
-                y2 = net2(channel_first_x)
-                y2 = paddle.transpose(y2, [0, 2, 3, 4, 1])
-                np.testing.assert_allclose(
-                    y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07
-                )
+        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x_np = np.random.randn(2, 6, 6, 6, 4).astype("float32")
+            channel_first_x_np = np.transpose(x_np, (0, 4, 1, 2, 3))
+            # net1 - NDHWC
+            net1 = paddle.nn.BatchNorm3D(4, data_format="NDHWC")
+            y1 = net1(paddle.to_tensor(x_np))
+            # net2 - NCDHW
+            net2 = paddle.nn.BatchNorm3D(4)
+            net2.weight = net1.weight
+            net2.bias = net1.bias
+            y2 = net2(paddle.to_tensor(channel_first_x_np))
+            # compare
+            np.testing.assert_allclose(
+                y1.numpy(),
+                np.transpose(y2.numpy(), (0, 2, 3, 4, 1)),
+                rtol=1e-05,
+                atol=1e-07,
+            )
 
 
 if __name__ == "__main__":

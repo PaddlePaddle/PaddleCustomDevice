@@ -31,11 +31,12 @@ namespace custom_kernel {
 inline std::string DebugNPUTensor(const phi::DenseTensor& tensor) {
   std::stringstream ss;
   if (tensor.initialized()) {
-    ss << ": format: " << tensor.layout() << ", dims: [" << tensor.dims() << "]"
+    ss << ": dtype: " << tensor.dtype() << ", format: " << tensor.layout()
+       << ", dims: [" << tensor.dims() << "]"
        << ", capacity: <" << tensor.capacity() << ">, ";
   } else {
-    ss << ": format: " << tensor.layout() << ", dims: [" << tensor.dims()
-       << "]";
+    ss << ": dtype: " << tensor.dtype() << ", format: " << tensor.layout()
+       << ", dims: [" << tensor.dims() << "]";
   }
 
   if (!tensor.storage_properties_initialized()) {

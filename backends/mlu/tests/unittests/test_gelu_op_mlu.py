@@ -32,16 +32,16 @@ class TestGelu(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "gelu"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
         out = np_gelu(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
@@ -53,24 +53,23 @@ class TestGelu(OpTest):
         self.check_output_with_place(self.place, atol=1e-3)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], 'Out', max_relative_error=0.007)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.007)
 
 
 class TestGeluFp16(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "gelu"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
         x = np.random.uniform(1, 2, [3, 4]).astype(self.dtype)
         out = np_gelu(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
@@ -91,29 +90,30 @@ class TestGeluNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             c = paddle.multiply(a, b)
 
             fc_1 = fluid.layers.fc(input=c, size=128)
             fc_1_gelu = fluid.layers.gelu(fc_1)
-            prediction = fluid.layers.fc(input=fc_1_gelu, size=2, act='softmax')
+            prediction = fluid.layers.fc(input=fc_1_gelu, size=2, act="softmax")
 
-            cost = fluid.layers.cross_entropy(input=prediction, label=label)
+            cost = paddle.nn.functional.cross_entropy(
+                input=prediction, label=label, reduction="none", use_softmax=False
+            )
             loss = fluid.layers.reduce_mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("CustomMLU", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -125,13 +125,15 @@ class TestGeluNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss], )
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -143,5 +145,5 @@ class TestGeluNet(unittest.TestCase):
         np.testing.assert_allclose(mlu_loss, cpu_loss, atol=1e-3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

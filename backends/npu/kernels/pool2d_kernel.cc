@@ -127,6 +127,7 @@ void Pool2dKernel(const Context& dev_ctx,
                 data_dims,
                 strides,
                 ksize);
+
   PADDLE_ENFORCE_LT(
       std::max(paddings[0], paddings[1]),
       ksize[0],
@@ -195,6 +196,47 @@ void Pool2dKernel(const Context& dev_ctx,
           phi::errors::InvalidArgument(
               "MaxPool only support exclusive=false, but got true"));
       pooling_mode = "MaxPoolV3";
+    }
+
+    if (strides_vec[2] >= 64) {
+      NPUAttributeMap attrs = {{"ksize", ksize_vec},
+                               {"strides", strides_vec},
+                               {"padding_mode", std::string("CALCULATED")},
+                               {"pads", paddings},
+                               {"data_format", data_format},
+                               {"global_pooling", global_pooling},
+                               {"ceil_mode", ceil_mode},
+                               {"exclusive", exclusive}};
+      phi::DenseTensor out_tensor_tmp;
+      out_tensor_tmp.Resize(phi::make_dim(
+          in_x_dims[0], in_x_dims[1], in_x_dims[2] / 2, in_x_dims[3] / 2));
+      dev_ctx.template Alloc<T>(&out_tensor_tmp);
+      if (channel_last) {
+        attrs["strides"] = std::vector<int32_t>({1, 2, 2, 1});
+        strides_vec[1] /= 2;
+        strides_vec[2] /= 2;
+      } else {
+        attrs["strides"] = std::vector<int32_t>({1, 1, 2, 2});
+        strides_vec[2] /= 2;
+        strides_vec[3] /= 2;
+      }
+      attrs["ksize"] = std::vector<int32_t>({1, 1, 1, 1});
+      NpuOpRunner runner0;
+      runner0.SetType(pooling_mode);
+      runner0.AddInput(in_x_tensor);
+      runner0.AddOutput(out_tensor_tmp);
+      runner0.AddAttrs(attrs);
+      runner0.Run(dev_ctx.stream());
+      // twice
+      attrs["ksize"] = ksize_vec;
+      attrs["strides"] = strides_vec;
+      NpuOpRunner runner1;
+      runner1.SetType(pooling_mode);
+      runner1.AddInput(out_tensor_tmp);
+      runner1.AddOutput(out_tensor);
+      runner1.AddAttrs(attrs);
+      runner1.Run(dev_ctx.stream());
+      return;
     }
 
     const auto& runner =
@@ -301,33 +343,55 @@ void Pool2dGradKernel(const Context& dev_ctx,
           std::max(paddings[2], paddings[3])));
 
   if (adaptive || (global_pooling && pooling_type == "max")) {
-    PADDLE_ENFORCE_EQ(data_dims[0] % out_data_dims[0],
-                      0,
-                      phi::errors::InvalidArgument(
-                          "When adaptive = True, H and W must be divisible, "
-                          "but input dims is %s, output dims is %s",
-                          data_dims,
-                          out_data_dims));
-    PADDLE_ENFORCE_EQ(data_dims[1] % out_data_dims[1],
-                      0,
-                      phi::errors::InvalidArgument(
-                          "When adaptive = True, H and W must be divisible, "
-                          "but input dims is %s, output dims is %s",
-                          data_dims,
-                          out_data_dims));
+    // PADDLE_ENFORCE_EQ(data_dims[0] % out_data_dims[0],
+    //                   0,
+    //                   phi::errors::InvalidArgument(
+    //                       "When adaptive = True, H and W must be divisible, "
+    //                       "but input dims is %s, output dims is %s",
+    //                       data_dims,
+    //                       out_data_dims));
+    // PADDLE_ENFORCE_EQ(data_dims[1] % out_data_dims[1],
+    //                   0,
+    //                   phi::errors::InvalidArgument(
+    //                       "When adaptive = True, H and W must be divisible, "
+    //                       "but input dims is %s, output dims is %s",
+    //                       data_dims,
+    //                       out_data_dims));
+    // if (channel_last) {
+    //   strides_vec[1] = data_dims[0] / out_data_dims[0];
+    //   strides_vec[2] = data_dims[1] / out_data_dims[1];
+    //   ksize_vec[1] = strides_vec[1];
+    //   ksize_vec[2] = strides_vec[2];
+    // } else {
+    //   strides_vec[2] = data_dims[0] / out_data_dims[0];
+    //   strides_vec[3] = data_dims[1] / out_data_dims[1];
+    //   ksize_vec[2] = strides_vec[2];
+    //   ksize_vec[3] = strides_vec[3];
+    // }
     if (channel_last) {
-      strides_vec[1] = data_dims[0] / out_data_dims[0];
-      strides_vec[2] = data_dims[1] / out_data_dims[1];
-      ksize_vec[1] = strides_vec[1];
-      ksize_vec[2] = strides_vec[2];
+      strides_vec[1] = std::floor(data_dims[0] / out_data_dims[0]);
+      strides_vec[2] = std::floor(data_dims[1] / out_data_dims[1]);
+      ksize_vec[1] = data_dims[0] - ((out_data_dims[0] - 1) * strides_vec[1]);
+      ksize_vec[2] = data_dims[1] - ((out_data_dims[1] - 1) * strides_vec[2]);
     } else {
-      strides_vec[2] = data_dims[0] / out_data_dims[0];
-      strides_vec[3] = data_dims[1] / out_data_dims[1];
-      ksize_vec[2] = strides_vec[2];
-      ksize_vec[3] = strides_vec[3];
+      strides_vec[2] = std::floor(data_dims[0] / out_data_dims[0]);
+      strides_vec[3] = std::floor(data_dims[1] / out_data_dims[1]);
+      ksize_vec[2] = data_dims[0] - ((out_data_dims[0] - 1) * strides_vec[2]);
+      ksize_vec[3] = data_dims[1] - ((out_data_dims[1] - 1) * strides_vec[3]);
+    }
+    for (auto& pad : paddings) {
+      pad = 0;
     }
   }
-
+  for (auto strides : strides_vec) {
+    std::cout << "[DEBUG] strides value: " << strides << std::endl;
+  }
+  for (auto ksize : ksize_vec) {
+    std::cout << "[DEBUG] ksize value: " << ksize << std::endl;
+  }
+  for (auto out_data_dim : phi::vectorize<int>(out_data_dims)) {
+    std::cout << "[DEBUG] out_data_dims value: " << out_data_dim << std::endl;
+  }
   NPUAttributeMap attrs = {{"ksize", ksize_vec},
                            {"strides", strides_vec},
                            {"padding_mode", std::string("CALCULATED")},
@@ -363,6 +427,63 @@ void Pool2dGradKernel(const Context& dev_ctx,
                        "strides = (%d, %d)",
                        strides[0],
                        strides[1]));
+    if (strides_vec[2] >= 64) {
+      phi::DenseTensor in_x_grad_tensor_tmp;
+      auto in_x_grad_tensor_dims = in_x_grad_tensor.dims();
+      std::cout << "[DEBUG] in_x_grad_tensor_dims value: "
+                << in_x_grad_tensor_dims.to_str() << std::endl;
+      std::cout << "[DEBUG] out_grad_tensor_dims value: "
+                << out_grad_tensor.dims().to_str() << std::endl;
+      std::cout << "[DEBUG] in_x_dims value: " << in_x_dims.to_str()
+                << std::endl;
+      in_x_grad_tensor_tmp.Resize(phi::make_dim(in_x_grad_tensor_dims[0],
+                                                in_x_grad_tensor_dims[1],
+                                                in_x_grad_tensor_dims[2] / 2,
+                                                in_x_grad_tensor_dims[3] / 2));
+      dev_ctx.template Alloc<T>(&in_x_grad_tensor_tmp);
+      std::cout << "[DEBUG] 222222222222 " << std::endl;
+      if (channel_last) {
+        strides_vec[1] /= 4;
+        strides_vec[2] /= 4;
+      } else {
+        strides_vec[2] /= 4;
+        strides_vec[3] /= 4;
+      }
+      attrs["strides"] = strides_vec;
+      // attrs["strides"] = std::vector<int32_t>({1,1,2,2});
+      // attrs["ksize"] = std::vector<int32_t>({1,1,1,1});
+      std::cout << "[DEBUG] 33333333333 " << std::endl;
+      NpuOpRunner runner0;
+      runner0.SetType("AvgPoolV2Grad");
+      runner0.AddInput(dev_ctx,
+                       phi::vectorize<int>(in_x_grad_tensor_tmp.dims()));
+      runner0.AddInput(out_grad_tensor);
+      runner0.AddOutput(in_x_grad_tensor_tmp);
+      runner0.AddAttrs(attrs);
+      runner0.Run(dev_ctx.stream());
+      std::cout << "[DEBUG] 4444444444 " << std::endl;
+      // twice
+      for (auto strides : strides_vec) {
+        std::cout << "[DEBUG] strides value: " << strides << std::endl;
+      }
+      for (auto ksize : ksize_vec) {
+        std::cout << "[DEBUG] ksize value: " << ksize << std::endl;
+      }
+      if (channel_last) {
+        attrs["strides"] = std::vector<int32_t>({1, 2, 2, 1});
+      } else {
+        attrs["strides"] = std::vector<int32_t>({1, 1, 2, 2});
+      }
+      attrs["ksize"] = std::vector<int32_t>({1, 1, 1, 1});
+      NpuOpRunner runner1;
+      runner1.SetType("AvgPoolV2Grad");
+      runner1.AddInput(dev_ctx, phi::vectorize<int>(in_x_dims));
+      runner1.AddInput(in_x_grad_tensor_tmp);
+      runner1.AddOutput(in_x_grad_tensor);
+      runner1.AddAttrs(attrs);
+      runner1.Run(dev_ctx.stream());
+      return;
+    }
 
     NpuOpRunner runner;
     runner.SetType("AvgPoolV2Grad");

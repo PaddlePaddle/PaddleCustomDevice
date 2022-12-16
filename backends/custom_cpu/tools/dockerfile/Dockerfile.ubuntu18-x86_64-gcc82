@@ -57,7 +57,7 @@ RUN echo "source /opt/py37env/bin/activate" >> /root/.bashrc
 RUN pip install --upgrade pip setuptools wheel
 
 # install pylint and pre-commit
-RUN pip install pre-commit pylint pytest astroid isort coverage qtconsole gitpython
+RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole gitpython
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
 RUN pip install PyGithub distro
 

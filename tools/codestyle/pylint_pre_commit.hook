@@ -14,10 +14,13 @@ if ! [[ $version == *"$VERSION"* ]]; then
 fi
 
 # The trick to remove deleted files: https://stackoverflow.com/a/2413151
-for file in $(git diff --name-status | awk '$2 != "Paddle"' | awk '$1 != "D" {print $2}'); do
-    pylint --disable=all --load-plugins=docstring_checker \
-    --enable=doc-string-one-line,doc-string-end-with,doc-string-with-all-args,doc-string-triple-quotes,doc-string-missing,doc-string-indent-error,doc-string-with-returns,doc-string-with-raises $file;
-    TOTAL_ERRORS=$(expr $TOTAL_ERRORS + $?);
+for file in $(git diff --name-status | awk '$1 != "D" {print $2}'); do
+    # skip submodule of Paddle check
+    if ! [[ $file == "Paddle" ]]; then
+        pylint --disable=all --load-plugins=docstring_checker \
+        --enable=doc-string-one-line,doc-string-end-with,doc-string-with-all-args,doc-string-triple-quotes,doc-string-missing,doc-string-indent-error,doc-string-with-returns,doc-string-with-raises $file;
+        TOTAL_ERRORS=$(expr $TOTAL_ERRORS + $?);
+    fi
 done
 
 exit $TOTAL_ERRORS

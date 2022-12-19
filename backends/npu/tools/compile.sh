@@ -18,6 +18,9 @@ set -ex
 
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
+# uninstall wheel
+pip uninstall paddle-custom-npu -y
+
 # prepare build directory
 mkdir -p ${SOURCE_ROOT}/build
 cd ${SOURCE_ROOT}/build
@@ -68,3 +71,6 @@ if [ "$make_error" != 0 ];then
     echo "Make Error Found !!!"
     exit 7;
 fi
+
+# re-install wheel
+pip install dist/*.whl

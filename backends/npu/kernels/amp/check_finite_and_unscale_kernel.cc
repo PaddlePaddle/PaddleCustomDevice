@@ -44,8 +44,8 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
-  bool found_inf_cpu = NpuOpRunner::GetFloatStatus(stream);
-  FillNpuTensorWithConstant<bool>(found_inf, dev_ctx, found_inf_cpu);
+  // bool found_inf_cpu = NpuOpRunner::GetFloatStatus(stream);
+  // FillNpuTensorWithConstant<bool>(found_inf, dev_ctx, found_inf_cpu);
 
   // NOTE(zhiqiu): The normal logic is :
   // out = in, if found_inf = true

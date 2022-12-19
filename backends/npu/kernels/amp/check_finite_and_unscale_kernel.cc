@@ -63,7 +63,9 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
     runner_mul.Run(stream);
   }
 
-  NpuOpRunner::ClearFloatStatus(stream);
+  if (found_inf_cpu) {
+    NpuOpRunner::ClearFloatStatus(stream);
+  }
 }
 
 }  // namespace custom_kernel

@@ -16,6 +16,9 @@
 
 set -ex
 
+# uninstall plugin wheel
+pip uninstall paddle-custom-npu -y
+
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
 # prepare build directory
@@ -68,3 +71,6 @@ if [ "$make_error" != 0 ];then
     echo "Make Error Found !!!"
     exit 7;
 fi
+
+# re-install plugin wheel
+pip install dist/*.whl

@@ -25,6 +25,53 @@ static aclTensorDesc *float_status_desc_ = NULL;
 
 ENV_uint64(ascend_check_nan_inf, 0);
 ENV_uint64(ascend_blocking_npu_runner, 0);
+// NPU operator precision mode, options are 'force_fp32', 'force_fp16',
+// 'allow_fp32_to_fp16', 'must_keep_origin_dtype' and
+// 'allow_mix_precision'. If you want to use the default mode (
+// allow_fp32_to_fp16), set this to empty string. For more details,
+// please refer to the documents
+ENV_string(npu_precision_mode, "");
+
+static std::map<paddle::experimental::DataType, aclDataType>  //
+    DTYPE_2_ACL_DTYPE = {
+        {paddle::experimental::DataType::BOOL, ACL_BOOL},
+        {paddle::experimental::DataType::UINT8, ACL_UINT8},
+        {paddle::experimental::DataType::INT8, ACL_INT8},
+        {paddle::experimental::DataType::INT16, ACL_INT16},
+        {paddle::experimental::DataType::INT32, ACL_INT32},
+        {paddle::experimental::DataType::INT64, ACL_INT64},
+        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
+        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
+        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
+};
+
+static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
+    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
+    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
+    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
+    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
+    {phi::DataLayout::ANY, ACL_FORMAT_ND},
+};
+
+aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
+  auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
+  PADDLE_ENFORCE_NE(
+      iter,
+      DTYPE_2_ACL_DTYPE.end(),
+      phi::errors::NotFound(
+          "The data type %s can not convert to ACL data type.", dtype));
+  return iter->second;
+}
+
+aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
+  auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
+  PADDLE_ENFORCE_NE(
+      iter,
+      DATA_LAYOUT_2_ACL_FORMAT.end(),
+      phi::errors::NotFound(
+          "The data type (%s) can not convert to ACL data type.", layout));
+  return iter->second;
+}
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -607,6 +654,11 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   VLOG(4) << "output_desc.size: " << output_descs_.size();
   VLOG(4) << "attr: " << attr_;
   VLOG(4) << "stream: " << stream;
+  if (!FLAGS_npu_precision_mode.empty()) {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetCompileopt(ACL_PRECISION_MODE, FLAGS_npu_precision_mode.c_str()));
+    VLOG(4) << "set ACL_PRECISION_MODE: " << FLAGS_npu_precision_mode;
+  }
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

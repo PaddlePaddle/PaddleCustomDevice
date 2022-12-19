@@ -44,6 +44,10 @@ set_tests_properties(test_elementwise_pow_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_elementwise_min_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_dropout_op_npu
+                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_increment_op_npu
+                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_gelu_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_leaky_relu_op_npu

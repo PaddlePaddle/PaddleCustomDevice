@@ -225,7 +225,7 @@ class TestDropoutOpFp16(TestDropoutOp):
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
-        self.places = [fluid.CPUPlace(), paddle.CustomPlace("npu", 2)]
+        self.places = [fluid.CPUPlace(), paddle.CustomPlace("npu", 0)]
 
     def check_static_result(self, place):
         with fluid.program_guard(fluid.Program(), fluid.Program()):

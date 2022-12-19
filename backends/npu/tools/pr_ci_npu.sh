@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
@@ -20,11 +20,16 @@
 
 set -ex
 
+CODE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
+export CODE_ROOT
+
+# For paddle easy debugging
+export FLAGS_call_stack_level=2
+
 failed_test_lists=''
 tmp_dir=`mktemp -d`
 
 function collect_failed_tests() {
-    set +x
     for file in `ls $tmp_dir`; do
         exit_code=0
         grep -q 'The following tests FAILED:' $tmp_dir/$file||exit_code=$?
@@ -36,29 +41,9 @@ function collect_failed_tests() {
             ${failuretest}"
         fi
     done
-    set -x
-}
-
-function print_usage() {
-    echo -e "\nUsage:
-    ./paddle_ci.sh [OPTION]"
-
-    echo -e "\nOptions:
-    custom_npu: run custom_npu tests
-    custom_cpu: run custom_cpu tests
-    "
-}
-
-function init() {
-    REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
-    export REPO_ROOT
-
-    # For paddle easy debugging
-    export FLAGS_call_stack_level=2
 }
 
 function show_ut_retry_result() {
-set +x
     SYSTEM=`uname -s`
     if [[ "$is_retry_execuate" != "0" ]]  && [[ "${exec_times}" == "0" ]] ;then
         failed_test_lists_ult=`echo "${failed_test_lists}" | grep -Po '[^ ].*$'`
@@ -96,31 +81,37 @@ set +x
             exit 8;
         fi
     fi
-set -ex
 }
 
-function custom_npu_test() {
-    # install paddlepaddle daily build cpu version
-    pip install hypothesis
-    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
-    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
+function main() {
+    # skip paddlepaddle cpu install as npu docker image already have cpu whl package installed
 
     # custom_npu build and install
-    cd ${REPO_ROOT}/backends/npu/
+    cd ${CODE_ROOT}
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
-    cd ${REPO_ROOT}/backends/npu/build
+    cd ${CODE_ROOT}/build
     pip install dist/*.whl
+
+    # read disable ut list
+    IFS=$'\n'
+    disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+    disable_ut_list=''
+    while read -r line; do
+        disable_ut_list+="^"${line}"$|"
+    done <<< "$disable_ut_npu";
+    disable_ut_list+="^disable_ut_npu$"
+    echo "disable_ut_list=${disable_ut_list}"
 
     # run ut
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-    ctest --output-on-failure | tee $tmpfile;
+    ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
     collect_failed_tests
-    set +x
+
     # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0
@@ -131,12 +122,12 @@ function custom_npu_test() {
     exec_retry_threshold=30
     is_retry_execuate=0
     rerun_ut_startTime_s=`date +%s`
-    set +x
+
     if [ -n "$failed_test_lists" ];then
-        need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
         need_retry_ut_arr=(${need_retry_ut_str})
         need_retry_ut_count=${#need_retry_ut_arr[@]}
-        retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+        retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
         while ( [ $exec_times -lt $retry_time ] )
             do
                 if [[ "${exec_times}" == "0" ]] ;then
@@ -146,7 +137,7 @@ function custom_npu_test() {
                         is_retry_execuate=1
                     fi
                 elif [[ "${exec_times}" == "1" ]] ;then
-                    need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                    need_retry_ut_str=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
                     need_retry_ut_arr=(${need_retry_ut_str})
                     need_retry_ut_count=${#need_retry_ut_arr[@]} 
                     if [ $need_retry_ut_count -lt $exec_retry_threshold ];then
@@ -164,7 +155,7 @@ function custom_npu_test() {
                         if [[ "${failed_test_lists}" == "" ]];then
                             break
                         else
-                            retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/(.\+)//' | sed 's/- //' )
+                            retry_unittests=$(echo "$failed_test_lists" | grep -oEi "\-.+\(.+\)" | sed 's/\s(.\+)//' | sed 's/- //' )
                         fi
                     fi
                     echo "========================================="
@@ -202,55 +193,6 @@ function custom_npu_test() {
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
     fi
-    set -ex
-}
-
-function custom_cpu_test() {
-    # paddle install
-    pip install hypothesis
-    wget -q https://paddle-wheel.bj.bcebos.com/develop/linux/linux-cpu-mkl-avx/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
-    pip install -U paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle*whl
-
-    # custom_cpu build and install
-    cd ${REPO_ROOT}/backends/custom_cpu
-    mkdir build && cd build
-    cmake .. -DWITH_TESTING=ON
-    if [[ "$?" != "0" ]];then
-        exit 7;
-    fi
-    make -j8
-    if [[ "$?" != "0" ]];then
-        exit 7;
-    fi
-    pip install dist/*.whl
-
-    # run ut
-    ut_total_startTime_s=`date +%s`
-    ctest --output-on-failure
-    EXIT_CODE=$?
-    ut_total_endTime_s=`date +%s`
-    echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"
-    if [[ "$EXIT_CODE" != "0" ]];then
-        exit 8;
-    fi
-}
-
-function main() {
-    local CMD=$1 
-    init
-    case $CMD in
-      custom_npu)
-        custom_npu_test
-        ;;
-      custom_cpu)
-        custom_cpu_test
-        ;;
-      *)
-        print_usage
-        exit 1
-        ;;
-    esac
-    echo "paddle_ci script finished as expected"
 }
 
 main $@

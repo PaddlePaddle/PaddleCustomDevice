@@ -16,12 +16,85 @@
 
 #include <cstring>
 #include <iostream>
+#include <list>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "glog/logging.h"
+
+thread_local int g_current_device_id(-1);
+
+aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  return aicpu_streams[aicore_stream];
+}
+
+void SecondaryStream::Create(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) == aicpu_streams.cend());
+  aclrtStream aicpu_stream;
+  ACL_CHECK(aclrtCreateStream(&aicpu_stream));
+  aicpu_streams[aicore_stream] = aicpu_stream;
+}
+
+void SecondaryStream::Destroy(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  ACL_CHECK(aclrtDestroyStream(aicpu_streams[aicore_stream]));
+  aicpu_streams.erase(aicore_stream);
+}
+
+void SecondaryStream::RecordBefore(aclrtStream aicore_stream) {
+  static std::list<aclrtEvent> events;
+
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  auto aicpu_stream = aicpu_streams[aicore_stream];
+
+  for (auto iter = events.begin(); iter != events.end();) {
+    auto event = *iter;
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+      iter = events.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+  {
+    aclrtEvent event;
+    ACL_CHECK(aclrtCreateEvent(&event));
+    ACL_CHECK(aclrtRecordEvent(event, aicpu_stream));
+    ACL_CHECK(aclrtStreamWaitEvent(aicore_stream, event));
+    events.push_back(event);
+  }
+}
+
+void SecondaryStream::RecordAfter(aclrtStream aicore_stream) {
+  static std::list<aclrtEvent> events;
+
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  auto aicpu_stream = aicpu_streams[aicore_stream];
+
+  for (auto iter = events.begin(); iter != events.end();) {
+    auto event = *iter;
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+      iter = events.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+  {
+    aclrtEvent event;
+    ACL_CHECK(aclrtCreateEvent(&event));
+    ACL_CHECK(aclrtRecordEvent(event, aicore_stream));
+    ACL_CHECK(aclrtStreamWaitEvent(aicpu_stream, event));
+    events.push_back(event);
+  }
+}
 
 class AlignnedAllocator {
  public:
@@ -59,10 +132,9 @@ class AlignnedAllocator {
     for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
       aclrtEvent event = it->second.second;
       if (!event) continue;
-      aclrtEventStatus status = ACL_EVENT_STATUS_COMPLETE;
-      ACL_CHECK(aclrtQueryEvent(event, &status));
-
-      if (status == ACL_EVENT_STATUS_COMPLETE) {
+      aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+      ACL_CHECK(aclrtQueryEventStatus(event, &status));
+      if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
         ACL_CHECK(aclrtFreeHost(ptr));
         recorded_events_.erase(it++);
@@ -130,7 +202,10 @@ C_Status InitDevice(const C_Device device) {
 }
 
 C_Status SetDevice(const C_Device device) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  if (g_current_device_id != device->id) {
+    ACL_CHECK(aclrtSetDevice(device->id));
+    g_current_device_id = device->id;
+  }
   return C_SUCCESS;
 }
 
@@ -239,7 +314,7 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   void *data;
   aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
   if (data) {
@@ -252,7 +327,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
   void *data = nullptr;
   ACL_CHECK(aclrtMallocHost(&data, size));
   if (data) {
@@ -265,7 +339,7 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
   return C_SUCCESS;
 }
@@ -277,11 +351,13 @@ C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
   ACL_CHECK(aclrtCreateStream(reinterpret_cast<aclrtStream *>(stream)));
+  SecondaryStream::Instance().Create(*reinterpret_cast<aclrtStream *>(stream));
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
   ACL_CHECK(aclrtDestroyStream(reinterpret_cast<aclrtStream>(stream)));
+  SecondaryStream::Instance().Destroy(reinterpret_cast<aclrtStream>(stream));
   return C_SUCCESS;
 }
 

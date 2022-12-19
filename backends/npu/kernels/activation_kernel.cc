@@ -106,8 +106,8 @@ void ExpGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -117,14 +117,14 @@ void FloorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FloorGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
+  const auto& runner =
+      NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
   runner.Run(stream);
 }
-
 
 template <typename T, typename Context>
 void SinKernel(const Context& dev_ctx,
@@ -140,9 +140,9 @@ void SinKernel(const Context& dev_ctx,
 // Swish = x * sigmoid(beta * x)
 template <typename T, typename Context>
 void SwishRawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float beta,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    float beta,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -234,9 +234,9 @@ void ReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float attr,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    float attr,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
 
@@ -370,6 +370,45 @@ void SigmoidGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float scale,
+                float alpha,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  runner.SetType("Selu")
+      .AddInput(x)
+      .AddOutput(*out)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    float scale,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  // NOTE(songkai05): SeluGrad do not support double dtype
+  runner.SetType("SeluGrad")
+      .AddInput(dout)
+      .AddInput(out)
+      .AddOutput(*dx)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void SqrtKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DenseTensor* out) {
@@ -485,14 +524,25 @@ void PowGradKernel(const Context& dev_ctx,
   // 2.2 Get the factor which has the shape with x and the same value with
   // factor.
   phi::DenseTensor factor_bc_tensor;
-  phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
-  factor_bc_tensor.set_meta(factor_bc_tensor_meta);
-  dev_ctx.template Alloc<T>(&factor_bc_tensor);
-  const auto& runner_bc = NpuOpRunner("FillD",
-                                      {factor_tensor},
-                                      {factor_bc_tensor},
-                                      {{"dims", phi::vectorize(x_dims)}});
-  runner_bc.Run(stream);
+  if (x_dims.size() > 0) {
+    phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
+    factor_bc_tensor.set_meta(factor_bc_tensor_meta);
+    dev_ctx.template Alloc<T>(&factor_bc_tensor);
+    if (factor_bc_tensor.numel() > 1) {
+      const auto& runner_bc = NpuOpRunner("FillD",
+                                          {factor_tensor},
+                                          {factor_bc_tensor},
+                                          {{"dims", phi::vectorize(x_dims)}});
+      runner_bc.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &factor_bc_tensor, dev_ctx, static_cast<T>(factor));
+    }
+  } else {
+    factor_bc_tensor = factor_tensor;
+    factor_bc_tensor.Resize(x_dims);
+  }
 
   // Step 3: Compute x_power_mul_factor = factor * x.pow(factor-1)
   phi::DenseTensor x_power_mul_factor;
@@ -579,11 +629,11 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     float threshold,
-                     float scale,
-                     float offset,
-                     phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        float threshold,
+                        float scale,
+                        float offset,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -627,13 +677,25 @@ void HardSwishRawKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_scale_tmp, dev_ctx, static_cast<T>(scale));
   phi::DenseTensor tensor_scale;
-  tensor_scale.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_scale);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_scale_tmp},
-                                        {tensor_scale},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_scale.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_scale);
+    if (tensor_scale.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_scale_tmp},
+                      {tensor_scale},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_scale, dev_ctx, static_cast<T>(scale));
+    }
+  } else {
+    tensor_scale = tensor_scale_tmp;
+    tensor_scale.Resize(x.dims());
+  }
 
   phi::DenseTensor div_val;
   div_val.set_meta(meta_x);
@@ -650,7 +712,7 @@ template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DenseTensor* out) {
-custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
+  custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>
@@ -708,13 +770,25 @@ void HardSwishGradKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_threshold_tmp, dev_ctx, static_cast<T>(threshold));
   phi::DenseTensor tensor_threshold;
-  tensor_threshold.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_threshold);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_threshold_tmp},
-                                        {tensor_threshold},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_threshold.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_threshold);
+    if (tensor_threshold.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_threshold_tmp},
+                      {tensor_threshold},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_threshold, dev_ctx, static_cast<T>(threshold));
+    }
+  } else {
+    tensor_threshold = tensor_threshold_tmp;
+    tensor_threshold.Resize(x.dims());
+  }
 
   phi::DenseTensor tmp_bool;
   phi::DenseTensorMeta meta_tmp = {phi::DataType::BOOL, x.dims()};
@@ -1020,21 +1094,21 @@ PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish,
+PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_raw,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_raw,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
@@ -1055,4 +1129,18 @@ PD_REGISTER_PLUGIN_KERNEL(reciprocal_grad,
                           custom_kernel::ReciprocalGradKernel,
                           float,
                           double,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluGradKernel,
+                          float,
                           phi::dtype::float16) {}

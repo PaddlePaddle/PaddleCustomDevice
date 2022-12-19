@@ -19,7 +19,7 @@ docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann600-$(uname -m)-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -38,9 +38,11 @@ git submodule update --remote --init --recursive
 # 1) 进入硬件后端(昇腾NPU)目录
 cd backends/npu
 
-# 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
-# 注意：如果是 aarch64 环境，需要源码编译得到 Paddle CPU 的 WHL 安装包
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+# 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
+# 默认 NPU 开发镜像中已经装有飞桨 CPU 安装包 (飞桨 develop 分支的 nightly build 版本)
+# 也可以通过如下地址下载得到 PaddlePaddle develop 分支的 nightly build 版本的安装包
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -112,10 +114,10 @@ cd backends/npu
 export ON_INFER=ON # 是否打开推理库编译，默认为 OFF
 export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_dir
 
-# 4) 执行编译脚本
+# 3) 执行编译脚本
 bash tools/compile.sh
 
-# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
+# 4) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
 export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
 ```
 
@@ -161,3 +163,21 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 # I0525 11:07:28.354880 40116 resnet50_test.cc:113] 800 : 3.85244e-25
 # I0525 11:07:28.354895 40116 resnet50_test.cc:113] 900 : 8.76171e-29
 ```
+
+### 环境变量
+
+**FLAGS_ascend_blocking_npu_runner**
+
+> 同步执行 kernel
+
+**FLAGS_ascend_profiling_dir**
+
+> 设置 Profiling 数据保存目录
+
+**FLAGS_ascend_profiling_data_type**
+
+> 指定需要采集的 Profiling 数据类型
+
+**FLAGS_ascend_profiling_metrics**
+
+> AI Core 性能指标采集项

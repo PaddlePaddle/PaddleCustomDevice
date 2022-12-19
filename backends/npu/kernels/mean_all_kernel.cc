@@ -21,12 +21,31 @@ template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
-  std::vector<int> axes;
-  NPUAttributeMap attr_input = {{"keep_dims", false}, {"axes", axes}};
+  auto rank = x.dims().size();
+  auto out_dims = out->dims();
   dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner("ReduceMeanD", {x}, {*out}, attr_input);
+  if (rank == 0) {  // scalar
+    TensorCopy(dev_ctx, x, false, out);
+    out->Resize(out_dims);  // copy will reset the dims.
+    return;
+  }
+
   auto stream = dev_ctx.stream();
-  runner.Run(stream);
+
+  std::vector<int64_t> reduce_dims;
+  reduce_dims.reserve(rank);
+  for (decltype(rank) i = 0; i < rank; ++i) {
+    reduce_dims.push_back(i);
+  }
+
+  NpuOpRunner runner;
+  runner.SetType("ReduceMean")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(reduce_dims))
+      .AddOutput(*out)
+      .AddAttr("keep_dims", false)
+      .AddAttr("noop_with_empty_axes", true)
+      .Run(stream);
 }
 
 template <typename T, typename Context>

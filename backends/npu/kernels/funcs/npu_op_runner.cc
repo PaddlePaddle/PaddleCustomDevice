@@ -14,59 +14,17 @@
 
 #include "kernels/funcs/npu_op_runner.h"
 
-#include <map>
-
 #include "acl/acl_op_compiler.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "pybind11/pybind11.h"
 #include "runtime/runtime.h"
 
-static aclDataBuffer *float_status_buffer_;
-static aclTensorDesc *float_status_desc_;
+static aclDataBuffer *float_status_buffer_ = NULL;
+static aclTensorDesc *float_status_desc_ = NULL;
 
 ENV_uint64(ascend_check_nan_inf, 0);
-
-static std::map<paddle::experimental::DataType, aclDataType>  //
-    DTYPE_2_ACL_DTYPE = {
-        {paddle::experimental::DataType::BOOL, ACL_BOOL},
-        {paddle::experimental::DataType::UINT8, ACL_UINT8},
-        {paddle::experimental::DataType::INT8, ACL_INT8},
-        {paddle::experimental::DataType::INT16, ACL_INT16},
-        {paddle::experimental::DataType::INT32, ACL_INT32},
-        {paddle::experimental::DataType::INT64, ACL_INT64},
-        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
-        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
-        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
-};
-
-static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
-    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
-    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
-    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
-    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
-    {phi::DataLayout::ANY, ACL_FORMAT_ND},
-};
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
-  auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DTYPE_2_ACL_DTYPE.end(),
-      phi::errors::NotFound(
-          "The data type %s can not convert to ACL data type.", dtype));
-  return iter->second;
-}
-
-aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
-  auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DATA_LAYOUT_2_ACL_FORMAT.end(),
-      phi::errors::NotFound(
-          "The data type (%s) can not convert to ACL data type.", layout));
-  return iter->second;
-}
+ENV_uint64(ascend_blocking_npu_runner, 0);
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -225,8 +183,9 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
 }
 
 template <typename T>
-void NpuOpRunner::AddConstantInputHelper(const phi::CustomContext &dev_ctx,
-                                         const std::vector<T> &values) {
+NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
+                                   const std::vector<T> &&values,
+                                   const bool is_const) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
@@ -237,39 +196,25 @@ void NpuOpRunner::AddConstantInputHelper(const phi::CustomContext &dev_ctx,
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
   // set tensor const
-  PADDLE_ENFORCE_NPU_SUCCESS(
-      aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int32_t> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
+  if (is_const) {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
+  }
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int64_t> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<float> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<double> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<bool> &&values) {
-  AddConstantInputHelper(dev_ctx, values);
-  return *this;
-}
+#define ADD_INPUT_IMPL_GET_DTYPE(cpp_type)               \
+  template NpuOpRunner &NpuOpRunner::AddInput<cpp_type>( \
+      const phi::CustomContext &dev_ctx,                 \
+      const std::vector<cpp_type> &&values,              \
+      const bool is_const);
+ADD_INPUT_IMPL_GET_DTYPE(bool);
+ADD_INPUT_IMPL_GET_DTYPE(int32_t);
+ADD_INPUT_IMPL_GET_DTYPE(int64_t);
+ADD_INPUT_IMPL_GET_DTYPE(float);
+ADD_INPUT_IMPL_GET_DTYPE(double);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::float16);
+#undef ADD_INPUT_IMPL_GET_DTYPE
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
   // create aclTensorDesc
@@ -364,24 +309,49 @@ std::vector<aclDataBuffer *> &NpuOpRunner::GetOutputBuffers() {
 
 aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
                                              aclMemType mem_type) {
-  auto dtype = ConvertToNpuDtype(tensor.dtype());
-  auto format = ConvertToNpuFormat(tensor.layout());
-  auto dims = phi::vectorize(tensor.dims());
-  int size = dims.size();
+  auto data_type = ConvertToNpuDtype(tensor.dtype());
+  auto origin_format = ConvertToNpuFormat(tensor.layout());
+  auto origin_dims = phi::vectorize(tensor.dims());
 
-  if (op_type_ == "DropOutGenMask" && size == 1 && *(dims.data()) == 1) {
-    size = 0;
+  auto origin_size = origin_dims.size();
+  if (op_type_ == "DropOutGenMask" && origin_size == 1 &&
+      *(origin_dims.data()) == 1) {
+    origin_size = 0;
   }
 
-  VLOG(4) << "NPU dtype:" << dtype << " "
-          << "rank:" << dims.size() << " dims: " << tensor.dims()
-          << " format:" << format;
-
-  auto *desc = aclCreateTensorDesc(dtype, size, dims.data(), format);
+  auto *desc = aclCreateTensorDesc(
+      data_type, origin_size, origin_dims.data(), origin_format);
   PADDLE_ENFORCE_NOT_NULL(
       desc, phi::errors::External("Call aclCreateTensorDesc failed."));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, format));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, size, dims.data()));
+
+  if (tensor.storage_properties_initialized()) {
+    auto npu_properties =
+        tensor.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    auto storage_dims = phi::vectorize(npu_properties.storage_dims);
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)storage_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << storage_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << npu_properties.storage_dims;
+  } else {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)origin_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorShape(desc, origin_size, origin_dims.data()));
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << origin_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << tensor.dims();
+  }
+
   if (mem_type == ACL_MEMTYPE_HOST) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, mem_type));
   }
@@ -436,7 +406,7 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
   aclopDestroyAttr(attr);
 }
 
-void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
+void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUClearFloatStatus";
   // Input
   const std::vector<int64_t> dims{8};
@@ -487,6 +457,14 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
 }
 
 void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
+  // Init float_status_desc_ and float_status_buffer_ once, if
+  // ascend_check_nan_inf is needed, only do ClearFloatStatus here.
+  if (float_status_desc_ && float_status_buffer_) {
+    if (FLAGS_ascend_check_nan_inf) {
+      ClearFloatStatus(stream);
+    }
+    return;
+  }
   // Init float_status_desc_
   const std::vector<int64_t> dims{8};
   float_status_desc_ =
@@ -525,9 +503,9 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    //for (int i = 0; i < cpu_data.size(); ++i) {
-    //  std::cout << cpu_data[i] << ",";
-    //}
+    // for (int i = 0; i < cpu_data.size(); ++i) {
+    //   std::cout << cpu_data[i] << ",";
+    // }
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }
@@ -547,15 +525,14 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    //for (int i = 0; i < cpu_data.size(); ++i) {
-    //  std::cout << cpu_data[i] << ",";
-    //}
+    // for (int i = 0; i < cpu_data.size(); ++i) {
+    //   std::cout << cpu_data[i] << ",";
+    // }
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }
 }
-void NpuOpRunner::GetFloatStatus(aclrtStream stream,
-                                 std::string cur_op_type) const {
+bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUGetFloatStatus";
   // Output
   const std::vector<int64_t> dims{8};
@@ -612,27 +589,18 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
   for (int i = 0; i < cpu_data.size(); ++i) {
     sum += cpu_data[i];
   }
-  if (sum > 1.0) {
-    PrintOpInfo();
-  }
-  PADDLE_ENFORCE_LT(sum,
-                    1.0,
-                    phi::errors::PreconditionNotMet(
-                        "Operator %s contains Nan/Inf.", cur_op_type));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
-  // return void
   aclDestroyTensorDesc(tmp_desc);
   aclopDestroyAttr(attr);
+  return sum >= 1.0;
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
-  if (FLAGS_ascend_check_nan_inf) {
-    InitFloatStatus(stream);
-  }
+  InitFloatStatus(stream);
   VLOG(5) << "NpuOpRunner(" << this << ") Run:";
   VLOG(4) << "op_type: " << op_type_;
   VLOG(4) << "input_desc.size: " << input_descs_.size();
@@ -671,11 +639,13 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  stream);
   }
   VLOG(4) << "after aclopCompileAndExecute: " << ret;
-  if (sync) {
+  if (sync || FLAGS_ascend_blocking_npu_runner) {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  if (FLAGS_ascend_check_nan_inf) {
-    GetFloatStatus(stream, op_type_);
+  if (FLAGS_ascend_check_nan_inf && GetFloatStatus(stream)) {
+    PrintOpInfo();
+    PADDLE_THROW(phi::errors::PreconditionNotMet(
+        "Operator %s contains Nan/Inf.", op_type_));
   }
 }

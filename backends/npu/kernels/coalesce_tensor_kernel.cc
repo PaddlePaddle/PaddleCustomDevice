@@ -100,13 +100,18 @@ struct FillConstantVisitor {
     dev_ctx_.template Alloc<T>(&tensor_tmp);
     FillNpuTensorWithConstant<T>(&tensor_tmp, dev_ctx_, static_cast<T>(value_));
 
-    const auto &runner =
-        NpuOpRunner("FillD",
-                    {tensor_tmp},
-                    {*tensor_},
-                    {{"dims", phi::vectorize(tensor_->dims())}});
-    auto stream = dev_ctx_.stream();
-    runner.Run(stream);
+    if (tensor_->numel() > 1) {
+      const auto &runner =
+          NpuOpRunner("FillD",
+                      {tensor_tmp},
+                      {*tensor_},
+                      {{"dims", phi::vectorize(tensor_->dims())}});
+      auto stream = dev_ctx_.stream();
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(tensor_, dev_ctx_, static_cast<T>(value_));
+    }
   }
 
   const Context &dev_ctx_;

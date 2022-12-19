@@ -25,16 +25,14 @@ void FullKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   auto shape_vec = shape.GetData();
-  out->ResizeAndAllocate(phi::make_ddim(shape_vec));
+  auto out_dim = phi::make_ddim(shape_vec);
+  out->ResizeAndAllocate(out_dim);
   dev_ctx.template Alloc<T>(out);
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  NpuOpRunner runner;
-  runner.SetType("Fills")
-      .AddInput(*out)
-      .AddOutput(*out)
-      .AddAttrs({{"value", val.to<float>()}})
-      .Run(stream);
+  FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(val.to<T>()));
+
+  out->Resize(out_dim);
 }
 
 template <typename T, typename Context>

@@ -351,6 +351,7 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
             << ", origin_dims: " << tensor.dims()
             << ", storage_dims: " << tensor.dims();
   }
+
   if (mem_type == ACL_MEMTYPE_HOST) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, mem_type));
   }

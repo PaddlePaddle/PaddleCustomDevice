@@ -524,14 +524,25 @@ void PowGradKernel(const Context& dev_ctx,
   // 2.2 Get the factor which has the shape with x and the same value with
   // factor.
   phi::DenseTensor factor_bc_tensor;
-  phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
-  factor_bc_tensor.set_meta(factor_bc_tensor_meta);
-  dev_ctx.template Alloc<T>(&factor_bc_tensor);
-  const auto& runner_bc = NpuOpRunner("FillD",
-                                      {factor_tensor},
-                                      {factor_bc_tensor},
-                                      {{"dims", phi::vectorize(x_dims)}});
-  runner_bc.Run(stream);
+  if (x_dims.size() > 0) {
+    phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
+    factor_bc_tensor.set_meta(factor_bc_tensor_meta);
+    dev_ctx.template Alloc<T>(&factor_bc_tensor);
+    if (factor_bc_tensor.numel() > 1) {
+      const auto& runner_bc = NpuOpRunner("FillD",
+                                          {factor_tensor},
+                                          {factor_bc_tensor},
+                                          {{"dims", phi::vectorize(x_dims)}});
+      runner_bc.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &factor_bc_tensor, dev_ctx, static_cast<T>(factor));
+    }
+  } else {
+    factor_bc_tensor = factor_tensor;
+    factor_bc_tensor.Resize(x_dims);
+  }
 
   // Step 3: Compute x_power_mul_factor = factor * x.pow(factor-1)
   phi::DenseTensor x_power_mul_factor;
@@ -666,13 +677,25 @@ void HardSwishRawKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_scale_tmp, dev_ctx, static_cast<T>(scale));
   phi::DenseTensor tensor_scale;
-  tensor_scale.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_scale);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_scale_tmp},
-                                        {tensor_scale},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_scale.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_scale);
+    if (tensor_scale.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_scale_tmp},
+                      {tensor_scale},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_scale, dev_ctx, static_cast<T>(scale));
+    }
+  } else {
+    tensor_scale = tensor_scale_tmp;
+    tensor_scale.Resize(x.dims());
+  }
 
   phi::DenseTensor div_val;
   div_val.set_meta(meta_x);
@@ -747,13 +770,25 @@ void HardSwishGradKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_threshold_tmp, dev_ctx, static_cast<T>(threshold));
   phi::DenseTensor tensor_threshold;
-  tensor_threshold.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_threshold);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_threshold_tmp},
-                                        {tensor_threshold},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_threshold.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_threshold);
+    if (tensor_threshold.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_threshold_tmp},
+                      {tensor_threshold},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_threshold, dev_ctx, static_cast<T>(threshold));
+    }
+  } else {
+    tensor_threshold = tensor_threshold_tmp;
+    tensor_threshold.Resize(x.dims());
+  }
 
   phi::DenseTensor tmp_bool;
   phi::DenseTensorMeta meta_tmp = {phi::DataType::BOOL, x.dims()};

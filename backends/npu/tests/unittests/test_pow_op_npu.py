@@ -53,6 +53,22 @@ class TestPow(OpTest):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
 
+class TestPowNumel1Input(TestPow):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "pow"
+        self.place = paddle.CustomPlace("npu", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [1, 1]).astype(self.dtype)
+        out = np.power(x, 3)
+
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.attrs = {"factor": 3.0}
+        self.outputs = {"Out": out}
+
+
 class TestPowFp16(OpTest):
     def setUp(self):
         self.set_npu()

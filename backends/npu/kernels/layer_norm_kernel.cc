@@ -77,19 +77,25 @@ void LayerNormNPUKernel(const Context& dev_ctx,
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<T>(&default_scale);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_scale.numel() > 1) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_scale);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_scale);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &default_scale, dev_ctx, static_cast<T>(1.0));
+    }
     scale = &default_scale;
   } else {
     const_cast<Tensor*>(scale)->Resize(phi::make_ddim(axes));
@@ -101,19 +107,24 @@ void LayerNormNPUKernel(const Context& dev_ctx,
     default_bias.set_meta(default_bias_meta);
     dev_ctx.template Alloc<T>(&default_bias);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_bias.numel() > 1) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_bias);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_bias);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(&default_bias, dev_ctx, static_cast<T>(0));
+    }
     bias = &default_bias;
   } else {
     const_cast<Tensor*>(bias)->Resize(phi::make_ddim(axes));
@@ -274,19 +285,25 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<T>(&default_scale);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_scale.numel() > 0) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_scale);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_scale);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &default_scale, dev_ctx, static_cast<T>(1.0));
+    }
     scale = &default_scale;
   } else {
     const_cast<Tensor*>(scale)->Resize(phi::make_ddim(axes));

@@ -1,7 +1,7 @@
 # Docker Image for PaddlePaddle Ascend910 NPU
 
 FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
-MAINTAINER PaddlePaddle Authors <paddle-dev@baidu.com>
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser
 RUN groupadd HwHiAiUser && \
@@ -46,7 +46,7 @@ ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64:$LD_LIBRARY_PA
 ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:$LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:$LD_LIBRARY_PATH
 ENV PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/python/site-packages:$PYTHONPATH
-ENV PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/opp/op_impl/built-in/ai_core/tbe:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
 ENV ASCEND_AICPU_PATH=/usr/local/Ascend/ascend-toolkit/latest
 ENV ASCEND_OPP_PATH=/usr/local/Ascend/ascend-toolkit/latest/opp
 ENV TOOLCHAIN_HOME=/usr/local/Ascend/ascend-toolkit/latest/toolkit
@@ -61,8 +61,13 @@ ENV HCCL_CONNECT_TIMEOUT=7200
 ENV HCCL_WHITELIST_DISABLE=1
 ENV HCCL_SECURITY_MODE=1
 
-# environment for NPU performance
+# environment for PaddlePaddle
 ENV FLAGS_npu_storage_format=1
+ENV FLAGS_allocator_strategy=naive_best_fit
+ENV PADDLE_XCCL_BACKEND=npu
+
+# https://github.com/keras-team/keras-tuner/issues/317
+ENV LD_PRELOAD=/opt/py37env/lib/python3.7/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
 
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver

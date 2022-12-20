@@ -16,11 +16,14 @@ from __future__ import print_function
 
 import unittest
 
+import unittest
+
 import numpy as np
 import paddle.fluid as fluid
 from tests.op_test import OpTest, skip_check_grad_ci
 
 import paddle
+from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 
@@ -245,8 +248,8 @@ class TestDropoutAPI(unittest.TestCase):
             res6 = paddle.nn.functional.dropout(
                 x=input, p=1.0, training=True, mode="upscale_in_train"
             )
-            res7 = paddle.fluid.layers.dropout(
-                x=input, dropout_prob=0.0, dropout_implementation="upscale_in_train"
+            res7 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=True, mode="upscale_in_train"
             )
             res8 = paddle.nn.functional.dropout(
                 x=input, p=0.0, axis=(0, 1), training=False, mode="upscale_in_train"

@@ -463,50 +463,105 @@ void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
   ClearFloatStatus(stream);
 }
 
+template <typename T>
+void PrintTensor(aclDataBuffer * buffer, int numel, int input_size, int type){
+  std::vector<T> cpu_data(numel, 0);
+  auto input_ptr = aclGetDataBufferAddr(buffer);
+  PADDLE_ENFORCE_NPU_SUCCESS(aclrtMemcpy(cpu_data.data(),
+                                          input_size,
+                                          input_ptr,
+                                          input_size,
+                                          ACL_MEMCPY_DEVICE_TO_HOST));
+  float sum = 0.0;
+  std::cout << "- data: [";
+  for (int i = 0; i < cpu_data.size(); ++i) {
+    if (std::isinf(static_cast<float>(cpu_data[i])) || std::isnan(static_cast<float>(cpu_data[i])) || (type == 1 && (phi::dtype::isinf(static_cast<phi::dtype::float16>(cpu_data[i])) || phi::dtype::isnan(static_cast<phi::dtype::float16>(cpu_data[i]))))) {
+      std::cout << "yoki found nan/inf: ";
+      std::cout << cpu_data[i] << ",";
+    }
+  }
+  std::cout << "]" << std::endl;
+  std::vector<T>().swap(cpu_data);
+}
+
 void NpuOpRunner::PrintOpInfo() const {
   // PrintInput
   std::cout << "Input: " << std::endl;
   for (int i = 0; i < input_descs_.size(); i++) {
     auto type = aclGetTensorDescType(input_descs_[i]);
-    std::cout << "- type: " << type << std::endl;
+    std::cout << "- type: " << type;
     auto input_size = aclGetTensorDescSize(input_descs_[i]);
+    std::cout << " - input_size: " << input_size;
     auto numel = aclGetTensorDescElementCount(input_descs_[i]);
-    std::vector<float> cpu_data(numel, 0);
-    auto input_ptr = aclGetDataBufferAddr(input_buffers_[i]);
-    PADDLE_ENFORCE_NPU_SUCCESS(aclrtMemcpy(cpu_data.data(),
-                                           input_size,
-                                           input_ptr,
-                                           input_size,
-                                           ACL_MEMCPY_DEVICE_TO_HOST));
-    float sum = 0.0;
-    std::cout << "- data: [";
-    for (int i = 0; i < cpu_data.size(); ++i) {
-      std::cout << cpu_data[i] << ",";
+    std::cout << " - numel: " << numel << std::endl;
+    if (numel <= 0) {
+      continue;
     }
-    std::cout << "]" << std::endl;
-    std::vector<float>().swap(cpu_data);
+
+    if (type == 0) {
+      PrintTensor<float>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 1) {
+      // PrintTensor<phi::dtype::float16>(input_buffers_[i], numel, input_size, type);
+      PrintTensor<int16_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 2) {
+      PrintTensor<int8_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 3) {
+      PrintTensor<int32_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 4) {
+      PrintTensor<uint8_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 6) {
+      PrintTensor<int16_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 9) {
+      PrintTensor<int64_t>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 11) {
+      PrintTensor<double>(input_buffers_[i], numel, input_size, type);
+    } else if (type == 12) {
+      // PrintTensor<bool>(input_buffers_[i], numel, input_size);
+      PrintTensor<int8_t>(input_buffers_[i], numel, input_size, type);
+    } else {
+      PADDLE_THROW(phi::errors::PreconditionNotMet(
+        "Type %d not supported.", type));
+    }
+
   }
   // PrintOutput
   std::cout << "Output: " << std::endl;
   for (int i = 0; i < output_descs_.size(); i++) {
     auto type = aclGetTensorDescType(output_descs_[i]);
-    std::cout << "- type: " << type << std::endl;
+    std::cout << "- type: " << type;
     auto input_size = aclGetTensorDescSize(output_descs_[i]);
+    std::cout << " - input_size: " << input_size;
     auto numel = aclGetTensorDescElementCount(output_descs_[i]);
-    std::vector<float> cpu_data(numel, 0);
-    auto input_ptr = aclGetDataBufferAddr(output_buffers_[i]);
-    PADDLE_ENFORCE_NPU_SUCCESS(aclrtMemcpy(cpu_data.data(),
-                                           input_size,
-                                           input_ptr,
-                                           input_size,
-                                           ACL_MEMCPY_DEVICE_TO_HOST));
-    float sum = 0.0;
-    std::cout << "- data: [";
-    for (int i = 0; i < cpu_data.size(); ++i) {
-      std::cout << cpu_data[i] << ",";
+    std::cout << " - numel: " << numel << std::endl;
+    if (numel <= 0) {
+      continue;
     }
-    std::cout << "]" << std::endl;
-    std::vector<float>().swap(cpu_data);
+
+    if (type == 0) {
+      PrintTensor<float>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 1) {
+      // PrintTensor<phi::dtype::float16>(output_buffers_[i], numel, input_size);
+      PrintTensor<int16_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 2) {
+      PrintTensor<int8_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 3) {
+      PrintTensor<int32_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 4) {
+      PrintTensor<uint8_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 6) {
+      PrintTensor<int16_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 9) {
+      PrintTensor<int64_t>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 11) {
+      PrintTensor<double>(output_buffers_[i], numel, input_size, type);
+    } else if (type == 12) {
+      // PrintTensor<bool>(output_buffers_[i], numel, input_size);
+      PrintTensor<int8_t>(output_buffers_[i], numel, input_size, type);
+    } else {
+      PADDLE_THROW(phi::errors::PreconditionNotMet(
+        "Type %d not supported.", type));
+    }
+
   }
 }
 bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
@@ -601,6 +656,34 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
+    
+    /*std::string op_type = "NPUClearFloatStatus";
+    // Input
+    const std::vector<int64_t> dims{8};
+    auto tmp_desc =
+        aclCreateTensorDesc(ACL_FLOAT, dims.size(), dims.data(), ACL_FORMAT_NCHW);
+    auto tmp_size = aclGetTensorDescSize(tmp_desc);
+    void *tmp_ptr;
+    aclrtMalloc(&tmp_ptr, tmp_size, ACL_MEM_MALLOC_NORMAL_ONLY);
+    auto tmp_buffer = aclCreateDataBuffer(tmp_ptr, tmp_size);
+    // Attr
+    auto attr = aclopCreateAttr();
+    // Execute
+    aclError ret;
+    if (PyGILState_Check()) {
+      pybind11::gil_scoped_release release;
+      ret = aclopCompileAndExecute(op_type.c_str(),
+                                  1,
+                                  &tmp_desc,
+                                  &tmp_buffer,
+                                  1,
+                                  &float_status_desc_,
+                                  &float_status_buffer_,
+                                  attr,
+                                  ACL_ENGINE_SYS,
+                                  ACL_COMPILE_SYS,
+                                  NULL,
+                                  stream);*/
   } else {
     ret = aclopCompileAndExecute(op_type_.c_str(),
                                  input_descs_.size(),
@@ -620,8 +703,16 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  if (FLAGS_ascend_check_nan_inf && GetFloatStatus(stream)) {
+  if (FLAGS_ascend_check_nan_inf) {
+    VLOG(0) << "yoki: op_type: " << op_type_;
+    VLOG(0) << "yoki: float_status: " << GetFloatStatus(stream);
+    if (GetFloatStatus(stream)) {
+      VLOG(0) << "yoki: Operator " << op_type_ << " contains Nan/Inf (float status).";
+    }
     PrintOpInfo();
+  }
+  if (FLAGS_ascend_check_nan_inf && GetFloatStatus(stream)) {
+    // PrintOpInfo();
     PADDLE_THROW(phi::errors::PreconditionNotMet(
         "Operator %s contains Nan/Inf.", op_type_));
   }

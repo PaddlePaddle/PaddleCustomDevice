@@ -74,6 +74,8 @@ void Update(const Context& ctx,
         min_value = static_cast<float>(FLAGS_min_loss_scaling);
       }
 
+      VLOG(0) << "yoki: new_loss_scaling: " << new_loss_scaling[0];
+      VLOG(0) << "yoki: min_value: " << min_value;
       if (new_loss_scaling[0] < min_value) {
         // updated_loss_scaling_data = 1
         const auto& runner_p4 =

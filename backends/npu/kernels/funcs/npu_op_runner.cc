@@ -25,12 +25,6 @@ static aclTensorDesc *float_status_desc_ = NULL;
 
 ENV_uint64(ascend_check_nan_inf, 0);
 ENV_uint64(ascend_blocking_npu_runner, 0);
-// NPU operator precision mode, options are 'force_fp32', 'force_fp16',
-// 'allow_fp32_to_fp16', 'must_keep_origin_dtype' and
-// 'allow_mix_precision'. If you want to use the default mode (
-// allow_fp32_to_fp16), set this to empty string. For more details,
-// please refer to the documents
-ENV_string(npu_precision_mode, "");
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -373,7 +367,7 @@ aclDataBuffer *NpuOpRunner::CreateDataBuffer(phi::DenseTensor tensor) {
   return buffer;
 }
 
-void NpuOpRunner::AllocFloatStatus(aclrtStream stream) {
+void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
   std::string op_type = "NPUAllocFloatStatus";
   // Attr
   auto attr = aclopCreateAttr();
@@ -425,7 +419,6 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
   // Attr
   auto attr = aclopCreateAttr();
   // Execute
-  AllocFloatStatus(stream);
   aclError ret;
   if (PyGILState_Check()) {
     pybind11::gil_scoped_release release;
@@ -488,6 +481,9 @@ void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
   PADDLE_ENFORCE_NOT_NULL(
       float_status_buffer_,
       phi::errors::External("Call aclCreateDataBuffer failed."));
+  // Alloc&ClearFloatStatus
+  AllocFloatStatus(stream);
+  ClearFloatStatus(stream);
 }
 
 void NpuOpRunner::PrintOpInfo() const {
@@ -507,9 +503,9 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    // for (int i = 0; i < cpu_data.size(); ++i) {
-    //   std::cout << cpu_data[i] << ",";
-    // }
+    for (int i = 0; i < cpu_data.size(); ++i) {
+      std::cout << cpu_data[i] << ",";
+    }
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }
@@ -529,9 +525,9 @@ void NpuOpRunner::PrintOpInfo() const {
                                            ACL_MEMCPY_DEVICE_TO_HOST));
     float sum = 0.0;
     std::cout << "- data: [";
-    // for (int i = 0; i < cpu_data.size(); ++i) {
-    //   std::cout << cpu_data[i] << ",";
-    // }
+    for (int i = 0; i < cpu_data.size(); ++i) {
+      std::cout << cpu_data[i] << ",";
+    }
     std::cout << "]" << std::endl;
     std::vector<float>().swap(cpu_data);
   }
@@ -550,7 +546,6 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   // Attr
   auto attr = aclopCreateAttr();
   // Execute
-  AllocFloatStatus(stream);
   aclError ret;
   if (PyGILState_Check()) {
     pybind11::gil_scoped_release release;
@@ -590,11 +585,15 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
                                          float_status_ptr,
                                          float_status_size,
                                          ACL_MEMCPY_DEVICE_TO_HOST));
+  float sum = 0.0;
+  for (int i = 0; i < cpu_data.size(); ++i) {
+    sum += cpu_data[i];
+  }
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
   aclDestroyTensorDesc(tmp_desc);
   aclopDestroyAttr(attr);
-  return static_cast<bool>(cpu_data[0]);
+  return sum >= 1.0;
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
@@ -608,11 +607,6 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   VLOG(4) << "output_desc.size: " << output_descs_.size();
   VLOG(4) << "attr: " << attr_;
   VLOG(4) << "stream: " << stream;
-  if (!FLAGS_npu_precision_mode.empty()) {
-    PADDLE_ENFORCE_NPU_SUCCESS(
-        aclSetCompileopt(ACL_PRECISION_MODE, FLAGS_npu_precision_mode.c_str()));
-    VLOG(4) << "set ACL_PRECISION_MODE: " << FLAGS_npu_precision_mode;
-  }
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

@@ -157,13 +157,13 @@ class NpuOpRunner {
 
   static bool GetFloatStatus(aclrtStream stream);
   static void ClearFloatStatus(aclrtStream stream);
-  static void AllocFloatStatus(aclrtStream stream);
 
  private:
   aclTensorDesc *CreateTensorDesc(phi::DenseTensor tensor,
                                   aclMemType mem_type = ACL_MEMTYPE_DEVICE);
   aclDataBuffer *CreateDataBuffer(phi::DenseTensor tensor);
   void InitFloatStatus(aclrtStream stream) const;
+  void AllocFloatStatus(aclrtStream stream) const;
   void PrintOpInfo() const;
 
  private:

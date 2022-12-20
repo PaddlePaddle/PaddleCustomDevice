@@ -33,11 +33,13 @@ void DropoutRawKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
-  // mask used in `DropOutGenMask` NPU OP is different from
-  // the output `Mask`.
-  uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
-  mask->Resize({length / 8});
-  dev_ctx.template Alloc<uint8_t>(mask);
+  if (!is_test) {
+    // mask used in `DropOutGenMask` NPU OP is different from
+    // the output `Mask`.
+    uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
+    mask->Resize({length / 8});
+    dev_ctx.template Alloc<uint8_t>(mask);
+  }
 
   if (dropout_prob == 1.) {
     const auto& runner_zeros_out = NpuOpRunner("ZerosLike", {*out}, {*out});

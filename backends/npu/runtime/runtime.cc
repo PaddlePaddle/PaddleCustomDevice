@@ -101,8 +101,8 @@ class AlignnedAllocator {
   void *Alloc(size_t size, size_t align) {
     std::lock_guard<std::mutex> lock(mtx_);
     ProcessEvents();
-    void *p = nullptr;
-    ACL_CHECK(aclrtMallocHost(&p, size + align));
+    void *p = malloc(size + align);
+    RUN_CHECK(p != nullptr);
     void *ret =
         reinterpret_cast<void *>(reinterpret_cast<size_t>(p) + align -
                                  (reinterpret_cast<size_t>(p) & (align - 1)));
@@ -122,7 +122,7 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
-      ACL_CHECK(aclrtFreeHost(ptr));
+      free(ptr);
       ACL_CHECK(aclrtDestroyEvent(event));
       recorded_events_.erase(it++);
     }
@@ -136,7 +136,7 @@ class AlignnedAllocator {
       ACL_CHECK(aclrtQueryEventStatus(event, &status));
       if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
-        ACL_CHECK(aclrtFreeHost(ptr));
+        free(ptr);
         recorded_events_.erase(it++);
         ACL_CHECK(aclrtDestroyEvent(event));
       } else {
@@ -327,8 +327,7 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  void *data = nullptr;
-  ACL_CHECK(aclrtMallocHost(&data, size));
+  void *data = malloc(size);
   if (data) {
     *ptr = data;
     return C_SUCCESS;
@@ -345,7 +344,7 @@ C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
 }
 
 C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
-  ACL_CHECK(aclrtFreeHost(ptr));
+  free(ptr);
   return C_SUCCESS;
 }
 

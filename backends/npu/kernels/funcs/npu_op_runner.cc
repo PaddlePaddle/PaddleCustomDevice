@@ -373,7 +373,7 @@ aclDataBuffer *NpuOpRunner::CreateDataBuffer(phi::DenseTensor tensor) {
   return buffer;
 }
 
-void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
+void NpuOpRunner::AllocFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUAllocFloatStatus";
   // Attr
   auto attr = aclopCreateAttr();
@@ -425,6 +425,7 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
   // Attr
   auto attr = aclopCreateAttr();
   // Execute
+  AllocFloatStatus(stream);
   aclError ret;
   if (PyGILState_Check()) {
     pybind11::gil_scoped_release release;
@@ -487,9 +488,6 @@ void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
   PADDLE_ENFORCE_NOT_NULL(
       float_status_buffer_,
       phi::errors::External("Call aclCreateDataBuffer failed."));
-  // Alloc&ClearFloatStatus
-  AllocFloatStatus(stream);
-  ClearFloatStatus(stream);
 }
 
 void NpuOpRunner::PrintOpInfo() const {
@@ -552,6 +550,7 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   // Attr
   auto attr = aclopCreateAttr();
   // Execute
+  AllocFloatStatus(stream);
   aclError ret;
   if (PyGILState_Check()) {
     pybind11::gil_scoped_release release;
@@ -591,15 +590,11 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
                                          float_status_ptr,
                                          float_status_size,
                                          ACL_MEMCPY_DEVICE_TO_HOST));
-  float sum = 0.0;
-  for (int i = 0; i < cpu_data.size(); ++i) {
-    sum += cpu_data[i];
-  }
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
   aclDestroyTensorDesc(tmp_desc);
   aclopDestroyAttr(attr);
-  return sum >= 1.0;
+  return static_cast<bool>(cpu_data[0]);
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {

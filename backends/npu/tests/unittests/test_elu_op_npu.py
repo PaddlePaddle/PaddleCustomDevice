@@ -14,13 +14,12 @@
 
 from __future__ import print_function
 
+from tests.op_test import OpTest
 import unittest
-
 import numpy as np
 import paddle
 import paddle.fluid as fluid
 import paddle.nn.functional as F
-from tests.op_test import OpTest
 
 SEED = 2021
 paddle.enable_static()
@@ -30,14 +29,9 @@ def ref_elu(
     x,
     alpha=1.0,
 ):
-    """Reference forward implementation"""
-    out = np.copy(x)
-    out_flat = out.flatten()
-    for i in range(out_flat.size):
-        if out_flat[i] < 0:
-            out_flat[i] = alpha * (np.exp(x) - 1)
-    out = out.reshape(x.shape)
-    return out
+    """Reference forward implementation using np.where"""
+    Out = np.where(x >= 0.0, x, alpha * (np.exp(x) - 1))
+    return Out
 
 
 class EluTest(OpTest):
@@ -54,19 +48,19 @@ class EluTest(OpTest):
         self.op_type = "elu"
         self.python_api = paddle.nn.functional.elu
 
-        alpha = 0.2
+        alpha = 0.4
 
         np.random.seed(SEED)
-        x = np.random.uniform(-5, 7, [11, 17]).astype(self.dtype)
+        x = np.random.uniform(-5, 7, [30, 5]).astype(self.dtype)
 
         result = ref_elu(x, alpha)
 
         self.inputs = {"X": x}
-        self.attrs = {"alpha": alpha}
+        self.attrs = {"alpha": alpha, "scale": 1.0}
         self.outputs = {"Out": result}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, atol=1.0e-4)
 
     def test_check_grad(self):
         self.check_grad_with_place(
@@ -79,7 +73,7 @@ class EluTestFp16(EluTest):
         self.dtype = np.float16
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, atol=1.0e-3)
 
     def test_check_grad(self):
         self.check_grad_with_place(
@@ -92,7 +86,7 @@ class TestEluAPI(unittest.TestCase):
     def setUp(self):
         self.alpha = 0.2
         np.random.seed(SEED)
-        self.x_np = np.random.normal(size=[3, 5, 5]).astype(np.float32)
+        self.x_np = np.random.normal(size=[3, 5]).astype(np.float32)
         self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):

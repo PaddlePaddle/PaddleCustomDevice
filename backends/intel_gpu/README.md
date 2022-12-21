@@ -1,7 +1,7 @@
-# PaddlePaddle Custom Device Implementaion for Custom CPU
+# PaddlePaddle Custom Device Implementaion for Custom GPU
 
 
-Please refer to the following steps to compile, install and verify the custom device implementaion for Custom CPU.
+Please refer to the following steps to compile, install and verify the custom device implementaion for Custom GPU.
 
 ## Get Sources
 

@@ -30,9 +30,14 @@ def ref_elu(
     x,
     alpha=1.0,
 ):
-    """Reference forward implementation using np.where"""
-    Out = np.where(x >= 0.0, x, alpha * (np.exp(x) - 1))
-    return Out
+    """Reference forward implementation"""
+    out = np.copy(x)
+    out_flat = out.flatten()
+    for i in range(out_flat.size):
+        if out_flat[i] < 0:
+            out_flat[i] = alpha * (np.exp(x) - 1)
+    out = out.reshape(x.shape)
+    return out
 
 
 class EluTest(OpTest):
@@ -61,10 +66,12 @@ class EluTest(OpTest):
         self.outputs = {"Out": result}
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+        )
 
 
 class EluTestFp16(EluTest):
@@ -72,10 +79,12 @@ class EluTestFp16(EluTest):
         self.dtype = np.float16
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+        )
 
 
 class TestEluAPI(unittest.TestCase):

@@ -127,6 +127,7 @@ void Pool2dKernel(const Context& dev_ctx,
                 data_dims,
                 strides,
                 ksize);
+
   PADDLE_ENFORCE_LT(
       std::max(paddings[0], paddings[1]),
       ksize[0],
@@ -141,7 +142,13 @@ void Pool2dKernel(const Context& dev_ctx,
           "Paddings should be less than %d, but max(pads[2], pads[3]) is %d.",
           ksize[1],
           std::max(paddings[2], paddings[3])));
-
+  PADDLE_ENFORCE_LT(
+      std::max(strides[0], strides[1]),
+      64,
+      phi::errors::InvalidArgument("strides should be less than %d, but "
+                                   "max(strides[0], strides[1]) is %d.",
+                                   64,
+                                   std::max(strides[0], strides[1])));
   if (adaptive) {
     std::string pooling_mode = "AdaptiveAvgPool2d";
     if (pooling_type == "max") {
@@ -301,33 +308,21 @@ void Pool2dGradKernel(const Context& dev_ctx,
           std::max(paddings[2], paddings[3])));
 
   if (adaptive || (global_pooling && pooling_type == "max")) {
-    PADDLE_ENFORCE_EQ(data_dims[0] % out_data_dims[0],
-                      0,
-                      phi::errors::InvalidArgument(
-                          "When adaptive = True, H and W must be divisible, "
-                          "but input dims is %s, output dims is %s",
-                          data_dims,
-                          out_data_dims));
-    PADDLE_ENFORCE_EQ(data_dims[1] % out_data_dims[1],
-                      0,
-                      phi::errors::InvalidArgument(
-                          "When adaptive = True, H and W must be divisible, "
-                          "but input dims is %s, output dims is %s",
-                          data_dims,
-                          out_data_dims));
     if (channel_last) {
-      strides_vec[1] = data_dims[0] / out_data_dims[0];
-      strides_vec[2] = data_dims[1] / out_data_dims[1];
-      ksize_vec[1] = strides_vec[1];
-      ksize_vec[2] = strides_vec[2];
+      strides_vec[1] = std::floor(data_dims[0] / out_data_dims[0]);
+      strides_vec[2] = std::floor(data_dims[1] / out_data_dims[1]);
+      ksize_vec[1] = data_dims[0] - ((out_data_dims[0] - 1) * strides_vec[1]);
+      ksize_vec[2] = data_dims[1] - ((out_data_dims[1] - 1) * strides_vec[2]);
     } else {
-      strides_vec[2] = data_dims[0] / out_data_dims[0];
-      strides_vec[3] = data_dims[1] / out_data_dims[1];
-      ksize_vec[2] = strides_vec[2];
-      ksize_vec[3] = strides_vec[3];
+      strides_vec[2] = std::floor(data_dims[0] / out_data_dims[0]);
+      strides_vec[3] = std::floor(data_dims[1] / out_data_dims[1]);
+      ksize_vec[2] = data_dims[0] - ((out_data_dims[0] - 1) * strides_vec[2]);
+      ksize_vec[3] = data_dims[1] - ((out_data_dims[1] - 1) * strides_vec[3]);
+    }
+    for (auto& pad : paddings) {
+      pad = 0;
     }
   }
-
   NPUAttributeMap attrs = {{"ksize", ksize_vec},
                            {"strides", strides_vec},
                            {"padding_mode", std::string("CALCULATED")},
@@ -336,6 +331,13 @@ void Pool2dGradKernel(const Context& dev_ctx,
                            {"global_pooling", global_pooling},
                            {"ceil_mode", ceil_mode},
                            {"exclusive", exclusive}};
+  PADDLE_ENFORCE_LT(
+      std::max(strides[0], strides[1]),
+      64,
+      phi::errors::InvalidArgument("strides should be less than %d, but "
+                                   "max(strides[0], strides[1]) is %d.",
+                                   64,
+                                   std::max(strides[0], strides[1])));
 
   if (pooling_type == "max") {
     if (global_pooling) {

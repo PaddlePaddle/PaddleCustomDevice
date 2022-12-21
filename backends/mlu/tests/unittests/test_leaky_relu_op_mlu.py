@@ -34,7 +34,7 @@ def ref_leaky_relu(x, alpha=0.01):
 class TestLeadyRelu(OpTest):
     def setUp(self):
         self.op_type = "leaky_relu"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
         self.__class__.use_custom_device = True
 
         self.init_dtype()
@@ -46,15 +46,15 @@ class TestLeadyRelu(OpTest):
 
     def set_inputs(self):
         x = np.random.uniform(-1, 1, [11, 17]).astype(self.dtype)
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
 
     def set_attrs(self):
         self.attrs = {}
 
     def set_outputs(self):
-        alpha = 0.02 if 'alpha' not in self.attrs else self.attrs['alpha']
-        out = ref_leaky_relu(self.inputs['X'], alpha)
-        self.outputs = {'Out': out}
+        alpha = 0.02 if "alpha" not in self.attrs else self.attrs["alpha"]
+        out = ref_leaky_relu(self.inputs["X"], alpha)
+        self.outputs = {"Out": out}
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -65,9 +65,10 @@ class TestLeadyRelu(OpTest):
     def test_check_grad(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['X'], 'Out', max_relative_error=0.006)
+                self.place, ["X"], "Out", max_relative_error=0.006
+            )
         else:
-            self.check_grad_with_place(self.place, ['X'], 'Out')
+            self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 # class TestLeadyReluFP16(TestLeadyRelu):
@@ -78,12 +79,12 @@ class TestLeadyRelu(OpTest):
 
 class TestLeadyRelu2(TestLeadyRelu):
     def set_attrs(self):
-        self.attrs = {'alpha': 0.5}
+        self.attrs = {"alpha": 0.5}
 
 
 class TestLeadyRelu3(TestLeadyRelu):
     def set_attrs(self):
-        self.attrs = {'alpha': -0.5}
+        self.attrs = {"alpha": -0.5}
 
 
 class TestLeakyReluNet(unittest.TestCase):
@@ -94,26 +95,25 @@ class TestLeakyReluNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        x_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        x_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            x = paddle.static.data(name="x", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            x = paddle.static.data(name="x", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             y = paddle.nn.functional.leaky_relu(x)
 
             fc_1 = fluid.layers.fc(input=y, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
+            prediction = fluid.layers.fc(input=fc_1, size=2, act="softmax")
 
-            cost = fluid.layers.cross_entropy(input=prediction, label=label)
+            cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = fluid.layers.reduce_mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("CustomMLU", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -123,13 +123,17 @@ class TestLeakyReluNet(unittest.TestCase):
         print("Start run on {}".format(place))
         for epoch in range(100):
 
-            pred_res, loss_res = exe.run(main_prog,
-                                         feed={"x": x_np,
-                                               "label": label_np},
-                                         fetch_list=[prediction, loss])
+            pred_res, loss_res = exe.run(
+                main_prog,
+                feed={"x": x_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -141,5 +145,5 @@ class TestLeakyReluNet(unittest.TestCase):
         np.testing.assert_allclose(mlu_loss, cpu_loss)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

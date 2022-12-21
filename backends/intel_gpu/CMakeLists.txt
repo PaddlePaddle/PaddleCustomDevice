@@ -29,7 +29,6 @@ endif()
 message(STATUS "OneAPI DIR : ${ONEAPI_PATH}")
 
 if(NOT DEFINED ONEAPI_COMPILER_DIR)
-  # set(ONEAPI_COMPILER_DIR "compiler/2022.1.0")
   set(ONEAPI_COMPILER_DIR "compiler/latest")
 endif()
 
@@ -85,13 +84,6 @@ include(paddle)
 message(STATUS "PADDLE_BUILD_DIR DIR : ${PADDLE_BUILD_DIR}")
 message(STATUS "ONEDNN_INC DIR : ${ONEDNN_INC}")
 
-set(BOOST_INC_DIR "${PADDLE_BUILD_DIR}/third_party/boost/src/extern_boost")
-set(GFLAGS_INC_DIR "${PADDLE_BUILD_DIR}/third_party/install/gflags/include")
-set(GLOG_INC_DIR "${PADDLE_BUILD_DIR}/third_party/install/glog/include")
-set(THREAD_INC_DIR
-    "${PADDLE_BUILD_DIR}/third_party/threadpool/src/extern_threadpool")
-set(THIRD_PARTY_INC_DIR ${BOOST_INC_DIR} ${GFLAGS_INC_DIR} ${GLOG_INC_DIR}
-                        ${THREAD_INC_DIR})
 
 include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR}
                     ${THIRD_PARTY_INC_DIR} ${CMAKE_SOURCE_DIR}/kernels)

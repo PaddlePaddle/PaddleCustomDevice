@@ -159,6 +159,22 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                                        {});
     runner_s.Run(stream);
   } else {
+    if (labels.numel() != n) {
+      VLOG(4) << "The size of labels should be equal to phi::funcs::SizeToAxis "
+                 "of logits, but got size of labels is "
+              << labels.numel() << " and phi::funcs::SizeToAxis is " << n;
+    }
+    if (soft_label) {
+      VLOG(4) << "soft_label = True is not supported in the npu kernel of "
+                 "softmax_with_cross_entropy.";
+    }
+    if (ignore_index != -1) {
+      VLOG(4) << "ignore_index = -1 is not supported in the npu kernel of "
+                 "softmax_with_cross_entropy.";
+    }
+    VLOG(4) << "CrossEntropyWithSoftmaxGradKernel of npu is implemented using "
+               "the CPU";
+
     std::vector<T> softmax_data_vec;
     TensorToVector(dev_ctx, *softmax, dev_ctx, &softmax_data_vec);
 
@@ -474,6 +490,22 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
         NpuOpRunner("Mul", {loss_grad, tmp_sub}, {*logits_grad}, {});
     runner_mul.Run(stream);
   } else {  // Use CPU impl
+    if (labels.numel() != n) {
+      VLOG(4) << "The size of labels should be equal to phi::funcs::SizeToAxis "
+                 "of logits, but got size of labels is "
+              << labels.numel() << " and phi::funcs::SizeToAxis is " << n;
+    }
+    if (soft_label) {
+      VLOG(4) << "soft_label = True is not supported in the npu kernel of "
+                 "softmax_with_cross_entropy.";
+    }
+    if (ignore_index != -1) {
+      VLOG(4) << "ignore_index = -1 is not supported in the npu kernel of "
+                 "softmax_with_cross_entropy.";
+    }
+    VLOG(4) << "CrossEntropyWithSoftmaxGradKernel of npu is implemented using "
+               "the CPU";
+
     if (soft_label) {
       CrossEntropyWithSoftmaxGradCPUKernel<T, Context, T>(dev_ctx,
                                                           labels,

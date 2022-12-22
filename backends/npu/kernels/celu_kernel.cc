@@ -30,18 +30,30 @@ void CeluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void CeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,  // output
-                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& x,
                     const phi::DenseTensor& dout,
                     float alpha,
                     phi::DenseTensor* dx) {
-  dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-  float scale = 1.0f;
-  float input_scale = 1.0f / alpha;
+  phi::DenseTensor tmp_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  tmp_out.set_meta(meta);
+
+  float times = alpha != 0.0 ? (1 / alpha) : 0.0;
+  dev_ctx.template Alloc<T>(&tmp_out);
+
   const auto& runner =
-      NpuOpRunner("EluGradV2", {dout, out}, {*dx}, {{"alpha", alpha}});
+      NpuOpRunner("CeluV2", {x}, {tmp_out}, {{"alpha", alpha}});
   runner.Run(stream);
+
+  const auto& runner_mul =
+      NpuOpRunner("Muls", {tmp_out}, {tmp_out}, {{"value", times}});
+  runner_mul.Run(stream);
+
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner_1 = NpuOpRunner(
+      "EluGradV2", {dout, tmp_out}, {*dx}, {{"alpha", times * alpha}});
+  runner_1.Run(stream);
 }
 
 }  // namespace custom_kernel

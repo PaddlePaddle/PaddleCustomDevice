@@ -31,7 +31,6 @@ def ref_celu(
     alpha=1.0,
 ):
     """Reference forward implementation using np.where"""
-    """todo: refernce"""
     Out = np.where(x >= 0.0, x, alpha * (np.exp(x / alpha) - 1))
     return Out
 
@@ -62,10 +61,12 @@ class CeluTest(OpTest):
         self.outputs = {"Out": result}
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(self.place, atol=1.0e-4)
 
     def test_check_grad(self):
-        self.check_grad(["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+        )
 
 
 class CeluTestFp16(CeluTest):
@@ -73,10 +74,12 @@ class CeluTestFp16(CeluTest):
         self.dtype = np.float16
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(self.place, atol=1.0e-3)
 
     def test_check_grad(self):
-        self.check_grad(["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+        )
 
 
 class TestCeluAPI(unittest.TestCase):

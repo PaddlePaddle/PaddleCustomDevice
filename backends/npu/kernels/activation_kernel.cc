@@ -127,6 +127,29 @@ void FloorGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void RsqrtKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Rsqrt", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RsqrtGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("RsqrtGrad", {out, dout}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void SinKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -1144,3 +1167,13 @@ PD_REGISTER_PLUGIN_KERNEL(selu_grad,
                           custom_kernel::SeluGradKernel,
                           float,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(
+    rsqrt, npu, ALL_LAYOUT, custom_kernel::RsqrtKernel, float, double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtGradKernel,
+                          float,
+                          double) {}

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+#  Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,28 +14,30 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
 
 
-class TestAssign(OpTest):
+class TestRsqrt(OpTest):
     def setUp(self):
         self.set_npu()
+        self.op_type = "rsqrt"
         self.place = paddle.CustomPlace("npu", 0)
-        self.op_type = "assign"
+
         self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
+        out = 1.0 / np.sqrt(x)
 
-        x = np.random.random([3, 3]).astype(self.dtype)
-        self.inputs = {"X": x}
-
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
         self.attrs = {}
-        self.outputs = {"Out": x}
+        self.outputs = {"Out": out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -46,10 +48,19 @@ class TestAssign(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=0.009,
+            numeric_place=paddle.CPUPlace(),
+        )
 
-class TestAssignInt64(TestAssign):
+
+class TestRsqrtDouble(TestRsqrt):
     def init_dtype(self):
-        self.dtype = np.int64
+        self.dtype = np.double
 
 
 if __name__ == "__main__":

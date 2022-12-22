@@ -19,28 +19,16 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SetValueNPUKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::IntArray& starts,
-                       const phi::IntArray& ends,
-                       const phi::IntArray& steps,
-                       const std::vector<int64_t>& axes,
-                       const std::vector<int64_t>& decrease_axes,
-                       const std::vector<int64_t>& none_axes,
-                       const std::vector<int64_t>& shape,
-                       const std::vector<phi::Scalar>& values,
-                       phi::DenseTensor* out) {
-  std::vector<T> assgin_values;
-  assgin_values.reserve(values.size());
-  for (const auto& val : values) {
-    assgin_values.push_back(val.to<T>());
-  }
-  phi::DenseTensor value_tensor;
-  value_tensor.Resize(phi::make_ddim(shape));
-  custom_kernel::TensorFromVector(
-      dev_ctx, assgin_values, dev_ctx, &value_tensor);
-  value_tensor.Resize(phi::make_ddim(shape));
-
+void SetTensorValueNPUKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& value,
+                             const phi::IntArray& starts,
+                             const phi::IntArray& ends,
+                             const phi::IntArray& steps,
+                             const std::vector<int64_t>& axes,
+                             const std::vector<int64_t>& decrease_axes,
+                             const std::vector<int64_t>& none_axes,
+                             phi::DenseTensor* out) {
   auto in_dims = x.dims();
   std::vector<int64_t> starts_local = starts.GetData();
   std::vector<int64_t> ends_local = ends.GetData();
@@ -127,14 +115,14 @@ void SetValueNPUKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   phi::DenseTensor value_temp;
-  if (slice_dims_for_assign == value_tensor.dims()) {
-    value_temp = value_tensor;
+  if (slice_dims_for_assign == value.dims()) {
+    value_temp = value;
   } else {
     value_temp.Resize(slice_dims_for_assign);
     dev_ctx.template Alloc<T>(&value_temp);
     NpuOpRunner runner_brd;
     runner_brd.SetType("BroadcastTo")
-        .AddInput(value_tensor)
+        .AddInput(value)
         .AddInput(dev_ctx, phi::vectorize(slice_dims_for_assign))
         .AddOutput(value_temp)
         .Run(stream);
@@ -158,12 +146,57 @@ void SetValueNPUKernel(const Context& dev_ctx,
       .Run(stream);
 }
 
+template <typename T, typename Context>
+void SetValueNPUKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::IntArray& starts,
+                       const phi::IntArray& ends,
+                       const phi::IntArray& steps,
+                       const std::vector<int64_t>& axes,
+                       const std::vector<int64_t>& decrease_axes,
+                       const std::vector<int64_t>& none_axes,
+                       const std::vector<int64_t>& shape,
+                       const std::vector<phi::Scalar>& values,
+                       phi::DenseTensor* out) {
+  std::vector<T> assgin_values;
+  assgin_values.reserve(values.size());
+  for (const auto& val : values) {
+    assgin_values.push_back(val.to<T>());
+  }
+  phi::DenseTensor value_tensor;
+  value_tensor.Resize(phi::make_ddim(shape));
+  custom_kernel::TensorFromVector(
+      dev_ctx, assgin_values, dev_ctx, &value_tensor);
+  value_tensor.Resize(phi::make_ddim(shape));
+
+  custom_kernel::SetTensorValueNPUKernel<T, Context>(dev_ctx,
+                                                     x,
+                                                     value_tensor,
+                                                     starts,
+                                                     ends,
+                                                     steps,
+                                                     axes,
+                                                     decrease_axes,
+                                                     none_axes,
+                                                     out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(set_value,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SetValueNPUKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SetTensorValueNPUKernel,
                           float,
                           double,
                           int,

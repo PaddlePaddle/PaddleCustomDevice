@@ -129,8 +129,8 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
         for device in self.devices:
             for dtype in self.dtypes:
                 x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                out = custom_relu_static(self.custom_op, device, dtype, x)
                 pd_out = custom_relu_static(self.custom_op, device, dtype, x, False)
+                out = custom_relu_static(self.custom_op, device, dtype, x)
                 np.testing.assert_array_equal(
                     out,
                     pd_out,
@@ -143,8 +143,8 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
         for device in self.devices:
             for dtype in self.dtypes:
                 x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                out = custom_relu_static_pe(self.custom_op, device, dtype, x)
                 pd_out = custom_relu_static_pe(self.custom_op, device, dtype, x, False)
+                out = custom_relu_static_pe(self.custom_op, device, dtype, x)
                 np.testing.assert_array_equal(
                     out,
                     pd_out,
@@ -157,10 +157,10 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
         for device in self.devices:
             for dtype in self.dtypes:
                 x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                out, x_grad = custom_relu_dynamic(self.custom_op, device, dtype, x)
                 pd_out, pd_x_grad = custom_relu_dynamic(
                     self.custom_op, device, dtype, x, False
                 )
+                out, x_grad = custom_relu_dynamic(self.custom_op, device, dtype, x)
                 np.testing.assert_array_equal(
                     out,
                     pd_out,
@@ -178,8 +178,7 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
 
     def test_dynamic(self):
         with _test_eager_guard():
-            # self.func_dynamic()
-            pass
+            self.func_dynamic()
         self.func_dynamic()
 
     def test_with_dataloader(self):

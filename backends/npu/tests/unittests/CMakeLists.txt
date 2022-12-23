@@ -62,3 +62,5 @@ set_tests_properties(test_softmax_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_with_cross_entropy_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_custom_relu_op_setup
+                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)

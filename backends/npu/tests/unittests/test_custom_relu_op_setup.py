@@ -23,7 +23,6 @@ import paddle
 import paddle.static as static
 from paddle.fluid.framework import _test_eager_guard
 from paddle.utils.cpp_extension.extension_utils import run_cmd
-from paddle.vision.transforms import Compose, Normalize
 
 
 def custom_relu_dynamic(func, device, dtype, np_x, use_func=True):
@@ -62,32 +61,6 @@ def custom_relu_static(func, device, dtype, np_x, use_func=True, test_infer=Fals
                 feed={"X": np_x},
                 fetch_list=[out.name],
             )
-
-    paddle.disable_static()
-    return out_v
-
-
-def custom_relu_static_pe(func, device, dtype, np_x, use_func=True):
-    paddle.enable_static()
-    paddle.set_device(device)
-
-    places = paddle.CustomPlace("npu", 0)
-
-    with static.scope_guard(static.Scope()):
-        with static.program_guard(static.Program()):
-            x = static.data(name="X", shape=[None, 8], dtype=dtype)
-            x.stop_gradient = False
-            out = func(x) if use_func else paddle.nn.functional.relu(x)
-            static.append_backward(out)
-
-            exe = static.Executor()
-            exe.run(static.default_startup_program())
-
-            # in static mode, x data has been covered by out
-            compiled_prog = static.CompiledProgram(
-                static.default_main_program()
-            ).with_data_parallel(loss_name=out.name, places=places)
-            out_v = exe.run(compiled_prog, feed={"X": np_x}, fetch_list=[out.name])
 
     paddle.disable_static()
     return out_v
@@ -139,20 +112,6 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
                     ),
                 )
 
-    def test_static_pe(self):
-        for device in self.devices:
-            for dtype in self.dtypes:
-                x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                pd_out = custom_relu_static_pe(self.custom_op, device, dtype, x, False)
-                out = custom_relu_static_pe(self.custom_op, device, dtype, x)
-                np.testing.assert_array_equal(
-                    out,
-                    pd_out,
-                    err_msg="custom op out: {},\n paddle api out: {}".format(
-                        out, pd_out
-                    ),
-                )
-
     def func_dynamic(self):
         for device in self.devices:
             for dtype in self.dtypes:
@@ -180,38 +139,6 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
         with _test_eager_guard():
             self.func_dynamic()
         self.func_dynamic()
-
-    def test_with_dataloader(self):
-        for device in self.devices:
-            paddle.set_device(device)
-            # data loader
-            transform = Compose(
-                [Normalize(mean=[127.5], std=[127.5], data_format="CHW")]
-            )
-            train_dataset = paddle.vision.datasets.MNIST(
-                mode="train", transform=transform
-            )
-            train_loader = paddle.io.DataLoader(
-                train_dataset,
-                batch_size=64,
-                shuffle=True,
-                drop_last=True,
-                num_workers=0,
-            )
-
-            for batch_id, (image, _) in enumerate(train_loader()):
-                out = self.custom_op(image)
-                pd_out = paddle.nn.functional.relu(image)
-                np.testing.assert_array_equal(
-                    out,
-                    pd_out,
-                    err_msg="custom op out: {},\n paddle api out: {}".format(
-                        out, pd_out
-                    ),
-                )
-
-                if batch_id == 5:
-                    break
 
 
 if __name__ == "__main__":

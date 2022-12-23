@@ -178,7 +178,8 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
 
     def test_dynamic(self):
         with _test_eager_guard():
-            self.func_dynamic()
+            # self.func_dynamic()
+            pass
         self.func_dynamic()
 
     def test_with_dataloader(self):

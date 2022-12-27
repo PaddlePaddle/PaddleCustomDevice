@@ -222,6 +222,17 @@ class TestDropoutOpFp16(TestDropoutOp):
         self.place = paddle.CustomPlace("npu", 0)
 
 
+class TestDropoutOpFp64(TestDropoutOp):
+    # float64
+    def init_dtype(self):
+        self.dtype = np.double
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)

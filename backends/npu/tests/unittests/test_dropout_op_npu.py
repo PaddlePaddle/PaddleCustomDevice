@@ -219,6 +219,17 @@ class TestDropoutOpFp16(TestDropoutOp):
         self.place = paddle.CustomPlace("npu", 0)
 
 
+class TestDropoutOpFp64(TestDropoutOp):
+    # float64
+    def init_dtype(self):
+        self.dtype = np.double
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
@@ -245,8 +256,8 @@ class TestDropoutAPI(unittest.TestCase):
             res6 = paddle.nn.functional.dropout(
                 x=input, p=1.0, training=True, mode="upscale_in_train"
             )
-            res7 = paddle.fluid.layers.dropout(
-                x=input, dropout_prob=0.0, dropout_implementation="upscale_in_train"
+            res7 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=True, mode="upscale_in_train"
             )
             res8 = paddle.nn.functional.dropout(
                 x=input, p=0.0, axis=(0, 1), training=False, mode="upscale_in_train"

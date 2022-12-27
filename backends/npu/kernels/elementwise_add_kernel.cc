@@ -164,11 +164,12 @@ void AddGradKernel(const Context& dev_ctx,
       if (!reduce_axes.empty()) {
         phi::DenseTensor tmp(*dy);
         tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
+        NpuOpRunner runner;
+        runner.SetType("ReduceSum");
+        runner.AddInput(dout);
+        runner.AddInput(dev_ctx, std::move(reduce_axes));
+        runner.AddOutput(tmp);
+        runner.AddAttr("keep_dims", false);
         runner.Run(stream);
       }
     } else {

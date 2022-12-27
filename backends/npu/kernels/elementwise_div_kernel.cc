@@ -56,9 +56,8 @@ void DivideGradKernel(const Context& dev_ctx,
     phi::DenseTensor tensor_one;
     phi::DenseTensorMeta tensor_one_meta = {y.dtype(), phi::make_ddim({1})};
     tensor_one.set_meta(tensor_one_meta);
-    dev_ctx.template Alloc<float>(&tensor_one);
-    FillNpuTensorWithConstant<float>(
-        &tensor_one, dev_ctx, static_cast<float>(1.0));
+    dev_ctx.template Alloc<T>(&tensor_one);
+    FillNpuTensorWithConstant<T>(&tensor_one, dev_ctx, static_cast<T>(1.0));
 
     // Use `Div` CANN OP to achieve `1/y` instead of `Power` CANN OP.
     // Because `Power` will cause precision overflow, that is, `float_status`
@@ -154,11 +153,12 @@ void DivideGradKernel(const Context& dev_ctx,
           axes.push_back(i);
         }
       }
-      const auto& runner_reduce =
-          NpuOpRunner("ReduceSumD",
-                      {tmp_mul},
-                      {reduced_tmp_mul},
-                      {{"axes", axes}, {"keep_dims", false}});
+      NpuOpRunner runner_reduce;
+      runner_reduce.SetType("ReduceSum");
+      runner_reduce.AddInput(tmp_mul);
+      runner_reduce.AddInput(dev_ctx, std::move(axes));
+      runner_reduce.AddOutput(reduced_tmp_mul);
+      runner_reduce.AddAttr("keep_dims", false);
       runner_reduce.Run(stream);
 
       const auto& runner_y_grad =

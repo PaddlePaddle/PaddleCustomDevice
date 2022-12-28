@@ -166,5 +166,72 @@ class TestBinaryAPI(unittest.TestCase):
         paddle.enable_static()
 
 
+# Use to test zero-dim of Sundry API, which is unique and can not be classified
+# with others. It can be implemented here flexibly.
+class TestSundryAPI(unittest.TestCase):
+    def setUp(self):
+        paddle.disable_static()
+        self.x = paddle.rand([])
+
+    def test_reshape_list(self):
+        x = paddle.rand([])
+        x.stop_gradient = False
+
+        out = paddle.reshape(x, [])
+        out.backward()
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        out = paddle.reshape(x, [1])
+        out.backward()
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [1])
+        self.assertEqual(out.grad.shape, [1])
+
+        out = paddle.reshape(x, [-1])
+        out.backward()
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [1])
+        self.assertEqual(out.grad.shape, [1])
+
+        out = paddle.reshape(x, [-1, 1])
+        out.backward()
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [1, 1])
+        self.assertEqual(out.grad.shape, [1, 1])
+
+    def test_reshape_tensor(self):
+        x = paddle.rand([1, 1])
+        x.stop_gradient = False
+
+        out = paddle.reshape(x, [])
+        out.backward()
+        self.assertEqual(x.grad.shape, [1, 1])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        new_shape = paddle.full([], 1, "int32")
+        out = paddle.reshape(x, new_shape)
+        out.backward()
+        self.assertEqual(x.grad.shape, [1, 1])
+        self.assertEqual(out.shape, [1])
+        self.assertEqual(out.grad.shape, [1])
+
+        new_shape = paddle.full([], -1, "int32")
+        out = paddle.reshape(x, new_shape)
+        out.backward()
+        self.assertEqual(x.grad.shape, [1, 1])
+        self.assertEqual(out.shape, [1])
+        self.assertEqual(out.grad.shape, [1])
+
+        new_shape = [paddle.full([], -1, "int32"), paddle.full([], 1, "int32")]
+        out = paddle.reshape(x, new_shape)
+        out.backward()
+        self.assertEqual(x.grad.shape, [1, 1])
+        self.assertEqual(out.shape, [1, 1])
+        self.assertEqual(out.grad.shape, [1, 1])
+
+
 if __name__ == "__main__":
     unittest.main()

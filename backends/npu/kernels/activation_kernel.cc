@@ -127,6 +127,29 @@ void FloorGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void RsqrtKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Rsqrt", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RsqrtGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("RsqrtGrad", {out, dout}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void SinKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -320,6 +343,45 @@ void GeluGradKernel(const Context& dev_ctx,
   const auto& runner_dx =
       NpuOpRunner("GeluGrad", {out_grad, x, out_grad}, {*x_grad}, {});
   runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void CeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float alpha,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("CeluV2", {x}, {*out}, {{"alpha", alpha}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void CeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  auto stream = dev_ctx.stream();
+  phi::DenseTensor tmp_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  tmp_out.set_meta(meta);
+
+  float times = alpha != 0.0 ? (1 / alpha) : 0.0;
+  dev_ctx.template Alloc<T>(&tmp_out);
+
+  const auto& runner =
+      NpuOpRunner("CeluV2", {x}, {tmp_out}, {{"alpha", alpha}});
+  runner.Run(stream);
+
+  const auto& runner_mul =
+      NpuOpRunner("Muls", {tmp_out}, {tmp_out}, {{"value", times}});
+  runner_mul.Run(stream);
+
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner_1 = NpuOpRunner(
+      "EluGradV2", {dout, tmp_out}, {*dx}, {{"alpha", times * alpha}});
+  runner_1.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -1018,6 +1080,20 @@ PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(celu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::CeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(celu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::CeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(tanh,
                           npu,
                           ALL_LAYOUT,
@@ -1144,3 +1220,13 @@ PD_REGISTER_PLUGIN_KERNEL(selu_grad,
                           custom_kernel::SeluGradKernel,
                           float,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(
+    rsqrt, npu, ALL_LAYOUT, custom_kernel::RsqrtKernel, float, double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtGradKernel,
+                          float,
+                          double) {}

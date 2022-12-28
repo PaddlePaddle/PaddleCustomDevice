@@ -102,8 +102,7 @@ class AlignnedAllocator {
     std::lock_guard<std::mutex> lock(mtx_);
     ProcessEvents();
     void *p = nullptr;
-    // ACL_CHECK(aclrtMallocHost(&p, size + align));
-    p = malloc(size + align);
+    ACL_CHECK(aclrtMallocHost(&p, size + align));
     void *ret =
         reinterpret_cast<void *>(reinterpret_cast<size_t>(p) + align -
                                  (reinterpret_cast<size_t>(p) & (align - 1)));
@@ -123,8 +122,7 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
-      // ACL_CHECK(aclrtFreeHost(ptr));
-      free(ptr);
+      ACL_CHECK(aclrtFreeHost(ptr));
       ACL_CHECK(aclrtDestroyEvent(event));
       recorded_events_.erase(it++);
     }
@@ -138,9 +136,7 @@ class AlignnedAllocator {
       ACL_CHECK(aclrtQueryEventStatus(event, &status));
       if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
-        // NOTE: unknown bug, CANN Inner Error 507899
-        // ACL_CHECK(aclrtFreeHost(ptr));
-        free(ptr);
+        ACL_CHECK(aclrtFreeHost(ptr));
         recorded_events_.erase(it++);
         ACL_CHECK(aclrtDestroyEvent(event));
       } else {

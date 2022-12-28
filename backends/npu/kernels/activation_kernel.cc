@@ -835,6 +835,37 @@ void ReciprocalGradKernel(const Context& dev_ctx,
   const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
 }
+
+template <typename T, typename Context>
+void EluKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               float alpha,
+               phi::DenseTensor* out) {
+  float scaleValue = 1.0f;
+  float inputScaleValue = 1.0f;
+  NPUAttributeMap attr_input = {{"alpha", alpha},
+                                {"scale", scaleValue},
+                                {"input_scale", inputScaleValue}};
+  dev_ctx.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("Elu", {x}, {*out}, attr_input);
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void EluGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,  // output
+                   const phi::DenseTensor& out,
+                   const phi::DenseTensor& dout,
+                   float alpha,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("EluGradV2", {dout, out}, {*dx}, {{"alpha", alpha}});
+  runner.Run(stream);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
@@ -1142,5 +1173,19 @@ PD_REGISTER_PLUGIN_KERNEL(selu_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::EluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::EluGradKernel,
                           float,
                           phi::dtype::float16) {}

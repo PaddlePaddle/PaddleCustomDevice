@@ -14,11 +14,10 @@
 
 import paddle
 import paddle.fluid as fluid
-import paddle.nn.functional as F
 import numpy as np
 import unittest
 
-paddle.set_device('custom_cpu')
+paddle.set_device("custom_cpu")
 
 unary_api_list = [
     paddle.nn.functional.relu,
@@ -59,7 +58,7 @@ class TestReduceAPI(unittest.TestCase):
         fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in reduce_api_list:
             if api in [paddle.all, paddle.any]:
-                x = paddle.randint(0, 2, []).astype('bool')
+                x = paddle.randint(0, 2, []).astype("bool")
                 out = api(x, None)
                 self.assertEqual(x.shape, [])
                 self.assertEqual(out.shape, [])
@@ -78,17 +77,17 @@ class TestReduceAPI(unittest.TestCase):
 
 
 binary_api_list = [
-    {'func': paddle.add, 'cls_method': '__add__'},
-    {'func': paddle.multiply, 'cls_method': '__mul__'},
+    {"func": paddle.add, "cls_method": "__add__"},
+    {"func": paddle.multiply, "cls_method": "__mul__"},
 ]
 
 binary_api_list_without_grad = [
-    {'func': paddle.equal, 'cls_method': '__eq__'},
-    {'func': paddle.not_equal, 'cls_method': '__ne__'},
-    {'func': paddle.greater_equal, 'cls_method': '__ge__'},
-    {'func': paddle.greater_than, 'cls_method': '__gt__'},
-    {'func': paddle.less_equal, 'cls_method': '__le__'},
-    {'func': paddle.less_than, 'cls_method': '__lt__'},
+    {"func": paddle.equal, "cls_method": "__eq__"},
+    {"func": paddle.not_equal, "cls_method": "__ne__"},
+    {"func": paddle.greater_equal, "cls_method": "__ge__"},
+    {"func": paddle.greater_than, "cls_method": "__gt__"},
+    {"func": paddle.less_equal, "cls_method": "__le__"},
+    {"func": paddle.less_than, "cls_method": "__lt__"},
 ]
 
 
@@ -104,8 +103,8 @@ class TestBinaryAPI(unittest.TestCase):
             x.stop_gradient = False
             y.stop_gradient = False
             if isinstance(api, dict):
-                out = api['func'](x, y)
-                out_cls = getattr(paddle.Tensor, api['cls_method'])(x, y)
+                out = api["func"](x, y)
+                out_cls = getattr(paddle.Tensor, api["cls_method"])(x, y)
                 np.testing.assert_array_equal(out_cls.numpy(), out.numpy())
             else:
                 out = api(x, y)
@@ -123,8 +122,8 @@ class TestBinaryAPI(unittest.TestCase):
             x.stop_gradient = False
             y.stop_gradient = False
             if isinstance(api, dict):
-                out = api['func'](x, y)
-                out_cls = getattr(paddle.Tensor, api['cls_method'])(x, y)
+                out = api["func"](x, y)
+                out_cls = getattr(paddle.Tensor, api["cls_method"])(x, y)
                 np.testing.assert_array_equal(out_cls.numpy(), out.numpy())
             else:
                 out = api(x, y)
@@ -142,8 +141,8 @@ class TestBinaryAPI(unittest.TestCase):
             x.stop_gradient = False
             y.stop_gradient = False
             if isinstance(api, dict):
-                out = api['func'](x, y)
-                out_cls = getattr(paddle.Tensor, api['cls_method'])(x, y)
+                out = api["func"](x, y)
+                out_cls = getattr(paddle.Tensor, api["cls_method"])(x, y)
                 np.testing.assert_array_equal(out_cls.numpy(), out.numpy())
             else:
                 out = api(x, y)
@@ -160,7 +159,7 @@ class TestBinaryAPI(unittest.TestCase):
             y = 0.5
             x.stop_gradient = False
             if isinstance(api, dict):
-                out = getattr(paddle.Tensor, api['cls_method'])(x, y)
+                out = getattr(paddle.Tensor, api["cls_method"])(x, y)
                 self.assertEqual(out.shape, [])
 
         paddle.enable_static()

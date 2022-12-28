@@ -24,7 +24,7 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-#if (CANN_VERSION_CODE < 504000)
+#if (CANN_VERSION_CODE < 600000)
   NpuOpRunner runner;
   runner.SetType("Transpose")
       .AddInput(x)

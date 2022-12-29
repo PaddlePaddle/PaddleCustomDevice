@@ -527,6 +527,16 @@ class TestSundryAPI(unittest.TestCase):
         for i in range(3):
             self.assertEqual(out.numpy()[1][i], updates.numpy()[i])
 
+    def test_flatten(self):
+        x = paddle.full([], 1, "float32")
+        start_axis = 0
+        stop_axis = -1
+
+        out = paddle.flatten(x, start_axis=start_axis, stop_axis=stop_axis)
+        out.backward()
+
+        self.assertEqual(out.shape, [1])
+
     def test_reshape_list(self):
         x = paddle.rand([])
         x.stop_gradient = False

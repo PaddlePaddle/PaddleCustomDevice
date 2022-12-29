@@ -210,14 +210,14 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(out.shape, [])
         self.assertEqual(out.grad.shape, [])
 
-        new_shape = paddle.full([], 1, "int32")
+        new_shape = paddle.full([1], 1, "int32")
         out = paddle.reshape(x, new_shape)
         out.backward()
         self.assertEqual(x.grad.shape, [1, 1])
         self.assertEqual(out.shape, [1])
         self.assertEqual(out.grad.shape, [1])
 
-        new_shape = paddle.full([], -1, "int32")
+        new_shape = paddle.full([1], -1, "int32")
         out = paddle.reshape(x, new_shape)
         out.backward()
         self.assertEqual(x.grad.shape, [1, 1])

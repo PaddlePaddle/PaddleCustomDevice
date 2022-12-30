@@ -43,6 +43,10 @@ void FlattenKernel(const Context& dev_ctx,
                   {*out},
                   {{"axis", static_cast<int32_t>(start_axis)},
                    {"end_axis", static_cast<int32_t>(stop_axis)}});
+  const auto& in_dims = x.meta().dims;
+  if (in_dims.size() == 0) {
+    out->Resize(phi::make_ddim(std::vector<int64_t>{1}));
+  }
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }

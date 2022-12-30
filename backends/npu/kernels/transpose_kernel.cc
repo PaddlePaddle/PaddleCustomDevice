@@ -24,8 +24,17 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
+#if (CANN_VERSION_CODE < 600000)
+  NpuOpRunner runner;
+  runner.SetType("Transpose")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(axis))
+      .AddOutput(*out);
+  runner.Run(stream);
+#else
   const auto& runner = NpuOpRunner("Transpose", {x}, {*out}, {{"perm", axis}});
   runner.Run(stream);
+#endif
 }
 
 template <typename T, typename Context>

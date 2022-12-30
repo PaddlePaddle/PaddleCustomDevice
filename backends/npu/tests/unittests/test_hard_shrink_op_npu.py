@@ -22,10 +22,8 @@ from tests.op_test import OpTest
 
 
 def ref_hard_shrink_grad(x, threshold=0.5):
-    up = threshold
-    lo = -threshold
-    mask_low = x < lo
-    mask_up = x > up
+    mask_low = x < -threshold
+    mask_up = x > threshold
     mask = np.logical_or(mask_low, mask_up)
     mask.astype(x.dtype)
     return mask

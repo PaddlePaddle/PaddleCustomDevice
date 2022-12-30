@@ -219,6 +219,10 @@ class TestNPUTrilTriuInt64(TestNPUTrilTriu):
     def init_dtype(self):
         self.dtype = np.int64
 
+    # int64 is not supported
+    def test_check_grad(self):
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()

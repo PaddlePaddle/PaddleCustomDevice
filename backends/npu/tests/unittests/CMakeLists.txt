@@ -66,6 +66,8 @@ set_tests_properties(test_rmsprop_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_sgd_op_npu PROPERTIES ENVIRONMENT
                                                 FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_strided_slice_op_npu
+                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_sqrt_op_npu

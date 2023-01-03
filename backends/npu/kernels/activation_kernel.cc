@@ -927,66 +927,9 @@ void HardshrinkGradKernel(const Context& dev_ctx,
                           phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-
-  phi::DenseTensor tensor_low_bound;
-  phi::DenseTensorMeta low_bound_meta = {dout.dtype(), dout.dims()};
-  tensor_low_bound.set_meta(low_bound_meta);
-
-  phi::DenseTensor tensor_up_bound;
-  phi::DenseTensorMeta up_bound_meta = {dout.dtype(), dout.dims()};
-  tensor_up_bound.set_meta(up_bound_meta);
-
-  phi::DenseTensor tensor_low_bound_y;
-  phi::DenseTensorMeta low_bound_y_meta = {paddle::experimental::DataType::BOOL,
-                                           dout.dims()};
-  tensor_low_bound_y.set_meta(low_bound_y_meta);
-
-  phi::DenseTensor tensor_up_bound_y;
-  phi::DenseTensorMeta up_bound_y_meta = {paddle::experimental::DataType::BOOL,
-                                          dout.dims()};
-  tensor_up_bound_y.set_meta(up_bound_y_meta);
-
-  phi::DenseTensor tmp_out;
-  phi::DenseTensorMeta out_meta = {paddle::experimental::DataType::BOOL,
-                                   dout.dims()};
-  tmp_out.set_meta(out_meta);
-  dev_ctx.template Alloc<T>(&tensor_low_bound);
-  dev_ctx.template Alloc<T>(&tensor_up_bound);
-  dev_ctx.template Alloc<bool>(&tensor_low_bound_y);
-  dev_ctx.template Alloc<bool>(&tensor_up_bound_y);
-
-  const auto& runner = NpuOpRunner("OnesLike", {dout}, {tensor_low_bound}, {});
+  const auto& runner =
+      NpuOpRunner("HardShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
   runner.Run(stream);
-  const auto& runner_1 = NpuOpRunner("OnesLike", {dout}, {tensor_up_bound}, {});
-  runner_1.Run(stream);
-
-  float neg_lambd = -lambd;
-  const auto& runner_mul = NpuOpRunner(
-      "Muls", {tensor_low_bound}, {tensor_low_bound}, {{"value", neg_lambd}});
-  runner_mul.Run(stream);
-  const auto& runner_mul_1 = NpuOpRunner(
-      "Muls", {tensor_up_bound}, {tensor_up_bound}, {{"value", lambd}});
-  runner_mul_1.Run(stream);
-
-  const auto& runner_less =
-      NpuOpRunner("Less", {a, tensor_low_bound}, {tensor_low_bound_y}, {});
-  runner_less.Run(stream);
-  const auto& runner_greater =
-      NpuOpRunner("Greater", {a, tensor_up_bound}, {tensor_up_bound_y}, {});
-  runner_greater.Run(stream);
-
-  const auto& runner_or = NpuOpRunner("LogicalOr",
-                                      {tensor_low_bound_y, tensor_up_bound_y},
-                                      {tensor_low_bound_y},
-                                      {});
-  runner_or.Run(stream);
-
-  const auto& runner_cast = NpuOpRunner(
-      "Cast",
-      {tensor_low_bound_y},
-      {*dx},
-      {{"dst_type", static_cast<int>(ConvertToNpuDtype(dx->dtype()))}});
-  runner_cast.Run(stream);
 }
 
 template <typename T, typename Context>

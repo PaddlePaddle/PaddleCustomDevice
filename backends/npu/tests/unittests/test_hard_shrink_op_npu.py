@@ -21,16 +21,12 @@ import paddle
 from tests.op_test import OpTest
 
 
-def ref_hard_shrink_grad(x, threshold=0.5):
+def ref_hard_shrink(x, threshold=0.5):
     mask_low = x < -threshold
     mask_up = x > threshold
     mask = np.logical_or(mask_low, mask_up)
     mask.astype(x.dtype)
-    return mask
-
-
-def ref_hard_shrink(x, threshold=0.5):
-    return x * ref_hard_shrink_grad(x, threshold)
+    return x * mask
 
 
 paddle.enable_static()
@@ -50,7 +46,6 @@ class TestHardShrink(OpTest):
         self.inputs = {"X": x}
         self.attrs = {"threshold": threshold}
         self.outputs = {"Out": out}
-        self.x_grad = ref_hard_shrink_grad(x, threshold)
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -62,9 +57,7 @@ class TestHardShrink(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", user_defined_grads=[self.x_grad]
-        )
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestHardShrinkFp16(TestHardShrink):
@@ -75,9 +68,7 @@ class TestHardShrinkFp16(TestHardShrink):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", user_defined_grads=[self.x_grad]
-        )
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 if __name__ == "__main__":

@@ -95,12 +95,51 @@ function main() {
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
 
+    # get changed ut and kernels
+    changed_uts=$(git diff --name-only upstream/develop | grep "backends/npu/tests/unittests")
+    changed_ut_list=()
+    for line in ${changed_uts[@]} ;
+        do
+            tmp=${line##*/}
+            changed_ut=${tmp%.py*}
+            if [ $changed_ut = "CMakeLists.txt" ]; then
+                continue
+            fi
+            changed_ut_list+=(${changed_ut})
+        done
+
+    # transform changed kernels to changed ut
+    changed_kernels=$(git diff --name-only upstream/develop | grep "backends/npu/kernels")
+    set +x
+    all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
+    set -x
+    for line in ${changed_kernels[@]} ;
+        do
+            tmp=${line##*/}
+            echo $tmp
+            changed_kenrel=${tmp%_kernel.cc*}
+            echo $changed_kenrel
+            changed_kernel_ut=$(echo "${all_ut_lists[@]}" | grep "${changed_kenrel}")
+            echo "changed_kernel_ut=$changed_kernel_ut"
+            filtered_ut=${changed_kernel_ut%.py*}
+            res=$(echo "${changed_ut_list[@]}" | grep "${filtered_ut}" | wc -l)
+            if [ $res -eq 0 ]; then
+                changed_ut_list+=(${filtered_ut})
+            fi
+        done
+
+    echo "changed_ut_list=${changed_ut_list[@]}"
+
     # read disable ut list
     IFS=$'\n'
     disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
     disable_ut_list=''
     while read -r line; do
-        disable_ut_list+="^"${line}"$|"
+        res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
+        echo $res
+        if [ $res -eq 0 ]; then
+            disable_ut_list+="^"${line}"$|"
+        fi
     done <<< "$disable_ut_npu";
     disable_ut_list+="^disable_ut_npu$"
     echo "disable_ut_list=${disable_ut_list}"

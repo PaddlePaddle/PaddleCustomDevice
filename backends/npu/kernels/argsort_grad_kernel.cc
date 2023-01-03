@@ -96,9 +96,16 @@ void ArgsortGradKernel(const Context& dev_ctx,
                        phi::DenseTensor* in_grad) {
   auto stream = dev_ctx.stream();
   auto in_dims = indices.dims();
+  auto rank = input.dims().size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
   dev_ctx.template Alloc<T>(in_grad);
+  FillNpuTensorWithConstant<T>(in_grad, dev_ctx, 0.0);
   if (out_grad.numel() == 0) return;
+
+  if (rank == 0) {
+    FillNpuTensorWithConstant<T>(in_grad, dev_ctx, 1.0);
+    return;
+  }
 
   // Do full assign
   if (axis == -1 || axis + 1 == in_dims.size()) {

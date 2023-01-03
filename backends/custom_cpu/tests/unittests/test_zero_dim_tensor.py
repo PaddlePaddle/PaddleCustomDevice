@@ -231,6 +231,17 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(out.shape, [1, 1])
         self.assertEqual(out.grad.shape, [1, 1])
 
+    def test_argsort(self):
+        x1 = paddle.rand([])
+        x2 = paddle.rand([])
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out1 = paddle.argsort(x1, axis=-1)
+        out2 = paddle.argsort(x2, axis=0)
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+
 
 if __name__ == "__main__":
     unittest.main()

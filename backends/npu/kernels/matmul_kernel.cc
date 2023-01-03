@@ -25,12 +25,41 @@ static void MatMul2D(const Context& dev_ctx,
                      const bool transpose_x,
                      const bool transpose_y) {
   dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner(
-      "MatMul",
-      {X, Y},
-      {*out},
-      {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}});
-  runner.Run(stream);
+  if (X.dtype() == phi::DataType::FLOAT64 &&
+      Y.dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensor tmp_x, tmp_y, tmp_out;
+    phi::DenseTensorMeta tmp_x_meta = {phi::DataType::FLOAT32, X.dims()};
+    phi::DenseTensorMeta tmp_y_meta = {phi::DataType::FLOAT32, Y.dims()};
+    phi::DenseTensorMeta tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+    tmp_x.set_meta(tmp_x_meta);
+    tmp_y.set_meta(tmp_y_meta);
+    tmp_out.set_meta(tmp_out_meta);
+    dev_ctx.template Alloc<float>(&tmp_x);
+    dev_ctx.template Alloc<float>(&tmp_y);
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& runner1 =
+        NpuOpRunner("Cast", {X}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    runner1.Run(stream);
+    const auto& runner2 =
+        NpuOpRunner("Cast", {Y}, {tmp_y}, {{"dst_type", ACL_FLOAT}});
+    runner2.Run(stream);
+    const auto& runner3 = NpuOpRunner(
+        "MatMul",
+        {tmp_x, tmp_y},
+        {tmp_out},
+        {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}});
+    runner3.Run(stream);
+    const auto& runner4 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
+    runner4.Run(stream);
+  } else {
+    const auto& runner = NpuOpRunner(
+        "MatMul",
+        {X, Y},
+        {*out},
+        {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}});
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -42,12 +71,41 @@ static void MatMulND(const Context& dev_ctx,
                      const bool transpose_x,
                      const bool transpose_y) {
   dev_ctx.template Alloc<T>(out);
-  const auto& runner =
-      NpuOpRunner("BatchMatMul",
-                  {X, Y},
-                  {*out},
-                  {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}});
-  runner.Run(stream);
+  if (X.dtype() == phi::DataType::FLOAT64 &&
+      Y.dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensor tmp_x, tmp_y, tmp_out;
+    phi::DenseTensorMeta tmp_x_meta = {phi::DataType::FLOAT32, X.dims()};
+    phi::DenseTensorMeta tmp_y_meta = {phi::DataType::FLOAT32, Y.dims()};
+    phi::DenseTensorMeta tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+    tmp_x.set_meta(tmp_x_meta);
+    tmp_y.set_meta(tmp_y_meta);
+    tmp_out.set_meta(tmp_out_meta);
+    dev_ctx.template Alloc<float>(&tmp_x);
+    dev_ctx.template Alloc<float>(&tmp_y);
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& runner1 =
+        NpuOpRunner("Cast", {X}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    runner1.Run(stream);
+    const auto& runner2 =
+        NpuOpRunner("Cast", {Y}, {tmp_y}, {{"dst_type", ACL_FLOAT}});
+    runner2.Run(stream);
+    const auto& runner3 =
+        NpuOpRunner("BatchMatMul",
+                    {tmp_x, tmp_y},
+                    {tmp_out},
+                    {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}});
+    runner3.Run(stream);
+    const auto& runner4 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
+    runner4.Run(stream);
+  } else {
+    const auto& runner =
+        NpuOpRunner("BatchMatMul",
+                    {X, Y},
+                    {*out},
+                    {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}});
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -70,8 +128,12 @@ static void ReduceDims(const Context& dev_ctx,
     }
   }
   dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner(
-      "ReduceSumD", {in}, {*out}, {{"axes", axes}, {"keep_dims", false}});
+  NpuOpRunner runner;
+  runner.SetType("ReduceSum");
+  runner.AddInput(in);
+  runner.AddInput(dev_ctx, std::move(axes));
+  runner.AddOutput(*out);
+  runner.AddAttr("keep_dims", false);
   runner.Run(stream);
 }
 
@@ -104,9 +166,33 @@ void MatmulKernel(const Context& dev_ctx,
             y.numel()));
     out->Resize({1});
     dev_ctx.template Alloc<T>(out);
-
-    const auto& runner = NpuOpRunner("Dot", {x, y}, {*out});
-    runner.Run(stream);
+    if (x.dtype() == phi::DataType::FLOAT64 &&
+        y.dtype() == phi::DataType::FLOAT64) {
+      phi::DenseTensor tmp_x, tmp_y, tmp_out;
+      phi::DenseTensorMeta tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
+      phi::DenseTensorMeta tmp_y_meta = {phi::DataType::FLOAT32, y.dims()};
+      phi::DenseTensorMeta tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+      tmp_x.set_meta(tmp_x_meta);
+      tmp_y.set_meta(tmp_y_meta);
+      tmp_out.set_meta(tmp_out_meta);
+      dev_ctx.template Alloc<float>(&tmp_x);
+      dev_ctx.template Alloc<float>(&tmp_y);
+      dev_ctx.template Alloc<float>(&tmp_out);
+      const auto& runner1 =
+          NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+      runner1.Run(stream);
+      const auto& runner2 =
+          NpuOpRunner("Cast", {y}, {tmp_y}, {{"dst_type", ACL_FLOAT}});
+      runner2.Run(stream);
+      const auto& runner3 = NpuOpRunner("Dot", {tmp_x, tmp_y}, {tmp_out});
+      runner3.Run(stream);
+      const auto& runner4 =
+          NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
+      runner4.Run(stream);
+    } else {
+      const auto& runner = NpuOpRunner("Dot", {x, y}, {*out});
+      runner.Run(stream);
+    }
     return;
   }
 
@@ -444,11 +530,13 @@ PD_REGISTER_PLUGIN_KERNEL(matmul,
                           ALL_LAYOUT,
                           custom_kernel::MatmulKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

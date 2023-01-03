@@ -381,6 +381,45 @@ create_test_fp16_class(TestMatMulOp15)
 create_test_fp16_class(TestMatMulOp16)
 create_test_fp16_class(TestMatMulOp17)
 
+# --------------------test matmul fp64--------------------
+
+
+def create_test_fp64_class(parent, atol=0.01, max_relative_error=2.5):
+    class TestMatMulOpFp64Case(parent):
+        def init_kernel_type(self):
+            self.dtype = np.float64
+
+        def test_check_output(self):
+            self.check_output_with_place(self.place, atol=atol)
+
+        def test_check_grad(self):
+            self.check_grad_with_place(
+                self.place, ["X", "Y"], "Out", max_relative_error=max_relative_error
+            )
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Fp64")
+    TestMatMulOpFp64Case.__name__ = cls_name
+    globals()[cls_name] = TestMatMulOpFp64Case
+
+
+create_test_fp64_class(TestMatMulV2Op)
+create_test_fp64_class(TestMatMulOp2)
+create_test_fp64_class(TestMatMulOp3)
+create_test_fp64_class(TestMatMulOp4)
+create_test_fp64_class(TestMatMulOp5)
+create_test_fp64_class(TestMatMulOp6)
+create_test_fp64_class(TestMatMulOp7)
+create_test_fp64_class(TestMatMulOp8)
+create_test_fp64_class(TestMatMulOp9)
+create_test_fp64_class(TestMatMulOp10)
+create_test_fp64_class(TestMatMulOp11)
+create_test_fp64_class(TestMatMulOp12)
+create_test_fp64_class(TestMatMulOp13)
+create_test_fp64_class(TestMatMulOp14)
+create_test_fp64_class(TestMatMulOp15)
+create_test_fp64_class(TestMatMulOp16)
+create_test_fp64_class(TestMatMulOp17)
+
 
 class TestMatMulV2API(unittest.TestCase):
     def setUp(self):

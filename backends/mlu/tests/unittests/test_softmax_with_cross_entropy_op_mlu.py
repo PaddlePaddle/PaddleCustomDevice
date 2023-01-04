@@ -28,9 +28,10 @@ def stable_softmax(x):
     """Compute the softmax of vector x in a numerically stable way."""
     # clip to shiftx, otherwise, when calc loss with
     # log(exp(shiftx)), may get log(0)=INF
-    shiftx = (x - np.max(x)).clip(-64.)
+    shiftx = (x - np.max(x)).clip(-64.0)
     exps = np.exp(shiftx)
     return exps / np.sum(exps)
+
 
 def cross_entropy(softmax, label, soft_label, axis, ignore_index=-1):
     if soft_label:
@@ -39,7 +40,7 @@ def cross_entropy(softmax, label, soft_label, axis, ignore_index=-1):
     axis %= len(shape)
     n = int(np.prod(shape[:axis]))
     axis_dim = shape[axis]
-    remain = int(np.prod(shape[axis + 1:]))
+    remain = int(np.prod(shape[axis + 1 :]))
     softmax_reshape = softmax.reshape((n, axis_dim, remain))
     label_reshape = label.reshape((n, 1, remain))
     result = np.zeros_like(label_reshape, dtype=softmax.dtype)
@@ -50,8 +51,8 @@ def cross_entropy(softmax, label, soft_label, axis, ignore_index=-1):
                 result[i, 0, j] -= np.log(softmax_reshape[i, lbl, j])
     return result.reshape(label.shape)
 
-class TestSoftmaxWithCrossEntropyOp(OpTest):
 
+class TestSoftmaxWithCrossEntropyOp(OpTest):
     def set_mlu(self):
         self.__class__.use_custom_device = True
 
@@ -62,7 +63,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         self.set_mlu()
         self.op_type = "softmax_with_cross_entropy"
         self.numeric_stable_mode = False
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
         self.soft_label = False
         self.init_dtype()
         self.axis = -1
@@ -74,8 +75,8 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         self.initParams()
 
         logits = getattr(
-            self, "logits",
-            np.random.uniform(0.1, 1.0, self.shape).astype(self.dtype))
+            self, "logits", np.random.uniform(0.1, 1.0, self.shape).astype(self.dtype)
+        )
         softmax = np.apply_along_axis(stable_softmax, self.axis, logits)
 
         if self.soft_label:
@@ -86,8 +87,9 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
             self.shape[self.axis] = 1
             labels = np.random.randint(0, axis_dim, self.shape, dtype="int64")
 
-        loss = cross_entropy(softmax, labels, self.soft_label, self.axis,
-                             self.ignore_index)
+        loss = cross_entropy(
+            softmax, labels, self.soft_label, self.axis, self.ignore_index
+        )
 
         one_hot_label = np.eye(axis_dim)[labels.reshape(-1)]
 
@@ -95,7 +97,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         self.outputs = {
             # "Backprop": (softmax - one_hot_label).astype(self.dtype),
             "Softmax": softmax.astype(self.dtype),
-            "Loss": loss.astype(self.dtype)
+            "Loss": loss.astype(self.dtype),
         }
         self.attrs = {
             "numeric_stable_mode": self.numeric_stable_mode,
@@ -104,7 +106,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         }
 
         if self.axis != -1:
-            self.attrs['axis'] = self.axis
+            self.attrs["axis"] = self.axis
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -113,14 +115,16 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         if self.dtype == np.float16:
             return
         # fp32 has low precision, cpu and mlu both need to relax the max_relative_error if using fp32
-        self.check_grad_with_place(self.place, ['Logits'],
-                                   'Loss',
-                                   numeric_grad_delta=0.001,
-                                   max_relative_error=0.5)
+        self.check_grad_with_place(
+            self.place,
+            ["Logits"],
+            "Loss",
+            numeric_grad_delta=0.001,
+            max_relative_error=0.5,
+        )
 
 
 class TestPowNet(unittest.TestCase):
-
     def _test(self, run_mlu=True):
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()
@@ -128,22 +132,20 @@ class TestPowNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(name="label",
-                                       shape=[32, 1],
-                                       dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             sum = paddle.add(a, b)
             z = paddle.pow(sum, 2.0)
 
-            fc_1 = fluid.layers.fc(input=z, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2)
+            fc_1 = paddle.static.nn.fc(x=z, size=128)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2)
 
             cost = fluid.layers.softmax_with_cross_entropy(prediction, label)
             loss = fluid.layers.reduce_mean(cost)
@@ -151,7 +153,7 @@ class TestPowNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("CustomMLU", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -160,16 +162,17 @@ class TestPowNet(unittest.TestCase):
 
         print("Start run on {}".format(place))
         for epoch in range(100):
-            pred_res, loss_res = exe.run(main_prog,
-                                         feed={
-                                             "a": a_np,
-                                             "b": b_np,
-                                             "label": label_np
-                                         },
-                                         fetch_list=[prediction, loss])
+            pred_res, loss_res = exe.run(
+                main_prog,
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -181,5 +184,5 @@ class TestPowNet(unittest.TestCase):
         np.testing.assert_allclose(mlu_loss, cpu_loss)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

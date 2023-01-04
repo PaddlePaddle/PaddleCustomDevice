@@ -166,18 +166,12 @@ WITH_ARM=OFF # Turn ON if aarch64
 
 ## Environment Variables
 
-**FLAGS_ascend_blocking_npu_runner**
 
-> Synchronous execution kernel
-
-**FLAGS_ascend_profiling_dir**
-
-> The output directory of profiling data
-
-**FLAGS_ascend_profiling_data_type**
-
-> The type of profiling data
-
-**FLAGS_ascend_profiling_metrics**
-
-> AI Core performance metrics
+| Subject     | Variable Name       | Type   | Description    | Default Value |
+| -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
+| Debug     | FLAGS_npu_check_nan_inf | Bool   | check nan or inf of all npu kernels | False                                                       |
+| Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu kernels | False                                                     |
+| Profiling | FLAGS_npu_profiling_dir | String |   ACL profiling output dir     | "ascend_profiling"                                           |
+| Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
+| Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
+| Performance | FLAGS_npu_storage_format         | Bool   | enable Conv/BN acceleration | False                                                        |

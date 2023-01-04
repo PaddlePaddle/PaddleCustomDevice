@@ -32,3 +32,6 @@ kernel_meta*/
 
 # ignore Paddle change
 Paddle/
+
+# ignoer CMakeFiles
+backends/npu/tools/CMakeFiles

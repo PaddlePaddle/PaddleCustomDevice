@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+from paddle.framework import set_flags
 import numpy as np
 import unittest
 
@@ -28,7 +28,7 @@ unary_api_list = [
 class TestUnaryAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in unary_api_list:
             x = paddle.rand([])
             x.stop_gradient = False
@@ -55,7 +55,7 @@ reduce_api_list = [
 class TestReduceAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in reduce_api_list:
             if api in [paddle.all, paddle.any]:
                 x = paddle.randint(0, 2, []).astype("bool")
@@ -95,7 +95,7 @@ binary_api_list_without_grad = [
 class TestBinaryAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in binary_api_list + binary_api_list_without_grad:
             # 1) x/y is 0D
             x = paddle.rand([])

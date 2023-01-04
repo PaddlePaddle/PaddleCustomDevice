@@ -99,11 +99,10 @@ void ArgsortGradKernel(const Context& dev_ctx,
   auto rank = input.dims().size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
   dev_ctx.template Alloc<T>(in_grad);
-  FillNpuTensorWithConstant<T>(in_grad, dev_ctx, 0.0);
   if (out_grad.numel() == 0) return;
 
   if (rank == 0) {
-    FillNpuTensorWithConstant<T>(in_grad, dev_ctx, 1.0);
+    phi::Copy<Context>(dev_ctx, out_grad, dev_ctx.GetPlace(), false, in_grad);
     return;
   }
 

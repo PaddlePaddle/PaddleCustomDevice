@@ -92,7 +92,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
   if (out_grad.numel() == 0) return;
 
   if (rank == 0) {
-    FillMLUTensorWithHostValue(dev_ctx, 1., in_grad);
+    TensorCopy(dev_ctx, out_grad, false, in_grad);
     return;
   }
 

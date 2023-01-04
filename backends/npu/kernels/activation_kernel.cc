@@ -908,6 +908,31 @@ void HardSwishGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void HardshrinkKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const float lambd,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("HardShrink", {x}, {*out}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardshrinkGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& a,
+                          const phi::DenseTensor& dout,
+                          const float lambd,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("HardShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ReciprocalKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       phi::DenseTensor* out) {
@@ -1204,6 +1229,20 @@ PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_shrink,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardshrinkKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_shrink_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardshrinkGradKernel,
                           float,
                           phi::dtype::float16) {}
 

@@ -19,6 +19,10 @@ namespace custom_kernel {
 static std::vector<int32_t> GetOutputShape(const int start_axis,
                                            const int stop_axis,
                                            const phi::DDim& in_dims) {
+  if (in_dims.size() == 0) {
+    return {1};
+  }
+
   int64_t outer = 1;
   std::vector<int32_t> out_shape;
   int in_dims_size = in_dims.size();

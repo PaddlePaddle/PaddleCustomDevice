@@ -56,9 +56,12 @@ NEED_FIX_FP64_CHECK_GRAD_THRESHOLD_OP_LIST = [
     "take_along_axis",
     "dropout",
     "softmax",
+    "matmul_v2",
+
 ]
 
 NEED_FIX_FP64_CHECK_OUTPUT_THRESHOLD_OP_LIST = [
     "bilinear_interp",
     "bilinear_interp_v2",
+    "matmul_v2",
 ]

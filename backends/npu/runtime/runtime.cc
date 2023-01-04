@@ -432,8 +432,6 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_FP32;
   } else if (dtype == C_DataType::FLOAT16) {
     return HCCL_DATA_TYPE_FP16;
-  } else if (dtype == C_DataType::INT64) {
-    return HCCL_DATA_TYPE_INT64;
   } else if (dtype == C_DataType::INT32) {
     return HCCL_DATA_TYPE_INT32;
   } else if (dtype == C_DataType::INT8) {

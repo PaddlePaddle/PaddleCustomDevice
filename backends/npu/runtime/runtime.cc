@@ -23,6 +23,19 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "runtime/flags.h"
+
+FLAGS_DEFINE_string(npu_profiling_dir,
+                    "ascend_profiling",
+                    "ACL profiling output dir");
+FLAGS_DEFINE_uint64(npu_profiling_dtypes,
+                    ACL_PROF_ACL_API | ACL_PROF_TASK_TIME |
+                        ACL_PROF_AICORE_METRICS | ACL_PROF_AICPU |
+                        ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API,
+                    "ACL datatypes to profile");
+FLAGS_DEFINE_uint64(npu_profiling_metrics,
+                    static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION),
+                    "AI Core metric to profile");
 
 thread_local int g_current_device_id(-1);
 
@@ -605,27 +618,24 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
-ENV_string(ascend_profiling_dir, "ascend_profiling");
-ENV_uint64(ascend_profiling_data_type,
-           ACL_PROF_ACL_API | ACL_PROF_TASK_TIME | ACL_PROF_AICORE_METRICS |
-               ACL_PROF_AICPU | ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API);
-ENV_uint64(ascend_profiling_metrics,
-           static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION));
-
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
   // NOTE(wangran16):
   // https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/60RC1alpha001/infacldevg/aclcppdevg/aclcppdevg_03_0784.html
+  VLOG(1) << "Init NPU Profiling, FLAGS_npu_profiling_dir: "
+          << FLAGS_npu_profiling_dir
+          << ", FLAGS_npu_profiling_dtypes: " << FLAGS_npu_profiling_dtypes
+          << ", FLAGS_npu_profiling_metrics: " << FLAGS_npu_profiling_metrics;
   std::vector<uint32_t> device_ids(
       {static_cast<uint32_t>(get_current_device_id())});
   AscendProfiler::Instance().update_config(
       device_ids,
-      static_cast<aclprofAicoreMetrics>(FLAGS_ascend_profiling_metrics),
+      static_cast<aclprofAicoreMetrics>(FLAGS_npu_profiling_metrics),
       nullptr,
-      FLAGS_ascend_profiling_data_type);
-  ACL_CHECK(aclprofInit(FLAGS_ascend_profiling_dir.c_str(),
-                        FLAGS_ascend_profiling_dir.size()));
+      FLAGS_npu_profiling_dtypes);
+  ACL_CHECK(aclprofInit(FLAGS_npu_profiling_dir.c_str(),
+                        FLAGS_npu_profiling_dir.size()));
   LOG(INFO) << "ascend profiling data will be saved in "
-            << FLAGS_ascend_profiling_dir;
+            << FLAGS_npu_profiling_dir;
   return C_SUCCESS;
 }
 

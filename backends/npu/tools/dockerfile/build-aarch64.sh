@@ -17,10 +17,10 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.0.alpha005
+# export CANN_VERSION=6.0.0.alpha003
 # bash build-aarch64.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha005} # default 6.0.0.alpha005
+CANN_VERSION=${1:-6.0.0.alpha003} # default 6.0.0.alpha003
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
 
 DOCKER_VERSION=${CANN_VERSION//[^0-9]/}

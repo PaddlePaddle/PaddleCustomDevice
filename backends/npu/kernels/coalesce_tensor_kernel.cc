@@ -21,43 +21,6 @@
 
 namespace custom_kernel {
 
-#define _PhiForEachDataTypeHelper_(callback, cpp_type, data_type) \
-  callback(cpp_type, data_type);
-
-#define _PhiForEachDataType_(callback)                                   \
-  _PhiForEachDataTypeHelper_(callback, float, phi::DataType::FLOAT32);   \
-  _PhiForEachDataTypeHelper_(                                            \
-      callback, ::phi::dtype::float16, phi::DataType::FLOAT16);          \
-  _PhiForEachDataTypeHelper_(                                            \
-      callback, ::phi::dtype::bfloat16, phi::DataType::BFLOAT16);        \
-  _PhiForEachDataTypeHelper_(callback, double, phi::DataType::FLOAT64);  \
-  _PhiForEachDataTypeHelper_(callback, int, phi::DataType::INT32);       \
-  _PhiForEachDataTypeHelper_(callback, int64_t, phi::DataType::INT64);   \
-  _PhiForEachDataTypeHelper_(callback, bool, phi::DataType::BOOL);       \
-  _PhiForEachDataTypeHelper_(callback, uint8_t, phi::DataType::UINT8);   \
-  _PhiForEachDataTypeHelper_(callback, int16_t, phi::DataType::INT16);   \
-  _PhiForEachDataTypeHelper_(callback, int8_t, phi::DataType::INT8);     \
-  _PhiForEachDataTypeHelper_(                                            \
-      callback, ::phi::dtype::complex<float>, phi::DataType::COMPLEX64); \
-  _PhiForEachDataTypeHelper_(                                            \
-      callback, ::phi::dtype::complex<double>, phi::DataType::COMPLEX128);
-
-template <typename Visitor>
-inline void VisitDataType(phi::DataType type, Visitor visitor) {
-#define PhiVisitDataTypeCallback(cpp_type, data_type) \
-  do {                                                \
-    if (type == data_type) {                          \
-      visitor.template apply<cpp_type>();             \
-      return;                                         \
-    }                                                 \
-  } while (0)
-
-  _PhiForEachDataType_(PhiVisitDataTypeCallback);
-#undef PhiVisitDataTypeCallback
-  PADDLE_THROW(phi::errors::Unimplemented(
-      "Not supported phi::DataType(%d) as data type.", static_cast<int>(type)));
-}
-
 size_t Alignment(size_t size, const phi::Place &place, int align_size) {
   size_t alignment = 0;
   if (align_size > 0) {
@@ -283,7 +246,7 @@ void CoalesceTensorKernel(const Context &dev_ctx,
                     : len;
     }
   } else if (set_constant) {
-    custom_kernel::VisitDataType(
+    phi::VisitDataType(
         dtype,
         FillConstantVisitor<Context>(dev_ctx, fused_output, constant, dtype));
   } else if (persist_output) {

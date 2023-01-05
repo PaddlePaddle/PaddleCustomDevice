@@ -986,11 +986,21 @@ PD_REGISTER_PLUGIN_KERNEL(atan_grad,
                           double,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    exp, npu, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(exp,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::ExpKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    exp_grad, npu, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(exp_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::ExpGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sin,
                           npu,

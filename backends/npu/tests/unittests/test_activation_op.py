@@ -848,12 +848,12 @@ class TestFloor_ZeroDim(TestFloor):
     def init_shape(self):
         self.shape = []
 
+
 def ref_softshrink(x, threshold=0.5):
     out = np.copy(x)
-    out = (out < -threshold) * (out + threshold) + (out > threshold) * (
-        out - threshold
-    )
+    out = (out < -threshold) * (out + threshold) + (out > threshold) * (out - threshold)
     return out
+
 
 class TestSoftShrink(TestActivation):
     def setUp(self):
@@ -883,6 +883,7 @@ class TestSoftShrink(TestActivation):
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
+
 class TestSoftShrinkFp16(TestSoftShrink):
     def init_kernel_type(self):
         self.dtype = np.float16
@@ -893,9 +894,11 @@ class TestSoftShrinkFp16(TestSoftShrink):
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
+
 class TestSoftshrink_ZeroDim(TestSoftShrink):
     def init_shape(self):
         self.shape = []
+
 
 class TestSoftshrinkAPI(unittest.TestCase):
     # test paddle.nn.Softshrink, paddle.nn.functional.softshrink
@@ -904,20 +907,18 @@ class TestSoftshrinkAPI(unittest.TestCase):
         np.random.seed(1024)
         self.x_np = np.random.uniform(0.25, 10, [10, 12]).astype(np.float64)
         self.place = (
-            paddle.CUDAPlace(0)
-            if paddle.is_compiled_with_cuda()
-            else paddle.CPUPlace()
+            paddle.CUDAPlace(0) if paddle.is_compiled_with_cuda() else paddle.CPUPlace()
         )
 
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data('X', self.x_np.shape, self.x_np.dtype)
+            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.softshrink(x, self.threshold)
             softshrink = paddle.nn.Softshrink(self.threshold)
             out2 = softshrink(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_softshrink(self.x_np, self.threshold)
         for r in res:
             np.testing.assert_allclose(out_ref, r, rtol=1e-05)
@@ -939,19 +940,14 @@ class TestSoftshrinkAPI(unittest.TestCase):
             # The input type must be Variable.
             self.assertRaises(TypeError, F.softshrink, 1)
             # The input dtype must be float16, float32.
-            x_int32 = paddle.fluid.data(
-                name='x_int32', shape=[12, 10], dtype='int32'
-            )
+            x_int32 = paddle.fluid.data(name="x_int32", shape=[12, 10], dtype="int32")
             self.assertRaises(TypeError, F.softshrink, x_int32)
             # The threshold must be no less than zero
-            x_fp32 = paddle.fluid.data(
-                name='x_fp32', shape=[12, 10], dtype='float32'
-            )
+            x_fp32 = paddle.fluid.data(name="x_fp32", shape=[12, 10], dtype="float32")
             self.assertRaises(ValueError, F.softshrink, x_fp32, -1.0)
             # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(
-                name='x_fp16', shape=[12, 10], dtype='float16'
-            )
+            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[12, 10], dtype="float16")
+
 
 def ref_softplus(x, beta=1, threshold=20):
     x_beta = beta * x
@@ -960,6 +956,7 @@ def ref_softplus(x, beta=1, threshold=20):
         [np.log(1 + np.exp(x_beta)) / beta, x],
     )
     return out
+
 
 class TestSoftplus(TestActivation):
     def setUp(self):
@@ -974,7 +971,7 @@ class TestSoftplus(TestActivation):
 
         out = ref_softplus(x, beta, threshold)
         self.inputs = {"X": x}
-        self.attrs = {'beta': beta, "threshold": threshold}
+        self.attrs = {"beta": beta, "threshold": threshold}
         self.outputs = {"Out": out}
 
     def init_shape(self):
@@ -989,9 +986,11 @@ class TestSoftplus(TestActivation):
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
+
 class TestSoftplus_ZeroDim(TestSoftplus):
     def init_shape(self):
         self.shape = []
+
 
 class TestSoftplusFp16(TestSoftplus):
     def init_kernel_type(self):
@@ -1002,6 +1001,7 @@ class TestSoftplusFp16(TestSoftplus):
 
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
+
 
 class TestSoftplusAPI(unittest.TestCase):
     # test paddle.nn.Softplus, paddle.nn.functional.softplus
@@ -1015,12 +1015,12 @@ class TestSoftplusAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data('X', self.x_np.shape, self.x_np.dtype)
+            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.softplus(x, self.beta, self.threshold)
             softplus = paddle.nn.Softplus(self.beta, self.threshold)
             out2 = softplus(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_softplus(self.x_np, self.beta, self.threshold)
         for r in res:
             np.testing.assert_allclose(out_ref, r, rtol=1e-05)
@@ -1042,15 +1042,12 @@ class TestSoftplusAPI(unittest.TestCase):
             # The input type must be Variable.
             self.assertRaises(TypeError, F.softplus, 1)
             # The input dtype must be float16, float32.
-            x_int32 = paddle.fluid.data(
-                name='x_int32', shape=[12, 10], dtype='int32'
-            )
+            x_int32 = paddle.fluid.data(name="x_int32", shape=[12, 10], dtype="int32")
             self.assertRaises(TypeError, F.softplus, x_int32)
             # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(
-                name='x_fp16', shape=[12, 10], dtype='float16'
-            )
+            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[12, 10], dtype="float16")
             F.softplus(x_fp16)
+
 
 class TestSin(TestActivation):
     def setUp(self):

@@ -909,28 +909,30 @@ void HardSwishGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SoftplusKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const float beta,
-                      const float threshold,
-                      phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    const float beta,
+                    const float threshold,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("SoftplusV2", {x}, {*out}, {{"beta", beta},{"threshold", threshold}});
+  const auto& runner = NpuOpRunner(
+      "SoftplusV2", {x}, {*out}, {{"beta", beta}, {"threshold", threshold}});
   runner.Run(stream);
 }
 
 template <typename T, typename Context>
 void SoftplusGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& a,
-                      const phi::DenseTensor& dout,
-                      const float beta,
-                      const float threshold,
-                      phi::DenseTensor* dx) {
+                        const phi::DenseTensor& a,
+                        const phi::DenseTensor& dout,
+                        const float beta,
+                        const float threshold,
+                        phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("SoftplusV2Grad", {dout,a}, {*dx}, {{"beta", beta},{"threshold", threshold}});
+  const auto& runner = NpuOpRunner("SoftplusV2Grad",
+                                   {dout, a},
+                                   {*dx},
+                                   {{"beta", beta}, {"threshold", threshold}});
   runner.Run(stream);
 }
 
@@ -940,7 +942,7 @@ void SoftshrinkKernel(const Context& dev_ctx,
                       const float lambd,
                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  PD_CHECK(lambd>0,"lambd should be greater than 0");
+  PD_CHECK(lambd > 0, "lambd should be greater than 0");
   auto stream = dev_ctx.stream();
   const auto& runner =
       NpuOpRunner("SoftShrink", {x}, {*out}, {{"lambd", lambd}});

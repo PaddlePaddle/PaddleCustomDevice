@@ -34,6 +34,8 @@
 
 #include "kernels/funcs/format_utils.h"
 
+#include "kernels/funcs/string_helper.h"
+
 static std::map<paddle::experimental::DataType, aclDataType>  //
     DTYPE_2_ACL_DTYPE = {
         {paddle::experimental::DataType::BOOL, ACL_BOOL},
@@ -126,18 +128,6 @@ char* FormatHelper::GetFormatName(const aclFormat& format) {
   return itr->second.formatName;
 }
 
-std::string FormatHelper::GetShapeString(const FormatShape& shape) {
-  std::stringstream ss;
-  int i = 0;
-  ss << "[";
-  for (auto e : shape) {
-    if (i++ > 0) ss << ", ";
-    ss << e;
-  }
-  ss << "]";
-  return ss.str();
-}
-
 FormatShape FormatHelper::GetStorageShape(const aclFormat storage_format,
                                           const FormatShape origin_dims) {
   auto itr = info.find(storage_format);
@@ -146,9 +136,9 @@ FormatShape FormatHelper::GetStorageShape(const aclFormat storage_format,
       return itr->second.func(origin_dims);  // change ori_size to storage_size
     }
   }
-  // LOG(FATAL) << "unsupport InferShape with format " <<
-  // GetFormatName(storage_format) << "with shape" <<
-  // GetShapeString(origin_dims);
+  LOG(FATAL) << "unsupport InferShape with format "
+             << GetFormatName(storage_format) << "with shape"
+             << GetVectorString(origin_dims);
   return {};
 }
 

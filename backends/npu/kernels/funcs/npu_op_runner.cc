@@ -17,6 +17,7 @@
 #include "acl/acl_op_compiler.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/string_helper.h"
 #include "pybind11/pybind11.h"
 #include "runtime/flags.h"
 #include "runtime/runtime.h"
@@ -602,12 +603,9 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
       stream,
       phi::errors::External("Stream should not be null, please check."));
   InitFloatStatus(stream);
-  VLOG(5) << "NpuOpRunner(" << this << ") Run:";
-  VLOG(4) << "op_type: " << op_type_;
-  VLOG(4) << "input_desc.size: " << input_descs_.size();
-  VLOG(4) << "output_desc.size: " << output_descs_.size();
-  VLOG(4) << "attr: " << attr_;
-  VLOG(4) << "stream: " << stream;
+  VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
+          << GetOpDescString(input_descs_, "Input")
+          << GetOpDescString(output_descs_, "Output");
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

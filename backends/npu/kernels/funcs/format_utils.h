@@ -51,7 +51,6 @@ class FormatHelper {
 
  private:
   static char* GetFormatName(const aclFormat& format);
-  static std::string GetShapeString(const FormatShape& shape);
 
  private:
   using shapeInfer = std::function<FormatShape(FormatShape dims)>;

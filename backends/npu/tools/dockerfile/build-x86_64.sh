@@ -17,10 +17,10 @@
 set -x
 
 # Usage:
-# export CANN_VERSION=6.0.0.alpha003
+# export CANN_VERSION=6.0.0.alpha005
 # bash build-x86_64.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha003} # default 6.0.0.alpha003
+CANN_VERSION=${1:-6.0.0.alpha005} # default 6.0.0.alpha005
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-x86_64.run
 
 DOCKER_VERSION=${CANN_VERSION//[^0-9]/}

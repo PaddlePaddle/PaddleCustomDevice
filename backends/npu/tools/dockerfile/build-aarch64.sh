@@ -17,14 +17,15 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.0.alpha003
+# export CANN_VERSION=6.0.0.alpha005
 # bash build-aarch64.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha003} # default 6.0.0.alpha003
+CANN_VERSION=${1:-6.0.0.alpha005} # default 6.0.0.alpha005
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
 
-DOCKER_VERSION=${CANN_VERSION//[^0-9]/}
-DOCKER_VERSION=${DOCKER_VERSION:0:3}
+DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 600005
+DOCKER_VERSION=${DOCKER_VERSION:0:3} # 600
+# DOCKER_VERSION=${DOCKER_VERSION:0:2}${DOCKER_VERSION:5} # 605
 
 # download aarch64 pkgs
 if [ ! -f ${CANN_TOOLKIT} ]; then

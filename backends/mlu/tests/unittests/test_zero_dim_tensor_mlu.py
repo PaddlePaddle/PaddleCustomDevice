@@ -13,14 +13,14 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+from paddle.framework import set_flags
 import paddle.nn.functional as F
 import numpy as np
 import unittest
 
 paddle.set_device("CustomMLU")
 
-fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+set_flags({"FLAGS_retain_grad_for_all_tensor": True})
 
 unary_api_list = [
     paddle.nn.functional.elu,

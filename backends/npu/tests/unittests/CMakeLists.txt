@@ -30,8 +30,6 @@ set_tests_properties(test_adam_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_adamw_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_cos_op_npu PROPERTIES ENVIRONMENT
-                                                FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_elementwise_div_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_elementwise_max_op_npu
@@ -50,16 +48,8 @@ set_tests_properties(test_increment_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_gather_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_gelu_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_leaky_relu_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_log_op_npu PROPERTIES ENVIRONMENT
-                                                FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_momentum_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_pow_op_npu PROPERTIES ENVIRONMENT
-                                                FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_reduce_sum_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_rmsprop_op_npu
@@ -69,16 +59,6 @@ set_tests_properties(test_sgd_op_npu PROPERTIES ENVIRONMENT
 set_tests_properties(test_strided_slice_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_sqrt_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_square_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_tanh_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_relu6_op_npu
-                     PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
-set_tests_properties(test_relu_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_with_cross_entropy_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)

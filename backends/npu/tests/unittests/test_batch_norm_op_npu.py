@@ -21,7 +21,7 @@ import paddle
 import paddle.fluid as fluid
 import paddle.fluid.core as core
 from paddle.fluid import Program, program_guard
-from paddle.fluid.framework import set_flags
+from paddle.framework import set_flags
 from tests.op_test import _set_use_system_allocator
 
 _set_use_system_allocator(False)

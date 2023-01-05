@@ -185,6 +185,7 @@ function main() {
                 fi
 
             done
+        retry_unittests_record="$retry_unittests_record$failed_test_lists"
     fi
     rerun_ut_endTime_s=`date +%s` 
     echo "Rerun TestCases Total Time: $[ $rerun_ut_endTime_s - $rerun_ut_startTime_s ]s" 

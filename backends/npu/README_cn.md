@@ -12,7 +12,7 @@
 docker pull registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann600-aarch64-gcc82
 
-# 2) 参考如下命令启动容器，如果是 aarch64 环境，则相应替换为 aarch64 镜像即可
+# 2) 参考如下命令启动容器
 docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        --workdir=/workspace --pids-limit 409600 \
        --privileged --network=host --shm-size=128G \

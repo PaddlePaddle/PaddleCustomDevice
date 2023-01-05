@@ -16,12 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
 
 paddle.enable_static()
 
@@ -49,22 +46,25 @@ class TestArgsortOp(OpTest):
     def get_output(self):
         if self.descending:
             self.indices = np.flip(
-                np.argsort(
-                    self.x, kind='heapsort', axis=self.axis), self.axis)
+                np.argsort(self.x, kind="heapsort", axis=self.axis), self.axis
+            )
             self.sorted_x = np.flip(
-                np.sort(
-                    self.x, kind='heapsort', axis=self.axis), self.axis)
+                np.sort(self.x, kind="heapsort", axis=self.axis), self.axis
+            )
         else:
-            self.indices = np.argsort(self.x, kind='heapsort', axis=self.axis)
-            self.sorted_x = np.sort(self.x, kind='heapsort', axis=self.axis)
+            self.indices = np.argsort(self.x, kind="heapsort", axis=self.axis)
+            self.sorted_x = np.sort(self.x, kind="heapsort", axis=self.axis)
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.__class__.no_need_check_grad = True
 
     def init_inputshape(self):
         self.input_shape = (2, 2, 2, 3, 3)
+        self.element_size = 1
+        for i in self.input_shape:
+            self.element_size *= i
 
     def init_dtype(self):
         self.dtype = np.float16
@@ -153,11 +153,10 @@ class TestArgsortOpAxis0NPUFP32(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", max_relative_error=0.03)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.03)
 
 
 class TestArgsortOpAxis1NPUFP32(TestArgsortOpAxis0NPUFP32):
@@ -220,9 +219,12 @@ class TestArgsortOpAxis0NPUINT64(TestArgsortOp):
         self.init_axis()
         self.init_direction()
 
-        self.x = np.random.randint(
-            low=-100, high=100, size=self.input_shape,
-            dtype=self.dtype).astype(self.dtype)
+        candidates = [i for i in range(-100, 100)]
+        self.x = (
+            np.random.choice(candidates, self.element_size, replace=False)
+            .astype(self.dtype)
+            .reshape(self.input_shape)
+        )
         self.inputs = {"X": self.x}
         self.attrs = {"axis": self.axis, "descending": self.descending}
         self.get_output()
@@ -239,7 +241,7 @@ class TestArgsortOpAxis0NPUINT64(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
 
 class TestArgsortOpAxis1NPUINT64(TestArgsortOpAxis0NPUINT64):
@@ -292,5 +294,5 @@ class TestArgsortOpDescendingAxisNeg2NPUINT64(TestArgsortOpAxisNeg2NPUINT64):
         self.descending = True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

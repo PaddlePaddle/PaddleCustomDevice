@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels.h"
+#include "kernels/kernels.h"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -67,8 +67,24 @@ void ArgsortKernel(const phi::Context& dev_ctx,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
   auto in_dims = input.dims();
+  auto rank = in_dims.size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
   T* out_data = dev_ctx.template Alloc<T>(output);
+
+  if (rank == 0) {
+    auto numel = input.numel();
+    if (numel == 0) {
+      return;
+    }
+    T* in_data = input.data<T>();
+    // Actually, numel = 1 if rank == 0.
+    for (auto i = 0; i < numel; ++i) {
+      out_data[i] = in_data[i];
+    }
+    int64_t* ids_data = dev_ctx.template Alloc<int64_t>(indices);
+    ids_data[0] = 0;
+    return;
+  }
 
   // Do full sort
   if (axis == -1 || axis + 1 == in_dims.size()) {

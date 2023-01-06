@@ -118,7 +118,7 @@ void NPUFloatStatus::RunOp(const std::string op_type,
   output_descs.emplace_back(output_desc);
   output_buffers.emplace_back(output_buf);
 
-  VLOG(1) << "aclopCompileAndExecute start: " << op_type << "\n"
+  VLOG(2) << "aclopCompileAndExecute start: " << op_type << "\n"
           << GetOpInfoString(input_descs, input_buffers, "Input")
           << GetOpInfoString(output_descs, output_buffers, "Output");
 
@@ -152,7 +152,7 @@ void NPUFloatStatus::RunOp(const std::string op_type,
                                                       stream));
   }
 
-  VLOG(1) << "aclopCompileAndExecute finish: " << op_type << "\n"
+  VLOG(2) << "aclopCompileAndExecute finish: " << op_type << "\n"
           << GetOpInfoString(input_descs, input_buffers, "Input")
           << GetOpInfoString(output_descs, output_buffers, "Output");
 

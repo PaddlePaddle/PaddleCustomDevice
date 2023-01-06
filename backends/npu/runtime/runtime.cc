@@ -619,7 +619,7 @@ C_Status XcclRecv(void *recv_buf,
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
   // NOTE(wangran16):
   // https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/60RC1alpha001/infacldevg/aclcppdevg/aclcppdevg_03_0784.html
-  VLOG(1) << "Init NPU Profiling, FLAGS_npu_profiling_dir: "
+  VLOG(2) << "Init NPU Profiling, FLAGS_npu_profiling_dir: "
           << FLAGS_npu_profiling_dir
           << ", FLAGS_npu_profiling_dtypes: " << FLAGS_npu_profiling_dtypes
           << ", FLAGS_npu_profiling_metrics: " << FLAGS_npu_profiling_metrics;

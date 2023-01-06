@@ -356,7 +356,7 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
         aclSetTensorFormat(desc, (aclFormat)storage_format));
     PADDLE_ENFORCE_NPU_SUCCESS(
         aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
-    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+    VLOG(2) << "CreateTensorDesc for OP: " << op_type_
             << ", data_type: " << data_type
             << ", origin_format: " << origin_format
             << ", storage_format: " << storage_format << ", origin_dims: ["
@@ -367,7 +367,7 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
         aclSetTensorFormat(desc, (aclFormat)origin_format));
     PADDLE_ENFORCE_NPU_SUCCESS(
         aclSetTensorShape(desc, origin_size, origin_dims.data()));
-    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+    VLOG(2) << "CreateTensorDesc for OP: " << op_type_
             << ", data_type: " << data_type
             << ", origin_format: " << origin_format
             << ", storage_format: " << origin_format << ", origin_dims: ["
@@ -393,16 +393,16 @@ aclDataBuffer *NpuOpRunner::CreateDataBuffer(phi::DenseTensor tensor) {
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   PADDLE_ENFORCE_NOT_NULL(stream,
                           phi::errors::External("stream cannot be null"));
-  VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
+  VLOG(2) << "NpuOpRunner: " << op_type_ << "\n"
           << GetOpDescString(input_descs_, "Input")
           << GetOpDescString(output_descs_, "Output");
 
-  VLOG(1) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
+  VLOG(2) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
   if (FLAGS_npu_check_nan_inf) {
     NPUFloatStatus::Instance().RunClearFloatStatusOp(stream);
   }
 
-  VLOG(1) << "aclopCompileAndExecute start: " << op_type_ << "\n"
+  VLOG(2) << "aclopCompileAndExecute start: " << op_type_ << "\n"
           << GetOpInfoString(input_descs_, input_buffers_, "Input")
           << GetOpInfoString(output_descs_, output_buffers_, "Output");
 
@@ -437,16 +437,16 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                                       stream));
   }
 
-  VLOG(1) << "aclopCompileAndExecute finish: " << op_type_ << "\n"
+  VLOG(2) << "aclopCompileAndExecute finish: " << op_type_ << "\n"
           << GetOpInfoString(input_descs_, input_buffers_, "Input")
           << GetOpInfoString(output_descs_, output_buffers_, "Output");
 
-  VLOG(1) << "FLAGS_npu_blocking_run = " << FLAGS_npu_blocking_run;
+  VLOG(2) << "FLAGS_npu_blocking_run = " << FLAGS_npu_blocking_run;
   if (sync || FLAGS_npu_blocking_run) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   }
 
-  VLOG(1) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
+  VLOG(2) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
   if (FLAGS_npu_check_nan_inf &&
       NPUFloatStatus::Instance().RunGetFloatStatusOp(stream)) {
     LOG(INFO) << GetOpInfoString(input_descs_, input_buffers_, "Input");

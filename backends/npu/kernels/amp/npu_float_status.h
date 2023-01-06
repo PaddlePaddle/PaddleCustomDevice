@@ -14,6 +14,11 @@
 
 #pragma once
 
+#include "acl/acl.h"
+#include "glog/logging.h"
+#include "paddle/extension.h"
+#include "paddle/phi/extension.h"
+
 // Step0: NPUAllocFloatStatus => equal to malloc and memset float_status_ptr
 //        - Input: NULL
 //        - Output: float_status_ptr

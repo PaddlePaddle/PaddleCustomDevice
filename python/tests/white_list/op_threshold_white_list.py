@@ -55,6 +55,7 @@ NEED_FIX_FP64_CHECK_GRAD_THRESHOLD_OP_LIST = [
     "roi_align",
     "take_along_axis",
     "dropout",
+    "softmax",
     "matmul_v2",
 ]
 

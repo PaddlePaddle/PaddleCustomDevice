@@ -364,9 +364,6 @@ void BatchNormInferKernel(const Context& dev_ctx,
   const auto& x_dims = x.dims();
   const bool channel_last = data_layout_str == "NHWC" && x_dims.size() > 2;
 
-  VLOG(1) << "0 -- BatchNormInferKernel: Attr <channel_last> = "
-          << channel_last;
-
   PADDLE_ENFORCE_EQ(
       channel_last && FLAGS_npu_storage_format,
       false,

@@ -16,27 +16,20 @@
 
 #include "kernels/funcs/format_utils.h"
 
-/**
- * Custom Device NPU related FLAG
- * Name: FLAGS_npu_storage_format
- * Since Version: 2.5.0
- * Value Range: bool, default=false
- * Example:
- * Note: Enable NPU Storage Format for Ascend910 performance improvement.
- */
-DECLARE_bool(npu_storage_format);
+DECLARE_bool(npu_storage_format);  // external defined in flags.cc of Paddle
 
 namespace custom_kernel {
 
 inline std::string DebugNPUTensor(const phi::DenseTensor& tensor) {
   std::stringstream ss;
   if (tensor.initialized()) {
-    ss << ": dtype: " << tensor.dtype() << ", format: " << tensor.layout()
-       << ", dims: [" << tensor.dims() << "]"
+    ss << ": place: " << tensor.place() << ", dtype: " << tensor.dtype()
+       << ", format: " << tensor.layout() << ", dims: [" << tensor.dims() << "]"
        << ", capacity: <" << tensor.capacity() << ">, ";
   } else {
-    ss << ": dtype: " << tensor.dtype() << ", format: " << tensor.layout()
-       << ", dims: [" << tensor.dims() << "]";
+    ss << ": place: " << tensor.place() << ", dtype: " << tensor.dtype()
+       << ", format: " << tensor.layout() << ", dims: [" << tensor.dims()
+       << "]";
   }
 
   if (!tensor.storage_properties_initialized()) {

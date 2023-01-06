@@ -55,12 +55,16 @@ class NpuOpRunner {
 
   NpuOpRunner &SetType(const std::string &name);
 
+  NpuOpRunner &AddAttr();  // ONLY for aclopCreateAttr
+
   NpuOpRunner &AddAttr(const std::string &name, const NPUAttribute &attr);
 
   NpuOpRunner &AddAttrDataType(const std::string &name,
                                const NPUAttribute &attr);
 
   NpuOpRunner &AddAttrs(const NPUAttributeMap &attrs);
+
+  NpuOpRunner &AddInput(aclTensorDesc *desc, aclDataBuffer *buffer);
 
   NpuOpRunner &AddInput(const phi::DenseTensor &tensor);
 
@@ -70,6 +74,8 @@ class NpuOpRunner {
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
                         const std::vector<T> &&values,
                         const bool is_const = true);
+
+  NpuOpRunner &AddOutput(aclTensorDesc *desc, aclDataBuffer *buffer);
 
   NpuOpRunner &AddOutput(const phi::DenseTensor &tensor);
 
@@ -155,16 +161,10 @@ class NpuOpRunner {
     }
   }
 
-  static bool GetFloatStatus(aclrtStream stream);
-  static void ClearFloatStatus(aclrtStream stream);
-
  private:
   aclTensorDesc *CreateTensorDesc(phi::DenseTensor tensor,
                                   aclMemType mem_type = ACL_MEMTYPE_DEVICE);
   aclDataBuffer *CreateDataBuffer(phi::DenseTensor tensor);
-  void InitFloatStatus(aclrtStream stream) const;
-  void AllocFloatStatus(aclrtStream stream) const;
-  void PrintOpInfo() const;
 
  private:
   std::string op_type_;

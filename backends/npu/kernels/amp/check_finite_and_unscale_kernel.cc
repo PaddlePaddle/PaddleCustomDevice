@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/amp/npu_float_status.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
 namespace custom_kernel {
 
 template <typename T, typename Context>
@@ -26,13 +26,16 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   auto scale = &t_scale;
 
-  dev_ctx.template Alloc<bool>(found_inf);
+  auto found_inf_data = dev_ctx.template HostAlloc<bool>(found_inf);
 
   // step1: inverse scale
   phi::DenseTensor const_tensor;
   const_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&const_tensor);
   FillNpuTensorWithConstant<T>(&const_tensor, dev_ctx, static_cast<T>(1.0));
+
+  // init float status
+  NPUFloatStatus::Instance().RunClearFloatStatusOp(stream);
 
   // Inverse(1.0/scale)
   phi::DenseTensor* tmp_inverse_out = const_cast<phi::DenseTensor*>(scale);
@@ -44,8 +47,8 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
-  bool found_inf_cpu = NpuOpRunner::GetFloatStatus(stream);
-  FillNpuTensorWithConstant<bool>(found_inf, dev_ctx, found_inf_cpu);
+  // get float status
+  *found_inf_data = NPUFloatStatus::Instance().RunGetFloatStatusOp(stream);
 
   // NOTE(zhiqiu): The normal logic is :
   // out = in, if found_inf = true
@@ -62,8 +65,6 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
         NpuOpRunner("Mul", {*x, *tmp_inverse_out}, {*out}, {});
     runner_mul.Run(stream);
   }
-
-  NpuOpRunner::ClearFloatStatus(stream);
 }
 
 }  // namespace custom_kernel

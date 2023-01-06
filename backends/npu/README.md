@@ -166,6 +166,7 @@ WITH_ARM=OFF # Turn ON if aarch64
 
 ## Environment Variables
 
+> Note: docker image may change the value of these variables, please run `env | grep FLAGS` in docker to confirm.
 
 | Subject     | Variable Name       | Type   | Description    | Default Value |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |

@@ -16,7 +16,6 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-import sys
 
 from tests.op_test import OpTest
 
@@ -31,7 +30,7 @@ paddle.enable_static()
 class TestElementwiseModOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "elementwise_mod"
         self.axis = -1
         self.init_dtype()
@@ -40,11 +39,11 @@ class TestElementwiseModOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(self.x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
+            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
+            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
         }
-        self.attrs = {'axis': self.axis, 'use_mkldnn': self.use_mkldnn}
-        self.outputs = {'Out': self.out}
+        self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
+        self.outputs = {"Out": self.out}
 
     def init_kernel_type(self):
         self.use_mkldnn = False
@@ -142,18 +141,18 @@ class TestElementwiseModOp_broadcast_2(TestElementwiseModOp):
 
 class TestRemainderOp(unittest.TestCase):
     def test_name(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         with fluid.program_guard(fluid.Program()):
             x = fluid.data(name="x", shape=[2, 3], dtype="int64")
-            y = fluid.data(name='y', shape=[2, 3], dtype='int64')
-            y_1 = paddle.remainder(x, y, name='div_res')
-            self.assertEqual(('div_res' in y_1.name), True)
+            y = fluid.data(name="y", shape=[2, 3], dtype="int64")
+            y_1 = paddle.remainder(x, y, name="div_res")
+            self.assertEqual(("div_res" in y_1.name), True)
 
     def test_dygraph(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         with fluid.dygraph.guard():
-            np_x = np.array([2, 3, 8, 7]).astype('int64')
-            np_y = np.array([1, 5, 3, 3]).astype('int64')
+            np_x = np.array([2, 3, 8, 7]).astype("int64")
+            np_y = np.array([1, 5, 3, 3]).astype("int64")
             x = paddle.to_tensor(np_x)
             y = paddle.to_tensor(np_y)
             z = paddle.remainder(x, y)
@@ -162,7 +161,7 @@ class TestRemainderOp(unittest.TestCase):
             self.assertEqual((np_z == z_expected).all(), True)
 
             np_x = np.array([-3.3, 11.5, -2, 3.5])
-            np_y = np.array([-1.2, 2., 3.3, -2.3])
+            np_y = np.array([-1.2, 2.0, 3.3, -2.3])
             x = paddle.to_tensor(np_x)
             y = paddle.to_tensor(np_y)
             z = x % y
@@ -178,5 +177,43 @@ class TestRemainderOp(unittest.TestCase):
             self.assertEqual(np.allclose(z_expected, z.numpy()), True)
 
 
-if __name__ == '__main__':
+# Use to test zero-dim of binary API
+class TestBinaryAPI(unittest.TestCase):
+    def test_dygraph_binary(self):
+        paddle.set_device("npu:0")
+        paddle.disable_static()
+        # 1) x/y is 0D
+        x = paddle.rand([])
+        y = paddle.rand([])
+        nx = x.numpy()
+        ny = y.numpy()
+        x.stop_gradient = False
+        y.stop_gradient = False
+        out = paddle.remainder(x, y)
+        out_cls = np.remainder(nx, ny)
+        np.testing.assert_array_equal(out_cls, out.numpy())
+        out.backward()
+        if x.grad is not None:
+            self.assertEqual(x.grad.shape, [])
+            self.assertEqual(y.grad.shape, [])
+
+        # 2) x is not 0D , y is 0D
+        x = paddle.rand([2, 3, 4])
+        y = paddle.rand([])
+        nx = x.numpy()
+        ny = y.numpy()
+        x.stop_gradient = False
+        y.stop_gradient = False
+        out = paddle.remainder(x, y)
+        out_cls = np.remainder(nx, ny)
+        np.testing.assert_array_equal(out_cls, out.numpy())
+        self.assertEqual(out.shape, [2, 3, 4])
+        out.backward()
+        if x.grad is not None:
+            self.assertEqual(x.grad.shape, [2, 3, 4])
+            self.assertEqual(y.grad.shape, [])
+            self.assertEqual(out.grad.shape, [2, 3, 4])
+
+
+if __name__ == "__main__":
     unittest.main()

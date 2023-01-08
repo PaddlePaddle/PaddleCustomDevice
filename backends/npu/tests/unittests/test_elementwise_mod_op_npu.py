@@ -177,8 +177,7 @@ class TestRemainderOp(unittest.TestCase):
             self.assertEqual(np.allclose(z_expected, z.numpy()), True)
 
 
-# Use to test zero-dim of binary API
-class TestBinaryAPI(unittest.TestCase):
+class TestRemainderZeroDim(unittest.TestCase):
     def test_dygraph_binary(self):
         paddle.set_device("npu:0")
         paddle.disable_static()

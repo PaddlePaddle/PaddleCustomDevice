@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid.core import ops
+from paddle import _legacy_C_ops
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -179,7 +179,7 @@ class TestFloatStatus(unittest.TestCase):
         paddle.set_device("npu:0")
 
         flag = paddle.zeros([8])
-        ops.clear_float_status(flag, flag)
+        _legacy_C_ops.clear_float_status(flag, flag)
         self.assertEqual(flag.numpy().sum(), 0.0)
 
         x = paddle.to_tensor([12.564], stop_gradient=False)
@@ -187,12 +187,12 @@ class TestFloatStatus(unittest.TestCase):
         z = x / y
         out = 32768.0 * z
 
-        ops.get_float_status(flag, flag)
+        _legacy_C_ops.get_float_status(flag, flag)
         self.assertEqual(flag.numpy().sum(), 0.0)
 
         out.sum().backward()
 
-        ops.get_float_status(flag, flag)
+        _legacy_C_ops.get_float_status(flag, flag)
         self.assertEqual(flag.numpy().sum(), 0.0)
 
         paddle.enable_static()

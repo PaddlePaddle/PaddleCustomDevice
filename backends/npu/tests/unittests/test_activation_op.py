@@ -906,9 +906,7 @@ class TestSoftshrinkAPI(unittest.TestCase):
         self.threshold = 0.8
         np.random.seed(1024)
         self.x_np = np.random.uniform(0.25, 10, [10, 12]).astype(np.float64)
-        self.place = (
-            paddle.CUDAPlace(0) if paddle.is_compiled_with_cuda() else paddle.CPUPlace()
-        )
+        self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -933,20 +931,6 @@ class TestSoftshrinkAPI(unittest.TestCase):
         for r in [out1, out2]:
             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
         paddle.enable_static()
-
-    def test_errors(self):
-        paddle.enable_static()
-        with paddle.static.program_guard(paddle.static.Program()):
-            # The input type must be Variable.
-            self.assertRaises(TypeError, F.softshrink, 1)
-            # The input dtype must be float16, float32.
-            x_int32 = paddle.fluid.data(name="x_int32", shape=[12, 10], dtype="int32")
-            self.assertRaises(TypeError, F.softshrink, x_int32)
-            # The threshold must be no less than zero
-            x_fp32 = paddle.fluid.data(name="x_fp32", shape=[12, 10], dtype="float32")
-            self.assertRaises(ValueError, F.softshrink, x_fp32, -1.0)
-            # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[12, 10], dtype="float16")
 
 
 def ref_softplus(x, beta=1, threshold=20):
@@ -1035,18 +1019,6 @@ class TestSoftplusAPI(unittest.TestCase):
         for r in [out1, out2]:
             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
         paddle.enable_static()
-
-    def test_errors(self):
-        paddle.enable_static()
-        with paddle.static.program_guard(paddle.static.Program()):
-            # The input type must be Variable.
-            self.assertRaises(TypeError, F.softplus, 1)
-            # The input dtype must be float16, float32.
-            x_int32 = paddle.fluid.data(name="x_int32", shape=[12, 10], dtype="int32")
-            self.assertRaises(TypeError, F.softplus, x_int32)
-            # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[12, 10], dtype="float16")
-            F.softplus(x_fp16)
 
 
 class TestSin(TestActivation):

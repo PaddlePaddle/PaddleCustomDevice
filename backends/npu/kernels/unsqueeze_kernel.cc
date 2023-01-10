@@ -68,9 +68,9 @@ inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
 
 template <typename T, typename Context>
 void UnsqueezeInferKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::IntArray& axes,
-                        phi::DenseTensor* out) {
+                          const phi::DenseTensor& x,
+                          const phi::IntArray& axes,
+                          phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
@@ -89,10 +89,10 @@ void UnsqueezeInferKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnsqueezeKernel(const Context& dev_ctx,
-                                  const phi::DenseTensor& x,
-                                  const phi::IntArray& axes,
-                                  phi::DenseTensor* out,
-                                  phi::DenseTensor* xshape) {
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& axes,
+                     phi::DenseTensor* out,
+                     phi::DenseTensor* xshape) {
   custom_kernel::UnsqueezeInferKernel<T, Context>(dev_ctx, x, axes, out);
 }
 

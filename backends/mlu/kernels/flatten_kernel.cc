@@ -66,10 +66,10 @@ inline void SetXShape(const phi::DenseTensor& x, phi::DenseTensor* xshape) {
 
 template <typename T, typename Context>
 void FlattenInferKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   int start_axis,
-                   int stop_axis,
-                   phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        int start_axis,
+                        int stop_axis,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   // make out dims
   auto in_dims = x.dims();
@@ -93,11 +93,11 @@ void FlattenGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void FlattenKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       int start_axis,
-                       int stop_axis,
-                       phi::DenseTensor* out,
-                       phi::DenseTensor* xshape) {
+                   const phi::DenseTensor& x,
+                   int start_axis,
+                   int stop_axis,
+                   phi::DenseTensor* out,
+                   phi::DenseTensor* xshape) {
   custom_kernel::FlattenInferKernel<T, Context>(
       dev_ctx, x, start_axis, stop_axis, out);
   SetXShape(x, xshape);

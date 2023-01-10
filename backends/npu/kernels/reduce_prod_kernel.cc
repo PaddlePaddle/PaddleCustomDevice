@@ -19,11 +19,11 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void ProdKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::IntArray& axes,
-                   bool keep_dim,
-                   bool reduce_all,
-                   phi::DenseTensor* out) {
+                const phi::DenseTensor& x,
+                const phi::IntArray& axes,
+                bool keep_dim,
+                bool reduce_all,
+                phi::DenseTensor* out) {
   auto dims = axes.GetData();
   auto x_dims = x.dims();
   auto x_dims_size = x_dims.size();
@@ -94,10 +94,10 @@ void ProdKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void ProdInferKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::IntArray& dims,
-                bool keep_dim,
-                phi::DenseTensor* out) {
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& dims,
+                     bool keep_dim,
+                     phi::DenseTensor* out) {
   bool reduce_all = false;
   custom_kernel::ProdKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }

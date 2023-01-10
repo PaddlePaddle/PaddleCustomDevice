@@ -155,10 +155,10 @@ void InferMetaFromVecValue(const phi::MetaTensor& x,
 
 template <typename T, typename Context>
 void ReshapeKernelKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::IntArray& shape,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+                         const phi::DenseTensor& x,
+                         const phi::IntArray& shape,
+                         phi::DenseTensor* out,
+                         phi::DenseTensor* xshape) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
   if (x.initialized() && x.IsSharedWith(*out)) {

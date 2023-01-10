@@ -123,9 +123,9 @@ static std::vector<int64_t> ValidateShape(const std::vector<int64_t> shape,
 
 template <typename T>
 void ReshapeInferKernel(const phi::Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::IntArray& shape,
-                   phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::IntArray& shape,
+                        phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape.GetData(), x_dims);
   out->Resize(out_dims);
@@ -150,10 +150,10 @@ void ReshapeInferKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void ReshapeKernel(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::IntArray& shape,
-                       phi::DenseTensor* out,
-                       phi::DenseTensor* xshape) {
+                   const phi::DenseTensor& x,
+                   const phi::IntArray& shape,
+                   phi::DenseTensor* out,
+                   phi::DenseTensor* xshape) {
   ReshapeInferKernel<T>(dev_ctx, x, shape, out);
 }
 

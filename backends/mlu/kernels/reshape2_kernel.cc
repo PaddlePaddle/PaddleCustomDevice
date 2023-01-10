@@ -11,13 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
- 
+
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
- 
 #include "paddle/phi/common/int_array.h"
 #include "paddle/phi/core/meta_tensor.h"
- 
+
 namespace custom_kernel {
 
 static phi::DDim ValidateShape(const std::vector<int64_t> shape,
@@ -140,7 +139,6 @@ static phi::DDim ValidateShape(const std::vector<int64_t> shape,
   return phi::make_ddim(output_shape);
 }
 
-
 void InferMetaFromVecValue(const phi::MetaTensor& x,
                            const std::vector<int64_t>& shape,
                            phi::MetaTensor* out) {
@@ -163,11 +161,10 @@ void InferMetaFromVecValue(const phi::MetaTensor& x,
 
 template <typename T, typename Context>
 void ReshapeKernelKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::IntArray& shape,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
-    
+                         const phi::DenseTensor& x,
+                         const phi::IntArray& shape,
+                         phi::DenseTensor* out,
+                         phi::DenseTensor* xshape) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
   if (x.initialized() && x.IsSharedWith(*out)) {
@@ -179,25 +176,20 @@ void ReshapeKernelKernel(const Context& dev_ctx,
   auto dims = out->dims();
   TensorCopy(dev_ctx, x, false, out);
   out->Resize(dims);
- 
 }
- 
- 
- 
+
 template <typename T, typename Context>
 void Reshape2GradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& out_grad,
-                        phi::DenseTensor* x_grad){
-    dev_ctx.Alloc(x_grad, out_grad.dtype());
-    auto x_dims = x_grad->dims();
-    TensorCopy(dev_ctx, out_grad, false, x_grad);
-    x_grad->Resize(x_dims);               
-  }
- 
- 
- 
+                        phi::DenseTensor* x_grad) {
+  dev_ctx.Alloc(x_grad, out_grad.dtype());
+  auto x_dims = x_grad->dims();
+  TensorCopy(dev_ctx, out_grad, false, x_grad);
+  x_grad->Resize(x_dims);
+}
+
 }  // namespace custom_kernel
- 
+
 PD_REGISTER_PLUGIN_KERNEL(reshape,
                           CustomMLU,
                           ALL_LAYOUT,

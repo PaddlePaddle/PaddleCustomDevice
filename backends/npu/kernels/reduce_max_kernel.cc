@@ -84,9 +84,12 @@ void MaxGradKernel(const Context& dev_ctx,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto reduce_dims = reduce_dims_in.GetData();
-  dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();
-
+  dev_ctx.template Alloc<T>(x_grad);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    return;
+  }
   // broadcast
   auto x_dims_vec = phi::vectorize(x.dims());
   if (reduce_all) {

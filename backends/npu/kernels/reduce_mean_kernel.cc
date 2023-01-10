@@ -26,7 +26,10 @@ void MeanRawKernel(const Context& dev_ctx,
                    phi::DenseTensor* out) {
   auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
-
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
   auto input_dims = x.dims();
@@ -66,6 +69,10 @@ void MeanGradKernel(const Context& dev_ctx,
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
   auto reduce_dims = axes.GetData();
   dev_ctx.template Alloc<T>(x_grad);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    return;
+  }
 
   int reduce_numel = 1;
 

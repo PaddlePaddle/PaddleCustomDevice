@@ -122,7 +122,7 @@ static std::vector<int64_t> ValidateShape(const std::vector<int64_t> shape,
 }
 
 template <typename T>
-void ReshapeKernel(const phi::Context& dev_ctx,
+void ReshapeInferKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::IntArray& shape,
                    phi::DenseTensor* out) {
@@ -149,20 +149,20 @@ void ReshapeKernel(const phi::Context& dev_ctx,
 }
 
 template <typename T>
-void ReshapeWithXShape(const phi::Context& dev_ctx,
+void ReshapeKernel(const phi::Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::IntArray& shape,
                        phi::DenseTensor* out,
                        phi::DenseTensor* xshape) {
-  ReshapeKernel<T>(dev_ctx, x, shape, out);
+  ReshapeInferKernel<T>(dev_ctx, x, shape, out);
 }
 
 }  // namespace custom_kernel
 
-PD_BUILD_PHI_KERNEL(reshape,
+PD_BUILD_PHI_KERNEL(reshape_infer,
                     custom_cpu,
                     ALL_LAYOUT,
-                    custom_kernel::ReshapeKernel,
+                    custom_kernel::ReshapeInferKernel,
                     float,
                     double,
                     int8_t,
@@ -172,10 +172,10 @@ PD_BUILD_PHI_KERNEL(reshape,
                     uint8_t,
                     bool) {}
 
-PD_BUILD_PHI_KERNEL(reshape_with_xshape,
+PD_BUILD_PHI_KERNEL(reshape,
                     custom_cpu,
                     ALL_LAYOUT,
-                    custom_kernel::ReshapeWithXShape,
+                    custom_kernel::ReshapeKernel,
                     float,
                     double,
                     int8_t,

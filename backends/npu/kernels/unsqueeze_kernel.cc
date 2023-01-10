@@ -67,7 +67,7 @@ inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
 }
 
 template <typename T, typename Context>
-void UnsqueezeNPUKernel(const Context& dev_ctx,
+void UnsqueezeInferKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::IntArray& axes,
                         phi::DenseTensor* out) {
@@ -88,12 +88,12 @@ void UnsqueezeNPUKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void UnsqueezeWithXShapeNPUKernel(const Context& dev_ctx,
+void UnsqueezeKernel(const Context& dev_ctx,
                                   const phi::DenseTensor& x,
                                   const phi::IntArray& axes,
                                   phi::DenseTensor* out,
                                   phi::DenseTensor* xshape) {
-  custom_kernel::UnsqueezeNPUKernel<T, Context>(dev_ctx, x, axes, out);
+  custom_kernel::UnsqueezeInferKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
@@ -111,10 +111,10 @@ void UnsqueezeGradNPUKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze_infer,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeNPUKernel,
+                          custom_kernel::UnsqueezeInferKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,
@@ -127,10 +127,10 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeWithXShapeNPUKernel,
+                          custom_kernel::UnsqueezeKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,

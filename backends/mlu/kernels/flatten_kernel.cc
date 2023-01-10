@@ -65,7 +65,7 @@ inline void SetXShape(const phi::DenseTensor& x, phi::DenseTensor* xshape) {
 }
 
 template <typename T, typename Context>
-void FlattenKernel(const Context& dev_ctx,
+void FlattenInferKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int start_axis,
                    int stop_axis,
@@ -92,23 +92,23 @@ void FlattenGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void FlattenWithXShape(const Context& dev_ctx,
+void FlattenKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        int start_axis,
                        int stop_axis,
                        phi::DenseTensor* out,
                        phi::DenseTensor* xshape) {
-  custom_kernel::FlattenKernel<T, Context>(
+  custom_kernel::FlattenInferKernel<T, Context>(
       dev_ctx, x, start_axis, stop_axis, out);
   SetXShape(x, xshape);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(flatten,
+PD_REGISTER_PLUGIN_KERNEL(flatten_infer,
                           CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::FlattenKernel,
+                          custom_kernel::FlattenInferKernel,
                           float,
                           double,
                           uint8_t,
@@ -117,10 +117,10 @@ PD_REGISTER_PLUGIN_KERNEL(flatten,
                           int,
                           int64_t) {}
 
-PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(flatten,
                           CustomMLU,
                           ALL_LAYOUT,
-                          custom_kernel::FlattenWithXShape,
+                          custom_kernel::FlattenKernel,
                           float,
                           double,
                           uint8_t,

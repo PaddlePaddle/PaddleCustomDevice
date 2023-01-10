@@ -24,7 +24,10 @@ void AnyKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
   bool reduce_all = false;
   if (dims.size() == 0) {
     reduce_all = true;

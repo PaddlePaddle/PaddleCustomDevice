@@ -72,7 +72,17 @@ void ArgsortKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, in, false, &input);
 
   auto in_dims = input.dims();
+  auto rank = in_dims.size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
+
+  if (rank == 0) {
+    dev_ctx.template Alloc<T>(output);
+    phi::Copy<Context>(dev_ctx, input, dev_ctx.GetPlace(), false, output);
+    dev_ctx.template Alloc<int64_t>(indices);
+    FillNpuTensorWithConstant<int64_t>(
+        indices, dev_ctx, static_cast<int64_t>(0));
+    return;
+  }
 
   auto stream = dev_ctx.stream();
 

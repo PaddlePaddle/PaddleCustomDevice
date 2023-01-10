@@ -13,14 +13,14 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+from paddle.framework import set_flags
 import paddle.nn.functional as F
 import numpy as np
 import unittest
 
 paddle.set_device("CustomMLU")
 
-fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+set_flags({"FLAGS_retain_grad_for_all_tensor": True})
 
 unary_api_list = [
     paddle.nn.functional.elu,
@@ -637,6 +637,50 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(out.grad.shape, [])
         self.assertEqual(x.grad.shape, [])
 
+    def test_sort(self):
+        x1 = paddle.rand([])
+        x2 = paddle.rand([])
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out1 = paddle.sort(x1, axis=-1)
+        out2 = paddle.sort(x2, axis=0)
+
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1.numpy(), x1.numpy())
+        self.assertEqual(out2.numpy(), x2.numpy())
+        self.assertEqual(out1.grad.shape, [])
+        self.assertEqual(out2.grad.shape, [])
+        self.assertEqual(x1.grad.shape, [])
+        self.assertEqual(x2.grad.shape, [])
+        self.assertEqual(x1.grad.numpy(), 1)
+        self.assertEqual(x2.grad.numpy(), 1)
+
+    def test_argsort(self):
+        x1 = paddle.rand([])
+        x2 = paddle.rand([])
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out1 = paddle.argsort(x1, axis=-1)
+        out2 = paddle.argsort(x2, axis=0)
+
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1.numpy(), 0)
+        self.assertEqual(out2.numpy(), 0)
+        self.assertEqual(out1.grad.shape, [])
+        self.assertEqual(out2.grad.shape, [])
+        self.assertEqual(x1.grad.shape, [])
+        self.assertEqual(x2.grad.shape, [])
+        self.assertEqual(x1.grad.numpy(), 0)
+        self.assertEqual(x2.grad.numpy(), 0)
+
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
 class TestNoBackwardAPI(unittest.TestCase):
@@ -766,6 +810,24 @@ class TestNoBackwardAPI(unittest.TestCase):
 
         out = paddle.zeros(self.shape)
         self.assertEqual(out.shape, [2, 3, 4])
+
+    def test_embedding(self):
+        ids = paddle.full(shape=[], fill_value=1, dtype="int64")
+        w0 = paddle.arange(3, 9).reshape((3, 2)).astype(paddle.float32)
+        w = paddle.to_tensor(w0, stop_gradient=False)
+        emb = paddle.nn.functional.embedding(
+            x=ids, weight=w, sparse=True, name="embedding"
+        )
+        self.assertEqual(emb.shape, [2])
+        res = [5.0, 6.0]
+        for i in range(len(res)):
+            self.assertEqual(emb.numpy()[i], res[i])
+
+    def test_one_hot_label(self):
+        label = paddle.full(shape=[], fill_value=2, dtype="int64")
+        one_hot_label = paddle.nn.functional.one_hot(label, num_classes=4)
+        self.assertEqual(one_hot_label.shape, [4])
+        self.assertEqual(one_hot_label.numpy()[2], 1)
 
 
 if __name__ == "__main__":

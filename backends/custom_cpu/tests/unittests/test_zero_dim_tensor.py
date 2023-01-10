@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import paddle
-import paddle.fluid as fluid
+from paddle.framework import set_flags
 import numpy as np
 import unittest
 
@@ -28,7 +28,7 @@ unary_api_list = [
 class TestUnaryAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in unary_api_list:
             x = paddle.rand([])
             x.stop_gradient = False
@@ -55,7 +55,7 @@ reduce_api_list = [
 class TestReduceAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in reduce_api_list:
             if api in [paddle.all, paddle.any]:
                 x = paddle.randint(0, 2, []).astype("bool")
@@ -95,7 +95,7 @@ binary_api_list_without_grad = [
 class TestBinaryAPI(unittest.TestCase):
     def test(self):
         paddle.disable_static()
-        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        set_flags({"FLAGS_retain_grad_for_all_tensor": True})
         for api in binary_api_list + binary_api_list_without_grad:
             # 1) x/y is 0D
             x = paddle.rand([])
@@ -230,6 +230,46 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x.grad.shape, [1, 1])
         self.assertEqual(out.shape, [1, 1])
         self.assertEqual(out.grad.shape, [1, 1])
+
+    def test_argsort(self):
+        x1 = paddle.rand([])
+        x2 = paddle.rand([])
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out1 = paddle.argsort(x1, axis=-1)
+        out2 = paddle.argsort(x2, axis=0)
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+
+
+# Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
+class TestNoBackwardAPI(unittest.TestCase):
+    def setUp(self):
+        paddle.disable_static()
+        self.shape = [
+            paddle.full([], 2, "int32"),
+            paddle.full([], 3, "int32"),
+            paddle.full([], 4, "int32"),
+        ]
+
+    def test_embedding(self):
+        ids = paddle.full(shape=[], fill_value=1, dtype="int64")
+        w0 = paddle.arange(3, 9).reshape((3, 2)).astype(paddle.float32)
+        w = paddle.to_tensor(w0, stop_gradient=False)
+        emb = paddle.nn.functional.embedding(
+            x=ids, weight=w, sparse=True, name="embedding"
+        )
+        self.assertEqual(emb.shape, [2])
+        res = [5.0, 6.0]
+        for i in range(len(res)):
+            self.assertEqual(emb.numpy()[i], res[i])
+
+    def test_one_hot_label(self):
+        label = paddle.full(shape=[], fill_value=2, dtype="int64")
+        one_hot_label = paddle.nn.functional.one_hot(label, num_classes=4)
+        self.assertEqual(one_hot_label.shape, [4])
+        self.assertEqual(one_hot_label.numpy()[2], 1)
 
 
 if __name__ == "__main__":

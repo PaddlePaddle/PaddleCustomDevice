@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-from paddle.fluid.framework import set_flags
+from paddle.framework import set_flags
 from tests.op_test import OpTest
 
 paddle.enable_static()

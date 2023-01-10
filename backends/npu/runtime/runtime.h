@@ -44,17 +44,6 @@
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
 #define RUN_CHECK(func) RUNTIME_CHECK(func, true)
 
-#define ENV_Cat(x, y) x##y
-#define ENV_Str(x) #x
-#define ENV_Call(x, y) x(y)
-#define ENV_DEFINE(type, name, value, parser)                        \
-  type FLAGS_##name =                                                \
-      getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))               \
-          ? parser(getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))) \
-          : value
-#define ENV_uint64(x, value) ENV_DEFINE(uint64_t, x, value, std::stoul)
-#define ENV_string(x, value) ENV_DEFINE(std::string, x, value, std::string)
-
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,

@@ -29,12 +29,13 @@ void ModuloRawKernel(const Context& dev_ctx,
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
   bool direct_compute = false;
-  if (x_dims.size() >= y_dims.size()) {
+  if (y_dims.size() == 0 || x_dims.size() == 0) {
+    direct_compute = false;
+  } else if (x_dims.size() >= y_dims.size()) {
     direct_compute = y_dims == phi::slice_ddim(x_dims, axis, x_dims.size());
   } else {
     direct_compute = x_dims == phi::slice_ddim(y_dims, axis, y_dims.size());
   }
-
   phi::DenseTensor transformed_x, transformed_y;
   if (direct_compute) {
     transformed_x = x;

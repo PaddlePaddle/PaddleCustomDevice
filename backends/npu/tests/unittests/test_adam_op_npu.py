@@ -482,8 +482,6 @@ class TestNetWithEpsilonTensor(unittest.TestCase):
                         preds.append(pred)
                         losses.append(loss)
         for pred in preds:
-            print("pred: ", pred)
-            print("preds[0]: ", preds[0])
             self.assertTrue(np.allclose(pred, preds[0]))
         for loss in losses:
             self.assertTrue(np.allclose(loss, losses[0]))

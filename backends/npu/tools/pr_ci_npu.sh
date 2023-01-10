@@ -140,7 +140,7 @@ function main() {
         if [ $res -eq 0 ]; then
             disable_ut_list+="^"${line}"$|"
         else
-            echo "found ${line} code changed, ignore ut list disabled in disable_ut_npu"
+            echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
         fi
     done <<< "$disable_ut_npu";
     disable_ut_list+="^disable_ut_npu$"

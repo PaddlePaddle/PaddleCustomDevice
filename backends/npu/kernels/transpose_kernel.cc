@@ -30,6 +30,7 @@ void TransposeKernel(const Context& dev_ctx,
       .AddInput(dev_ctx, std::move(axis))
       .AddOutput(*out);
   runner.Run(stream);
+  // VLOG(0) << "test for filter changed kernel";
 }
 
 template <typename T, typename Context>

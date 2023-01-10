@@ -135,9 +135,9 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
-      ACL_CHECK(aclrtFreeHost(ptr));
-      it = recorded_events_.erase(it);
       ACL_CHECK(aclrtDestroyEvent(event));
+      it = recorded_events_.erase(it);
+      ACL_CHECK(aclrtFreeHost(ptr));
     }
   }
 
@@ -149,9 +149,9 @@ class AlignnedAllocator {
       ACL_CHECK(aclrtQueryEventStatus(event, &status));
       if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
-        ACL_CHECK(aclrtFreeHost(ptr));
         it = recorded_events_.erase(it);
         ACL_CHECK(aclrtDestroyEvent(event));
+        ACL_CHECK(aclrtFreeHost(ptr));
       } else {
         ++it;
       }

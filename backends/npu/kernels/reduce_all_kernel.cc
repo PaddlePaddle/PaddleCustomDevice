@@ -28,6 +28,11 @@ void AllRawKernel(const Context& dev_ctx,
                       static_cast<int>(dims.size()) == x.dims().size() ||
                       reduce_all;
   std::vector<int64_t> dims_vec = dims;
+  dev_ctx.template Alloc<T>(out);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
   if (reduce_all_f) {
     dims_vec.clear();
     for (size_t i = 0; i < x.dims().size(); ++i) {
@@ -35,7 +40,6 @@ void AllRawKernel(const Context& dev_ctx,
     }
   }
   auto stream = dev_ctx.stream();
-  dev_ctx.template Alloc<T>(out);
   NpuOpRunner runner;
   runner.SetType("ReduceAll")
       .AddInput(x)

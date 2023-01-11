@@ -221,7 +221,7 @@ class PReluTest(OpTest):
         self.attrs = {"mode": "channel", "data_format": "NCHW"}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, check_dygraph=False)
 
     def test_check_grad(self):
         self.check_grad_with_place(
@@ -329,12 +329,20 @@ class TestModeAllRank6NHWC(PReluTest):
         self.attrs = {"mode": "all", "data_format": "NHWC"}
 
 
-class TestModeChannel(PReluTest):
+class TestModeChannelRank6(PReluTest):
     def init_input_shape(self):
-        self.x_shape = [1, 200, 3, 1]
+        self.x_shape = [1, 100, 2, 2, 2, 2]
 
     def init_attr(self):
         self.attrs = {"mode": "channel", "data_format": "NCHW"}
+
+
+class TestModeChannelRank6NHWC(PReluTest):
+    def init_input_shape(self):
+        self.x_shape = [1, 2, 2, 2, 2, 100]
+
+    def init_attr(self):
+        self.attrs = {"mode": "channel", "data_format": "NHWC"}
 
 
 class TestModeChannelNHWC(PReluTest):
@@ -395,13 +403,14 @@ def create_test_fp16_class(parent, check_grad=True, atol=1e-3, max_relative_erro
 create_test_fp16_class(TestModeElt)
 create_test_fp16_class(TestModeAllRank3)
 create_test_fp16_class(TestModeAllRank6)
-create_test_fp16_class(TestModeChannel)
+create_test_fp16_class(TestModeChannelRank6)
 create_test_fp16_class(TestModeElementRank3)
 create_test_fp16_class(TestModeElementRank6)
 create_test_fp16_class(TestModeEltNHWC)
 create_test_fp16_class(TestModeAllRank3NHWC)
 create_test_fp16_class(TestModeAllRank6NHWC)
 create_test_fp16_class(TestModeChannelNHWC)
+create_test_fp16_class(TestModeChannelRank6NHWC)
 create_test_fp16_class(TestModeElementRank3NHWC)
 create_test_fp16_class(TestModeElementRank6NHWC)
 

@@ -27,7 +27,23 @@ void PReluKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
-  if (mode == "element") {
+  // NOTE(songkai05): PRelu op in CANN do not support element mode,
+  // so we compute the result directly.
+  // TODO(songkai05): PRelu op in CANN600 or higher versions would
+  // return false results when weight is a 1-D tensor, we compute the
+  // result directly until this bug is fixed.
+  if (mode == "element" || mode == "channel") {
+    phi::DenseTensor alpha_r(alpha);
+    if (mode == "channel" && alpha.dims().size() < x.dims().size()) {
+      std::vector<int64_t> reshape_dims(x.dims().size(), 1);
+      if (data_format == "NCHW") {
+        reshape_dims[1] = alpha.numel();
+      } else {
+        reshape_dims[x.dims().size() - 1] = alpha.numel();
+      }
+      alpha_r.Resize(phi::make_ddim(reshape_dims));
+    }
+
     phi::DenseTensor weight, zero_tensor, condition, alpha_broadcast;
     phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
     weight.set_meta(meta);
@@ -48,7 +64,7 @@ void PReluKernel(const Context& dev_ctx,
 
     NpuOpRunner bd_runner;
     bd_runner.SetType("BroadcastTo")
-        .AddInput(alpha)
+        .AddInput(alpha_r)
         .AddInput(dev_ctx, std::move(dims))
         .AddOutput(alpha_broadcast)
         .Run(stream);
@@ -63,59 +79,6 @@ void PReluKernel(const Context& dev_ctx,
 
     const auto& mul_runner = NpuOpRunner("Mul", {x, weight}, {*out});
     mul_runner.Run(stream);
-  } else if (mode == "channel") {
-    phi::DenseTensor weight(alpha);
-    weight.Resize({alpha.numel()});
-
-    if (data_format == "NCHW") {
-      const auto& runner = NpuOpRunner("PRelu", {x, weight}, {*out}, {});
-      runner.Run(stream);
-    } else if (data_format == "NHWC") {
-      PADDLE_ENFORCE_EQ(x.dims().size(),
-                        4,
-                        phi::errors::InvalidArgument(
-                            "Input dims of Prelu must be 4, but received %d",
-                            x.dims().size()));
-
-      auto x_dims = x.dims();
-      std::vector<int> transformed_dim;
-      transformed_dim.push_back(x_dims[0]);
-      transformed_dim.push_back(x_dims[x_dims.size() - 1]);
-      for (int i = 1; i < x_dims.size() - 1; ++i) {
-        transformed_dim.push_back(x_dims[i]);
-      }
-
-      phi::DenseTensor transformed_x, transformed_out;
-      transformed_x.Resize(phi::make_ddim(transformed_dim));
-      dev_ctx.template Alloc<T>(&transformed_x);
-      transformed_out.Resize(phi::make_ddim(transformed_dim));
-      dev_ctx.template Alloc<T>(&transformed_out);
-
-      const auto& trans_runner1 =
-          NpuOpRunner("TransData",
-                      {x},
-                      {transformed_x},
-                      {{"src_format", std::string("NHWC")},
-                       {"dst_format", std::string("NCHW")}});
-      trans_runner1.Run(stream);
-
-      const auto& runner =
-          NpuOpRunner("PRelu", {transformed_x, weight}, {transformed_out}, {});
-      runner.Run(stream);
-
-      const auto& trans_runner2 =
-          NpuOpRunner("TransData",
-                      {transformed_out},
-                      {*out},
-                      {{"src_format", std::string("NCHW")},
-                       {"dst_format", std::string("NHWC")}});
-      trans_runner2.Run(stream);
-    } else {
-      phi::errors::Unimplemented(
-          "Only NCHW and NHWC format is supported for input of PRelu kernel, "
-          "but received %s .",
-          data_format);
-    }
   } else {
     const auto& runner = NpuOpRunner("PRelu", {x, alpha}, {*out}, {});
     runner.Run(stream);
@@ -134,8 +97,21 @@ void PReluGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(x_grad);
   dev_ctx.template Alloc<T>(alpha_grad);
   auto stream = dev_ctx.stream();
+  auto alpha_dims = alpha.dims();
 
-  if (mode == "element") {
+  if (mode == "element" || mode == "channel") {
+    phi::DenseTensor alpha_r(alpha);
+    if (mode == "channel" && alpha_dims.size() < x.dims().size()) {
+      std::vector<int64_t> reshape_dims(x.dims().size(), 1);
+      if (data_format == "NCHW") {
+        reshape_dims[1] = alpha.numel();
+      } else {
+        reshape_dims[x.dims().size() - 1] = alpha.numel();
+      }
+      alpha_r.Resize(phi::make_ddim(reshape_dims));
+      alpha_grad->Resize(phi::make_ddim(reshape_dims));
+    }
+
     phi::DenseTensor weight, zero_tensor, condition, alpha_broadcast;
     phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
     weight.set_meta(meta);
@@ -156,7 +132,7 @@ void PReluGradKernel(const Context& dev_ctx,
 
     NpuOpRunner bd_runner;
     bd_runner.SetType("BroadcastTo")
-        .AddInput(alpha)
+        .AddInput(alpha_r)
         .AddInput(dev_ctx, std::move(dims))
         .AddOutput(alpha_broadcast)
         .Run(stream);
@@ -180,7 +156,22 @@ void PReluGradKernel(const Context& dev_ctx,
         NpuOpRunner("Mul", {out_grad, zero_tensor}, {alpha_broadcast});
     mul_runner2.Run(stream);
 
-    std::vector<int64_t> axis = {0};
+    std::vector<int64_t> axis;
+    if (mode == "element") {
+      axis.push_back(0);
+    } else {
+      if (data_format == "NCHW") {
+        axis.push_back(0);
+        for (size_t i = 2; i < x.dims().size(); ++i) {
+          axis.push_back(i);
+        }
+      } else {
+        for (size_t i = 0; i < x.dims().size() - 1; ++i) {
+          axis.push_back(i);
+        }
+      }
+    }
+
     NpuOpRunner reduce_sum_runner;
     reduce_sum_runner.SetType("ReduceSum")
         .AddInput(alpha_broadcast)
@@ -188,75 +179,7 @@ void PReluGradKernel(const Context& dev_ctx,
         .AddOutput(*alpha_grad)
         .AddAttr("keep_dim", true)
         .Run(stream);
-  } else if (mode == "channel") {
-    phi::DenseTensor weight(alpha);
-    weight.Resize({alpha.numel()});
-
-    if (data_format == "NCHW") {
-      const auto& runner = NpuOpRunner(
-          "PReluGrad", {out_grad, x, weight}, {*x_grad, *alpha_grad}, {});
-      runner.Run(stream);
-    } else if (data_format == "NHWC") {
-      PADDLE_ENFORCE_EQ(x.dims().size(),
-                        4,
-                        phi::errors::InvalidArgument(
-                            "Input dims of Prelu must be 4, but received %d",
-                            x.dims().size()));
-
-      auto x_dims = x.dims();
-      std::vector<int> transformed_dim;
-      transformed_dim.push_back(x_dims[0]);
-      transformed_dim.push_back(x_dims[x_dims.size() - 1]);
-      for (int i = 1; i < x_dims.size() - 1; ++i) {
-        transformed_dim.push_back(x_dims[i]);
-      }
-
-      phi::DenseTensor transformed_x, transformed_out_grad, transformed_x_grad;
-      transformed_x.Resize(phi::make_ddim(transformed_dim));
-      dev_ctx.template Alloc<T>(&transformed_x);
-      transformed_out_grad.Resize(phi::make_ddim(transformed_dim));
-      dev_ctx.template Alloc<T>(&transformed_out_grad);
-      transformed_x_grad.Resize(phi::make_ddim(transformed_dim));
-      dev_ctx.template Alloc<T>(&transformed_x_grad);
-
-      const auto& trans_runner1 =
-          NpuOpRunner("TransData",
-                      {x},
-                      {transformed_x},
-                      {{"src_format", std::string("NHWC")},
-                       {"dst_format", std::string("NCHW")}});
-      trans_runner1.Run(stream);
-
-      const auto& trans_runner2 =
-          NpuOpRunner("TransData",
-                      {out_grad},
-                      {transformed_out_grad},
-                      {{"src_format", std::string("NHWC")},
-                       {"dst_format", std::string("NCHW")}});
-      trans_runner2.Run(stream);
-
-      const auto& runner =
-          NpuOpRunner("PReluGrad",
-                      {transformed_out_grad, transformed_x, weight},
-                      {transformed_x_grad, *alpha_grad},
-                      {});
-      runner.Run(stream);
-
-      const auto& trans_runner3 =
-          NpuOpRunner("TransData",
-                      {transformed_x_grad},
-                      {*x_grad},
-                      {{"src_format", std::string("NCHW")},
-                       {"dst_format", std::string("NHWC")}});
-      trans_runner3.Run(stream);
-
-    } else {
-      phi::errors::Unimplemented(
-          "Only NCHW and NHWC format is supported for input of PReluGrad "
-          "kernel, "
-          "but received %s .",
-          data_format);
-    }
+    alpha_grad->Resize(alpha_dims);
   } else {
     phi::DenseTensor weight(alpha);
     const auto& runner = NpuOpRunner(

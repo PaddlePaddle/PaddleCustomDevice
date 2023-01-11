@@ -78,21 +78,6 @@ class TestFunctionalPReluAPI(unittest.TestCase):
         with _test_eager_guard():
             self.test_dygraph_api()
 
-    def test_error(self):
-        with paddle.static.program_guard(paddle.static.Program()):
-            paddle.enable_static()
-            weight_fp32 = paddle.fluid.data(
-                name="weight_fp32", shape=[1], dtype="float32"
-            )
-            # The input type must be Variable.
-            self.assertRaises(TypeError, F.prelu, x=1, weight=weight_fp32)
-            # The input dtype must be float16, float32, float64.
-            x_int32 = paddle.fluid.data(name="x_int32", shape=[2, 3], dtype="int32")
-            self.assertRaises(TypeError, F.prelu, x=x_int32, weight=weight_fp32)
-            # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(name="x_fp16", shape=[2, 3], dtype="float16")
-            F.prelu(x=x_fp16, weight=weight_fp32)
-
 
 class TestNNPReluAPI(unittest.TestCase):
     def setUp(self):

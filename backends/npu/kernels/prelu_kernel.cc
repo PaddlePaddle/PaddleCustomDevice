@@ -34,7 +34,7 @@ void PReluKernel(const Context& dev_ctx,
   // result directly until this bug is fixed.
   if (mode == "element" || mode == "channel") {
     phi::DenseTensor alpha_r(alpha);
-    if (mode == "channel" && alpha.dims().size() < x.dims().size()) {
+    if (mode == "channel" && alpha.dims().size() != x.dims().size()) {
       std::vector<int64_t> reshape_dims(x.dims().size(), 1);
       if (data_format == "NCHW") {
         reshape_dims[1] = alpha.numel();
@@ -101,7 +101,7 @@ void PReluGradKernel(const Context& dev_ctx,
 
   if (mode == "element" || mode == "channel") {
     phi::DenseTensor alpha_r(alpha);
-    if (mode == "channel" && alpha_dims.size() < x.dims().size()) {
+    if (mode == "channel" && alpha_dims.size() != x.dims().size()) {
       std::vector<int64_t> reshape_dims(x.dims().size(), 1);
       if (data_format == "NCHW") {
         reshape_dims[1] = alpha.numel();

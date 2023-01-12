@@ -79,6 +79,7 @@ class TestReduceAPI(unittest.TestCase):
 binary_api_list = [
     {"func": paddle.add, "cls_method": "__add__"},
     {"func": paddle.multiply, "cls_method": "__mul__"},
+    paddle.maximum,
 ]
 
 binary_api_list_without_grad = [

@@ -15,7 +15,7 @@
 #include <cstring>
 
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
+#include "phi_funcs.h"  //NOLINT
 
 namespace custom_kernel {
 

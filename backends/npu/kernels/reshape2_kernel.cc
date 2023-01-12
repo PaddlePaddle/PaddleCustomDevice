@@ -171,6 +171,8 @@ void ReshapeWithXShapeKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, x, false, out);
   out->Resize(dims);
   // out->ResetLoD(x.lod());
+
+  // duanyanhui: Add this line to test
 }
 
 template <typename T, typename Context>

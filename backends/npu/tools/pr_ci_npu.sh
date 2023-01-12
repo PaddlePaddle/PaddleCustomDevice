@@ -98,7 +98,6 @@ function main() {
     # get changed ut and kernels
     set +e
     changed_uts=$(git diff --name-only develop | grep "backends/npu/tests/unittests")
-    set -e
     changed_ut_list=()
     if [ ${#changed_uts[*]} -gt 0 ]; then 
         for line in ${changed_uts[@]} ;
@@ -115,7 +114,6 @@ function main() {
     set +x
     all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
     set -x
-    set -e
     if [ ${#changed_kernels[*]} -gt 0 ]; then 
         for line in ${changed_kernels[@]} ;
             do
@@ -130,7 +128,7 @@ function main() {
             done
     fi
     echo "changed_ut_list=${changed_ut_list[@]}"
-
+    set -e
     # read disable ut list
     IFS=$'\n'
     disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")

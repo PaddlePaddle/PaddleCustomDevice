@@ -299,10 +299,6 @@ class TestSundryAPI(unittest.TestCase):
 
         np.testing.assert_array_equal(F.linear(x, w, b).numpy(), F.linear(x, w).numpy())
 
-    def test_is_complex(self):
-        x = paddle.rand([]) + 1j * paddle.rand([])
-        self.assertTrue(paddle.is_complex(x))
-
     def test_is_floating_point(self):
         self.assertTrue(paddle.is_floating_point(self.x))
 

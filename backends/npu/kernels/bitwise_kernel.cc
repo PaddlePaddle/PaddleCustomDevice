@@ -93,12 +93,13 @@ void BitwiseXorKernel(const Context& dev_ctx,
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
-    // NotEqual op do not support bool data type
-    phi::DenseTensor transformed_x, transformed_y;
+    phi::DenseTensor transformed_x, transformed_y, transformed_out;
     transformed_x.Resize(x_tensor.dims());
     transformed_y.Resize(y_tensor.dims());
+    transformed_out.Resize(out_tensor.dims());
     dev_ctx.template Alloc<int32_t>(&transformed_x);
     dev_ctx.template Alloc<int32_t>(&transformed_y);
+    dev_ctx.template Alloc<int32_t>(&transformed_out);
 
     const auto& cast_runner1 = NpuOpRunner(
         "Cast", {x_tensor}, {transformed_x}, {{"dst_type", ACL_INT32}});
@@ -108,9 +109,13 @@ void BitwiseXorKernel(const Context& dev_ctx,
         "Cast", {y_tensor}, {transformed_y}, {{"dst_type", ACL_INT32}});
     cast_runner2.Run(stream);
 
-    const auto& runner =
-        NpuOpRunner("NotEqual", {transformed_x, transformed_y}, {out_tensor});
+    const auto& runner = NpuOpRunner(
+        "BitwiseXor", {transformed_x, transformed_y}, {transformed_out});
     runner.Run(stream);
+
+    const auto& cast_runner3 = NpuOpRunner(
+        "Cast", {transformed_out}, {out_tensor}, {{"dst_type", ACL_BOOL}});
+    cast_runner3.Run(stream);
   } else {
     const auto& runner =
         NpuOpRunner("BitwiseXor", {x_tensor, y_tensor}, {out_tensor});
@@ -139,28 +144,7 @@ void BitwiseNotKernel(const Context& dev_ctx,
     const auto& runner = NpuOpRunner("LogicalNot", {x}, {*out});
     runner.Run(stream);
   } else {
-    phi::DenseTensor all_f;
-    all_f.Resize(x_tensor.dims());
-
-    if (x.dtype() == phi::DataType::INT8 || x.dtype() == phi::DataType::UINT8) {
-      FillNpuTensorWithConstant<T>(&all_f, dev_ctx, static_cast<T>(0xff));
-    } else if (x.dtype() == phi::DataType::INT16) {
-      FillNpuTensorWithConstant<T>(&all_f, dev_ctx, static_cast<T>(0xffff));
-    } else if (x.dtype() == phi::DataType::INT32) {
-      FillNpuTensorWithConstant<T>(&all_f, dev_ctx, static_cast<T>(0xffffffff));
-    } else if (x.dtype() == phi::DataType::INT64) {
-      FillNpuTensorWithConstant<T>(
-          &all_f, dev_ctx, static_cast<T>(0xffffffffffffffff));
-    } else {
-      phi::errors::InvalidArgument(
-          "Supported data type for BitwiseNot is bool, int8, uint8, int16, int "
-          "and int64, but received %s",
-          x.dtype());
-    }
-    all_f.Resize(x.dims());
-
-    const auto& runner =
-        NpuOpRunner("BitwiseXor", {x_tensor, all_f}, {out_tensor});
+    const auto& runner = NpuOpRunner("Invert", {x_tensor}, {out_tensor});
     runner.Run(stream);
   }
 

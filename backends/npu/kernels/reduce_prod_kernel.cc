@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ProdRawKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::IntArray& axes,
-                   bool keep_dim,
-                   bool reduce_all,
-                   phi::DenseTensor* out) {
+void ProdKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::IntArray& axes,
+                bool keep_dim,
+                bool reduce_all,
+                phi::DenseTensor* out) {
   auto dims = axes.GetData();
   auto x_dims = x.dims();
   auto x_dims_size = x_dims.size();
@@ -93,27 +93,27 @@ void ProdRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ProdKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::IntArray& dims,
-                bool keep_dim,
-                phi::DenseTensor* out) {
+void ProdInferKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& dims,
+                     bool keep_dim,
+                     phi::DenseTensor* out) {
   bool reduce_all = false;
-  custom_kernel::ProdRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
+  custom_kernel::ProdKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
 }
 
 }  // namespace custom_kernel
-
-PD_REGISTER_PLUGIN_KERNEL(prod_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::ProdRawKernel,
-                          phi::dtype::float16,
-                          float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
+                          phi::dtype::float16,
+                          float) {}
+
+PD_REGISTER_PLUGIN_KERNEL(prod_infer,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::ProdInferKernel,
                           phi::dtype::float16,
                           float) {}

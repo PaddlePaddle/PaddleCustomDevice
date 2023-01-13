@@ -154,11 +154,11 @@ void InferMetaFromVecValue(const phi::MetaTensor& x,
 }
 
 template <typename T, typename Context>
-void ReshapeWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::IntArray& shape,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+void ReshapeKernelKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::IntArray& shape,
+                         phi::DenseTensor* out,
+                         phi::DenseTensor* xshape) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
   if (x.initialized() && x.IsSharedWith(*out)) {
@@ -187,10 +187,10 @@ void ReshapeGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(reshape,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::ReshapeWithXShapeKernel,
+                          custom_kernel::ReshapeKernelKernel,
                           phi::dtype::float16,
                           float,
                           double,

@@ -29,15 +29,16 @@ void ModuloRawKernel(const Context& dev_ctx,
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
   bool direct_compute = false;
-  if (y_dims.size() == 0 || x_dims.size() == 0) {
-    direct_compute = false;
-  } else if (x_dims.size() >= y_dims.size()) {
+  if (x_dims.size() >= y_dims.size()) {
     direct_compute = y_dims == phi::slice_ddim(x_dims, axis, x_dims.size());
   } else {
     direct_compute = x_dims == phi::slice_ddim(y_dims, axis, y_dims.size());
   }
-  phi::DenseTensor transformed_x, transformed_y;
-  if (direct_compute) {
+  phi::DenseTensor transformed_x(x), transformed_y(y);
+  if (y_dims.size() == 0 && x_dims.size() == 0) {
+    transformed_x.Resize({1});
+    transformed_y.Resize({1});
+  } else if (direct_compute) {
     transformed_x = x;
     transformed_y = y;
   } else {
@@ -46,7 +47,6 @@ void ModuloRawKernel(const Context& dev_ctx,
   }
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   if (transformed_x.dtype() != phi::DataType::FLOAT16) {
     const auto& runner =
         NpuOpRunner("FloorMod", {transformed_x, transformed_y}, {*out}, {});

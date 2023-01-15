@@ -686,8 +686,8 @@ class TestSundryAPI(unittest.TestCase):
         x2 = paddle.full([], 1.0)
         x1.stop_gradient = False
         x2.stop_gradient = False
-        mask1 = paddle.full([], False, dtype='bool')
-        mask2 = paddle.full([], True, dtype='bool')
+        mask1 = paddle.full([], False, dtype="bool")
+        mask2 = paddle.full([], True, dtype="bool")
         y1 = paddle.masked_select(x1, mask1)
         y2 = paddle.masked_select(x2, mask2)
 

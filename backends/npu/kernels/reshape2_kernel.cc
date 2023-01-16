@@ -141,11 +141,6 @@ static phi::DDim ValidateShape(const std::vector<int64_t> shape,
 void InferMetaFromVecValue(const phi::MetaTensor& x,
                            const std::vector<int64_t>& shape,
                            phi::MetaTensor* out) {
-  PADDLE_ENFORCE_EQ(!shape.empty(),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The parameter 'shape' in ReshapeOp must be set. "
-                        "But received 'shape' is empty."));
   auto x_dims = x.dims();
   auto out_dims = ValidateShape(shape, x_dims);
   out->set_dims(out_dims);
@@ -159,11 +154,11 @@ void InferMetaFromVecValue(const phi::MetaTensor& x,
 }
 
 template <typename T, typename Context>
-void ReshapeWithXShapeKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::IntArray& shape,
-                             phi::DenseTensor* out,
-                             phi::DenseTensor* xshape) {
+void ReshapeKernelKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::IntArray& shape,
+                         phi::DenseTensor* out,
+                         phi::DenseTensor* xshape) {
   phi::MetaTensor meta_out(out);
   custom_kernel::InferMetaFromVecValue(x, shape.GetData(), &meta_out);
   if (x.initialized() && x.IsSharedWith(*out)) {
@@ -176,6 +171,8 @@ void ReshapeWithXShapeKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, x, false, out);
   out->Resize(dims);
   // out->ResetLoD(x.lod());
+
+  // duanyanhui: Add this line to test
 }
 
 template <typename T, typename Context>
@@ -190,10 +187,10 @@ void ReshapeGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(reshape_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(reshape,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::ReshapeWithXShapeKernel,
+                          custom_kernel::ReshapeKernelKernel,
                           phi::dtype::float16,
                           float,
                           double,

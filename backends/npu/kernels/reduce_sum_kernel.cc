@@ -160,6 +160,14 @@ void SumGradKernel(const Context& dev_ctx,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
+  dev_ctx.template Alloc<T>(x_grad);
+  auto stream = dev_ctx.stream();
+
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    return;
+  }
+
   auto keep_dims = keep_dim;
 
   auto dims = dims_array.GetData();
@@ -175,9 +183,6 @@ void SumGradKernel(const Context& dev_ctx,
     }
   }
   reduce_all = (reduce_all || full_dim);
-
-  dev_ctx.template Alloc<T>(x_grad);
-  auto stream = dev_ctx.stream();
 
   if (keep_dims || reduce_all) {
     const auto& runner = NpuOpRunner("BroadcastToD",

@@ -105,8 +105,14 @@ void AssignValueKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    assign, npu, ALL_LAYOUT, custom_kernel::AssignKernel, int, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(assign,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::AssignKernel,
+                          int,
+                          float,
+                          double,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           npu,
@@ -114,7 +120,8 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           custom_kernel::AssignRawKernel,
                           int,
                           float,
-                          double) {
+                          double,
+                          int64_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 
@@ -124,7 +131,8 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           custom_kernel::AssignArrayKernel,
                           int,
                           float,
-                          double) {}
+                          double,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
                           npu,

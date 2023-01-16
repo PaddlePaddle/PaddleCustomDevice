@@ -30,11 +30,11 @@ inline void SetXShape(const phi::DenseTensor& x, phi::DenseTensor* xshape) {
 }
 
 template <typename T, typename Context>
-void FlattenKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   int start_axis,
-                   int stop_axis,
-                   phi::DenseTensor* out) {
+void FlattenInferKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        int start_axis,
+                        int stop_axis,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   const auto& runner =
@@ -43,6 +43,10 @@ void FlattenKernel(const Context& dev_ctx,
                   {*out},
                   {{"axis", static_cast<int32_t>(start_axis)},
                    {"end_axis", static_cast<int32_t>(stop_axis)}});
+  const auto& in_dims = x.meta().dims;
+  if (in_dims.size() == 0) {
+    out->Resize(phi::make_ddim(std::vector<int64_t>{1}));
+  }
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
@@ -60,23 +64,23 @@ void FlattenGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void FlattenWithXShape(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       int start_axis,
-                       int stop_axis,
-                       phi::DenseTensor* out,
-                       phi::DenseTensor* xshape) {
-  custom_kernel::FlattenKernel<T, Context>(
+void FlattenKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   int start_axis,
+                   int stop_axis,
+                   phi::DenseTensor* out,
+                   phi::DenseTensor* xshape) {
+  custom_kernel::FlattenInferKernel<T, Context>(
       dev_ctx, x, start_axis, stop_axis, out);
   SetXShape(x, xshape);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(flatten,
+PD_REGISTER_PLUGIN_KERNEL(flatten_infer,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::FlattenKernel,
+                          custom_kernel::FlattenInferKernel,
                           float,
                           double,
                           uint8_t,
@@ -86,10 +90,10 @@ PD_REGISTER_PLUGIN_KERNEL(flatten,
                           int64_t,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(flatten_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(flatten,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::FlattenWithXShape,
+                          custom_kernel::FlattenKernel,
                           float,
                           double,
                           uint8_t,

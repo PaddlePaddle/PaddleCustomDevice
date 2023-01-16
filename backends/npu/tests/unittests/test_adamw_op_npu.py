@@ -16,7 +16,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -242,10 +241,12 @@ class TestNet(unittest.TestCase):
             sum = paddle.add(a, b)
             z = paddle.pow(sum, 2.0)
 
-            fc_1 = fluid.layers.fc(input=z, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act="softmax")
+            fc_1 = paddle.static.nn.fc(x=z, size=128)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2, activation="softmax")
 
-            cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
+            cost = paddle.nn.functional.cross_entropy(
+                input=prediction, label=label, reduction="mean", use_softmax=True
+            )
             loss = paddle.mean(cost)
             adam = paddle.optimizer.AdamW(learning_rate=0.01, weight_decay=0.02)
             adam.minimize(loss)
@@ -278,8 +279,8 @@ class TestNet(unittest.TestCase):
     def test_npu(self):
         npu_pred, npu_loss = self._test(True)
         cpu_pred, cpu_loss = self._test(False)
-        self.assertTrue(np.allclose(npu_pred, cpu_pred, rtol=1e-3))
-        self.assertTrue(np.allclose(npu_loss, cpu_loss, rtol=1e-3))
+        self.assertTrue(np.allclose(npu_pred, cpu_pred, atol=1e-3))
+        self.assertTrue(np.allclose(npu_loss, cpu_loss, atol=1e-3))
 
 
 if __name__ == "__main__":

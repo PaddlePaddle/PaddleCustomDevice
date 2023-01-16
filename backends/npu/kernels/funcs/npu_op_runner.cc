@@ -17,14 +17,16 @@
 #include "acl/acl_op_compiler.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/string_helper.h"
 #include "pybind11/pybind11.h"
+#include "runtime/flags.h"
 #include "runtime/runtime.h"
 
 static aclDataBuffer *float_status_buffer_ = NULL;
 static aclTensorDesc *float_status_desc_ = NULL;
 
-ENV_uint64(ascend_check_nan_inf, 0);
-ENV_uint64(ascend_blocking_npu_runner, 0);
+FLAGS_DEFINE_bool(npu_check_nan_inf, false, "check nan/inf of all npu kernels");
+FLAGS_DEFINE_bool(npu_blocking_run, false, "enable sync for all npu kernels");
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -458,9 +460,9 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
 
 void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
   // Init float_status_desc_ and float_status_buffer_ once, if
-  // ascend_check_nan_inf is needed, only do ClearFloatStatus here.
+  // npu_check_nan_inf is needed, only do ClearFloatStatus here.
   if (float_status_desc_ && float_status_buffer_) {
-    if (FLAGS_ascend_check_nan_inf) {
+    if (FLAGS_npu_check_nan_inf) {
       ClearFloatStatus(stream);
     }
     return;
@@ -601,12 +603,9 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
       stream,
       phi::errors::External("Stream should not be null, please check."));
   InitFloatStatus(stream);
-  VLOG(5) << "NpuOpRunner(" << this << ") Run:";
-  VLOG(4) << "op_type: " << op_type_;
-  VLOG(4) << "input_desc.size: " << input_descs_.size();
-  VLOG(4) << "output_desc.size: " << output_descs_.size();
-  VLOG(4) << "attr: " << attr_;
-  VLOG(4) << "stream: " << stream;
+  VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
+          << GetOpDescString(input_descs_, "Input")
+          << GetOpDescString(output_descs_, "Output");
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.
@@ -638,12 +637,16 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  NULL,
                                  stream);
   }
+
   VLOG(4) << "after aclopCompileAndExecute: " << ret;
-  if (sync || FLAGS_ascend_blocking_npu_runner) {
+  VLOG(1) << "FLAGS_npu_blocking_run = " << FLAGS_npu_blocking_run;
+  if (sync || FLAGS_npu_blocking_run) {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  if (FLAGS_ascend_check_nan_inf && GetFloatStatus(stream)) {
+
+  VLOG(1) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
+  if (FLAGS_npu_check_nan_inf && GetFloatStatus(stream)) {
     PrintOpInfo();
     PADDLE_THROW(phi::errors::PreconditionNotMet(
         "Operator %s contains Nan/Inf.", op_type_));

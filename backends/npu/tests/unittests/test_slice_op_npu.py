@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 import paddle.fluid.core as core
-import paddle.fluid.layers as layers
+from paddle.tensor.manipulation import tensor_array_to_tensor
 
 paddle.enable_static()
 
@@ -630,7 +630,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
             arr = paddle.tensor.create_array(dtype="float32")
             for i in range(3):
                 idx = paddle.tensor.array_length(arr)
-                arr = layers.array_write(x=x[i], i=idx, array=arr)
+                arr = paddle.tensor.array_write(x=x[i], i=idx, array=arr)
 
             if case_num == 1:
                 self.sliced_arr = output = arr[0]
@@ -638,13 +638,13 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
             elif case_num == 2:
                 end = paddle.tensor.array_length(arr) - 1  # dtype of end is int64
                 self.sliced_arr = slice_arr = arr[self.start : end]
-                output, _ = fluid.layers.tensor_array_to_tensor(
+                output, _ = tensor_array_to_tensor(
                     slice_arr, axis=self.axis, use_stack=True
                 )
             elif case_num == 3:
                 value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
                 self.sliced_arr = slice_arr = arr[self.start : value_int64]
-                output, _ = fluid.layers.tensor_array_to_tensor(
+                output, _ = tensor_array_to_tensor(
                     slice_arr, axis=self.axis, use_stack=True
                 )
 
@@ -673,32 +673,32 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
         np.testing.assert_array_equal(self.g_x1, np.zeros_like(self.data))
         np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
 
-    # def test_case_2(self):
-    #     main_program = fluid.Program()
-    #     self.set_program_and_run(main_program, 2)
+    def test_case_2(self):
+        main_program = fluid.Program()
+        self.set_program_and_run(main_program, 2)
 
-    #     self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
-    #     self.assertEqual(self.sliced_arr.shape, self.shape)
-    #     np.testing.assert_array_equal(
-    #         self.out, np.stack([self.data, self.data], axis=self.axis)
-    #     )
-    #     np.testing.assert_array_equal(self.g_x0, np.ones_like(self.data))
-    #     np.testing.assert_array_equal(self.g_x1, np.ones_like(self.data))
-    #     np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
+        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+        self.assertEqual(self.sliced_arr.shape, self.shape)
+        np.testing.assert_array_equal(
+            self.out, np.stack([self.data, self.data], axis=self.axis)
+        )
+        np.testing.assert_array_equal(self.g_x0, np.ones_like(self.data))
+        np.testing.assert_array_equal(self.g_x1, np.ones_like(self.data))
+        np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
 
-    # def test_case_3(self):
-    #     main_program = fluid.Program()
-    #     self.set_program_and_run(main_program, 3)
+    def test_case_3(self):
+        main_program = fluid.Program()
+        self.set_program_and_run(main_program, 3)
 
-    #     self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
-    #     self.assertEqual(self.sliced_arr.shape, self.shape)
-    #     np.testing.assert_array_equal(
-    #         self.out,
-    #         np.stack([self.data, self.data, self.data], axis=self.axis),
-    #     )
-    #     np.testing.assert_array_equal(self.g_x0, np.ones_like(self.data))
-    #     np.testing.assert_array_equal(self.g_x1, np.ones_like(self.data))
-    #     np.testing.assert_array_equal(self.g_x2, np.ones_like(self.data))
+        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+        self.assertEqual(self.sliced_arr.shape, self.shape)
+        np.testing.assert_array_equal(
+            self.out,
+            np.stack([self.data, self.data, self.data], axis=self.axis),
+        )
+        np.testing.assert_array_equal(self.g_x0, np.ones_like(self.data))
+        np.testing.assert_array_equal(self.g_x1, np.ones_like(self.data))
+        np.testing.assert_array_equal(self.g_x2, np.ones_like(self.data))
 
 
 if __name__ == "__main__":

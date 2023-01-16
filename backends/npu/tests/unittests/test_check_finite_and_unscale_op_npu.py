@@ -18,8 +18,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 from paddle.fluid import program_guard
-from paddle.fluid.contrib.mixed_precision.amp_nn import \
-    check_finite_and_unscale
+from paddle.static.amp.amp_nn import check_finite_and_unscale
 
 paddle.enable_static()
 

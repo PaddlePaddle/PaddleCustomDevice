@@ -16,12 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
 
 paddle.enable_static()
 SEED = 2021
@@ -30,15 +27,15 @@ SEED = 2021
 class TestAssign(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "assign"
         self.init_dtype()
 
         x = np.random.random([3, 3]).astype(self.dtype)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
 
         self.attrs = {}
-        self.outputs = {'Out': x}
+        self.outputs = {"Out": x}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -50,5 +47,10 @@ class TestAssign(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+class TestAssignInt64(TestAssign):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+if __name__ == "__main__":
     unittest.main()

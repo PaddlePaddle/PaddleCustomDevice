@@ -24,7 +24,6 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   NpuOpRunner runner;
   runner.SetType("Transpose")
       .AddInput(x)

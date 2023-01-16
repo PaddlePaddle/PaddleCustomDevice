@@ -32,7 +32,7 @@ class TestSoftmax(OpTest):
         self.op_type = "softmax"
         self.init_dtype()
 
-        x = np.random.random([3, 3]).astype(self.dtype)
+        x = np.random.random([10, 10]).astype(self.dtype)
         np_out = np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
         self.inputs = {"X": x}
 
@@ -41,13 +41,20 @@ class TestSoftmax(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.__class__.no_need_check_grad = True
 
     def init_dtype(self):
         self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
+
+
+class TestSoftmaxFp64(TestSoftmax):
+    def init_dtype(self):
+        self.dtype = np.float64
 
 
 class TestSoftmaxNet(unittest.TestCase):
@@ -71,9 +78,9 @@ class TestSoftmaxNet(unittest.TestCase):
             d = paddle.sqrt(c)
 
             # 4 x 128
-            fc_1 = fluid.layers.fc(input=d, size=128)
+            fc_1 = paddle.static.nn.fc(x=d, size=128)
             # 4 x 2
-            prediction = fluid.layers.fc(input=fc_1, size=2)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2)
 
             # 4 x 2
             prob = paddle.nn.functional.softmax(prediction, axis=1)

@@ -15,13 +15,14 @@
 import os
 
 from paddle.utils.cpp_extension import CppExtension, setup
-from distutils.sysconfig import get_python_lib
+from site import getsitepackages
 
-site_packages_path = get_python_lib()
-paddle_includes = [
-    os.path.join(site_packages_path, "paddle", "include"),
-    os.path.join(site_packages_path, "paddle", "include", "third_party"),
-]
+paddle_includes = []
+for site_packages_path in getsitepackages():
+    paddle_includes.append(os.path.join(site_packages_path, "paddle", "include"))
+    paddle_includes.append(
+        os.path.join(site_packages_path, "paddle", "include", "third_party")
+    )
 
 # Test for extra compile args
 extra_compile_args = {"cc": ["-w", "-g"]}

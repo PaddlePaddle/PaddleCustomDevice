@@ -1,4 +1,4 @@
-# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@ import numpy as np
 
 import paddle
 import paddle.static as static
-from paddle.fluid.framework import _test_eager_guard
+from paddle import fluid
 from paddle.utils.cpp_extension.extension_utils import run_cmd
+from paddle.vision.transforms import Compose, Normalize
 
 
 def custom_relu_dynamic(func, device, dtype, np_x, use_func=True):
@@ -55,7 +56,7 @@ def custom_relu_static(func, device, dtype, np_x, use_func=True, test_infer=Fals
 
             exe = static.Executor()
             exe.run(static.default_startup_program())
-            # in static mode, x data has been covered by out
+            # in static graph mode, x data has been covered by out
             out_v = exe.run(
                 static.default_main_program(),
                 feed={"X": np_x},
@@ -64,6 +65,56 @@ def custom_relu_static(func, device, dtype, np_x, use_func=True, test_infer=Fals
 
     paddle.disable_static()
     return out_v
+
+
+def custom_relu_static_pe(func, device, dtype, np_x, use_func=True):
+    paddle.enable_static()
+    paddle.set_device(device)
+    places = paddle.CustomPlace("npu", 0)
+
+    with static.scope_guard(static.Scope()):
+        with static.program_guard(static.Program()):
+            x = static.data(name="X", shape=[None, 8], dtype=dtype)
+            x.stop_gradient = False
+            out = func(x) if use_func else paddle.nn.functional.relu(x)
+            static.append_backward(out)
+
+            exe = static.Executor()
+            exe.run(static.default_startup_program())
+
+            # in static graph mode, x data has been covered by out
+            compiled_prog = static.CompiledProgram(
+                static.default_main_program()
+            ).with_data_parallel(loss_name=out.name, places=places)
+            out_v = exe.run(compiled_prog, feed={"X": np_x}, fetch_list=[out.name])
+
+    paddle.disable_static()
+    return out_v
+
+
+def custom_relu_double_grad_dynamic(func, device, dtype, np_x, use_func=True):
+    paddle.set_device(device)
+
+    t = paddle.to_tensor(np_x, dtype=dtype, stop_gradient=False)
+
+    out = func(t) if use_func else paddle.nn.functional.relu(t)
+    dx = paddle.grad(
+        outputs=out,
+        inputs=t,
+        grad_outputs=paddle.ones_like(t),
+        create_graph=True,
+        retain_graph=True,
+    )
+
+    ddout = paddle.grad(
+        outputs=dx[0],
+        inputs=out.grad,
+        grad_outputs=paddle.ones_like(t),
+        create_graph=False,
+    )
+
+    assert ddout[0].numpy() is not None
+    return dx[0].numpy(), ddout[0].numpy()
 
 
 class TestNewCustomOpSetUpInstall(unittest.TestCase):
@@ -90,8 +141,8 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
 
         self.custom_op = custom_relu_module_setup.custom_relu
 
-        self.dtypes = ["float32"]
-        self.devices = ["npu"]
+        self.dtype = "float32"
+        self.device = "npu"
 
         # config seed
         SEED = 2021
@@ -99,47 +150,99 @@ class TestNewCustomOpSetUpInstall(unittest.TestCase):
         paddle.framework.random._manual_program_seed(SEED)
 
     def test_static(self):
-        for device in self.devices:
-            for dtype in self.dtypes:
-                x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                pd_out = custom_relu_static(self.custom_op, device, dtype, x, False)
-                out = custom_relu_static(self.custom_op, device, dtype, x)
-                np.testing.assert_array_equal(
-                    out,
-                    pd_out,
-                    err_msg="custom op out: {},\n paddle api out: {}".format(
-                        out, pd_out
-                    ),
-                )
+        x = np.random.uniform(-1, 1, [4, 8]).astype(self.dtype)
+        pd_out = custom_relu_static(self.custom_op, self.device, self.dtype, x, False)
+        out = custom_relu_static(self.custom_op, self.device, self.dtype, x)
+        np.testing.assert_array_equal(
+            out,
+            pd_out,
+            err_msg="custom op out: {},\n paddle api out: {}".format(out, pd_out),
+        )
 
-    def func_dynamic(self):
-        for device in self.devices:
-            for dtype in self.dtypes:
-                x = np.random.uniform(-1, 1, [4, 8]).astype(dtype)
-                pd_out, pd_x_grad = custom_relu_dynamic(
-                    self.custom_op, device, dtype, x, False
-                )
-                out, x_grad = custom_relu_dynamic(self.custom_op, device, dtype, x)
-                np.testing.assert_array_equal(
-                    out,
-                    pd_out,
-                    err_msg="custom op out: {},\n paddle api out: {}".format(
-                        out, pd_out
-                    ),
-                )
-                np.testing.assert_array_equal(
-                    x_grad,
-                    pd_x_grad,
-                    err_msg="custom op x grad: {},\n paddle api x grad: {}".format(
-                        x_grad, pd_x_grad
-                    ),
-                )
+    def test_static_pe(self):
+        x = np.random.uniform(-1, 1, [4, 8]).astype(self.dtype)
+        out = custom_relu_static_pe(self.custom_op, self.device, self.dtype, x)
+        pd_out = custom_relu_static_pe(
+            self.custom_op, self.device, self.dtype, x, False
+        )
+        np.testing.assert_array_equal(
+            out,
+            pd_out,
+            err_msg="custom op out: {},\n paddle api out: {}".format(out, pd_out),
+        )
 
     def test_dynamic(self):
-        with _test_eager_guard():
-            self.func_dynamic()
-        self.func_dynamic()
+        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        x = np.random.uniform(-1, 1, [4, 8]).astype(self.dtype)
+        out, x_grad = custom_relu_dynamic(self.custom_op, self.device, self.dtype, x)
+        pd_out, pd_x_grad = custom_relu_dynamic(
+            self.custom_op, self.device, self.dtype, x, False
+        )
+        np.testing.assert_array_equal(
+            out,
+            pd_out,
+            err_msg="custom op out: {},\n paddle api out: {}".format(out, pd_out),
+        )
+        np.testing.assert_array_equal(
+            x_grad,
+            pd_x_grad,
+            err_msg="custom op x grad: {},\n paddle api x grad: {}".format(
+                x_grad, pd_x_grad
+            ),
+        )
+        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": False})
+
+    def test_double_grad_dynamic(self):
+        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": True})
+        x = np.random.uniform(-1, 1, [4, 8]).astype(self.dtype)
+        out, dx_grad = custom_relu_double_grad_dynamic(
+            self.custom_op, self.device, self.dtype, x
+        )
+        pd_out, pd_dx_grad = custom_relu_double_grad_dynamic(
+            self.custom_op, self.device, self.dtype, x, False
+        )
+        np.testing.assert_array_equal(
+            out,
+            pd_out,
+            err_msg="custom op out: {},\n paddle api out: {}".format(out, pd_out),
+        )
+        np.testing.assert_array_equal(
+            dx_grad,
+            pd_dx_grad,
+            err_msg="custom op dx grad: {},\n paddle api dx grad: {}".format(
+                dx_grad, pd_dx_grad
+            ),
+        )
+        fluid.set_flags({"FLAGS_retain_grad_for_all_tensor": False})
+
+    def test_with_dataloader(self):
+        paddle.set_device(self.device)
+        # data loader
+        transform = Compose([Normalize(mean=[127.5], std=[127.5], data_format="CHW")])
+        train_dataset = paddle.vision.datasets.MNIST(mode="train", transform=transform)
+        train_loader = paddle.io.DataLoader(
+            train_dataset,
+            batch_size=64,
+            shuffle=True,
+            drop_last=True,
+            num_workers=0,
+        )
+
+        for batch_id, (image, _) in enumerate(train_loader()):
+            out = self.custom_op(image)
+            pd_out = paddle.nn.functional.relu(image)
+            np.testing.assert_array_equal(
+                out,
+                pd_out,
+                err_msg="custom op out: {},\n paddle api out: {}".format(out, pd_out),
+            )
+
+            if batch_id == 5:
+                break
 
 
 if __name__ == "__main__":
+    if os.name == "nt" or sys.platform.startswith("darwin"):
+        # only support Linux now
+        exit()
     unittest.main()

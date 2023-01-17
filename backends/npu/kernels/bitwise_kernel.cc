@@ -66,8 +66,7 @@ void BitwiseAndKernel(const Context& dev_ctx,
   // TODO(liyuhang06):
   // Current version CANN bitwise op cann't get accurate result when both input
   // shape is 1-dim. https://gitee.com/ascend/modelzoo/issues/I6AODW
-  if ((x.dims().size() == 0 && y.dims().size() == 0) ||
-      (x.dims().size() == 1 && y.dims().size() == 1)) {
+  if (x.numel() == 1 && y.numel() == 1) {
     FallbackToCPU<T, And>(x, y, out);
     return;
   }
@@ -89,8 +88,7 @@ void BitwiseOrKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   // TODO(liyuhang06):
   // like BitwiseAnd
-  if ((x.dims().size() == 0 && y.dims().size() == 0) ||
-      (x.dims().size() == 1 && y.dims().size() == 1)) {
+  if (x.numel() == 1 && y.numel() == 1) {
     FallbackToCPU<T, Or>(x, y, out);
     return;
   }
@@ -112,8 +110,7 @@ void BitwiseXorKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   // TODO(liyuhang06):
   // like BitwiseAnd
-  if ((x.dims().size() == 0 && y.dims().size() == 0) ||
-      (x.dims().size() == 1 && y.dims().size() == 1)) {
+  if (x.numel() == 1 && y.numel() == 1) {
     FallbackToCPU<T, Xor>(x, y, out);
     return;
   }

@@ -66,12 +66,15 @@ void ArgMaxKernel(const Context& dev_ctx,
     transformed_x.Resize(phi::make_ddim({x.numel()}));
   }
 
+  std::vector<int64_t> axis_v;
+  axis_v.push_back(axis.to<int64_t>());
+
   NpuOpRunner runner;
-  runner.SetType("ArgMaxD")
+  runner.SetType("ArgMaxV2")
       .AddInput(transformed_x)
+      .AddInput(dev_ctx, std::move(axis_v))
       .AddOutput(*out)
-      .AddAttr("dimension", axis.to<int64_t>())
-      .AddAttrDataType("dtype", dtype)
+      .AddAttr("dtype", dtype)
       .Run(stream);
 }
 

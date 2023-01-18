@@ -25,25 +25,33 @@ void ArgMinKernel(const Context& dev_ctx,
                   bool flatten,
                   int dtype,
                   phi::DenseTensor* out) {
-  phi::DenseTensor out_tmp;
-  out_tmp.Resize(out->dims());
-  dev_ctx.template Alloc<int32_t>(&out_tmp);
   dev_ctx.Alloc(out, out->dtype());
   auto stream = dev_ctx.stream();
 
-  NpuOpRunner runner;
-  runner.SetType("ArgMin")
-      .AddInput(x)
-      .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
-      .AddOutput(out_tmp)
-      .AddAttr("dtype", dtype);
-
-  runner.Run(stream);
-  dev_ctx.Wait();
-
   if (dtype == 2) {
-    TensorCopy(dev_ctx, out_tmp, true, out);
+    NpuOpRunner runner;
+    runner.SetType("ArgMin")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
+        .AddOutput(*out)
+        .AddAttr("dtype", dtype);
+    runner.Run(stream);
   } else if (dtype == 3) {
+    // TODO(songkai05): core dump happend when the dtype of CANN op ArgMin's
+    // output is int64, so we compute the int32 result and cast it to int64 when
+    // param dtype is 3 temporarily.
+    phi::DenseTensor out_tmp;
+    out_tmp.Resize(out->dims());
+    dev_ctx.template Alloc<int32_t>(&out_tmp);
+
+    NpuOpRunner runner;
+    runner.SetType("ArgMin")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
+        .AddOutput(out_tmp)
+        .AddAttr("dtype", dtype);
+    runner.Run(stream);
+
     const auto& cast_runner =
         NpuOpRunner("Cast", {out_tmp}, {*out}, {{"dst_type", ACL_INT64}});
     cast_runner.Run(stream);
@@ -81,6 +89,10 @@ void ArgMaxKernel(const Context& dev_ctx,
   std::vector<int64_t> axis_v;
   axis_v.push_back(axis.to<int64_t>());
 
+  // NOTE: The dtype of output is decided by param dtype, if param dtype is 2,
+  // output's dtype is int, and if param dtype is 3, output's dtype is int64.
+  // See the detail in
+  // https://github.com/PaddlePaddle/Paddle/blob/f9043c78e55b182e05d1d1efa7da930d8abc28d2/paddle/phi/infermeta/unary.cc#L209
   int out_dtype;
   if (dtype == 2) {
     out_dtype = static_cast<int>(phi::DataType::INT32);

@@ -25,17 +25,29 @@ void ArgMinKernel(const Context& dev_ctx,
                   bool flatten,
                   int dtype,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<int32_t>(out);
+  phi::DenseTensor out_tmp;
+  out_tmp.Resize(out->dims());
+  dev_ctx.template Alloc<int32_t>(&out_tmp);
+  dev_ctx.Alloc(out, out->dtype());
+  auto stream = dev_ctx.stream();
 
   NpuOpRunner runner;
   runner.SetType("ArgMin")
       .AddInput(x)
       .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
-      .AddOutput(*out)
+      .AddOutput(out_tmp)
       .AddAttr("dtype", dtype);
 
-  auto stream = dev_ctx.stream();
   runner.Run(stream);
+  dev_ctx.Wait();
+
+  if (dtype == 2) {
+    TensorCopy(dev_ctx, out_tmp, true, out);
+  } else if (dtype == 3) {
+    const auto& cast_runner =
+        NpuOpRunner("Cast", {out_tmp}, {*out}, {{"dst_type", ACL_INT64}});
+    cast_runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -46,7 +58,7 @@ void ArgMaxKernel(const Context& dev_ctx,
                   bool flatten,
                   int dtype,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<int32_t>(out);
+  dev_ctx.Alloc(out, out->dtype());
   auto stream = dev_ctx.stream();
 
   phi::DenseTensor transformed_x;
@@ -69,12 +81,19 @@ void ArgMaxKernel(const Context& dev_ctx,
   std::vector<int64_t> axis_v;
   axis_v.push_back(axis.to<int64_t>());
 
+  int out_dtype;
+  if (dtype == 2) {
+    out_dtype = static_cast<int>(phi::DataType::INT32);
+  } else if (dtype == 3) {
+    out_dtype = static_cast<int>(phi::DataType::INT64);
+  }
+
   NpuOpRunner runner;
   runner.SetType("ArgMaxV2")
       .AddInput(transformed_x)
       .AddInput(dev_ctx, std::move(axis_v))
       .AddOutput(*out)
-      .AddAttr("dtype", dtype)
+      .AddAttrDataType("dtype", out_dtype)
       .Run(stream);
 }
 

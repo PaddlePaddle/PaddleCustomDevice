@@ -28,6 +28,10 @@ void ArgMinKernel(const Context& dev_ctx,
   dev_ctx.Alloc(out, out->dtype());
   auto stream = dev_ctx.stream();
 
+  // NOTE: The dtype of output is decided by param dtype, if param dtype is 2,
+  // output's dtype is int, and if param dtype is 3, output's dtype is int64.
+  // See the detail in
+  // https://github.com/PaddlePaddle/Paddle/blob/f9043c78e55b182e05d1d1efa7da930d8abc28d2/paddle/phi/infermeta/unary.cc#L209
   if (dtype == 2) {
     NpuOpRunner runner;
     runner.SetType("ArgMin")

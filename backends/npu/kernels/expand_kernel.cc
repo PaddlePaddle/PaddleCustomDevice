@@ -78,7 +78,7 @@ void ExpandKernel(const Context& dev_ctx,
 
   PADDLE_ENFORCE_GE(
       rank,
-      1,
+      0,
       phi::errors::InvalidArgument(
           "The rank of the input 'x' for expand_v2_npu op must be positive, "
           "but the value received is %d.",

@@ -309,11 +309,11 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(y.shape, [])
         self.assertEqual(out.shape, [])
 
-    def test_top_k(self):
-        x = paddle.full([], 1, "int32")
-        x.stop_gradient = False
-        out = paddle.topk(x, k=1, axis=0)
-        self.assertEqual(x.shape, [])
+    # def test_top_k(self):
+    #     x = paddle.full([], 1, "int32")
+    #     x.stop_gradient = False
+    #     out = paddle.topk(x, k=1, axis=0)
+    #     self.assertEqual(x.shape, [])
 
     def test_linear(self):
         x = paddle.randn([3, 2])

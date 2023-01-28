@@ -717,6 +717,55 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x.grad.shape, [])
         self.assertEqual(x.grad.numpy(), 1)
 
+    def test_interpolate(self):
+        from paddle.nn.functional import interpolate
+
+        input_x = paddle.rand([2, 3, 6, 6])
+        input_x.stop_gradient = False
+        origin_result = interpolate(
+            x=input_x, size=[12, 12], mode="bilinear", align_corners=False
+        )
+
+        output_size = [
+            paddle.full([], 12, dtype="int32"),
+            paddle.full([], 12, dtype="int32"),
+        ]
+        out1 = interpolate(
+            x=input_x, size=output_size, mode="bilinear", align_corners=False
+        )
+        out1.backward()
+
+        self.assertEqual(out1.shape, [2, 3, 12, 12])
+        self.assertEqual(input_x.grad.shape, [2, 3, 6, 6])
+
+        scale_1 = [paddle.full([], 2), paddle.full([], 2)]
+        out2 = interpolate(
+            x=input_x,
+            scale_factor=scale_1,
+            mode="bilinear",
+            align_corners=False,
+        )
+        out2.backward()
+
+        self.assertEqual(out2.shape, [2, 3, 12, 12])
+        self.assertEqual(input_x.grad.shape, [2, 3, 6, 6])
+
+        scale_2 = paddle.full([], 2)
+        out3 = interpolate(
+            x=input_x,
+            scale_factor=scale_2,
+            mode="bilinear",
+            align_corners=False,
+        )
+        out3.backward()
+
+        self.assertEqual(out3.shape, [2, 3, 12, 12])
+        self.assertEqual(input_x.grad.shape, [2, 3, 6, 6])
+
+        np.testing.assert_allclose(origin_result.numpy(), out1.numpy(), rtol=1e-05)
+        np.testing.assert_allclose(origin_result.numpy(), out2.numpy(), rtol=1e-05)
+        np.testing.assert_allclose(origin_result.numpy(), out3.numpy(), rtol=1e-05)
+
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
 class TestNoBackwardAPI(unittest.TestCase):

@@ -88,6 +88,7 @@ unary_api_list = [
     paddle.lgamma,
     paddle.poisson,
     paddle.bernoulli,
+    paddle.median,
 ]
 
 inplace_api_list = [
@@ -703,6 +704,7 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x1.grad.numpy(), 0)
         self.assertEqual(x2.grad.numpy(), 0)
 
+
     def test_maseked_select(self):
         x = paddle.rand([])
         x.stop_gradient = False
@@ -716,6 +718,21 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(y.grad.shape, [1])
         self.assertEqual(x.grad.shape, [])
         self.assertEqual(x.grad.numpy(), 1)
+
+    def test_where(self):
+        x1 = paddle.full([], 1)
+        x2 = paddle.full([], 2)
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out = paddle.where(x1 > x2, x1, x2)
+        out.backward()
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.numpy(), 2)
+        self.assertEqual(out.grad.shape, [])
+        self.assertEqual(x1.grad.shape, [])
+        self.assertEqual(x2.grad.shape, [])
+        self.assertEqual(x1.grad.numpy(), 0)
+        self.assertEqual(x2.grad.numpy(), 1)
 
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.

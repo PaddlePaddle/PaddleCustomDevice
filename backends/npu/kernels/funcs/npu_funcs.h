@@ -85,7 +85,8 @@ inline void TensorCopy(const Context& dev_ctx,
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
-  auto size = src.numel() * paddle::experimental::SizeOf(src.dtype());
+  auto size = (src.dims().size() != 0 ? src.numel() : 1) *
+              paddle::experimental::SizeOf(src.dtype());
   if (UNLIKELY(size) == 0) {
     return;
   }

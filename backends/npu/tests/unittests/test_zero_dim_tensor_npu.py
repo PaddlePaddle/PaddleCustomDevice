@@ -88,6 +88,7 @@ unary_api_list = [
     paddle.lgamma,
     paddle.poisson,
     paddle.bernoulli,
+    paddle.median,
 ]
 
 inplace_api_list = [
@@ -291,6 +292,28 @@ class TestSundryAPI(unittest.TestCase):
     def setUp(self):
         paddle.disable_static()
         self.x = paddle.rand([])
+
+    def test_expand(self):
+        x = paddle.full([], 1, "int32")
+        x.stop_gradient = False
+        out = paddle.expand(x, shape=[1])
+        self.assertEqual(x.shape, [])
+
+    def test_expand_as(self):
+        x = paddle.full([], 1, "int32")
+        x.stop_gradient = False
+        y = paddle.full([], 1, "int32")
+        y.stop_gradient = False
+        out = paddle.expand_as(x, y)
+        self.assertEqual(x.shape, [])
+        self.assertEqual(y.shape, [])
+        self.assertEqual(out.shape, [])
+
+    # def test_top_k(self):
+    #     x = paddle.full([], 1, "int32")
+    #     x.stop_gradient = False
+    #     out = paddle.topk(x, k=1, axis=0)
+    #     self.assertEqual(x.shape, [])
 
     def test_linear(self):
         x = paddle.randn([3, 2])
@@ -705,6 +728,35 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x2.grad.shape, [])
         self.assertEqual(x1.grad.numpy(), 0)
         self.assertEqual(x2.grad.numpy(), 0)
+
+    def test_maseked_select(self):
+        x = paddle.rand([])
+        x.stop_gradient = False
+        mask = paddle.full([], True, dtype="bool")
+        y = paddle.masked_select(x, mask)
+
+        y.retain_grads()
+        y.backward()
+        self.assertEqual(y.shape, [1])
+        self.assertEqual(y.numpy(), x.numpy())
+        self.assertEqual(y.grad.shape, [1])
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(x.grad.numpy(), 1)
+
+    def test_where(self):
+        x1 = paddle.full([], 1)
+        x2 = paddle.full([], 2)
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out = paddle.where(x1 > x2, x1, x2)
+        out.backward()
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.numpy(), 2)
+        self.assertEqual(out.grad.shape, [])
+        self.assertEqual(x1.grad.shape, [])
+        self.assertEqual(x2.grad.shape, [])
+        self.assertEqual(x1.grad.numpy(), 0)
+        self.assertEqual(x2.grad.numpy(), 1)
 
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.

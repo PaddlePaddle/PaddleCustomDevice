@@ -743,7 +743,6 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x.grad.shape, [])
         self.assertEqual(x.grad.numpy(), 1)
 
-
     def test_interpolate(self):
         from paddle.nn.functional import interpolate
 
@@ -807,7 +806,6 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x2.grad.shape, [])
         self.assertEqual(x1.grad.numpy(), 0)
         self.assertEqual(x2.grad.numpy(), 1)
-
 
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.

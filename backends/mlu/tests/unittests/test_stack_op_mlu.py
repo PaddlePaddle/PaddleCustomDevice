@@ -117,9 +117,9 @@ class TestStackOpHalf(TestStackOpBase):
 class API_test(unittest.TestCase):
     def test_out(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
-            data1 = paddle.static.data("data1", shape=[-1, 1, 2], dtype="float32")
-            data2 = paddle.static.data("data2", shape=[-1, 1, 2], dtype="float32")
-            data3 = paddle.static.data("data3", shape=[-1, 1, 2], dtype="float32")
+            data1 = paddle.static.data("data1", shape=[1, 2], dtype="float32")
+            data2 = paddle.static.data("data2", shape=[1, 2], dtype="float32")
+            data3 = paddle.static.data("data3", shape=[1, 2], dtype="float32")
             result_stack = paddle.stack([data1, data2, data3], axis=0)
             place = paddle.CustomPlace("CustomMLU", 0)
             exe = fluid.Executor(place)

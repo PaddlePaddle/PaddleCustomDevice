@@ -25,6 +25,24 @@ void ModuloRawKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
+  if (x_dims.size() == 0) {
+    phi::DenseTensor tmp_x(x);
+    tmp_x.Resize(phi::make_ddim({1}));
+    if (y_dims.size() == 0) {
+      out->Resize(phi::make_ddim({1}));
+    }
+    ModuloRawKernel<T, Context>(dev_ctx, tmp_x, y, axis, out);
+    if (y_dims.size() == 0) {
+      out->Resize(phi::make_ddim({}));
+    }
+    return;
+  }
+  if (y_dims.size() == 0) {
+    phi::DenseTensor tmp_y(y);
+    tmp_y.Resize(phi::make_ddim({1}));
+    ModuloRawKernel<T, Context>(dev_ctx, x, tmp_y, axis, out);
+    return;
+  }
 
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 

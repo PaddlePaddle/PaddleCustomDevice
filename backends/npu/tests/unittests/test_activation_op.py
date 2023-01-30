@@ -100,7 +100,7 @@ class TestAtan(TestActivation):
     def test_out_name(self):
         with fluid.program_guard(fluid.Program()):
             np_x = np.array([0.1])
-            data = fluid.layers.data(name="X", shape=[1])
+            data = paddle.static.data(name="X", shape=[1])
             out = paddle.atan(data, name="Y")
             exe = fluid.Executor(self.place)
             (result,) = exe.run(feed={"X": np_x}, fetch_list=[out])

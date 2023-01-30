@@ -80,13 +80,13 @@ class TestCase1(TestGatherOp):
 class API_TestGather(unittest.TestCase):
     def test_out1(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
-            data1 = fluid.layers.data("data1", shape=[-1, 2], dtype="float32")
-            index = fluid.layers.data("index", shape=[-1, 1], dtype="int32")
+            data1 = paddle.static.data("data1", shape=[-1, 2], dtype="float32")
+            index = paddle.static.data("index", shape=[-1, 1], dtype="int32")
             out = paddle.gather(data1, index)
             place = paddle.CustomPlace("npu", 0)
             exe = fluid.Executor(place)
-            input = np.array([[1, 2], [3, 4], [5, 6]])
-            index_1 = np.array([1, 2])
+            input = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
+            index_1 = np.array([1, 2]).astype("int32")
             (result,) = exe.run(
                 feed={"data1": input, "index": index_1}, fetch_list=[out]
             )

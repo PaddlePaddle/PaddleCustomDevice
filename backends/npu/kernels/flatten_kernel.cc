@@ -37,6 +37,7 @@ void FlattenInferKernel(const Context& dev_ctx,
                         phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& in_dims = x.meta().dims;
+
   if (in_dims.size() == 0) {
     TensorCopy(dev_ctx, x, false, out);
     out->Resize(phi::make_ddim(std::vector<int64_t>{1}));

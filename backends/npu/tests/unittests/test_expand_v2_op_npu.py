@@ -14,7 +14,6 @@
 
 from __future__ import print_function
 import unittest
-import sys
 import numpy as np
 
 from tests.op_test import OpTest
@@ -31,15 +30,15 @@ np.random.seed(10)
 class TestExpandV2NPUOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
         self.dtype = np.float32
         self.init_data()
 
-        self.inputs = {'X': np.random.random(self.ori_shape).astype(self.dtype)}
-        self.attrs = {'shape': self.shape}
-        output = np.tile(self.inputs['X'], self.expand_times)
-        self.outputs = {'Out': output}
+        self.inputs = {"X": np.random.random(self.ori_shape).astype(self.dtype)}
+        self.attrs = {"shape": self.shape}
+        output = np.tile(self.inputs["X"], self.expand_times)
+        self.outputs = {"Out": output}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -53,7 +52,7 @@ class TestExpandV2NPUOpRank1(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestExpandV2OpRank2_DimExpanding(TestExpandV2NPUOpRank1):
@@ -102,22 +101,23 @@ class TestExpandV2OpRank6(TestExpandV2NPUOpRank1):
 class TestExpandV2OpNPURank1_tensor_attr(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
         expand_shapes_tensor = []
         for index, ele in enumerate(self.expand_shape):
-            expand_shapes_tensor.append(("x" + str(index), np.ones(
-                (1)).astype('int32') * ele))
+            expand_shapes_tensor.append(
+                ("x" + str(index), np.ones((1)).astype("int32") * ele)
+            )
 
         self.inputs = {
-            'X': np.random.random(self.ori_shape).astype(self.dtype),
-            'expand_shapes_tensor': expand_shapes_tensor,
+            "X": np.random.random(self.ori_shape).astype(self.dtype),
+            "expand_shapes_tensor": expand_shapes_tensor,
         }
         self.attrs = {"shape": self.infer_expand_shape}
-        output = np.tile(self.inputs['X'], self.expand_times)
-        self.outputs = {'Out': output}
+        output = np.tile(self.inputs["X"], self.expand_times)
+        self.outputs = {"Out": output}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -132,11 +132,10 @@ class TestExpandV2OpNPURank1_tensor_attr(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
-class TestExpandV2OpRank2_Corner_tensor_attr(
-        TestExpandV2OpNPURank1_tensor_attr):
+class TestExpandV2OpRank2_Corner_tensor_attr(TestExpandV2OpNPURank1_tensor_attr):
     def init_data(self):
         self.ori_shape = [12, 14]
         self.expand_times = [1, 1]
@@ -148,18 +147,18 @@ class TestExpandV2OpRank2_Corner_tensor_attr(
 class TestExpandV2NPUOpRank1_tensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
 
         self.inputs = {
-            'X': np.random.random(self.ori_shape).astype(self.dtype),
-            'Shape': np.array(self.expand_shape).astype("int32"),
+            "X": np.random.random(self.ori_shape).astype(self.dtype),
+            "Shape": np.array(self.expand_shape).astype("int32"),
         }
         self.attrs = {}
-        output = np.tile(self.inputs['X'], self.expand_times)
-        self.outputs = {'Out': output}
+        output = np.tile(self.inputs["X"], self.expand_times)
+        self.outputs = {"Out": output}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -173,7 +172,7 @@ class TestExpandV2NPUOpRank1_tensor(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 # Situation 4: input x is float16
@@ -181,14 +180,14 @@ class TestExpandV2NPUOpRank1_tensor(OpTest):
 class TestExpandV2OpFloat(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
         self.dtype = np.float16
         self.ori_shape = (2, 4, 20)
-        self.inputs = {'X': np.random.random(self.ori_shape).astype(self.dtype)}
-        self.attrs = {'shape': [2, 4, 20]}
-        output = np.tile(self.inputs['X'], (1, 1, 1))
-        self.outputs = {'Out': output}
+        self.inputs = {"X": np.random.random(self.ori_shape).astype(self.dtype)}
+        self.attrs = {"shape": [2, 4, 20]}
+        output = np.tile(self.inputs["X"], (1, 1, 1))
+        self.outputs = {"Out": output}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -202,19 +201,16 @@ class TestExpandV2OpFloat(OpTest):
 # skip grad check for int32
 class TestExpandV2OpInteger(OpTest):
     def init_dtype(self):
-        self.dtype = 'int32'
+        self.dtype = "int32"
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
-        self.inputs = {
-            'X': np.random.randint(
-                10, size=(2, 4, 20)).astype(self.dtype)
-        }
-        self.attrs = {'shape': [2, 4, 20]}
-        output = np.tile(self.inputs['X'], (1, 1, 1))
-        self.outputs = {'Out': output}
+        self.inputs = {"X": np.random.randint(10, size=(2, 4, 20)).astype(self.dtype)}
+        self.attrs = {"shape": [2, 4, 20]}
+        output = np.tile(self.inputs["X"], (1, 1, 1))
+        self.outputs = {"Out": output}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -226,33 +222,34 @@ class TestExpandV2OpInteger(OpTest):
 
 class TesstExpandV2OpInt64(TestExpandV2OpInteger):
     def init_dtype(self):
-        self.dtype = 'int64'
+        self.dtype = "int64"
 
 
 class TesstExpandV2OpBool(TestExpandV2OpInteger):
     def init_dtype(self):
-        self.dtype = 'bool'
+        self.dtype = "bool"
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "expand_v2"
-        self.inputs = {'X': np.random.randint(10, size=(2, 4, 20)) > 5}
-        self.attrs = {'shape': [2, 4, 20]}
-        output = np.tile(self.inputs['X'], (1, 1, 1))
-        self.outputs = {'Out': output}
+        self.inputs = {"X": np.random.randint(10, size=(2, 4, 20)) > 5}
+        self.attrs = {"shape": [2, 4, 20]}
+        output = np.tile(self.inputs["X"], (1, 1, 1))
+        self.outputs = {"Out": output}
 
 
 class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace('npu', 0))
+                np.array([[-1]]), [[1]], paddle.CustomPlace("npu", 0)
+            )
             shape = [2, 2]
             self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
-            x2 = fluid.layers.data(name='x2', shape=[2], dtype="uint8")
+            x2 = paddle.static.data(name="x2", shape=[-1, 2], dtype="uint8")
             self.assertRaises(TypeError, paddle.tensor.expand, x2, shape)
-            x3 = fluid.layers.data(name='x3', shape=[2], dtype="bool")
+            x3 = paddle.static.data(name="x3", shape=[-1, 2], dtype="bool")
             x3.stop_gradient = False
             self.assertRaises(ValueError, paddle.tensor.expand, x3, shape)
 
@@ -262,18 +259,12 @@ class TestExpandV2API(unittest.TestCase):
     def test_static(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
             input = np.random.random([12, 14]).astype("float32")
-            x = fluid.layers.data(
-                name='x',
-                shape=[12, 14],
-                append_batch_size=False,
-                dtype="float32")
+            x = paddle.static.data(name="x", shape=[12, 14], dtype="float32")
 
             positive_2 = fluid.layers.fill_constant([1], "int32", 12)
-            expand_shape = fluid.layers.data(
-                name="expand_shape",
-                shape=[2],
-                append_batch_size=False,
-                dtype="int32")
+            expand_shape = paddle.static.data(
+                name="expand_shape", shape=[2], dtype="int32"
+            )
 
             out_1 = paddle.expand(x, shape=[12, 14])
             out_2 = paddle.expand(x, shape=[positive_2, 14])
@@ -281,14 +272,12 @@ class TestExpandV2API(unittest.TestCase):
 
             g0 = fluid.backward.calc_gradient(out_2, x)
 
-            exe = fluid.Executor(place=paddle.CustomPlace('npu', 0))
-            res_1, res_2, res_3 = exe.run(fluid.default_main_program(),
-                                          feed={
-                                              "x": input,
-                                              "expand_shape":
-                                              np.array([12, 14]).astype("int32")
-                                          },
-                                          fetch_list=[out_1, out_2, out_3])
+            exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+            res_1, res_2, res_3 = exe.run(
+                fluid.default_main_program(),
+                feed={"x": input, "expand_shape": np.array([12, 14]).astype("int32")},
+                fetch_list=[out_1, out_2, out_3],
+            )
 
             assert np.array_equal(res_1, np.tile(input, (1, 1)))
             assert np.array_equal(res_2, np.tile(input, (1, 1)))

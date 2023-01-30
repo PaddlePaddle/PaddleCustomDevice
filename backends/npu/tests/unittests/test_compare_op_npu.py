@@ -89,8 +89,8 @@ def create_test_class(op_type, typename, callback):
         def test_broadcast_api_1(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
-                x = paddle.static.data(name="x", shape=[-1, 1, 2, 1, 3], dtype=typename)
-                y = paddle.static.data(name="y", shape=[-1, 1, 2, 3], dtype=typename)
+                x = paddle.static.data(name="x", shape=[1, 2, 1, 3], dtype=typename)
+                y = paddle.static.data(name="y", shape=[1, 2, 3], dtype=typename)
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
@@ -104,8 +104,8 @@ def create_test_class(op_type, typename, callback):
         def test_broadcast_api_2(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
-                x = paddle.static.data(name="x", shape=[-1, 1, 2, 3], dtype=typename)
-                y = paddle.static.data(name="y", shape=[-1, 1, 2, 1, 3], dtype=typename)
+                x = paddle.static.data(name="x", shape=[1, 2, 3], dtype=typename)
+                y = paddle.static.data(name="y", shape=[1, 2, 1, 3], dtype=typename)
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
@@ -119,8 +119,8 @@ def create_test_class(op_type, typename, callback):
         def test_broadcast_api_3(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
-                x = paddle.static.data(name="x", shape=[-1, 5], dtype=typename)
-                y = paddle.static.data(name="y", shape=[-1, 3, 1], dtype=typename)
+                x = paddle.static.data(name="x", shape=[5], dtype=typename)
+                y = paddle.static.data(name="y", shape=[3, 1], dtype=typename)
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)

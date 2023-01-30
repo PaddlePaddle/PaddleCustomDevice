@@ -86,7 +86,7 @@ class API_TestGather(unittest.TestCase):
             place = paddle.CustomPlace("npu", 0)
             exe = fluid.Executor(place)
             input = np.array([[1, 2], [3, 4], [5, 6]])
-            index_1 = np.array([1, 2])
+            index_1 = np.array([1, 2]).astype("int32")
             (result,) = exe.run(
                 feed={"data1": input, "index": index_1}, fetch_list=[out]
             )

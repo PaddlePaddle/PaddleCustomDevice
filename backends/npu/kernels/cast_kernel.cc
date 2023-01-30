@@ -49,6 +49,10 @@ void CastKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<uint8_t>(out);
   } else if (dtype == phi::DenseTensorMeta::DataType::INT8) {
     dev_ctx.template Alloc<int8_t>(out);
+  } else if (dtype == phi::DenseTensorMeta::DataType::COMPLEX64) {
+    dev_ctx.template Alloc<phi::dtype::complex<float>>(out);
+  } else if (dtype == phi::DenseTensorMeta::DataType::COMPLEX128) {
+    dev_ctx.template Alloc<phi::dtype::complex<double>>(out);
   } else {
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }

@@ -18,12 +18,10 @@ import unittest
 from op_test import OpTest
 import paddle
 import paddle.fluid as fluid
-import paddle.fluid.layers as layers
 import numpy as np
 import six
 import paddle.fluid.core as core
 
-from paddle.fluid import ParamAttr
 from paddle.fluid.framework import Program, grad_var_name
 from paddle.fluid.executor import Executor
 from paddle.fluid.backward import append_backward
@@ -34,7 +32,7 @@ np.random.seed(123)
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -53,20 +51,21 @@ class PyArgsort(object):
     def forward(self):
         if self.descending:
             self.indices = np.flip(
-                np.argsort(
-                    self.x, kind='quicksort', axis=self.axis), self.axis)
+                np.argsort(self.x, kind="quicksort", axis=self.axis), self.axis
+            )
             self.sorted_x = np.flip(
-                np.sort(
-                    self.x, kind='quicksort', axis=self.axis), self.axis)
+                np.sort(self.x, kind="quicksort", axis=self.axis), self.axis
+            )
         else:
-            self.indices = np.argsort(self.x, kind='quicksort', axis=self.axis)
-            self.sorted_x = np.sort(self.x, kind='quicksort', axis=self.axis)
+            self.indices = np.argsort(self.x, kind="quicksort", axis=self.axis)
+            self.sorted_x = np.sort(self.x, kind="quicksort", axis=self.axis)
         self.loss = self.sorted_x * self.label
         self.loss = np.sum(self.loss)
-        out = (np.array(
-            self.indices, dtype=self.indices.dtype), np.array(
-                self.sorted_x, dtype=self.sorted_x.dtype), np.array(
-                    [self.loss], dtype=self.loss.dtype))
+        out = (
+            np.array(self.indices, dtype=self.indices.dtype),
+            np.array(self.sorted_x, dtype=self.sorted_x.dtype),
+            np.array([self.loss], dtype=self.loss.dtype),
+        )
         return out
 
 
@@ -92,17 +91,21 @@ class TestArgsortOpCPU(unittest.TestCase):
         self.feed_data_field = {"x", "label"}
         self.grad_data_field = {"x"}
 
-        self.py_argsort = PyArgsort(self.input_shape, self.axis,
-                                    self.descending, self.dtype)
+        self.py_argsort = PyArgsort(
+            self.input_shape, self.axis, self.descending, self.dtype
+        )
 
         with fluid.program_guard(self.main_program, self.startup_program):
-            x = fluid.layers.data(
-                name="x", shape=self.input_shape, dtype=self.dtype)
+            x = paddle.static.data(
+                name="x", shape=[-1] + self.input_shape, dtype=self.dtype
+            )
             x.stop_gradient = False
-            label = fluid.layers.data(
-                name="label", shape=self.input_shape, dtype=self.dtype)
+            label = paddle.static.data(
+                name="label", shape=[-1] + self.input_shape, dtype=self.dtype
+            )
             self.sorted_x, self.index = fluid.layers.argsort(
-                input=x, axis=self.axis, descending=self.descending)
+                input=x, axis=self.axis, descending=self.descending
+            )
             self.sorted_x.stop_gradient = False
             loss = fluid.layers.elementwise_mul(self.sorted_x, label)
             self.loss = fluid.layers.reduce_sum(loss)
@@ -113,9 +116,11 @@ class TestArgsortOpCPU(unittest.TestCase):
             for x in self.feed_data_field
         }
         exe = Executor(self.place)
-        out = exe.run(self.main_program,
-                      feed=self.feed_map,
-                      fetch_list=[self.index, self.sorted_x, self.loss])
+        out = exe.run(
+            self.main_program,
+            feed=self.feed_map,
+            fetch_list=[self.index, self.sorted_x, self.loss],
+        )
         return out
 
     def backward(self):
@@ -128,10 +133,12 @@ class TestArgsortOpCPU(unittest.TestCase):
             for x in self.grad_data_field
         ]
         exe = Executor(self.place)
-        out = exe.run(self.main_program,
-                      feed=self.feed_map,
-                      fetch_list=fetch_list,
-                      return_numpy=False)
+        out = exe.run(
+            self.main_program,
+            feed=self.feed_map,
+            fetch_list=fetch_list,
+            return_numpy=False,
+        )
         return out
 
     def test_backward(self, numeric_grad_delta=1e-5, max_relative_error=1e-7):
@@ -146,26 +153,25 @@ class TestArgsortOpCPU(unittest.TestCase):
         self.assert_is_close(
             num_grad,
             ana_grad,
-            'x',
+            "x",
             max_relative_error=max_relative_error,
-            msg_prefix="Gradient Check On %s" % str(self.place))
+            msg_prefix="Gradient Check On %s" % str(self.place),
+        )
 
     def check_forward(self):
         pd_outputs = self.forward()
         py_outputs = self.py_argsort.forward()
         for pd_output, py_output in zip(pd_outputs, py_outputs):
             self.assertEqual(pd_output.shape, py_output.shape)
-            self.assertTrue(
-                np.allclose(
-                    pd_output, py_output, atol=0, equal_nan=False))
+            self.assertTrue(np.allclose(pd_output, py_output, atol=0, equal_nan=False))
 
     def get_numerical_gradient(self, delta=1e-7):
-        if self.dtype == 'float16':
+        if self.dtype == "float16":
             delta = np.array(delta).astype(np.float16)
         feed_list = [getattr(self.py_argsort, x) for x in self.grad_data_field]
         grad_list = [np.zeros_like(x) for x in feed_list]
         for feed, grad in zip(feed_list, grad_list):
-            for f, g in np.nditer([feed, grad], op_flags=['readwrite']):
+            for f, g in np.nditer([feed, grad], op_flags=["readwrite"]):
                 o = float(f)
                 f[...] = o + delta
                 y_pos = self.forward()[2]
@@ -179,8 +185,9 @@ class TestArgsortOpCPU(unittest.TestCase):
 
         return grad_list
 
-    def assert_is_close(self, numeric_grads, analytic_grads, names,
-                        max_relative_error, msg_prefix):
+    def assert_is_close(
+        self, numeric_grads, analytic_grads, names, max_relative_error, msg_prefix
+    ):
         for a, b, name in six.moves.zip(numeric_grads, analytic_grads, names):
             abs_a = np.abs(a)
             abs_a[abs_a < 1e-3] = 1
@@ -190,10 +197,19 @@ class TestArgsortOpCPU(unittest.TestCase):
 
             def err_msg():
                 offset = np.argmax(diff_mat > max_relative_error)
-                return ("%s error, %s variable %s max gradient diff %f over limit %f, "
-                    "the first error element is %d, expected %f, but got %f.") \
-                    % ('argsort', msg_prefix, name, max_diff, max_relative_error,
-                    offset, a.flatten()[offset], b.flatten()[offset])
+                return (
+                    "%s error, %s variable %s max gradient diff %f over limit %f, "
+                    "the first error element is %d, expected %f, but got %f."
+                ) % (
+                    "argsort",
+                    msg_prefix,
+                    name,
+                    max_diff,
+                    max_relative_error,
+                    offset,
+                    a.flatten()[offset],
+                    b.flatten()[offset],
+                )
 
             self.assertLessEqual(max_diff, max_relative_error, err_msg())
 
@@ -210,7 +226,7 @@ class TestArgsortOpCPU(unittest.TestCase):
         self.input_shape = (2, 2, 2, 2, 3)
 
     def init_place(self):
-        self.place = core.CustomPlace('custom_cpu', 0)
+        self.place = core.CustomPlace("custom_cpu", 0)
 
 
 class TestArgsortOpAxis0CPU(TestArgsortOpCPU):
@@ -270,7 +286,7 @@ class TestArgsortOpDescendingAxisNeg2CPU(TestArgsortOpAxisNeg2CPU):
 
 class TestArgsortErrorOnCPU(unittest.TestCase):
     def setUp(self):
-        self.place = core.CustomPlace('custom_cpu', 0)
+        self.place = core.CustomPlace("custom_cpu", 0)
 
     def test_error(self):
         def test_fluid_var_type():
@@ -288,28 +304,30 @@ class TestArgsortErrorOnCPU(unittest.TestCase):
 
 class TestArgsort(unittest.TestCase):
     def init(self):
-        self.input_shape = [10000, ]
+        self.input_shape = [
+            10000,
+        ]
         self.axis = 0
 
     def setUp(self):
         self.init()
         if core.is_compiled_with_cuda():
-            self.place = core.CustomPlace('custom_cpu', 0)
+            self.place = core.CustomPlace("custom_cpu", 0)
         else:
-            self.place = core.CustomPlace('custom_cpu', 0)
+            self.place = core.CustomPlace("custom_cpu", 0)
         self.data = np.random.rand(*self.input_shape)
 
     def test_api(self):
         with fluid.program_guard(fluid.Program()):
-            input = fluid.data(
-                name="input", shape=self.input_shape, dtype="float64")
+            input = fluid.data(name="input", shape=self.input_shape, dtype="float64")
 
             output = paddle.argsort(input, axis=self.axis)
             output2 = paddle.argsort(input, axis=self.axis, descending=True)
 
             exe = fluid.Executor(self.place)
-            result, result2 = exe.run(feed={'input': self.data},
-                                      fetch_list=[output, output2])
+            result, result2 = exe.run(
+                feed={"input": self.data}, fetch_list=[output, output2]
+            )
 
             np_result = np.argsort(self.data, axis=self.axis)
             self.assertEqual((result == np_result).all(), True)
@@ -338,16 +356,18 @@ class TestArgsort4(TestArgsort):
 
 class TestArgsortImperative(unittest.TestCase):
     def init(self):
-        self.input_shape = [10000, ]
+        self.input_shape = [
+            10000,
+        ]
         self.axis = 0
 
     def setUp(self):
         self.init()
         self.input_data = np.random.rand(*self.input_shape)
         if core.is_compiled_with_cuda():
-            self.place = core.CustomPlace('custom_cpu', 0)
+            self.place = core.CustomPlace("custom_cpu", 0)
         else:
-            self.place = core.CustomPlace('custom_cpu', 0)
+            self.place = core.CustomPlace("custom_cpu", 0)
 
     def test_api(self):
         paddle.disable_static(self.place)
@@ -388,7 +408,7 @@ class TestArgsortWithInputNaN(unittest.TestCase):
     def setUp(self):
         self.init()
         self.input_data = np.array([1.0, np.nan, 3.0, 2.0])
-        self.place = core.CustomPlace('custom_cpu', 0)
+        self.place = core.CustomPlace("custom_cpu", 0)
 
     def test_api(self):
         paddle.disable_static(self.place)

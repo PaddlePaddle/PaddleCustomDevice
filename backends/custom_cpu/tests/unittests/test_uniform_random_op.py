@@ -218,7 +218,7 @@ class TestUniformRandomOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_Variable2)
 
             def test_dtype():
-                x2 = fluid.layers.data(name="x2", shape=[4, 784], dtype="float32")
+                x2 = paddle.static.data(name="x2", shape=[-1, 4, 784], dtype="float32")
                 fluid.layers.uniform_random(x2, "int32")
 
             self.assertRaises(TypeError, test_dtype)
@@ -297,7 +297,7 @@ class TestUniformRandomOpSelectedRowsWithDiagInit(TestUniformRandomOpSelectedRow
 class TestUniformRandomOpApi(unittest.TestCase):
     def test_api(self):
         paddle.seed(10)
-        x = fluid.layers.data("x", shape=[16], dtype="float32", lod_level=1)
+        x = paddle.static.data("x", shape=[-1, 16], dtype="float32", lod_level=1)
         y = paddle.static.nn(
             x,
             size=16,
@@ -484,13 +484,17 @@ class TestUniformRandomBatchSizeLikeOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_Variable)
 
             def test_shape():
-                x1 = fluid.layers.data(name="x2", shape=[100, 784], dtype="float32")
+                x1 = paddle.static.data(
+                    name="x2", shape=[-1, 100, 784], dtype="float32"
+                )
                 fluid.layers.uniform_random_batch_size_like(x1, shape="shape")
 
             self.assertRaises(TypeError, test_shape)
 
             def test_dtype():
-                x2 = fluid.layers.data(name="x2", shape=[100, 784], dtype="float32")
+                x2 = paddle.static.data(
+                    name="x2", shape=[-1, 100, 784], dtype="float32"
+                )
                 fluid.layers.uniform_random_batch_size_like(x2, "int32")
 
             self.assertRaises(TypeError, test_dtype)
@@ -531,7 +535,9 @@ class TestUniformOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_Variable2)
 
             def test_dtype():
-                x2 = fluid.layers.data(name="x2", shape=[100, 784], dtype="float32")
+                x2 = paddle.static.data(
+                    name="x2", shape=[-1, 100, 784], dtype="float32"
+                )
                 paddle.tensor.random.uniform(x2, "int32")
 
             self.assertRaises(TypeError, test_dtype)

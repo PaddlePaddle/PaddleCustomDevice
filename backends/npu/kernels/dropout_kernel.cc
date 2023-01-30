@@ -28,6 +28,24 @@ void DropoutRawKernel(const Context& dev_ctx,
                       bool fix_seed,
                       phi::DenseTensor* out,
                       phi::DenseTensor* mask) {
+  if (x.dims().size() == 0) {
+    phi::DenseTensor tmp_x(x);
+    tmp_x.Resize(phi::make_ddim({1}));
+    out->Resize(phi::make_ddim({1}));
+    ::custom_kernel::DropoutRawKernel<T, Context>(dev_ctx,
+                                                  tmp_x,
+                                                  seed_tensor,
+                                                  p,
+                                                  is_test,
+                                                  mode,
+                                                  seed,
+                                                  fix_seed,
+                                                  out,
+                                                  mask);
+    out->Resize(phi::make_ddim({}));
+    return;
+  }
+
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(out);
@@ -188,6 +206,16 @@ void DropoutGradRawKernel(const Context& dev_ctx,
                           bool is_test,
                           const std::string& mode,
                           phi::DenseTensor* dx) {
+  if (dout.dims().size() == 0) {
+    phi::DenseTensor tmp_dout(dout);
+    tmp_dout.Resize(phi::make_ddim({1}));
+    dx->Resize(phi::make_ddim({1}));
+    ::custom_kernel::DropoutGradRawKernel<T, Context>(
+        dev_ctx, mask, tmp_dout, p, is_test, mode, dx);
+    dx->Resize(phi::make_ddim({}));
+    return;
+  }
+
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(dx);

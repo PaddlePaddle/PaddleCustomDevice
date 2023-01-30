@@ -16,29 +16,30 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
+from op_test import OpTest
 import paddle
-import paddle.fluid.core as core
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
-from paddle.fluid.framework import _test_eager_guard
+
 np.random.seed(10)
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
 
 
 def mean_wrapper(x, axis=None, keepdim=False, reduce_all=False):
+    # flake8: noqa
     if reduce_all == True:
         return paddle.mean(x, range(len(x.shape)), keepdim)
     return paddle.mean(x, axis, keepdim)
 
 
 def reduce_mean_wrapper(x, axis=0, keepdim=False, reduce_all=False):
+    # flake8: noqa
     if reduce_all == True:
         return paddle.mean(x, range(len(x.shape)), keepdim)
     return paddle.mean(x, axis, keepdim)
@@ -50,8 +51,8 @@ class TestMeanOp(OpTest):
         self.python_api = fluid.layers.mean
         self.dtype = np.float64
         self.init_dtype_type()
-        self.inputs = {'X': np.random.random((10, 10)).astype(self.dtype)}
-        self.outputs = {'Out': np.mean(self.inputs["X"])}
+        self.inputs = {"X": np.random.random((10, 10)).astype(self.dtype)}
+        self.outputs = {"Out": np.mean(self.inputs["X"])}
 
     def init_dtype_type(self):
         pass
@@ -60,7 +61,7 @@ class TestMeanOp(OpTest):
         self.check_output(check_eager=False)
 
     def test_checkout_grad(self):
-        self.check_grad(['X'], 'Out', check_eager=False)
+        self.check_grad(["X"], "Out", check_eager=False)
 
 
 class TestMeanOpError(unittest.TestCase):
@@ -70,11 +71,11 @@ class TestMeanOpError(unittest.TestCase):
             input1 = 12
             self.assertRaises(TypeError, fluid.layers.mean, input1)
             # The input dtype of mean_op must be float16, float32, float64.
-            input2 = fluid.layers.data(
-                name='input2', shape=[12, 10], dtype="int32")
+            input2 = paddle.static.data(
+                name="input2", shape=[-1, 12, 10], dtype="int32"
+            )
             self.assertRaises(TypeError, fluid.layers.mean, input2)
-            input3 = fluid.layers.data(
-                name='input3', shape=[4], dtype="float16")
+            input3 = paddle.static.data(name="input3", shape=[-1, 4], dtype="float16")
             fluid.layers.softmax(input3)
 
 
@@ -86,7 +87,7 @@ def ref_reduce_mean(x, axis=None, keepdim=False, reduce_all=False):
     return np.mean(x, axis=axis, keepdims=keepdim)
 
 
-def ref_reduce_mean_grad(x, axis, dtype):
+def ref_reduce_mean_grad(x, axis, dtype, reduce_all):
     if reduce_all:
         axis = list(range(x.ndim))
 

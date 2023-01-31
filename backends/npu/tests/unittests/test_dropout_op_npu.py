@@ -72,6 +72,25 @@ class TestDropoutOp(OpTest):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
 
+class TestDropoutOpModeDown(TestDropoutOp):
+    # change input shape
+    def setUp(self):
+        self.op_type = "dropout"
+        self.set_npu()
+        self.init_dtype()
+        self.inputs = {"X": np.random.random((32, 62)).astype(self.dtype)}
+        self.attrs = {
+            "dropout_prob": 0.0,
+            "fix_seed": True,
+            "is_test": False,
+            "dropout_implementation": "downgrade_in_infer",
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": convert_to_npu_mask(np.ones((32, 62)).astype("uint8")),
+        }
+
+
 class TestDropoutOpInput1d(TestDropoutOp):
     # change input shape
     def setUp(self):
@@ -107,6 +126,25 @@ class TestDropoutOpInput1d_1(TestDropoutOp):
         self.outputs = {
             "Out": self.inputs["X"],
             "Mask": convert_to_npu_mask(np.ones((2000)).astype("uint8")),
+        }
+
+
+class TestDropoutModeDownOp1(TestDropoutOp):
+    # the dropout_prob is 1.0
+    def setUp(self):
+        self.op_type = "dropout"
+        self.set_npu()
+        self.init_dtype()
+        self.inputs = {"X": np.random.random((32, 64)).astype(self.dtype)}
+        self.attrs = {
+            "dropout_prob": 1.0,
+            "fix_seed": True,
+            "is_test": False,
+            "dropout_implementation": "downgrade_in_infer",
+        }
+        self.outputs = {
+            "Out": np.zeros((32, 64)).astype("float32"),
+            "Mask": convert_to_npu_mask(np.zeros((32, 64)).astype("uint8")),
         }
 
 
@@ -211,6 +249,27 @@ class TestDropoutOpWithSeed(TestDropoutOp):
         }
 
 
+class TestDropoutOpModeDownWithSeed(TestDropoutOp):
+    # the seed is a Tensor
+    def setUp(self):
+        self.op_type = "dropout"
+        self.set_npu()
+        self.init_dtype()
+        self.inputs = {
+            "X": np.random.random((32, 64)).astype(self.dtype),
+            "Seed": np.asarray([125], dtype="int32"),
+        }
+        self.attrs = {
+            "dropout_prob": 0.0,
+            "is_test": False,
+            "dropout_implementation": "downgrade_in_infer",
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": convert_to_npu_mask(np.ones((32, 64)).astype("uint8")),
+        }
+
+
 class TestDropoutOpFp16(TestDropoutOp):
     # float16
     def init_dtype(self):
@@ -231,6 +290,13 @@ class TestDropoutOpFp64(TestDropoutOp):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.place = paddle.CustomPlace("npu", 0)
+
+
+_list = [
+    paddle.bitwise_and,
+    paddle.bitwise_or,
+    paddle.bitwise_xor,
+]
 
 
 class TestDropoutAPI(unittest.TestCase):
@@ -265,13 +331,51 @@ class TestDropoutAPI(unittest.TestCase):
             res8 = paddle.nn.functional.dropout(
                 x=input, p=0.0, axis=(0, 1), training=False, mode="upscale_in_train"
             )
-
+            res9 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=False, mode="downgrade_in_infer"
+            )
+            res10 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=0, training=True, mode="downgrade_in_infer"
+            )
+            res11 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=0, training=False, mode="downgrade_in_infer"
+            )
+            res12 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=[0, 1], training=True, mode="downgrade_in_infer"
+            )
+            res13 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=[0, 1], training=False, mode="downgrade_in_infer"
+            )
+            res14 = paddle.nn.functional.dropout(
+                x=input, p=1.0, training=True, mode="downscale_in_infer"
+            )
+            res15 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=True, mode="downgrade_in_infer"
+            )
+            res16 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=(0, 1), training=False, mode="downgrade_in_infer"
+            )
             in_np = np.random.random([40, 40]).astype("float32")
             res_np = in_np
             res_np2 = np.zeros_like(in_np)
 
             exe = fluid.Executor(place)
-            res_list = [res1, res2, res3, res4, res5, res7, res8]
+            res_list = [
+                res1,
+                res2,
+                res3,
+                res4,
+                res5,
+                res7,
+                res8,
+                res9,
+                res10,
+                res11,
+                res12,
+                res13,
+                res15,
+                res16,
+            ]
             for res in res_list:
                 fetches = exe.run(
                     fluid.default_main_program(),

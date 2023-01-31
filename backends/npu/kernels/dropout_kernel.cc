@@ -45,7 +45,7 @@ void DropoutRawKernel(const Context& dev_ctx,
     out->Resize(phi::make_ddim({}));
     return;
   }
-
+  const bool is_upscale = (mode == "upscale_in_train");
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(out);
@@ -185,6 +185,11 @@ void DropoutRawKernel(const Context& dev_ctx,
       runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
       SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
+      if (!is_upscale) {
+        const auto& muls_runner =
+            NpuOpRunner("OnesLike", {keep_prob_tensor}, {keep_prob_tensor});
+        muls_runner.Run(stream);
+      }
       NpuOpRunner runner_dropout;
       runner_dropout.SetType("DropOutDoMask")
           .AddInput(tmp_x)
@@ -194,6 +199,12 @@ void DropoutRawKernel(const Context& dev_ctx,
       runner_dropout.Run(stream);
     }
   } else {
+    if (!is_upscale) {
+      const auto& muls_runner =
+          NpuOpRunner("Muls", {x}, {*out}, {{"value", 1 - dropout_prob}});
+      muls_runner.Run(stream);
+      return;
+    }
     TensorCopy(dev_ctx, x, false, out);
   }
 }
@@ -216,6 +227,7 @@ void DropoutGradRawKernel(const Context& dev_ctx,
     return;
   }
 
+  const bool is_upscale = (mode == "upscale_in_train");
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(dx);
@@ -227,6 +239,7 @@ void DropoutGradRawKernel(const Context& dev_ctx,
     return;
   }
 
+  dropout_prob = is_upscale ? dropout_prob : 0.0f;
   if (dx->dtype() == phi::DataType::FLOAT64) {
     phi::DenseTensor keep_prob_tensor;
     phi::DenseTensorMeta keep_prob_tensor_meta = {phi::DataType::FLOAT32, {1}};

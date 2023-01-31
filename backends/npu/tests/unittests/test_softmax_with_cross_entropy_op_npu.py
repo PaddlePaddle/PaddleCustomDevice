@@ -158,7 +158,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
             self.attrs["axis"] = self.axis
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_dygraph=False)
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
         # fp32 has low precision, cpu and npu both need to relax the max_relative_error if using fp32

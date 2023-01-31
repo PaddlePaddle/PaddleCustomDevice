@@ -185,6 +185,11 @@ void DropoutRawKernel(const Context& dev_ctx,
       runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
       SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
+      if (!is_upscale) {
+        const auto& muls_runner =
+            NpuOpRunner("OnesLike", {keep_prob_tensor}, {keep_prob_tensor});
+        muls_runner.Run(stream);
+      }
       NpuOpRunner runner_dropout;
       runner_dropout.SetType("DropOutDoMask")
           .AddInput(tmp_x)
@@ -192,12 +197,6 @@ void DropoutRawKernel(const Context& dev_ctx,
           .AddInput(keep_prob_tensor)
           .AddOutput(tmp_out);
       runner_dropout.Run(stream);
-    }
-    if (!is_upscale) {
-      float prob = 1.0f - dropout_prob;
-      const auto& muls_runner =
-          NpuOpRunner("Muls", {*out}, {*out}, {{"value", prob}});
-      muls_runner.Run(stream);
     }
   } else {
     if (!is_upscale) {

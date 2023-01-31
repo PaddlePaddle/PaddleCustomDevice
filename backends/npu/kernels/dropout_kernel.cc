@@ -46,7 +46,7 @@ void DropoutRawKernel(const Context& dev_ctx,
     return;
   }
   const bool is_upscale = (mode == "upscale_in_train");
-  auto dropout_prob = is_upscale ? p.to<float>() : 0.0f;
+  auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
@@ -59,7 +59,7 @@ void DropoutRawKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<uint8_t>(mask);
   }
 
-  if (is_upscale && dropout_prob == 1.) {
+  if (dropout_prob == 1.) {
     const auto& runner_zeros_out = NpuOpRunner("ZerosLike", {*out}, {*out});
     runner_zeros_out.Run(stream);
     ACL_CHECK(aclrtMemsetAsync(mask->data(),
@@ -69,6 +69,8 @@ void DropoutRawKernel(const Context& dev_ctx,
                                stream));
     return;
   }
+
+  dropout_prob = is_upscale ? dropout_prob : 0.0f;
 
   // only achieve the default `upscale_in_train` method
   if (!is_test) {

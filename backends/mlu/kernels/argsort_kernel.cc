@@ -31,10 +31,17 @@ void ArgsortKernel(const Context& dev_ctx,
   }
 
   auto in_dims = in.dims();
+  auto rank = in_dims.size();
   size_t k = in_dims[axis];
 
   dev_ctx.template Alloc<T>(output);
   dev_ctx.template Alloc<int64_t>(indices);
+
+  if (rank == 0) {
+    TensorCopy(dev_ctx, in, false, output);
+    FillMLUTensorWithHostValue(dev_ctx, 0, indices);
+    return;
+  }
 
   // cnnl only support int32/int16 type of indices
   Tensor indices_int32;
@@ -79,8 +86,15 @@ void ArgsortGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(in_grad);
 
   auto in_dims = indices.dims();
+  auto rank = input.dims().size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
+  FillMLUTensorWithHostValue(dev_ctx, 0., in_grad);
   if (out_grad.numel() == 0) return;
+
+  if (rank == 0) {
+    TensorCopy(dev_ctx, out_grad, false, in_grad);
+    return;
+  }
 
   MLUCnnlTensorDesc dout_desc(out_grad);
   MLUCnnlTensorDesc indices_desc(indices);

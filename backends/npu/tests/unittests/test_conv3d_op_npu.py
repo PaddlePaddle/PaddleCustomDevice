@@ -462,17 +462,15 @@ class TestCase1_AsyPadding(TestConv3DOp_2):
 class TestConv3DAPI(unittest.TestCase):
     def test_api(self):
 
-        input_NDHWC = fluid.layers.data(
+        input_NDHWC = paddle.static.data(
             name="input_NDHWC",
             shape=[2, 5, 5, 5, 3],
-            append_batch_size=False,
             dtype="float32",
         )
 
-        input_NCDHW = fluid.layers.data(
+        input_NCDHW = paddle.static.data(
             name="input_NCDHW",
             shape=[2, 3, 5, 5, 3],
-            append_batch_size=False,
             dtype="float32",
         )
 
@@ -545,10 +543,9 @@ class TestConv3DAPI(unittest.TestCase):
 
 class TestConv3DAPI_Error(unittest.TestCase):
     def test_api(self):
-        input = fluid.layers.data(
+        input = paddle.static.data(
             name="input",
             shape=[2, 5, 5, 5, 4],
-            append_batch_size=False,
             dtype="float32",
         )
 
@@ -631,9 +628,7 @@ class TestConv3DAPI_Error(unittest.TestCase):
         self.assertRaises(ValueError, run_5)
 
         # ValueError: channel dimmention
-        x = fluid.layers.data(
-            name="x", shape=[2, 5, 5, 5, -1], append_batch_size=False, dtype="float32"
-        )
+        x = paddle.static.data(name="x", shape=[2, 5, 5, 5, -1], dtype="float32")
 
         def run_6():
             paddle.static.nn.conv3d(

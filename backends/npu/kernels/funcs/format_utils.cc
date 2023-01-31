@@ -47,6 +47,8 @@ static std::map<paddle::experimental::DataType, aclDataType>  //
         {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
         {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
         {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
+        {paddle::experimental::DataType::COMPLEX64, ACL_COMPLEX64},
+        {paddle::experimental::DataType::COMPLEX128, ACL_COMPLEX128},
 };
 
 static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {

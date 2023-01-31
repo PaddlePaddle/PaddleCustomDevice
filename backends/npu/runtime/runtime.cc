@@ -135,9 +135,9 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
-      ACL_CHECK(aclrtFreeHost(ptr));
-      it = recorded_events_.erase(it);
       ACL_CHECK(aclrtDestroyEvent(event));
+      it = recorded_events_.erase(it);
+      ACL_CHECK(aclrtFreeHost(ptr));
     }
   }
 
@@ -149,9 +149,9 @@ class AlignnedAllocator {
       ACL_CHECK(aclrtQueryEventStatus(event, &status));
       if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
-        ACL_CHECK(aclrtFreeHost(ptr));
         it = recorded_events_.erase(it);
         ACL_CHECK(aclrtDestroyEvent(event));
+        ACL_CHECK(aclrtFreeHost(ptr));
       } else {
         ++it;
       }
@@ -445,8 +445,6 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_FP32;
   } else if (dtype == C_DataType::FLOAT16) {
     return HCCL_DATA_TYPE_FP16;
-  } else if (dtype == C_DataType::INT64) {
-    return HCCL_DATA_TYPE_INT64;
   } else if (dtype == C_DataType::INT32) {
     return HCCL_DATA_TYPE_INT32;
   } else if (dtype == C_DataType::INT8) {

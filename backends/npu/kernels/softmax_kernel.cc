@@ -48,24 +48,54 @@ void SoftmaxGradKernel(const Context& dev_ctx,
   for (int i = axis; i < rank; i++) {
     sec_dim *= dims[i];
   }
-
-  phi::DenseTensor tmp_out(out);
-  tmp_out.Resize({first_dim, sec_dim});
-
-  phi::DenseTensor tmp_out_grad(out_grad);
-  tmp_out_grad.Resize({first_dim, sec_dim});
-
-  x_grad->Resize(phi::make_ddim({first_dim, sec_dim}));
-  dev_ctx.template Alloc<T>(x_grad);
-
-  NPUAttributeMap attr_input = {};
-  const auto& runner = NpuOpRunner(std::string("SoftmaxGrad"),
-                                   {tmp_out, tmp_out_grad},
-                                   {*x_grad},
-                                   attr_input);
-
   auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  NPUAttributeMap attr_input = {};
+  phi::DenseTensor tmp_out, tmp_out_grad;
+  if (out.dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensorMeta tmp_out_meta = {phi::DataType::FLOAT32, out.dims()};
+    phi::DenseTensorMeta tmp_out_grad_meta = {phi::DataType::FLOAT32,
+                                              out_grad.dims()};
+    tmp_out.set_meta(tmp_out_meta);
+    tmp_out_grad.set_meta(tmp_out_grad_meta);
+    dev_ctx.template Alloc<float>(&tmp_out);
+    dev_ctx.template Alloc<float>(&tmp_out_grad);
+    const auto& cast_runner1 =
+        NpuOpRunner("Cast", {out}, {tmp_out}, {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(stream);
+    const auto& cast_runner2 = NpuOpRunner(
+        "Cast", {out_grad}, {tmp_out_grad}, {{"dst_type", ACL_FLOAT}});
+    cast_runner2.Run(stream);
+
+    phi::DenseTensor tmp_x_grad;
+    tmp_x_grad.Resize(phi::make_ddim({first_dim, sec_dim}));
+    dev_ctx.template Alloc<float>(&tmp_x_grad);
+
+    const auto& runner = NpuOpRunner(std::string("SoftmaxGrad"),
+                                     {tmp_out, tmp_out_grad},
+                                     {tmp_x_grad},
+                                     attr_input);
+    runner.Run(stream);
+
+    x_grad->Resize(phi::make_ddim({first_dim, sec_dim}));
+    dev_ctx.template Alloc<T>(x_grad);
+    const auto& cast_runner3 = NpuOpRunner(
+        "Cast", {tmp_x_grad}, {*x_grad}, {{"dst_type", ACL_DOUBLE}});
+    cast_runner3.Run(stream);
+  } else {
+    tmp_out = out;
+    tmp_out.Resize({first_dim, sec_dim});
+    tmp_out_grad = out_grad;
+    tmp_out_grad.Resize({first_dim, sec_dim});
+
+    x_grad->Resize(phi::make_ddim({first_dim, sec_dim}));
+    dev_ctx.template Alloc<T>(x_grad);
+
+    const auto& runner = NpuOpRunner(std::string("SoftmaxGrad"),
+                                     {tmp_out, tmp_out_grad},
+                                     {*x_grad},
+                                     attr_input);
+    runner.Run(stream);
+  }
 
   x_grad->Resize(dims);
 }

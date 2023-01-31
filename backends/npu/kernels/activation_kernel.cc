@@ -908,6 +908,61 @@ void HardSwishGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SoftplusKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const float beta,
+                    const float threshold,
+                    phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner(
+      "SoftplusV2", {x}, {*out}, {{"beta", beta}, {"threshold", threshold}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftplusGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& a,
+                        const phi::DenseTensor& dout,
+                        const float beta,
+                        const float threshold,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("SoftplusV2Grad",
+                                   {dout, a},
+                                   {*dx},
+                                   {{"beta", beta}, {"threshold", threshold}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftshrinkKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const float lambd,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  PD_CHECK(lambd > 0, "lambd should be greater than 0");
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("SoftShrink", {x}, {*out}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftshrinkGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& a,
+                          const phi::DenseTensor& dout,
+                          const float lambd,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("SoftShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void HardshrinkKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       const float lambd,
@@ -1239,6 +1294,34 @@ PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softplus,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftplusKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softplus_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftplusGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softshrink,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftshrinkKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softshrink_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftshrinkGradKernel,
                           float,
                           phi::dtype::float16) {}
 

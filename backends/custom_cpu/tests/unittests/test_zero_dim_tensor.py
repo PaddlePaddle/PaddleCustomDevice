@@ -79,6 +79,7 @@ class TestReduceAPI(unittest.TestCase):
 binary_api_list = [
     {"func": paddle.add, "cls_method": "__add__"},
     {"func": paddle.multiply, "cls_method": "__mul__"},
+    paddle.maximum,
 ]
 
 binary_api_list_without_grad = [
@@ -230,6 +231,46 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x.grad.shape, [1, 1])
         self.assertEqual(out.shape, [1, 1])
         self.assertEqual(out.grad.shape, [1, 1])
+
+    def test_argsort(self):
+        x1 = paddle.rand([])
+        x2 = paddle.rand([])
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+        out1 = paddle.argsort(x1, axis=-1)
+        out2 = paddle.argsort(x2, axis=0)
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+
+
+# Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
+class TestNoBackwardAPI(unittest.TestCase):
+    def setUp(self):
+        paddle.disable_static()
+        self.shape = [
+            paddle.full([], 2, "int32"),
+            paddle.full([], 3, "int32"),
+            paddle.full([], 4, "int32"),
+        ]
+
+    def test_embedding(self):
+        ids = paddle.full(shape=[], fill_value=1, dtype="int64")
+        w0 = paddle.arange(3, 9).reshape((3, 2)).astype(paddle.float32)
+        w = paddle.to_tensor(w0, stop_gradient=False)
+        emb = paddle.nn.functional.embedding(
+            x=ids, weight=w, sparse=True, name="embedding"
+        )
+        self.assertEqual(emb.shape, [2])
+        res = [5.0, 6.0]
+        for i in range(len(res)):
+            self.assertEqual(emb.numpy()[i], res[i])
+
+    def test_one_hot_label(self):
+        label = paddle.full(shape=[], fill_value=2, dtype="int64")
+        one_hot_label = paddle.nn.functional.one_hot(label, num_classes=4)
+        self.assertEqual(one_hot_label.shape, [4])
+        self.assertEqual(one_hot_label.numpy()[2], 1)
 
 
 if __name__ == "__main__":

@@ -72,7 +72,6 @@ void DropoutRawKernel(const Context& dev_ctx,
 
   // only achieve the default `upscale_in_train` method
   if (!is_test) {
-    dropout_prob = is_upscale ? dropout_prob : 0.0f;
     if (x.dtype() == phi::DataType::FLOAT64) {
       // transform x
       phi::DenseTensor tmp_x;
@@ -193,6 +192,12 @@ void DropoutRawKernel(const Context& dev_ctx,
           .AddInput(keep_prob_tensor)
           .AddOutput(tmp_out);
       runner_dropout.Run(stream);
+    }
+    if (!is_upscale) {
+      float prob = 1.0f - dropout_prob;
+      const auto& muls_runner =
+          NpuOpRunner("Muls", {*out}, {*out}, {{"value", prob}});
+      muls_runner.Run(stream);
     }
   } else {
     if (!is_upscale) {

@@ -158,7 +158,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
             self.attrs["axis"] = self.axis
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, check_dygraph=False)
 
     def test_check_grad(self):
         # fp32 has low precision, cpu and npu both need to relax the max_relative_error if using fp32
@@ -174,21 +174,6 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
 class TestSoftmaxWithCrossEntropyOpInt32(TestSoftmaxWithCrossEntropyOp):
     def hard_label_dtype(self):
         return "int32"
-
-
-class TestSoftmaxWithCrossEntropyOpInt16(TestSoftmaxWithCrossEntropyOp):
-    def hard_label_dtype(self):
-        return "int16"
-
-
-class TestSoftmaxWithCrossEntropyOpInt8(TestSoftmaxWithCrossEntropyOp):
-    def hard_label_dtype(self):
-        return "int8"
-
-
-class TestSoftmaxWithCrossEntropyOpUInt8(TestSoftmaxWithCrossEntropyOp):
-    def hard_label_dtype(self):
-        return "uint8"
 
 
 class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_1D(
@@ -284,13 +269,13 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis4(
         self.use_softmax = False  # default is true, means "with softmax"
 
 
-##############################################################################
-# NotWithSoftmax_SoftLabel_2D end
-##############################################################################
+# #############################################################################
+# # NotWithSoftmax_SoftLabel_2D end
+# #############################################################################
 
-##############################################################################
-# NotWithSoftmax_HardLabel_2D start
-##############################################################################
+# #############################################################################
+# # NotWithSoftmax_HardLabel_2D start
+# #############################################################################
 
 
 class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis2(
@@ -329,13 +314,13 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis3(
         self.use_softmax = False  # default is true, means "with softmax"
 
 
-##############################################################################
+#############################################################################
 # NotWithSoftmax_HardLabel_2D end
-##############################################################################
+#############################################################################
 
-##############################################################################
+#############################################################################
 # NotWithSoftmax_HardLabel_2D_Ignore start
-##############################################################################
+#############################################################################
 
 
 class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_Ignore(

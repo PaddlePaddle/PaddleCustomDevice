@@ -18,15 +18,37 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void NPUIdentityKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const int format,
+                       phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const std::vector<int>& axis,
                      phi::DenseTensor* out) {
+  phi::DenseTensor x_tmp;
+  if (x.storage_properties_initialized()) {
+    auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    if (storage_format == ACL_FORMAT_NC1HWC0) {
+      phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+      x_tmp.set_meta(meta);
+      custom_kernel::NPUIdentityKernel<T, Context>(
+          dev_ctx, x, ConvertToNpuFormat(x.layout()), &x_tmp);
+    } else {
+      x_tmp = x;
+    }
+  } else {
+    x_tmp = x;
+  }
+
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   NpuOpRunner runner;
   runner.SetType("Transpose")
-      .AddInput(x)
+      .AddInput(x_tmp)
       .AddInput(dev_ctx, std::move(axis))
       .AddOutput(*out);
   runner.Run(stream);

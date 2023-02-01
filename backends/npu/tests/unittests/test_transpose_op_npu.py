@@ -16,10 +16,8 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
-from tests.op_test import OpTest, _set_use_system_allocator
+from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 
@@ -28,13 +26,13 @@ class TestTransposeOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "transpose2"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.init_dtype()
         self.init_shape_axis()
 
-        self.inputs = {'X': np.random.random(self.shape).astype(self.dtype)}
-        self.attrs = {'axis': self.axis, 'data_format': 'AnyLayout'}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
+        self.attrs = {"axis": self.axis, "data_format": "AnyLayout"}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -50,13 +48,13 @@ class TestTransposeOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestCase0(TestTransposeOp):
     def init_shape_axis(self):
-        self.shape = (100, )
-        self.axis = (0, )
+        self.shape = (100,)
+        self.axis = (0,)
 
 
 class TestCase1(TestTransposeOp):
@@ -129,5 +127,67 @@ class TestTransposeOpInt64(TestTransposeOp):
         pass
 
 
-if __name__ == '__main__':
+class TestTransposeAPIWithNPUStroageFormat(unittest.TestCase):
+    def setUp(self):
+        self.shape_x = [4, 6, 24, 24]
+        self.x = np.random.random(self.shape_x).astype(np.float32)
+        self.axis = [0, 3, 1, 2]
+        self.format = 3  # ACL_FORMAT_NC1HWC0 = 3
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def test_api_static(self):
+        paddle.enable_static()
+
+        main_program = paddle.static.default_main_program()
+        startup_program = paddle.static.default_startup_program()
+        with paddle.static.program_guard(main_program, startup_program):
+            x_data = paddle.static.data(
+                shape=self.shape_x, name="data_x", dtype="float32"
+            )
+
+            out_expect = paddle.transpose(x=x_data, perm=self.axis)
+
+            x_format = paddle.incubate._npu_identity(x=x_data, format=self.format)
+            out_format = paddle.transpose(x=x_format, perm=self.axis)
+            out_actual = paddle.incubate._npu_identity(x=out_format, format=-1)
+        exe = paddle.static.Executor()
+        exe.run(startup_program)
+        result = exe.run(
+            main_program,
+            feed={x_data.name: self.x},
+            fetch_list=[out_expect, out_actual],
+        )
+
+        np.testing.assert_allclose(result[0], result[1], rtol=1e-08)
+
+    def test_api_dygraph(self):
+        paddle.disable_static(self.place)
+
+        # fwd and bwd with normal format
+        x = paddle.to_tensor(self.x)
+        axis = self.axis
+        x.stop_gradient = False
+        out_expect = paddle.transpose(x, axis)
+        loss = out_expect.sum()
+        loss.backward()
+        x_grad_expect = x.grad
+
+        # fwd and bwd with storage format
+        x_format = paddle.incubate._npu_identity(x, self.format)
+        x_format.stop_gradient = False
+        out_format = paddle.transpose(x_format, axis)
+        loss_format = out_format.sum()
+        loss_format.backward()
+        out_actual = paddle.incubate._npu_identity(out_format, -1)
+        x_grad_actual = paddle.incubate._npu_identity(x_format.grad, -1)
+
+        # compare results
+        np.testing.assert_allclose(out_expect.numpy(), out_actual.numpy(), rtol=1e-08)
+        np.testing.assert_allclose(
+            x_grad_expect.numpy(), x_grad_actual.numpy(), rtol=1e-08
+        )
+        paddle.enable_static()
+
+
+if __name__ == "__main__":
     unittest.main()

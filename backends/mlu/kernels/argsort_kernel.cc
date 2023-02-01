@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 

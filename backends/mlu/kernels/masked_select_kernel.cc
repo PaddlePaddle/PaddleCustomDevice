@@ -35,14 +35,16 @@ void MaskedSelectKernel(const Context& dev_ctx,
                         input_dim,
                         mask_dim));
 
-  Tensor number;
+  Tensor number, masked_select_out;
   number.Resize({1});
+  masked_select_out.Resize(mask.dims());
   void* number_ptr = dev_ctx.template Alloc<int32_t>(&number);
-  out->Resize(mask.dims());
-  dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<T>(&masked_select_out);
+
   MLUCnnlTensorDesc input_desc(x);
   MLUCnnlTensorDesc mask_desc(mask);
-  MLUCnnlTensorDesc out_desc(*out);
+
+  MLUCnnlTensorDesc masked_select_out_desc(masked_select_out);
   MLUCnnl::Mask(dev_ctx,
                 CNNL_MASKED_SELECT,
                 input_desc.get(),
@@ -52,9 +54,26 @@ void MaskedSelectKernel(const Context& dev_ctx,
                 nullptr, /* value_desc */
                 nullptr, /* value */
                 nullptr, /* scale */
-                out_desc.get(),
-                GetBasePtr(out),
+                masked_select_out_desc.get(),
+                GetBasePtr(&masked_select_out),
                 static_cast<uint32_t*>(number_ptr));
+  C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
+
+  int masked_select_num;
+  AsyncMemCpyD2H(
+      nullptr, stream, &masked_select_num, number.data(), sizeof(int));
+  dev_ctx.Wait();
+  VLOG(3) << "[MaskedSelectKernel] valid mask num " << masked_select_num;
+
+  out->Resize({masked_select_num});
+  dev_ctx.template Alloc<T>(out);
+  MLUCnnlTensorDesc out_desc(*out);
+
+  AsyncMemCpyD2D(nullptr,
+                 stream,
+                 GetBasePtr(out),
+                 GetBasePtr(&masked_select_out),
+                 masked_select_num * sizeof(T));
 }
 
 template <typename T, typename Context>
@@ -149,17 +168,6 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
                  GetBasePtr(&mask_indices),
                  mask_valid_num_vec[0] * sizeof(int32_t));
 
-  Tensor out_grad_tmp_out;
-  out_grad_tmp_out.Resize({mask_valid_num_vec[0]});
-  dev_ctx.template Alloc<T>(&out_grad_tmp_out);
-  MLUCnnlTensorDesc out_grad_tmp_out_desc(out_grad_tmp_out);
-  AsyncMemCpyD2D(nullptr,
-                 stream,
-                 GetBasePtr(&out_grad_tmp_out),
-                 GetBasePtr(&out_grad),
-                 mask_valid_num_vec[0] * sizeof(T));
-  dev_ctx.Wait();
-
   Tensor indices_int32_tmp;
   indices_int32_tmp = valid_mask_indices;
   indices_int32_tmp.Resize({mask_valid_num_vec[0], 1});
@@ -171,12 +179,13 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
   x_grad->Resize({x_grad->numel()});
   dev_ctx.template Alloc<T>(x_grad);
   MLUCnnlTensorDesc x_grad_desc(*x_grad);
+  MLUCnnlTensorDesc out_grad_desc(out_grad);
   MLUCnnl::ScatterNd(dev_ctx,
                      mode,
                      indices_int32_tmp_desc.get(),
                      GetBasePtr(&indices_int32_tmp),
-                     out_grad_tmp_out_desc.get(),
-                     GetBasePtr(&out_grad_tmp_out),
+                     out_grad_desc.get(),
+                     GetBasePtr(&out_grad),
                      nullptr,
                      nullptr,
                      x_grad_desc.get(),

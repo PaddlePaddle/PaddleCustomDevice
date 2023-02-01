@@ -135,6 +135,12 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
                 0, axis_dim, self.shape, dtype=self.hard_label_dtype()
             )
 
+        if not self.soft_label:
+            valid_label = (labels != self.ignore_index).astype(
+                self.hard_label_dtype()
+            ) * labels
+            labels = valid_label
+
         loss = cross_entropy(
             softmax, labels, self.soft_label, self.axis, self.ignore_index
         )

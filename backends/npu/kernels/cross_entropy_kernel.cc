@@ -140,13 +140,9 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     // cause of input is softmax, copy to output softmax, directly
     phi::Copy<Context>(dev_ctx, logits, dev_ctx.GetPlace(), false, softmax);
   }
-  if (soft_label || !use_softmax || ignore_index >= 0) {
+  if (soft_label || !use_softmax) {
     if (soft_label) {
       VLOG(4) << "soft_label = True is not supported in the npu kernel of "
-                 "softmax_with_cross_entropy.";
-    }
-    if (ignore_index >= 0) {
-      VLOG(4) << "ignore_index >= 0 is not supported in the npu kernel of "
                  "softmax_with_cross_entropy.";
     }
     if (!use_softmax) {
@@ -235,6 +231,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     TensorCopy(dev_ctx, cpu_loss_out_tensor, true, loss);
     loss->Resize(loss_dims);
   } else {
+    VLOG(4) << "[DEBUG]Use NPU KERNEL";
     if (pos_axis == 1) {
       // Squeeze labels
       std::vector<int64_t> label_squeeze_shape;
@@ -254,7 +251,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
           .AddInput(label_squeeze)
           .AddOutput(*loss)
           .AddOutput(backprop)
-          .AddAttr("ignore_index", ignore_index)
+          .AddAttr("ignore_index", -1)
           .AddAttr("reduction", std::string("none"));
       runner_s.Run(stream);
     } else {
@@ -321,7 +318,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
           .AddInput(label_squeeze)
           .AddOutput(trans_loss)
           .AddOutput(backprop)
-          .AddAttr("ignore_index", ignore_index)
+          .AddAttr("ignore_index", -1)
           .AddAttr("reduction", std::string("none"));
       runner_s.Run(stream);
       // Revert loss
@@ -479,14 +476,10 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   const int pos_axis = axis < 0 ? axis + rank : axis;
   int cls_num = softmax.dims()[pos_axis];
   auto stream = dev_ctx.stream();
-  if (soft_label || !use_softmax || ignore_index >= 0) {
+  if (soft_label || !use_softmax) {
     if (soft_label) {
       VLOG(4) << "soft_label = True is not supported in the npu kernel of "
-                 "softmax_with_cross_entropy.";
-    }
-    if (ignore_index >= 0) {
-      VLOG(4) << "ignore_index >= 0 is not supported in the npu kernel of "
-                 "softmax_with_cross_entropy.";
+                 "、.";
     }
     if (!use_softmax) {
       VLOG(4) << "use_softmax = False is not supported in the npu kernel of "

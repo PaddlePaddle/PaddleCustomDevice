@@ -29,17 +29,14 @@ void TransposeKernel(const Context& dev_ctx,
                      const std::vector<int>& axis,
                      phi::DenseTensor* out) {
   phi::DenseTensor x_tmp;
+  // TODO(songkai05): CANN does not support trans from NC1HWC0 to ND between
+  // Transpose_in_0 and Transpose, so we trans NC1HWC0 to its original format
+  // first temporarily.
   if (x.storage_properties_initialized()) {
-    auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
-    int64_t storage_format = npu_properties.storage_format;
-    if (storage_format == ACL_FORMAT_NC1HWC0) {
-      phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
-      x_tmp.set_meta(meta);
-      custom_kernel::NPUIdentityKernel<T, Context>(
-          dev_ctx, x, ConvertToNpuFormat(x.layout()), &x_tmp);
-    } else {
-      x_tmp = x;
-    }
+    phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+    x_tmp.set_meta(meta);
+    custom_kernel::NPUIdentityKernel<T, Context>(
+        dev_ctx, x, ConvertToNpuFormat(x.layout()), &x_tmp);
   } else {
     x_tmp = x;
   }

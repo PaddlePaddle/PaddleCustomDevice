@@ -182,6 +182,21 @@ class TestSoftmaxWithCrossEntropyOpInt32(TestSoftmaxWithCrossEntropyOp):
         return "int32"
 
 
+class TestSoftmaxWithCrossEntropyOpInt16(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "int16"
+
+
+class TestSoftmaxWithCrossEntropyOpInt8(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "int8"
+
+
+class TestSoftmaxWithCrossEntropyOpUInt8(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "uint8"
+
+
 class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_1D(
     TestSoftmaxWithCrossEntropyOp
 ):

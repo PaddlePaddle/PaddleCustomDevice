@@ -140,13 +140,18 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     // cause of input is softmax, copy to output softmax, directly
     phi::Copy<Context>(dev_ctx, logits, dev_ctx.GetPlace(), false, softmax);
   }
-  if (soft_label || !use_softmax) {
+  if (soft_label || !use_softmax || !numeric_stable_mode) {
     if (soft_label) {
       VLOG(4) << "soft_label = True is not supported in the npu kernel of "
                  "softmax_with_cross_entropy.";
     }
     if (!use_softmax) {
       VLOG(4) << "use_softmax = False is not supported in the npu kernel of "
+                 "softmax_with_cross_entropy.";
+    }
+    if (!numeric_stable_mode) {
+      VLOG(4) << "numeric_stable_mode = False is not supported in the npu "
+                 "kernel of "
                  "softmax_with_cross_entropy.";
     }
     VLOG(4) << "CrossEntropyWithSoftmaxKernel of npu is implemented using "
@@ -231,14 +236,32 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     TensorCopy(dev_ctx, cpu_loss_out_tensor, true, loss);
     loss->Resize(loss_dims);
   } else {
-    VLOG(4) << "[DEBUG]Use NPU KERNEL";
+    // cast label from int16/int8/uint8 to int32 for SoftmaxCrossEntropyLoss
+    phi::DenseTensor casted_labels;
+    if (labels.dtype() != phi::DataType::INT32 &&
+        labels.dtype() != phi::DataType::INT64) {
+      phi::DenseTensorMeta casted_labels_meta = {phi::DataType::INT32,
+                                                 labels.dims()};
+      casted_labels.set_meta(casted_labels_meta);
+      dev_ctx.template Alloc<int32_t>(&casted_labels);
+      auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT32);
+      const auto& runner_cast_label =
+          NpuOpRunner("Cast",
+                      {labels},
+                      {casted_labels},
+                      {{"dst_type", static_cast<int>(dst_dtype)}});
+      runner_cast_label.Run(stream);
+    } else {
+      casted_labels = labels;
+    }
     if (pos_axis == 1) {
       // Squeeze labels
       std::vector<int64_t> label_squeeze_shape;
-      for (int32_t i = 0; i < labels.dims().size(); i++) {
-        if (i != pos_axis) label_squeeze_shape.push_back(labels.dims()[i]);
+      for (int32_t i = 0; i < casted_labels.dims().size(); i++) {
+        if (i != pos_axis)
+          label_squeeze_shape.push_back(casted_labels.dims()[i]);
       }
-      phi::DenseTensor label_squeeze(labels);
+      phi::DenseTensor label_squeeze(casted_labels);
       label_squeeze.Resize(phi::make_ddim(label_squeeze_shape));
       // SoftmaxCrossEntropyLoss
       phi::DenseTensor backprop;
@@ -274,24 +297,20 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
       TranposeNPU<T>(dev_ctx, stream, &perm, logits, &trans_logits);
       // Transpose labels
       std::vector<int64_t> trans_labels_shape;
-      auto labels_dims = labels.dims();
+      auto labels_dims = casted_labels.dims();
       for (size_t i = 0; i < perm.size(); i++) {
         trans_labels_shape.emplace_back(labels_dims[perm[i]]);
       }
       phi::DenseTensor trans_labels;
       phi::DenseTensorMeta trans_labels_meta = {
-          labels.dtype(), phi::make_ddim(trans_labels_shape)};
+          casted_labels.dtype(), phi::make_ddim(trans_labels_shape)};
       trans_labels.set_meta(trans_labels_meta);
-      if (labels.dtype() == phi::DataType::INT32) {
-        TranposeNPU<int32_t>(dev_ctx, stream, &perm, labels, &trans_labels);
-      } else if (labels.dtype() == phi::DataType::INT64) {
-        TranposeNPU<int64_t>(dev_ctx, stream, &perm, labels, &trans_labels);
-      } else if (labels.dtype() == phi::DataType::INT16) {
-        TranposeNPU<int16_t>(dev_ctx, stream, &perm, labels, &trans_labels);
-      } else if (labels.dtype() == phi::DataType::INT8) {
-        TranposeNPU<int8_t>(dev_ctx, stream, &perm, labels, &trans_labels);
-      } else if (labels.dtype() == phi::DataType::UINT8) {
-        TranposeNPU<uint8_t>(dev_ctx, stream, &perm, labels, &trans_labels);
+      if (casted_labels.dtype() == phi::DataType::INT32) {
+        TranposeNPU<int32_t>(
+            dev_ctx, stream, &perm, casted_labels, &trans_labels);
+      } else if (casted_labels.dtype() == phi::DataType::INT64) {
+        TranposeNPU<int64_t>(
+            dev_ctx, stream, &perm, casted_labels, &trans_labels);
       }
       // Squeeze labels
       std::vector<int64_t> label_squeeze_shape;
@@ -479,7 +498,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   if (soft_label || !use_softmax) {
     if (soft_label) {
       VLOG(4) << "soft_label = True is not supported in the npu kernel of "
-                 "、.";
+                 "softmax_with_cross_entropy.";
     }
     if (!use_softmax) {
       VLOG(4) << "use_softmax = False is not supported in the npu kernel of "

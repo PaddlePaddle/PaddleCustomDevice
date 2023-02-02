@@ -18,15 +18,34 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void NPUIdentityKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const int format,
+                       phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const std::vector<int>& axis,
                      phi::DenseTensor* out) {
+  phi::DenseTensor x_tmp;
+  // TODO(songkai05): CANN does not support trans from NC1HWC0 to ND between
+  // Transpose_in_0 and Transpose, so we trans NC1HWC0 to its original format
+  // first temporarily.
+  if (x.storage_properties_initialized()) {
+    phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+    x_tmp.set_meta(meta);
+    custom_kernel::NPUIdentityKernel<T, Context>(
+        dev_ctx, x, ConvertToNpuFormat(x.layout()), &x_tmp);
+  } else {
+    x_tmp = x;
+  }
+
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   NpuOpRunner runner;
   runner.SetType("Transpose")
-      .AddInput(x)
+      .AddInput(x_tmp)
       .AddInput(dev_ctx, std::move(axis))
       .AddOutput(*out);
   runner.Run(stream);

@@ -128,7 +128,7 @@ class TestNNPReluAPI(unittest.TestCase):
 
         x = paddle.to_tensor(self.x_np)
         m = paddle.nn.PReLU(
-            weight_attr=fluid.ParamAttr(initializer=fluid.initializer.Constant(0.5))
+            weight_attr=fluid.ParamAttr(initializer=paddle.nn.initializer.Constant(0.5))
         )
         out = m(x)
         out_ref = ref_prelu_nn(self.x_np, 1, 0.5)

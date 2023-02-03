@@ -39,6 +39,17 @@ void SoftmaxGradKernel(const Context& dev_ctx,
                        phi::DenseTensor* x_grad) {
   auto dims = x_grad->dims();
   const int rank = dims.size();
+  if (rank == 0) {
+    dev_ctx.template Alloc<T>(x_grad);
+    T zero = static_cast<T>(0);
+    auto dst_ptr = x_grad->data<T>();
+    AsyncMemCpyH2D(nullptr,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   &zero,
+                   sizeof(T));
+    return;
+  }
   axis = custom_kernel::CanonicalAxis(axis, rank);
   int64_t first_dim = 1;
   int64_t sec_dim = 1;

@@ -62,17 +62,11 @@ class TestBitwiseAnd(OpTest):
 
 class TestBitwiseAnd_ZeroDim1(TestBitwiseAnd):
     def init_shape(self):
-        self.x_shape = []
-        self.y_shape = []
-
-
-class TestBitwiseAnd_ZeroDim2(TestBitwiseAnd):
-    def init_shape(self):
         self.x_shape = [2, 3, 4, 5]
         self.y_shape = []
 
 
-class TestBitwiseAnd_ZeroDim3(TestBitwiseAnd):
+class TestBitwiseAnd_ZeroDim2(TestBitwiseAnd):
     def init_shape(self):
         self.x_shape = []
         self.y_shape = [2, 3, 4, 5]
@@ -168,17 +162,11 @@ class TestBitwiseOr(OpTest):
 
 class TestBitwiseOr_ZeroDim1(TestBitwiseOr):
     def init_shape(self):
-        self.x_shape = []
-        self.y_shape = []
-
-
-class TestBitwiseOr_ZeroDim2(TestBitwiseOr):
-    def init_shape(self):
         self.x_shape = [2, 3, 4, 5]
         self.y_shape = []
 
 
-class TestBitwiseOr_ZeroDim3(TestBitwiseOr):
+class TestBitwiseOr_ZeroDim2(TestBitwiseOr):
     def init_shape(self):
         self.x_shape = []
         self.y_shape = [2, 3, 4, 5]
@@ -274,17 +262,11 @@ class TestBitwiseXor(OpTest):
 
 class TestBitwiseXor_ZeroDim1(TestBitwiseXor):
     def init_shape(self):
-        self.x_shape = []
-        self.y_shape = []
-
-
-class TestBitwiseXor_ZeroDim2(TestBitwiseXor):
-    def init_shape(self):
         self.x_shape = [2, 3, 4, 5]
         self.y_shape = []
 
 
-class TestBitwiseXor_ZeroDim3(TestBitwiseXor):
+class TestBitwiseXor_ZeroDim2(TestBitwiseXor):
     def init_shape(self):
         self.x_shape = []
         self.y_shape = [2, 3, 4, 5]

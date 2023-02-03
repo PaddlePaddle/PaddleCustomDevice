@@ -27,9 +27,9 @@ void BitwiseAndKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y), out_tensor(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
-    out_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
+    out_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -40,10 +40,6 @@ void BitwiseAndKernel(const Context& dev_ctx,
     const auto& runner =
         NpuOpRunner("BitwiseAnd", {x_tensor, y_tensor}, {out_tensor});
     runner.Run(stream);
-  }
-
-  if (x.dims().size() == 0 && y.dims().size() == 0) {
-    out->Resize({});
   }
 }
 
@@ -57,9 +53,9 @@ void BitwiseOrKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y), out_tensor(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
-    out_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
+    out_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -70,10 +66,6 @@ void BitwiseOrKernel(const Context& dev_ctx,
     const auto& runner =
         NpuOpRunner("BitwiseOr", {x_tensor, y_tensor}, {out_tensor});
     runner.Run(stream);
-  }
-
-  if (x.dims().size() == 0 && y.dims().size() == 0) {
-    out->Resize({});
   }
 }
 
@@ -87,9 +79,9 @@ void BitwiseXorKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y), out_tensor(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
-    out_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
+    out_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -121,10 +113,6 @@ void BitwiseXorKernel(const Context& dev_ctx,
         NpuOpRunner("BitwiseXor", {x_tensor, y_tensor}, {out_tensor});
     runner.Run(stream);
   }
-
-  if (x.dims().size() == 0 && y.dims().size() == 0) {
-    out->Resize({});
-  }
 }
 
 template <typename T, typename Context>
@@ -136,8 +124,8 @@ void BitwiseNotKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), out_tensor(*out);
   if (x.dims().size() == 0) {
-    x_tensor.Resize({1});
-    out_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    out_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -146,10 +134,6 @@ void BitwiseNotKernel(const Context& dev_ctx,
   } else {
     const auto& runner = NpuOpRunner("Invert", {x_tensor}, {out_tensor});
     runner.Run(stream);
-  }
-
-  if (x.dims().size() == 0) {
-    out->Resize({});
   }
 }
 

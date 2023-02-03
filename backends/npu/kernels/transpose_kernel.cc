@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/kernels/transpose_kernel.h"
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
@@ -42,6 +44,12 @@ void TransposeKernel(const Context& dev_ctx,
   }
 
   dev_ctx.template Alloc<T>(out);
+
+  if (axis.size() == 0) {
+    phi::Copy<Context>(dev_ctx, x, dev_ctx.GetPlace(), false, out);
+    return;
+  }
+
   auto stream = dev_ctx.stream();
   NpuOpRunner runner;
   runner.SetType("Transpose")
@@ -58,6 +66,11 @@ void TransposeGradKernel(const Context& dev_ctx,
                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
+
+  if (axis.size() == 0) {
+    phi::Copy<Context>(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
+    return;
+  }
 
   std::vector<int> reversed_axis(axis);
   for (size_t i = 0; i < axis.size(); i++) {

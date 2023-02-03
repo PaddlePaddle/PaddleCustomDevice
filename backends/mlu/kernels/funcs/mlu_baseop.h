@@ -2032,6 +2032,19 @@ class MLUCnnl {
                               const void* weight,
                               const cnnlTensorDescriptor_t output_desc,
                               void* output);
+  static void NLLLossForward(const Context& ctx,
+                             cnnlNlllossAlgorithm_t algo,
+                             const int ignore_index,
+                             const cnnlTensorDescriptor_t x_desc,
+                             const void* x,
+                             const cnnlTensorDescriptor_t t_desc,
+                             const void* target,
+                             const cnnlTensorDescriptor_t w_desc,
+                             const void* filter,
+                             const cnnlTensorDescriptor_t ttf_desc,
+                             void* total_filter,
+                             const cnnlTensorDescriptor_t output_desc,
+                             void* output);
 
   static void SmoothL1LossForward(const Context& ctx,
                                   const cnnlTensorDescriptor_t x_desc,

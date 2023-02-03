@@ -114,8 +114,7 @@ class AlignnedAllocator {
   void *Alloc(size_t size, size_t align) {
     std::lock_guard<std::mutex> lock(mtx_);
     ProcessEvents();
-    void *p = nullptr;
-    ACL_CHECK(aclrtMallocHost(&p, size + align));
+    void *p = malloc(size + align);
     void *ret =
         reinterpret_cast<void *>(reinterpret_cast<size_t>(p) + align -
                                  (reinterpret_cast<size_t>(p) & (align - 1)));
@@ -135,9 +134,9 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
+      free(ptr);
       ACL_CHECK(aclrtDestroyEvent(event));
       it = recorded_events_.erase(it);
-      ACL_CHECK(aclrtFreeHost(ptr));
     }
   }
 
@@ -149,9 +148,9 @@ class AlignnedAllocator {
       ACL_CHECK(aclrtQueryEventStatus(event, &status));
       if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
+        free(ptr);
         it = recorded_events_.erase(it);
         ACL_CHECK(aclrtDestroyEvent(event));
-        ACL_CHECK(aclrtFreeHost(ptr));
       } else {
         ++it;
       }

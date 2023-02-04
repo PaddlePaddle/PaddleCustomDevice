@@ -41,16 +41,17 @@ void FlattenInferKernel(const Context& dev_ctx,
   if (in_dims.size() == 0) {
     TensorCopy(dev_ctx, x, false, out);
     out->Resize(phi::make_ddim(std::vector<int64_t>{1}));
-  } else {
-    const auto& runner =
-        NpuOpRunner("FlattenV2",
-                    {x},
-                    {*out},
-                    {{"axis", static_cast<int32_t>(start_axis)},
-                     {"end_axis", static_cast<int32_t>(stop_axis)}});
-    auto stream = dev_ctx.stream();
-    runner.Run(stream);
+    return;
   }
+
+  const auto& runner =
+      NpuOpRunner("FlattenV2",
+                  {x},
+                  {*out},
+                  {{"axis", static_cast<int32_t>(start_axis)},
+                   {"end_axis", static_cast<int32_t>(stop_axis)}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>

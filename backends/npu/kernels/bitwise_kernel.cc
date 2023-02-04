@@ -27,8 +27,8 @@ void BitwiseAndKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -52,8 +52,8 @@ void BitwiseOrKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -75,8 +75,8 @@ void BitwiseXorKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), y_tensor(y), out_tensor(*out);
   if (x.dims().size() == 0 && y.dims().size() == 0) {
-    x_tensor.Resize({1});
-    y_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {
@@ -119,7 +119,7 @@ void BitwiseNotKernel(const Context& dev_ctx,
 
   phi::DenseTensor x_tensor(x), out_tensor(*out);
   if (x.dims().size() == 0) {
-    x_tensor.Resize({1});
+    x_tensor.Resize(phi::make_ddim({1}));
   }
 
   if (x.dtype() == phi::DataType::BOOL) {

@@ -77,6 +77,20 @@ class TestCase1(TestGatherOp):
         self.index_type = "int32"
 
 
+class TestCase2(TestGatherOp):
+    def config(self):
+        """
+        For one dimension input
+        """
+        self.x_shape = 100
+        self.x_type = "int64"
+        self.index = [1, 3, 5]
+        self.index_type = "int32"
+
+    def test_check_grad(self):
+        pass
+
+
 class API_TestGather(unittest.TestCase):
     def test_out1(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):

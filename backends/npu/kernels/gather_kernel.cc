@@ -49,8 +49,8 @@ void GatherGradKernel(const Context& dev_ctx,
   phi::DenseTensor tmp_tensor(index);
   const auto index_dims = index.dims();
   if (index_dims.size() == 1 || index_dims.size() == 0) {
-    std::vector<int64_t> new_dim =
-        {index_dims.size() == 0 ? 1 : index_dims[0], 1};
+    std::vector<int64_t> new_dim = {index_dims.size() == 0 ? 1 : index_dims[0],
+                                    1};
     tmp_tensor.Resize(phi::make_ddim(new_dim));
     p_index = &tmp_tensor;
   }
@@ -84,6 +84,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           custom_kernel::GatherKernel,
                           float,
                           double,
+                          int64_t,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_grad,
@@ -92,4 +93,5 @@ PD_REGISTER_PLUGIN_KERNEL(gather_grad,
                           custom_kernel::GatherGradKernel,
                           float,
                           double,
+                          int64_t,
                           phi::dtype::float16) {}

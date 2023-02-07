@@ -12,59 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/cross_entropy.h"
-#include "kernels/funcs/impl/softmax_kernel_impl.h"
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
-
-template <typename T>
-void CrossEntropy(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& label,
-                  bool soft_label,
-                  int ignore_index,
-                  int axis,
-                  phi::DenseTensor* out) {
-  const int rank = x.dims().size();
-  const int axis_v = custom_kernel::CanonicalAxis(axis, rank);
-  int axis_dim = x.dims()[axis_v];
-
-  PADDLE_ENFORCE_GT(
-      axis_dim,
-      0,
-      phi::errors::InvalidArgument(
-          "The axis dimention should be larger than 0, but received "
-          "axis dimention is %d.",
-          axis_dim));
-
-  dev_ctx.template Alloc<T>(out);
-
-  const int n = custom_kernel::SizeToAxis(axis_v, x.dims());
-  PADDLE_ENFORCE_GT(
-      n,
-      0,
-      phi::errors::InvalidArgument(
-          "The size of axis should be larger than 0, but received "
-          "SizeToAxis of softmax is %d.",
-          n));
-
-  const int d = custom_kernel::SizeFromAxis(axis_v, x.dims());
-
-  phi::DenseTensor x_2d(x);
-  x_2d.Resize({n, d});
-  phi::DenseTensor label_2d(label);
-  label_2d.Resize({n, label.numel() / n});
-  phi::DenseTensor out_2d(*out);
-  out_2d.Resize({n, d / axis_dim});
-  VLOG(5) << "[CrossEntropy] x_2d dims: " << x_2d.dims();
-  VLOG(5) << "[CrossEntropy] label_2d dims: " << label_2d.dims();
-  VLOG(5) << "[CrossEntropy] out_2d dims: " << out_2d.dims();
-
-  custom_kernel::CrossEntropyFunctor<T>()(
-      dev_ctx, &out_2d, x_2d, label_2d, soft_label, ignore_index, axis_dim);
-}
 
 template <typename T, typename Context>
 void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
@@ -77,18 +28,110 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                                    int axis,
                                    phi::DenseTensor* softmax,
                                    phi::DenseTensor* loss) {
-  // do not with softmax op, and input is softmax
-  if (!use_softmax) {
-    CrossEntropy<T>(
-        dev_ctx, logits, labels, soft_label, ignore_index, axis, loss);
-    // cause of input is softmax, copy to output softmax, directly
-    TensorCopy<Context>(dev_ctx, logits, false, softmax, dev_ctx.GetPlace());
-    return;
-  }
+  phi::DenseTensor backprop;
+  PADDLE_ENFORCE_EQ(use_softmax,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "use_softmax=False is not supported in "
+                        "the mlu kernel of softmax_with_cross_entropy."));
 
-  custom_kernel::SoftmaxKernel<T, Context>(dev_ctx, logits, axis, softmax);
-  CrossEntropy<T>(
-      dev_ctx, *softmax, labels, soft_label, ignore_index, axis, loss);
+  const int rank = logits.dims().size();
+  axis = custom_kernel::CanonicalAxis(axis, rank);
+  dev_ctx.template Alloc<T>(loss);
+  dev_ctx.template Alloc<T>(softmax);
+
+  // cnnl softmax only support 3-dims, regard all shape as [d1, d2, d3]
+  const int cnnl_softmax_dims = 3;
+  const int d1 = custom_kernel::SizeToAxis(axis, logits.dims());
+  const int d2_logits = logits.dims()[axis];
+  const int d2_labels = labels.dims()[axis];
+  const int d3 = custom_kernel::SizeOutAxis(axis, logits.dims());
+
+  // CNNL_SOFTMAX_MODE_LOW_DIMENSION has better perfermence, use it as much as
+  // possible.
+  cnnlSoftmaxMode_t mode = CNNL_SOFTMAX_MODE_LOW_DIMENSION;
+  std::vector<int> regard_logits_shape{d1, 1, d2_logits};
+  std::vector<int> regard_labels_shape{d1, 1, d2_labels};
+  std::vector<int> regard_loss_shape{d1, 1, 1};
+  if (d3 != 1) {
+    mode = CNNL_SOFTMAX_MODE_MEDIUM_DIMENSION;
+    regard_logits_shape = {d1, d2_logits, d3};
+    regard_labels_shape = {d1, d2_labels, d3};
+    regard_loss_shape = {d1, 1, d3};
+  }
+  phi::DenseTensorMeta meta = {logits.dtype(), {softmax->dims()}};
+  backprop.set_meta(meta);
+  dev_ctx.template Alloc<T>(&backprop);
+
+  MLUCnnlTensorDesc logits_desc(
+      cnnl_softmax_dims, regard_logits_shape.data(), ToCnnlDataType<T>());
+  MLUCnnlTensorDesc labels_desc(
+      cnnl_softmax_dims, regard_labels_shape.data(), ToCnnlDataType<T>());
+  MLUCnnlTensorDesc loss_desc(
+      cnnl_softmax_dims, regard_loss_shape.data(), ToCnnlDataType<T>());
+
+  const cnnlSoftmaxAlgorithm_t algo = CNNL_SOFTMAX_ACCURATE;
+  MLUCnnl::SoftmaxForward(dev_ctx,
+                          algo,
+                          mode,
+                          NULL,
+                          logits_desc.get(),
+                          GetBasePtr(&logits),
+                          NULL,
+                          logits_desc.get(),
+                          GetBasePtr(softmax));
+
+  if (soft_label) {
+    const cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+    MLUCnnl::SoftmaxCrossEntropyWithLogits(dev_ctx,
+                                           mode,
+                                           prefer,
+                                           logits_desc.get(),
+                                           GetBasePtr(&logits),
+                                           labels_desc.get(),
+                                           GetBasePtr(&labels),
+                                           loss_desc.get(),
+                                           GetBasePtr(loss),
+                                           logits_desc.get(),
+                                           GetBasePtr(&backprop));
+  } else {
+    PADDLE_ENFORCE_EQ(d3,
+                      1,
+                      phi::errors::InvalidArgument(
+                          "If soft_label=False, axis must be -1 or"
+                          " can be regard as last dimention in mlu kernel."));
+    Tensor labels_int32;
+    labels_int32.Resize(labels.dims());
+    dev_ctx.template Alloc<int32_t>(&labels_int32);
+
+    MLUCnnlTensorDesc labels_int64_desc(labels);
+    MLUCnnlTensorDesc labels_int32_desc(labels_int32);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::INT64, DataType::INT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  labels_int64_desc.get(),
+                  GetBasePtr(&labels),
+                  labels_int32_desc.get(),
+                  GetBasePtr(&labels_int32));
+
+    const int regard_sparse_shape[cnnl_softmax_dims - 1] = {d1, 1};
+    MLUCnnlTensorDesc sparse_labels_desc(
+        cnnl_softmax_dims - 1, regard_sparse_shape, ToCnnlDataType<int32_t>());
+    MLUCnnlTensorDesc sparse_loss_desc(
+        cnnl_softmax_dims - 1, regard_sparse_shape, ToCnnlDataType<T>());
+
+    MLUCnnl::SparseSoftmaxXentWithLogits(dev_ctx,
+                                         mode,
+                                         logits_desc.get(),
+                                         GetBasePtr(&logits),
+                                         sparse_labels_desc.get(),
+                                         GetBasePtr(&labels_int32),
+                                         sparse_loss_desc.get(),
+                                         GetBasePtr(loss),
+                                         logits_desc.get(),
+                                         GetBasePtr(&backprop));
+  }
 }
 
 template <typename T, typename Context>

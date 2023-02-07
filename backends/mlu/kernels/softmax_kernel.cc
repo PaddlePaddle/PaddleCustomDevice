@@ -12,49 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/impl/softmax_kernel_impl.h"
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
-
-template <typename T, typename Context>
-void SoftmaxKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   int axis,
-                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-
-  const int rank = x.dims().size();
-  axis = custom_kernel::CanonicalAxis(axis, rank);
-
-  // cnnl softmax only support 3-dims, regard all shape as [d1, d2, d3]
-  const int cnnl_softmax_dims = 3;
-  const int d1 = custom_kernel::SizeToAxis(axis, x.dims());
-  const int d2 = x.dims()[axis];
-  const int d3 = custom_kernel::SizeOutAxis(axis, x.dims());
-
-  // CNNL_SOFTMAX_MODE_LOW_DIMENSION has better perfermence, use it as much as
-  // possible.
-  cnnlSoftmaxMode_t mode = CNNL_SOFTMAX_MODE_LOW_DIMENSION;
-  std::vector<int> regard_in_shape{d1, 1, d2};
-  if (d3 != 1) {
-    mode = CNNL_SOFTMAX_MODE_MEDIUM_DIMENSION;
-    regard_in_shape = {d1, d2, d3};
-  }
-
-  static const cnnlSoftmaxAlgorithm_t algo = CNNL_SOFTMAX_ACCURATE;
-  MLUCnnlTensorDesc in_desc(
-      cnnl_softmax_dims, regard_in_shape.data(), ToCnnlDataType<T>());
-  MLUCnnl::SoftmaxForward(dev_ctx,
-                          algo,
-                          mode,
-                          NULL,
-                          in_desc.get(),
-                          GetBasePtr(&x),
-                          NULL,
-                          in_desc.get(),
-                          GetBasePtr(out));
-}
 
 template <typename T, typename Context>
 void SoftmaxGradKernel(const Context& dev_ctx,

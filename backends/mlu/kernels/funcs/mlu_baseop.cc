@@ -4607,47 +4607,6 @@ MLURNNDesc::~MLURNNDesc() {
                                                  output));
 }
 
-/* static */ void MLUCnnl::NLLLossForward(
-    const Context& ctx,
-    cnnlNlllossAlgorithm_t algo,
-    const int ignore_index,
-    const cnnlTensorDescriptor_t x_desc,
-    const void* x,
-    const cnnlTensorDescriptor_t t_desc,
-    const void* target,
-    const cnnlTensorDescriptor_t w_desc,
-    const void* filter,
-    const cnnlTensorDescriptor_t ttf_desc,
-    void* total_filter,
-    const cnnlTensorDescriptor_t output_desc,
-    void* output) {
-  cnnlHandle_t handle = GetHandleFromCTX(ctx);
-
-  size_t workspace_size;
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlGetNlllossWorkspaceSize(handle, x_desc, &workspace_size));
-
-  Tensor workspace;
-  workspace.Resize({static_cast<int64_t>(workspace_size)});
-  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
-
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlNlllossForward(handle,
-                                                algo,
-                                                workspace_ptr,
-                                                workspace_size,
-                                                x_desc,
-                                                x,
-                                                t_desc,
-                                                target,
-                                                ignore_index,
-                                                w_desc,
-                                                filter,
-                                                ttf_desc,
-                                                total_filter,
-                                                output_desc,
-                                                output));
-}
-
 /* static */ void MLUCnnl::SmoothL1LossForward(
     const Context& ctx,
     const cnnlTensorDescriptor_t x_desc,

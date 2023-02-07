@@ -82,6 +82,11 @@ class TestReduceSum2(OpTest):
         self.dtype = np.int32
 
 
+class TestReduceSum3(OpTest):
+    def init_dtype(self):
+        self.dtype = np.bool
+
+
 class TestReduceSumNet(unittest.TestCase):
     def set_reduce_sum_function(self, x):
         # keep_dim = False

@@ -21,8 +21,8 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void NonZeroKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& condition,
-                      phi::DenseTensor* out) {
+                   const phi::DenseTensor& condition,
+                   phi::DenseTensor* out) {
   auto dims = condition.dims();
   const int rank = dims.size();
 
@@ -38,6 +38,7 @@ void NonZeroKernel(const Context& dev_ctx,
                    GetBasePtr(&num_true));
 
   Tensor local_true_num;
+  dev_ctx.Wait();  // add sync for fully calculated results
   TensorCopy(dev_ctx, num_true, true, &local_true_num, phi::CPUPlace());
   auto true_num = *local_true_num.data<int>();
 

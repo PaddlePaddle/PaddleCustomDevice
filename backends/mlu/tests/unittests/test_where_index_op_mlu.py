@@ -107,20 +107,12 @@ class TestWhereOpError(unittest.TestCase):
         paddle.set_device("CustomMLU")
         with program_guard(Program(), Program()):
             cond = paddle.static.data(name="cond", shape=[-1, 4], dtype="bool")
-            result = fluid.layers.where(cond)
+            result = paddle.nonzero(cond)
+
             exe = fluid.Executor(paddle.CustomPlace("CustomMLU", 0))
             exe.run(fluid.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
             out = exe.run(fluid.default_main_program(), feed={"cond": cond_i})
-
-
-class TestWhereRaiseError(unittest.TestCase):
-    def test_errors(self):
-        def test_type():
-            paddle.set_device("CustomMLU")
-            fluid.layers.where([10])
-
-        self.assertRaises(TypeError, test_type)
 
 
 if __name__ == "__main__":

@@ -82,6 +82,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                           GetBasePtr(softmax));
 
   if (soft_label) {
+    VLOG(5) << "[cross_entropy] soft_label";
     const cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
     MLUCnnl::SoftmaxCrossEntropyWithLogits(dev_ctx,
                                            mode,
@@ -95,42 +96,118 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                                            logits_desc.get(),
                                            GetBasePtr(&backprop));
   } else {
-    PADDLE_ENFORCE_EQ(d3,
-                      1,
-                      phi::errors::InvalidArgument(
-                          "If soft_label=False, axis must be -1 or"
-                          " can be regard as last dimention in mlu kernel."));
+    VLOG(5) << "[cross_entropy] hard_label."
+            << " If d3 != 1, we need to do transpose for inputs and outputs"
+            << " so that we can use CNNL_SOFTMAX_MODE_LOW_DIMENSION mode.";
+
+    VLOG(5) << "[cross_entropy] labels dims: " << labels.dims();
+
+    mode = CNNL_SOFTMAX_MODE_LOW_DIMENSION;
     Tensor labels_int32;
     labels_int32.Resize(labels.dims());
-    dev_ctx.template Alloc<int32_t>(&labels_int32);
 
-    MLUCnnlTensorDesc labels_int64_desc(labels);
-    MLUCnnlTensorDesc labels_int32_desc(labels_int32);
-    cnnlCastDataType_t cast_type =
-        GetCastDataType(DataType::INT64, DataType::INT32);
-    MLUCnnl::Cast(dev_ctx,
-                  cast_type,
-                  labels_int64_desc.get(),
-                  GetBasePtr(&labels),
-                  labels_int32_desc.get(),
-                  GetBasePtr(&labels_int32));
+    if (labels.dtype() == DataType::INT32) {
+      labels_int32 = labels;
+    } else {
+      // do cast since cnnl only supports int32 labels in sparse celoss.
+      dev_ctx.template Alloc<int32_t>(&labels_int32);
+      MLUCnnlTensorDesc labels_desc(labels);
+      MLUCnnlTensorDesc labels_int32_desc(labels_int32);
+      cnnlCastDataType_t cast_type =
+          GetCastDataType(labels.dtype(), DataType::INT32);
+      MLUCnnl::Cast(dev_ctx,
+                    cast_type,
+                    labels_desc.get(),
+                    GetBasePtr(&labels),
+                    labels_int32_desc.get(),
+                    GetBasePtr(&labels_int32));
+    }
 
-    const int regard_sparse_shape[cnnl_softmax_dims - 1] = {d1, 1};
-    MLUCnnlTensorDesc sparse_labels_desc(
-        cnnl_softmax_dims - 1, regard_sparse_shape, ToCnnlDataType<int32_t>());
-    MLUCnnlTensorDesc sparse_loss_desc(
-        cnnl_softmax_dims - 1, regard_sparse_shape, ToCnnlDataType<T>());
+    // transpose logits, labels, loss and backprop if d3 != 1
+    Tensor trans_logits, trans_labels, trans_loss;
+    if (d3 == 1) {
+      trans_logits = logits;
+      trans_labels = labels_int32;
+      trans_loss = *loss;
+      trans_logits.Resize({d1, d2_logits});
+      trans_labels.Resize({d1});
+      trans_loss.Resize({d1});
+    } else {
+      VLOG(5) << "[cross_entropy] d3 != 1, do transpose to [d1, d3, d2_xxx]";
+      Tensor logits_3d = logits;
+      logits_3d.Resize({d1, d2_logits, d3});
+      labels_int32.Resize({d1, 1, d3});
+      trans_loss.Resize({d1, d3, 1});
+      dev_ctx.template Alloc<T>(&trans_loss);
+      std::vector<int> perm{0, 2, 1};
+      TransposeFromMLUTensor<T>(dev_ctx, perm, &logits_3d, &trans_logits, true);
+      TransposeFromMLUTensor<int32_t>(
+          dev_ctx, perm, &labels_int32, &trans_labels, true);
+      trans_labels.Resize({d1, d3});
+    }
+
+    MLUCnnlTensorDesc trans_logits_desc(trans_logits);
+    MLUCnnlTensorDesc trans_labels_desc(trans_labels);
+    MLUCnnlTensorDesc trans_loss_desc(trans_loss);
+
+    if (ignore_index != -100) {
+      // mask label with ignore_index, do with the following
+      // 1. logic: mask = (label == ignore_index)
+      Tensor ignore_idx_tensor, mask_tensor;
+      std::vector<int64_t> ignore_dim_vec(trans_labels.dims().size(), 1);
+      ignore_idx_tensor.Resize(
+          phi::DDim(ignore_dim_vec.data(), ignore_dim_vec.size()));
+      mask_tensor.Resize(trans_labels.dims());
+      dev_ctx.template Alloc<int32_t>(&ignore_idx_tensor);
+      dev_ctx.template Alloc<bool>(&mask_tensor);
+      FillMLUTensorWithHostValue<int32_t>(
+          dev_ctx, ignore_index, &ignore_idx_tensor);
+      MLUCnnlTensorDesc ignore_index_desc(ignore_idx_tensor);
+      MLUCnnlTensorDesc mask_desc(mask_tensor);
+      MLUCnnl::Logic(dev_ctx,
+                     CNNL_LOGIC_OP_EQ,
+                     trans_labels_desc.get(),
+                     GetBasePtr(&trans_labels),
+                     ignore_index_desc.get(),
+                     GetBasePtr(&ignore_idx_tensor),
+                     mask_desc.get(),
+                     GetBasePtr(&mask_tensor));
+      // 2. mask: if mask = True, set 0
+      int fill_scale = 0;
+      MLUCnnl::Mask(dev_ctx,
+                    CNNL_MASKED_FILL_HOST,
+                    trans_labels_desc.get(),
+                    GetBasePtr(&trans_labels),
+                    mask_desc.get(),
+                    GetBasePtr(&mask_tensor),
+                    nullptr, /*value_desc*/
+                    nullptr, /*value*/
+                    &fill_scale,
+                    trans_labels_desc.get(),
+                    GetBasePtr(&trans_labels),
+                    nullptr /*number*/);
+    }
 
     MLUCnnl::SparseSoftmaxXentWithLogits(dev_ctx,
                                          mode,
-                                         logits_desc.get(),
-                                         GetBasePtr(&logits),
-                                         sparse_labels_desc.get(),
-                                         GetBasePtr(&labels_int32),
-                                         sparse_loss_desc.get(),
-                                         GetBasePtr(loss),
-                                         logits_desc.get(),
+                                         trans_logits_desc.get(),
+                                         GetBasePtr(&trans_logits),
+                                         trans_labels_desc.get(),
+                                         GetBasePtr(&trans_labels),
+                                         trans_loss_desc.get(),
+                                         GetBasePtr(&trans_loss),
+                                         trans_logits_desc.get(),
                                          GetBasePtr(&backprop));
+
+    if (d3 != 1) {
+      VLOG(5) << "[cross_entropy] d3 != 1, transpose loss back."
+              << " [d1, d3, 1] -> [d1, 1, d3] -> original shape";
+      std::vector<int> perm{0, 2, 1};
+      phi::DDim original_loss_dim = loss->dims();
+      loss->Resize({d1, 1, d3});
+      TransposeFromMLUTensor<T>(dev_ctx, perm, &trans_loss, loss, false);
+      loss->Resize(original_loss_dim);
+    }
   }
 }
 

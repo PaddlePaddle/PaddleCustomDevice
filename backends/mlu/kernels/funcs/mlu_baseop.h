@@ -2422,10 +2422,10 @@ inline void TransposeFromMLUTensor(const Context& ctx,
                                    bool need_reshape_or_alloc) {
   const int dim_size = perm.size();
 
-  if (perm.size() == 0) {
-    TensorCopy(dev_ctx, *transformed_input, false, transformed_output);
-    return;
-  }
+  // if (perm.size() == 0) {
+  //   TensorCopy(dev_ctx, *transformed_input, false, transformed_output);
+  //   return;
+  // }
 
   if (need_reshape_or_alloc) {
     std::vector<int> output_shape;

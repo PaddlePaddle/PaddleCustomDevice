@@ -150,43 +150,41 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     MLUCnnlTensorDesc trans_labels_desc(trans_labels);
     MLUCnnlTensorDesc trans_loss_desc(trans_loss);
 
-    if (ignore_index != -100) {
-      // mask label with ignore_index, do with the following
-      // 1. logic: mask = (label == ignore_index)
-      Tensor ignore_idx_tensor, mask_tensor;
-      std::vector<int64_t> ignore_dim_vec(trans_labels.dims().size(), 1);
-      ignore_idx_tensor.Resize(
-          phi::DDim(ignore_dim_vec.data(), ignore_dim_vec.size()));
-      mask_tensor.Resize(trans_labels.dims());
-      dev_ctx.template Alloc<int32_t>(&ignore_idx_tensor);
-      dev_ctx.template Alloc<bool>(&mask_tensor);
-      FillMLUTensorWithHostValue<int32_t>(
-          dev_ctx, ignore_index, &ignore_idx_tensor);
-      MLUCnnlTensorDesc ignore_index_desc(ignore_idx_tensor);
-      MLUCnnlTensorDesc mask_desc(mask_tensor);
-      MLUCnnl::Logic(dev_ctx,
-                     CNNL_LOGIC_OP_EQ,
-                     trans_labels_desc.get(),
-                     GetBasePtr(&trans_labels),
-                     ignore_index_desc.get(),
-                     GetBasePtr(&ignore_idx_tensor),
-                     mask_desc.get(),
-                     GetBasePtr(&mask_tensor));
-      // 2. mask: if mask = True, set 0
-      int fill_scale = 0;
-      MLUCnnl::Mask(dev_ctx,
-                    CNNL_MASKED_FILL_HOST,
-                    trans_labels_desc.get(),
-                    GetBasePtr(&trans_labels),
-                    mask_desc.get(),
-                    GetBasePtr(&mask_tensor),
-                    nullptr, /*value_desc*/
-                    nullptr, /*value*/
-                    &fill_scale,
-                    trans_labels_desc.get(),
-                    GetBasePtr(&trans_labels),
-                    nullptr /*number*/);
-    }
+    // mask label with ignore_index, do with the following
+    // 1. logic: mask = (label == ignore_index)
+    Tensor ignore_idx_tensor, mask_tensor;
+    std::vector<int64_t> ignore_dim_vec(trans_labels.dims().size(), 1);
+    ignore_idx_tensor.Resize(
+        phi::DDim(ignore_dim_vec.data(), ignore_dim_vec.size()));
+    mask_tensor.Resize(trans_labels.dims());
+    dev_ctx.template Alloc<int32_t>(&ignore_idx_tensor);
+    dev_ctx.template Alloc<bool>(&mask_tensor);
+    FillMLUTensorWithHostValue<int32_t>(
+        dev_ctx, ignore_index, &ignore_idx_tensor);
+    MLUCnnlTensorDesc ignore_index_desc(ignore_idx_tensor);
+    MLUCnnlTensorDesc mask_desc(mask_tensor);
+    MLUCnnl::Logic(dev_ctx,
+                   CNNL_LOGIC_OP_EQ,
+                   trans_labels_desc.get(),
+                   GetBasePtr(&trans_labels),
+                   ignore_index_desc.get(),
+                   GetBasePtr(&ignore_idx_tensor),
+                   mask_desc.get(),
+                   GetBasePtr(&mask_tensor));
+    // 2. mask: if mask = True, set 0
+    int fill_scale = 0;
+    MLUCnnl::Mask(dev_ctx,
+                  CNNL_MASKED_FILL_HOST,
+                  trans_labels_desc.get(),
+                  GetBasePtr(&trans_labels),
+                  mask_desc.get(),
+                  GetBasePtr(&mask_tensor),
+                  nullptr, /*value_desc*/
+                  nullptr, /*value*/
+                  &fill_scale,
+                  trans_labels_desc.get(),
+                  GetBasePtr(&trans_labels),
+                  nullptr /*number*/);
 
     MLUCnnl::SparseSoftmaxXentWithLogits(dev_ctx,
                                          mode,

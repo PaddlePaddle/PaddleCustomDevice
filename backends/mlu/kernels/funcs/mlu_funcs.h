@@ -352,8 +352,9 @@ inline std::vector<T> get_new_data_from_tensor(
   return vec_new_data;
 }
 
+template <typename T>
 inline phi::DenseTensor ReshapeToMatrix(const phi::DenseTensor& src,
-                                        int num_col_dims) {
+                                        T num_col_dims) {
   int rank = src.dims().size();
   PADDLE_ENFORCE_GE(
       rank,

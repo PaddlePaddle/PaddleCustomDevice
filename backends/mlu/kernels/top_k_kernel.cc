@@ -30,12 +30,11 @@ void TopkKernel(const Context& dev_ctx,
     axis += x.dims().size();
   }
   int k = k_scalar.to<int>();
-  if (k) {
-    phi::DDim output_dims = out->dims();
-    output_dims[output_dims.size() - 1] = k;
-    out->Resize(output_dims);
-    indices->Resize(output_dims);
-  }
+  phi::DDim output_dims = x.dims();
+  output_dims[axis] = k;
+
+  out->Resize(output_dims);
+  indices->Resize(output_dims);
 
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(indices);
@@ -45,7 +44,6 @@ void TopkKernel(const Context& dev_ctx,
                                              indices->dims()};
   indices_int32.set_meta(indices_int32_meta);
   dev_ctx.template Alloc<int32_t>(&indices_int32);
-
   MLUCnnlTensorDesc input_desc(x);
   MLUCnnlTensorDesc values_output_desc(*out);
   MLUCnnlTensorDesc indices_int32_desc(indices_int32);

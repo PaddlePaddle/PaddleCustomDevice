@@ -105,8 +105,16 @@ void BatchNormKernel(const Context& dev_ctx,
     transformed_y = *y;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  MLUCnnlActivationDesc activation_desc(act_mode, 1.0f, /*sliced_dim*/ -1);
+
   MLUCnnl::FusedBatchNorm(dev_ctx,
                           !global_stats,
+			  activation_desc.get(),
+                          mode,
+                          bn_ops,
                           transformed_desc.get(),
                           GetBasePtr(&transformed_x),
                           others_input_desc.get(),
@@ -250,11 +258,19 @@ void BatchNormGradKernel(
     transformed_d_x = *d_x;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  MLUCnnlActivationDesc activation_desc(act_mode, 1.0f, /*sliced_dim*/ -1);
+
   if (use_global_stats) {
     const auto* running_mean = mean.get_ptr();
     const auto* running_variance = variance.get_ptr();
     MLUCnnl::FusedBatchNormGrad(dev_ctx,
                                 false /*is_training*/,
+				activation_desc.get(),
+                                mode,
+                                bn_ops,
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_d_y),
                                 transformed_desc.get(),
@@ -271,6 +287,9 @@ void BatchNormGradKernel(
   } else {
     MLUCnnl::FusedBatchNormGrad(dev_ctx,
                                 true /*is_training*/,
+				activation_desc.get(),
+                                mode,
+                                bn_ops,
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_d_y),
                                 transformed_desc.get(),

@@ -44,21 +44,31 @@ void ArgMinKernel(const Context& dev_ctx,
     // TODO(songkai05): core dump happend when the dtype of CANN op ArgMin's
     // output is int64, so we compute the int32 result and cast it to int64 when
     // param dtype is 3 temporarily.
-    phi::DenseTensor out_tmp;
-    out_tmp.Resize(out->dims());
-    dev_ctx.template Alloc<int32_t>(&out_tmp);
+    NPUAttributeMap attrs = {{"dtype", dtype}};
 
-    NpuOpRunner runner;
-    runner.SetType("ArgMin")
-        .AddInput(x)
-        .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
-        .AddOutput(out_tmp)
-        .AddAttr("dtype", dtype);
-    runner.Run(stream);
+    auto op_runner = [](const std::vector<phi::DenseTensor>& inputs,
+                        const std::vector<phi::DenseTensor>& outputs,
+                        const auto& host_vec,
+                        const NPUAttributeMap& attrs,
+                        const phi::CustomContext& dev_ctx) {
+      NpuOpRunner runner;
+      runner.SetType("ArgMin")
+          .AddInput(inputs[0])
+          .AddInput(dev_ctx, std::move(host_vec))
+          .AddOutput(outputs[0])
+          .AddAttrs(attrs);
+      runner.Run(dev_ctx.stream());
+    };
 
-    const auto& cast_runner =
-        NpuOpRunner("Cast", {out_tmp}, {*out}, {{"dst_type", ACL_INT64}});
-    cast_runner.Run(stream);
+    NpuOpRunner::TypeAdapter<int64_t>(
+        {x},
+        {*out},
+        std::vector<int64_t>({axis.to<int64_t>()}),
+        attrs,
+        dev_ctx,
+        op_runner,
+        {x.dtype()},
+        {phi::DataType::INT32});
   }
 }
 

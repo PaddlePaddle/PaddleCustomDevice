@@ -159,12 +159,12 @@ class NpuOpRunner {
   static void TypeAdapter(
       const std::vector<phi::DenseTensor> &inputs,
       const std::vector<phi::DenseTensor> &outputs,
-      const std::vector<T> &&host_vec,
+      const std::vector<std::vector<T>> &&host_vecs,
       const NPUAttributeMap &attrs,
       const phi::CustomContext &dev_ctx,
       std::function<void(const std::vector<phi::DenseTensor> &,
                          const std::vector<phi::DenseTensor> &,
-                         const std::vector<T> &,
+                         const std::vector<std::vector<T>> &,
                          const NPUAttributeMap &,
                          const phi::CustomContext &)> op_runner,
       const std::vector<paddle::experimental::DataType> &input_type,
@@ -202,7 +202,7 @@ class NpuOpRunner {
       }
     }
 
-    op_runner(tmp_inputs, tmp_outputs, host_vec, attrs, dev_ctx);
+    op_runner(tmp_inputs, tmp_outputs, host_vecs, attrs, dev_ctx);
 
     for (size_t i = 0; i < output_type.size(); ++i) {
       bool cast_output =

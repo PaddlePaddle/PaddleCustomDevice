@@ -63,12 +63,12 @@ void ArgMinKernel(const Context& dev_ctx,
     NpuOpRunner::TypeAdapter<int64_t>(
         {x},
         {*out},
-        {std::vector<int64_t>({axis.to<int64_t>()})},
         attrs,
         dev_ctx,
         op_runner,
         {x.dtype()},
-        {phi::DataType::INT32});
+        {phi::DataType::INT32},
+        {std::vector<int64_t>({axis.to<int64_t>()})});
   }
 }
 

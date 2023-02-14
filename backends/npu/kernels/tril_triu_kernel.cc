@@ -35,6 +35,7 @@ void TrilTriuKernel(const Context& dev_ctx,
 
   auto op_func_tril = [](const std::vector<phi::DenseTensor>& inputs,
                          const std::vector<phi::DenseTensor>& outputs,
+                         const auto& host_vecs,
                          const NPUAttributeMap& attrs,
                          const Context& dev_ctx) {
     const auto& runner = NpuOpRunner("Tril", inputs, outputs, attrs);
@@ -43,6 +44,7 @@ void TrilTriuKernel(const Context& dev_ctx,
 
   auto op_func_triu = [](const std::vector<phi::DenseTensor>& inputs,
                          const std::vector<phi::DenseTensor>& outputs,
+                         const auto& host_vecs,
                          const NPUAttributeMap& attrs,
                          const Context& dev_ctx) {
     const auto& runner = NpuOpRunner("Triu", inputs, outputs, attrs);
@@ -50,21 +52,21 @@ void TrilTriuKernel(const Context& dev_ctx,
   };
   if (x.dtype() == phi::DenseTensorMeta::DataType::BOOL) {
     if (lower) {
-      NpuOpRunner::TypeAdapter({x},
-                               {*out},
-                               attr_input,
-                               dev_ctx,
-                               op_func_tril,
-                               {phi::DenseTensorMeta::DataType::UINT8},
-                               {phi::DenseTensorMeta::DataType::UINT8});
+      NpuOpRunner::TypeAdapter<int>({x},
+                                    {*out},
+                                    attr_input,
+                                    dev_ctx,
+                                    op_func_tril,
+                                    {phi::DenseTensorMeta::DataType::UINT8},
+                                    {phi::DenseTensorMeta::DataType::UINT8});
     } else {
-      NpuOpRunner::TypeAdapter({x},
-                               {*out},
-                               attr_input,
-                               dev_ctx,
-                               op_func_triu,
-                               {phi::DenseTensorMeta::DataType::UINT8},
-                               {phi::DenseTensorMeta::DataType::UINT8});
+      NpuOpRunner::TypeAdapter<int>({x},
+                                    {*out},
+                                    attr_input,
+                                    dev_ctx,
+                                    op_func_triu,
+                                    {phi::DenseTensorMeta::DataType::UINT8},
+                                    {phi::DenseTensorMeta::DataType::UINT8});
     }
   } else {
     const auto& runner = NpuOpRunner(op_type, {x}, {*out}, attr_input);

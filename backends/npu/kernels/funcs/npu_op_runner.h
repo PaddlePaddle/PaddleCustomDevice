@@ -93,73 +93,10 @@ class NpuOpRunner {
 
   void Run(aclrtStream stream = nullptr, bool sync = false) const;
 
-  static void TypeAdapter(
-      const std::vector<phi::DenseTensor> &inputs,
-      const std::vector<phi::DenseTensor> &outputs,
-      const NPUAttributeMap &attrs,
-      const phi::CustomContext &dev_ctx,
-      std::function<void(const std::vector<phi::DenseTensor> &,
-                         const std::vector<phi::DenseTensor> &,
-                         const NPUAttributeMap &,
-                         const phi::CustomContext &)> op_runner,
-      const std::vector<paddle::experimental::DataType> &input_type,
-      const std::vector<paddle::experimental::DataType> &output_type) {
-    std::vector<phi::DenseTensor> tmp_inputs(inputs.size());
-    std::vector<phi::DenseTensor> tmp_outputs(outputs.size());
-
-    for (size_t i = 0; i < input_type.size(); ++i) {
-      bool cast_input =
-          (input_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           input_type[i] != inputs[i].dtype());
-      if (!cast_input) {
-        tmp_inputs[i] = inputs[i];
-      } else {
-        tmp_inputs[i].Resize(inputs[i].dims());
-        dev_ctx.Alloc(&(tmp_inputs[i]), input_type[i]);
-
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {inputs[i]},
-            {tmp_inputs[i]},
-            {{"dst_type", static_cast<int>(ConvertToNpuDtype(input_type[i]))}});
-        cast_runner.Run(dev_ctx.stream());
-      }
-    }
-    for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
-      if (!cast_output) {
-        tmp_outputs[i] = outputs[i];
-      } else {
-        tmp_outputs[i].Resize(outputs[i].dims());
-        dev_ctx.Alloc(&(tmp_outputs[i]), output_type[i]);
-      }
-    }
-
-    op_runner(tmp_inputs, tmp_outputs, attrs, dev_ctx);
-
-    for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
-      if (cast_output) {
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {tmp_outputs[i]},
-            {outputs[i]},
-            {{"dst_type",
-              static_cast<int>(ConvertToNpuDtype(outputs[i].dtype()))}});
-        cast_runner.Run(dev_ctx.stream());
-      }
-    }
-  }
-
   template <typename T>
   static void TypeAdapter(
       const std::vector<phi::DenseTensor> &inputs,
       const std::vector<phi::DenseTensor> &outputs,
-      const std::vector<std::vector<T>> &&host_vecs,
       const NPUAttributeMap &attrs,
       const phi::CustomContext &dev_ctx,
       std::function<void(const std::vector<phi::DenseTensor> &,
@@ -168,7 +105,8 @@ class NpuOpRunner {
                          const NPUAttributeMap &,
                          const phi::CustomContext &)> op_runner,
       const std::vector<paddle::experimental::DataType> &input_type,
-      const std::vector<paddle::experimental::DataType> &output_type) {
+      const std::vector<paddle::experimental::DataType> &output_type,
+      const std::vector<std::vector<T>> &&host_vecs = {}) {
     std::vector<phi::DenseTensor> tmp_inputs(inputs.size());
     std::vector<phi::DenseTensor> tmp_outputs(outputs.size());
 

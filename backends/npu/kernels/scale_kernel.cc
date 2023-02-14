@@ -45,6 +45,7 @@ void ScaleKernel(const Context& dev_ctx,
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                     const std::vector<phi::DenseTensor>& outputs,
+                    const auto& host_vecs,
                     const NPUAttributeMap& attrs,
                     const phi::CustomContext& dev_ctx) {
     const auto& muls_runner = NpuOpRunner(
@@ -57,21 +58,21 @@ void ScaleKernel(const Context& dev_ctx,
   };
 
   if (x.dtype() == phi::DataType::INT32) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
+    NpuOpRunner::TypeAdapter<int>({x},
+                                  {*out},
+                                  attrs,
+                                  dev_ctx,
+                                  op_func,
+                                  {phi::DataType::INT32},
+                                  {phi::DataType::INT32});
   } else if (x.dtype() == phi::DataType::INT64) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
+    NpuOpRunner::TypeAdapter<int>({x},
+                                  {*out},
+                                  attrs,
+                                  dev_ctx,
+                                  op_func,
+                                  {phi::DataType::INT32},
+                                  {phi::DataType::INT32});
   } else {
     const auto& runner = NpuOpRunner("Power", {x}, {*out}, attrs);
     runner.Run(stream);

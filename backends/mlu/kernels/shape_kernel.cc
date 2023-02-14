@@ -21,21 +21,14 @@ template <typename T, typename Context>
 void ShapeKernel(const Context& dev_ctx,
                  const phi::DenseTensor& input,
                  phi::DenseTensor* out) {
-    phi::DDim in_dims;
-    in_dims = input.dims();
-    out->Resize({in_dims.size()});
-    dev_ctx.template Alloc<int32_t>(out);
+  phi::DDim in_dims;
+  in_dims = input.dims();
+  out->Resize({in_dims.size()});
+  auto out_data = dev_ctx.template HostAlloc<int32_t>(out);
 
-    // shape op cpu
-    Tensor shape_on_cpu;
-    shape_on_cpu.Resize({in_dims.size()});
-    auto cpu_data = dev_ctx.template HostAlloc<int32_t>(&shape_on_cpu);
-    for (int i = 0; i < in_dims.size(); ++i) {
-      cpu_data[i] = in_dims[i];
-    }
-
-    // cpu to mlu
-    TensorCopy(dev_ctx, shape_on_cpu, true, out);
+  for (int i = 0; i < in_dims.size(); ++i) {
+    out_data[i] = in_dims[i];
+  }
 }
 
 }  // namespace custom_kernel

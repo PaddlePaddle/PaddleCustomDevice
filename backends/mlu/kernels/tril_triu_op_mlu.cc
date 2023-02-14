@@ -17,7 +17,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TrilKernel(const Context& dev_ctx,
+void TrilTriuKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     int diagonal,
                     bool lower,
@@ -41,12 +41,96 @@ void TrilKernel(const Context& dev_ctx,
                     GetBasePtr(out));
 }
 
+template <typename T, typename Context>
+void TrilKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                int diagonal,
+                phi::DenseTensor* out) {
+  custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, true, out);
+}
+
+template <typename T, typename Context>
+void TriuKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                int diagonal,
+                phi::DenseTensor* out) {
+  custom_kernel::TrilTriuKernel<T, Context>(dev_ctx, x, diagonal, false, out);
+}
+
+template <typename T, typename Context>
+void TrilTriuGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& out_grad,
+                        int diagonal,
+                        bool lower,
+                        phi::DenseTensor* x_grad) {
+  custom_kernel::TrilTriuKernel<T, Context>(
+      dev_ctx, out_grad, diagonal, lower, x_grad);
+}
+
+template <typename T, typename Context>
+void TrilGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out_grad,
+                    int diagonal,
+                    phi::DenseTensor* x_grad) {
+  custom_kernel::TrilTriuGradKernel<T, Context>(
+      dev_ctx, out_grad, diagonal, true, x_grad);
+}
+
+template <typename T, typename Context>
+void TriuGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out_grad,
+                    int diagonal,
+                    phi::DenseTensor* x_grad) {
+  custom_kernel::TrilTriuGradKernel<T, Context>(
+      dev_ctx, out_grad, diagonal, false, x_grad);
+}
+
 }  // namespace custom_kernel
+
+PD_REGISTER_PLUGIN_KERNEL(tril_triu,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TrilTriuKernel,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::TrilKernel,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(triu,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TriuKernel,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TrilTriuGradKernel,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(tril_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TrilGradKernel,
+                          float,
+                          int,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(triu_grad,
+                          CustomMLU,
+                          ALL_LAYOUT,
+                          custom_kernel::TriuGradKernel,
                           float,
                           int,
                           phi::dtype::float16) {}

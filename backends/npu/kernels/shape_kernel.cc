@@ -22,15 +22,11 @@ void ShapeKernel(const Context& dev_ctx,
                  const phi::DenseTensor& input,
                  phi::DenseTensor* out) {
   auto& in_dims = input.dims();
-  dev_ctx.template Alloc<int32_t>(out);
-
-  phi::DenseTensor cpu_tensor;
-  cpu_tensor.Resize({in_dims.size()});
-  auto cpu_data = dev_ctx.template HostAlloc<int32_t>(&cpu_tensor);
+  out->Resize({in_dims.size()});
+  auto out_data = dev_ctx.template HostAlloc<int32_t>(out);
   for (int i = 0; i < in_dims.size(); ++i) {
-    cpu_data[i] = in_dims[i];
+    out_data[i] = in_dims[i];
   }
-  TensorCopy(dev_ctx, cpu_tensor, true, out);
 }
 
 }  // namespace custom_kernel

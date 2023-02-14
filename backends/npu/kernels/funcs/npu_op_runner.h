@@ -93,6 +93,39 @@ class NpuOpRunner {
 
   void Run(aclrtStream stream = nullptr, bool sync = false) const;
 
+  static void TypeAdapter(
+      const std::vector<phi::DenseTensor> &inputs,
+      const std::vector<phi::DenseTensor> &outputs,
+      const NPUAttributeMap &attrs,
+      const phi::CustomContext &dev_ctx,
+      std::function<void(const std::vector<phi::DenseTensor> &,
+                         const std::vector<phi::DenseTensor> &,
+                         const NPUAttributeMap &,
+                         const phi::CustomContext &)> op_runner,
+      const std::vector<paddle::experimental::DataType> &input_type,
+      const std::vector<paddle::experimental::DataType> &output_type) {
+    std::function<void(const std::vector<phi::DenseTensor> &,
+                       const std::vector<phi::DenseTensor> &,
+                       const NPUAttributeMap &,
+                       const phi::CustomContext &,
+                       const std::vector<std::vector<int>> &)>
+        new_op_runner =
+            [&](const std::vector<phi::DenseTensor> &inputs,
+                const std::vector<phi::DenseTensor> &outputs,
+                const NPUAttributeMap &attrs,
+                const phi::CustomContext &dev_ctx,
+                const std::vector<std::vector<int>> &host_vecs = {}) {
+              op_runner(inputs, outputs, attrs, dev_ctx);
+            };
+    TypeAdapter<int>(inputs,
+                     outputs,
+                     attrs,
+                     dev_ctx,
+                     new_op_runner,
+                     input_type,
+                     output_type);
+  }
+
   template <typename T>
   static void TypeAdapter(
       const std::vector<phi::DenseTensor> &inputs,
@@ -101,9 +134,9 @@ class NpuOpRunner {
       const phi::CustomContext &dev_ctx,
       std::function<void(const std::vector<phi::DenseTensor> &,
                          const std::vector<phi::DenseTensor> &,
-                         const std::vector<std::vector<T>> &,
                          const NPUAttributeMap &,
-                         const phi::CustomContext &)> op_runner,
+                         const phi::CustomContext &,
+                         const std::vector<std::vector<T>> &)> op_runner,
       const std::vector<paddle::experimental::DataType> &input_type,
       const std::vector<paddle::experimental::DataType> &output_type,
       const std::vector<std::vector<T>> &&host_vecs = {}) {
@@ -140,7 +173,7 @@ class NpuOpRunner {
       }
     }
 
-    op_runner(tmp_inputs, tmp_outputs, host_vecs, attrs, dev_ctx);
+    op_runner(tmp_inputs, tmp_outputs, attrs, dev_ctx, host_vecs);
 
     for (size_t i = 0; i < output_type.size(); ++i) {
       bool cast_output =

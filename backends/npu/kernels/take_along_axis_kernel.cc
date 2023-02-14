@@ -28,21 +28,19 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
   NPUAttributeMap attr_input = {{"dim", axis}};
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                     const std::vector<phi::DenseTensor>& outputs,
-                    const auto& host_vecs,
                     const NPUAttributeMap& attrs,
                     const Context& dev_ctx) {
     const auto& runner = NpuOpRunner("GatherElements", inputs, outputs, attrs);
     runner.Run(dev_ctx.stream());
   };
   if (x.dtype() == phi::DataType::FLOAT64) {
-    NpuOpRunner::TypeAdapter<int>(
-        {x, index},
-        {*out},
-        attr_input,
-        dev_ctx,
-        op_func,
-        {phi::DataType::FLOAT32, phi::DataType::INT64},
-        {phi::DataType::FLOAT32});
+    NpuOpRunner::TypeAdapter({x, index},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32, phi::DataType::INT64},
+                             {phi::DataType::FLOAT32});
   } else {
     const auto& runner =
         NpuOpRunner("GatherElements", {x, index}, {*out}, attr_input);

@@ -116,7 +116,6 @@ void ExpandKernel(const Context& dev_ctx,
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                     const std::vector<phi::DenseTensor>& outputs,
-                    const auto& host_vecs,
                     const NPUAttributeMap& attrs,
                     const Context& dev_ctx) {
     const auto& runner = NpuOpRunner("ExpandD", inputs, outputs, attrs);
@@ -124,21 +123,21 @@ void ExpandKernel(const Context& dev_ctx,
   };
 
   if (x.dtype() == phi::DataType::BOOL) {
-    NpuOpRunner::TypeAdapter<int>({x},
-                                  {*out},
-                                  attr_input,
-                                  dev_ctx,
-                                  op_func,
-                                  {phi::DataType::UINT8},
-                                  {phi::DataType::UINT8});
+    NpuOpRunner::TypeAdapter({x},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8},
+                             {phi::DataType::UINT8});
   } else if (x.dtype() == phi::DataType::INT64) {
-    NpuOpRunner::TypeAdapter<int>({x},
-                                  {*out},
-                                  attr_input,
-                                  dev_ctx,
-                                  op_func,
-                                  {phi::DataType::INT32},
-                                  {phi::DataType::INT32});
+    NpuOpRunner::TypeAdapter({x},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::INT32},
+                             {phi::DataType::INT32});
   } else {
     const auto& runner = NpuOpRunner("ExpandD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());

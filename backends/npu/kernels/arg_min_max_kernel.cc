@@ -48,9 +48,9 @@ void ArgMinKernel(const Context& dev_ctx,
 
     auto op_runner = [](const std::vector<phi::DenseTensor>& inputs,
                         const std::vector<phi::DenseTensor>& outputs,
-                        const auto& host_vecs,
                         const NPUAttributeMap& attrs,
-                        const phi::CustomContext& dev_ctx) {
+                        const phi::CustomContext& dev_ctx,
+                        const auto& host_vecs) {
       NpuOpRunner runner;
       runner.SetType("ArgMin")
           .AddInput(inputs[0])

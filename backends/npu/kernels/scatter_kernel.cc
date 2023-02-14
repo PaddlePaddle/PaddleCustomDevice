@@ -37,7 +37,6 @@ void ScatterKernel(const Context& dev_ctx,
 
   auto op_func_update = [](const std::vector<phi::DenseTensor>& inputs,
                            const std::vector<phi::DenseTensor>& outputs,
-                           const auto& host_vecs,
                            const NPUAttributeMap& attrs,
                            const Context& dev_ctx) {
     const auto& runner =
@@ -46,7 +45,6 @@ void ScatterKernel(const Context& dev_ctx,
   };
   auto op_func_add = [](const std::vector<phi::DenseTensor>& inputs,
                         const std::vector<phi::DenseTensor>& outputs,
-                        const auto& host_vecs,
                         const NPUAttributeMap& attrs,
                         const Context& dev_ctx) {
     const auto& runner =
@@ -56,15 +54,15 @@ void ScatterKernel(const Context& dev_ctx,
 
   if (overwrite) {
     if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
-      NpuOpRunner::TypeAdapter<int>({x, tmp_tensor, updates},
-                                    {*out},
-                                    {},
-                                    dev_ctx,
-                                    op_func_update,
-                                    {phi::DenseTensorMeta::DataType::INT32,
-                                     phi::DenseTensorMeta::DataType::INT32,
-                                     phi::DenseTensorMeta::DataType::INT32},
-                                    {phi::DenseTensorMeta::DataType::INT32});
+      NpuOpRunner::TypeAdapter({x, tmp_tensor, updates},
+                               {*out},
+                               {},
+                               dev_ctx,
+                               op_func_update,
+                               {phi::DenseTensorMeta::DataType::INT32,
+                                phi::DenseTensorMeta::DataType::INT32,
+                                phi::DenseTensorMeta::DataType::INT32},
+                               {phi::DenseTensorMeta::DataType::INT32});
     } else {
       const auto& runner_update = NpuOpRunner(
           "TensorScatterUpdate", {x, tmp_tensor, updates}, {*out}, {});
@@ -72,15 +70,15 @@ void ScatterKernel(const Context& dev_ctx,
     }
   } else {
     if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
-      NpuOpRunner::TypeAdapter<int>({x, tmp_tensor, updates},
-                                    {*out},
-                                    {},
-                                    dev_ctx,
-                                    op_func_add,
-                                    {phi::DenseTensorMeta::DataType::INT32,
-                                     phi::DenseTensorMeta::DataType::INT32,
-                                     phi::DenseTensorMeta::DataType::INT32},
-                                    {phi::DenseTensorMeta::DataType::INT32});
+      NpuOpRunner::TypeAdapter({x, tmp_tensor, updates},
+                               {*out},
+                               {},
+                               dev_ctx,
+                               op_func_add,
+                               {phi::DenseTensorMeta::DataType::INT32,
+                                phi::DenseTensorMeta::DataType::INT32,
+                                phi::DenseTensorMeta::DataType::INT32},
+                               {phi::DenseTensorMeta::DataType::INT32});
     } else {
       const auto& runner_add =
           NpuOpRunner("TensorScatterAdd", {x, tmp_tensor, updates}, {*out}, {});

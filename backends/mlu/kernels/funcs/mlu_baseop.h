@@ -412,7 +412,9 @@ class MLUCnnlActivationDesc {
  public:
   MLUCnnlActivationDesc(const MLUCnnlActivationDesc& desc) = delete;
   MLUCnnlActivationDesc& operator=(const MLUCnnlActivationDesc& desc) = delete;
-  MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode, const float ceof);
+  MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode,
+                        const float ceof,
+                        const int sliced_dim = 1);
   MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode,
                         const float ceof,
                         const float sliced_dim,
@@ -1194,6 +1196,7 @@ class MLUCnnl {
   static void BatchMatmul(const Context& ctx,
                           const bool transpose_a,
                           const bool transpose_b,
+                          const cnnlDataType_t data_type,
                           const cnnlTensorDescriptor_t in0_desc,
                           const void* in0,
                           const cnnlTensorDescriptor_t in1_desc,
@@ -1741,6 +1744,9 @@ class MLUCnnl {
 
   static void FusedBatchNorm(const Context& ctx,
                              const bool is_training,
+                             const cnnlActivationDescriptor_t activation_desc,
+                             const cnnlBatchNormMode_t mode,
+                             const cnnlBatchNormOps_t bnOps,
                              const cnnlTensorDescriptor_t x_desc,
                              const void* x,
                              const cnnlTensorDescriptor_t scale_desc,
@@ -1757,21 +1763,25 @@ class MLUCnnl {
                              void* saved_mean,
                              void* saved_var);
 
-  static void FusedBatchNormGrad(const Context& ctx,
-                                 const bool is_training,
-                                 const cnnlTensorDescriptor_t y_backprop_desc,
-                                 const void* y_backprop,
-                                 const cnnlTensorDescriptor_t x_desc,
-                                 const void* x,
-                                 const cnnlTensorDescriptor_t scale_desc,
-                                 const void* scale,
-                                 const void* saved_mean,
-                                 const void* saved_var,
-                                 float epsilon,
-                                 const cnnlTensorDescriptor_t x_backprop_desc,
-                                 void* x_backprop,
-                                 void* scale_backprop,
-                                 void* offset_backprop);
+  static void FusedBatchNormGrad(
+      const ExecutionContext& ctx,
+      const bool is_training,
+      const cnnlActivationDescriptor_t activation_desc,
+      const cnnlBatchNormMode_t mode,
+      const cnnlBatchNormOps_t bnOps,
+      const cnnlTensorDescriptor_t y_backprop_desc,
+      const void* y_backprop,
+      const cnnlTensorDescriptor_t x_desc,
+      const void* x,
+      const cnnlTensorDescriptor_t scale_desc,
+      const void* scale,
+      const void* saved_mean,
+      const void* saved_var,
+      float epsilon,
+      const cnnlTensorDescriptor_t x_backprop_desc,
+      void* x_backprop,
+      void* scale_backprop,
+      void* offset_backprop);
 
   static void LayerNormForward(const Context& ctx,
                                int axis,

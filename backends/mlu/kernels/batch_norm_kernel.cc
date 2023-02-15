@@ -407,8 +407,21 @@ void BatchNormInferKernel(const Context& dev_ctx,
     transformed_y = *y;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
+
   MLUCnnl::FusedBatchNorm(dev_ctx,
                           false /* is_traing */,
+                          activation_desc.get(),
+                          mode,
+                          bn_ops,
                           transformed_desc.get(),
                           GetBasePtr(&transformed_x),
                           others_input_desc.get(),

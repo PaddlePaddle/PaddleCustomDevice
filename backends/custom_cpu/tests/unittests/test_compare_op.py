@@ -286,8 +286,8 @@ class API_TestElementwise_Equal(unittest.TestCase):
     def test_api(self):
         paddle.enable_static()
         with fluid.program_guard(fluid.Program(), fluid.Program()):
-            label = fluid.layers.assign(np.array([3, 3], dtype="int32"))
-            limit = fluid.layers.assign(np.array([3, 2], dtype="int32"))
+            label = paddle.assign(np.array([3, 3], dtype="int32"))
+            limit = paddle.assign(np.array([3, 2], dtype="int32"))
             out = paddle.equal(x=label, y=limit)
             place = fluid.CustomPlace("custom_cpu", 0)
             exe = fluid.Executor(place)
@@ -295,8 +295,8 @@ class API_TestElementwise_Equal(unittest.TestCase):
         self.assertEqual((res == np.array([True, False])).all(), True)
 
         with fluid.program_guard(fluid.Program(), fluid.Program()):
-            label = fluid.layers.assign(np.array([3, 3], dtype="int32"))
-            limit = fluid.layers.assign(np.array([3, 3], dtype="int32"))
+            label = paddle.assign(np.array([3, 3], dtype="int32"))
+            limit = paddle.assign(np.array([3, 3], dtype="int32"))
             out = paddle.equal(x=label, y=limit)
             place = fluid.CustomPlace("custom_cpu", 0)
             exe = fluid.Executor(place)
@@ -310,8 +310,8 @@ class TestCompareOpPlace(unittest.TestCase):
         place = paddle.CustomPlace("custom_cpu", 0)
         if core.is_compiled_with_cuda():
             place = paddle.CustomPlace("custom_cpu", 0)
-        label = fluid.layers.assign(np.array([3, 3], dtype="int32"))
-        limit = fluid.layers.assign(np.array([3, 2], dtype="int32"))
+        label = paddle.assign(np.array([3, 3], dtype="int32"))
+        limit = paddle.assign(np.array([3, 2], dtype="int32"))
         out = fluid.layers.less_than(label, limit, force_cpu=True)
         exe = fluid.Executor(place)
         (res,) = exe.run(fetch_list=[out])

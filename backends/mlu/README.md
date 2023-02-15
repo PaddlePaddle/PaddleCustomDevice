@@ -16,7 +16,7 @@ Please refer to the following steps to compile, install and verify the custom de
 ## Get Sources
 
 ```bash
-# clone source 
+# clone source
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
@@ -57,16 +57,25 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # run a simple model
 python ../tests/test_MNIST_model.py
 
-# expected similar output 
+# expected similar output
 ... ...
-Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
-Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
-Epoch 0 step 200, Loss = [2.002725], Accuracy = 0.453125
-Epoch 0 step 300, Loss = [1.912869], Accuracy = 0.546875
-Epoch 0 step 400, Loss = [1.9169667], Accuracy = 0.5625
-Epoch 0 step 500, Loss = [1.9007692], Accuracy = 0.5625
-Epoch 0 step 600, Loss = [1.8512673], Accuracy = 0.625
-Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
-Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
-Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
+Epoch 0 step 0, Loss = [2.2901897], Accuracy = [0.140625]
+Epoch 0 step 100, Loss = [1.7438297], Accuracy = [0.78125]
+Epoch 0 step 200, Loss = [1.6934999], Accuracy = [0.796875]
+Epoch 0 step 300, Loss = [1.6888921], Accuracy = [0.78125]
+Epoch 0 step 400, Loss = [1.7731808], Accuracy = [0.734375]
+Epoch 0 step 500, Loss = [1.7497146], Accuracy = [0.71875]
+Epoch 0 step 600, Loss = [1.5952139], Accuracy = [0.875]
+Epoch 0 step 700, Loss = [1.6935768], Accuracy = [0.78125]
+Epoch 0 step 800, Loss = [1.695106], Accuracy = [0.796875]
+Epoch 0 step 900, Loss = [1.6372337], Accuracy = [0.828125]
+```
+## Environment variables
+
+### PADDLE_MLU_ALLOW_TF32
+This function enables Conv, MatMul operators to be computed with TF32 data type. Currently, only MLU590 are supported, and TF32 is the default data type for MLU590 operation.
+
+Turn on TF32 data type calculation.
+```bash
+export PADDLE_MLU_ALLOW_TF32=true
 ```

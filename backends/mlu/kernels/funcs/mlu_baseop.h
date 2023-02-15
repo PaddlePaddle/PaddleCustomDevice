@@ -1764,7 +1764,7 @@ class MLUCnnl {
                              void* saved_var);
 
   static void FusedBatchNormGrad(
-      const ExecutionContext& ctx,
+      const Context& ctx,
       const bool is_training,
       const cnnlActivationDescriptor_t activation_desc,
       const cnnlBatchNormMode_t mode,

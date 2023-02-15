@@ -77,5 +77,5 @@ This function enables Conv, MatMul operators to be computed with TF32 data type.
 
 Turn on TF32 data type calculation.
 ```bash
-export TF_MLU_ALLOW_TF32=true
+export PADDLE_MLU_ALLOW_TF32=true
 ```

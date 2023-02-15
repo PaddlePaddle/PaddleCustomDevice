@@ -80,5 +80,5 @@ Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
 
 开启TF32数据类型计算。
 ```bash
-export TF_MLU_ALLOW_TF32=true
+export PADDLE_MLU_ALLOW_TF32=true
 ```

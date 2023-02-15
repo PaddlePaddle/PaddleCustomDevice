@@ -108,7 +108,12 @@ void BatchNormKernel(const Context& dev_ctx,
   cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
   cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
   cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
-  MLUCnnlActivationDesc activation_desc(act_mode, 1.0f, /*sliced_dim*/ -1);
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
 
   MLUCnnl::FusedBatchNorm(dev_ctx,
                           !global_stats,
@@ -261,7 +266,12 @@ void BatchNormGradKernel(
   cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
   cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
   cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
-  MLUCnnlActivationDesc activation_desc(act_mode, 1.0f, /*sliced_dim*/ -1);
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
 
   if (use_global_stats) {
     const auto* running_mean = mean.get_ptr();

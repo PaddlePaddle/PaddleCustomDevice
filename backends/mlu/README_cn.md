@@ -72,3 +72,13 @@ Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
 Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
 Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
 ```
+
+## 四、环境变量
+
+### PADDLE_MLU_ALLOW_TF32
+该功能使Conv，MatMul类算子以TF32数据类型进行计算，目前只支持MLU590板卡，TF32是MLU590运行的默认数据类型。
+
+开启TF32数据类型计算。
+```bash
+export TF_MLU_ALLOW_TF32=true
+```

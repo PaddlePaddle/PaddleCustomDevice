@@ -1570,10 +1570,9 @@ MLURNNDesc::~MLURNNDesc() {
                                                         &return_algo_count));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlGetMatMulHeuristicResult(result, algo, &workspace_size));
-  auto& dev_ctx = GetDevCtxFromCTX(ctx);
-  Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-      {static_cast<int64_t>(workspace_size)}, dev_ctx);
-  void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlMatMul_v2(handle,
                                            matmul_desc,
@@ -2719,10 +2718,9 @@ MLURNNDesc::~MLURNNDesc() {
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlGetL2LossWorkspaceSize(handle, input_desc, &workspace_size));
 
-  auto& dev_ctx = GetDevCtxFromCTX(ctx);
-  Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-      {static_cast<int64_t>(workspace_size)}, dev_ctx);
-  void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlL2Loss_v2(
       handle, input_desc, input, workspace_ptr, workspace_size, output));
@@ -3349,10 +3347,10 @@ MLURNNDesc::~MLURNNDesc() {
     size_t workspace_size = 0;
     PADDLE_ENFORCE_MLU_SUCCESS(
         cnnlGetBatchNormForwardWorkspaceSize(handle, x_desc, &workspace_size));
-    auto& dev_ctx = GetDevCtxFromCTX(ctx);
-    Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-        {static_cast<int64_t>(workspace_size)}, dev_ctx);
-    void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+
+    Tensor workspace;
+    workspace.Resize({static_cast<int64_t>(workspace_size)});
+    void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
     PADDLE_ENFORCE_MLU_SUCCESS(
         cnnlBatchNormForwardTraining_v2(handle,
@@ -3428,10 +3426,10 @@ MLURNNDesc::~MLURNNDesc() {
   if (is_training) {
     PADDLE_ENFORCE_MLU_SUCCESS(
         cnnlGetBatchNormBackwardWorkspaceSize(handle, x_desc, &workspace_size));
-    auto& dev_ctx = GetDevCtxFromCTX(ctx);
-    Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-        {static_cast<int64_t>(workspace_size)}, dev_ctx);
-    void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+
+    Tensor workspace;
+    workspace.Resize({static_cast<int64_t>(workspace_size)});
+    void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
     PADDLE_ENFORCE_MLU_SUCCESS(
         cnnlBatchNormBackward_v2(handle,
@@ -3467,10 +3465,10 @@ MLURNNDesc::~MLURNNDesc() {
   } else {
     PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetFrozenBatchNormBackwardWorkspaceSize(
         handle, x_desc, &workspace_size));
-    auto& dev_ctx = GetDevCtxFromCTX(ctx);
-    Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-        {static_cast<int64_t>(workspace_size)}, dev_ctx);
-    void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+
+    Tensor workspace;
+    workspace.Resize({static_cast<int64_t>(workspace_size)});
+    void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
     PADDLE_ENFORCE_MLU_SUCCESS(cnnlFrozenBatchNormBackward_v2(handle,
                                                               activation_desc,
@@ -3561,10 +3559,9 @@ MLURNNDesc::~MLURNNDesc() {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetLayerNormBackwardWorkspaceSize(
       handle, x_desc, axis, &workspace_size));
 
-  auto& dev_ctx = GetDevCtxFromCTX(ctx);
-  Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-      {static_cast<int64_t>(workspace_size)}, dev_ctx);
-  void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlLayerNormBackward_v2(handle,
                                                       x_desc,
@@ -5330,10 +5327,9 @@ MLURNNDesc::~MLURNNDesc() {
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlGetSyncBatchNormStatsWorkspaceSize(handle, x_desc, &workspace_size));
 
-  auto& dev_ctx = GetDevCtxFromCTX(ctx);
-  Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-      {static_cast<int64_t>(workspace_size)}, dev_ctx);
-  void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlSyncBatchNormStats_v2(handle,
                                                        x_desc,
@@ -5444,10 +5440,9 @@ MLURNNDesc::~MLURNNDesc() {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetSyncBatchnormBackwardReduceWorkspaceSize(
       handle, desc_x, &workspace_size));
 
-  auto& dev_ctx = GetDevCtxFromCTX(ctx);
-  Tensor workspace = ctx.AllocateTmpTensor<int8_t, MLUDeviceContext>(
-      {static_cast<int64_t>(workspace_size)}, dev_ctx);
-  void* workspace_ptr = workspace.mutable_data(ctx.GetPlace());
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlSyncBatchnormBackwardReduce_v2(handle,

@@ -269,6 +269,14 @@ static inline int CanonicalAxis(const int axis, const int rank) {
   return axis;
 }
 
+static inline int SizeFromAxis(const int axis, phi::DDim dims) {
+  int size = 1;
+  for (int i = axis; i < dims.size(); i++) {
+    size *= dims[i];
+  }
+  return size;
+}
+
 static inline int SizeToAxis(const int axis, phi::DDim dims) {
   int size = 1;
   for (int i = 0; i < axis; i++) {

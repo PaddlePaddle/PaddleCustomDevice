@@ -20,6 +20,7 @@ paddle.set_device("custom_cpu")
 
 unary_api_list = [
     paddle.nn.functional.relu,
+    paddle.nn.functional.softmax,
 ]
 
 inplace_api_list = []

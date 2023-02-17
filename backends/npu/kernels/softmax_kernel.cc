@@ -22,6 +22,13 @@ void SoftmaxKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out) {
+  const int rank = x.dims().size();
+  if (rank == 0) {
+    dev_ctx.template Alloc<T>(out);
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(1));
+    return;
+  }
+
   std::vector<int> axes;
   axes.push_back(axis);
   NPUAttributeMap attr_input = {{"axes", axes}};
@@ -39,6 +46,12 @@ void SoftmaxGradKernel(const Context& dev_ctx,
                        phi::DenseTensor* x_grad) {
   auto dims = x_grad->dims();
   const int rank = dims.size();
+  if (out.dims().size() == 0) {
+    dev_ctx.template Alloc<T>(x_grad);
+    FillNpuTensorWithConstant<T>(x_grad, dev_ctx, static_cast<T>(0));
+    return;
+  }
+
   axis = custom_kernel::CanonicalAxis(axis, rank);
   int64_t first_dim = 1;
   int64_t sec_dim = 1;

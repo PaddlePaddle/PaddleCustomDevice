@@ -83,6 +83,8 @@ unary_api_list = [
     paddle.lgamma,
     paddle.poisson,
     paddle.bernoulli,
+    paddle.nn.functional.softmax,
+    paddle.nn.functional.log_softmax,
 ]
 
 inplace_api_list = [

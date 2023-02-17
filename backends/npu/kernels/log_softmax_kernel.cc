@@ -28,6 +28,12 @@ void LogSoftmaxKernel(const Context& dev_ctx,
   const int rank = x.dims().size();
   axis = CanonicalAxis(axis, rank);
 
+  if (rank == 0) {
+    dev_ctx.template Alloc<T>(out);
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(0));
+    return;
+  }
+
   if (x.numel() != 0) {
     const auto& runner = NpuOpRunner(
         "LogSoftmaxV2", {x}, {*out}, {{"axes", std::vector<int>{axis}}});
@@ -46,6 +52,11 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
 
   const int rank = dout.dims().size();
   axis = CanonicalAxis(axis, rank);
+
+  if (rank == 0) {
+    FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+    return;
+  }
 
   if (dout.numel() != 0) {
     const auto& runner = NpuOpRunner("LogSoftmaxGrad",

@@ -80,8 +80,22 @@ void PReluKernel(const Context& dev_ctx,
     const auto& mul_runner = NpuOpRunner("Mul", {x, weight}, {*out});
     mul_runner.Run(stream);
   } else {
-    const auto& runner = NpuOpRunner("PRelu", {x, alpha}, {*out}, {});
-    runner.Run(stream);
+    if (x.dims().size() == 0) {
+      std::vector<T> x_vct;
+      TensorToVector(dev_ctx, x, dev_ctx, &x_vct);
+      std::vector<T> alpha_vct;
+      TensorToVector(dev_ctx, alpha, dev_ctx, &alpha_vct);
+      std::vector<T> out_grad_vct;
+      TensorToVector(dev_ctx, out_grad, dev_ctx, &out_grad_vct);
+      auto val = x_vct[0] > static_cast<T>(0) ? out_grad_vct[0]
+                                              : out_grad_vct[0] * alpha_vct[0];
+      FillNpuTensorWithConstant<T>(x_grad, dev_ctx, val);
+    } else {
+      phi::DenseTensor weight(alpha);
+      const auto& runner = NpuOpRunner(
+          "PReluGrad", {out_grad, x, weight}, {*x_grad, *alpha_grad}, {});
+      runner.Run(stream);
+    }
   }
 }
 
@@ -181,10 +195,22 @@ void PReluGradKernel(const Context& dev_ctx,
         .Run(stream);
     alpha_grad->Resize(alpha_dims);
   } else {
-    phi::DenseTensor weight(alpha);
-    const auto& runner = NpuOpRunner(
-        "PReluGrad", {out_grad, x, weight}, {*x_grad, *alpha_grad}, {});
-    runner.Run(stream);
+    if (x.dims().size() == 0) {
+      std::vector<T> x_vct;
+      TensorToVector(dev_ctx, x, dev_ctx, &x_vct);
+      std::vector<T> alpha_vct;
+      TensorToVector(dev_ctx, alpha, dev_ctx, &alpha_vct);
+      std::vector<T> out_grad_vct;
+      TensorToVector(dev_ctx, out_grad, dev_ctx, &out_grad_vct);
+      auto val = x_vct[0] > static_cast<T>(0) ? out_grad_vct[0]
+                                              : out_grad_vct[0] * alpha_vct[0];
+      FillNpuTensorWithConstant<T>(x_grad, dev_ctx, val);
+    } else {
+      phi::DenseTensor weight(alpha);
+      const auto& runner = NpuOpRunner(
+          "PReluGrad", {out_grad, x, weight}, {*x_grad, *alpha_grad}, {});
+      runner.Run(stream);
+    }
   }
 }
 

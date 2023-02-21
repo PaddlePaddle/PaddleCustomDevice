@@ -28,7 +28,9 @@ void SoftmaxKernel(const Context& dev_ctx,
   axis = custom_kernel::CanonicalAxis(axis, rank);
 
   if (rank == 0) {
+    auto out_dim = out->dims();
     FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(1), out);
+    out->Resize(out_dim);
     return;
   }
 
@@ -73,7 +75,9 @@ void SoftmaxGradKernel(const Context& dev_ctx,
   axis = custom_kernel::CanonicalAxis(axis, rank);
 
   if (rank == 0) {
+    auto x_grad_dim = x_grad->dims();
     FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), x_grad);
+    x_grad->Resize(x_grad_dim);
     return;
   }
 

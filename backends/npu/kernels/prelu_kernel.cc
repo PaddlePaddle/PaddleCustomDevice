@@ -87,8 +87,9 @@ void PReluKernel(const Context& dev_ctx,
       TensorToVector(dev_ctx, alpha, dev_ctx, &alpha_vct);
       auto val =
           x_vct[0] > static_cast<T>(0) ? x_vct[0] : alpha_vct[0] * x_vct[0];
-      dev_ctx.template Alloc<T>(out);
+      auto out_dim = out->dims();
       FillNpuTensorWithConstant<T>(out, dev_ctx, val);
+      out->Resize(out_dim);
     } else {
       const auto& runner = NpuOpRunner("PRelu", {x, alpha}, {*out}, {});
       runner.Run(stream);
@@ -201,7 +202,9 @@ void PReluGradKernel(const Context& dev_ctx,
       TensorToVector(dev_ctx, out_grad, dev_ctx, &out_grad_vct);
       auto val = x_vct[0] > static_cast<T>(0) ? out_grad_vct[0]
                                               : out_grad_vct[0] * alpha_vct[0];
+      auto x_grad_dim = x_grad->dims();
       FillNpuTensorWithConstant<T>(x_grad, dev_ctx, val);
+      x_grad->Resize(x_grad_dim);
     } else {
       phi::DenseTensor weight(alpha);
       const auto& runner = NpuOpRunner(

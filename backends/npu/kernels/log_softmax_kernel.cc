@@ -29,8 +29,9 @@ void LogSoftmaxKernel(const Context& dev_ctx,
   axis = CanonicalAxis(axis, rank);
 
   if (rank == 0) {
-    dev_ctx.template Alloc<T>(out);
+    auto out_dim = out->dims();
     FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(0));
+    out->Resize(out_dim);
     return;
   }
 
@@ -54,7 +55,9 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
   axis = CanonicalAxis(axis, rank);
 
   if (rank == 0) {
+    auto dx_dim = dx->dims();
     FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+    dx->Resize(dx_dim);
     return;
   }
 

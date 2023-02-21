@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -61,8 +61,13 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
   const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
   int axis_dim = x.dims()[calc_axis];
   // allocate memory on device.
-  dev_ctx.template Alloc<T>(out);
+  T* out_data = dev_ctx.template Alloc<T>(out);
   if (out->numel() == 0) {
+    return;
+  }
+
+  if (rank == 0) {
+    out_data[0] = static_cast<T>(1);
     return;
   }
 
@@ -108,8 +113,13 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
   int axis_dim = x_grad->dims()[calc_axis];
 
   // allocate memory on device.
-  dev_ctx.template Alloc<T>(x_grad);
+  T* x_grad_data = dev_ctx.template Alloc<T>(x_grad);
   if (x_grad->numel() == 0) {
+    return;
+  }
+
+  if (out.dims().size() == 0) {
+    x_grad_data[0] = static_cast<T>(0);
     return;
   }
 

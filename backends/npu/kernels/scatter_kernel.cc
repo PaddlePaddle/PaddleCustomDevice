@@ -113,31 +113,34 @@ void ScatterGradKernel(const Context& dev_ctx,
                         index_type,
                         phi::DataType::INT32,
                         phi::DataType::INT64));
-  dev_ctx.template Alloc<T>(x_grad);
-  dev_ctx.template Alloc<T>(updates_grad);
-  TensorCopy(dev_ctx, out_grad, true, x_grad);
-  // zeros like
-  phi::DenseTensor zeroslike_xout;
-  phi::DenseTensorMeta meta = {updates.dtype(), updates.dims()};
-  zeroslike_xout.set_meta(meta);
-  dev_ctx.template Alloc<T>(&zeroslike_xout);
+  if (x_grad) {
+    dev_ctx.template Alloc<T>(x_grad);
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    // zeros like
+    phi::DenseTensor zeroslike_xout;
+    phi::DenseTensorMeta meta = {updates.dtype(), updates.dims()};
+    zeroslike_xout.set_meta(meta);
+    dev_ctx.template Alloc<T>(&zeroslike_xout);
 
-  const auto& runner_tensor_zeros =
-      NpuOpRunner("ZerosLike", {*updates_grad}, {zeroslike_xout}, {});
-  runner_tensor_zeros.Run(dev_ctx.stream());
-  const auto& runner_add = NpuOpRunner("TensorScatterUpdate",
-                                       {out_grad, tmp_tensor, zeroslike_xout},
-                                       {*x_grad},
-                                       {});
-  runner_add.Run(dev_ctx.stream());
-
-  NpuOpRunner runner;
-  runner.SetType("GatherV2")
-      .AddInput(out_grad)
-      .AddInput(index)
-      .AddInput(dev_ctx, std::vector<int32_t>({0}))
-      .AddOutput(*updates_grad);
-  runner.Run(dev_ctx.stream());
+    const auto& runner_tensor_zeros =
+        NpuOpRunner("ZerosLike", {updates}, {zeroslike_xout}, {});
+    runner_tensor_zeros.Run(dev_ctx.stream());
+    const auto& runner_add = NpuOpRunner("TensorScatterUpdate",
+                                         {out_grad, tmp_tensor, zeroslike_xout},
+                                         {*x_grad},
+                                         {});
+    runner_add.Run(dev_ctx.stream());
+  }
+  if (updates_grad) {
+    dev_ctx.template Alloc<T>(updates_grad);
+    NpuOpRunner runner;
+    runner.SetType("GatherV2")
+        .AddInput(out_grad)
+        .AddInput(index)
+        .AddInput(dev_ctx, std::vector<int32_t>({0}))
+        .AddOutput(*updates_grad);
+    runner.Run(dev_ctx.stream());
+  }
 }
 
 }  // namespace custom_kernel

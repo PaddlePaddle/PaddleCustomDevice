@@ -440,10 +440,14 @@ C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
 
 // CCL
 HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
-  if (dtype == C_DataType::FLOAT32) {
+  if (dtype == C_DataType::FLOAT64) {
+    return HCCL_DATA_TYPE_FP64;
+  } else if (dtype == C_DataType::FLOAT32) {
     return HCCL_DATA_TYPE_FP32;
   } else if (dtype == C_DataType::FLOAT16) {
     return HCCL_DATA_TYPE_FP16;
+  } else if (dtype == C_DataType::INT64) {
+    return HCCL_DATA_TYPE_INT64;
   } else if (dtype == C_DataType::INT32) {
     return HCCL_DATA_TYPE_INT32;
   } else if (dtype == C_DataType::INT8) {

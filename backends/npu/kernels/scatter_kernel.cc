@@ -123,7 +123,7 @@ void ScatterGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(&zeroslike_xout);
 
     const auto& runner_tensor_zeros =
-        NpuOpRunner("ZerosLike", {updates}, {zeroslike_xout}, {});
+        NpuOpRunner("ZerosLike", {zeroslike_xout}, {zeroslike_xout}, {});
     runner_tensor_zeros.Run(dev_ctx.stream());
     const auto& runner_add = NpuOpRunner("TensorScatterUpdate",
                                          {out_grad, tmp_tensor, zeroslike_xout},

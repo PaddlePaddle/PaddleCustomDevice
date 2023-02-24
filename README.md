@@ -16,6 +16,10 @@ PaddleCustomDevice has supported the following backends:
 - [PaddlePaddle Custom Device Implementaion for Custom CPU](backends/custom_cpu/README.md)
 - [PaddlePaddle Custom Device Implementaion for Cambricon MLU](backends/mlu/README.md)
 
+## Environment Variables
+| Subject     | Variable Name       | Type   | Description    | Default Value |
+| -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
+| Debug | CUSTOM_DEVICE_BLACK_LIST| String |   Ops in black_list will be fallbacked to CPU  |                                            |
 
 ## Copyright and License
 PaddleCustomDevice is provided under the [Apache-2.0 license](LICENSE).

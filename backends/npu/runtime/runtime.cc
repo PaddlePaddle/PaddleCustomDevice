@@ -184,7 +184,7 @@ class AlignnedAllocatorList {
 
 static AlignnedAllocatorList *global_allocator_list = nullptr;
 
-inline void check_unintialized_thread(int dev_id) {
+inline void check_uninitialized_thread(int dev_id) {
   if (g_current_device_id == -1) {
     g_current_device_id = dev_id;
     ACL_CHECK(aclrtSetDevice(dev_id));
@@ -192,7 +192,7 @@ inline void check_unintialized_thread(int dev_id) {
 }
 
 inline size_t get_current_device_id() {
-  check_unintialized_thread(0);
+  check_uninitialized_thread(0);
   ACL_CHECK(aclrtGetDevice(&g_current_device_id));
   return g_current_device_id;
 }
@@ -327,7 +327,9 @@ C_Status AsyncMemCpyD2H(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
-  check_unintialized_thread(device->id);
+  if (device) {
+    check_uninitialized_thread(device->id);
+  }
   ACL_CHECK(aclrtMemcpyAsync(
       dst, size, src, size, ACL_MEMCPY_DEVICE_TO_HOST, (aclrtStream)(stream)));
   return C_SUCCESS;

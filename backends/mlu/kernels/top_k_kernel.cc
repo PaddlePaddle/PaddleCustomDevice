@@ -41,8 +41,9 @@ void TopkKernel(const Context& dev_ctx,
 
   // Support 0D
   if (output_dims.size() == 0) {
-    phi::Copy<Context>(dev_ctx, x, dev_ctx.GetPlace(), false, out);
-    phi::funcs::set_constant(dev_ctx, indices, 0.0);
+    TensorCopy(dev_ctx, x, true, out);
+    int64_t* indices_data = dev_ctx.template Alloc<int64_t>(indices);
+    indices_data[0] = 0;
     return;
   }
 

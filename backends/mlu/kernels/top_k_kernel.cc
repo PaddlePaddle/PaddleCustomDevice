@@ -39,6 +39,13 @@ void TopkKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(indices);
 
+  // Support 0D
+  if (output_dims.size() == 0) {
+    phi::Copy<Context>(dev_ctx, x, dev_ctx.GetPlace(), false, out);
+    phi::funcs::set_constant(dev_ctx, indices, 0.0);
+    return;
+  }
+
   phi::DenseTensor indices_int32;
   phi::DenseTensorMeta indices_int32_meta = {phi::DataType::INT32,
                                              indices->dims()};

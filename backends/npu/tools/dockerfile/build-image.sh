@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,19 +17,18 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.0.alpha005
-# bash build-aarch64.sh ${CANN_VERSION}
+# export CANN_VERSION=6.3.RC1.alpha001
+# bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.0.alpha005} # default 6.0.0.alpha005
-CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
+CANN_VERSION=${1:-6.3.RC1.alpha001} # default 6.3.RC1.alpha001
+CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run
 
-DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 600005
-DOCKER_VERSION=${DOCKER_VERSION:0:3} # 600
-# DOCKER_VERSION=${DOCKER_VERSION:0:2}${DOCKER_VERSION:5} # 605
+DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 631001
+DOCKER_VERSION=${DOCKER_VERSION:0:3} # 631
 
-# download aarch64 pkgs
+# download $(uname -m) pkgs
 if [ ! -f ${CANN_TOOLKIT} ]; then
-    wget -q https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
+    wget -q https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/Tuscany-ASL/Tuscany-ASL%20V100R001C84SPC835B001/${CANN_TOOLKIT}
 fi
 
 # copy file to current directory
@@ -40,13 +39,13 @@ if [ ! -f version.info ]; then
     cp /usr/local/Ascend/driver/version.info ./
 fi
 
-# ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
-docker build --no-cache --network=host -f Dockerfile.npu.ubuntu18-aarch64-gcc82 \
+# ubuntu18-$(uname -m)-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82
+docker build --no-cache --network=host -f Dockerfile.npu.ubuntu18-$(uname -m)-gcc82 \
        --build-arg CANN_VERSION=${CANN_VERSION} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \
        --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-aarch64-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-aarch64-gcc82
+       -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-$(uname -m)-gcc82

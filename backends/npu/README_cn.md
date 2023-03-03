@@ -9,8 +9,8 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann600-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann631-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann631-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
@@ -19,7 +19,7 @@ docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann600-$(uname -m)-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann631-$(uname -m)-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

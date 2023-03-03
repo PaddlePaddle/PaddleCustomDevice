@@ -9,8 +9,8 @@ Please refer to the following steps to compile, install and verify the custom de
 ```bash
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann600-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann631-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann631-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
@@ -19,7 +19,7 @@ docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann600-$(uname -m)-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann631-$(uname -m)-gcc82 /bin/bash
 
 # 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

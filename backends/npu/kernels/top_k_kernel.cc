@@ -43,7 +43,7 @@ void TopkKernel(const Context& dev_ctx,
 
   // Support 0D
   if (output_dims.size() == 0) {
-    TensorCopy(dev_ctx, x, truse, out);
+    TensorCopy(dev_ctx, x, true, out);
     FillNpuTensorWithConstant<int64_t>(
         indices, dev_ctx, static_cast<int64_t>(0.0));
     indices->Resize(output_dims);

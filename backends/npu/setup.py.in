@@ -9,7 +9,7 @@ class BinaryDistribution(Distribution):
 
 setup(
     name = '@CMAKE_PROJECT_NAME@',
-    version='@PLUGIN_VERSION@',
+    version='@CUSTOM_NPU_VERSION@',
     description='Paddle ascend plugin',
     long_description='',
     long_description_content_type="text/markdown",

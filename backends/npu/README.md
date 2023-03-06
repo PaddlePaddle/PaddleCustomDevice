@@ -13,7 +13,7 @@ docker pull registry.baidubce.com/device/paddle-npu:cann631-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann631-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
-docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
+docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        --workdir=/workspace --pids-limit 409600 \
        --privileged --network=host --shm-size=128G \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \

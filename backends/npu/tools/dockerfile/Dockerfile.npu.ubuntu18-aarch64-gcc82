@@ -80,8 +80,4 @@ RUN wget -q https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-c
 RUN apt-get clean -y
 RUN pip cache purge
 
-# install gcc-10 for baidu icoding on aarch64
-RUN wget -q https://bcloud-buildkit.bj.bcebos.com/build_env/gcc/ampere/gcc-10-with-glibc2.33.tar.gz && \
-    tar xf gcc-10-with-glibc2.33.tar.gz -C /opt/compiler/ && rm -rf gcc-10-with-glibc2.33.tar.gz
-
 EXPOSE 22

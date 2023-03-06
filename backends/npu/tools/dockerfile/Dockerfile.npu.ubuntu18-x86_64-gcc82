@@ -18,7 +18,7 @@ COPY version.info /usr/local/Ascend/driver/version.info
 WORKDIR /usr/local/Ascend
 ARG CANN_VERSION
 
-# install CANN requirment
+# install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha002/softwareinstall/instg/atlasdeploy_03_0022.html
 RUN apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev unzip pciutils \
             net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev 

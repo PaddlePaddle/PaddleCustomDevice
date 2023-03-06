@@ -66,12 +66,10 @@ RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libproto
     pkg-config libhdf5-100 libhdf5-dev lrzsz libsndfile1 tree ninja-build -y
 
 # install Paddle requirement
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O /root/requirements.txt
-RUN pip install -r /root/requirements.txt && rm -rf /root/requirements.txt
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O /root/requirements.txt
-# remove paddle2onnx on aarch64
-RUN sed -i "/\bpaddle2onnx\b/d" /root/requirements.txt
-RUN pip install -r /root/requirements.txt && rm -rf /root/requirements.txt
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+    pip install -r requirements.txt && rm -rf requirements.txt
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+   sed -i "/\bpaddle2onnx\b/d" requirements.txt && pip install -r requirements.txt && rm -rf requirements.txt
 
 # Install Go and glide
 RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
@@ -111,6 +109,11 @@ CMD source ~/.bashrc
 
 # Clean
 RUN apt-get clean -y
+RUN pip cache purge
+
+# install gcc-10 for baidu icoding on aarch64
+RUN wget -q https://bcloud-buildkit.bj.bcebos.com/build_env/gcc/ampere/gcc-10-with-glibc2.33.tar.gz && \
+    tar xf gcc-10-with-glibc2.33.tar.gz -C /opt/compiler/ && rm -rf gcc-10-with-glibc2.33.tar.gz
 
 # Create /lib64/ld-linux-aarch64.so.1
 RUN umask 0022 && \

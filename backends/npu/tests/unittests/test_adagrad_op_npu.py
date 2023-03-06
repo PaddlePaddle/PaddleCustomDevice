@@ -45,7 +45,7 @@ class TestAdagradOp1(OpTest):
             "LearningRate": np.array([lr]).astype(self.dtype),
         }
 
-        self.attrs = {"epsilon": epsilon}
+        self.attrs = {"epsilon": epsilon, "multi_precision": False}
 
         moment_out = moment + grad * grad
         param_out = param - lr * grad / (np.sqrt(moment_out) + epsilon)

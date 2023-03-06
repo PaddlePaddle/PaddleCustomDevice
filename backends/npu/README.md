@@ -6,11 +6,13 @@ Please refer to the following steps to compile, install and verify the custom de
 
 ## Prepare environment and source code
 
+> Note: support [CANN 6.0.0.alpha005](https://www.hiascend.com/software/cann/community-history) current now, as lastest version [CANN 6.3.RC1.alpha001](https://www.hiascend.com/software/cann/community) has OP bug needs to be fixed, details refer to [modelzoo/issues](https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue)。
+
 ```bash
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-npu:cann631-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann631-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann605-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann605-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -19,7 +21,7 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann631-$(uname -m)-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann605-$(uname -m)-gcc82 /bin/bash
 
 # 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

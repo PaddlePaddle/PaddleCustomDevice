@@ -414,6 +414,41 @@ binary_int_api_list = [
 #         np.testing.assert_array_equal(out2, x)
 #         np.testing.assert_array_equal(x.grad, 1.0)
 
+# def test_top_k(self):
+#     x = paddle.full([], 1, "float32")
+#     x.stop_gradient = False
+#     out, indices = paddle.topk(x, k=1, axis=0)
+#     out.retain_grads()
+#     out.backward()
+#     self.assertEqual(indices.shape, [])
+#     self.assertEqual(indices.item(), 0)
+#     self.assertEqual(x.shape, [])
+#     self.assertEqual(x.item(), 1.0)
+#     self.assertEqual(x.grad.shape, [])
+#     self.assertEqual(x.grad.item(0), 1.0)
+#     self.assertEqual(out.shape, [])
+#     self.assertEqual(out.item(), 1.0)
+#     self.assertEqual(out.grad, 1.0)
+
+#     x1 = paddle.full([], 1, "float32")
+#     x1.stop_gradient = False
+#     out1, indices1 = paddle.topk(x1, k=1, axis=-1)
+#     out1.retain_grads()
+#     out1.backward()
+#     self.assertEqual(indices1.shape, [])
+#     self.assertEqual(indices1.item(), 0)
+#     self.assertEqual(x1.shape, [])
+#     self.assertEqual(x1.item(), 1.0)
+#     self.assertEqual(x.grad.shape, [])
+#     self.assertEqual(x.grad.item(0), 1.0)
+#     self.assertEqual(out1.shape, [])
+#     self.assertEqual(out1.item(), 1.0)
+#     self.assertEqual(out1.grad, 1.0)
+
+#     with self.assertRaises(ValueError):
+#         tmp = paddle.topk(x1, k=1, axis=2)
+
+
 #     def test_linear(self):
 #         x = paddle.randn([3, 2])
 #         w = paddle.full(shape=[2, 4], fill_value=0.5)

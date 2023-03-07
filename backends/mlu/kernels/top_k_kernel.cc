@@ -39,6 +39,14 @@ void TopkKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(indices);
 
+  // Support 0D
+  if (output_dims.size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    int64_t* indices_data = dev_ctx.template Alloc<int64_t>(indices);
+    indices_data[0] = 0;
+    return;
+  }
+
   phi::DenseTensor indices_int32;
   phi::DenseTensorMeta indices_int32_meta = {phi::DataType::INT32,
                                              indices->dims()};

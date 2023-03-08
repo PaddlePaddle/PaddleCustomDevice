@@ -6,6 +6,7 @@ build/
 *.pyc
 *.swp
 *.diff
+*.run
 
 .vscode
 .idea
@@ -29,6 +30,8 @@ tools/__pycache__
 
 # ignore npu cache
 kernel_meta*/
+ascend_install.info
+version.info
 
 # ignore Paddle change
 Paddle/

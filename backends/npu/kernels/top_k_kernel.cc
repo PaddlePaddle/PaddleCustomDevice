@@ -26,6 +26,10 @@ void TopkKernel(const Context& dev_ctx,
                 bool sorted,
                 phi::DenseTensor* out,
                 phi::DenseTensor* indices) {
+  const int64_t kMaxTopkSize = 32768;
+  const int64_t kMaxK = 8;
+  const int64_t kMinK = 0;
+
   if (axis < 0) {
     axis += x.dims().size();
   }
@@ -56,9 +60,13 @@ void TopkKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int32_t>(&indices_int32);
 
   auto npu_stream = dev_ctx.stream();
+  // TopK have a better performance in this case.
+  std::string op_type =
+      ((x.numel() > kMaxTopkSize) && (k > kMinK) && (k < kMaxK)) ? "TopK"
+                                                                 : "TopKV2";
 
   NpuOpRunner npu_op_runner_topkv2;
-  npu_op_runner_topkv2.SetType("TopKV2")
+  npu_op_runner_topkv2.SetType(op_type)
       .AddInput(x)
       .AddInput(dev_ctx, std::vector<int32_t>{k})
       .AddOutput(*out)

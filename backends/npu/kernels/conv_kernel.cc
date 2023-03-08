@@ -172,18 +172,36 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 
   if (filter_grad) {
     dev_ctx.template Alloc<T>(filter_grad);
+    // DepthwiseConv2DBackpropFilterD only support fp32 output, so we need cast
+    // the output when the out dtype is fp16.
+    phi::DenseTensor filter_grad_tmp;
+    if (filter_grad->dtype() == phi::DataType::FLOAT16) {
+      filter_grad_tmp.Resize(filter_grad->dims());
+      dev_ctx.template Alloc<float>(&filter_grad_tmp);
+    } else {
+      filter_grad_tmp = *filter_grad;
+    }
     NpuOpRunner runner;
     runner.SetType("DepthwiseConv2DBackpropFilterD")
         .AddInput(input_tensor)
         .AddInput(output_grad_tensor)
-        .AddOutput(*filter_grad)
+        .AddOutput(filter_grad_tmp)
         .AddAttr("filter_size", phi::vectorize(transformed_filter.dims()))
         .AddAttr("strides", strides)
         .AddAttr("dilations", dilations)
         .AddAttr("pads", padding)
         .AddAttr("data_format", data_format)
         .Run(stream);
+    dev_ctx.Wait();
+    if (filter_grad->dtype() == phi::DataType::FLOAT16) {
+      const auto& cast_runner = NpuOpRunner("Cast",
+                                            {filter_grad_tmp},
+                                            {*filter_grad},
+                                            {{"dst_type", ACL_FLOAT16}});
+      cast_runner.Run(stream);
+    }
   }
+
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);
 
@@ -374,9 +392,22 @@ void Conv3dGradKernel(const Context& dev_ctx,
                                              phi::DataLayout::kNCDHW};
     filter_grad_tensor.set_meta(filter_grad_meta);
 
+    // Conv3DBackpropFilterD only support fp32 output, so we need cast the
+    // output when the out dtype is fp16.
+    phi::DenseTensor filter_grad_tmp;
+    if (filter_grad->dtype() == phi::DataType::FLOAT16) {
+      phi::DenseTensorMeta filter_grad_tmp_meta = {phi::DataType::FLOAT32,
+                                                   filter_grad_tensor.dims(),
+                                                   phi::DataLayout::kNCDHW};
+      filter_grad_tmp.set_meta(filter_grad_tmp_meta);
+      dev_ctx.template Alloc<float>(&filter_grad_tmp);
+    } else {
+      filter_grad_tmp = filter_grad_tensor;
+    }
+
     const auto& runner = NpuOpRunner("Conv3DBackpropFilterD",
                                      {input_tensor, output_grad_tensor},
-                                     {filter_grad_tensor},
+                                     {filter_grad_tmp},
                                      {{"filter_size", filter_shape_vec},
                                       {"strides", strides_vec},
                                       {"pads", paddings},
@@ -384,6 +415,14 @@ void Conv3dGradKernel(const Context& dev_ctx,
                                       {"groups", groups},
                                       {"data_format", data_format}});
     runner.Run(stream);
+    dev_ctx.Wait();
+    if (filter_grad->dtype() == phi::DataType::FLOAT16) {
+      const auto& cast_runner = NpuOpRunner("Cast",
+                                            {filter_grad_tmp},
+                                            {*filter_grad},
+                                            {{"dst_type", ACL_FLOAT16}});
+      cast_runner.Run(stream);
+    }
   }
 
   if (input_grad) {

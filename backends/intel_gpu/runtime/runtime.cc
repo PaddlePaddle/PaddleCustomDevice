@@ -226,7 +226,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   auto &stream = reg_dev[device->id].getStream();
 
   *ptr = sycl::aligned_alloc_device(64, size, stream);
-  // *ptr = sycl::aligned_alloc_shared(64, size, stream);
 
   if (!*ptr) {
     show_error("#### Error : Can't allocate memory size="

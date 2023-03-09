@@ -27,29 +27,11 @@ if(NOT EXISTS "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
     FATAL_ERROR "Can't find directory ${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
 endif()
 
-if(NOT DEFINED ENV{CONDA_PREFIX})
-  message(FATAL_ERROR "Please install python miniconda ")
-endif()
-
-if(NOT DEFINED CND_INSTALL_DIR)
-  set(CND_INSTALL_DIR "$ENV{CONDA_PREFIX}")
-endif()
-
-if(NOT EXISTS "${CND_INSTALL_DIR}")
-  message(FATAL_ERROR "Can't find conda directory ${CND_INSTALL_DIR}")
-endif()
+find_package(PythonInterp ${PY_VERSION} REQUIRED)
+find_package(PythonLibs ${PY_VERSION} REQUIRED)
 
 if(NOT DEFINED ENV{DPL_ROOT})
   message(FATAL_ERROR "Please set the env var DPL_ROOT!" $ENV{DPL_ROOT})
-endif()
-message(STATUS "Conda DIR : ${CND_INSTALL_DIR}")
-
-set(CND_PYTHON "${CND_INSTALL_DIR}/lib/python3.9")
-
-if(NOT EXISTS "${CND_PYTHON}")
-  message(
-    FATAL_ERROR
-      "Can't find conda python directory ${CND_PYTHON}, python3.9 required!")
 endif()
 
 set(DPCPP_COMPIER_PATH "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/bin/dpcpp")

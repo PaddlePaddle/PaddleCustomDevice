@@ -27,8 +27,8 @@ if(NOT EXISTS "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
     FATAL_ERROR "Can't find directory ${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}")
 endif()
 
-find_package(PythonInterp ${PY_VERSION} REQUIRED)
-find_package(PythonLibs ${PY_VERSION} REQUIRED)
+find_package(PythonInterp 3.9 REQUIRED)
+find_package(PythonLibs 3.9 REQUIRED)
 
 if(NOT DEFINED ENV{DPL_ROOT})
   message(FATAL_ERROR "Please set the env var DPL_ROOT!" $ENV{DPL_ROOT})

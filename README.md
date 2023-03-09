@@ -1,25 +1,21 @@
 # PaddleCustomDevice
 
-English | [简体中文](./README_cn.md)
+简体中文 | [English](./README_en.md)
 
-PaddlePaddle custom device implementaion.
+『飞桨』自定义硬件接入实现。
 
-## User Guides
+## 使用指南
 
-To follow up on latest features of custom device in PaddlePaddle, please refer to [Custom Device Support](https://www.paddlepaddle.org.cn/documentation/docs/en/develop/dev_guides/custom_device_docs/index_en.html)
+方案设计参考[Custom Device 接入方案介绍](https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/dev_guides/custom_device_docs/custom_device_overview_cn.html)，开发指南请参考[新硬件接入示例](https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/dev_guides/custom_device_docs/custom_device_example_cn.html)且示例代码位于 [CustomCPU](backends/custom_cpu/README_cn.md)。
 
-## Hardware Backends
+## 硬件后端
 
-PaddleCustomDevice has supported the following backends:
+飞桨自定义硬件接入支持如下硬件后端：
 
-- [PaddlePaddle Custom Device Implementaion for Ascend NPU](backends/npu/README.md)
-- [PaddlePaddle Custom Device Implementaion for Custom CPU](backends/custom_cpu/README.md)
-- [PaddlePaddle Custom Device Implementaion for Cambricon MLU](backends/mlu/README.md)
+- [飞桨自定义接入硬件后端(昇腾NPU)](backends/npu/README_cn.md)
+- [飞桨自定义接入硬件后端(寒武纪MLU)](backends/mlu/README_cn.md)
+- [飞桨自定义接入硬件后端(英特尔GPU)](backends/intel_gpu/README.md)
 
-## Environment Variables
-| Subject     | Variable Name       | Type   | Description    | Default Value |
-| -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
-| Debug | CUSTOM_DEVICE_BLACK_LIST| String |   Ops in black_list will be fallbacked to CPU  |                                            |
+## 版权和许可证
 
-## Copyright and License
-PaddleCustomDevice is provided under the [Apache-2.0 license](LICENSE).
+PaddleCustomDevice由[Apache-2.0 license](LICENSE)提供。

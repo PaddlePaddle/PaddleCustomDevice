@@ -170,6 +170,7 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 
 | 主题   | 变量名称                         | 类型   | 说明                              | 默认值                                                       |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
+| 调试     | CUSTOM_DEVICE_BLACK_LIST  | String   | 在黑名单内的算子会异构到CPU上运行 | "" |
 | 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False                                                        |
 | 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False                                                        |
 | 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling"                                           |

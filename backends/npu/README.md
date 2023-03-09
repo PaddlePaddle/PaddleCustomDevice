@@ -171,6 +171,7 @@ WITH_ARM=OFF # Turn ON if aarch64
 
 | Subject     | Variable Name       | Type   | Description    | Default Value |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
+| Debug     | CUSTOM_DEVICE_BLACK_LIST| String | Ops in back list will fallbacks to CPU  |  ""  |
 | Debug     | FLAGS_npu_check_nan_inf | Bool   | check nan or inf of all npu kernels | False                                                       |
 | Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu kernels | False                                                     |
 | Profiling | FLAGS_npu_profiling_dir | String |   ACL profiling output dir     | "ascend_profiling"                                           |

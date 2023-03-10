@@ -1646,15 +1646,19 @@ MLURNNDesc::~MLURNNDesc() {
   workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
 
+  static const float alpha_float = 1.f, beta_float = 0.f;
+  const void* alpha_ptr = static_cast<const void*>(&alpha_float);
+  const void* beta_ptr = static_cast<const void*>(&beta_float);
+
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlBatchMatMulBCast_v2(handle,
                                                      matmul_desc,
                                                      algo,
-                                                     nullptr,
+                                                     alpha_ptr,
                                                      in0_desc,
                                                      in0,
                                                      in1_desc,
                                                      in1,
-                                                     nullptr,
+                                                     beta_ptr,
                                                      output_desc,
                                                      output,
                                                      workspace_ptr,

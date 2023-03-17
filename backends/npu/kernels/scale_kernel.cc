@@ -43,10 +43,10 @@ void ScaleKernel(const Context& dev_ctx,
 
   NPUAttributeMap attrs = {{"power", power}, {"scale", scale}, {"shift", bias}};
 
-  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                    const std::vector<phi::DenseTensor>& outputs,
-                    const NPUAttributeMap& attrs,
-                    const phi::CustomContext& dev_ctx) {
+  auto op_func1 = [](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
     const auto& muls_runner = NpuOpRunner(
         "Muls", {inputs[0]}, {outputs[0]}, {{"value", attrs.at("scale")}});
     muls_runner.Run(dev_ctx.stream());
@@ -56,25 +56,31 @@ void ScaleKernel(const Context& dev_ctx,
     adds_runner.Run(dev_ctx.stream());
   };
 
-  if (x.dtype() == phi::DataType::INT32) {
+  auto op_func2 = [](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
+    const auto& power_runner =
+        NpuOpRunner("Power", {inputs[0]}, {outputs[0]}, attrs);
+    power_runner.Run(dev_ctx.stream());
+  };
+
+  if (x.dtype() == phi::DataType::INT32 || x.dtype() == phi::DataType::INT64) {
     NpuOpRunner::TypeAdapter({x},
                              {*out},
                              attrs,
                              dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
-  } else if (x.dtype() == phi::DataType::INT64) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func,
+                             op_func1,
                              {phi::DataType::INT32},
                              {phi::DataType::INT32});
   } else {
-    const auto& runner = NpuOpRunner("Power", {x}, {*out}, attrs);
-    runner.Run(stream);
+    NpuOpRunner::TypeAdapter({x},
+                             {*out},
+                             attrs,
+                             dev_ctx,
+                             op_func2,
+                             {phi::DataType::FLOAT32},
+                             {phi::DataType::FLOAT32});
   }
 }
 
@@ -86,5 +92,6 @@ PD_REGISTER_PLUGIN_KERNEL(scale,
                           custom_kernel::ScaleKernel,
                           phi::dtype::float16,
                           float,
+                          double,
                           int,
                           int64_t) {}

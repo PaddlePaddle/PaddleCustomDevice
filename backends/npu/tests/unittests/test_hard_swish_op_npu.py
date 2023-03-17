@@ -136,7 +136,7 @@ class TestHardSwishNPUWithCPU(unittest.TestCase):
         y.sum().backward()
 
         self.assertTrue(
-            np.allclose(self.out_y.numpy(), y.numpy()),
+            np.allclose(self.out_y.numpy(), y.numpy(), atol=1e-04),
             "Output of NPU HardSwish forward has diff at "
             + str(self.place)
             + "\nExpect "

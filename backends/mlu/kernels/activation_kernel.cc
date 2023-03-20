@@ -397,12 +397,12 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        float threshold,
-                        float scale,
-                        float offset,
-                        phi::DenseTensor* out) {
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   PADDLE_ENFORCE_EQ(
       threshold,
       6.0f,
@@ -431,20 +431,13 @@ void HardSwishRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
-  custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
-}
-
-template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float threshold,
-                         float scale,
-                         float offset,
                          phi::DenseTensor* dx) {
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   PADDLE_ENFORCE_EQ(
       threshold,
       6.0f,
@@ -694,13 +687,6 @@ PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(hardswish_raw,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 

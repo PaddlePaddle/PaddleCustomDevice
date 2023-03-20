@@ -98,6 +98,7 @@ class TestNPUWhereAPI(unittest.TestCase):
                     y.stop_gradient = y_stop_gradient
 
                     result = paddle.where(cond, x, y)
+                    result.stop_gradient = False
                     append_backward(paddle.mean(result))
 
                     exe = fluid.Executor(self.place)

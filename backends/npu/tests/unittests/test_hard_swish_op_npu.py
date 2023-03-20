@@ -53,7 +53,7 @@ class TestHardSwishNPU(OpTest):
         self.x_grad = ref_hard_swish_grad(x, threshold, scale, offset)
 
         self.inputs = {"X": x}
-        self.attrs = {"threshold": threshold, "scale": scale, "offset": offset}
+        self.attrs = {}
         self.outputs = {"Out": out}
 
     def set_npu(self):
@@ -105,7 +105,7 @@ class TestHardSwishNumel1Input(TestHardSwishNPU):
         self.x_grad = ref_hard_swish_grad(x, threshold, scale, offset)
 
         self.inputs = {"X": x}
-        self.attrs = {"threshold": threshold, "scale": scale, "offset": offset}
+        self.attrs = {}
         self.outputs = {"Out": out}
 
 

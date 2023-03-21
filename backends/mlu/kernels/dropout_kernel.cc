@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/elementwise_utils.h"
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
@@ -34,8 +35,23 @@ void DropoutRawKernel(const Context& dev_ctx,
 
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);
-  if (!is_test) {
-    // exec dropout op for training only.
+  if (is_test) {       // dropout op in test mode.
+    if (is_upscale) {  // upscale_in_train
+      VLOG(4) << "[Dropout] upscale_in_train test mode, copy out.";
+      TensorCopy(dev_ctx, x, false, out);
+    } else {  // downscale_in_infer
+      float scale = 1.0f - dropout_prob;
+      VLOG(4) << "[Dropout] downscale_in_infer test mode, scale: " << scale;
+      Tensor scale_a;
+      scale_a.Resize(x.dims());
+      dev_ctx.template Alloc<T>(&scale_a);
+      FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(scale), &scale_a);
+      MLUOpTensorKernel<T>(dev_ctx, x, scale_a, 0, CNNL_OP_TENSOR_MUL, out);
+    }
+    return;
+  } else if (!is_test) {
+    // dropout op for training: out = input * mask / ( 1.0 - dropout_prob ) or
+    // out = input * mask, downscale_in_infer mode
     int seed_data = 0;
     if (seed_tensor) {
       std::vector<int> seed_vec;
@@ -44,6 +60,9 @@ void DropoutRawKernel(const Context& dev_ctx,
     } else {
       seed_data = fix_seed ? seed : 0;
     }
+    if (!is_upscale) dropout_prob = 0.0f;
+    VLOG(4) << "[Dropout] train mode upscale: " << is_upscale
+            << " dropout_prob: " << dropout_prob;
 
     dev_ctx.template Alloc<uint8_t>(mask);
     MLUCnnlTensorDesc mask_desc(*mask);
@@ -67,46 +86,17 @@ void DropoutRawKernel(const Context& dev_ctx,
     const int device_id = dev_ctx.GetPlace().GetDeviceId();
     auto mlu_gen_random = GetMLURandomGenerator(dev_ctx, device_id, seed_data);
 
-    const float prob = is_upscale ? dropout_prob : 0.0f;
+    // compute out = input * mask / ( 1.0 - dropout_prob )
     MLUCnnl::FusedDropout(dev_ctx,
                           mlu_gen_random->get(),
                           x_desc.get(),
                           GetBasePtr(&x),
-                          prob,
+                          dropout_prob,
                           GetBasePtr(&(mlu_gen_random->get_state())),
                           mask_desc.get(),
                           GetBasePtr(mask),
                           out_desc.get(),
                           GetBasePtr(out));
-  } else {
-    // exec dropout op for inference only.
-    if (is_upscale) {
-      TensorCopy(dev_ctx, x, false, out);
-    } else {
-      auto scale = static_cast<T>(1.0f - dropout_prob);
-      Tensor scale_tensor;
-      scale_tensor.Resize({1});
-      dev_ctx.template Alloc<T>(&scale_tensor);
-      MLUCnnlTensorDesc scale_desc(scale_tensor);
-      MLUCnnl::Fill(dev_ctx,
-                    CNNL_POINTER_MODE_HOST,
-                    &scale,
-                    scale_desc.get(),
-                    GetBasePtr(&scale_tensor));
-
-      auto data_type = ToCnnlDataType<T>();
-      MLUCnnlOpTensorDesc op_tensor_desc(
-          CNNL_OP_TENSOR_MUL, data_type, CNNL_NOT_PROPAGATE_NAN);
-      MLUCnnl::OpTensor(dev_ctx,
-                        op_tensor_desc.get(),
-                        x_desc.get(),
-                        GetBasePtr(&x),
-                        scale_desc.get(),
-                        GetBasePtr(&scale_tensor),
-                        out_desc.get(),
-                        GetBasePtr(out),
-                        data_type);
-    }
   }
 }
 

@@ -720,15 +720,14 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        float threshold,
-                        float scale,
-                        float offset,
-                        phi::DenseTensor* out) {
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
   phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
   phi::DenseTensor tensor_offset;
@@ -801,23 +800,15 @@ void HardSwishRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
-  custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
-}
-
-template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float threshold,
-                         float scale,
-                         float offset,
                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
   phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
   phi::DenseTensor tensor_offset;
@@ -1280,13 +1271,6 @@ PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(hardswish_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::HardSwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 

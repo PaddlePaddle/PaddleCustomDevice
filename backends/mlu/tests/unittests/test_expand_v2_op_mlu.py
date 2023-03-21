@@ -223,51 +223,23 @@ class TestExpandV2Error(unittest.TestCase):
 
 
 # Test python API
-class TestExpandV2API(unittest.TestCase):
+class TestExpandAsV2API(unittest.TestCase):
     def test_api(self):
-        input = np.random.random([12, 14]).astype("float32")
+        input1 = np.random.random([12, 14]).astype("float32")
+        input2 = np.random.random([2, 12, 14]).astype("float32")
         x = paddle.static.data(name="x", shape=[12, 14], dtype="float32")
 
-        positive_2 = fluid.layers.fill_constant([1], "int32", 12)
-        expand_shape = paddle.static.data(name="expand_shape", shape=[2], dtype="int32")
+        y = paddle.static.data(name="target_tensor", shape=[2, 12, 14], dtype="float32")
 
-        out_1 = paddle.expand(x, shape=[12, 14])
-        out_2 = paddle.expand(x, shape=[positive_2, 14])
-        out_3 = paddle.expand(x, shape=expand_shape)
+        out_1 = paddle.expand_as(x, y=y)
 
-        g0 = fluid.backward.calc_gradient(out_2, x)
-
-        exe = fluid.Executor(place=paddle.CustomPlace("CustomMLU", 0))
-        res_1, res_2, res_3 = exe.run(
+        exe = fluid.Executor(place=fluid.CustomPlace("CustomMLU", 0))
+        res_1 = exe.run(
             fluid.default_main_program(),
-            feed={"x": input, "expand_shape": np.array([12, 14]).astype("int32")},
-            fetch_list=[out_1, out_2, out_3],
+            feed={"x": input1, "target_tensor": input2},
+            fetch_list=[out_1],
         )
-        assert np.array_equal(res_1, np.tile(input, (1, 1)))
-        assert np.array_equal(res_2, np.tile(input, (1, 1)))
-        assert np.array_equal(res_3, np.tile(input, (1, 1)))
-
-
-class TestExpandInferShape(unittest.TestCase):
-    def test_shape_with_var(self):
-        with program_guard(Program(), Program()):
-            x = paddle.static.data(shape=[-1, 1, 3], name="x")
-            fake_var = paddle.randn([2, 3])
-            target_shape = [-1, paddle.shape(fake_var)[0], paddle.shape(fake_var)[1]]
-            out = paddle.expand(x, shape=target_shape)
-            self.assertListEqual(list(out.shape), [-1, -1, -1])
-
-
-# Test python Dygraph API
-class TestExpandV2DygraphAPI(unittest.TestCase):
-    def test_expand_times_is_tensor(self):
-        with paddle.fluid.dygraph.guard():
-            paddle.seed(1)
-            a = paddle.rand([2, 5])
-            expand_1 = paddle.expand(a, shape=[2, 5])
-            np_array = np.array([2, 5])
-            expand_2 = paddle.expand(a, shape=np_array)
-            np.testing.assert_allclose(expand_1.numpy(), expand_2.numpy())
+        assert np.array_equal(res_1[0], np.tile(input1, (2, 1, 1)))
 
 
 if __name__ == "__main__":

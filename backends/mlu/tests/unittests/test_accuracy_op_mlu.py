@@ -20,7 +20,6 @@ import numpy as np
 from tests.op_test import OpTest
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
 
@@ -62,25 +61,6 @@ class TestAccuracyOpFp16(TestAccuracyOp):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
-
-
-class TestAccuracyOpError(unittest.TestCase):
-    def test_errors(self):
-        with program_guard(Program(), Program()):
-            # The input type of accuracy_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace("CustomMLU", 0)
-            )
-            label = paddle.static.data(name="label", shape=[-1, 1], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.accuracy, x1, label)
-            self.assertRaises(TypeError, paddle.metric.accuracy, x1, label)
-            # The input dtype of accuracy_op must be float32 or float64.
-            x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.accuracy, x2, label)
-            self.assertRaises(TypeError, paddle.metric.accuracy, x2, label)
-            x3 = paddle.static.data(name="input", shape=[-1, 2], dtype="float16")
-            fluid.layers.accuracy(input=x3, label=label)
-            paddle.metric.accuracy(input=x3, label=label)
 
 
 class TestAccuracyAPI1(unittest.TestCase):

@@ -18,8 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
 
 from tests.op_test import OpTest, skip_check_grad_ci
 
@@ -207,24 +205,6 @@ class TestElementwiseMulOp_xsize_lessthan_ysize(ElementwiseMulOp):
             "Out": self.inputs["X"].reshape(1, 1, 10, 10) * self.inputs["Y"]
         }
         self.init_kernel_type()
-
-
-class TestElementwiseMulOpError(unittest.TestCase):
-    def test_errors(self):
-        with program_guard(Program(), Program()):
-            # the input of elementwise_mul must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], fluid.CPUPlace()
-            )
-            y1 = fluid.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], fluid.CPUPlace()
-            )
-            self.assertRaises(TypeError, fluid.layers.elementwise_mul, x1, y1)
-
-            # the input dtype of elementwise_mul must be float16 or float32 or int32
-            x2 = paddle.static.data(name="x2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, fluid.layers.elementwise_mul, x2, y2)
 
 
 if __name__ == "__main__":

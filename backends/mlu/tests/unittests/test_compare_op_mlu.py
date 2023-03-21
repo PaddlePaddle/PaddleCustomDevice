@@ -49,7 +49,7 @@ def create_test_class(op_type, typename, callback):
                 c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
                 d = fluid.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
 
-                op = eval("fluid.layers.%s" % self.op_type)
+                op = eval("paddle.%s" % self.op_type)
                 self.assertRaises(TypeError, op, x=a, y=b, axis=True)
                 self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
                 self.assertRaises(TypeError, op, x=a, y=b, cond=1)

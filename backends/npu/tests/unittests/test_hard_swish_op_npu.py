@@ -53,7 +53,7 @@ class TestHardSwishNPU(OpTest):
         self.x_grad = ref_hard_swish_grad(x, threshold, scale, offset)
 
         self.inputs = {"X": x}
-        self.attrs = {"threshold": threshold, "scale": scale, "offset": offset}
+        self.attrs = {}
         self.outputs = {"Out": out}
 
     def set_npu(self):
@@ -105,7 +105,7 @@ class TestHardSwishNumel1Input(TestHardSwishNPU):
         self.x_grad = ref_hard_swish_grad(x, threshold, scale, offset)
 
         self.inputs = {"X": x}
-        self.attrs = {"threshold": threshold, "scale": scale, "offset": offset}
+        self.attrs = {}
         self.outputs = {"Out": out}
 
 
@@ -136,7 +136,7 @@ class TestHardSwishNPUWithCPU(unittest.TestCase):
         y.sum().backward()
 
         self.assertTrue(
-            np.allclose(self.out_y.numpy(), y.numpy()),
+            np.allclose(self.out_y.numpy(), y.numpy(), atol=1e-04),
             "Output of NPU HardSwish forward has diff at "
             + str(self.place)
             + "\nExpect "

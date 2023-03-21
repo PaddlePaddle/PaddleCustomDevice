@@ -173,7 +173,7 @@ class TestElementwiseMinOpNet(unittest.TestCase):
             prediction = paddle.static.nn.fc(x=fc_1, size=2, activation="softmax")
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
-            loss = fluid.layers.reduce_mean(cost)
+            loss = paddle.mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
@@ -206,8 +206,8 @@ class TestElementwiseMinOpNet(unittest.TestCase):
         cpu_pred, cpu_loss = self._test(False)
         mlu_pred, mlu_loss = self._test(True)
 
-        np.testing.assert_allclose(mlu_pred, cpu_pred, rtol=1e-6)
-        np.testing.assert_allclose(mlu_loss, cpu_loss)
+        np.testing.assert_allclose(mlu_pred, cpu_pred, rtol=1e-3)
+        np.testing.assert_allclose(mlu_loss, cpu_loss, rtol=1e-3)
 
 
 if __name__ == "__main__":

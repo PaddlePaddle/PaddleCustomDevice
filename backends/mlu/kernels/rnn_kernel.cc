@@ -250,8 +250,15 @@ void RnnKernel(const Context& dev_ctx,
   int gate_num = 4;
   int hidden_data_idx = (num_layers - 1);
   hidden_data_idx += (gate_num + 1) * num_layers;
-  const int& block_size = direction_num * seq_len * batch_size * hidden_size;
-  reserve->Resize({hidden_data_idx, block_size});
+  size_t workspace_size, reservespace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetRNNTempSizes(GetHandleFromCTX(dev_ctx),
+                                                 rnn_desc.get(),
+                                                 input_seq_data_desc.get(),
+                                                 &workspace_size,
+                                                 &reservespace_size));
+  reserve->Resize({hidden_data_idx,
+                   static_cast<int64_t>(reservespace_size) /
+                       (sizeof(T) * hidden_data_idx)});
 
   dev_ctx.template Alloc<T>(reserve);
 

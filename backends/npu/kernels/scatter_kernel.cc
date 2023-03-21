@@ -53,32 +53,32 @@ void ScatterKernel(const Context& dev_ctx,
   };
 
   if (overwrite) {
-    if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
+    if (x.dtype() == phi::DataType::INT64) {
       NpuOpRunner::TypeAdapter({x, tmp_tensor, updates},
                                {*out},
                                {},
                                dev_ctx,
                                op_func_update,
-                               {phi::DenseTensorMeta::DataType::INT32,
-                                phi::DenseTensorMeta::DataType::INT32,
-                                phi::DenseTensorMeta::DataType::INT32},
-                               {phi::DenseTensorMeta::DataType::INT32});
+                               {phi::DataType::INT32,
+                                phi::DataType::INT32,
+                                phi::DataType::INT32},
+                               {phi::DataType::INT32});
     } else {
       const auto& runner_update = NpuOpRunner(
           "TensorScatterUpdate", {x, tmp_tensor, updates}, {*out}, {});
       runner_update.Run(dev_ctx.stream());
     }
   } else {
-    if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
+    if (x.dtype() == phi::DataType::INT64) {
       NpuOpRunner::TypeAdapter({x, tmp_tensor, updates},
                                {*out},
                                {},
                                dev_ctx,
                                op_func_add,
-                               {phi::DenseTensorMeta::DataType::INT32,
-                                phi::DenseTensorMeta::DataType::INT32,
-                                phi::DenseTensorMeta::DataType::INT32},
-                               {phi::DenseTensorMeta::DataType::INT32});
+                               {phi::DataType::INT32,
+                                phi::DataType::INT32,
+                                phi::DataType::INT32},
+                               {phi::DataType::INT32});
     } else {
       const auto& runner_add =
           NpuOpRunner("TensorScatterAdd", {x, tmp_tensor, updates}, {*out}, {});

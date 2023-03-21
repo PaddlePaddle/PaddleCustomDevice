@@ -36,19 +36,19 @@
 
 #include "kernels/funcs/string_helper.h"
 
-static std::map<paddle::experimental::DataType, aclDataType>  //
+static std::map<phi::DataType, aclDataType>  //
     DTYPE_2_ACL_DTYPE = {
-        {paddle::experimental::DataType::BOOL, ACL_BOOL},
-        {paddle::experimental::DataType::UINT8, ACL_UINT8},
-        {paddle::experimental::DataType::INT8, ACL_INT8},
-        {paddle::experimental::DataType::INT16, ACL_INT16},
-        {paddle::experimental::DataType::INT32, ACL_INT32},
-        {paddle::experimental::DataType::INT64, ACL_INT64},
-        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
-        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
-        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
-        {paddle::experimental::DataType::COMPLEX64, ACL_COMPLEX64},
-        {paddle::experimental::DataType::COMPLEX128, ACL_COMPLEX128},
+        {phi::DataType::BOOL, ACL_BOOL},
+        {phi::DataType::UINT8, ACL_UINT8},
+        {phi::DataType::INT8, ACL_INT8},
+        {phi::DataType::INT16, ACL_INT16},
+        {phi::DataType::INT32, ACL_INT32},
+        {phi::DataType::INT64, ACL_INT64},
+        {phi::DataType::FLOAT16, ACL_FLOAT16},
+        {phi::DataType::FLOAT32, ACL_FLOAT},
+        {phi::DataType::FLOAT64, ACL_DOUBLE},
+        {phi::DataType::COMPLEX64, ACL_COMPLEX64},
+        {phi::DataType::COMPLEX128, ACL_COMPLEX128},
 };
 
 static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
@@ -59,7 +59,7 @@ static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
     {phi::DataLayout::ANY, ACL_FORMAT_ND},
 };
 
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
+aclDataType ConvertToNpuDtype(phi::DataType dtype) {
   auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
   PADDLE_ENFORCE_NE(
       iter,

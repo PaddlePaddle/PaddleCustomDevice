@@ -38,8 +38,8 @@ void AccuracyRawKernel(const Context& dev_ctx,
   cast_indices.set_meta(meta);
   cast_label.set_meta(meta);
   if (indices.dtype() != label.dtype()) {
-    auto dst_dtype = ConvertToNpuDtype(paddle::experimental::DataType::INT32);
-    if (indices.dtype() != paddle::experimental::DataType::INT32) {
+    auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT32);
+    if (indices.dtype() != phi::DataType::INT32) {
       cast_indices.Resize(indices.dims());
       dev_ctx.template Alloc<int>(&cast_indices);
       const auto& runner_cast_indices =
@@ -51,7 +51,7 @@ void AccuracyRawKernel(const Context& dev_ctx,
     } else {
       cast_indices = indices;
     }
-    if (label.dtype() != paddle::experimental::DataType::INT32) {
+    if (label.dtype() != phi::DataType::INT32) {
       cast_label.Resize(label.dims());
       dev_ctx.template Alloc<int>(&cast_label);
       const auto& runner_cast_label =

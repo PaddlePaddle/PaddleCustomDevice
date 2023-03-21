@@ -91,7 +91,7 @@ void AssignValueKernel(const Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  auto template_dtype = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto template_dtype = phi::CppTypeToDataType<T>::Type();
   PADDLE_ENFORCE_EQ(
       dtype,
       template_dtype,

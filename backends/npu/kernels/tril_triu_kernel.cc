@@ -48,23 +48,23 @@ void TrilTriuKernel(const Context& dev_ctx,
     const auto& runner = NpuOpRunner("Triu", inputs, outputs, attrs);
     runner.Run(dev_ctx.stream());
   };
-  if (x.dtype() == phi::DenseTensorMeta::DataType::BOOL) {
+  if (x.dtype() == phi::DataType::BOOL) {
     if (lower) {
       NpuOpRunner::TypeAdapter({x},
                                {*out},
                                attr_input,
                                dev_ctx,
                                op_func_tril,
-                               {phi::DenseTensorMeta::DataType::UINT8},
-                               {phi::DenseTensorMeta::DataType::UINT8});
+                               {phi::DataType::UINT8},
+                               {phi::DataType::UINT8});
     } else {
       NpuOpRunner::TypeAdapter({x},
                                {*out},
                                attr_input,
                                dev_ctx,
                                op_func_triu,
-                               {phi::DenseTensorMeta::DataType::UINT8},
-                               {phi::DenseTensorMeta::DataType::UINT8});
+                               {phi::DataType::UINT8},
+                               {phi::DataType::UINT8});
     }
   } else {
     const auto& runner = NpuOpRunner(op_type, {x}, {*out}, attr_input);

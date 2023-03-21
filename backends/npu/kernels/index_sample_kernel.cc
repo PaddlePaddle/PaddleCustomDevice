@@ -56,7 +56,7 @@ void IndexSampleKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   const auto& index_type = index.dtype();
-  if (index_type == phi::DenseTensorMeta::DataType::INT32) {
+  if (index_type == phi::DataType::INT32) {
     IndexSampleGather<int32_t, Context>(dev_ctx, &index, &x, out);
   } else {
     IndexSampleGather<int64_t, Context>(dev_ctx, &index, &x, out);
@@ -104,7 +104,7 @@ void IndexSampleGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(x_grad);
 
   const auto& index_type = index.dtype();
-  if (index_type == phi::DenseTensorMeta::DataType::INT32) {
+  if (index_type == phi::DataType::INT32) {
     IndexSampleGradScatter<int32_t, Context>(
         dev_ctx, &index, &out_grad, x_grad);
   } else {

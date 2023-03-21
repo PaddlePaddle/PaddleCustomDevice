@@ -92,7 +92,7 @@ class TestEluAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.elu(x, self.alpha)
             elu = paddle.nn.ELU(self.alpha)
             out2 = elu(x)
@@ -116,7 +116,7 @@ class TestEluAPI(unittest.TestCase):
     def test_fluid_api(self):
         paddle.enable_static()
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out = F.elu(x, self.alpha)
             exe = fluid.Executor(self.place)
             res = exe.run(feed={"X": self.x_np}, fetch_list=[out])

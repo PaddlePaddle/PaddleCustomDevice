@@ -127,10 +127,10 @@ class TestGathertError(unittest.TestCase):
             paddle.set_device("CustomMLU")
 
             shape = [8, 9, 6]
-            x = paddle.fluid.data(shape=shape, dtype="int8", name="x")
-            axis = paddle.fluid.data(shape=[1], dtype="float32", name="axis")
-            index = paddle.fluid.data(shape=shape, dtype="int32", name="index")
-            index_float = paddle.fluid.data(
+            x = paddle.static.data(shape=shape, dtype="int8", name="x")
+            axis = paddle.static.data(shape=[1], dtype="float32", name="axis")
+            index = paddle.static.data(shape=shape, dtype="int32", name="index")
+            index_float = paddle.static.data(
                 shape=shape, dtype="float32", name="index_float"
             )
 
@@ -159,9 +159,11 @@ class TestGathertError(unittest.TestCase):
             paddle.set_device("CustomMLU")
 
             shape = [8, 9, 6]
-            x = fluid.data(shape=shape, dtype="int8", name="x")
-            index = fluid.data(shape=shape, dtype="int32", name="mask")
-            index_float = fluid.data(shape=shape, dtype="float32", name="index_float")
+            x = paddle.static.data(shape=shape, dtype="int8", name="x")
+            index = paddle.static.data(shape=shape, dtype="int32", name="mask")
+            index_float = paddle.static.data(
+                shape=shape, dtype="float32", name="index_float"
+            )
 
             def test_x_type():
                 paddle.gather(x, index)

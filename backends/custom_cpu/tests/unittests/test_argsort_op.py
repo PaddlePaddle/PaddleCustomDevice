@@ -319,7 +319,9 @@ class TestArgsort(unittest.TestCase):
 
     def test_api(self):
         with fluid.program_guard(fluid.Program()):
-            input = fluid.data(name="input", shape=self.input_shape, dtype="float64")
+            input = paddle.static.data(
+                name="input", shape=self.input_shape, dtype="float64"
+            )
 
             output = paddle.argsort(input, axis=self.axis)
             output2 = paddle.argsort(input, axis=self.axis, descending=True)

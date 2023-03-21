@@ -389,12 +389,12 @@ class TestElementwiseAddOpError(unittest.TestCase):
                 [[1, 1, 1, 1]],
                 paddle.CustomPlace("CustomMLU", 0),
             )
-            self.assertRaises(TypeError, fluid.layers.elementwise_add, x1, y1)
+            self.assertRaises(TypeError, paddle.add, x1, y1)
 
             # the input dtype of elementwise_add must be float16 or float32
             x2 = paddle.static.data(name="x2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
             y2 = paddle.static.data(name="y2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, fluid.layers.elementwise_add, x2, y2)
+            self.assertRaises(TypeError, paddle.add, x2, y2)
 
 
 class TestAddApi(unittest.TestCase):

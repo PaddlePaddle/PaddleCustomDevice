@@ -27,23 +27,42 @@ SEED = 2022
 
 class TestDropoutOp(OpTest):
     def setUp(self):
-        self.op_type = "dropout"
         self.set_mlu()
         self.init_dtype()
-        self.inputs = {"X": np.random.random((32, 64)).astype(self.dtype)}
+        self.init_inputs_shape()
+        self.init_attrs()
+        self.op_type = "dropout"
+        self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
         self.attrs = {
-            "dropout_prob": 0.0,
-            "fix_seed": True,
-            "is_test": False,
-            "dropout_implementation": "upscale_in_train",
+            "dropout_prob": self.dropout_prob,
+            "fix_seed": self.fix_seed,
+            "is_test": self.is_test,
+            "dropout_implementation": self.dropout_implementation,
         }
-        self.outputs = {
-            "Out": self.inputs["X"],
-            "Mask": np.ones((32, 64)).astype("uint8"),
-        }
+
+        out = self.inputs["X"] * (1.0 - self.dropout_prob)
+        if self.is_test is False:
+            mask = None
+            if self.dropout_prob == 0.0:
+                mask = np.ones(self.shape).astype("uint8")
+            elif self.dropout_prob == 1.0:
+                mask = np.zeros(self.shape).astype("uint8")
+            self.outputs = {"Out": out, "Mask": mask}
+        else:
+            self.outputs = {"Out": out}
 
     def init_dtype(self):
         self.dtype = np.float32
+
+    def init_inputs_shape(self):
+        self.shape = [32, 64]
+
+    def init_attrs(self):
+        self.__class__.no_need_check_grad = False
+        self.dropout_prob = 0.0
+        self.fix_seed = True
+        self.is_test = False
+        self.dropout_implementation = "upscale_in_train"
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
@@ -53,83 +72,102 @@ class TestDropoutOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad_normal(self):
+        if (
+            hasattr(self.__class__, "no_need_check_grad")
+            and self.__class__.no_need_check_grad is True
+        ):
+            return
+
         self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestDropoutOpInput1d(TestDropoutOp):
-    # change input shape
-    def setUp(self):
-        self.op_type = "dropout"
-        self.set_mlu()
-        self.init_dtype()
-        self.inputs = {"X": np.random.random((3, 62)).astype(self.dtype)}
-        self.attrs = {
-            "dropout_prob": 0.0,
-            "fix_seed": True,
-            "is_test": False,
-            "dropout_implementation": "upscale_in_train",
-        }
-        self.outputs = {
-            "Out": self.inputs["X"],
-            "Mask": np.ones((3, 62)).astype("uint8"),
-        }
-
-
-class TestDropoutOpInput1d_1(TestDropoutOp):
-    # the input is 1-D
-    def setUp(self):
-        self.op_type = "dropout"
-        self.set_mlu()
-        self.init_dtype()
-        self.inputs = {"X": np.random.random((2000)).astype(self.dtype)}
-        self.attrs = {
-            "dropout_prob": 0.0,
-            "fix_seed": True,
-            "is_test": False,
-            "dropout_implementation": "upscale_in_train",
-        }
-        self.outputs = {
-            "Out": self.inputs["X"],
-            "Mask": np.ones((2000)).astype("uint8"),
-        }
+    def init_inputs_shape(self):
+        self.shape = [2000]
 
 
 class TestDropoutOp2(TestDropoutOp):
-    # the dropout_prob is 1.0
-    def setUp(self):
-        self.op_type = "dropout"
-        self.set_mlu()
-        self.init_dtype()
-        self.inputs = {"X": np.random.random((32, 64)).astype(self.dtype)}
-        self.attrs = {
-            "dropout_prob": 1.0,
-            "fix_seed": True,
-            "is_test": False,
-            "dropout_implementation": "upscale_in_train",
-        }
-        self.outputs = {
-            "Out": np.zeros((32, 64)).astype("float32"),
-            "Mask": np.zeros((32, 64)).astype("uint8"),
-        }
+    def init_inputs_shape(self):
+        self.shape = [32, 64]
+
+    def init_attrs(self):
+        self.dropout_prob = 1.0
+        self.fix_seed = True
+        self.is_test = False
+        self.dropout_implementation = "upscale_in_train"
 
 
 class TestDropoutOp3(TestDropoutOp):
-    # the input dim is 3
+    def init_inputs_shape(self):
+        self.shape = [32, 64, 2]
+
+
+class TestDropoutOp4(TestDropoutOp):
+    def init_attrs(self):
+        self.__class__.no_need_check_grad = True
+        self.dropout_prob = 0.35
+        self.fix_seed = True
+        self.is_test = True
+        self.dropout_implementation = "downgrade_in_infer"
+
+
+class TestDropoutOp5(TestDropoutOp):
+    def init_inputs_shape(self):
+        self.shape = [32, 64, 3]
+
+    def init_attrs(self):
+        self.__class__.no_need_check_grad = True
+        self.dropout_prob = 0.75
+        self.fix_seed = True
+        self.is_test = True
+        self.dropout_implementation = "downgrade_in_infer"
+
+
+class TestDropoutOp6(TestDropoutOp):
+    def init_attrs(self):
+        self.__class__.no_need_check_grad = True
+        self.dropout_prob = 0.0
+        self.fix_seed = True
+        self.is_test = False
+        self.dropout_implementation = "downgrade_in_infer"
+
+
+class TestDropoutOpWithSeed(TestDropoutOp):
+    # the seed is a Tensor
     def setUp(self):
         self.op_type = "dropout"
         self.set_mlu()
-        self.init_dtype()
-        self.inputs = {"X": np.random.random((32, 64, 2)).astype(self.dtype)}
+        self.dtype = np.float32
+        self.inputs = {
+            "X": np.random.random((32, 64)).astype(self.dtype),
+            "Seed": np.asarray([125], dtype="int32"),
+        }
         self.attrs = {
             "dropout_prob": 0.0,
-            "fix_seed": True,
             "is_test": False,
             "dropout_implementation": "upscale_in_train",
         }
         self.outputs = {
             "Out": self.inputs["X"],
-            "Mask": np.ones((32, 64, 2)).astype("uint8"),
+            "Mask": np.ones((32, 64)).astype("uint8"),
         }
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad_normal(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+
+class TestDropoutOpFp16(TestDropoutOp):
+    # float16
+    def init_dtype(self):
+        self.dtype = np.float16
+
+    def set_mlu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.__class__.no_need_check_grad = True
 
 
 @skip_check_grad_ci(reason="For inference, check_grad is not required.")
@@ -232,9 +270,35 @@ class TestDropoutAPI(unittest.TestCase):
             res6 = paddle.nn.functional.dropout(
                 x=input, p=1.0, training=True, mode="upscale_in_train"
             )
-            res7 = paddle.nn.functional.dropout(x=input, p=0.0, mode="upscale_in_train")
+            res7 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=True, mode="upscale_in_train"
+            )
             res8 = paddle.nn.functional.dropout(
                 x=input, p=0.0, axis=(0, 1), training=False, mode="upscale_in_train"
+            )
+            res9 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=False, mode="downgrade_in_infer"
+            )
+            res10 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=0, training=True, mode="downgrade_in_infer"
+            )
+            res11 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=0, training=False, mode="downgrade_in_infer"
+            )
+            res12 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=[0, 1], training=True, mode="downgrade_in_infer"
+            )
+            res13 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=[0, 1], training=False, mode="downgrade_in_infer"
+            )
+            res14 = paddle.nn.functional.dropout(
+                x=input, p=1.0, training=True, mode="downscale_in_infer"
+            )
+            res15 = paddle.nn.functional.dropout(
+                x=input, p=0.0, training=True, mode="downgrade_in_infer"
+            )
+            res16 = paddle.nn.functional.dropout(
+                x=input, p=0.0, axis=(0, 1), training=False, mode="downgrade_in_infer"
             )
 
             in_np = np.random.random([40, 40]).astype("float32")

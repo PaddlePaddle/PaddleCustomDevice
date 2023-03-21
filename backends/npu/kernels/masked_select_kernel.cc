@@ -50,7 +50,7 @@ void MaskedSelectKernel(const Context& dev_ctx,
         {mask_int32},
         {{"dst_type",
           static_cast<int32_t>(
-              ConvertToNpuDtype(phi::DenseTensorMeta::DataType::INT32))}});
+              ConvertToNpuDtype(phi::DataType::INT32))}});
     cast_runner.Run(stream);
 
     mask_int32.Resize({mask_int32.numel()});
@@ -103,7 +103,7 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
         {mask_int32},
         {{"dst_type",
           static_cast<int32_t>(
-              ConvertToNpuDtype(phi::DenseTensorMeta::DataType::INT32))}});
+              ConvertToNpuDtype(phi::DataType::INT32))}});
     cast_runner.Run(stream);
 
     mask_int32.Resize({mask_int32.numel()});

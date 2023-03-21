@@ -149,7 +149,7 @@ NpuOpRunner &NpuOpRunner::AddAttrDataType(const std::string &name,
   }
   VLOG(4) << "AddAttrDataType call";
   auto dtype = ConvertToNpuDtype(
-      static_cast<paddle::experimental::DataType>(paddle::get<int>(attr)));
+      static_cast<phi::DataType>(paddle::get<int>(attr)));
   PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrDataType(attr_, name.c_str(), dtype));
   return *this;
 }

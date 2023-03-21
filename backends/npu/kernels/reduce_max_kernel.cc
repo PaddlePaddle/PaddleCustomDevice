@@ -38,7 +38,7 @@ void MaxRawKernel(const Context& dev_ctx,
     attr_input = {{"axes", dim_vec}, {"keep_dims", keep_dim}};
   }
 
-  if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
+  if (x.dtype() == phi::DataType::INT64) {
     auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                       const std::vector<phi::DenseTensor>& outputs,
                       const NPUAttributeMap& attrs,
@@ -53,8 +53,8 @@ void MaxRawKernel(const Context& dev_ctx,
                              attr_input,
                              dev_ctx,
                              op_func,
-                             {phi::DenseTensorMeta::DataType::INT32},
-                             {phi::DenseTensorMeta::DataType::INT32});
+                             {phi::DataType::INT32},
+                             {phi::DataType::INT32});
   } else {
     const auto& runner = NpuOpRunner("ReduceMaxD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());

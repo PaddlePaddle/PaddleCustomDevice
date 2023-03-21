@@ -197,7 +197,7 @@ inline phi::DenseTensor Slice(const phi::DenseTensor& src,
     dst_dims[0] = end_idx - begin_idx;
     size_t dst_offset =
         meta.offset +
-        begin_idx * base * paddle::experimental::SizeOf(meta.dtype);
+        begin_idx * base * phi::SizeOf(meta.dtype);
     phi::DenseTensorMeta dst_meta = {
         meta.dtype, dst_dims, meta.layout, dst_offset};
     dst.set_meta(dst_meta);

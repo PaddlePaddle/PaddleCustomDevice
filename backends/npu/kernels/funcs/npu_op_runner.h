@@ -102,8 +102,8 @@ class NpuOpRunner {
                          const std::vector<phi::DenseTensor> &,
                          const NPUAttributeMap &,
                          const phi::CustomContext &)> op_runner,
-      const std::vector<paddle::experimental::DataType> &input_type,
-      const std::vector<paddle::experimental::DataType> &output_type) {
+      const std::vector<phi::DataType> &input_type,
+      const std::vector<phi::DataType> &output_type) {
     std::function<void(const std::vector<phi::DenseTensor> &,
                        const std::vector<phi::DenseTensor> &,
                        const NPUAttributeMap &,
@@ -137,15 +137,15 @@ class NpuOpRunner {
                          const NPUAttributeMap &,
                          const phi::CustomContext &,
                          const std::vector<std::vector<T>> &)> op_runner,
-      const std::vector<paddle::experimental::DataType> &input_type,
-      const std::vector<paddle::experimental::DataType> &output_type,
+      const std::vector<phi::DataType> &input_type,
+      const std::vector<phi::DataType> &output_type,
       const std::vector<std::vector<T>> &&host_vecs = {}) {
     std::vector<phi::DenseTensor> tmp_inputs(inputs.size());
     std::vector<phi::DenseTensor> tmp_outputs(outputs.size());
 
     for (size_t i = 0; i < input_type.size(); ++i) {
       bool cast_input =
-          (input_type[i] == paddle::experimental::DataType::UNDEFINED ||
+          (input_type[i] == phi::DataType::UNDEFINED ||
            input_type[i] != inputs[i].dtype());
       if (!cast_input) {
         tmp_inputs[i] = inputs[i];
@@ -163,7 +163,7 @@ class NpuOpRunner {
     }
     for (size_t i = 0; i < output_type.size(); ++i) {
       bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
+          (output_type[i] == phi::DataType::UNDEFINED ||
            output_type[i] != outputs[i].dtype());
       if (!cast_output) {
         tmp_outputs[i] = outputs[i];
@@ -177,7 +177,7 @@ class NpuOpRunner {
 
     for (size_t i = 0; i < output_type.size(); ++i) {
       bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
+          (output_type[i] == phi::DataType::UNDEFINED ||
            output_type[i] != outputs[i].dtype());
       if (cast_output) {
         const auto &cast_runner = NpuOpRunner(

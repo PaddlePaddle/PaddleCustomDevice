@@ -170,7 +170,7 @@ class TestMomentumV2(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
             y = paddle.static.data(name="y", shape=[-1, 1], dtype="float32")
             y_predict = paddle.static.nn.fc(x, size=1)
-            cost = fluid.layers.square_error_cost(input=y_predict, label=y)
+            cost = paddle.nn.functional.square_error_cost(input=y_predict, label=y)
             avg_cost = paddle.mean(cost)
 
             rms_optimizer = paddle.optimizer.Momentum(learning_rate=0.1, momentum=0.9)
@@ -292,7 +292,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
             y = paddle.static.data(name="y", shape=[-1, 1], dtype="float32")
             y_predict = paddle.static.nn.fc(x, size=1)
-            cost = fluid.layers.square_error_cost(input=y_predict, label=y)
+            cost = paddle.nn.functional.square_error_cost(input=y_predict, label=y)
             avg_cost = paddle.mean(cost)
 
             momentum_optimizer = paddle.fluid.contrib.optimizer.Momentum(

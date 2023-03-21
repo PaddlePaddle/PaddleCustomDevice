@@ -71,10 +71,10 @@ class TestLog(TestActivation):
 
     def test_error(self):
         in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
-        in2 = paddle.static.data(name="in2", shape=[-1, 11, 17], dtype="int64")
+        in2 = paddle.static.data(name="in2", shape=[11, 17], dtype="int64")
 
-        self.assertRaises(TypeError, fluid.layers.log, in1)
-        self.assertRaises(TypeError, fluid.layers.log, in2)
+        self.assertRaises(TypeError, paddle.log, in1)
+        self.assertRaises(TypeError, paddle.log, in2)
 
 
 class TestLog2(TestActivation):

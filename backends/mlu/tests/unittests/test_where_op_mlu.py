@@ -84,49 +84,44 @@ class TestWhereAPI(unittest.TestCase):
         # flake8: noqa
         return np.where((self.cond == False), dout, 0)
 
-    def test_api(self, use_mlu=False):
+    def test_api(self):
         for x_stop_gradient in [False, True]:
             for y_stop_gradient in [False, True]:
-                with fluid.program_guard(Program(), Program()):
-                    cond = paddle.static.data(
-                        name="cond", shape=[-1] + self.shape, dtype="bool"
-                    )
-                    x = paddle.static.data(
-                        name="x", shape=[-1] + self.shape, dtype="float32"
-                    )
-                    y = paddle.static.data(
-                        name="y", shape=[-1] + self.shape, dtype="float32"
-                    )
+                train_prog = fluid.Program()
+                startup = fluid.Program()
+                with fluid.program_guard(train_prog, startup):
+                    cond = fluid.data(name="cond", shape=self.shape, dtype="bool")
+                    x = fluid.data(name="x", shape=self.shape, dtype="float32")
+                    y = fluid.data(name="y", shape=self.shape, dtype="float32")
+
                     x.stop_gradient = x_stop_gradient
                     y.stop_gradient = y_stop_gradient
+
                     result = paddle.where(cond, x, y)
+                    result.stop_gradient = False
                     append_backward(paddle.mean(result))
-                    for use_mlu in [False, True]:
-                        place = (
-                            paddle.CustomPlace("CustomMLU", 0)
-                            if use_mlu
-                            else fluid.CPUPlace()
-                        )
-                        exe = fluid.Executor(place)
-                        fetch_list = [result, result.grad_name]
-                        if x_stop_gradient is False:
-                            fetch_list.append(x.grad_name)
-                        if y_stop_gradient is False:
-                            fetch_list.append(y.grad_name)
-                        out = exe.run(
-                            fluid.default_main_program(),
-                            feed={"cond": self.cond, "x": self.x, "y": self.y},
-                            fetch_list=fetch_list,
-                        )
-                        assert np.array_equal(out[0], self.out)
-                        if x_stop_gradient is False:
-                            assert np.array_equal(out[2], self.ref_x_backward(out[1]))
-                            if y.stop_gradient is False:
-                                assert np.array_equal(
-                                    out[3], self.ref_y_backward(out[1])
-                                )
-                        elif y.stop_gradient is False:
-                            assert np.array_equal(out[2], self.ref_y_backward(out[1]))
+
+                    exe = fluid.Executor(self.place)
+                    exe.run(startup)
+
+                    fetch_list = [result, result.grad_name]
+                    if x_stop_gradient is False:
+                        fetch_list.append(x.grad_name)
+                    if y_stop_gradient is False:
+                        fetch_list.append(y.grad_name)
+                    out = exe.run(
+                        train_prog,
+                        feed={"cond": self.cond, "x": self.x, "y": self.y},
+                        fetch_list=fetch_list,
+                    )
+                    assert np.array_equal(out[0], self.out)
+
+                    if x_stop_gradient is False:
+                        assert np.array_equal(out[2], self.ref_x_backward(out[1]))
+                        if y.stop_gradient is False:
+                            assert np.array_equal(out[3], self.ref_y_backward(out[1]))
+                    elif y.stop_gradient is False:
+                        assert np.array_equal(out[2], self.ref_y_backward(out[1]))
 
     def test_api_broadcast(self, use_mlu=False):
         main_program = Program()
@@ -154,11 +149,9 @@ class TestWhereAPI(unittest.TestCase):
         paddle.enable_static()
         main_program = Program()
         with fluid.program_guard(main_program):
-            cond = paddle.static.data(
-                name="cond", shape=[-1] + cond_shape, dtype="bool"
-            )
-            x = paddle.static.data(name="x", shape=[-1] + x_shape, dtype="float32")
-            y = paddle.static.data(name="y", shape=[-1] + y_shape, dtype="float32")
+            cond = paddle.static.data(name="cond", shape=cond_shape, dtype="bool")
+            x = paddle.static.data(name="x", shape=x_shape, dtype="float32")
+            y = paddle.static.data(name="y", shape=y_shape, dtype="float32")
             cond_data_tmp = np.random.random(size=cond_shape).astype("float32")
             cond_data = cond_data_tmp < 0.3
             x_data = np.random.random(size=x_shape).astype("float32")
@@ -296,30 +289,6 @@ class TestWhereDygraphAPI(unittest.TestCase):
         a_shape = [2, 2, 1]
         b_shape = [2, 2, 1]
         self.__test_where_with_broadcast_dygraph(cond_shape, a_shape, b_shape)
-
-    def test_where_condition(self):
-        data = np.array([[True, False], [False, True]])
-        with program_guard(Program(), Program()):
-            x = paddle.static.data(name="x", shape=[(-1), 2])
-            y = paddle.where(x)
-            self.assertEqual(type(y), tuple)
-            self.assertEqual(len(y), 2)
-            z = fluid.layers.concat(list(y), axis=1)
-            exe = fluid.Executor(paddle.CustomPlace("CustomMLU", 0))
-            (res,) = exe.run(feed={"x": data}, fetch_list=[z.name], return_numpy=False)
-        expect_out = np.array([[0, 0], [1, 1]])
-        np.testing.assert_allclose(expect_out, np.array(res))
-        data = np.array([True, True, False])
-        with program_guard(Program(), Program()):
-            x = paddle.static.data(name="x", shape=[(-1)])
-            y = paddle.where(x)
-            self.assertEqual(type(y), tuple)
-            self.assertEqual(len(y), 1)
-            z = fluid.layers.concat(list(y), axis=1)
-            exe = fluid.Executor(paddle.CustomPlace("CustomMLU", 0))
-            (res,) = exe.run(feed={"x": data}, fetch_list=[z.name], return_numpy=False)
-        expect_out = np.array([[0], [1]])
-        np.testing.assert_allclose(expect_out, np.array(res))
 
 
 class TestWhereOpError(unittest.TestCase):

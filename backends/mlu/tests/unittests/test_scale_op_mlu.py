@@ -18,7 +18,6 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 import paddle.fluid.core as core
 from paddle.fluid.op import Operator
 from paddle.static import Program, program_guard
@@ -27,18 +26,15 @@ paddle.enable_static()
 
 
 class TestScaleOp(OpTest):
-
     def setUp(self):
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype_type()
-        self.inputs = {'X': np.random.random((10, 10)).astype(self.dtype)}
-        self.attrs = {'scale': -2.3}
-        self.outputs = {
-            'Out': self.inputs['X'] * self.dtype(self.attrs['scale'])
-        }
+        self.inputs = {"X": np.random.random((10, 10)).astype(self.dtype)}
+        self.attrs = {"scale": -2.3}
+        self.outputs = {"Out": self.inputs["X"] * self.dtype(self.attrs["scale"])}
 
     def init_dtype_type(self):
         pass
@@ -48,20 +44,19 @@ class TestScaleOp(OpTest):
 
 
 class TestScaleOpScaleVariable(OpTest):
-
     def setUp(self):
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("CustomMLU", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype_type()
         self.scale = -2.3
         self.inputs = {
-            'X': np.random.random((10, 10)).astype(self.dtype),
-            'ScaleTensor': np.array([self.scale]).astype('float32')
+            "X": np.random.random((10, 10)).astype(self.dtype),
+            "ScaleTensor": np.array([self.scale]).astype("float32"),
         }
         self.attrs = {}
-        self.outputs = {'Out': self.inputs['X'] * self.dtype(self.scale)}
+        self.outputs = {"Out": self.inputs["X"] * self.dtype(self.scale)}
 
     def init_dtype_type(self):
         pass
@@ -71,7 +66,6 @@ class TestScaleOpScaleVariable(OpTest):
 
 
 class TestScaleOpSelectedRows(unittest.TestCase):
-
     def init_dtype_type(self):
         pass
 
@@ -90,8 +84,7 @@ class TestScaleOpSelectedRows(unittest.TestCase):
         in_selected_rows = scope.var(in_name).get_selected_rows()
         in_selected_rows.set_height(in_height)
         in_selected_rows.set_rows(in_rows)
-        in_array = np.random.random(
-            (len(in_rows), in_row_numel)).astype(self.dtype)
+        in_array = np.random.random((len(in_rows), in_row_numel)).astype(self.dtype)
 
         in_tensor = in_selected_rows.get_tensor()
         in_tensor.set(in_array, place)
@@ -117,33 +110,29 @@ class TestScaleOpSelectedRows(unittest.TestCase):
     def test_scale_selected_rows(self):
         places = [core.CPUPlace()]
         if core.is_compiled_with_mlu():
-            places.append(core.CustomPlace('CustomMLU', 0))
+            places.append(core.CustomPlace("CustomMLU", 0))
         for place in places:
-            self.check_with_place(place, 'in', 'out')
+            self.check_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
         places = [core.CPUPlace()]
         if core.is_compiled_with_mlu():
-            places.append(core.CustomPlace('CustomMLU', 0))
+            places.append(core.CustomPlace("CustomMLU", 0))
         for place in places:
-            self.check_with_place(place, 'in', 'in')
+            self.check_with_place(place, "in", "in")
 
 
 class TestScaleRaiseError(unittest.TestCase):
-
     def test_errors(self):
-
         def test_type():
-            fluid.layers.scale([10])
+            paddle.scale([10])
 
         self.assertRaises(TypeError, test_type)
 
 
 # Add FP16 test
-@unittest.skipIf(not core.is_compiled_with_mlu(),
-                 "core is not compiled with MLU")
+@unittest.skipIf(not core.is_compiled_with_mlu(), "core is not compiled with MLU")
 class TestScaleFp16Op(TestScaleOp):
-
     def init_dtype_type(self):
         self.dtype = np.float16
 
@@ -151,24 +140,21 @@ class TestScaleFp16Op(TestScaleOp):
         self.check_output_with_place(self.place, atol=0.002)
 
 
-@unittest.skipIf(not core.is_compiled_with_mlu(),
-                 "core is not compiled with MLU")
+@unittest.skipIf(not core.is_compiled_with_mlu(), "core is not compiled with MLU")
 class TestScaleFp16OpSelectedRows(TestScaleOpSelectedRows):
-
     def init_dtype_type(self):
         self.dtype = np.float16
 
     def test_scale_selected_rows(self):
-        place = core.CustomPlace('CustomMLU', 0)
-        self.check_with_place(place, 'in', 'out')
+        place = core.CustomPlace("CustomMLU", 0)
+        self.check_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
-        place = core.CustomPlace('CustomMLU', 0)
-        self.check_with_place(place, 'in', 'in')
+        place = core.CustomPlace("CustomMLU", 0)
+        self.check_with_place(place, "in", "in")
 
 
 class TestScaleApiStatic(unittest.TestCase):
-
     def _executed_api(self, x, scale=1.0, bias=0.0):
         return paddle.scale(x, scale, bias)
 
@@ -186,13 +172,11 @@ class TestScaleApiStatic(unittest.TestCase):
 
 
 class TestScaleInplaceApiStatic(TestScaleApiStatic):
-
     def _executed_api(self, x, scale=1.0, bias=0.0):
         return x.scale_(scale, bias)
 
 
 class TestScaleApiDygraph(unittest.TestCase):
-
     def _executed_api(self, x, scale=1.0, bias=0.0):
         return paddle.scale(x, scale, bias)
 
@@ -206,7 +190,6 @@ class TestScaleApiDygraph(unittest.TestCase):
 
 
 class TestScaleInplaceApiDygraph(TestScaleApiDygraph):
-
     def _executed_api(self, x, scale=1.0, bias=0.0):
         return x.scale_(scale, bias)
 

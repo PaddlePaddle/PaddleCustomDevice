@@ -409,8 +409,8 @@ class TestSliceOp_starts_OneTensor_ends_ListTensor(OpTest):
 class TestSliceAPI(unittest.TestCase):
     def test_1(self):
         input = np.random.random([3, 4, 5, 6]).astype("float64")
-        minus_1 = fluid.layers.fill_constant([1], "int32", -1)
-        minus_3 = fluid.layers.fill_constant([1], "int64", -3)
+        minus_1 = paddle.tensor.fill_constant([1], "int32", -1)
+        minus_3 = paddle.tensor.fill_constant([1], "int64", -3)
         starts = paddle.static.data(name="starts", shape=[1, 3], dtype="float32")
         starts.desc.set_need_check_feed(False)
         ends = paddle.static.data(name="ends", shape=[3], dtype="float32")
@@ -419,7 +419,7 @@ class TestSliceAPI(unittest.TestCase):
         x = paddle.static.data(name="x", shape=[3, 4, 5, 6], dtype="float64")
 
         # value_int64 is greater than 2147483647 which is the max of int32
-        value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
+        value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
 
         out_1 = paddle.slice(
             x, axes=[0, 1, 2], starts=[-3, 0, 2], ends=[value_int64, 100, -1]
@@ -558,7 +558,7 @@ class TestSliceApiWithLoDTensorArray(unittest.TestCase):
                     slice_arr, axis=self.axis, use_stack=True
                 )
             elif case_num == 3:
-                value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
+                value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
                 self.sliced_arr = slice_arr = arr[self.start : value_int64]
                 output, _ = fluid.layers.tensor_array_to_tensor(
                     slice_arr, axis=self.axis, use_stack=True

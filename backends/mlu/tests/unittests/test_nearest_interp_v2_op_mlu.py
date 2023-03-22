@@ -17,7 +17,6 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-import paddle.fluid as fluid
 import paddle
 
 paddle.enable_static()
@@ -548,18 +547,6 @@ class TestNearestInterpException(unittest.TestCase):
 
         input = paddle.static.data(name="input", shape=[1, 3, 6, 6], dtype="float32")
 
-        def attr_data_format():
-            # for 4-D input, data_format can only be NCHW or NHWC
-            out = fluid.layers.resize_nearest(
-                input, out_shape=[4, 8], data_format="NDHWC"
-            )
-
-        def attr_scale_type():
-            out = fluid.layers.resize_nearest(input, scale="scale")
-
-        def attr_scale_value():
-            out = fluid.layers.resize_nearest(input, scale=-0.3)
-
         def input_shape_error():
             x = paddle.randn([1, 3])
             out = paddle.nn.functional.interpolate(x, scale_factor="scale")
@@ -570,9 +557,6 @@ class TestNearestInterpException(unittest.TestCase):
                 x, scale_factor="scale", mode="BILINEAR"
             )
 
-        self.assertRaises(ValueError, attr_data_format)
-        self.assertRaises(TypeError, attr_scale_type)
-        self.assertRaises(ValueError, attr_scale_value)
         self.assertRaises(ValueError, input_shape_error)
         self.assertRaises(ValueError, mode_error)
 

@@ -39,7 +39,7 @@
 #include "paddle/extension.h"
 #include "paddle/phi/extension.h"
 
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
+aclDataType ConvertToNpuDtype(phi::DataType dtype);
 aclFormat ConvertToNpuFormat(phi::DataLayout layout);
 
 using FormatShape = std::vector<int64_t>;

@@ -18,7 +18,6 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
@@ -36,7 +35,7 @@ class TestHuberLossOp(OpTest):
     def setUp(self):
         self.op_type = "huber_loss"
         self.set_mlu()
-        self.python_api = paddle.fluid.layers.huber_loss
+        self.python_api = paddle.nn.functional.smooth_l1_loss
         self.python_out_sig = ["Out"]
         self.delta = 1.0
         self.init_input()
@@ -109,14 +108,22 @@ class TestHuberLossOpError(unittest.TestCase):
             lw = np.random.random((6, 6)).astype("float32")
             lr = paddle.static.data(name="lr", shape=[None, 6], dtype="float32")
             delta = 1.0
-            self.assertRaises(TypeError, fluid.layers.huber_loss, xr, lw, delta)
-            self.assertRaises(TypeError, fluid.layers.huber_loss, xw, lr, delta)
+            self.assertRaises(
+                TypeError, paddle.nn.functional.smooth_l1_loss, xr, lw, delta
+            )
+            self.assertRaises(
+                TypeError, paddle.nn.functional.smooth_l1_loss, xw, lr, delta
+            )
 
             # the dtype of input and label must be float32 or float64
             xw2 = paddle.static.data(name="xw2", shape=[None, 6], dtype="int32")
             lw2 = paddle.static.data(name="lw2", shape=[None, 6], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.huber_loss, xw2, lr, delta)
-            self.assertRaises(TypeError, fluid.layers.huber_loss, xr, lw2, delta)
+            self.assertRaises(
+                TypeError, paddle.nn.functional.smooth_l1_loss, xw2, lr, delta
+            )
+            self.assertRaises(
+                TypeError, paddle.nn.functional.smooth_l1_loss, xr, lw2, delta
+            )
 
 
 if __name__ == "__main__":

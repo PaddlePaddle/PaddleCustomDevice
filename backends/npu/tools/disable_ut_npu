@@ -3,3 +3,5 @@ test_adam_op_npu
 test_set_value_op_npu
 test_hard_swish_op_npu
 test_group_norm_op_npu
+test_softmax_with_cross_entropy_op_npu
+test_zero_dim_tensor_npu

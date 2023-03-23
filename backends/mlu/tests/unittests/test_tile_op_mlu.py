@@ -226,7 +226,7 @@ class TestTileAPIStatic(unittest.TestCase):
             repeat_times = [2, 2]
             x1 = paddle.static.data(name="x1", shape=[-1, 4], dtype="int32")
             out = paddle.tile(x1, repeat_times)
-            positive_2 = paddle.full([1], fill_value=2, dtype="int32")
+            positive_2 = paddle.tensor.fill_constant([1], dtype="int32", value=2)
             out2 = paddle.tile(x1, repeat_times=[positive_2, 2])
 
 

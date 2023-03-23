@@ -212,7 +212,7 @@ class TestLeakyReluAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", [10, 12])
+            x = paddle.static.data("X", [10, 12])
             out1 = F.leaky_relu(x)
             m = paddle.nn.LeakyReLU()
             out2 = m(x)
@@ -314,7 +314,7 @@ class TestGELUAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", [11, 17])
+            x = paddle.static.data("X", [11, 17])
             out1 = F.gelu(x)
             m = paddle.nn.GELU()
             out2 = m(x)
@@ -392,7 +392,7 @@ class TestCELUAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", [10, 12])
+            x = paddle.static.data("X", [10, 12])
             out1 = self.celu(x, 1.5)
             m = paddle.nn.CELU(1.5)
             out2 = m(x)
@@ -555,7 +555,7 @@ class TestReluAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", [10, 12])
+            x = paddle.static.data("X", [10, 12])
             out1 = self.relu(x)
             m = paddle.nn.ReLU()
             out2 = m(x)
@@ -632,7 +632,7 @@ class TestRelu6API(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.relu6(x)
             relu6 = paddle.nn.ReLU6()
             out2 = relu6(x)
@@ -656,7 +656,7 @@ class TestRelu6API(unittest.TestCase):
     def test_fluid_api(self):
         paddle.enable_static()
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out = paddle.nn.functional.relu6(x)
             exe = fluid.Executor(self.place)
             res = exe.run(feed={"X": self.x_np}, fetch_list=[out])
@@ -789,7 +789,7 @@ class TestTanhAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", [10, 12], self.dtype)
+            x = paddle.static.data("X", [10, 12], self.dtype)
             out1 = self.tanh(x)
             th = paddle.nn.Tanh()
             out2 = th(x)
@@ -911,7 +911,7 @@ class TestSoftshrinkAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.softshrink(x, self.threshold)
             softshrink = paddle.nn.Softshrink(self.threshold)
             out2 = softshrink(x)
@@ -999,7 +999,7 @@ class TestSoftplusAPI(unittest.TestCase):
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.softplus(x, self.beta, self.threshold)
             softplus = paddle.nn.Softplus(self.beta, self.threshold)
             out2 = softplus(x)

@@ -619,9 +619,9 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
     def set_program_and_run(self, main_program, case_num):
         with fluid.program_guard(main_program):
             x = [
-                fluid.data(name="x0", shape=self.shape, dtype="float32"),
-                fluid.data(name="x1", shape=self.shape, dtype="float32"),
-                fluid.data(name="x2", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x2", shape=self.shape, dtype="float32"),
             ]
 
             for each_x in x:
@@ -642,7 +642,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
                     slice_arr, axis=self.axis, use_stack=True
                 )
             elif case_num == 3:
-                value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
+                value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
                 self.sliced_arr = slice_arr = arr[self.start : value_int64]
                 output, _ = tensor_array_to_tensor(
                     slice_arr, axis=self.axis, use_stack=True

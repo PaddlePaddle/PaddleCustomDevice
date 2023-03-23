@@ -19,7 +19,6 @@ import unittest
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 
@@ -44,131 +43,139 @@ def kldiv_loss(x, target, reduction):
 class TestKLDivLossOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
-        self.dtype = 'float32'
+        self.dtype = "float32"
 
     def setUp(self):
         self.set_npu()
         self.init_dtype()
         self.initTestCase()
-        self.op_type = 'kldiv_loss'
+        self.op_type = "kldiv_loss"
         x = np.random.uniform(-10, 10, self.x_shape).astype(self.dtype)
         target = np.random.uniform(-10, 10, self.x_shape).astype(self.dtype)
 
         self.attrs = {"reduction": self.reduction}
 
         self.inputs = {
-            'X': x,
-            'Target': target,
+            "X": x,
+            "Target": target,
         }
         loss = kldiv_loss(x, target, self.reduction)
-        self.outputs = {'Loss': loss.astype(self.dtype)}
+        self.outputs = {"Loss": loss.astype(self.dtype)}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Loss',
+            self.place,
+            ["X"],
+            "Loss",
             no_grad_set=set(["Target"]),
-            max_relative_error=0.15)
+            max_relative_error=0.15,
+        )
 
     def initTestCase(self):
         self.x_shape = (4, 5, 5)
-        self.reduction = 'batchmean'
+        self.reduction = "batchmean"
 
 
 class TestKLDivLossOp2(TestKLDivLossOp):
     def initTestCase(self):
         self.x_shape = (3, 2, 7, 7)
-        self.reduction = 'none'
+        self.reduction = "none"
 
 
 class TestKLDivLossOp3(TestKLDivLossOp):
     def initTestCase(self):
         self.x_shape = (2, 3, 5, 7, 9)
-        self.reduction = 'mean'
+        self.reduction = "mean"
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Loss',
+            self.place,
+            ["X"],
+            "Loss",
             no_grad_set=set(["Target"]),
-            max_relative_error=0.16)
+            max_relative_error=0.16,
+        )
 
 
 class TestKLDivLossOp4(TestKLDivLossOp):
     def initTestCase(self):
         self.x_shape = (5, 20)
-        self.reduction = 'sum'
+        self.reduction = "sum"
 
 
 class TestKLDivLossOp_fp16(TestKLDivLossOp):
     def init_dtype(self):
-        self.dtype = 'float16'
+        self.dtype = "float16"
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=3e-1)
 
     def test_check_grad(self):
-        input_grad = -self.inputs['Target'] * (
-            self.inputs['Target'] > 0) / self.inputs['Target'].shape[0]
+        input_grad = (
+            -self.inputs["Target"]
+            * (self.inputs["Target"] > 0)
+            / self.inputs["Target"].shape[0]
+        )
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Loss',
+            self.place,
+            ["X"],
+            "Loss",
             no_grad_set=set(["Target"]),
             max_relative_error=0.2,
-            user_defined_grads=[input_grad])
+            user_defined_grads=[input_grad],
+        )
 
 
 class TestKLDivLossDygraph(unittest.TestCase):
     def run_kl_loss(self, reduction, shape=(5, 20)):
-        x = np.random.uniform(-10, 10, shape).astype('float32')
-        target = np.random.uniform(-10, 10, shape).astype('float32')
+        x = np.random.uniform(-10, 10, shape).astype("float32")
+        target = np.random.uniform(-10, 10, shape).astype("float32")
         gt_loss = kldiv_loss(x, target, reduction)
 
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
             kldiv_criterion = paddle.nn.KLDivLoss(reduction)
-            pred_loss = kldiv_criterion(
-                paddle.to_tensor(x), paddle.to_tensor(target))
+            pred_loss = kldiv_criterion(paddle.to_tensor(x), paddle.to_tensor(target))
             self.assertTrue(np.allclose(pred_loss.numpy(), gt_loss))
 
     def test_kl_loss_batchmean(self):
-        self.run_kl_loss('batchmean')
+        self.run_kl_loss("batchmean")
 
     def test_kl_loss_batchmean_shape(self):
-        self.run_kl_loss('batchmean', ())
+        self.run_kl_loss("batchmean", ())
 
     def test_kl_loss_mean(self):
-        self.run_kl_loss('mean')
+        self.run_kl_loss("mean")
 
     def test_kl_loss_sum(self):
-        self.run_kl_loss('sum')
+        self.run_kl_loss("sum")
 
     def test_kl_loss_none(self):
-        self.run_kl_loss('none')
+        self.run_kl_loss("none")
 
     def test_kl_loss_static_api(self):
-        input = paddle.fluid.data(name='input', shape=[5, 20])
-        label = paddle.fluid.data(name='label', shape=[5, 20])
+        input = paddle.static.data(name="input", shape=[5, 20])
+        label = paddle.static.data(name="label", shape=[5, 20])
 
         pred_loss = paddle.nn.functional.kl_div(input, label)
 
 
 class TestKLDivLossTypePromotion(unittest.TestCase):
     def test_kl_div_promotion(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('npu', 0)):
-            x1 = paddle.rand([5, 20], dtype='float32')
-            target1 = paddle.rand([5, 20], dtype='float32')
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x1 = paddle.rand([5, 20], dtype="float32")
+            target1 = paddle.rand([5, 20], dtype="float32")
 
             kldiv_criterion = paddle.nn.KLDivLoss()
             pred_loss1 = kldiv_criterion(x1, target1)
 
-            x2 = paddle.rand([5, 20], dtype='float32')
-            target2 = paddle.rand([5, 20], dtype='float32')
+            x2 = paddle.rand([5, 20], dtype="float32")
+            target2 = paddle.rand([5, 20], dtype="float32")
             pred_loss2 = paddle.nn.functional.kl_div(x2, target2)
 
 

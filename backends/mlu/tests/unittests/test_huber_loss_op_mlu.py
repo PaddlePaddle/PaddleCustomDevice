@@ -18,7 +18,6 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
@@ -105,9 +104,9 @@ class TestHuberLossOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # the input and label must be Variable
             xw = np.random.random((6, 6)).astype("float32")
-            xr = fluid.data(name="xr", shape=[None, 6], dtype="float32")
+            xr = paddle.static.data(name="xr", shape=[None, 6], dtype="float32")
             lw = np.random.random((6, 6)).astype("float32")
-            lr = fluid.data(name="lr", shape=[None, 6], dtype="float32")
+            lr = paddle.static.data(name="lr", shape=[None, 6], dtype="float32")
             delta = 1.0
             self.assertRaises(
                 TypeError, paddle.nn.functional.smooth_l1_loss, xr, lw, delta
@@ -117,8 +116,8 @@ class TestHuberLossOpError(unittest.TestCase):
             )
 
             # the dtype of input and label must be float32 or float64
-            xw2 = fluid.data(name="xw2", shape=[None, 6], dtype="int32")
-            lw2 = fluid.data(name="lw2", shape=[None, 6], dtype="int32")
+            xw2 = paddle.static.data(name="xw2", shape=[None, 6], dtype="int32")
+            lw2 = paddle.static.data(name="lw2", shape=[None, 6], dtype="int32")
             self.assertRaises(
                 TypeError, paddle.nn.functional.smooth_l1_loss, xw2, lr, delta
             )

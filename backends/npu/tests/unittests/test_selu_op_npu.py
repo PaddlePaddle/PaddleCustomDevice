@@ -14,7 +14,6 @@
 
 import unittest
 import numpy as np
-import paddle.fluid.core as core
 from tests.op_test import OpTest
 import paddle
 import paddle.fluid as fluid
@@ -24,9 +23,10 @@ paddle.enable_static()
 
 
 def ref_selu(
-        x,
-        scale=1.0507009873554804934193349852946,
-        alpha=1.6732632423543772848170429916717, ):
+    x,
+    scale=1.0507009873554804934193349852946,
+    alpha=1.6732632423543772848170429916717,
+):
     out = np.copy(x)
     out_flat = out.flatten()
     for i in range(out_flat.size):
@@ -40,7 +40,7 @@ def ref_selu(
 class SeluTest(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def setUp(self):
         self.set_npu()
@@ -60,12 +60,12 @@ class SeluTest(OpTest):
 
         out = ref_selu(x, scale, alpha)
 
-        self.inputs = {'X': x}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
 
         self.attrs = {
-            'alpha': alpha,
-            'scale': scale,
+            "alpha": alpha,
+            "scale": scale,
         }
 
     def init_x_shape(self):
@@ -78,7 +78,7 @@ class SeluTest(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class SeluTestFP16(SeluTest):
@@ -101,17 +101,17 @@ class TestSeluAPI(unittest.TestCase):
         # Since zero point in selu is not differentiable, avoid randomize
         # zero.
         self.x_np[np.abs(self.x_np) < 0.005] = 0.02
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data('X', self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out1 = F.selu(x, self.scale, self.alpha)
             selu = paddle.nn.SELU(self.scale, self.alpha)
             out2 = selu(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_selu(self.x_np, self.scale, self.alpha)
         for r in res:
             np.testing.assert_allclose(out_ref, r, rtol=1e-05)
@@ -130,10 +130,10 @@ class TestSeluAPI(unittest.TestCase):
     def test_fluid_api(self):
         paddle.enable_static()
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data('X', self.x_np.shape, self.x_np.dtype)
+            x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out = F.selu(x, self.scale, self.alpha)
             exe = fluid.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out])
         out_ref = ref_selu(self.x_np, self.scale, self.alpha)
         np.testing.assert_allclose(out_ref, res[0], rtol=1e-05)
 

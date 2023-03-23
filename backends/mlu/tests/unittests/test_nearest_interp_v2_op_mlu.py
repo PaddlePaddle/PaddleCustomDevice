@@ -17,7 +17,6 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-import paddle.fluid as fluid
 import paddle
 
 paddle.enable_static()
@@ -546,7 +545,7 @@ class TestNearestInterpException(unittest.TestCase):
     def test_exception(self):
         import paddle
 
-        input = fluid.data(name="input", shape=[1, 3, 6, 6], dtype="float32")
+        input = paddle.static.data(name="input", shape=[1, 3, 6, 6], dtype="float32")
 
         def input_shape_error():
             x = paddle.randn([1, 3])

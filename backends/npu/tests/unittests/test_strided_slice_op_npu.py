@@ -568,8 +568,8 @@ class TestStridedSliceOp_strides_Tensor(OpTest):
 class TestStridedSliceAPI(unittest.TestCase):
     def test_1(self):
         input = np.random.random([3, 4, 5, 6]).astype("float64")
-        minus_1 = fluid.layers.fill_constant([1], "int32", -1)
-        minus_3 = fluid.layers.fill_constant([1], "int32", -3)
+        minus_1 = paddle.tensor.fill_constant([1], "int32", -1)
+        minus_3 = paddle.tensor.fill_constant([1], "int32", -3)
         starts = paddle.static.data(name="starts", shape=[3], dtype="int32")
         ends = paddle.static.data(name="ends", shape=[3], dtype="int32")
         strides = paddle.static.data(name="strides", shape=[3], dtype="int32")
@@ -646,10 +646,10 @@ class TestStridedSliceTensorArray(unittest.TestCase):
     def set_program_and_run(self, main_program, case_num):
         with fluid.program_guard(main_program):
             x = [
-                fluid.data(name="x0", shape=self.shape, dtype="float32"),
-                fluid.data(name="x1", shape=self.shape, dtype="float32"),
-                fluid.data(name="x2", shape=self.shape, dtype="float32"),
-                fluid.data(name="x3", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x2", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x3", shape=self.shape, dtype="float32"),
             ]
 
             for each_x in x:

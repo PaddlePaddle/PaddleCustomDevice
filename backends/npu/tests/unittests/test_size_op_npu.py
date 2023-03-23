@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import unittest
+
 import numpy as np
 import paddle
 import paddle.fluid as fluid
@@ -23,41 +24,70 @@ paddle.enable_static()
 
 class TestSizeOp(OpTest):
     def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "size"
-        self.shape = []
+
         self.config()
-        input = np.zeros(self.shape, dtype="bool")
+        input = np.zeros(self.shape, dtype=self.dtype)
         self.inputs = {"Input": input}
-        self.outputs = {"Out": np.array([np.size(input)], dtype="int64")}
+        self.outputs = {"Out": np.array([np.size(input)], dtype=np.int64)}
 
     def config(self):
-        pass
+        self.shape = [1, 2]
+        self.dtype = np.int32
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("CustomMLU", 0))
+        self.check_output_with_place(self.place)
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
 
 
-class TestRank1Tensor(TestSizeOp):
+class TestSizeOp1(TestSizeOp):
     def config(self):
         self.shape = [2]
+        self.dtype = np.float64
 
 
-class TestRank2Tensor(TestSizeOp):
+class TestSizeOp2(TestSizeOp):
     def config(self):
         self.shape = [2, 3]
+        self.dtype = np.float32
 
 
-class TestRank3Tensor(TestSizeOp):
+class TestSizeOp3(TestSizeOp):
     def config(self):
         self.shape = [2, 3, 100]
+        self.dtype = np.float16
 
 
-class TestLargeTensor(TestSizeOp):
+class TestSizeOp4(TestSizeOp):
     def config(self):
         self.shape = [2**10]
+        self.dtype = np.bool_
+
+
+class TestSizeOp5(TestSizeOp):
+    def config(self):
+        self.shape = [7, 8, 9, 10]
+        self.dtype = np.int64
+
+
+class TestSizeOp6(TestSizeOp):
+    def config(self):
+        self.shape = []
+        self.dtype = np.int64
 
 
 class TestSizeAPI(unittest.TestCase):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
     def test_size_static(self):
         main_program = fluid.Program()
         startup_program = fluid.Program()
@@ -70,7 +100,7 @@ class TestSizeAPI(unittest.TestCase):
             input_2 = np.random.random(shape2).astype("int32")
             out_1 = paddle.numel(x_1)
             out_2 = paddle.numel(x_2)
-            exe = paddle.static.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+            exe = paddle.static.Executor(place=self.place)
             res_1, res_2 = exe.run(
                 feed={
                     "x_1": input_1,
@@ -78,11 +108,17 @@ class TestSizeAPI(unittest.TestCase):
                 },
                 fetch_list=[out_1, out_2],
             )
-            assert np.array_equal(res_1, np.array([np.size(input_1)]).astype("int64"))
-            assert np.array_equal(res_2, np.array([np.size(input_2)]).astype("int64"))
+            assert np.array_equal(
+                res_1,
+                np.array(np.size(input_1)).astype("int64"),
+            )
+            assert np.array_equal(
+                res_2,
+                np.array(np.size(input_2)).astype("int64"),
+            )
 
     def test_size_imperative(self):
-        paddle.disable_static(paddle.CustomPlace("CustomMLU", 0))
+        paddle.disable_static(self.place)
         input_1 = np.random.random([2, 1, 4, 5]).astype("int32")
         input_2 = np.random.random([1, 4, 5]).astype("int32")
         x_1 = paddle.to_tensor(input_1)

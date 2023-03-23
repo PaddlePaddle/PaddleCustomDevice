@@ -74,7 +74,7 @@ void SumRawKernel(const Context& dev_ctx,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensorMeta::DataType out_dtype,
+                  phi::DataType out_dtype,
                   phi::DenseTensor* out) {
   auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
@@ -141,7 +141,7 @@ template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::IntArray& dims,
-               phi::DenseTensorMeta::DataType out_dtype,
+               phi::DataType out_dtype,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
@@ -220,7 +220,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum_raw,
                           int64_t,
                           phi::dtype::float16,
                           float) {
-  kernel->OutputAt(0).SetDataType(paddle::experimental::DataType::UNDEFINED);
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
@@ -232,7 +232,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           int64_t,
                           phi::dtype::float16,
                           float) {
-  kernel->OutputAt(0).SetDataType(paddle::experimental::DataType::UNDEFINED);
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum_grad,

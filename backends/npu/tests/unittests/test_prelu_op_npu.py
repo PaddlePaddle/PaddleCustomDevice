@@ -49,8 +49,8 @@ class TestFunctionalPReluAPI(unittest.TestCase):
     def static_check(self, weight_np):
         with paddle.static.program_guard(paddle.static.Program()):
             paddle.enable_static()
-            x = paddle.fluid.data("X", self.x_np.shape, "float32")
-            weight = paddle.fluid.data("Alpha", weight_np.shape, "float32")
+            x = paddle.static.data("X", self.x_np.shape, "float32")
+            weight = paddle.static.data("Alpha", weight_np.shape, "float32")
             out = F.prelu(x, weight)
             exe = paddle.static.Executor(self.place)
             res = exe.run(feed={"X": self.x_np, "Alpha": weight_np}, fetch_list=[out])
@@ -90,7 +90,7 @@ class TestNNPReluAPI(unittest.TestCase):
         train_program = paddle.static.Program()
         with paddle.static.program_guard(train_program, startup_program):
             paddle.enable_static()
-            x = paddle.fluid.data(name="X", shape=self.x_np.shape, dtype="float32")
+            x = paddle.static.data(name="X", shape=self.x_np.shape, dtype="float32")
             m = paddle.nn.PReLU()
             out = m(x)
             exe = paddle.static.Executor(self.place)

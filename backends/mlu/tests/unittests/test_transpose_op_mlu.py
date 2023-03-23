@@ -190,26 +190,26 @@ class TestTransposeOpError(unittest.TestCase):
 
             def test_x_Variable_check():
                 # the Input(x)'s type must be Variable
-                fluid.layers.transpose("not_variable", perm=[1, 0, 2])
+                paddle.transpose("not_variable", perm=[1, 0, 2])
 
             self.assertRaises(TypeError, test_x_Variable_check)
 
             def test_perm_list_check():
                 # Input(perm)'s type must be list
-                fluid.layers.transpose(x, perm="[1, 0, 2]")
+                paddle.transpose(x, perm="[1, 0, 2]")
 
             self.assertRaises(TypeError, test_perm_list_check)
 
             def test_perm_length_and_x_dim_check():
                 # Input(perm) is the permutation of dimensions of Input(input)
                 # its length should be equal to dimensions of Input(input)
-                fluid.layers.transpose(x, perm=[1, 0, 2, 3, 4])
+                paddle.transpose(x, perm=[1, 0, 2, 3, 4])
 
             self.assertRaises(ValueError, test_perm_length_and_x_dim_check)
 
             def test_each_elem_value_check():
                 # Each element in Input(perm) should be less than Input(x)'s dimension
-                fluid.layers.transpose(x, perm=[3, 5, 7])
+                paddle.transpose(x, perm=[3, 5, 7])
 
             self.assertRaises(ValueError, test_each_elem_value_check)
 
@@ -254,7 +254,7 @@ class TestTransposeApi(unittest.TestCase):
 class TestTAPI(unittest.TestCase):
     def test_out(self):
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10], dtype="float32", name="data")
+            data = paddle.static.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("CustomMLU", 0)
             exe = fluid.Executor(place)
@@ -264,7 +264,7 @@ class TestTAPI(unittest.TestCase):
         self.assertEqual((result == expected_result).all(), True)
 
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10, 5], dtype="float32", name="data")
+            data = paddle.static.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("CustomMLU", 0)
             exe = fluid.Executor(place)
@@ -274,7 +274,7 @@ class TestTAPI(unittest.TestCase):
         self.assertEqual((result == expected_result).all(), True)
 
         with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[1, 5], dtype="float32", name="data")
+            data = paddle.static.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("CustomMLU", 0)
             exe = fluid.Executor(place)
@@ -309,7 +309,7 @@ class TestTAPI(unittest.TestCase):
 
     def test_errors(self):
         with fluid.program_guard(fluid.Program()):
-            x = fluid.data(name="x", shape=[10, 5, 3], dtype="float32")
+            x = paddle.static.data(name="x", shape=[10, 5, 3], dtype="float32")
 
             def test_x_dimension_check():
                 paddle.t(x)

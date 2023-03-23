@@ -92,7 +92,7 @@ inline void AllocNPUTensor(const Context& dev_ctx,
                            phi::DenseTensor* tensor) {
   auto requested_size = PrepareTensorWithFormat(tensor, format);
   dev_ctx.template Alloc<T>(
-      tensor, requested_size * paddle::experimental::SizeOf(tensor->dtype()));
+      tensor, requested_size * phi::SizeOf(tensor->dtype()));
 }
 
 }  // namespace custom_kernel

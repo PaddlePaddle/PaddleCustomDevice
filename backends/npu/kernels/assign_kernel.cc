@@ -112,7 +112,9 @@ PD_REGISTER_PLUGIN_KERNEL(assign,
                           int,
                           float,
                           double,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           npu,
@@ -132,7 +134,9 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           int,
                           float,
                           double,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
                           npu,

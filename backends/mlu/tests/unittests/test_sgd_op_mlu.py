@@ -106,8 +106,8 @@ class TestNet(unittest.TestCase):
         cpu_pred, cpu_loss = self._test(False)
         mlu_pred, mlu_loss = self._test(True)
 
-        self.assertTrue(np.allclose(mlu_pred, cpu_pred, atol=1e-2))
-        self.assertTrue(np.allclose(mlu_loss, cpu_loss, atol=1e-2))
+        self.assertTrue(np.allclose(mlu_pred, cpu_pred))
+        self.assertTrue(np.allclose(mlu_loss, cpu_loss))
 
 
 if __name__ == "__main__":

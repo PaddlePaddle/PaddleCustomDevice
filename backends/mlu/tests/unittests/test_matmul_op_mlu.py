@@ -100,12 +100,10 @@ class TestMatMulOp(OpTest):
         self.dtype = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-4)
+        self.check_output_with_place(self.place, atol=1e-7)
 
     def test_check_grad_normal(self):
-        self.check_grad_with_place(
-            self.place, ["X", "Y"], "Out", max_relative_error=0.01
-        )
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
 
 
 class TestMatMulOp1(TestMatMulOp):

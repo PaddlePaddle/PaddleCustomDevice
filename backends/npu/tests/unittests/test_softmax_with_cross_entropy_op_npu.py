@@ -452,8 +452,8 @@ class TestSoftmaxWithCrossEntropyOp2(TestSoftmaxWithCrossEntropyOp):
 
     def test_check_output(self):
         if self.python_api is not None:
-            self.check_output(check_eager=False)
-        self.check_output()
+            self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     # def test_check_grad(self):
     #     if self.python_api is not None:

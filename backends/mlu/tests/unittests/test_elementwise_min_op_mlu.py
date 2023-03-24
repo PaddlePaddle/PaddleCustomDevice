@@ -206,8 +206,8 @@ class TestElementwiseMinOpNet(unittest.TestCase):
         cpu_pred, cpu_loss = self._test(False)
         mlu_pred, mlu_loss = self._test(True)
 
-        np.testing.assert_allclose(mlu_pred, cpu_pred, rtol=1e-3)
-        np.testing.assert_allclose(mlu_loss, cpu_loss, rtol=1e-3)
+        np.testing.assert_allclose(mlu_pred, cpu_pred, rtol=1e-6)
+        np.testing.assert_allclose(mlu_loss, cpu_loss)
 
 
 if __name__ == "__main__":

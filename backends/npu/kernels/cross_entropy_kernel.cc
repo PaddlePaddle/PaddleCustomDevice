@@ -125,7 +125,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     phi::Copy<Context>(dev_ctx, logits, dev_ctx.GetPlace(), false, softmax);
   }
   // Use NPU IR
-  if (!soft_label && labels.numel() == n && ignore_index == -1) {
+  if (!soft_label && labels.numel() == n && ignore_index == -100) {
     PADDLE_ENFORCE_EQ(soft_label,
                       false,
                       phi::errors::Unimplemented(
@@ -168,7 +168,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
       VLOG(4) << "soft_label = True is not supported in the npu kernel of "
                  "softmax_with_cross_entropy.";
     }
-    if (ignore_index != -1) {
+    if (ignore_index != -100) {
       VLOG(4) << "ignore_index = -1 is not supported in the npu kernel of "
                  "softmax_with_cross_entropy.";
     }

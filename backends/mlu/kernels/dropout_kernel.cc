@@ -35,19 +35,10 @@ void DropoutRawKernel(const Context& dev_ctx,
 
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);
-  if (is_test) {       // dropout op in test mode.
-    if (is_upscale) {  // upscale_in_train
-      VLOG(4) << "[Dropout] upscale_in_train test mode, copy out.";
-      TensorCopy(dev_ctx, x, false, out);
-    } else {  // downscale_in_infer
-      float scale = 1.0f - dropout_prob;
-      VLOG(4) << "[Dropout] downscale_in_infer test mode, scale: " << scale;
-      Tensor scale_a;
-      scale_a.Resize(x.dims());
-      dev_ctx.template Alloc<T>(&scale_a);
-      FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(scale), &scale_a);
-      MLUOpTensorKernel<T>(dev_ctx, x, scale_a, 0, CNNL_OP_TENSOR_MUL, out);
-    }
+  if (is_test && is_upscale) {
+    // dropout op for inference: out = input.
+    VLOG(4) << "[Dropout] upscale_in_train test mode, copy out.";
+    TensorCopy(dev_ctx, x, false, out);
     return;
   } else if (!is_test) {
     // dropout op for training: out = input * mask / ( 1.0 - dropout_prob ) or
@@ -60,9 +51,6 @@ void DropoutRawKernel(const Context& dev_ctx,
     } else {
       seed_data = fix_seed ? seed : 0;
     }
-    if (!is_upscale) dropout_prob = 0.0f;
-    VLOG(4) << "[Dropout] train mode upscale: " << is_upscale
-            << " dropout_prob: " << dropout_prob;
 
     dev_ctx.template Alloc<uint8_t>(mask);
     MLUCnnlTensorDesc mask_desc(*mask);
@@ -97,7 +85,34 @@ void DropoutRawKernel(const Context& dev_ctx,
                           GetBasePtr(mask),
                           out_desc.get(),
                           GetBasePtr(out));
+    if (is_upscale) {
+      VLOG(4) << "[Dropout] train, upscale_in_train. out = in * mask * (1-p)";
+      return;
+    }
   }
+
+  // downscale mode, scale (1-p)
+  Tensor t_scale, t_bias;
+  t_scale.Resize(phi::make_ddim({1}));
+  t_bias.Resize(phi::make_ddim({1}));
+  dev_ctx.template Alloc<T>(&t_scale);
+  dev_ctx.template Alloc<T>(&t_bias);
+  MLUCnnlTensorDesc scale_desc(t_scale);
+  MLUCnnlTensorDesc bias_desc(t_bias);
+  FillMLUTensorWithHostValue(
+      dev_ctx, static_cast<T>(1.0f - dropout_prob), &t_scale);
+  FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0.0f), &t_bias);
+
+  MLUCnnl::Scale(dev_ctx,
+                 0,
+                 is_test ? x_desc.get() : out_desc.get(),
+                 is_test ? GetBasePtr(&x) : GetBasePtr(out),
+                 scale_desc.get(),
+                 GetBasePtr(&t_scale),
+                 bias_desc.get(),
+                 GetBasePtr(&t_bias),
+                 out_desc.get(),
+                 GetBasePtr(out));
 }
 
 template <typename T, typename Context>

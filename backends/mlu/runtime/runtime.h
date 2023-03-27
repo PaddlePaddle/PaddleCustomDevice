@@ -16,12 +16,14 @@
 
 #include <cncl.h>
 #include <cnnl.h>
-#include <mlu_op.h>
 #include <cnpapi.h>
 #include <cnrt.h>
+#include <mlu_op.h>
 
 #include "glog/logging.h"
 #include "paddle/phi/extension.h"
+#include "runtime/os_info.h"
+#include "runtime/process_data.h"
 
 template <typename T>
 struct CustomMLUStatusType {};
@@ -32,6 +34,16 @@ struct CustomMLUStatusType {};
     using Type = type;                                     \
     static constexpr Type kSuccess = success_value;        \
   }
+
+#define CNPAPI_CALL(call)                                                    \
+  do {                                                                       \
+    cnpapiResult _status = call;                                             \
+    if (_status != CNPAPI_SUCCESS) {                                         \
+      const char *errstr;                                                    \
+      cnpapiGetResultString(_status, &errstr);                               \
+      LOG(ERROR) << "Function " << #call << " failed with error " << errstr; \
+    }                                                                        \
+  } while (0)
 
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnrtRet_t, cnrtSuccess);
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnnlStatus_t, CNNL_STATUS_SUCCESS);
@@ -59,16 +71,15 @@ inline std::string build_mlu_error_msg(cnnlStatus_t stat) {
 }
 
 /*************** MLUOP ERROR ***************/
-inline bool is_error(mluOpStatus_t stat) { return stat != MLUOP_STATUS_SUCCESS; }
+inline bool is_error(mluOpStatus_t stat) {
+  return stat != MLUOP_STATUS_SUCCESS;
+}
 
 inline std::string build_mlu_error_msg(mluOpStatus_t stat) {
   std::ostringstream sout;
-  sout << "MLU OP error(" << stat << "), " << mluOpGetErrorString(stat)
-       << ". ";
+  sout << "MLU OP error(" << stat << "), " << mluOpGetErrorString(stat) << ". ";
   return sout.str();
 }
-
-
 
 /*************** CNCL ERROR ***************/
 inline bool is_error(cnclResult_t e) { return e != CNCL_RET_SUCCESS; }

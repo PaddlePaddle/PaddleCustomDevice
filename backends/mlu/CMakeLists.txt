@@ -14,6 +14,7 @@ option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
+option(WITH_PROFILE "compile with profile" ON)
 
 set(CUSTOM_MLU_NAME "paddle-custom-mlu")
 set(CUSTOM_MLU_VERSION "0.0.1")
@@ -37,6 +38,10 @@ if(WITH_KERNELS)
     RELATIVE ${CMAKE_SOURCE_DIR}
     kernels/*.cc)
   list(APPEND CUSTOM_MLU_SRCS ${CUSTOM_KERNEL_SRCS})
+endif()
+
+if(WITH_PROFILE)
+  list(APPEND CUSTOM_MLU_SRCS runtime/os_info.cc runtime/process_data.cc)
 endif()
 
 # C++ infer lib need to compatiable with CXX11

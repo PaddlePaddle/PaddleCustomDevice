@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "paddle/phi/common/data_type.h"
 #include "runtime/runtime.h"
 
 namespace custom_kernel {
@@ -158,13 +159,13 @@ inline mluOpDataType_t ToMluOpDataType(const DataType& dtype) {
 
 template <typename T>
 inline cnnlDataType_t ToCnnlDataType() {
-  auto type = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto type = phi::CppTypeToDataType<T>::Type();
   return ToCnnlDataType(type);
 }
 
 template <typename T>
 inline mluOpDataType_t ToMluOpDataType() {
-  auto type = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto type = phi::CppTypeToDataType<T>::Type();
   return ToMluOpDataType(type);
 }
 

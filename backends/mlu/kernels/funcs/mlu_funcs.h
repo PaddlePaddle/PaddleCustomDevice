@@ -56,7 +56,7 @@ inline void TensorCopy(const Context& dev_ctx,
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
-  auto size = src.numel() * paddle::experimental::SizeOf(src.dtype());
+  auto size = src.numel() * phi::SizeOf(src.dtype());
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {

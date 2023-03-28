@@ -490,6 +490,100 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+void BufferRequestedCallback(uint64_t **buffer,
+                             size_t *size,
+                             size_t *max_num_records) {
+  Tracer::Instance().AllocateBuffer(buffer, size);
+  *max_num_records = 0;
+}
+
+void BufferCompletedCallback(uint64_t *buffer, size_t size, size_t valid_size) {
+  Tracer::Instance().ProduceBuffer(buffer, valid_size);
+}
+
+std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
+  std::unordered_map<uint32_t, uint64_t> mapping;
+  std::unordered_map<uint64_t, ThreadId> ids = GetAllThreadIds();
+  for (const auto &id : ids) {
+    mapping[id.second.cupti_tid] = id.second.sys_tid;
+  }
+  return mapping;
+}
+
+int ProcessCnpapiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+  int record_cnt = 0;
+  CNPAPI_CALL(cnpapiActivityFlushAll());
+  auto mapping = CreateThreadIdMapping();
+  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+  for (auto &buffer : buffers) {
+    if (buffer.addr == nullptr || buffer.valid_size == 0) {
+      continue;
+    }
+
+    cnpapiActivity *record = nullptr;
+    while (true) {
+      cnpapiResult status =
+          cnpapiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
+      if (status == CNPAPI_SUCCESS) {
+        ProcessCnpapiActivityRecord(record, tracing_start_ns_, mapping, prof);
+        ++record_cnt;
+      } else if (status == CNPAPI_ERROR_MAX_LIMIT_REACHED) {
+        break;
+      } else {
+        CNPAPI_CALL(status);
+      }
+    }
+
+    Tracer::Instance().ReleaseBuffer(buffer.addr);
+  }
+  return record_cnt;
+}
+
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiRelease());
+  return C_SUCCESS;
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiInit());
+  CNPAPI_CALL(cnpapiActivityRegisterCallbacks(BufferRequestedCallback,
+                                              BufferCompletedCallback));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_KERNEL));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMCPY));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMCPY_PTOP));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMSET));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_CNDRV_API));
+  VLOG(3) << "enable cnpapi activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  Tracer::Instance().ConsumeBuffers();
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiActivityFlushAll());
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_KERNEL));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMCPY));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMCPY_PTOP));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMSET));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_CNDRV_API));
+  VLOG(3) << "disable cnpapi activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t tracing_start_ns_,
+                             void *user_data) {
+  ProcessCnpapiActivity(prof, tracing_start_ns_);
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
 
@@ -552,4 +646,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_group_end = XcclGroupEnd;
   params->interface->xccl_send = XcclSend;
   params->interface->xccl_recv = XcclRecv;
+
+  // profiler
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
 }

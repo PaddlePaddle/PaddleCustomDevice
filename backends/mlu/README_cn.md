@@ -55,7 +55,7 @@ pip install dist/paddle_custom_mlu*.whl
 # 列出可用硬件后端
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 期待输出以下结果
-['CustomMLU']
+['mlu']
 
 # 运行简单模型
 python ../tests/test_MNIST_model.py
@@ -142,8 +142,8 @@ cd Paddle-Inference-Demo/c++/cpu/resnet50/
 wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
 tar xzf resnet50.tgz
 
-# 4) 修改 resnet50_test.cc，使用 CustomMLU 作为设备传入
-config.EnableCustomDevice("CustomMLU", 0);
+# 4) 修改 resnet50_test.cc，使用 mlu 作为设备传入
+config.EnableCustomDevice("mlu", 0);
 
 # 5) 修改 compile.sh 编译文件，需根据 C++ 预测库的 version.txt 信息对以下的几处内容进行修改
 WITH_MKL=ON  # Turn OFF if aarch64

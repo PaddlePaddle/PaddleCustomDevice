@@ -136,7 +136,7 @@ void ConcatGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(concat,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatKernel,
                           uint8_t,
@@ -147,7 +147,7 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatGradKernel,
                           uint8_t,

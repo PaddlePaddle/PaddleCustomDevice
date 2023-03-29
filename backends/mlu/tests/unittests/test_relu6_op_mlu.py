@@ -48,7 +48,7 @@ class TestRelu6(OpTest):
         self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -63,7 +63,7 @@ class TestRelu6(OpTest):
 
 class TestRelu6Float16(TestRelu6):
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -125,7 +125,7 @@ class TestRelu6Net(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

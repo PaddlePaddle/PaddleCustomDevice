@@ -92,4 +92,4 @@ void PriorBoxKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    prior_box, CustomMLU, ALL_LAYOUT, custom_kernel::PriorBoxKernel, float) {}
+    prior_box, mlu, ALL_LAYOUT, custom_kernel::PriorBoxKernel, float) {}

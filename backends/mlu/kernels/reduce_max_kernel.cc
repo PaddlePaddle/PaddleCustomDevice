@@ -55,7 +55,7 @@ void MaxKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(max_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
                           int32_t,
@@ -63,7 +63,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
                           int32_t,
@@ -71,7 +71,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           float) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(max_grad,
-//                           CustomMLU,
+//                           mlu,
 //                           ALL_LAYOUT,
 //                           custom_kernel::MaxGradKernel,
 //                           bool,

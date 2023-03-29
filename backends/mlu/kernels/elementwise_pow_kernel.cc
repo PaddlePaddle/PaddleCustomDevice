@@ -208,21 +208,21 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowGradKernel,
                           float,

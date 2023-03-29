@@ -320,7 +320,7 @@ class TestBatchNormOpInference(unittest.TestCase):
         )
 
     def test_check_output(self):
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         for place in places:
             for data_format in ["NCHW", "NHWC"]:
                 self.check_with_place(place, data_format, self.dtype, [2, 3, 4, 5])
@@ -337,7 +337,7 @@ class TestFP16BatchNormOpInference(TestBatchNormOpInference):
         self.init_kernel_type()
 
     def test_check_output(self):
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         for place in places:
             for data_format in ["NCHW", "NHWC"]:
                 self.check_with_place(place, data_format, self.dtype, [2, 3, 4, 5])
@@ -561,7 +561,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
                 self.__assert_close(var_dict[name], out[id], name)
             print("op test forward passed: ", str(place), data_layout)
 
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         for place in places:
             for data_format in self.data_formats:
                 test_with_place(place, data_format, [2, 3, 4, 5])
@@ -718,7 +718,7 @@ class TestDygraphBatchNormAPIError(unittest.TestCase):
 
 class TestDygraphBatchNormTrainableStats(unittest.TestCase):
     def test_dygraph(self):
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         for p in places:
             shape = [4, 10, 4, 4]
 
@@ -738,7 +738,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
             np.testing.assert_allclose(y1, y2)
 
     def test_static(self):
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         for p in places:
             exe = fluid.Executor(p)
             shape = [4, 10, 16, 16]

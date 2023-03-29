@@ -85,7 +85,7 @@ void MemcpyD2HMultiIOKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyH2DKernel,
                           phi::dtype::float16,
@@ -102,7 +102,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyD2HKernel,
                           phi::dtype::float16,
@@ -119,7 +119,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyD2HMultiIOKernel,
                           phi::dtype::float16,
@@ -136,7 +136,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyKernel,
                           phi::dtype::float16,

@@ -66,14 +66,14 @@ void BCELossGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(bce_loss,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BCELossKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(bce_loss_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BCELossGradKernel,
                           float,

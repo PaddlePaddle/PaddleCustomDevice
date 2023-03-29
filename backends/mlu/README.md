@@ -52,7 +52,7 @@ pip install dist/paddle_custom_mlu*.whl
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 
 # expected output
-['CustomMLU']
+['mlu']
 
 # run a simple model
 python ../tests/test_MNIST_model.py
@@ -140,8 +140,8 @@ cd Paddle-Inference-Demo/c++/cpu/resnet50/
 wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
 tar xzf resnet50.tgz
 
-# 4. Modify resnet50_test.cc, use use CustomMLU as devcie in config
-config.EnableCustomDevice("CustomMLU", 0);
+# 4. Modify resnet50_test.cc, use use mlu as devcie in config
+config.EnableCustomDevice("mlu", 0);
 
 # 5. Modify compile.sh based on the version.txt in PaddleInfernce C++ package
 WITH_MKL=ON  # Turn OFF if aarch64

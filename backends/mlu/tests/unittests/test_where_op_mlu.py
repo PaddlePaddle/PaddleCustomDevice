@@ -27,7 +27,7 @@ paddle.enable_static()
 class TestWhereOp(OpTest):
     def setUp(self):
         self.op_type = "where"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.python_api = paddle.where
@@ -63,7 +63,7 @@ class TestWhereOp3(TestWhereOp):
 
 class TestWhereAPI(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.init_data()
@@ -133,9 +133,7 @@ class TestWhereAPI(unittest.TestCase):
             )
             result = paddle.where((x > 1), x=x, y=y)
             for use_mlu in [False, True]:
-                place = (
-                    paddle.CustomPlace("CustomMLU", 0) if use_mlu else fluid.CPUPlace()
-                )
+                place = paddle.CustomPlace("mlu", 0) if use_mlu else fluid.CPUPlace()
                 exe = fluid.Executor(place)
                 out = exe.run(
                     fluid.default_main_program(),
@@ -157,9 +155,7 @@ class TestWhereAPI(unittest.TestCase):
             y_data = np.random.random(size=y_shape).astype("float32")
             result = paddle.where(condition=cond, x=x, y=y)
             for use_mlu in [False, True]:
-                place = (
-                    paddle.CustomPlace("CustomMLU", 0) if use_mlu else fluid.CPUPlace()
-                )
+                place = paddle.CustomPlace("mlu", 0) if use_mlu else fluid.CPUPlace()
                 exe = fluid.Executor(place)
                 out = exe.run(
                     fluid.default_main_program(),
@@ -220,7 +216,7 @@ class TestWhereAPI(unittest.TestCase):
 
 class TestWhereDygraphAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             x_i = np.array([0.9383, 0.1983, 3.2, 1.2]).astype("float32")
             y_i = np.array([1.0, 1.0, 1.0, 1.0]).astype("float32")
             cond_i = np.array([False, False, True, True]).astype("bool")
@@ -231,7 +227,7 @@ class TestWhereDygraphAPI(unittest.TestCase):
             assert np.array_equal(out.numpy(), np.where(cond_i, x_i, y_i))
 
     def __test_where_with_broadcast_dygraph(self, cond_shape, a_shape, b_shape):
-        with fluid.dygraph.guard(paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             cond_tmp = paddle.rand(cond_shape)
             cond = cond_tmp < 0.3
             a = paddle.rand(a_shape)
@@ -311,7 +307,7 @@ class TestWhereOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_type)
 
     def test_value_error(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             cond_shape = [2, 2, 4]
             cond_tmp = paddle.rand(cond_shape)
             cond = cond_tmp < 0.3

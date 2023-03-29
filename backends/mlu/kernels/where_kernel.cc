@@ -40,9 +40,5 @@ void WhereKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(where,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::WhereKernel,
-                          int32_t,
-                          float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    where, mlu, ALL_LAYOUT, custom_kernel::WhereKernel, int32_t, float) {}

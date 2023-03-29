@@ -31,7 +31,7 @@ void AddNKernel(const Context& dev_ctx,
   }
 
   // MLU shoul do sth
-  std::vector<const void *> inputs;
+  std::vector<const void*> inputs;
   std::vector<MLUCnnlTensorDesc> input_descs;
   std::vector<cnnlTensorDescriptor_t> desc_vector;
   for (int i = 0; i < n; i++) {
@@ -45,17 +45,17 @@ void AddNKernel(const Context& dev_ctx,
       *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
   uint32_t ins_size_t = static_cast<uint32_t>(n);
   MLUCnnl::AddN(dev_ctx,
-              ins_size_t,
-              desc_vector.data(),
-              inputs.data(),
-              output_desc.get(),
-              GetBasePtr(out));
+                ins_size_t,
+                desc_vector.data(),
+                inputs.data(),
+                output_desc.get(),
+                GetBasePtr(out));
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_n,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddNKernel,
                           float,

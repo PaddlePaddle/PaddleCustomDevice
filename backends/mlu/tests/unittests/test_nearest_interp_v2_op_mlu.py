@@ -159,7 +159,7 @@ def nearest_neighbor_interp3d_np(
 
 class TestNearestInterpOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.out_size = None
         self.actual_shape = None
@@ -423,7 +423,7 @@ class TestNearestNeighborInterpScale3(TestNearestInterpOp):
 
 class TestNearestInterpOp_attr_tensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.out_size = None
         self.actual_shape = None

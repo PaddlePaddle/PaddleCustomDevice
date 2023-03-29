@@ -50,7 +50,7 @@ class TestTransposeOp(OpTest):
 
     def initKernelType(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
 
 class TestCase0(TestTransposeOp):
@@ -221,7 +221,7 @@ class TestTransposeApi(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[2, 3, 4], dtype="float32")
             x_trans1 = paddle.transpose(x, perm=[1, 0, 2])
             x_trans2 = paddle.transpose(x, perm=(2, 1, 0))
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = paddle.static.Executor(place)
             x_np = np.random.random([2, 3, 4]).astype("float32")
             result1, result2 = exe.run(
@@ -256,7 +256,7 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = paddle.static.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([10]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
@@ -266,7 +266,7 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = paddle.static.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([10, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
@@ -276,7 +276,7 @@ class TestTAPI(unittest.TestCase):
         with fluid.program_guard(fluid.Program()):
             data = paddle.static.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = fluid.Executor(place)
             data_np = np.random.random([1, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
@@ -319,7 +319,7 @@ class TestTAPI(unittest.TestCase):
 
 class TestMoveAxis(unittest.TestCase):
     def test_moveaxis1(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         x_np = np.random.randn(2, 3, 4, 5, 7).astype("float32")
         expected = np.moveaxis(x_np, [0, 4, 3, 2], [1, 3, 2, 0])
         paddle.enable_static()
@@ -340,7 +340,7 @@ class TestMoveAxis(unittest.TestCase):
         paddle.enable_static()
 
     def test_moveaxis2(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         x_np = np.random.randn(2, 3, 5).astype("float32")
         expected = np.moveaxis(x_np, -2, -1)
         paddle.enable_static()
@@ -361,7 +361,7 @@ class TestMoveAxis(unittest.TestCase):
         paddle.enable_static()
 
     def test_error(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         x = paddle.randn([2, 3, 4, 5])
         # src must have the same number with dst
         with self.assertRaises(AssertionError):

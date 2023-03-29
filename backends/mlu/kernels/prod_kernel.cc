@@ -40,7 +40,7 @@ void ProdInferKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           int,
@@ -48,7 +48,7 @@ PD_REGISTER_PLUGIN_KERNEL(prod,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod_infer,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ProdInferKernel,
                           int,

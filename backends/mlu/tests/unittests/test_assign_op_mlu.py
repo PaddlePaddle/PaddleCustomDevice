@@ -30,14 +30,14 @@ class TestAssign(OpTest):
         self.init_dtype()
 
         x = np.random.random([3, 3]).astype(self.dtype)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
 
         self.attrs = {}
-        self.outputs = {'Out': x}
+        self.outputs = {"Out": x}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -46,5 +46,5 @@ class TestAssign(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

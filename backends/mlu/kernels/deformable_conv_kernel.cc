@@ -295,13 +295,13 @@ void DeformableConvGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(deformable_conv,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DeformableConvKernel,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(deformable_conv_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DeformableConvGradKernel,
                           float) {}

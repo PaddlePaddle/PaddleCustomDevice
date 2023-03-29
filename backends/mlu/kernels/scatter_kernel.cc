@@ -24,64 +24,62 @@ void ScatterKernel(const Context& dev_ctx,
                    const phi::DenseTensor& updates,
                    bool overwrite,
                    phi::DenseTensor* out) {
-    dev_ctx.template Alloc<T>(out);
-    MLUCnnlTensorDesc x_desc(x);
-    MLUCnnlTensorDesc index_desc(index);
-    MLUCnnlTensorDesc updates_desc(updates);
-    MLUCnnlTensorDesc out_desc(*out);
-    cnnlScatterRefMode_t mode;
-    if (overwrite) {
-      mode = CNNL_SCATTERREF_UPDATE;
-      MLUCnnl::ScatterRefFunctor(dev_ctx,
-                                 x_desc.get(),
-                                 GetBasePtr(&x),
-                                 updates_desc.get(),
-                                 GetBasePtr(&updates),
-                                 index_desc.get(),
-                                 GetBasePtr(&index),
-                                 mode);
+  dev_ctx.template Alloc<T>(out);
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc index_desc(index);
+  MLUCnnlTensorDesc updates_desc(updates);
+  MLUCnnlTensorDesc out_desc(*out);
+  cnnlScatterRefMode_t mode;
+  if (overwrite) {
+    mode = CNNL_SCATTERREF_UPDATE;
+    MLUCnnl::ScatterRefFunctor(dev_ctx,
+                               x_desc.get(),
+                               GetBasePtr(&x),
+                               updates_desc.get(),
+                               GetBasePtr(&updates),
+                               index_desc.get(),
+                               GetBasePtr(&index),
+                               mode);
 
-    } else {
-      Tensor tensor_zeros;
-      tensor_zeros.Resize(updates.dims());
-      dev_ctx.template Alloc<T>(&tensor_zeros);
-      MLUCnnlTensorDesc tensor_zeros_desc(tensor_zeros);
-      float value = 0.0;
-      auto value_t = static_cast<T>(value);
-      MLUCnnl::Fill(dev_ctx,
-                    CNNL_POINTER_MODE_HOST,
-                    &value_t,
-                    tensor_zeros_desc.get(),
-                    GetBasePtr(&tensor_zeros));
+  } else {
+    Tensor tensor_zeros;
+    tensor_zeros.Resize(updates.dims());
+    dev_ctx.template Alloc<T>(&tensor_zeros);
+    MLUCnnlTensorDesc tensor_zeros_desc(tensor_zeros);
+    float value = 0.0;
+    auto value_t = static_cast<T>(value);
+    MLUCnnl::Fill(dev_ctx,
+                  CNNL_POINTER_MODE_HOST,
+                  &value_t,
+                  tensor_zeros_desc.get(),
+                  GetBasePtr(&tensor_zeros));
 
-      mode = CNNL_SCATTERREF_UPDATE;
-      MLUCnnl::ScatterRefFunctor(dev_ctx,
-                                 x_desc.get(),
-                                 GetBasePtr(&x),
-                                 tensor_zeros_desc.get(),
-                                 GetBasePtr(&tensor_zeros),
-                                 index_desc.get(),
-                                 GetBasePtr(&index),
-                                 mode);
-      mode = CNNL_SCATTERREF_ADD;
-      MLUCnnl::ScatterRefFunctor(dev_ctx,
-                                 x_desc.get(),
-                                 GetBasePtr(&x),
-                                 updates_desc.get(),
-                                 GetBasePtr(&updates),
-                                 index_desc.get(),
-                                 GetBasePtr(&index),
-                                 mode);
-    }
-    TensorCopy(dev_ctx, x, false, out);  
+    mode = CNNL_SCATTERREF_UPDATE;
+    MLUCnnl::ScatterRefFunctor(dev_ctx,
+                               x_desc.get(),
+                               GetBasePtr(&x),
+                               tensor_zeros_desc.get(),
+                               GetBasePtr(&tensor_zeros),
+                               index_desc.get(),
+                               GetBasePtr(&index),
+                               mode);
+    mode = CNNL_SCATTERREF_ADD;
+    MLUCnnl::ScatterRefFunctor(dev_ctx,
+                               x_desc.get(),
+                               GetBasePtr(&x),
+                               updates_desc.get(),
+                               GetBasePtr(&updates),
+                               index_desc.get(),
+                               GetBasePtr(&index),
+                               mode);
   }
-
-
+  TensorCopy(dev_ctx, x, false, out);
+}
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scatter,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ScatterKernel,
                           float,

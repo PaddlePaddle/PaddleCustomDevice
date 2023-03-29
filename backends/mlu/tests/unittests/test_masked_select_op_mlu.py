@@ -38,7 +38,7 @@ class TestMaskedSelectOp(OpTest):
         self.set_mlu()
         self.init()
         self.init_dtype()
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.op_type = "masked_select"
         x = np.random.random(self.shape).astype(self.dtype)
         mask = np.array(np.random.randint(2, size=self.shape, dtype=bool))
@@ -90,7 +90,7 @@ class TestMaskedSelectOpInt32(TestMaskedSelectOp):
 
 class TestMaskedSelectAPI(unittest.TestCase):
     def test_imperative_mode(self):
-        paddle.disable_static(paddle.CustomPlace("CustomMLU", 0))
+        paddle.disable_static(paddle.CustomPlace("mlu", 0))
         shape = (88, 6, 8)
         np_x = np.random.random(shape).astype("float32")
         np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
@@ -111,7 +111,7 @@ class TestMaskedSelectAPI(unittest.TestCase):
         out = paddle.masked_select(x, mask)
         np_out = np_masked_select(np_x, np_mask)
 
-        exe = paddle.static.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace("mlu", 0))
 
         res = exe.run(
             paddle.static.default_main_program(),

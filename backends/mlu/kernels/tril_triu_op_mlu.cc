@@ -88,7 +88,7 @@ void TriuGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(tril_triu,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TrilTriuKernel,
                           float,
@@ -96,7 +96,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TrilKernel,
                           float,
@@ -104,7 +104,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TriuKernel,
                           float,
@@ -112,7 +112,7 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TrilTriuGradKernel,
                           float,
@@ -120,7 +120,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TrilGradKernel,
                           float,
@@ -128,7 +128,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TriuGradKernel,
                           float,

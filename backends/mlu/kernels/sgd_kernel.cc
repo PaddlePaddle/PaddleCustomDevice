@@ -45,7 +45,7 @@ void SGDKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sgd,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SGDKernel,
                           phi::dtype::float16,

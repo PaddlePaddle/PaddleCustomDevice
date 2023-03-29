@@ -34,7 +34,7 @@ def ref_leaky_relu(x, alpha=0.01):
 class TestLeadyRelu(OpTest):
     def setUp(self):
         self.op_type = "leaky_relu"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
         self.init_dtype()
@@ -113,7 +113,7 @@ class TestLeakyReluNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

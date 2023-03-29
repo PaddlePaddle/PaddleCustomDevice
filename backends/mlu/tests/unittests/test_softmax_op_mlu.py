@@ -51,7 +51,7 @@ class TestSoftmaxOp(OpTest):
         return -1
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def setUp(self):
@@ -121,7 +121,7 @@ class TestSoftmaxOp6(TestSoftmaxOp):
 
 class TestSoftmaxAPI(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.x_np = np.random.uniform(-1.0, 1.0, [2, 3, 4, 5]).astype("float32")
         self.out_ref = np.apply_along_axis(stable_softmax, -1, self.x_np)
         self.executed_api()

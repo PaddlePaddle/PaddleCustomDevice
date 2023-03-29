@@ -119,7 +119,7 @@ void GenerateProposalsKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GenerateProposalsKernel,
                           float) {}

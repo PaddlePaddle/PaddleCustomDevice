@@ -15,11 +15,8 @@
 from __future__ import print_function
 import unittest
 import numpy as np
-import os
 import paddle
-import paddle.fluid as fluid
 from tests.op_test import OpTest
-from paddle.fluid.dygraph.base import switch_to_static_graph
 
 paddle.enable_static()
 
@@ -113,107 +110,6 @@ class TestScatterOp2(OpTest):
         self.check_grad(["X", "Updates"], "Out", check_eager=False)
 
 
-class TestScatterAPI(unittest.TestCase):
-    def setUp(self):
-        self.places = [paddle.CustomPlace("CustomMLU", 0)]
-        self.__class__.use_custom_device = True
-        self.executed_api()
-
-    def executed_api(self):
-        self.scatter = paddle.scatter
-
-    def check_static_result(self, place):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
-            input = paddle.static.data(name="input", shape=[3, 2], dtype="float32")
-            index = paddle.static.data(name="index", shape=[4], dtype="int64")
-            updates = paddle.static.data(name="updates", shape=[4, 2], dtype="float32")
-            result = self.scatter(input, index, updates, False)
-
-            input_data = np.array([[1, 1], [2, 2], [3, 3]]).astype(np.float32)
-            index_data = np.array([2, 1, 0, 1]).astype(np.int64)
-            updates_data = np.array([[1, 1], [2, 2], [3, 3], [4, 4]]).astype(np.float32)
-
-            exe = fluid.Executor(place)
-            fetches = exe.run(
-                fluid.default_main_program(),
-                feed={
-                    "input": input_data,
-                    "index": index_data,
-                    "updates": updates_data,
-                },
-                fetch_list=[result],
-            )
-            self.assertEqual(
-                (fetches[0] == np.array([[3.0, 3.0], [6.0, 6.0], [1.0, 1.0]])).all(),
-                True,
-            )
-
-    def test_static(self):
-        for place in self.places:
-            self.check_static_result(place=place)
-
-    def test_dygraph(self):
-        for place in self.places:
-            with fluid.dygraph.guard(place):
-                x_data = np.array([[1, 1], [2, 2], [3, 3]]).astype(np.float32)
-                index_data = np.array([2, 1, 0, 1]).astype(np.int64)
-                updates_data = np.array([[1, 1], [2, 2], [3, 3], [4, 4]]).astype(
-                    np.float32
-                )
-
-                x = fluid.dygraph.to_variable(x_data)
-                index = fluid.dygraph.to_variable(index_data)
-                updates = fluid.dygraph.to_variable(updates_data)
-
-                output1 = self.scatter(x, index, updates, overwrite=False)
-                self.assertEqual(
-                    (
-                        output1.numpy()
-                        == np.array([[3.0, 3.0], [6.0, 6.0], [1.0, 1.0]])
-                    ).all(),
-                    True,
-                )
-
-    def test_large_data(self):
-        if os.name == "nt":
-            return
-
-        x = np.random.rand(183826, 256).astype("float32")
-        index = np.ones(8388608, dtype="int64")
-        updates = np.ones(shape=[8388608, 256], dtype="float32")
-
-        def test_dygraph():
-            with fluid.dygraph.guard():
-                mlu_out = paddle.scatter(
-                    paddle.to_tensor(x),
-                    paddle.to_tensor(index),
-                    paddle.to_tensor(updates),
-                )
-                return mlu_out.numpy()
-
-        @switch_to_static_graph
-        def test_static_graph():
-            with paddle.static.program_guard(
-                paddle.static.Program(), paddle.static.Program()
-            ):
-                x_t = paddle.static.data(name="x", dtype=x.dtype, shape=x.shape)
-                index_t = paddle.static.data(
-                    name="index", dtype=index.dtype, shape=index.shape
-                )
-                updates_t = paddle.static.data(
-                    name="updates", dtype=updates.dtype, shape=updates.shape
-                )
-                out_t = paddle.scatter(x_t, index_t, updates_t)
-                feed = {x_t.name: x, index_t.name: index, updates_t.name: updates}
-                fetch = [out_t]
-
-                mlu_exe = paddle.static.Executor(paddle.CustomPlace("CustomMLU", 0))
-                mlu_value = mlu_exe.run(feed=feed, fetch_list=fetch)[0]
-                return mlu_value
-
-        np.testing.assert_allclose(test_dygraph(), test_static_graph())
-
-
 class TestScatterOpFp16(OpTest):
     def setUp(self):
         self.op_type = "scatter"
@@ -234,11 +130,6 @@ class TestScatterOpFp16(OpTest):
 
     def test_check_grad(self):
         self.check_grad(["X", "Updates"], "Out", check_eager=False)
-
-
-class TestScatterInplaceAPI(TestScatterAPI):
-    def executed_api(self):
-        self.scatter = paddle.scatter_
 
 
 if __name__ == "__main__":

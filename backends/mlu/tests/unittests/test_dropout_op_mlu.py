@@ -66,7 +66,7 @@ class TestDropoutOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -166,7 +166,7 @@ class TestDropoutOpFp16(TestDropoutOp):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.no_need_check_grad = True
 
 
@@ -191,7 +191,7 @@ class TestDropoutOpInference(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -240,14 +240,14 @@ class TestDropoutOpFp16(TestDropoutOp):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.no_need_check_grad = True
 
 
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
-        self.places = [fluid.CPUPlace(), paddle.CustomPlace("CustomMLU", 0)]
+        self.places = [fluid.CPUPlace(), paddle.CustomPlace("mlu", 0)]
 
     def check_static_result(self, place):
         with fluid.program_guard(fluid.Program(), fluid.Program()):

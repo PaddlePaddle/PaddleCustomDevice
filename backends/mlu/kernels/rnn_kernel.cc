@@ -646,7 +646,7 @@ void RnnGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn, CustomMLU, ALL_LAYOUT, custom_kernel::RnnKernel, float) {}
+    rnn, mlu, ALL_LAYOUT, custom_kernel::RnnKernel, float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn_grad, CustomMLU, ALL_LAYOUT, custom_kernel::RnnGradKernel, float) {}
+    rnn_grad, mlu, ALL_LAYOUT, custom_kernel::RnnGradKernel, float) {}

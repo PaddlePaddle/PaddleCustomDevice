@@ -29,7 +29,7 @@ paddle.enable_static()
 class TestWhereIndexOp(OpTest):
     def setUp(self):
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_config()
 
@@ -47,7 +47,7 @@ class TestWhereIndexOp(OpTest):
 class TestAllFalse(unittest.TestCase):
     def setUp(self):
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_config()
 
@@ -104,12 +104,12 @@ class TestRank3(TestWhereIndexOp):
 
 class TestWhereOpError(unittest.TestCase):
     def test_api(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         with program_guard(Program(), Program()):
             cond = paddle.static.data(name="cond", shape=[-1, 4], dtype="bool")
             result = paddle.nonzero(cond)
 
-            exe = fluid.Executor(paddle.CustomPlace("CustomMLU", 0))
+            exe = fluid.Executor(paddle.CustomPlace("mlu", 0))
             exe.run(fluid.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
             out = exe.run(fluid.default_main_program(), feed={"cond": cond_i})

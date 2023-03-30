@@ -27,7 +27,7 @@ paddle.enable_static()
 
 class TestElementwiseAddOp(OpTest):
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def setUp(self):
@@ -382,12 +382,12 @@ class TestElementwiseAddOpError(unittest.TestCase):
             x1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]),
                 [[1, 1, 1, 1]],
-                paddle.CustomPlace("CustomMLU", 0),
+                paddle.CustomPlace("mlu", 0),
             )
             y1 = fluid.create_lod_tensor(
                 np.array([-1, 3, 5, 5]),
                 [[1, 1, 1, 1]],
-                paddle.CustomPlace("CustomMLU", 0),
+                paddle.CustomPlace("mlu", 0),
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
 
@@ -422,7 +422,7 @@ class TestAddApi(unittest.TestCase):
             y = paddle.static.data(name="y", shape=[3], dtype="float32")
             z = self._executed_api(x, y)
 
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = fluid.Executor(place)
             z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
             z_expected = np.array([3.0, 8.0, 6.0])

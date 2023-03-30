@@ -18,7 +18,6 @@ import unittest
 import numpy
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 import paddle.fluid.framework as framework
 
 paddle.enable_static()
@@ -34,13 +33,12 @@ class TestAssignValueMLUOp(OpTest):
         self.init_data()
 
         self.attrs["shape"] = self.value.shape
-        self.attrs["dtype"] = framework.convert_np_dtype_to_dtype_(
-            self.value.dtype)
+        self.attrs["dtype"] = framework.convert_np_dtype_to_dtype_(self.value.dtype)
         self.outputs = {"Out": self.value}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_data(self):
         self.value = numpy.random.random(size=(2, 5)).astype(numpy.float32)
@@ -64,10 +62,11 @@ class TestAssignValueMLUOp3(TestAssignValueMLUOp):
 
 class TestAssignValueMLUOp4(TestAssignValueMLUOp):
     def init_data(self):
-        self.value = numpy.random.choice(
-            a=[False, True], size=(2, 5)).astype(numpy.bool)
+        self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
+            numpy.bool
+        )
         self.attrs["bool_values"] = [int(v) for v in self.value.flat]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

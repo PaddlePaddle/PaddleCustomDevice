@@ -99,7 +99,7 @@ void ScaleKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scale,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ScaleKernel,
                           phi::dtype::float16,

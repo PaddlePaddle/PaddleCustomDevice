@@ -93,15 +93,11 @@ void OneHotKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(one_hot_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::OneHotRawKernel,
                           int32_t,
                           int64_t) {}
 
-PD_REGISTER_PLUGIN_KERNEL(one_hot,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::OneHotKernel,
-                          int32_t,
-                          int64_t) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    one_hot, mlu, ALL_LAYOUT, custom_kernel::OneHotKernel, int32_t, int64_t) {}

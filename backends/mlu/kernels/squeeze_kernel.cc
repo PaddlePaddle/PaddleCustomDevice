@@ -126,7 +126,7 @@ void SqueezeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(squeeze_infer,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SqueezeInferKernel,
                           bool,
@@ -139,7 +139,7 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze_infer,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squeeze,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SqueezeKernel,
                           bool,
@@ -152,7 +152,7 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squeeze_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SqueezeGradKernel,
                           bool,

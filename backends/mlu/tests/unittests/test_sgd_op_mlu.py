@@ -35,7 +35,7 @@ class TestSGD(OpTest):
         self.outputs = {"ParamOut": w - lr * g}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -78,7 +78,7 @@ class TestNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

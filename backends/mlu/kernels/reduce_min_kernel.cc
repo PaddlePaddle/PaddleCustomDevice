@@ -43,7 +43,7 @@ void MinKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(min_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MinRawKernel,
                           int32_t,
@@ -51,7 +51,7 @@ PD_REGISTER_PLUGIN_KERNEL(min_raw,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(min,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MinKernel,
                           int32_t,

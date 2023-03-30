@@ -28,7 +28,7 @@ paddle.enable_static()
 class TestExpandV2OpRank1(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_data()
         self.python_api = paddle.expand
@@ -96,7 +96,7 @@ class TestExpandV2OpRank6(TestExpandV2OpRank1):
 class TestExpandV2OpRank1_tensor_attr(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_data()
         expand_shapes_tensor = []
@@ -138,7 +138,7 @@ class TestExpandV2OpRank2_Corner_tensor_attr(TestExpandV2OpRank1_tensor_attr):
 class TestExpandV2OpRank1_tensor(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_data()
 
@@ -166,7 +166,7 @@ class TestExpandV2OpRank1_tensor(OpTest):
 class TestExpandV2OpInteger(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.inputs = {"X": np.random.randint(10, size=(2, 4, 5)).astype("int32")}
         self.attrs = {"shape": [2, 4, 5]}
@@ -181,7 +181,7 @@ class TestExpandV2OpInteger(OpTest):
 class TestExpandV2OpBoolean(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.inputs = {"X": np.random.randint(2, size=(2, 4, 5)).astype("bool")}
         self.attrs = {"shape": [2, 4, 5]}
@@ -196,7 +196,7 @@ class TestExpandV2OpBoolean(OpTest):
 class TestExpandV2OpInt64_t(OpTest):
     def setUp(self):
         self.op_type = "expand_v2"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.inputs = {"X": np.random.randint(10, size=(2, 4, 5)).astype("int64")}
         self.attrs = {"shape": [2, 4, 5]}
@@ -211,7 +211,7 @@ class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace("CustomMLU", 0)
+                np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
             )
             shape = [2, 2]
             self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
@@ -233,7 +233,7 @@ class TestExpandAsV2API(unittest.TestCase):
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=fluid.CustomPlace("mlu", 0))
         res_1 = exe.run(
             fluid.default_main_program(),
             feed={"x": input1, "target_tensor": input2},

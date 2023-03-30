@@ -27,7 +27,7 @@ paddle.enable_static()
 class TestAccuracyOp(OpTest):
     def setUp(self):
         self.op_type = "accuracy"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype()
@@ -79,7 +79,7 @@ class TestAccuracyAPI1(unittest.TestCase):
         self.expect_value = np.array([0.5], dtype="float32")
 
     def test_api(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         exe = paddle.static.Executor()
         (result,) = exe.run(
             feed={"predictions": self.input_predictions, "labels": self.input_labels},
@@ -90,7 +90,7 @@ class TestAccuracyAPI1(unittest.TestCase):
 
 class TestAccuracyAPI2(unittest.TestCase):
     def test_api(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         with fluid.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
@@ -104,7 +104,7 @@ class TestAccuracyAPI2(unittest.TestCase):
 
 class TestAccuracyAPI(unittest.TestCase):
     def test_api(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         with fluid.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],

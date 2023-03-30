@@ -27,7 +27,7 @@ def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
             self.set_mlu()
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             x = np.random.random(size=(10, 7)).astype(typename)
             y = np.random.random(size=(10, 7)).astype(typename)
             out = callback(x, y)
@@ -61,7 +61,7 @@ def create_test_class(op_type, typename, callback):
 
         def test_dynamic_api(self):
             paddle.disable_static()
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
             x = np.random.random(size=(10, 7)).astype(typename)
             y = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)
@@ -74,7 +74,7 @@ def create_test_class(op_type, typename, callback):
         @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_1(self):
             paddle.enable_static()
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
             with program_guard(Program(), Program()):
                 x = paddle.static.data(name="x", shape=[1, 2, 1, 3], dtype=typename)
                 y = paddle.static.data(name="y", shape=[1, 2, 3], dtype=typename)
@@ -90,7 +90,7 @@ def create_test_class(op_type, typename, callback):
         @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_2(self):
             paddle.enable_static()
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
             with program_guard(Program(), Program()):
                 x = paddle.static.data(name="x", shape=[1, 2, 3], dtype=typename)
                 y = paddle.static.data(name="y", shape=[1, 2, 1, 3], dtype=typename)
@@ -106,7 +106,7 @@ def create_test_class(op_type, typename, callback):
         @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_3(self):
             paddle.enable_static()
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
             with program_guard(Program(), Program()):
                 x = paddle.static.data(name="x", shape=[5], dtype=typename)
                 y = paddle.static.data(name="y", shape=[3, 1], dtype=typename)
@@ -122,7 +122,7 @@ def create_test_class(op_type, typename, callback):
         @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_attr_name(self):
             paddle.enable_static()
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
             with program_guard(Program(), Program()):
                 x = paddle.static.data(name="x", shape=[-1, 4], dtype=typename)
                 y = paddle.static.data(name="y", shape=[-1, 4], dtype=typename)

@@ -187,7 +187,7 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(truncated_gaussian_random,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TruncatedGaussianRandomKernel,
                           float) {}

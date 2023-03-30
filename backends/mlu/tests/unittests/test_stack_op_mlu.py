@@ -59,7 +59,7 @@ class TestStackOpBase(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.no_need_check_grad = True
 
     def init_dtype(self):
@@ -121,7 +121,7 @@ class API_test(unittest.TestCase):
             data2 = paddle.static.data("data2", shape=[1, 2], dtype="float32")
             data3 = paddle.static.data("data3", shape=[1, 2], dtype="float32")
             result_stack = paddle.stack([data1, data2, data3], axis=0)
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = fluid.Executor(place)
             input1 = np.random.random([1, 2]).astype("float32")
             input2 = np.random.random([1, 2]).astype("float32")
@@ -144,7 +144,7 @@ class API_DygraphTest(unittest.TestCase):
         data1 = np.array([[1.0, 2.0]]).astype("float32")
         data2 = np.array([[3.0, 4.0]]).astype("float32")
         data3 = np.array([[5.0, 6.0]]).astype("float32")
-        with fluid.dygraph.guard(place=paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
             x1 = fluid.dygraph.to_variable(data1)
             x2 = fluid.dygraph.to_variable(data2)
             x3 = fluid.dygraph.to_variable(data3)
@@ -153,7 +153,7 @@ class API_DygraphTest(unittest.TestCase):
         expected_result = np.stack([data1, data2, data3])
         np.testing.assert_allclose(expected_result, result_np)
 
-        with fluid.dygraph.guard(place=paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
             y1 = fluid.dygraph.to_variable(data1)
             result = paddle.stack([y1], axis=0)
             result_np_2 = result.numpy()
@@ -161,7 +161,7 @@ class API_DygraphTest(unittest.TestCase):
         np.testing.assert_allclose(expected_result_2, result_np_2)
 
     def test_single_tensor_error(self):
-        with fluid.dygraph.guard(place=paddle.CustomPlace("CustomMLU", 0)):
+        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
             x = paddle.to_tensor([1, 2, 3])
             self.assertRaises(Exception, paddle.stack, x)
 

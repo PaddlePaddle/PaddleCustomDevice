@@ -456,21 +456,21 @@ void BatchNormInferKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormKernel,
                           phi::dtype::float16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormGradKernel,
                           phi::dtype::float16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormInferKernel,
                           phi::dtype::float16,

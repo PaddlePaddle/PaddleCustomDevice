@@ -433,13 +433,13 @@ void Pool2dGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(pool2d,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::Pool2dKernel,
                           float,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(pool2d_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::Pool2dGradKernel,
                           float,

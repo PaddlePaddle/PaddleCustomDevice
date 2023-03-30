@@ -33,7 +33,7 @@ class TestSizeOp(OpTest):
         pass
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("CustomMLU", 0))
+        self.check_output_with_place(paddle.CustomPlace("mlu", 0))
 
 
 class TestRank1Tensor(TestSizeOp):
@@ -69,7 +69,7 @@ class TestLargeTensor(TestSizeOp):
 #             input_2 = np.random.random(shape2).astype("int32")
 #             out_1 = paddle.numel(x_1)
 #             out_2 = paddle.numel(x_2)
-#             exe = paddle.static.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+#             exe = paddle.static.Executor(place=paddle.CustomPlace("mlu", 0))
 #             res_1, res_2 = exe.run(
 #                 feed={
 #                     "x_1": input_1,
@@ -81,7 +81,7 @@ class TestLargeTensor(TestSizeOp):
 #             assert np.array_equal(res_2, np.array([np.size(input_2)]).astype("int64"))
 
 #     def test_size_imperative(self):
-#         paddle.disable_static(paddle.CustomPlace("CustomMLU", 0))
+#         paddle.disable_static(paddle.CustomPlace("mlu", 0))
 #         input_1 = np.random.random([2, 1, 4, 5]).astype("int32")
 #         input_2 = np.random.random([1, 4, 5]).astype("int32")
 #         x_1 = paddle.to_tensor(input_1)

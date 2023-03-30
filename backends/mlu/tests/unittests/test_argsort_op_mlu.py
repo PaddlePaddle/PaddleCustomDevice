@@ -29,9 +29,9 @@ def gen_test_class(dtype, axis, descending):
             np.random.seed(SEED)
             self.set_mlu()
             self.op_type = "argsort"
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.init_inputshape()
-            if 'int' in dtype:
+            if "int" in dtype:
                 self.x = np.random.choice(255, self.size, replace=False)
                 self.x = self.x.reshape(self.input_shape).astype(dtype)
             else:
@@ -44,17 +44,17 @@ def gen_test_class(dtype, axis, descending):
         def get_output(self):
             if descending:
                 self.indices = np.flip(
-                    np.argsort(
-                        self.x, kind='heapsort', axis=axis), axis)
+                    np.argsort(self.x, kind="heapsort", axis=axis), axis
+                )
                 self.sorted_x = np.flip(
-                    np.sort(
-                        self.x, kind='heapsort', axis=axis), axis)
+                    np.sort(self.x, kind="heapsort", axis=axis), axis
+                )
             else:
-                self.indices = np.argsort(self.x, kind='heapsort', axis=axis)
-                self.sorted_x = np.sort(self.x, kind='heapsort', axis=axis)
+                self.indices = np.argsort(self.x, kind="heapsort", axis=axis)
+                self.sorted_x = np.sort(self.x, kind="heapsort", axis=axis)
 
         def test_check_grad(self):
-            if dtype in ['float16', 'int8', 'uint8', 'int32']:
+            if dtype in ["float16", "int8", "uint8", "int32"]:
                 self.__class__.no_need_check_grad = True
             else:
                 self.check_grad_with_place(self.place, ["X"], "Out")
@@ -77,9 +77,9 @@ def gen_test_class(dtype, axis, descending):
     globals()[cls_name] = TestArgsortOp
 
 
-for dtype in ['float32', 'float16', 'int8', 'uint8', 'int32']:
+for dtype in ["float32", "float16", "int8", "uint8", "int32"]:
     for axis in [1, 2, 3, -1]:
         for descending in [False]:
             gen_test_class(dtype, axis, descending)
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

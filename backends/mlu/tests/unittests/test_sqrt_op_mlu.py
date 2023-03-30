@@ -26,7 +26,7 @@ np.random.seed(10)
 class TestSqrt(OpTest):
     def setUp(self):
         self.op_type = "sqrt"
-        self.dtype = 'float32'
+        self.dtype = "float32"
         self.set_mlu()
         self.python_api = paddle.sqrt
 
@@ -34,15 +34,15 @@ class TestSqrt(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.sqrt(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out', check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=False)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -51,7 +51,7 @@ class TestSqrt(OpTest):
 class TestSqrtHalf(OpTest):
     def setUp(self):
         self.op_type = "sqrt"
-        self.dtype = 'float16'
+        self.dtype = "float16"
         self.set_mlu()
         self.python_api = paddle.sqrt
 
@@ -59,19 +59,17 @@ class TestSqrtHalf(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.sqrt(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            check_eager=False,
-            max_relative_error=0.85)
+            self.place, ["X"], "Out", check_eager=False, max_relative_error=0.85
+        )
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

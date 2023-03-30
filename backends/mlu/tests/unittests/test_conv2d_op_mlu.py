@@ -17,29 +17,27 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
 from tests.op_test import OpTest
 
 paddle.enable_static()
 
 
-def conv2d_forward_naive(input,
-                         filter,
-                         group,
-                         conv_param,
-                         padding_algorithm='EXPLICIT',
-                         data_format='NCHW'):
+def conv2d_forward_naive(
+    input, filter, group, conv_param, padding_algorithm="EXPLICIT", data_format="NCHW"
+):
     if padding_algorithm not in ["SAME", "VALID", "EXPLICIT"]:
-        raise ValueError("Unknown Attr(padding_algorithm): '%s'. "
-                         "It can only be 'SAME' or 'VALID'." %
-                         str(padding_algorithm))
+        raise ValueError(
+            "Unknown Attr(padding_algorithm): '%s'. "
+            "It can only be 'SAME' or 'VALID'." % str(padding_algorithm)
+        )
 
     if data_format not in ["NCHW", "NHWC"]:
-        raise ValueError("Unknown Attr(data_format): '%s' ."
-                         "It can only be 'NCHW' or 'NHWC'." % str(data_format))
+        raise ValueError(
+            "Unknown Attr(data_format): '%s' ."
+            "It can only be 'NCHW' or 'NHWC'." % str(data_format)
+        )
 
-    channel_last = (data_format == "NHWC")
+    channel_last = data_format == "NHWC"
     if channel_last:
         input = np.transpose(input, [0, 3, 1, 2])
 
@@ -52,17 +50,22 @@ def conv2d_forward_naive(input,
     sub_out_c = out_c // group
     sub_f_n = f_n // group
 
-    stride, pad, dilation = conv_param['stride'], conv_param['pad'], conv_param[
-        'dilation']
+    stride, pad, dilation = (
+        conv_param["stride"],
+        conv_param["pad"],
+        conv_param["dilation"],
+    )
 
     # update pad and dilation
     def _get_padding_with_SAME(input_shape, pool_size, pool_stride):
         padding = []
-        for input_size, filter_size, stride_size in zip(input_shape, pool_size,
-                                                        pool_stride):
+        for input_size, filter_size, stride_size in zip(
+            input_shape, pool_size, pool_stride
+        ):
             out_size = int((input_size + stride_size - 1) / stride_size)
-            pad_sum = np.max((
-                (out_size - 1) * stride_size + filter_size - input_size, 0))
+            pad_sum = np.max(
+                ((out_size - 1) * stride_size + filter_size - input_size, 0)
+            )
             pad_0 = int(pad_sum / 2)
             pad_1 = int(pad_sum - pad_0)
             padding.append(pad_0)
@@ -82,39 +85,42 @@ def conv2d_forward_naive(input,
     if len(pad) == 4:
         pad_h_0, pad_h_1 = pad[0], pad[1]
         pad_w_0, pad_w_1 = pad[2], pad[3]
-    out_h = 1 + (in_h + pad_h_0 + pad_h_1 - (dilation[0] *
-                                             (f_h - 1) + 1)) // stride[0]
-    out_w = 1 + (in_w + pad_w_0 + pad_w_1 - (dilation[1] *
-                                             (f_w - 1) + 1)) // stride[1]
+    out_h = 1 + (in_h + pad_h_0 + pad_h_1 - (dilation[0] * (f_h - 1) + 1)) // stride[0]
+    out_w = 1 + (in_w + pad_w_0 + pad_w_1 - (dilation[1] * (f_w - 1) + 1)) // stride[1]
     out = np.zeros((out_n, out_c, out_h, out_w))
 
-    d_bolck_h = (dilation[0] * (f_h - 1) + 1)
-    d_bolck_w = (dilation[1] * (f_w - 1) + 1)
+    d_bolck_h = dilation[0] * (f_h - 1) + 1
+    d_bolck_w = dilation[1] * (f_w - 1) + 1
 
-    input_pad = np.pad(input, ((0, 0), (0, 0), (pad_h_0, pad_h_1),
-                               (pad_w_0, pad_w_1)),
-                       mode='constant',
-                       constant_values=0)
+    input_pad = np.pad(
+        input,
+        ((0, 0), (0, 0), (pad_h_0, pad_h_1), (pad_w_0, pad_w_1)),
+        mode="constant",
+        constant_values=0,
+    )
 
     filter_dilation = np.zeros((f_n, f_c, d_bolck_h, d_bolck_w))
-    filter_dilation[:, :, 0:d_bolck_h:dilation[0], 0:d_bolck_w:dilation[
-        1]] = filter
+    filter_dilation[
+        :, :, 0 : d_bolck_h : dilation[0], 0 : d_bolck_w : dilation[1]
+    ] = filter
 
     for i in range(out_h):
         for j in range(out_w):
             for g in range(group):
-                input_pad_masked = \
-                    input_pad[:, g * f_c:(g + 1) * f_c,
-                    i * stride[0]:i * stride[0] + d_bolck_h,
-                    j * stride[1]:j * stride[1] + d_bolck_w]
+                input_pad_masked = input_pad[
+                    :,
+                    g * f_c : (g + 1) * f_c,
+                    i * stride[0] : i * stride[0] + d_bolck_h,
+                    j * stride[1] : j * stride[1] + d_bolck_w,
+                ]
 
-                f_sub = filter_dilation[g * sub_f_n:(g + 1) * sub_f_n, :, :, :]
+                f_sub = filter_dilation[g * sub_f_n : (g + 1) * sub_f_n, :, :, :]
                 # sub_f_n == sub_out_c
                 for k in range(sub_out_c):
                     # Multiplication of Corresponding Elements, then sum all
-                    out[:, g * sub_out_c + k, i, j] = \
-                        np.sum(input_pad_masked * f_sub[k, :, :, :],
-                               axis=(1, 2, 3))
+                    out[:, g * sub_out_c + k, i, j] = np.sum(
+                        input_pad_masked * f_sub[k, :, :, :], axis=(1, 2, 3)
+                    )
 
     if channel_last:
         out = np.transpose(out, [0, 2, 3, 1])
@@ -171,7 +177,7 @@ def create_test_fp16_class(parent):
 class TestConv2DOp(OpTest):
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -189,34 +195,31 @@ class TestConv2DOp(OpTest):
         self.init_test_case()
 
         conv2d_param = {
-            'stride': self.stride,
-            'pad': self.pad,
-            'dilation': self.dilations
+            "stride": self.stride,
+            "pad": self.pad,
+            "dilation": self.dilations,
         }
 
         input = np.random.random(self.input_size).astype(self.dtype)
         filter = np.random.uniform(-1, 1, self.filter_size).astype(self.dtype)
 
         output, _, _, _, _ = conv2d_forward_naive(
-            input,
-            filter,
-            self.groups,
-            conv2d_param,
-            data_format=self.data_format)
+            input, filter, self.groups, conv2d_param, data_format=self.data_format
+        )
         output = output.astype(self.dtype)
 
         self.inputs = {
-            'Input': OpTest.np_dtype_to_fluid_dtype(input),
-            'Filter': OpTest.np_dtype_to_fluid_dtype(filter)
+            "Input": OpTest.np_dtype_to_fluid_dtype(input),
+            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
         }
         self.attrs = {
-            'strides': self.stride,
-            'paddings': self.pad,
-            'groups': self.groups,
-            'dilations': self.dilations,
-            'data_format': self.data_format,
+            "strides": self.stride,
+            "paddings": self.pad,
+            "groups": self.groups,
+            "dilations": self.dilations,
+            "data_format": self.data_format,
         }
-        self.outputs = {'Output': output}
+        self.outputs = {"Output": output}
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-2)
@@ -225,30 +228,36 @@ class TestConv2DOp(OpTest):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, {'Input', 'Filter'},
-            'Output',
+            self.place,
+            {"Input", "Filter"},
+            "Output",
             max_relative_error=0.03,
-            numeric_place=paddle.CPUPlace())
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def test_check_grad_no_filter(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ['Input'],
-            'Output',
+            self.place,
+            ["Input"],
+            "Output",
             max_relative_error=0.03,
-            no_grad_set=set(['Filter']),
-            numeric_place=paddle.CPUPlace())
+            no_grad_set=set(["Filter"]),
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def test_check_grad_no_input(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ['Filter'],
-            'Output',
+            self.place,
+            ["Filter"],
+            "Output",
             max_relative_error=0.03,
-            no_grad_set=set(['Input']),
-            numeric_place=paddle.CPUPlace())
+            no_grad_set=set(["Input"]),
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def init_test_case(self):
         self.pad = [0, 0]
@@ -372,7 +381,7 @@ class TestWithInput1x1Filter1x1(TestConv2DOp):
 class TestConv2DOp_v2(OpTest):
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def setUp(self):
         self.set_mlu()
@@ -387,31 +396,36 @@ class TestConv2DOp_v2(OpTest):
         self.init_test_case_2()
 
         conv2d_param = {
-            'stride': self.stride,
-            'pad': self.pad,
-            'dilation': self.dilations
+            "stride": self.stride,
+            "pad": self.pad,
+            "dilation": self.dilations,
         }
 
         input = np.random.random(self.input_size).astype(self.dtype)
         filter = np.random.uniform(-1, 1, self.filter_size).astype(self.dtype)
         output, _, _, _, _ = conv2d_forward_naive(
-            input, filter, self.groups, conv2d_param, self.padding_algorithm,
-            self.data_format)
+            input,
+            filter,
+            self.groups,
+            conv2d_param,
+            self.padding_algorithm,
+            self.data_format,
+        )
         output = output.astype(self.dtype)
 
         self.inputs = {
-            'Input': OpTest.np_dtype_to_fluid_dtype(input),
-            'Filter': OpTest.np_dtype_to_fluid_dtype(filter)
+            "Input": OpTest.np_dtype_to_fluid_dtype(input),
+            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
         }
         self.attrs = {
-            'strides': self.stride,
-            'paddings': self.pad,
-            'padding_algorithm': self.padding_algorithm,
-            'groups': self.groups,
-            'dilations': self.dilations,
-            'data_format': self.data_format,
+            "strides": self.stride,
+            "paddings": self.pad,
+            "padding_algorithm": self.padding_algorithm,
+            "groups": self.groups,
+            "dilations": self.dilations,
+            "data_format": self.data_format,
         }
-        self.outputs = {'Output': output}
+        self.outputs = {"Output": output}
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-2)
@@ -420,29 +434,35 @@ class TestConv2DOp_v2(OpTest):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, {'Input', 'Filter'},
-            'Output',
+            self.place,
+            {"Input", "Filter"},
+            "Output",
             max_relative_error=0.02,
-            numeric_place=paddle.CPUPlace())
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def test_check_grad_no_filter(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ['Input'],
-            'Output',
+            self.place,
+            ["Input"],
+            "Output",
             max_relative_error=0.02,
-            no_grad_set=set(['Filter']),
-            numeric_place=paddle.CPUPlace())
+            no_grad_set=set(["Filter"]),
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def test_check_grad_no_input(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ['Filter'],
-            'Output',
-            no_grad_set=set(['Input']),
-            numeric_place=paddle.CPUPlace())
+            self.place,
+            ["Filter"],
+            "Output",
+            no_grad_set=set(["Input"]),
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def init_test_case(self):
         self.pad = [0, 0]

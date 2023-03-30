@@ -111,7 +111,7 @@ void AssignValueKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(assign,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignKernel,
                           int,
@@ -122,7 +122,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignRawKernel,
                           int,
@@ -133,7 +133,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(assign_array,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignArrayKernel,
                           int,
@@ -144,7 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignValueKernel,
                           bool,

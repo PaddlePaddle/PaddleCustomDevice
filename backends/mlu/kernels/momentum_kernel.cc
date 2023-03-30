@@ -23,21 +23,21 @@ enum class RegularizationType {
 };
 
 template <typename T, typename Context>
-void MomentumKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& param,
-                    const phi::DenseTensor& grad,
-                    const phi::DenseTensor& velocity,
-                    const phi::DenseTensor& learning_rate,
-                    const paddle::optional<phi::DenseTensor>& master_param,
+void MomentumKernel(const Context &dev_ctx,
+                    const phi::DenseTensor &param,
+                    const phi::DenseTensor &grad,
+                    const phi::DenseTensor &velocity,
+                    const phi::DenseTensor &learning_rate,
+                    const paddle::optional<phi::DenseTensor> &master_param,
                     float mu_f,
                     bool use_nesterov,
-                    const std::string& regularization_method,
+                    const std::string &regularization_method,
                     float regularization_coeff,
                     bool multi_precision,
                     float rescale_grad,
-                    phi::DenseTensor* param_out,
-                    phi::DenseTensor* velocity_out,
-                    phi::DenseTensor* master_param_out) {
+                    phi::DenseTensor *param_out,
+                    phi::DenseTensor *velocity_out,
+                    phi::DenseTensor *master_param_out) {
   auto mu = static_cast<T>(mu_f);
 
   dev_ctx.template Alloc<T>(param_out);
@@ -54,7 +54,7 @@ void MomentumKernel(const Context& dev_ctx,
     regularized_grad.Resize(grad.dims());
     dev_ctx.template Alloc<T>(&regularized_grad);
     MLUCnnlOpTensorDesc op_tensor_desc(
-            CNNL_OP_TENSOR_ADD, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+        CNNL_OP_TENSOR_ADD, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
     MLUCnnl::OpTensor(dev_ctx,
                       op_tensor_desc.get(),
                       param_desc.get(),
@@ -184,10 +184,8 @@ void MergedMomentumKernel(
   }
 
   VLOG(5) << "use_nesterov: " << use_nesterov
-          << ",  regularization_method.size(): "
-          << regularization_method.size()
-          << ",  regularization_coeff.size(): "
-          << regularization_coeff.size();
+          << ",  regularization_method.size(): " << regularization_method.size()
+          << ",  regularization_coeff.size(): " << regularization_coeff.size();
 
   Tensor mu_tensor;
   mu_tensor.Resize({1});
@@ -201,10 +199,10 @@ void MergedMomentumKernel(
 
   for (size_t idx = 0; idx < n; ++idx) {
     RegularizationType regularization_flag =
-          regularization_method.size() > 0 &&
-                  regularization_method[idx] == "l2_decay"
-              ? RegularizationType::kL2DECAY
-              : RegularizationType::kNONE;
+        regularization_method.size() > 0 &&
+                regularization_method[idx] == "l2_decay"
+            ? RegularizationType::kL2DECAY
+            : RegularizationType::kNONE;
     T reg_coeff_ = static_cast<T>(0.0);
     if (regularization_coeff.size() != 0) {
       reg_coeff_ = static_cast<T>(regularization_coeff[idx]);
@@ -217,7 +215,7 @@ void MergedMomentumKernel(
     auto grad_ = grad[idx];
     Tensor regularized_grad;
     MLUCnnlTensorDesc param_desc(*param_out_);
-    const char* reg_method_ = regularization_method[idx].c_str();
+    const char *reg_method_ = regularization_method[idx].c_str();
     if (regularization_flag == RegularizationType::kL2DECAY) {
       regularized_grad.Resize(param_out_->dims());
       dev_ctx.template Alloc<T>(&regularized_grad);
@@ -249,13 +247,13 @@ void MergedMomentumKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(momentum,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MomentumKernel,
                           phi::dtype::float16,
                           float) {}
 PD_REGISTER_PLUGIN_KERNEL(merged_momentum,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MergedMomentumKernel,
                           float,

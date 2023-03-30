@@ -203,81 +203,78 @@ void SliceRawKernel(const Context& dev_ctx,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
                     phi::DenseTensor* out) {
-    std::vector<int> axes(axes_t.begin(), axes_t.end());
-    auto starts_int = starts_array.GetData();
-    auto ends_int = ends_array.GetData();
-    std::vector<int> starts(starts_int.begin(), starts_int.end());
-    std::vector<int> ends(ends_int.begin(), ends_int.end());
+  std::vector<int> axes(axes_t.begin(), axes_t.end());
+  auto starts_int = starts_array.GetData();
+  auto ends_int = ends_array.GetData();
+  std::vector<int> starts(starts_int.begin(), starts_int.end());
+  std::vector<int> ends(ends_int.begin(), ends_int.end());
 
-    PADDLE_ENFORCE_EQ(
-        starts.size(),
-        axes.size(),
-        phi::errors::InvalidArgument(
-            "The size of starts must be equal to the size of axes."));
-    PADDLE_ENFORCE_EQ(
-        ends.size(),
-        axes.size(),
-        phi::errors::InvalidArgument(
-            "The size of ends must be equal to the size of axes."));
+  PADDLE_ENFORCE_EQ(
+      starts.size(),
+      axes.size(),
+      phi::errors::InvalidArgument(
+          "The size of starts must be equal to the size of axes."));
+  PADDLE_ENFORCE_EQ(ends.size(),
+                    axes.size(),
+                    phi::errors::InvalidArgument(
+                        "The size of ends must be equal to the size of axes."));
 
-    const auto& in_dims = x.dims();
-    auto slice_dims = out->dims();
-    bool reset_slice_dims = false;
-      // Infer output dims
-      for (size_t i = 0; i < axes.size(); ++i) {
-        // when start == -1 && end == start+1
-        if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
-          auto ret =
-              std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
-          if (ret != decrease_axis.end()) {
-            ends[i] = in_dims[axes[i]];
-          }
-        }
+  const auto& in_dims = x.dims();
+  auto slice_dims = out->dims();
+  bool reset_slice_dims = false;
+  // Infer output dims
+  for (size_t i = 0; i < axes.size(); ++i) {
+    // when start == -1 && end == start+1
+    if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
+      auto ret = std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
+      if (ret != decrease_axis.end()) {
+        ends[i] = in_dims[axes[i]];
       }
-
-      custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
-      slice_dims = custom_kernel::GetSliceDims<int>(
-          in_dims, axes, starts, ends, nullptr, nullptr);
-      reset_slice_dims = true;
-      auto out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
-
-      out->Resize(out_dims);
-    
-    if (slice_dims.size() != in_dims.size() && !reset_slice_dims) {
-      custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
-      slice_dims = custom_kernel::GetSliceDims<int>(
-          in_dims, axes, starts, ends, nullptr, nullptr);
     }
+  }
 
-    int in_dim_size = x.dims().size();
-    if (static_cast<int>(axes.size()) != in_dim_size) {
-      std::vector<int> tmp_starts(in_dim_size, 0);
-      const auto& in_dims_vec = phi::vectorize(x.dims());
-      std::vector<int> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
-      for (size_t i = 0; i < axes.size(); ++i) {
-        tmp_starts[axes[i]] = starts[i];
-        tmp_ends[axes[i]] = ends[i];
-      }
-      starts.swap(tmp_starts);
-      ends.swap(tmp_ends);
+  custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
+  slice_dims = custom_kernel::GetSliceDims<int>(
+      in_dims, axes, starts, ends, nullptr, nullptr);
+  reset_slice_dims = true;
+  auto out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
+
+  out->Resize(out_dims);
+
+  if (slice_dims.size() != in_dims.size() && !reset_slice_dims) {
+    custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
+    slice_dims = custom_kernel::GetSliceDims<int>(
+        in_dims, axes, starts, ends, nullptr, nullptr);
+  }
+
+  int in_dim_size = x.dims().size();
+  if (static_cast<int>(axes.size()) != in_dim_size) {
+    std::vector<int> tmp_starts(in_dim_size, 0);
+    const auto& in_dims_vec = phi::vectorize(x.dims());
+    std::vector<int> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
+    for (size_t i = 0; i < axes.size(); ++i) {
+      tmp_starts[axes[i]] = starts[i];
+      tmp_ends[axes[i]] = ends[i];
     }
-    std::vector<int> strides(in_dim_size, 1);
+    starts.swap(tmp_starts);
+    ends.swap(tmp_ends);
+  }
+  std::vector<int> strides(in_dim_size, 1);
 
+  dev_ctx.template Alloc<T>(out);
 
-    dev_ctx.template Alloc<T>(out);
-
-    MLUCnnlTensorDesc input_desc(x);
-    MLUCnnlTensorDesc out_desc(slice_dims.size(),
-                               phi::vectorize(slice_dims).data(),
-                               ToCnnlDataType<T>());
-    MLUCnnl::StridedSlice(dev_ctx,
-                          starts.data(),
-                          ends.data(),
-                          strides.data(),
-                          input_desc.get(),
-                          GetBasePtr(&x),
-                          out_desc.get(),
-                          GetBasePtr(out));
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc out_desc(slice_dims.size(),
+                             phi::vectorize(slice_dims).data(),
+                             ToCnnlDataType<T>());
+  MLUCnnl::StridedSlice(dev_ctx,
+                        starts.data(),
+                        ends.data(),
+                        strides.data(),
+                        input_desc.get(),
+                        GetBasePtr(&x),
+                        out_desc.get(),
+                        GetBasePtr(out));
 }
 
 template <typename T, typename Context>
@@ -290,54 +287,54 @@ void SliceGradRawKernel(const Context& dev_ctx,
                         const std::vector<int64_t>& infer_flags,
                         const std::vector<int64_t>& decrease_axis,
                         phi::DenseTensor* x_grad) {
-    std::vector<int> axes(axes_t.begin(), axes_t.end());
-    auto starts_int = starts_array.GetData();
-    auto ends_int = ends_array.GetData();
+  std::vector<int> axes(axes_t.begin(), axes_t.end());
+  auto starts_int = starts_array.GetData();
+  auto ends_int = ends_array.GetData();
 
-    std::vector<int> starts(starts_int.begin(), starts_int.end());
-    std::vector<int> ends(ends_int.begin(), ends_int.end());
+  std::vector<int> starts(starts_int.begin(), starts_int.end());
+  std::vector<int> ends(ends_int.begin(), ends_int.end());
 
-    const auto& in_dims = x.dims();
-    auto slice_dims = out_grad.dims();
-    if (slice_dims.size() != in_dims.size()) {
-      custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
-      slice_dims = custom_kernel::GetSliceDims<int>(
-          in_dims, axes, starts, ends, nullptr, nullptr);
+  const auto& in_dims = x.dims();
+  auto slice_dims = out_grad.dims();
+  if (slice_dims.size() != in_dims.size()) {
+    custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
+    slice_dims = custom_kernel::GetSliceDims<int>(
+        in_dims, axes, starts, ends, nullptr, nullptr);
+  }
+
+  int in_dim_size = x.dims().size();
+  if (static_cast<int>(axes.size()) != in_dim_size) {
+    std::vector<int> tmp_starts(in_dim_size, 0);
+    const auto& in_dims_vec = phi::vectorize(x.dims());
+    std::vector<int> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
+    for (size_t i = 0; i < axes.size(); ++i) {
+      tmp_starts[axes[i]] = starts[i];
+      tmp_ends[axes[i]] = ends[i];
     }
+    starts.swap(tmp_starts);
+    ends.swap(tmp_ends);
+  }
+  std::vector<int> strides(in_dim_size, 1);
 
-    int in_dim_size = x.dims().size();
-    if (static_cast<int>(axes.size()) != in_dim_size) {
-      std::vector<int> tmp_starts(in_dim_size, 0);
-      const auto& in_dims_vec = phi::vectorize(x.dims());
-      std::vector<int> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
-      for (size_t i = 0; i < axes.size(); ++i) {
-        tmp_starts[axes[i]] = starts[i];
-        tmp_ends[axes[i]] = ends[i];
-      }
-      starts.swap(tmp_starts);
-      ends.swap(tmp_ends);
-    }
-    std::vector<int> strides(in_dim_size, 1);
+  dev_ctx.template Alloc<T>(x_grad);
 
-    dev_ctx.template Alloc<T>(x_grad);
-
-    MLUCnnlTensorDesc dout_desc(slice_dims.size(),
-                                phi::vectorize(slice_dims).data(),
-                                ToCnnlDataType<T>());
-    MLUCnnlTensorDesc x_grad_desc(*x_grad);
-    MLUCnnl::StridedSliceGrad(dev_ctx,
-                              starts.data(),
-                              ends.data(),
-                              strides.data(),
-                              dout_desc.get(),
-                              GetBasePtr(&out_grad),
-                              x_grad_desc.get(),
-                              GetBasePtr(x_grad));
+  MLUCnnlTensorDesc dout_desc(slice_dims.size(),
+                              phi::vectorize(slice_dims).data(),
+                              ToCnnlDataType<T>());
+  MLUCnnlTensorDesc x_grad_desc(*x_grad);
+  MLUCnnl::StridedSliceGrad(dev_ctx,
+                            starts.data(),
+                            ends.data(),
+                            strides.data(),
+                            dout_desc.get(),
+                            GetBasePtr(&out_grad),
+                            x_grad_desc.get(),
+                            GetBasePtr(x_grad));
 }
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SliceRawKernel,
                           phi::dtype::float16,
@@ -347,7 +344,7 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           int64_t,
                           bool) {}
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SliceGradRawKernel,
                           phi::dtype::float16,

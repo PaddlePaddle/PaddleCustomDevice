@@ -26,7 +26,7 @@ paddle.enable_static()
 class TestMeshgridOp(OpTest):
     def setUp(self):
         self.op_type = "meshgrid"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = self.get_dtype()
         ins, outs = self.init_test_data()
@@ -87,7 +87,7 @@ class TestMeshgridOp3(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid(x, y)
         res_1, res_2 = exe.run(
             fluid.default_main_program(),
@@ -123,7 +123,7 @@ class TestMeshgridOp4(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid([x, y])
         res_1, res_2 = exe.run(
             fluid.default_main_program(),
@@ -160,7 +160,7 @@ class TestMeshgridOp5(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid((x, y))
         res_1, res_2 = exe.run(
             fluid.default_main_program(),
@@ -215,7 +215,7 @@ class TestMeshgridOp8(unittest.TestCase):
             ],
         ).astype("int32")
 
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         with fluid.dygraph.guard():
             tensor_3 = fluid.dygraph.to_variable(input_3)
             tensor_4 = fluid.dygraph.to_variable(input_4)

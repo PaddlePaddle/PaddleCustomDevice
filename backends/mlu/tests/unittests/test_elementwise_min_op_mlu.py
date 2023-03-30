@@ -39,7 +39,7 @@ class TestElementwiseMinOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_input_output(self):
         # If x and y have the same value, the min() is not differentiable.
@@ -178,7 +178,7 @@ class TestElementwiseMinOpNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

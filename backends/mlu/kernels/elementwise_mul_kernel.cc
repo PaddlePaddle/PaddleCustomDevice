@@ -164,7 +164,7 @@ void MultiplyGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MultiplyRawKernel,
                           int,
@@ -172,7 +172,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MultiplyKernel,
                           int,
@@ -180,7 +180,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MultiplyGradKernel,
                           int,

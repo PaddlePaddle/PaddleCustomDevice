@@ -75,7 +75,7 @@ void LabelSmoothKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(label_smooth,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothKernel,
                           float,

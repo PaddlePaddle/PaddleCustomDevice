@@ -63,7 +63,7 @@ class TestMLUHardSigmoid(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -89,7 +89,7 @@ class TestMLUHardSigmoidFp16(unittest.TestCase):
     def setUp(self):
         paddle.disable_static()
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
 
@@ -105,7 +105,7 @@ class TestMLUHardSigmoidFp16(unittest.TestCase):
 
     def test_check_output_and_grad_mlu(self):
         # mlu float16
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         data = paddle.to_tensor(self.float16_x, stop_gradient=True)
         mlu_float16_y = F.hardsigmoid(data)
 
@@ -134,7 +134,7 @@ class TestHardsigmoidAPI(unittest.TestCase):
     # test paddle.nn.Hardsigmoid, paddle.nn.functional.hardsigmoid
     def setUp(self):
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float32)
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_static_api(self):

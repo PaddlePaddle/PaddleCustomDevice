@@ -36,7 +36,7 @@ class TestFillConstantOp1(OpTest):
         self.attrs = {"shape": [123, 92], "value": 3.8}
         self.outputs = {"Out": np.full((123, 92), 3.8)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -52,7 +52,7 @@ class TestFillConstantOp2(OpTest):
         self.attrs = {"shape": [123, 92]}
         self.outputs = {"Out": np.full((123, 92), 0.0)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -68,7 +68,7 @@ class TestFillConstantOp3(OpTest):
         self.attrs = {"shape": [123, 92], "value": 10000000000}
         self.outputs = {"Out": np.full((123, 92), 10000000000)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -84,7 +84,7 @@ class TestFillConstantOp4(OpTest):
         self.attrs = {"shape": [123, 92], "value": 3}
         self.outputs = {"Out": np.full((123, 92), 3)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -134,7 +134,7 @@ class TestFillConstantOp1_ShapeTensorList(OpTest):
         self.attrs = {"shape": self.infer_shape, "value": self.value}
         self.outputs = {"Out": np.full(self.shape, self.value)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_data(self):
@@ -161,7 +161,7 @@ class TestFillConstantOp2_ShapeTensorList(OpTest):
         self.attrs = {"shape": self.infer_shape}
         self.outputs = {"Out": np.full(self.shape, 0.0)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_data(self):
@@ -197,7 +197,7 @@ class TestFillConstantOp1_ShapeTensor(OpTest):
         self.attrs = {"value": self.value}
         self.outputs = {"Out": np.full(self.shape, self.value)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_data(self):
@@ -222,7 +222,7 @@ class TestFillConstantOp1_ValueTensor(OpTest):
         self.attrs = {"value": self.value + 1.0}
         self.outputs = {"Out": np.full(self.shape, self.value)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_data(self):
@@ -249,7 +249,7 @@ class TestFillConstantOp2_ValueTensor(OpTest):
         self.attrs = {"value": self.value, "dtype": 2}
         self.outputs = {"Out": np.full(self.shape, self.value)}
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_data(self):

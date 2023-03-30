@@ -576,42 +576,42 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DepthwiseConv2dKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DepthwiseConv2dGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(conv3d,
-//                           CustomMLU,
+//                           mlu,
 //                           ALL_LAYOUT,
 //                           custom_kernel::Conv3dKernel,
 //                           float,
 //                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
-//                           CustomMLU,
+//                           mlu,
 //                           ALL_LAYOUT,
 //                           custom_kernel::Conv3dGradKernel,
 //                           float,

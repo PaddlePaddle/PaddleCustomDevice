@@ -31,7 +31,7 @@ class TrilTriuOpDefaultTest(OpTest):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.python_api = paddle.tril if self.real_op_type == "tril" else paddle.triu
         self.real_np_op = getattr(np, self.real_op_type)
 
@@ -140,7 +140,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
-                place = paddle.CustomPlace("CustomMLU", 0)
+                place = paddle.CustomPlace("mlu", 0)
                 exe = fluid.Executor(place)
                 tril_out, triu_out = exe.run(
                     fluid.default_main_program(),
@@ -174,7 +174,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 triu_out = paddle.triu(x)
 
-                place = paddle.CustomPlace("CustomMLU", 0)
+                place = paddle.CustomPlace("mlu", 0)
                 exe = fluid.Executor(place)
                 triu_out = exe.run(
                     fluid.default_main_program(),

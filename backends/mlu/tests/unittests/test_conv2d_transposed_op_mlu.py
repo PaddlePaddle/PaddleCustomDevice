@@ -173,7 +173,7 @@ class TestConv2DTransposeOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-2)
@@ -430,7 +430,7 @@ class TestMLU_FP16(TestConv2DTransposeOp):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_op_type(self):
         self.need_check_grad = False
@@ -486,7 +486,7 @@ class TestConv2DTransposeAPI(unittest.TestCase):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_case1(self):
         data1 = paddle.static.data(name="data1", shape=[-1, 3, 5, 5], dtype="float32")
@@ -564,7 +564,7 @@ class TestConv2DTransposeOpException(unittest.TestCase):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_exception(self):
         data = paddle.static.data(name="data", shape=[-1, 3, 5, 5], dtype="float32")
@@ -631,7 +631,7 @@ class TestConv2DTransposeRepr(unittest.TestCase):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_case(self):
         paddle.disable_static()

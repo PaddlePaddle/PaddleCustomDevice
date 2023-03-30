@@ -179,7 +179,7 @@ C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
 
 // Stream
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  mluStream_t mlu_stream = new CustomMLUStream();
+  mluStream_t mlu_stream = new mluStream();
 
   cnrtQueue_t queue;
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueCreate(&queue));
@@ -587,7 +587,7 @@ C_Status ProfilerCollectData(C_Profiler prof,
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
 
-  params->device_type = "CustomMLU";
+  params->device_type = "mlu";
   params->sub_device_type = "none";
 
   memset(reinterpret_cast<void *>(params->interface),

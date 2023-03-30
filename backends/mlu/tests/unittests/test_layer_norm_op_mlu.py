@@ -108,7 +108,7 @@ def _reference_layer_norm_grad(x, grad_y, scale, bias, mean, var, begin_norm_axi
 class TestLayerNormOp(unittest.TestCase):
     def setUp(self):
         self.init_dtype()
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -318,7 +318,7 @@ class TestFP16ScaleBiasLayerNorm(unittest.TestCase):
         return y_np, x_g_np, w_g_np, b_g_np
 
     def test_main(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         x_np = np.random.random([10, 20]).astype("float16")
         weight_np = np.random.random([20]).astype("float16")
         bias_np = np.random.random([20]).astype("float16")

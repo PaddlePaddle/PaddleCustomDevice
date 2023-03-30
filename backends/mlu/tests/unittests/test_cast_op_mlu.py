@@ -36,7 +36,7 @@ class TestCastOpFp32ToFp16(OpTest):
             "out_dtype": int(core.VarDesc.VarType.FP16),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -54,7 +54,7 @@ class TestCastOpFp16ToFp32(OpTest):
             "out_dtype": int(core.VarDesc.VarType.FP32),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -72,7 +72,7 @@ class TestCastOpFp32ToFp64(OpTest):
             "out_dtype": int(core.VarDesc.VarType.FP64),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -90,7 +90,7 @@ class TestCastOpInt32ToInt32(OpTest):
             "out_dtype": int(core.VarDesc.VarType.INT32),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -107,7 +107,7 @@ class TestCastOpInt32ToFp32(OpTest):
             "out_dtype": int(core.VarDesc.VarType.FP32),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -124,7 +124,7 @@ class TestCastOpInt64ToInt8(OpTest):
             "out_dtype": int(core.VarDesc.VarType.INT8),
         }
         self.op_type = "cast"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -136,7 +136,7 @@ class TestCastOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace("CustomMLU", 0)
+                np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
             )
             self.assertRaises(TypeError, paddle.cast, x1, "int32")
 

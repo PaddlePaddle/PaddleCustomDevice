@@ -33,18 +33,17 @@ class TestMLUReciprocal(OpTest):
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
         out = np.reciprocal(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], 'Out', max_relative_error=0.01)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -56,5 +55,5 @@ class TestMLUReciprocalFp16(TestMLUReciprocal):
         self.dtype = np.float16
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

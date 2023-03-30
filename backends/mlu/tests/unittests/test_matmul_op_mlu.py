@@ -85,7 +85,7 @@ class TestMatMulOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def config(self):
         self.x_shape = (100,)

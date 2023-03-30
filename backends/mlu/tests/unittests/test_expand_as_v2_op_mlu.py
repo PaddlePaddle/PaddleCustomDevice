@@ -38,7 +38,7 @@ def test_class1(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -65,7 +65,7 @@ def test_class2(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -92,7 +92,7 @@ def test_class3(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -119,7 +119,7 @@ def test_class4(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -141,7 +141,7 @@ class TestExpandAsV2API(unittest.TestCase):
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=fluid.CustomPlace("mlu", 0))
         res_1 = exe.run(
             fluid.default_main_program(),
             feed={"x": input1, "target_tensor": input2},

@@ -197,7 +197,7 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaskedSelectKernel,
                           phi::dtype::float16,
@@ -205,7 +205,7 @@ PD_REGISTER_PLUGIN_KERNEL(masked_select,
                           int) {}
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaskedSelectGradKernel,
                           phi::dtype::float16,

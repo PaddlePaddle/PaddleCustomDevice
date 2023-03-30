@@ -33,7 +33,7 @@ def gather_numpy(x, index, axis):
 class TestGatherOp(OpTest):
     def setUp(self):
         self.op_type = "gather"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.gather
         self.config()
@@ -81,7 +81,7 @@ class TestCase2(TestGatherOp):
 
 class API_TestDygraphGather(unittest.TestCase):
     def test_out1(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         paddle.disable_static()
         input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("int32")
         index_1 = np.array([1, 2])
@@ -94,7 +94,7 @@ class API_TestDygraphGather(unittest.TestCase):
         paddle.enable_static()
 
     def test_out12(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         paddle.disable_static()
         input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("int32")
         index_1 = np.array([1, 2])
@@ -107,7 +107,7 @@ class API_TestDygraphGather(unittest.TestCase):
         paddle.enable_static()
 
     def test_zero_index(self):
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         paddle.disable_static()
         x = paddle.to_tensor([[1, 2], [3, 4]]).astype("int32")
         index = paddle.to_tensor(np.array([]).astype("int64"))
@@ -124,7 +124,7 @@ class TestGathertError(unittest.TestCase):
         with paddle.static.program_guard(
             paddle.static.Program(), paddle.static.Program()
         ):
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
 
             shape = [8, 9, 6]
             x = paddle.static.data(shape=shape, dtype="int8", name="x")
@@ -156,7 +156,7 @@ class TestGathertError(unittest.TestCase):
 
     def test_error2(self):
         with fluid.program_guard(fluid.Program(), fluid.Program()):
-            paddle.set_device("CustomMLU")
+            paddle.set_device("mlu")
 
             shape = [8, 9, 6]
             x = paddle.static.data(shape=shape, dtype="int8", name="x")

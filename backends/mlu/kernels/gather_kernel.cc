@@ -113,14 +113,14 @@ void GatherGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(gather,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GatherKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GatherGradKernel,
                           float,

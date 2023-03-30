@@ -51,7 +51,7 @@ def test_class1(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -78,7 +78,7 @@ def test_class2(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -110,7 +110,7 @@ def test_class3(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -143,7 +143,7 @@ def test_class4(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -174,7 +174,7 @@ def test_class5(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -206,7 +206,7 @@ def test_class6(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -239,7 +239,7 @@ def test_class7(op_type, typename):
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace("CustomMLU", 0)
+            self.place = paddle.CustomPlace("mlu", 0)
 
         def test_check_output(self):
             self.check_output_with_place(self.place)
@@ -259,7 +259,7 @@ def test_class7(op_type, typename):
 class TestGatherNdAPI2(unittest.TestCase):
     def test_imperative(self):
         paddle.disable_static()
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
         index_1 = np.array([[1]]).astype("int32")
         input = fluid.dygraph.to_variable(input_1)

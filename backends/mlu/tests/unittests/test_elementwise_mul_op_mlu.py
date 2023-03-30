@@ -27,7 +27,7 @@ paddle.enable_static()
 class ElementwiseMulOp(OpTest):
     def init_kernel_type(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def setUp(self):
         self.op_type = "elementwise_mul"

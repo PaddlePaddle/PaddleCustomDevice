@@ -177,14 +177,14 @@ void DropoutGradRawKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(dropout,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(dropout_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutGradRawKernel,
                           float,

@@ -29,19 +29,19 @@ class TestFillAnyLikeOp(OpTest):
         self.op_type = "fill_any_like"
         self.set_value()
         self.set_input()
-        self.attrs = {'value': self.value}
-        self.outputs = {'Out': self.value * np.ones_like(self.inputs["X"])}
+        self.attrs = {"value": self.value}
+        self.outputs = {"Out": self.value * np.ones_like(self.inputs["X"])}
 
     def init_dtype(self):
         self.dtype = np.float32
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.no_need_check_grad = True
 
     def set_input(self):
-        self.inputs = {'X': np.random.random((219, 232)).astype(self.dtype)}
+        self.inputs = {"X": np.random.random((219, 232)).astype(self.dtype)}
 
     def set_value(self):
         self.value = 0.0

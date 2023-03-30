@@ -90,7 +90,7 @@ class TestMomentumOp1(OpTest):
         pass
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -140,7 +140,7 @@ class TestMomentumOp2(OpTest):
         self.outputs = {"ParamOut": param_out, "VelocityOut": velocity_out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -164,7 +164,7 @@ class TestMomentumV2(unittest.TestCase):
 
     def test_momentum(self):
         paddle.enable_static()
-        place = paddle.CustomPlace("CustomMLU", 0)
+        place = paddle.CustomPlace("mlu", 0)
         main = fluid.Program()
         with fluid.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
@@ -241,7 +241,7 @@ class TestMomentumOpWithDecay(OpTest):
         pass
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -286,7 +286,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
 
     def test_momentum_static(self):
         paddle.enable_static()
-        place = paddle.CustomPlace("CustomMLU", 0)
+        place = paddle.CustomPlace("mlu", 0)
         main = fluid.Program()
         with fluid.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
@@ -400,7 +400,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             momentum.minimize(loss)
             linear.clear_gradients()
 
-    def __test_vs(self, place=paddle.CustomPlace("CustomMLU", 0)):
+    def __test_vs(self, place=paddle.CustomPlace("mlu", 0)):
         paddle.disable_static(place=place)
 
         linear_old = paddle.nn.Linear(
@@ -437,8 +437,8 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             "the param weight updated by two Momentum optimizers should equal",
         )
 
-    def test_vs(self, place=paddle.CustomPlace("CustomMLU", 0)):
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+    def test_vs(self, place=paddle.CustomPlace("mlu", 0)):
+        places = [paddle.CustomPlace("mlu", 0)]
         for place in places:
             self.__test_vs(place=place)
 
@@ -479,7 +479,7 @@ class TestMultiTensorMomentumStatic(unittest.TestCase):
         np.random.seed(10)
         if place == "cpu":
             use_amp = False
-        exe = paddle.static.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace("mlu", 0))
         train_program = paddle.static.Program()
         startup_program = paddle.static.Program()
         optimizer = paddle.optimizer.Momentum(

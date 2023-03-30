@@ -100,7 +100,7 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
                           bool,
@@ -112,7 +112,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           int,
@@ -123,7 +123,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullBatchSizeLikeKernel,
                           int,

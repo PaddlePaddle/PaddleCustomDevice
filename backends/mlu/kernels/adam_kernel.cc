@@ -480,7 +480,7 @@ void MergedAdamKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(adam,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AdamKernel,
                           phi::dtype::float16,
@@ -492,7 +492,7 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AdamWKernel,
                           phi::dtype::float16,
@@ -504,7 +504,7 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(merged_adam,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MergedAdamKernel,
                           phi::dtype::float16,

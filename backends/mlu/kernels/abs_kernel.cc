@@ -31,7 +31,6 @@ void AbsKernel(const Context& dev_ctx,
                GetBasePtr(out));
 }
 
-
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
@@ -66,14 +65,14 @@ void AbsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(abs,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AbsKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AbsGradKernel,
                           float,

@@ -27,7 +27,7 @@ paddle.enable_static()
 
 class TestOneHotOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "one_hot_v2"
         depth = 10
@@ -52,7 +52,7 @@ class TestOneHotOp(OpTest):
 
 class TestOneHotOp_attr(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "one_hot_v2"
         depth = 10
@@ -76,7 +76,7 @@ class TestOneHotOp_attr(OpTest):
 
 class TestOneHotOp_default_dtype(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "one_hot_v2"
         depth = 10
@@ -101,7 +101,7 @@ class TestOneHotOp_default_dtype(OpTest):
 
 class TestOneHotOp_default_dtype_attr(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "one_hot_v2"
         depth = 10
@@ -125,7 +125,7 @@ class TestOneHotOp_default_dtype_attr(OpTest):
 
 class TestOneHotOp_exception(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "one_hot_v2"
         self.depth = 10
@@ -168,7 +168,7 @@ class TestOneHotOp_exception(unittest.TestCase):
 
 class TestOneHotOpApi(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_api(self):
@@ -217,7 +217,7 @@ class TestOneHotOpApi(unittest.TestCase):
 
 class BadInputTestOnehotV2(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_error(self):

@@ -112,7 +112,7 @@ void UnsqueezeGradMLUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_infer,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeInferKernel,
                           float,
@@ -128,7 +128,7 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_infer,
                           phi::dtype::complex<double>) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeKernel,
                           float,
@@ -144,7 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           phi::dtype::complex<double>) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeGradMLUKernel,
                           phi::dtype::bfloat16,

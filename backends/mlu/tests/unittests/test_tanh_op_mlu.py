@@ -27,7 +27,7 @@ class TestTanh(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "tanh"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -58,7 +58,7 @@ class TestTanhFp16(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "tanh"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -109,7 +109,7 @@ class TestTanhNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

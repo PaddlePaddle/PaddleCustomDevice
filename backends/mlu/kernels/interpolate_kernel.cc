@@ -656,28 +656,28 @@ void NearestInterpGradKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,
                           float,

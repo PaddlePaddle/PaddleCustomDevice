@@ -49,17 +49,17 @@ void SigmoidCrossEntropyWithLogitsKernel(const Context& dev_ctx,
   MLUCnnlTensorDesc label_desc(label);
   MLUCnnlTensorDesc out_desc(*out);
   MLUCnnl::BceWithLogits(dev_ctx,
-                          CNNL_BCE_WITH_LOGITS_NONE,
-                          x_desc.get(),
-                          GetBasePtr(&x),
-                          label_desc.get(),
-                          GetBasePtr(&label),
-                          nullptr,
-                          nullptr,
-                          nullptr,
-                          nullptr,
-                          out_desc.get(),
-                          GetBasePtr(out));
+                         CNNL_BCE_WITH_LOGITS_NONE,
+                         x_desc.get(),
+                         GetBasePtr(&x),
+                         label_desc.get(),
+                         GetBasePtr(&label),
+                         nullptr,
+                         nullptr,
+                         nullptr,
+                         nullptr,
+                         out_desc.get(),
+                         GetBasePtr(out));
 }
 
 template <typename T, typename Context>
@@ -77,26 +77,25 @@ void SigmoidCrossEntropyWithLogitsGradKernel(const Context& dev_ctx,
   MLUCnnlTensorDesc label_desc(label);
   MLUCnnlTensorDesc dout_desc(dout);
   MLUCnnl::BceWithLogitsBackward(dev_ctx,
-                                  CNNL_BCE_WITH_LOGITS_NONE,
-                                  dout_desc.get(),
-                                  GetBasePtr(&dout),
-                                  x_desc.get(),
-                                  GetBasePtr(&x),
-                                  label_desc.get(),
-                                  GetBasePtr(&label),
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
-                                  x_desc.get(),
-                                  GetBasePtr(dx));
-
+                                 CNNL_BCE_WITH_LOGITS_NONE,
+                                 dout_desc.get(),
+                                 GetBasePtr(&dout),
+                                 x_desc.get(),
+                                 GetBasePtr(&x),
+                                 label_desc.get(),
+                                 GetBasePtr(&label),
+                                 nullptr,
+                                 nullptr,
+                                 nullptr,
+                                 nullptr,
+                                 x_desc.get(),
+                                 GetBasePtr(dx));
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidCrossEntropyWithLogitsKernel,
                           float,
@@ -104,7 +103,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
 
 PD_REGISTER_PLUGIN_KERNEL(
     sigmoid_cross_entropy_with_logits_grad,
-    CustomMLU,
+    mlu,
     ALL_LAYOUT,
     custom_kernel::SigmoidCrossEntropyWithLogitsGradKernel,
     float,

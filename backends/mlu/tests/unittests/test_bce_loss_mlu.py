@@ -133,7 +133,7 @@ class TestBCELoss(unittest.TestCase):
     def test_BCELoss(self):
         input_np = np.random.uniform(0.1, 0.8, size=(20, 30)).astype(np.float32)
         label_np = np.random.randint(0, 2, size=(20, 30)).astype(np.float32)
-        places = [paddle.CustomPlace("CustomMLU", 0)]
+        places = [paddle.CustomPlace("mlu", 0)]
         reductions = ["sum", "mean", "none"]
         for place in places:
             for reduction in reductions:
@@ -157,7 +157,7 @@ class TestBCELoss(unittest.TestCase):
         input_np = np.random.uniform(0.1, 0.8, size=(2, 3, 4, 10)).astype(np.float32)
         label_np = np.random.randint(0, 2, size=(2, 3, 4, 10)).astype(np.float32)
         weight_np = np.random.random(size=(3, 4, 10)).astype(np.float32)
-        place = paddle.CustomPlace("CustomMLU", 0)
+        place = paddle.CustomPlace("mlu", 0)
         for reduction in ["sum", "mean", "none"]:
             static_result = test_static_layer(
                 place, input_np, label_np, reduction, weight_np=weight_np
@@ -204,7 +204,7 @@ class TestBceLossOp(OpTest):
     def setUp(self):
         self.init_test_case()
         self.op_type = "bce_loss"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         input_np = np.random.uniform(0.1, 0.8, self.shape).astype("float32")
         label_np = np.random.randint(0, 2, self.shape).astype("float32")

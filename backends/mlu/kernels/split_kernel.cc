@@ -59,8 +59,7 @@ void SplitKernel(const Context& dev_ctx,
   }
 
   // init in tensors
-  MLUCnnlTensorDesc input_desc(
-    x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
+  MLUCnnlTensorDesc input_desc(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
   MLUCnnl::Split(dev_ctx,
                  num_tensor,
                  axis,
@@ -73,7 +72,7 @@ void SplitKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(split,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SplitKernel,
                           float,

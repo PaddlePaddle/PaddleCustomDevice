@@ -24,7 +24,6 @@ void HuberLossKernel(const Context& dev_ctx,
                      float delta,
                      phi::DenseTensor* out,
                      phi::DenseTensor* residual) {
-
   // compute y-x
   cnnlDataType_t data_type = ToCnnlDataType<T>();
   dev_ctx.template Alloc<T>(residual);
@@ -44,17 +43,18 @@ void HuberLossKernel(const Context& dev_ctx,
   // compute smoothl1loss
   dev_ctx.template Alloc<T>(out);
   cnnlSmoothL1LossAlgorithm_t smoothl1_algo =
-    CNNL_SMOOTHL1LOSS_REDUCTION_NONE;  // defines whether to do reduction
-                                        // here
-  MLUCnnl::SmoothL1LossForward(dev_ctx,
-                               input_disc.get(),
-                               GetBasePtr(&input),
-                               input_disc.get(), /* target has same shape as x */
-                               GetBasePtr(&label),
-                               delta,
-                               smoothl1_algo,
-                               input_disc.get(), /* out has same shape as x */
-                               GetBasePtr(out));
+      CNNL_SMOOTHL1LOSS_REDUCTION_NONE;  // defines whether to do reduction
+                                         // here
+  MLUCnnl::SmoothL1LossForward(
+      dev_ctx,
+      input_disc.get(),
+      GetBasePtr(&input),
+      input_disc.get(), /* target has same shape as x */
+      GetBasePtr(&label),
+      delta,
+      smoothl1_algo,
+      input_disc.get(), /* out has same shape as x */
+      GetBasePtr(out));
 
   // compute multiply by delta
   Tensor scale_tensor, bias_tensor;
@@ -64,7 +64,7 @@ void HuberLossKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&bias_tensor);
   FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(delta), &scale_tensor);
   FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0.f), &bias_tensor);
-  const int axis = std::max(out->dims().size() - 1, 0);  
+  const int axis = std::max(out->dims().size() - 1, 0);
   MLUCnnlTensorDesc scale_desc(scale_tensor);
   MLUCnnlTensorDesc bias_desc(bias_tensor);
   MLUCnnlTensorDesc out_desc(*out);
@@ -101,7 +101,7 @@ void HuberLossGradKernel(const Context& dev_ctx,
 
     cnnlSmoothL1LossAlgorithm_t smoothl1_algo =
         CNNL_SMOOTHL1LOSS_REDUCTION_NONE;  // defines whether to do reduction
-                                            // here
+                                           // here
     MLUCnnl::SmoothL1LossBackward(dev_ctx,
                                   residual_desc.get(),
                                   GetBasePtr(&residual),
@@ -126,7 +126,7 @@ void HuberLossGradKernel(const Context& dev_ctx,
 
   MLUCnnlTensorDesc scale_desc(scale_tensor);
   MLUCnnlTensorDesc bias_desc(bias_tensor);
-  
+
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
     FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(-delta), &scale_tensor);
@@ -162,14 +162,14 @@ void HuberLossGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(huber_loss,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::HuberLossKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(huber_loss_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::HuberLossGradKernel,
                           float,

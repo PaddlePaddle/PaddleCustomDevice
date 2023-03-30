@@ -28,28 +28,29 @@ class TestMLUReduceSumOp(OpTest):
         self.initTestCase()
         self.set_mlu()
         self.attrs = {
-            'dim': self.axis,
-            'keep_dim': self.keep_dim,
-            'reduce_all': self.reduce_all
+            "dim": self.axis,
+            "keep_dim": self.keep_dim,
+            "reduce_all": self.reduce_all,
         }
-        self.inputs = {'X': np.random.random(self.shape).astype("float32")}
-        if self.attrs['reduce_all']:
-            self.outputs = {'Out': self.inputs['X'].sum()}
+        self.inputs = {"X": np.random.random(self.shape).astype("float32")}
+        if self.attrs["reduce_all"]:
+            self.outputs = {"Out": self.inputs["X"].sum()}
         else:
             self.outputs = {
-                'Out': self.inputs['X'].sum(axis=self.axis,
-                                            keepdims=self.attrs['keep_dim'])
+                "Out": self.inputs["X"].sum(
+                    axis=self.axis, keepdims=self.attrs["keep_dim"]
+                )
             }
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def init_op_type(self):
         self.op_type = "reduce_sum"
@@ -59,19 +60,19 @@ class TestMLUReduceSumOp(OpTest):
 
     def initTestCase(self):
         self.shape = (5, 6, 10)
-        self.axis = (0, )
+        self.axis = (0,)
 
 
 class TestSumOp5D(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (1, 2, 5, 6, 10)
-        self.axis = (0, )
+        self.axis = (0,)
 
 
 class TestSumOp6D(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (1, 1, 2, 5, 6, 10)
-        self.axis = (0, )
+        self.axis = (0,)
 
 
 class TestSumOp8D(TestMLUReduceSumOp):
@@ -83,37 +84,37 @@ class TestSumOp8D(TestMLUReduceSumOp):
 class Test1DReduce(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = 120
-        self.axis = (0, )
+        self.axis = (0,)
 
 
 class Test2DReduce0(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (20, 10)
-        self.axis = (0, )
+        self.axis = (0,)
 
 
 class Test2DReduce1(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (20, 10)
-        self.axis = (1, )
+        self.axis = (1,)
 
 
 class Test3DReduce0(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
-        self.axis = (1, )
+        self.axis = (1,)
 
 
 class Test3DReduce1(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
-        self.axis = (2, )
+        self.axis = (2,)
 
 
 class Test3DReduce2(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
-        self.axis = (-2, )
+        self.axis = (-2,)
 
 
 class Test3DReduce3(TestMLUReduceSumOp):
@@ -125,7 +126,7 @@ class Test3DReduce3(TestMLUReduceSumOp):
 class TestKeepDimReduce(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 10)
-        self.axis = (1, )
+        self.axis = (1,)
         self.keep_dim = True
 
 
@@ -136,16 +137,15 @@ class TestKeepDim8DReduce(TestMLUReduceSumOp):
         self.keep_dim = True
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], 'Out', max_relative_error=0.03)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.03)
 
 
 class TestReduceAll(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 2, 10)
-        self.axis = (0, )
+        self.axis = (0,)
         self.reduce_all = True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

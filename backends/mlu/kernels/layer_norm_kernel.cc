@@ -267,14 +267,14 @@ void LayerNormGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradKernel,
                           float,

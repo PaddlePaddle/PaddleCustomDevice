@@ -24,7 +24,7 @@ paddle.enable_static()
 class TestScatterOp(OpTest):
     def setUp(self):
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.scatter
         ref_np = np.ones((3, 50)).astype("float32")
@@ -45,7 +45,7 @@ class TestScatterOp(OpTest):
 class TestScatterOp0(OpTest):
     def setUp(self):
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.scatter
         ref_np = np.ones((3, 3)).astype("float32")
@@ -67,7 +67,7 @@ class TestScatterOp0(OpTest):
 class TestScatterOp1(OpTest):
     def setUp(self):
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.scatter
         ref_np = np.ones((3, 3)).astype("float32")
@@ -92,7 +92,7 @@ class TestScatterOp1(OpTest):
 class TestScatterOp2(OpTest):
     def setUp(self):
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.scatter
         ref_np = np.ones((3, 3)).astype("float32")
@@ -113,7 +113,7 @@ class TestScatterOp2(OpTest):
 class TestScatterOpFp16(OpTest):
     def setUp(self):
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = paddle.scatter
         ref_np = np.ones((3, 3)).astype("float16")

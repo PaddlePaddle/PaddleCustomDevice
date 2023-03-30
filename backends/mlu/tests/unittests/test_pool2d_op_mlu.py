@@ -1052,7 +1052,7 @@ class TestPool2DAPI(unittest.TestCase):
         )
         assert out_10.shape == (2, 3, -1, -1)
 
-        exe = fluid.Executor(place=paddle.CustomPlace("CustomMLU", 0))
+        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
 
         [res_1, res_2, res_3, res_4, res_5, res_6, res_7, res_8] = exe.run(
             fluid.default_main_program(),

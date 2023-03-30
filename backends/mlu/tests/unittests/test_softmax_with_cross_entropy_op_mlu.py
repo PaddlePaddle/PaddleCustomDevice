@@ -98,7 +98,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def initParams(self):
         self.set_mlu()
@@ -354,7 +354,7 @@ class TestSoftmaxWithCrossEntropyOpUInt8(TestSoftmaxWithCrossEntropyOp):
 # ):
 #     def initParams(self):
 #         self.set_mlu()
-#         # self.place = paddle.CustomPlace('CustomMLU', 0)
+#         # self.place = paddle.CustomPlace('mlu', 0)
 #         self.op_type = "softmax_with_cross_entropy"
 #         self.python_api = python_core_api_without_softmax
 #         self.python_out_sig = ["Loss"]

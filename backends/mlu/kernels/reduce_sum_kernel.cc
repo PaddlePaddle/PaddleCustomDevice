@@ -102,7 +102,7 @@ void SumGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sum_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SumRawKernel,
                           int32_t,
@@ -112,7 +112,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum_raw,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SumKernel,
                           int32_t,
@@ -122,7 +122,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SumGradKernel,
                           phi::dtype::float16,

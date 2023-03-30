@@ -49,7 +49,7 @@ class TestHardSwishMLU(OpTest):
         paddle.enable_static()
 
         self.op_type = "hard_swish"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_dtype()
 
@@ -83,7 +83,7 @@ class TestHardSwishMLUWithCPUFloat16(unittest.TestCase):
     def setUp(self):
         paddle.disable_static()
 
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
 
@@ -120,7 +120,7 @@ class TestHardSwishMLUWithCPUFloat16(unittest.TestCase):
 
     def test_check_output_and_grad_mlu(self):
         # mlu float16
-        paddle.set_device("CustomMLU")
+        paddle.set_device("mlu")
         data = paddle.to_tensor(self.float16_x, stop_gradient=False)
         mlu_float16_y = F.hardswish(data)
         mlu_float16_y.sum().backward()

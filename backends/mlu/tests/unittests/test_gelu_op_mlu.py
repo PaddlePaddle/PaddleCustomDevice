@@ -32,7 +32,7 @@ class TestGelu(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "gelu"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -60,7 +60,7 @@ class TestGeluFp16(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "gelu"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
         self.init_dtype()
         np.random.seed(SEED)
@@ -111,7 +111,7 @@ class TestGeluNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace("CustomMLU", 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 

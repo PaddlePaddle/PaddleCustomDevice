@@ -113,7 +113,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(argsort,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortKernel,
                           float,
@@ -124,7 +124,7 @@ PD_REGISTER_PLUGIN_KERNEL(argsort,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(argsort_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortGradKernel,
                           float,

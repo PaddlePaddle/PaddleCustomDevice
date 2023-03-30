@@ -18,13 +18,11 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
 
 paddle.enable_static()
 
 
 class TestTopkOp(OpTest):
-
     def setUp(self):
         self.op_type = "top_k_v2"
         self.set_mlu()
@@ -36,22 +34,22 @@ class TestTopkOp(OpTest):
         input = np.random.random((self.row, k)).astype(self.dtype)
         output = np.ndarray((self.row, k))
         indices = np.ndarray((self.row, k)).astype("int64")
-        self.inputs = {'X': input}
+        self.inputs = {"X": input}
 
         if self.variable_k:
-            self.inputs['K'] = np.array([k]).astype("int32")
+            self.inputs["K"] = np.array([k]).astype("int32")
         else:
-            self.attrs = {'k': k}
+            self.attrs = {"k": k}
 
         for rowid in range(self.row):
             row = input[rowid]
             output[rowid] = np.sort(row)[::-1][:k]
             indices[rowid] = row.argsort()[::-1][:k]
 
-        self.outputs = {'Out': output, 'Indices': indices}
+        self.outputs = {"Out": output, "Indices": indices}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -67,7 +65,6 @@ class TestTopkOp(OpTest):
 
 
 class TestTopkFP16Op(TestTopkOp):
-
     def init_dtype(self):
         self.dtype = np.float16
 

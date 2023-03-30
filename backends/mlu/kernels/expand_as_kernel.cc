@@ -84,7 +84,7 @@ void ExpandAsKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(expand_as,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandAsKernel,
                           int8_t,

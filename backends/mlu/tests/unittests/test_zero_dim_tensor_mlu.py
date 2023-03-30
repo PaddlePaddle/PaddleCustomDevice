@@ -20,7 +20,7 @@ import paddle
 
 # import paddle.nn.functional as F
 
-paddle.set_device("CustomMLU")
+paddle.set_device("mlu")
 
 unary_api_list = [
     paddle.nn.functional.elu,

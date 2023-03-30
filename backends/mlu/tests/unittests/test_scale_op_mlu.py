@@ -28,7 +28,7 @@ paddle.enable_static()
 class TestScaleOp(OpTest):
     def setUp(self):
         self.op_type = "scale"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype_type()
@@ -46,7 +46,7 @@ class TestScaleOp(OpTest):
 class TestScaleOpScaleVariable(OpTest):
     def setUp(self):
         self.op_type = "scale"
-        self.place = paddle.CustomPlace("CustomMLU", 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype_type()
@@ -110,14 +110,14 @@ class TestScaleOpSelectedRows(unittest.TestCase):
     def test_scale_selected_rows(self):
         places = [core.CPUPlace()]
         if core.is_compiled_with_mlu():
-            places.append(core.CustomPlace("CustomMLU", 0))
+            places.append(core.CustomPlace("mlu", 0))
         for place in places:
             self.check_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
         places = [core.CPUPlace()]
         if core.is_compiled_with_mlu():
-            places.append(core.CustomPlace("CustomMLU", 0))
+            places.append(core.CustomPlace("mlu", 0))
         for place in places:
             self.check_with_place(place, "in", "in")
 
@@ -146,11 +146,11 @@ class TestScaleFp16OpSelectedRows(TestScaleOpSelectedRows):
         self.dtype = np.float16
 
     def test_scale_selected_rows(self):
-        place = core.CustomPlace("CustomMLU", 0)
+        place = core.CustomPlace("mlu", 0)
         self.check_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
-        place = core.CustomPlace("CustomMLU", 0)
+        place = core.CustomPlace("mlu", 0)
         self.check_with_place(place, "in", "in")
 
 

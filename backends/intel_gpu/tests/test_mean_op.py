@@ -18,7 +18,8 @@ import unittest
 import numpy as np
 from op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.static
+import paddle.nn
 from paddle.fluid import Program, program_guard
 
 np.random.seed(10)
@@ -46,7 +47,7 @@ def reduce_mean_wrapper(x, axis=0, keepdim=False, reduce_all=False):
 class TestMeanOp(OpTest):
     def setUp(self):
         self.op_type = "mean"
-        self.python_api = fluid.layers.mean
+        self.python_api = paddle.mean
         self.dtype = np.float64
         self.init_dtype_type()
         self.inputs = {"X": np.random.random((10, 10)).astype(self.dtype)}
@@ -67,12 +68,12 @@ class TestMeanOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # The input type of mean_op must be Variable.
             input1 = 12
-            self.assertRaises(TypeError, fluid.layers.mean, input1)
+            self.assertRaises(TypeError, paddle.mean, input1)
             # The input dtype of mean_op must be float16, float32, float64.
-            input2 = fluid.layers.data(name="input2", shape=[12, 10], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.mean, input2)
-            input3 = fluid.layers.data(name="input3", shape=[4], dtype="float16")
-            fluid.layers.softmax(input3)
+            input2 = paddle.static.data(name="input2", shape=[12, 10], dtype="int32")
+            self.assertRaises(TypeError, paddle.mean, input2)
+            input3 = paddle.static.data(name="input3", shape=[4], dtype="float16")
+            paddle.nn.functional.softmax(input3)
 
 
 def ref_reduce_mean(x, axis=None, keepdim=False, reduce_all=False):

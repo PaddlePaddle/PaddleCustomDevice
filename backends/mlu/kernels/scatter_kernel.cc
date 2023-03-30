@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ScatterKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& index,
-                   const phi::DenseTensor& updates,
+void ScatterKernel(const Context &dev_ctx,
+                   const phi::DenseTensor &x,
+                   const phi::DenseTensor &index,
+                   const phi::DenseTensor &updates,
                    bool overwrite,
-                   phi::DenseTensor* out) {
+                   phi::DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc index_desc(index);
@@ -76,6 +76,42 @@ void ScatterKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, x, false, out);
 }
 
+template <typename T, typename Context>
+void ScatterNdAddKernel(const Context &dev_ctx,
+                        const phi::DenseTensor &x,
+                        const phi::DenseTensor &index,
+                        const phi::DenseTensor &updates,
+                        phi::DenseTensor *out) {
+  dev_ctx.template Alloc<T>(out);
+  cnnlScatterNdMode_t mode = CNNL_SCATTERND_ADD;
+  const auto &index_type = index.dtype();
+  bool index_type_match =
+      index_type == phi::DataType::INT32 || index_type == phi::DataType::INT64;
+  PADDLE_ENFORCE_EQ(index_type_match,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "Index holds the wrong type, it holds [%s], but "
+                        "desires to be [%s] or [%s].",
+                        index_type,
+                        phi::DataType::INT32,
+                        phi::DataType::INT64));
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc index_desc(index);
+  MLUCnnlTensorDesc updates_desc(updates);
+  MLUCnnlTensorDesc out_desc(*out);
+
+  MLUCnnl::ScatterNd(dev_ctx,
+                     mode,
+                     index_desc.get(),
+                     GetBasePtr(&index),
+                     updates_desc.get(),
+                     GetBasePtr(&updates),
+                     x_desc.get(),
+                     GetBasePtr(&x),
+                     out_desc.get(),
+                     GetBasePtr(out));
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scatter,
@@ -84,3 +120,11 @@ PD_REGISTER_PLUGIN_KERNEL(scatter,
                           custom_kernel::ScatterKernel,
                           float,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(scatter_nd_add,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::ScatterNdAddKernel,
+                          float,
+                          phi::dtype::float16,
+                          int) {}

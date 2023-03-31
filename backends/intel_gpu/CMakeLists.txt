@@ -9,7 +9,7 @@ option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" ON)
 
 if(NOT DEFINED ONEAPI_PATH)
-  set(ONEAPI_PATH "$ENV{HOME}/intel/oneapi")
+  set(ONEAPI_PATH "/home/gta/intel/oneapi")
 endif()
 
 if(NOT EXISTS "${ONEAPI_PATH}")
@@ -30,21 +30,16 @@ endif()
 find_package(PythonInterp 3.9 REQUIRED)
 find_package(PythonLibs 3.9 REQUIRED)
 
-if(NOT DEFINED ENV{DPL_ROOT})
-  message(FATAL_ERROR "Please set the env var DPL_ROOT!" $ENV{DPL_ROOT})
-endif()
-
 set(DPCPP_COMPIER_PATH "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/bin/dpcpp")
 set(ONEAPI_SYCL_INCLUDE
     "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/include/sycl/")
 set(ONEAPI_SYCL_LIBDIR "${ONEAPI_PATH}/${ONEAPI_COMPILER_DIR}/linux/lib/")
 set(CMAKE_CXX_COMPILER "${DPCPP_COMPIER_PATH}")
 
-# TODO(Zhiwei35): when using oneDNN, should add oneDNN include dir.
 if(WITH_ONEDNN)
   include_directories(${ONEAPI_SYCL_INCLUDE} ${ONEDNN_INC})
 else()
-  include_directories(${ONEAPI_SYCL_INCLUDE} $ENV{DPL_ROOT}/include)
+  include_directories(${ONEAPI_SYCL_INCLUDE} $ENV{DNNLROOT}/include)
 endif()
 
 set(PLUGIN_NAME "paddle-custom-intel-gpu")
@@ -65,18 +60,17 @@ endif()
 
 add_definitions(-std=c++14)
 
+# custom kernels
+file(
+  GLOB_RECURSE PLUGIN_SRCS
+  RELATIVE ${CMAKE_SOURCE_DIR}
+  kernels/*.cc)
+message(STATUS "PLUGIN_SRCS : ${PLUGIN_SRCS}")
+
 # custom runtime
-set(PLUGIN_SRCS runtime/runtime.cc)
+list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
-
-# custom kernels
-if(WITH_KERNELS)
-  # TODO(Zhiwei35, to be more general when adding many kernels)
-  list(APPEND PLUGIN_SRCS kernels/mean_kernel.cc)
-  message(STATUS "CUSTOM_KERNEL_SRCS : ${CUSTOM_KERNEL_SRCS}")
-  message(STATUS "PLUGIN_SRCS : ${PLUGIN_SRCS}")
-endif()
 
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})

@@ -9,7 +9,7 @@ option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" ON)
 
 if(NOT DEFINED ONEAPI_PATH)
-  set(ONEAPI_PATH "/home/gta/intel/oneapi")
+  set(ONEAPI_PATH "$ENV{HOME}/intel/oneapi")
 endif()
 
 if(NOT EXISTS "${ONEAPI_PATH}")

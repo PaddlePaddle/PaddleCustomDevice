@@ -17,15 +17,18 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from tests.op_test import OpTest
-from paddle.fluid import Program, program_guard
-from test_conv2d_op_mlu import TestConv2DOp, TestConv2DOp_v2, create_test_padding_SAME_class, create_test_padding_VALID_class, create_test_channel_last_class, create_test_fp16_class
+from test_conv2d_op_mlu import (
+    TestConv2DOp,
+    TestConv2DOp_v2,
+    create_test_padding_SAME_class,
+    create_test_padding_VALID_class,
+    create_test_channel_last_class,
+    create_test_fp16_class,
+)
 
 paddle.enable_static()
 
-#----------------TestDepthwiseConv -----
+# ----------------TestDepthwiseConv -----
 
 
 class TestDepthwiseConv(TestConv2DOp):
@@ -218,5 +221,5 @@ create_test_fp16_class(TestDepthwiseConvandFuse_AsyPadding)
 # TODO(MLU): Depthwise opration does not support dilation yet
 # it will throw an error of CNNL_STATUS_NOT_SUPPORTED.
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

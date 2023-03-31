@@ -12,7 +12,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the Licnse. */
 
+#include "kernels/funcs/elementwise_utils.h"
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 
@@ -223,6 +225,146 @@ void GeluGradKernel(const Context& dev_ctx,
                     phi::DenseTensor* x_grad) {
   ActivationGradKernelV1<T, Context>(
       dev_ctx, x, out_grad, 1.0, CNNL_ACTIVATION_GELU, x_grad);
+}
+
+template <typename T, typename Context>
+void SiluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_SILU, out);
+}
+
+template <typename T, typename Context>
+void SiluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  ActivationGradKernelV3<T, Context>(
+      dev_ctx, out, dout, CNNL_ACTIVATION_SILU, dx);
+}
+
+template <typename T, typename Context>
+void PowKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::Scalar& factor_scalar,
+               phi::DenseTensor* out) {
+  auto factor = factor_scalar.to<T>();
+  dev_ctx.template Alloc<T>(out);
+  phi::DenseTensor factor_tensor;
+  factor_tensor.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&factor_tensor);
+  MLUCnnlTensorDesc factor_desc(factor_tensor);
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_FAST;
+  MLUCnnl::Fill(dev_ctx,
+                CNNL_POINTER_MODE_HOST,
+                &factor,
+                factor_desc.get(),
+                GetBasePtr(&factor_tensor));
+
+  MLUCnnl::Pow(dev_ctx,
+               prefer,
+               input_desc.get(),
+               GetBasePtr(&x),
+               factor_desc.get(),
+               GetBasePtr(&factor_tensor),
+               output_desc.get(),
+               GetBasePtr(out));
+}
+
+// dx = dout * factor * x.pow(factor-1)
+template <typename T, typename Context>
+void PowGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   const phi::Scalar& factor_scalar,
+                   phi::DenseTensor* dx) {
+  auto factor = factor_scalar.to<T>();
+
+  // Step1: Compute x_pow = x.pow(factor-1)
+  phi::DenseTensor x_pow;
+  x_pow.Resize(x.dims());
+  auto factor_1 = phi::Scalar(factor - static_cast<T>(1.0));
+  custom_kernel::PowKernel<T>(dev_ctx, x, factor_1, &x_pow);
+
+  // Step 2: Construct a broadcast factor, which has the same shape with x.
+  phi::DenseTensor factor_tensor;
+  factor_tensor.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&factor_tensor);
+  MLUCnnlTensorDesc factor_desc(factor_tensor);
+  MLUCnnl::Fill(dev_ctx,
+                CNNL_POINTER_MODE_HOST,
+                &factor,
+                factor_desc.get(),
+                GetBasePtr(&factor_tensor));
+
+  // Step 3: Compute x_power_mul_factor = factor * x_pow
+  phi::DenseTensor x_power_mul_factor;
+  x_power_mul_factor.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_power_mul_factor);
+  MLUOpTensorKernel<T>(dev_ctx,
+                       factor_tensor,
+                       x_pow,
+                       -1,
+                       CNNL_OP_TENSOR_MUL,
+                       &x_power_mul_factor);
+
+  // Step 4: Compute dx = dout * x_power_mul_factor
+  dev_ctx.template Alloc<T>(dx);
+  MLUOpTensorKernel<T>(
+      dev_ctx, dout, x_power_mul_factor, -1, CNNL_OP_TENSOR_MUL, dx);
+}
+
+template <typename T, typename Context>
+void AtanKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_FAST;
+  MLUCnnlTrigonDesc trigon_desc(CNNL_TRIGON_ATAN, prefer);
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc out_desc(*out);
+  MLUCnnl::TrigonForward(dev_ctx,
+                         trigon_desc.get(),
+                         x_desc.get(),
+                         GetBasePtr(&x),
+                         out_desc.get(),
+                         GetBasePtr(out));
+}
+
+// dx = dout * 1 / (1 + x.pow(2))
+template <typename T, typename Context>
+void AtanGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  // Step1: Compute x_pow = x.pow(2)
+  phi::DenseTensor x_pow;
+  x_pow.Resize(x.dims());
+  auto factor = phi::Scalar(static_cast<T>(2.0));
+  custom_kernel::PowKernel<T>(dev_ctx, x, factor, &x_pow);
+
+  // Step2: x_pow_1 = x_pow + 1
+  phi::DenseTensor factor_tensor, x_pow_1;
+  factor_tensor.Resize(x.dims());
+  x_pow_1.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_pow_1);
+  dev_ctx.template Alloc<T>(&factor_tensor);
+  MLUCnnlTensorDesc factor_desc(factor_tensor);
+  MLUCnnlTensorDesc x_pow_1_desc(x_pow_1);
+  auto one = static_cast<T>(1.0);
+  MLUCnnl::Fill(dev_ctx,
+                CNNL_POINTER_MODE_HOST,
+                &one,
+                factor_desc.get(),
+                GetBasePtr(&factor_tensor));
+  MLUOpTensorKernel<T>(
+      dev_ctx, factor_tensor, x_pow, -1, CNNL_OP_TENSOR_ADD, &x_pow_1);
+
+  // Step3: dx = dout / x_pow_1
+  dev_ctx.template Alloc<T>(dx);
+  MLUBinaryOp<DIV, T>(dev_ctx, dout, x_pow_1, -1, dx);
 }
 
 template <typename T, typename Context>
@@ -715,5 +857,61 @@ PD_REGISTER_PLUGIN_KERNEL(floor,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::FloorKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(sigmoid,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SigmoidKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SigmoidGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(silu,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(silu_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(pow,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::PowKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(pow_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::PowGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(atan,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(atan_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::AtanGradKernel,
                           float,
                           phi::dtype::float16) {}

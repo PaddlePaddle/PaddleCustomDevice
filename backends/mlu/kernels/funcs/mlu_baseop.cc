@@ -773,10 +773,11 @@ MLUCnnlBatchSpaceDesc::~MLUCnnlBatchSpaceDesc() {
 }
 
 MLUCnnlTrigonDesc::MLUCnnlTrigonDesc(
-    const cnnlTrigonFunctionMode_t trigon_function_mode) {
+    const cnnlTrigonFunctionMode_t trigon_function_mode,
+    const cnnlComputationPreference_t preference) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlCreateTrigonDescriptor(&trigon_desc_));
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlSetTrigonDescriptor(trigon_desc_, trigon_function_mode));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlSetTrigonDescriptor_v2(
+      trigon_desc_, trigon_function_mode, preference));
 }
 
 const cnnlTrigonDescriptor_t MLUCnnlTrigonDesc::get() const {

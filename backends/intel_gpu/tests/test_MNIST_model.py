@@ -75,9 +75,6 @@ for epoch in range(epoch_num):
     for batch_id, data in enumerate(train_reader()):
         img = data[0]
         label = data[1]
-        import pdb
-
-        pdb.set_trace()
         pred, acc = mnist(img, label)
         avg_loss = paddle.nn.functional.cross_entropy(pred, label)
         avg_loss.backward()

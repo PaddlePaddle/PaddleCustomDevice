@@ -104,7 +104,6 @@ struct DeviceCtx {
   size_t getMemorySize() { return _dev_memory_size; }
 
   size_t getFreeMemorySize() { return (getMemorySize() - allocated_mem) / 8; }
-  // size_t getFreeMemorySize() { return (getMemorySize() - allocated_mem); }
 
   void alloc_mem(size_t _size) { allocated_mem += _size; }
 
@@ -228,7 +227,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   auto &stream = reg_dev[device->id].getStream();
 
   *ptr = sycl::aligned_alloc_device(64, size, stream);
-  // *ptr = sycl::aligned_alloc_shared(64, size, stream);
 
   if (!*ptr) {
     show_error("#### Error : Can't allocate memory size="

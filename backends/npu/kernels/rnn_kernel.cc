@@ -181,6 +181,70 @@ void LSTMKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void GRUKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::DenseTensor& w_i,
+               const phi::DenseTensor& w_h,
+               const phi::DenseTensor& b_i,
+               const phi::DenseTensor& b_h,
+               const phi::DenseTensor& init_h,
+               const std::vector<int>& SequenceLength,
+               float dropout_prob,
+               phi::DenseTensor* out,
+               phi::DenseTensor* last_h) {
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor w_i_t, w_h_t;
+  w_i_t.Resize(phi::make_ddim({w_i.dims()[1], w_i.dims()[0]}));
+  w_h_t.Resize(phi::make_ddim({w_h.dims()[1], w_h.dims()[0]}));
+
+  custom_kernel::TransposeKernel<T, Context>(dev_ctx, w_i, {1, 0}, &w_i_t);
+  custom_kernel::TransposeKernel<T, Context>(dev_ctx, w_h, {1, 0}, &w_h_t);
+
+  phi::DenseTensor seq;
+  seq.Resize(phi::make_ddim({SequenceLength.size()}));
+  dev_ctx.template Alloc<int>(&seq);
+  TensorFromVector(dev_ctx, SequenceLength, dev_ctx, &seq);
+
+  phi::DenseTensor update, reset, n, hidden_n;
+  update.Resize(out->dims());
+  reset.Resize(out->dims());
+  n.Resize(out->dims());
+  hidden_n.Resize(out->dims());
+  dev_ctx.template Alloc<T>(&update);
+  dev_ctx.template Alloc<T>(&reset);
+  dev_ctx.template Alloc<T>(&n);
+  dev_ctx.template Alloc<T>(&hidden_n);
+
+  NpuOpRunner runner;
+  runner.SetType("DynamicGRUV2")
+      .AddInput(x)
+      .AddInput(w_i_t)
+      .AddInput(w_h_t)
+      .AddInput(b_i)
+      .AddInput(b_h)
+      .AddInput(seq)
+      .AddInput(init_h)
+      .AddOutput(*out)
+      .AddOutput(*last_h)
+      .AddOutput(update)
+      .AddOutput(reset)
+      .AddOutput(n)
+      .AddOutput(hidden_n)
+      .AddAttr("direction", std::string("UNIDIRECTIONAL"))
+      .AddAttr("cell_depth", static_cast<int>(1))
+      .AddAttr("keep_prob", static_cast<float>(1 - dropout_prob))
+      .AddAttr("cell_clip", static_cast<float>(-1.0))
+      .AddAttr("num_proj", static_cast<int>(0))
+      .AddAttr("time_major", true)
+      .AddAttr("activation", std::string("tanh"))
+      .AddAttr("gate_order", std::string("rzh"))
+      .AddAttr("reset_after", true)
+      .AddAttr("is_training", true);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void RnnKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const std::vector<const phi::DenseTensor*>& pre_state,
@@ -241,15 +305,6 @@ void RnnKernel(const Context& dev_ctx,
         dev_ctx, *sequence_length.get_ptr(), dev_ctx, &SequenceLength);
   }
 
-  // reset parameter and init_h
-  std::vector<std::vector<phi::DenseTensor>> parameter_lists, init_h_list;
-  parameter_lists.reserve(num_layers);
-  init_h_list.reserve(num_layers);
-  custom_kernel::ResetParameterVector<T, Context>(
-      dev_ctx, weight_list, num_layers, is_bidirec, &parameter_lists);
-  custom_kernel::SlicePreState<T, Context>(
-      dev_ctx, *init_h, num_layers, is_bidirec, &init_h_list);
-
   if (mode == "LSTM") {
     const auto& init_c_dims = init_c->dims();
     PADDLE_ENFORCE_EQ(init_c_dims[0],
@@ -261,9 +316,16 @@ void RnnKernel(const Context& dev_ctx,
                           num_layers,
                           init_c_dims[0]));
 
-    // reset init_c
-    std::vector<std::vector<phi::DenseTensor>> init_c_list;
+    // reset parameter, init_h and init_c
+    std::vector<std::vector<phi::DenseTensor>> parameter_lists, init_h_list,
+        init_c_list;
+    parameter_lists.reserve(num_layers);
+    init_h_list.reserve(num_layers);
     init_c_list.reserve(num_layers);
+    custom_kernel::ResetParameterVector<T, Context>(
+        dev_ctx, weight_list, num_layers, is_bidirec, &parameter_lists);
+    custom_kernel::SlicePreState<T, Context>(
+        dev_ctx, *init_h, num_layers, is_bidirec, &init_h_list);
     custom_kernel::SlicePreState<T, Context>(
         dev_ctx, *init_c, num_layers, is_bidirec, &init_c_list);
 
@@ -341,16 +403,11 @@ void RnnKernel(const Context& dev_ctx,
         last_c_vec.emplace_back(last_c_slice_f);
       } else {
         phi::DenseTensor out_tmp_b, last_h_tmp_b, last_c_tmp_b, last_h_slice_b,
-            last_c_slice_b, bias_b, input_flip, out_tmp_b_flip,
-            last_h_tmp_b_flip, last_c_tmp_b_flip;
+            last_c_slice_b, bias_b, input_flip, out_tmp_b_flip;
         out_tmp_b.Resize(phi::make_ddim({seq_length, batch_size, hidden_size}));
         last_h_tmp_b.Resize(
             phi::make_ddim({seq_length, batch_size, hidden_size}));
         last_c_tmp_b.Resize(
-            phi::make_ddim({seq_length, batch_size, hidden_size}));
-        last_h_tmp_b_flip.Resize(
-            phi::make_ddim({seq_length, batch_size, hidden_size}));
-        last_c_tmp_b_flip.Resize(
             phi::make_ddim({seq_length, batch_size, hidden_size}));
         last_h_slice_b.Resize(phi::make_ddim({1, batch_size, hidden_size}));
         last_c_slice_b.Resize(phi::make_ddim({1, batch_size, hidden_size}));
@@ -360,13 +417,9 @@ void RnnKernel(const Context& dev_ctx,
         dev_ctx.template Alloc<T>(&out_tmp_b);
         dev_ctx.template Alloc<T>(&last_h_tmp_b);
         dev_ctx.template Alloc<T>(&last_c_tmp_b);
-        dev_ctx.template Alloc<T>(&last_h_tmp_b_flip);
-        dev_ctx.template Alloc<T>(&last_c_tmp_b_flip);
         dev_ctx.template Alloc<T>(&last_h_slice_b);
         dev_ctx.template Alloc<T>(&last_c_slice_b);
         dev_ctx.template Alloc<T>(&bias_b);
-        dev_ctx.template Alloc<T>(&input_flip);
-        dev_ctx.template Alloc<T>(&out_tmp_b_flip);
 
         const auto& add_runner1 =
             NpuOpRunner("Add",
@@ -434,24 +487,20 @@ void RnnKernel(const Context& dev_ctx,
         // flip output
         custom_kernel::FlipKernel<T, Context>(
             dev_ctx, out_tmp_b, {0}, &out_tmp_b_flip);
-        custom_kernel::FlipKernel<T, Context>(
-            dev_ctx, last_h_tmp_b, {0}, &last_h_tmp_b_flip);
-        custom_kernel::FlipKernel<T, Context>(
-            dev_ctx, last_c_tmp_b, {0}, &last_c_tmp_b_flip);
         out_vec.emplace_back(out_tmp_b_flip);
 
         NpuOpRunner slice_runner3;
         slice_runner3.SetType("Slice")
-            .AddInput(last_h_tmp_b_flip)
-            .AddInput(dev_ctx, std::vector<int64_t>{0, 0, 0})
+            .AddInput(last_h_tmp_b)
+            .AddInput(dev_ctx, std::vector<int64_t>{seq_length - 1, 0, 0})
             .AddInput(dev_ctx, std::vector<int64_t>{1, batch_size, hidden_size})
             .AddOutput(last_h_slice_b);
         slice_runner3.Run(stream);
 
         NpuOpRunner slice_runner4;
         slice_runner4.SetType("Slice")
-            .AddInput(last_c_tmp_b_flip)
-            .AddInput(dev_ctx, std::vector<int64_t>{0, 0, 0})
+            .AddInput(last_c_tmp_b)
+            .AddInput(dev_ctx, std::vector<int64_t>{seq_length - 1, 0, 0})
             .AddInput(dev_ctx, std::vector<int64_t>{1, batch_size, hidden_size})
             .AddOutput(last_c_slice_b);
         slice_runner4.Run(stream);
@@ -543,6 +592,23 @@ void RnnKernel(const Context& dev_ctx,
                           "NPU rnn kernel only support 1 layer for GRU mode at "
                           "present, but received num_layers=%d.",
                           num_layers));
+
+    // the input "seq_length" of CANN op DynamicGRUV2 does not work in practice,
+    // so we force the elements of parameter "sequence_length" to be equal to
+    // num_steps.
+    for (size_t i = 0; i < SequenceLength.size(); ++i) {
+      PADDLE_ENFORCE_EQ(
+          SequenceLength[i],
+          seq_length,
+          phi::errors::InvalidArgument(
+              "RNN kernel of NPU do not support custom sequence length, "
+              "the input's sequence length is %d, but the %dth element of "
+              "parameter sequence_length is %d.",
+              seq_length,
+              i,
+              SequenceLength[i]));
+    }
+
     gate_num = 3;
     int hidden_data_idx = (num_layers - 1);
     hidden_data_idx += (gate_num + 1) * num_layers;
@@ -550,7 +616,126 @@ void RnnKernel(const Context& dev_ctx,
         direction_num * seq_length * batch_size * hidden_size;
     reserve->Resize({hidden_data_idx, block_size});
     dev_ctx.template Alloc<T>(reserve);
-    // TODO(songkai05): implement GRU mode
+
+    phi::DenseTensor input(x);
+
+    if (!is_bidirec) {
+      phi::DenseTensor last_h_tmp;
+      last_h_tmp.Resize(out->dims());
+      dev_ctx.template Alloc<T>(&last_h_tmp);
+
+      custom_kernel::GRUKernel<T, Context>(dev_ctx,
+                                           input,
+                                           *weight_list[0],
+                                           *weight_list[1],
+                                           *weight_list[2],
+                                           *weight_list[3],
+                                           *init_h,
+                                           SequenceLength,
+                                           dropout_prob,
+                                           out,
+                                           &last_h_tmp);
+
+      NpuOpRunner slice_runner;
+      slice_runner.SetType("Slice")
+          .AddInput(last_h_tmp)
+          .AddInput(dev_ctx, std::vector<int64_t>{seq_length - 1, 0, 0})
+          .AddInput(dev_ctx, std::vector<int64_t>{1, batch_size, hidden_size})
+          .AddOutput(*last_h);
+      slice_runner.Run(stream);
+    } else {
+      phi::DenseTensor last_h_f_tmp, last_h_b_tmp, last_h_f_slice,
+          last_h_b_slice, input_flip, output_f, output_b, output_b_flip;
+      last_h_f_tmp.Resize(
+          phi::make_ddim({seq_length, batch_size, hidden_size}));
+      last_h_b_tmp.Resize(
+          phi::make_ddim({seq_length, batch_size, hidden_size}));
+      last_h_f_slice.Resize(phi::make_ddim({1, batch_size, hidden_size}));
+      last_h_b_slice.Resize(phi::make_ddim({1, batch_size, hidden_size}));
+      input_flip.Resize(input.dims());
+      output_f.Resize(phi::make_ddim({seq_length, batch_size, hidden_size}));
+      output_b.Resize(phi::make_ddim({seq_length, batch_size, hidden_size}));
+      output_b_flip.Resize(
+          phi::make_ddim({seq_length, batch_size, hidden_size}));
+      dev_ctx.template Alloc<T>(&last_h_f_tmp);
+      dev_ctx.template Alloc<T>(&last_h_b_tmp);
+      dev_ctx.template Alloc<T>(&last_h_f_slice);
+      dev_ctx.template Alloc<T>(&last_h_b_slice);
+      dev_ctx.template Alloc<T>(&output_f);
+      dev_ctx.template Alloc<T>(&output_b);
+
+      std::vector<std::vector<phi::DenseTensor>> init_h_list;
+      custom_kernel::SlicePreState<T, Context>(
+          dev_ctx, *init_h, num_layers, is_bidirec, &init_h_list);
+
+      // forward
+      custom_kernel::GRUKernel<T, Context>(dev_ctx,
+                                           input,
+                                           *weight_list[0],
+                                           *weight_list[1],
+                                           *weight_list[4],
+                                           *weight_list[5],
+                                           init_h_list[0][0],
+                                           SequenceLength,
+                                           dropout_prob,
+                                           &output_f,
+                                           &last_h_f_tmp);
+      NpuOpRunner slice_runner1;
+      slice_runner1.SetType("Slice")
+          .AddInput(last_h_f_tmp)
+          .AddInput(dev_ctx, std::vector<int64_t>{seq_length - 1, 0, 0})
+          .AddInput(dev_ctx, std::vector<int64_t>{1, batch_size, hidden_size})
+          .AddOutput(last_h_f_slice);
+      slice_runner1.Run(stream);
+
+      // backward
+      custom_kernel::FlipKernel<T, Context>(dev_ctx, input, {0}, &input_flip);
+      custom_kernel::GRUKernel<T, Context>(dev_ctx,
+                                           input_flip,
+                                           *weight_list[2],
+                                           *weight_list[3],
+                                           *weight_list[6],
+                                           *weight_list[7],
+                                           init_h_list[0][1],
+                                           SequenceLength,
+                                           dropout_prob,
+                                           &output_b,
+                                           &last_h_b_tmp);
+      custom_kernel::FlipKernel<T, Context>(
+          dev_ctx, output_b, {0}, &output_b_flip);
+
+      NpuOpRunner slice_runner2;
+      slice_runner2.SetType("Slice")
+          .AddInput(last_h_b_tmp)
+          .AddInput(dev_ctx, std::vector<int64_t>{seq_length - 1, 0, 0})
+          .AddInput(dev_ctx, std::vector<int64_t>{1, batch_size, hidden_size})
+          .AddOutput(last_h_b_slice);
+      slice_runner2.Run(stream);
+
+      std::vector<std::string> names;
+      names.emplace_back("concat_dim");
+      for (size_t i = 0; i < 2; ++i) {
+        names.emplace_back("x" + std::to_string(i));
+      }
+
+      NpuOpRunner concat_runner1;
+      concat_runner1.SetType("Concat")
+          .AddInput(dev_ctx, std::vector<int>(1, 2))
+          .AddInputs({output_f, output_b_flip})
+          .AddOutput(*out)
+          .AddAttr("N", static_cast<int>(2))
+          .AddInputNames(names);
+      concat_runner1.Run(stream);
+
+      NpuOpRunner concat_runner2;
+      concat_runner2.SetType("Concat")
+          .AddInput(dev_ctx, std::vector<int>(1, 0))
+          .AddInputs({last_h_f_slice, last_h_b_slice})
+          .AddOutput(*last_h)
+          .AddAttr("N", static_cast<int>(2))
+          .AddInputNames(names);
+      concat_runner2.Run(stream);
+    }
   } else {
     phi::errors::InvalidArgument(
         "Custom NPU only support LSTM and GRU mode now, current mode is: %s",

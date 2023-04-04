@@ -87,13 +87,15 @@ function main() {
     # skip paddlepaddle cpu install as mlu docker image already have cpu whl package installed
 
     # custom_mlu build and install
+    export MLU_VISIBLE_DEVICES=0
     cd ${CODE_ROOT}
+    git submodule update --init
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
     cd ${CODE_ROOT}/build
-    pip install dist/*.whl
+    pip install dist/*.whl --force-reinstall
 
     # get changed ut and kernels
     set +e

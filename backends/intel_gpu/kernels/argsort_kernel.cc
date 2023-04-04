@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
 #include "kernels/kernels.h"
 #include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
@@ -26,7 +26,7 @@ void Transpose(const phi::Context& ctx,
                const phi::DenseTensor& x,
                const std::vector<int64_t>& axis,
                T* out_data,
-               std::vector<int64_t>& out_dims,
+               const std::vector<int64_t>& out_dims,
                int64_t out_numel) {
   auto x_dims = x.dims();
   auto x_data = x.data<T>();
@@ -95,7 +95,7 @@ void FullSort(int input_height,
               col_vec.end(),
               [&](const std::pair<T, int>& l, const std::pair<T, int>& r) {
                 if (descending)
-                  // TODO(Zhiwei35):comparison with NaN always evaluates to
+                  // TODO(Zhiwei35) comparison with NaN always evaluates to
                   // false in fast floating point modes and need to enhance
                   return (std::isnan(static_cast<double>(l.first)) &&
                           !std::isnan(static_cast<double>(r.first))) ||
@@ -239,7 +239,6 @@ void ArgsortKernel(const phi::Context& dev_ctx,
   q->memcpy(out_data, cpu_output_data, out_mem_size);
   q->memcpy(ids_data, cpu_ids_data, ids_mem_size);
   q->wait();
-
 }  // ArgsortKernel
 
 }  // namespace gpu

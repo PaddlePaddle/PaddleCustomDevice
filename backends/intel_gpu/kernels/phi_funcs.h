@@ -365,8 +365,9 @@ inline std::vector<int64_t> BroadcastDims(int axis,
 
   return dst_dims;
 }
-void inline align_broadcast(std::vector<int64_t>& from,
-                            std::vector<int64_t>& to,
+
+void inline align_broadcast(std::vector<int64_t>& from,  // NOLINT
+                            std::vector<int64_t>& to,    // NOLINT
                             int axis) {
   std::vector<int64_t> tmp(from.size(), 1);
   std::copy(to.begin(),
@@ -375,8 +376,8 @@ void inline align_broadcast(std::vector<int64_t>& from,
   to = std::move(tmp);
 }
 
-inline void update_broadcast(std::vector<int64_t>& x,
-                             std::vector<int64_t>& y,
+inline void update_broadcast(std::vector<int64_t>& x,  // NOLINT
+                             std::vector<int64_t>& y,  // NOLINT
                              int axis) {
   if (x.size() == y.size()) return;
 

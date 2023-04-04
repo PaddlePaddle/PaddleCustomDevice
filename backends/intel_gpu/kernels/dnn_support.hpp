@@ -14,11 +14,11 @@
 // clang-format off
 #pragma once
 
-#include <CL/sycl.hpp>
 #include <thread>
-#include <vector>
 #include <algorithm>
 #include <utility>
+#include <vector>
+#include <CL/sycl.hpp>
 #include "glog/logging.h"
 #include "oneapi/dnnl/dnnl_sycl.hpp"
 // clang-format on
@@ -127,24 +127,24 @@ struct toDnnType {};
 
 template <>
 struct toDnnType<int> {
-  const static dnnl::memory::data_type type = dnnl::memory::data_type::s32;
+  static const dnnl::memory::data_type type = dnnl::memory::data_type::s32;
 };
 
 template <>
 struct toDnnType<float> {
-  const static dnnl::memory::data_type type = dnnl::memory::data_type::f32;
+  static const dnnl::memory::data_type type = dnnl::memory::data_type::f32;
 };
 
 template <>
 struct toDnnType<char> {
-  const static dnnl::memory::data_type type = dnnl::memory::data_type::bf16;
+  static const dnnl::memory::data_type type = dnnl::memory::data_type::bf16;
 };
 
 #ifdef CUSTOM_DNN
 
 template <>
 struct toDnnType<double> {
-  const static dnnl::memory::data_type type = dnnl::memory::data_type::f64;
+  static const dnnl::memory::data_type type = dnnl::memory::data_type::f64;
 };
 
 #endif
@@ -270,7 +270,7 @@ struct type2String<unsigned char> {
 };
 
 template <>
-struct type2String<short> {
+struct type2String<int16_t> {
   constexpr static const char* name() { return "short"; }
 };
 

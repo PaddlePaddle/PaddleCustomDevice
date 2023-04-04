@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 import paddle.nn.functional as F
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 
 
 def ref_hard_swish_grad(x, threshold=6.0, scale=6.0, offset=3.0):

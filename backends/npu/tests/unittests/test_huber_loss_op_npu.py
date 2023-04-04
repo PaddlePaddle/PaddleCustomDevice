@@ -16,12 +16,9 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import sys
 
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
 
 paddle.enable_static()
 
@@ -37,8 +34,8 @@ def huber_loss_forward(val, delta):
 class TestHuberLossOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.op_type = 'huber_loss'
-        self.place = paddle.CustomPlace('npu', 0)
+        self.op_type = "huber_loss"
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.init_dtype()
 
@@ -48,23 +45,22 @@ class TestHuberLossOp(OpTest):
 
     def set_inputs(self):
         shape = self.set_shape()
-        x = np.random.uniform(0, 1., shape).astype(self.dtype)
-        y = np.random.uniform(0, 1., shape).astype(self.dtype)
+        x = np.random.uniform(0, 1.0, shape).astype(self.dtype)
+        y = np.random.uniform(0, 1.0, shape).astype(self.dtype)
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(y)
+            "X": OpTest.np_dtype_to_fluid_dtype(x),
+            "Y": OpTest.np_dtype_to_fluid_dtype(y),
         }
 
     def set_attrs(self):
-        self.attrs = {'delta': 0.5}
+        self.attrs = {"delta": 0.5}
 
     def set_outputs(self):
-        delta = self.attrs['delta']
+        delta = self.attrs["delta"]
         shape = self.set_shape()
-        residual = self.inputs['Y'] - self.inputs['X']
-        loss = np.vectorize(huber_loss_forward)(residual,
-                                                delta).astype(self.dtype)
-        self.outputs = {'Residual': residual, 'Out': loss.reshape(shape)}
+        residual = self.inputs["Y"] - self.inputs["X"]
+        loss = np.vectorize(huber_loss_forward)(residual, delta).astype(self.dtype)
+        self.outputs = {"Residual": residual, "Out": loss.reshape(shape)}
 
     def set_shape(self):
         return (100, 1)
@@ -79,26 +75,30 @@ class TestHuberLossOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad_normal(self):
-        self.check_grad_with_place(self.place, ['X', 'Y'], 'Out')
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
 
     def test_check_grad_ingore_x(self):
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
+            self.place,
+            ["Y"],
+            "Out",
             max_relative_error=0.008,
-            no_grad_set=set("residual"))
+            no_grad_set=set("residual"),
+        )
 
     def test_check_grad_ingore_y(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
+            self.place,
+            ["X"],
+            "Out",
             max_relative_error=0.008,
-            no_grad_set=set('residual'))
+            no_grad_set=set("residual"),
+        )
 
 
 def TestHuberLossOp1(TestHuberLossOp):
     def set_shape(self):
-        return (64)
+        return 64
 
 
 def TestHuberLossOp2(TestHuberLossOp):
@@ -116,5 +116,5 @@ def TestHuberLossOpFP16(TestHuberLossOp):
         self.dtype = np.float16
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -45,9 +45,8 @@ void TransposeKernelGPU(const phi::Context& ctx,
 
   if (rank == 1) {
     auto total_cpy_bytes = x.numel() * sizeof(T);
-    q->submit([&](sycl::handler& h) {
-      h.memcpy(out_data, x_data, total_cpy_bytes);
-    });  //这实现有问题吧我去。。。
+    q->submit(
+        [&](sycl::handler& h) { h.memcpy(out_data, x_data, total_cpy_bytes); });
     q->wait();
     return;
   }

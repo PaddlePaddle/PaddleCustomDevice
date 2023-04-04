@@ -16,13 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
 
@@ -31,21 +27,21 @@ class TestUnsqueeze2Op(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "unsqueeze2"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.init_test_case()
         self.x = np.random.random(self.ori_shape).astype("float32")
         self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(self.x)}
         self.init_attrs()
         self.outputs = {
             "Out": self.x.reshape(self.new_shape),
-            "XShape": np.random.random(self.ori_shape).astype("float32")
+            "XShape": np.random.random(self.ori_shape).astype("float32"),
         }
 
     def set_npu(self):
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, no_check_set=['XShape'])
+        self.check_output_with_place(self.place, no_check_set=["XShape"])
 
     @unittest.skip("skip check_grad because unstable.")
     def test_check_grad(self):

@@ -16,12 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
 
 paddle.enable_static()
 
@@ -29,7 +26,7 @@ paddle.enable_static()
 class TestFillAnyLikeNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_any_like"
         self.dtype = np.float32
         self.shape = [2, 3, 4, 5]
@@ -37,9 +34,9 @@ class TestFillAnyLikeNPUOp(OpTest):
 
         self.init()
 
-        self.inputs = {'X': np.random.random(self.shape).astype(self.dtype)}
-        self.attrs = {'value': self.value}
-        self.outputs = {'Out': np.full(self.shape, self.value, self.dtype)}
+        self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
+        self.attrs = {"value": self.value}
+        self.outputs = {"Out": np.full(self.shape, self.value, self.dtype)}
 
     def init(self):
         pass

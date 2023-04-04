@@ -20,7 +20,7 @@ import paddle
 import paddle.fluid as fluid
 import paddle.tensor as tensor
 from paddle.fluid.framework import Program, program_guard
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 
 paddle.enable_static()
 
@@ -55,7 +55,7 @@ class TestNPUTrilTriu(OpTest):
             self.place,
             ["X"],
             "Out",
-            check_eager=False,
+            check_dygraph=False,
             max_relative_error=0.009,
             numeric_place=paddle.CPUPlace(),
         )

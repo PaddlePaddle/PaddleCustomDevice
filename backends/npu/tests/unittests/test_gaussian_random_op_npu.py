@@ -14,13 +14,11 @@
 
 from __future__ import print_function
 
-import sys
 import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid as fluid
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 
 paddle.enable_static()
 
@@ -38,19 +36,19 @@ class TestNPUGaussianRandomOp(OpTest):
             "mean": self.mean,
             "std": self.std,
             "seed": 10,
-            "use_mkldnn": self.use_mkldnn
+            "use_mkldnn": self.use_mkldnn,
         }
         paddle.seed(10)
 
-        self.outputs = {'Out': np.zeros((123, 92), dtype='float32')}
+        self.outputs = {"Out": np.zeros((123, 92), dtype="float32")}
 
     def set_attrs(self):
         self.mean = 1.0
-        self.std = 2.
+        self.std = 2.0
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -68,9 +66,9 @@ class TestNPUGaussianRandomOp(OpTest):
         hist2 = hist2.astype("float32")
         hist2 /= float(outs[0].size)
         self.assertTrue(
-            np.allclose(
-                hist, hist2, rtol=0, atol=0.01),
-            "hist: " + str(hist) + " hist2: " + str(hist2))
+            np.allclose(hist, hist2, rtol=0, atol=0.01),
+            "hist: " + str(hist) + " hist2: " + str(hist2),
+        )
 
 
 if __name__ == "__main__":

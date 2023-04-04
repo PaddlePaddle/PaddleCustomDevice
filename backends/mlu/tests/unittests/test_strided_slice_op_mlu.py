@@ -95,10 +95,10 @@ class TestStrideSliceOp(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, set(["Input"]), "Out", check_eager=False)
+        self.check_grad_with_place(self.place, set(["Input"]), "Out")
 
     def initTestCase(self):
         self.input = np.random.rand(100).astype(np.float32)

@@ -16,8 +16,9 @@ from __future__ import print_function, division
 
 import numpy as np
 import unittest
+
 # from op_test import OpTest, skip_check_grad_ci
-from tests.op_test import OpTest, skip_check_grad_ci
+from tests.eager_op_test import OpTest, skip_check_grad_ci
 import paddle
 
 paddle.enable_static()
@@ -33,19 +34,18 @@ class TestReciprocal(OpTest):
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
         out = np.reciprocal(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], 'Out', max_relative_error=0.01)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -54,23 +54,24 @@ class TestReciprocal(OpTest):
 class TestReciprocalFp64(TestReciprocal):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float64
 
 
 @skip_check_grad_ci(
-    reason="The backward test is not supported for float16 type on NPU.")
+    reason="The backward test is not supported for float16 type on NPU."
+)
 class TestReciprocalFp16(TestReciprocal):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.__class__.no_need_check_grad = True
 
     def init_dtype(self):
         self.dtype = np.float16
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

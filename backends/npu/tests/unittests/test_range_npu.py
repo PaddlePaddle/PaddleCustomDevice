@@ -16,8 +16,7 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import sys
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
 
 paddle.enable_static()
@@ -26,21 +25,22 @@ paddle.enable_static()
 class TestRangeOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def setUp(self):
         self.set_npu()
         self.op_type = "range"
         self.init_config()
         self.inputs = {
-            'Start': np.array([self.case[0]]).astype(self.dtype),
-            'End': np.array([self.case[1]]).astype(self.dtype),
-            'Step': np.array([self.case[2]]).astype(self.dtype)
+            "Start": np.array([self.case[0]]).astype(self.dtype),
+            "End": np.array([self.case[1]]).astype(self.dtype),
+            "Step": np.array([self.case[2]]).astype(self.dtype),
         }
 
         self.outputs = {
-            'Out': np.arange(self.case[0], self.case[1],
-                             self.case[2]).astype(self.dtype)
+            "Out": np.arange(self.case[0], self.case[1], self.case[2]).astype(
+                self.dtype
+            )
         }
 
     def init_config(self):

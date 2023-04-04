@@ -99,7 +99,7 @@ void MeanGradKernel(const Context& dev_ctx,
     FillNpuTensorWithConstant<T>(
         &tensor_value,
         dev_ctx,
-        static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+        static_cast<T>(static_cast<T>(1.0f) / static_cast<T>(reduce_numel)));
 
     NpuOpRunner runner;
     runner.SetType("Fill")
@@ -110,7 +110,9 @@ void MeanGradKernel(const Context& dev_ctx,
   } else {
     // CANN op Fill/FillD would raise error when output's numel is 1.
     FillNpuTensorWithConstant<T>(
-        x_grad, dev_ctx, static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+        x_grad,
+        dev_ctx,
+        static_cast<T>(static_cast<T>(1.0f) / static_cast<T>(reduce_numel)));
   }
 
   phi::DenseTensor transformed_x_grad, transformed_out_grad;
@@ -134,11 +136,23 @@ void MeanGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean_raw, npu, ALL_LAYOUT, custom_kernel::MeanRawKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean_raw,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanRawKernel,
+                          float,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean, npu, ALL_LAYOUT, custom_kernel::MeanKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanKernel,
+                          float,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean_grad, npu, ALL_LAYOUT, custom_kernel::MeanGradKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanGradKernel,
+                          float,
+                          phi::dtype::float16) {}

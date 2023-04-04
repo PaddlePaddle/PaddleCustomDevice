@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
 import paddle.fluid as fluid
 import paddle.fluid.core as core
@@ -72,7 +72,7 @@ class TestOneHotOp_non_lod(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
 
 
 class TestOneHotOp_attr(OpTest):

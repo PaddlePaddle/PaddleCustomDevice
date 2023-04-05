@@ -30,7 +30,6 @@ class MPSDevice {
   ~MPSDevice();
 
  private:
-  static MPSDevice* _device;
   MTLDevice_t _mtl_device;
   MPSDevice();
 };

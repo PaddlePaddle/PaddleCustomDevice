@@ -12,11 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <mutex>
+
 #include "mps_stream.h"
 
 namespace mps {
 
 #define USE_COMMIT_AND_CONTINUE 1
+
+static std::unique_ptr<MPSStream> mps_stream;
+static std::once_flag mpsstream_init;
+
+MPSStream *MPSStream::getInstance() {
+  std::call_once(mpsstream_init, [] { mps_stream = std::unique_ptr<MPSStream>(new MPSStream()); });
+  return mps_stream.get();
+}
 
 MPSStream::MPSStream() {
   _commandQueue = [MPSDevice::getInstance()->device() newCommandQueue];
@@ -127,28 +138,8 @@ void MPSStream::executeMPSGraph(MPSGraph *mpsGraph,
   });
 }
 
-class MPSStreamImpl {
- public:
-  static MPSStream *getInstance();
-
- private:
-  static MPSStream *_stream;
-  MPSStreamImpl();
-};
-
-MPSStream *MPSStreamImpl::_stream = nullptr;
-
-MPSStream *MPSStreamImpl::getInstance() {
-  if (_stream == nullptr) {
-    _stream = new MPSStream();
-  }
-  return _stream;
-}
-
-MPSStreamImpl::MPSStreamImpl() {}
-
 MPSStream *getCurrentMPSStream() { return getDefaultMPSStream(); }
 
-MPSStream *getDefaultMPSStream() { return MPSStreamImpl::getInstance(); }
+MPSStream *getDefaultMPSStream() { return MPSStream::getInstance(); }
 
 }  // namespace mps

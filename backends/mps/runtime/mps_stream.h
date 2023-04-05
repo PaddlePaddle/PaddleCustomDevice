@@ -33,7 +33,10 @@ enum class SyncType {
 
 class MPSStream {
  public:
-  MPSStream();
+  MPSStream(const MPSStream &other) = delete;
+  void operator=(const MPSStream &) = delete;
+
+  static MPSStream *getInstance();
 
   ~MPSStream();
   MTLCommandQueue_t commandQueue() const { return _commandQueue; }
@@ -53,11 +56,11 @@ class MPSStream {
   MTLCommandQueue_t stream() const { return _commandQueue; }
 
  private:
+  MPSStream();
   MTLCommandQueue_t _commandQueue = nil;
   MPSCommandBuffer *_commandBuffer = nil;
   MPSGraphExecutionDescriptor *_executionDescriptor = nil;
   void _flush(bool commitAndWait) const;
-
   dispatch_queue_t _serialQueue = nullptr;
 };
 

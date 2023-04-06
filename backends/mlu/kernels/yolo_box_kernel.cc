@@ -75,6 +75,7 @@ void YoloBoxKernel(const Context& dev_ctx,
   Tensor anchors_temp;
   anchors_temp.Resize({size});
   custom_kernel::TensorFromVector(dev_ctx, anchors, dev_ctx, &anchors_temp);
+  dev_ctx.Wait();
   MLUOpTensorDesc anchors_desc(anchors_temp);
   MLUCnnlTensorDesc boxes_desc_cnnl(
       4, boxes_out_dim.data(), ToCnnlDataType<T>());

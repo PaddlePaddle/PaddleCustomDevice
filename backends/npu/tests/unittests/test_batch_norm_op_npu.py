@@ -22,7 +22,7 @@ import paddle.fluid as fluid
 import paddle.fluid.core as core
 from paddle.fluid import Program, program_guard
 from paddle.framework import set_flags
-from tests.eager_op_test import _set_use_system_allocator
+from tests.op_test import _set_use_system_allocator
 
 _set_use_system_allocator(False)
 paddle.enable_static()

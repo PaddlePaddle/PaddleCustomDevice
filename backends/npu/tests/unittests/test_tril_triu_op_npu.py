@@ -20,7 +20,7 @@ import paddle
 import paddle.fluid as fluid
 import paddle.tensor as tensor
 from paddle.fluid.framework import Program, program_guard
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 paddle.enable_static()
 

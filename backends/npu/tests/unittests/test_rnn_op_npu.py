@@ -16,7 +16,7 @@ import random
 import unittest
 
 import numpy as np
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 import paddle
 

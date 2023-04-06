@@ -15,7 +15,7 @@
 from __future__ import print_function
 
 import numpy as np
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 from scipy.special import logit
 from scipy.special import expit
 import unittest

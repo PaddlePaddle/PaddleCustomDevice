@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 import paddle
 from paddle.static import Program, program_guard
 

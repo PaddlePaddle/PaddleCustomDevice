@@ -20,7 +20,7 @@ import numpy
 import paddle
 import paddle.fluid as fluid
 import paddle.fluid.framework as framework
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 paddle.enable_static()
 numpy.random.seed(2021)

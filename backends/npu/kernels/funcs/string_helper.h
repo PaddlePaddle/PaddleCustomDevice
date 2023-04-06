@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #pragma once
-
 #include "acl/acl.h"
 #include "glog/logging.h"
+#include "kernels/funcs/npu_funcs.h"
 #include "paddle/extension.h"
 #include "paddle/phi/extension.h"
 
@@ -32,3 +32,9 @@ std::string GetOpDescString(std::vector<aclTensorDesc*> descs,
 std::string GetOpInfoString(std::vector<aclTensorDesc*> descs,
                             std::vector<aclDataBuffer*> buffs,
                             const std::string msg);
+
+template <typename Context>
+std::string GetPDTensorString(const Context& dev_ctx,
+                              const phi::DenseTensor& print_tensor,
+                              const std::string& tensor_name = "",
+                              const std::string& message = "");

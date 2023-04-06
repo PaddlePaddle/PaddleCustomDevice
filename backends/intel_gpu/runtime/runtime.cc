@@ -11,14 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include <unistd.h>
 
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <iostream>
 
-#include "./dnn_support.hpp"
+#include "kernels/dnn_support.hpp"
 #include "paddle/phi/backends/device_ext.h"
 
 #define MEMORY_FRACTION 0.5f
@@ -41,7 +41,7 @@ DeviceConfigPtr devconf;
 std::mutex mx;
 std::recursive_mutex rmux;
 
-auto intel_match = [](const sycl::device &dev) -> bool {
+auto intel_match = [](sycl::device &dev) -> bool {  // NOLINT
   const auto name = dev.template get_info<sycl::info::device::name>();
   return (name.find("Intel(R) Graphics") != std::string::npos) ? true : false;
 };
@@ -52,7 +52,7 @@ struct DeviceCtx {
   bool _def_stream;
   size_t allocated_mem;
   size_t _dev_memory_size;
-  explicit DeviceCtx(sycl::device dev)
+  DeviceCtx(sycl::device dev)  // NOLINT
       : _dev{std::move(dev)},
         _def_stream{true},
         allocated_mem{0},
@@ -80,7 +80,10 @@ struct DeviceCtx {
     return *(_streams[index]);
   }
 
-  void copy(const sycl::queue &q, void *dst, const void *src, size_t size) {
+  void copy(sycl::queue &q,  // NOLINT
+            void *dst,
+            const void *src,
+            size_t size) {
     q.submit([&](sycl::handler &h) { h.memcpy(dst, src, size); });
     q.wait();
   }
@@ -217,9 +220,10 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   show_memory("request allocate size=" << size << " device=" << device->id);
 
   if (size > reg_dev[device->id].getFreeMemorySize()) {
-    show_error("## No free memory INTERNAL ERROR OUT OF MEMORY requested size="
-               << size << " left=" << reg_dev[device->id].getFreeMemorySize()
-               << " ##");
+    show_error(
+        "#### No free memory INTERNAL ERROR OUT OF MEMORY requested size="
+        << size << " left=" << reg_dev[device->id].getFreeMemorySize()
+        << " #####");
     return C_FAILED;
   }
 

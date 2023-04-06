@@ -33,7 +33,7 @@ pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu
 mkdir build && cd build
 
 cmake ..
-make -j8
+make -j $(nproc)
 
 # using pip to install the output
 pip install dist/paddle_custom_intel_gpu*.whl
@@ -42,10 +42,10 @@ pip install dist/paddle_custom_intel_gpu*.whl
 ## Verification
 
 ```bash
-# list available hardware backends
-python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
+# check the plugin status
+python -c "import paddle; print('intel_gpu' in paddle.device.get_all_custom_device_type())"
 
 # expected output
-['intel_gpu']
+True
 
 ```

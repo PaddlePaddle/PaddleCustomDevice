@@ -16,7 +16,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 import paddle

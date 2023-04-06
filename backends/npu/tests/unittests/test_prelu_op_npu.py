@@ -18,7 +18,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 import paddle.nn.functional as F
-from tests.eager_op_test import OpTest, skip_check_grad_ci
+from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 

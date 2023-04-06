@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 
 def ref_hard_shrink(x, threshold=0.5):

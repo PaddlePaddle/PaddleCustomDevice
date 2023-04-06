@@ -17,10 +17,8 @@ import numpy as np
 import sys
 
 sys.path.append("..")
-from tests.op_test import OpTest, skip_check_grad_ci
 import paddle
 import paddle.static as static
-import paddle.fluid as fluid
 from paddle.static import Program, program_guard
 
 paddle.enable_static()
@@ -32,13 +30,13 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def get_prog(self):
         main_program = Program()
         with program_guard(main_program):
-            a = static.data(name="a", shape=[32, 32], dtype='float32')
-            b = static.data(name="b", shape=[32, 32], dtype='float32')
+            a = static.data(name="a", shape=[32, 32], dtype="float32")
+            b = static.data(name="b", shape=[32, 32], dtype="float32")
             out = a / b
             fp16_a = a.cast(paddle.float16)
             fp16_b = b.cast(paddle.float16)
@@ -47,38 +45,38 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def run_prog(self, a, b):
         main_program, out = self.get_prog()
-        place = paddle.CustomPlace('npu', 0)
+        place = paddle.CustomPlace("npu", 0)
 
         exe = static.Executor(place)
         out_ = exe.run(main_program, feed={"a": a, "b": b}, fetch_list=[out])
         return out_
 
     def test_contains_nan(self):
-        a = np.zeros((32, 32)).astype('float32')
-        b = np.zeros((32, 32)).astype('float32')
+        a = np.zeros((32, 32)).astype("float32")
+        b = np.zeros((32, 32)).astype("float32")
 
         with self.assertRaisesRegex(RuntimeError, "contains Nan/Inf"):
             out = self.run_prog(a, b)
             print(out)
 
     def test_contains_inf(self):
-        a = np.ones((32, 32)).astype('float32')
-        b = np.zeros((32, 32)).astype('float32')
+        a = np.ones((32, 32)).astype("float32")
+        b = np.zeros((32, 32)).astype("float32")
 
         with self.assertRaisesRegex(RuntimeError, "contains Nan/Inf"):
             out = self.run_prog(a, b)
             print(out)
 
     def test_not_contains_nan_inf(self):
-        a = np.ones((32, 32)).astype('float32')
-        b = np.ones((32, 32)).astype('float32')
+        a = np.ones((32, 32)).astype("float32")
+        b = np.ones((32, 32)).astype("float32")
 
         out = self.run_prog(a, b)
         print(out)
 
     def test_fp16_overflow(self):
-        a = np.ones((32, 32)).astype('float32')
-        b = np.ones((32, 32)).astype('float32')
+        a = np.ones((32, 32)).astype("float32")
+        b = np.ones((32, 32)).astype("float32")
         a[0][0] = 50000
         b[0][0] = 50000
 
@@ -87,5 +85,5 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
             print(out)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 import paddle.nn.functional as F
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -55,18 +55,20 @@ class TestHardSigmoid(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        check_eager = False
-        if hasattr(self, "check_eager"):
-            check_eager = self.check_eager
-        self.check_output_with_place(self.place, check_eager=check_eager)
+        check_dygraph = False
+        if hasattr(self, "check_dygraph"):
+            check_dygraph = self.check_dygraph
+        self.check_output_with_place(self.place, check_dygraph=check_dygraph)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        check_eager = False
-        if hasattr(self, "check_eager"):
-            check_eager = self.check_eager
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=check_eager)
+        check_dygraph = False
+        if hasattr(self, "check_dygraph"):
+            check_dygraph = self.check_dygraph
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", check_dygraph=check_dygraph
+        )
 
     def init_shape(self):
         self.shape = [10, 12]

@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-from tests.op_test import OpTest, skip_check_grad_ci
+from tests.eager_op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 

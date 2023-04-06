@@ -27,7 +27,7 @@ paddle.enable_static()
 
 SEED = 2021
 
-from tests.op_test import _set_use_system_allocator
+from tests.eager_op_test import _set_use_system_allocator
 
 _set_use_system_allocator(False)
 

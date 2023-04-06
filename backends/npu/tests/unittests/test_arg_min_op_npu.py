@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-from tests.op_test import OpTest
+from tests.eager_op_test import OpTest
 import paddle
 
 paddle.enable_static()

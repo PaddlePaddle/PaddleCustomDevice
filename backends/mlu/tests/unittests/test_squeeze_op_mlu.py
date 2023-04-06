@@ -63,11 +63,16 @@ class TestSqueezeBF16Op(OpTest):
         self.op_type = "squeeze2"
         self.dtype = np.uint16
         self.init_test_case()
+        self.set_mlu()
         x = np.random.random(self.ori_shape).astype("float32")
         out = x.reshape(self.new_shape)
         self.inputs = {"X": convert_float_to_uint16(x)}
         self.init_attrs()
         self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_mlu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output()

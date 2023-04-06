@@ -40,7 +40,7 @@ class TestFloor(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     def init_dtype(self):
         self.dtype = np.float32

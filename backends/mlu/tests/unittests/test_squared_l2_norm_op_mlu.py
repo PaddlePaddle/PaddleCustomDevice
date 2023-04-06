@@ -58,7 +58,7 @@ class TestL2LossDeterministic(unittest.TestCase):
 
     def test_main(self):
         self.check_place(paddle.CPUPlace())
-        if paddle.is_compiled_with_mlu():
+        if paddle.is_compiled_with_custom_device("mlu"):
             self.check_place(paddle.CustomPlace("mlu", 0))
 
 

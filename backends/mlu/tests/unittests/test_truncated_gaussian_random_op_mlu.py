@@ -21,7 +21,6 @@ import paddle
 import paddle.fluid as fluid
 import paddle.fluid.core as core
 from paddle.fluid.executor import Executor
-from paddle.fluid.framework import _test_eager_guard
 
 paddle.enable_static()
 
@@ -43,7 +42,7 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
         self.gaussian_random_test_eager(place=fluid.CPUPlace())
 
     def test_mlu(self):
-        if core.is_compiled_with_mlu():
+        if core.is_compiled_with_custom_device("mlu"):
             self.gaussian_random_test(place=paddle.CustomPlace("mlu", 0))
 
     def gaussian_random_test(self, place):
@@ -70,7 +69,7 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
     # directly
     def gaussian_random_test_eager(self, place):
         with fluid.dygraph.guard(place):
-            with _test_eager_guard():
+            with fluid.dygraph.base.guard():
                 out = paddle._C_ops.truncated_gaussian_random(
                     self.attrs["shape"],
                     self.attrs["mean"],

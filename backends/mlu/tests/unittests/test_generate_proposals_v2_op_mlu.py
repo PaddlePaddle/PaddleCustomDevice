@@ -407,7 +407,7 @@ class TestGenerateProposalsV2Op(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     def init_mlu(self):
         self.place = paddle.CustomPlace("mlu", 0)

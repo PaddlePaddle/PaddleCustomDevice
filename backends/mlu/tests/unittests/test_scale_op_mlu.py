@@ -19,7 +19,7 @@ import numpy as np
 from tests.op_test import OpTest
 import paddle
 import paddle.fluid.core as core
-from paddle.fluid.op import Operator
+from tests.op import Operator
 from paddle.static import Program, program_guard
 
 paddle.enable_static()
@@ -69,6 +69,10 @@ class TestScaleOpSelectedRows(unittest.TestCase):
     def init_dtype_type(self):
         pass
 
+    def set_mlu(self):
+        self.place = paddle.CustomPlace("mlu", 0)
+        self.__class__.use_custom_device = True
+
     def check_with_place(self, place, in_name, out_name):
         scope = core.Scope()
 
@@ -108,15 +112,17 @@ class TestScaleOpSelectedRows(unittest.TestCase):
         assert in_rows == out_rows
 
     def test_scale_selected_rows(self):
+        self.set_mlu()
         places = [core.CPUPlace()]
-        if core.is_compiled_with_mlu():
+        if core.is_compiled_with_custom_device("mlu"):
             places.append(core.CustomPlace("mlu", 0))
         for place in places:
             self.check_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
+        self.set_mlu()
         places = [core.CPUPlace()]
-        if core.is_compiled_with_mlu():
+        if core.is_compiled_with_custom_device("mlu"):
             places.append(core.CustomPlace("mlu", 0))
         for place in places:
             self.check_with_place(place, "in", "in")
@@ -131,27 +137,15 @@ class TestScaleRaiseError(unittest.TestCase):
 
 
 # Add FP16 test
-@unittest.skipIf(not core.is_compiled_with_mlu(), "core is not compiled with MLU")
+@unittest.skipIf(
+    not core.is_compiled_with_custom_device("mlu"), "core is not compiled with MLU"
+)
 class TestScaleFp16Op(TestScaleOp):
     def init_dtype_type(self):
         self.dtype = np.float16
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=0.002)
-
-
-@unittest.skipIf(not core.is_compiled_with_mlu(), "core is not compiled with MLU")
-class TestScaleFp16OpSelectedRows(TestScaleOpSelectedRows):
-    def init_dtype_type(self):
-        self.dtype = np.float16
-
-    def test_scale_selected_rows(self):
-        place = core.CustomPlace("mlu", 0)
-        self.check_with_place(place, "in", "out")
-
-    def test_scale_selected_rows_inplace(self):
-        place = core.CustomPlace("mlu", 0)
-        self.check_with_place(place, "in", "in")
 
 
 class TestScaleApiStatic(unittest.TestCase):

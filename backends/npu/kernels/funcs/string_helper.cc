@@ -114,12 +114,11 @@ void FormatData(const Context& dev_ctx,
     auto dense_tensor =
         std::dynamic_pointer_cast<phi::DenseTensor>(temp.impl());
     custom_kernel::TensorCopy(
-        dev_ctx, *dense_tensor, false, &cpu_tensor, phi::CPUPlace());
+        dev_ctx, *dense_tensor, true, &cpu_tensor, phi::CPUPlace());
   } else {
     custom_kernel::TensorCopy(
-        dev_ctx, print_tensor, false, &cpu_tensor, phi::CPUPlace());
+        dev_ctx, print_tensor, true, &cpu_tensor, phi::CPUPlace());
   }
-  dev_ctx.Wait();
   data = cpu_tensor.data<T>();
   log_stream << "  - data: [";
   if (print_size > 0) {
@@ -130,6 +129,31 @@ void FormatData(const Context& dev_ctx,
   }
   log_stream << "]" << std::endl;
 }
+
+template void FormatData<phi::CustomContext, float>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
+template void FormatData<phi::CustomContext, double>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
+template void FormatData<phi::CustomContext, int>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
+template void FormatData<phi::CustomContext, int64_t>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
+template void FormatData<phi::CustomContext, bool>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
+template void FormatData<phi::CustomContext, phi::dtype::float16>(
+    const phi::CustomContext& dev_ctx,
+    const phi::DenseTensor& print_tensor,
+    std::stringstream& log_stream);
 
 template <typename Context>
 std::string GetPDTensorString(const Context& dev_ctx,
@@ -172,3 +196,8 @@ std::string GetPDTensorString(const Context& dev_ctx,
   }
   return log_stream.str();
 }
+
+template std::string GetPDTensorString(const phi::CustomContext& dev_ctx,
+                                       const phi::DenseTensor& print_tensor,
+                                       const std::string& tensor_name,
+                                       const std::string& message);

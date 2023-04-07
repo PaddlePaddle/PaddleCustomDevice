@@ -33,6 +33,11 @@ std::string GetOpInfoString(std::vector<aclTensorDesc*> descs,
                             std::vector<aclDataBuffer*> buffs,
                             const std::string msg);
 
+template <typename Context, typename T>
+void FormatData(const Context& dev_ctx,
+                const phi::DenseTensor& print_tensor,
+                std::stringstream& log_stream);
+
 template <typename Context>
 std::string GetPDTensorString(const Context& dev_ctx,
                               const phi::DenseTensor& print_tensor,

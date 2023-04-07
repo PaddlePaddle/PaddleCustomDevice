@@ -26,20 +26,14 @@ function(py_test_modules TARGET_NAME)
       CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle-plugins/
       PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/python/paddle/fluid/tests/unittests:$ENV{PYTHONPATH}
       ${py_test_modules_ENVS}
-    # python ${CMAKE_CURRENT_BINARY_DIR}/${py_test_modules_MODULES}.py
+      # python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
+      # ${py_test_modules_MODULES}
+      python ${CMAKE_CURRENT_BINARY_DIR}/${py_test_modules_MODULES}.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  message(STATUS "PYTHONPATH : $ENV{PYTHONPATH}")
+
   if(py_test_modules_SERIAL)
     set_property(TEST ${TARGET_NAME} PROPERTY RUN_SERIAL 1)
   endif()
 endfunction()
 
-file(
-  GLOB TEST_OPS
-  RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
-  "test_*.py")
-string(REPLACE ".py" "" TEST_OPS "${TEST_OPS}")
-
-foreach(TEST_OP ${TEST_OPS})
-  py_test_modules(${TEST_OP} MODULES ${TEST_OP})
-endforeach()
+add_subdirectory(unittests)

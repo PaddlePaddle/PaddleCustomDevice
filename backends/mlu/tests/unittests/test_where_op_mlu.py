@@ -36,10 +36,10 @@ class TestWhereOp(OpTest):
         self.outputs = {"Out": np.where(self.cond, self.x, self.y)}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["X", "Y"], "Out", check_eager=False)
+        self.check_grad(["X", "Y"], "Out")
 
     def init_config(self):
         self.x = np.random.uniform((-3), 5, 100).astype("float32")

@@ -14,7 +14,7 @@
 
 from __future__ import print_function
 
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 import unittest
 import numpy as np
 import paddle

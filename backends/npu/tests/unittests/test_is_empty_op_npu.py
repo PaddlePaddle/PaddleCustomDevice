@@ -32,14 +32,14 @@ class TestEmpty(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
 
     def set_data(self):
-        self.inputs = {'X': np.array([1, 2, 3]).astype(self.dtype)}
-        self.outputs = {'Out': np.array([False])}
+        self.inputs = {"X": np.array([1, 2, 3]).astype(self.dtype)}
+        self.outputs = {"Out": np.array([False])}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -47,15 +47,16 @@ class TestEmpty(OpTest):
 
 class TestNotEmpty(TestEmpty):
     def set_data(self):
-        self.inputs = {'X': np.array([])}
-        self.outputs = {'Out': np.array([True])}
+        self.inputs = {"X": np.array([])}
+        self.outputs = {"Out": np.array([True])}
 
 
 class TestIsEmptyOpError(unittest.TestCase):
     def test_errors(self):
         paddle.enable_static()
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
             input_data = np.random.random((3, 2)).astype("float32")
 
             def test_Variable():
@@ -66,16 +67,14 @@ class TestIsEmptyOpError(unittest.TestCase):
 
             def test_type():
                 # dtype must be float32, float16 in NPU
-                x3 = paddle.static.data(
-                    name="x3", shape=[4, 32, 32], dtype="bool")
+                x3 = paddle.static.data(name="x3", shape=[4, 32, 32], dtype="bool")
                 res = paddle.is_empty(x=x3)
 
             self.assertRaises(TypeError, test_type)
 
             def test_name_type():
                 # name type must be string.
-                x4 = paddle.static.data(
-                    name="x4", shape=[3, 2], dtype="float32")
+                x4 = paddle.static.data(name="x4", shape=[3, 2], dtype="float32")
                 res = paddle.is_empty(x=x4, name=1)
 
             self.assertRaises(TypeError, test_name_type)
@@ -83,8 +82,8 @@ class TestIsEmptyOpError(unittest.TestCase):
 
 class TestIsEmptyOpDygraph(unittest.TestCase):
     def test_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace('npu', 0))
-        input = paddle.rand(shape=[4, 32, 32], dtype='float32')
+        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        input = paddle.rand(shape=[4, 32, 32], dtype="float32")
         res = paddle.is_empty(x=input)
 
 

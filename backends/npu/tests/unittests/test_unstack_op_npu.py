@@ -15,7 +15,6 @@
 from __future__ import print_function
 
 import numpy as np
-import sys
 import unittest
 from tests.op_test import OpTest
 import paddle
@@ -34,13 +33,13 @@ class TestUnStackOpBase(OpTest):
     def get_y_names(self):
         y_names = []
         for i in range(self.input_dim[self.axis]):
-            y_names.append('y{}'.format(i))
+            y_names.append("y{}".format(i))
         return y_names
 
     def setUp(self):
         self.initDefaultParameters()
         self.initParameters()
-        self.op_type = 'unstack'
+        self.op_type = "unstack"
         self.set_npu()
         self.init_dtype()
 
@@ -54,14 +53,14 @@ class TestUnStackOpBase(OpTest):
         for i in range(self.input_dim[self.axis]):
             tmp.append((y_names[i], np.reshape(outs[i], new_shape)))
 
-        self.inputs = {'X': self.x}
-        self.outputs = {'Y': tmp}
-        self.attrs = {'axis': self.axis, 'num': self.input_dim[self.axis]}
+        self.inputs = {"X": self.x}
+        self.outputs = {"Y": tmp}
+        self.attrs = {"axis": self.axis, "num": self.input_dim[self.axis]}
         # self.attrs = {'axis': self.axis}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -70,7 +69,7 @@ class TestUnStackOpBase(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], self.get_y_names())
+        self.check_grad_with_place(self.place, ["X"], self.get_y_names())
 
 
 class TestStackOp3(TestUnStackOpBase):
@@ -93,5 +92,5 @@ class TestStackOp6(TestUnStackOpBase):
         self.axis = 2
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

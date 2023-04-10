@@ -1,1 +1,1 @@
-../../Paddle/python/paddle/fluid/tests/unittests/op_test.py
+../../Paddle/python/paddle/fluid/tests/unittests/eager_op_test.py

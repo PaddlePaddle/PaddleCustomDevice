@@ -40,7 +40,7 @@ class TestProdOp(OpTest):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
 class TestProd6DOp(OpTest):
@@ -58,7 +58,7 @@ class TestProd6DOp(OpTest):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
 class TestProd8DOp(OpTest):
@@ -78,7 +78,7 @@ class TestProd8DOp(OpTest):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
 if __name__ == "__main__":

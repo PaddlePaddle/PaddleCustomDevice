@@ -40,6 +40,23 @@ class TestMeanOp(OpTest):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 
 
+class TestMeanOpFP16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "reduce_mean"
+        self.inputs = {"X": np.random.random((5, 6, 10)).astype("float16")}
+        self.outputs = {"Out": self.inputs["X"].mean(axis=0)}
+
+    def test_check_output(self):
+        self.check_output_with_place(paddle.CustomPlace("npu", 0))
+
+    def test_check_grad(self):
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
 class TestMeanOpNumel1(OpTest):
     def setUp(self):
         self.set_npu()

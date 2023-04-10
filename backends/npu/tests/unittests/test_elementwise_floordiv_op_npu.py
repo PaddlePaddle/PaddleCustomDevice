@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
@@ -32,15 +31,15 @@ class TestElementwiseFloorDiv(OpTest):
         self.init_input_output()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(self.x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
+            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
+            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
         }
         self.attrs = {}
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_input_output(self):
         self.x = np.random.uniform(1, 1000, [10, 10]).astype(self.dtype)
@@ -59,5 +58,5 @@ class TestElementwiseFloorDiv2(TestElementwiseFloorDiv):
         self.dtype = "int32"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

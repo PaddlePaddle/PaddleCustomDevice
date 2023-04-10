@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import sys
 
 from tests.op_test import OpTest
 import paddle.fluid as fluid
@@ -24,11 +23,11 @@ import paddle
 
 
 def gather_nd_grad(x, index):
-    dout_shape = index.shape[:-1] + x.shape[index.shape[-1]:]
+    dout_shape = index.shape[:-1] + x.shape[index.shape[-1] :]
     numel = 1
     for i in dout_shape:
         numel = numel * i
-    dout = np.full(dout_shape, 1. / numel)
+    dout = np.full(dout_shape, 1.0 / numel)
     dx = np.full_like(x, 0)
 
     index = tuple(index.reshape(-1, index.shape[-1]).T)
@@ -39,20 +38,15 @@ def gather_nd_grad(x, index):
 
 def test_class1(op_type, typename):
     class TestGatherNdOpWithEmptyIndex(OpTest):
-        #Index has empty element, which means copy entire tensor
+        # Index has empty element, which means copy entire tensor
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             xnp = np.random.random((5, 20)).astype(typename)
-            self.inputs = {
-                'X': xnp,
-                'Index': np.array([[], []]).astype("int32")
-            }
-            self.outputs = {
-                'Out': np.vstack((xnp[np.newaxis, :], xnp[np.newaxis, :]))
-            }
+            self.inputs = {"X": xnp, "Index": np.array([[], []]).astype("int32")}
+            self.outputs = {"Out": np.vstack((xnp[np.newaxis, :], xnp[np.newaxis, :]))}
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -64,7 +58,7 @@ def test_class1(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_1".format(op_type, typename)
     TestGatherNdOpWithEmptyIndex.__name__ = cls_name
@@ -75,11 +69,11 @@ def test_class2(op_type, typename):
     class TestGatherNdOpWithIndex1(OpTest):
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             xnp = np.random.random((5, 20)).astype(typename)
-            self.inputs = {'X': xnp, 'Index': np.array([1]).astype("int32")}
-            self.outputs = {'Out': self.inputs["X"][self.inputs["Index"]]}
+            self.inputs = {"X": xnp, "Index": np.array([1]).astype("int32")}
+            self.outputs = {"Out": self.inputs["X"][self.inputs["Index"]]}
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -91,7 +85,7 @@ def test_class2(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_2".format(op_type, typename)
     TestGatherNdOpWithIndex1.__name__ = cls_name
@@ -100,17 +94,17 @@ def test_class2(op_type, typename):
 
 def test_class3(op_type, typename):
     class TestGatherNdOpWithLowIndex(OpTest):
-        #Index has low rank, X has high rank
+        # Index has low rank, X has high rank
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([[1], [2]]).astype("int64")
 
-            self.inputs = {'X': xnp, 'Index': index}
-            self.outputs = {'Out': xnp[tuple(index.T)]}
+            self.inputs = {"X": xnp, "Index": index}
+            self.outputs = {"Out": xnp[tuple(index.T)]}
             self.x_grad = gather_nd_grad(xnp, index)
 
         def set_npu(self):
@@ -124,7 +118,8 @@ def test_class3(op_type, typename):
                 self.__class__.no_need_check_grad = True
             else:
                 self.check_grad_with_place(
-                    self.place, ['X'], 'Out', user_defined_grads=[self.x_grad])
+                    self.place, ["X"], "Out", user_defined_grads=[self.x_grad]
+                )
 
     cls_name = "{0}_{1}_3".format(op_type, typename)
     TestGatherNdOpWithLowIndex.__name__ = cls_name
@@ -133,18 +128,18 @@ def test_class3(op_type, typename):
 
 def test_class4(op_type, typename):
     class TestGatherNdOpIndex1(OpTest):
-        #Index has low rank, X has high rank
+        # Index has low rank, X has high rank
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([1, 2]).astype("int64")
 
-            self.inputs = {'X': xnp, 'Index': index}
+            self.inputs = {"X": xnp, "Index": index}
 
-            self.outputs = {'Out': xnp[tuple(index.T)]}
+            self.outputs = {"Out": xnp[tuple(index.T)]}
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -156,7 +151,7 @@ def test_class4(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_4".format(op_type, typename)
     TestGatherNdOpIndex1.__name__ = cls_name
@@ -165,17 +160,17 @@ def test_class4(op_type, typename):
 
 def test_class5(op_type, typename):
     class TestGatherNdOpWithSameIndexAsX(OpTest):
-        #Index has same rank as X's rank
+        # Index has same rank as X's rank
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([[1, 1], [2, 1]]).astype("int64")
 
-            self.inputs = {'X': xnp, 'Index': index}
-            self.outputs = {'Out': xnp[tuple(index.T)]}  #[25, 22]
+            self.inputs = {"X": xnp, "Index": index}
+            self.outputs = {"Out": xnp[tuple(index.T)]}  # [25, 22]
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -187,7 +182,7 @@ def test_class5(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_5".format(op_type, typename)
     TestGatherNdOpWithSameIndexAsX.__name__ = cls_name
@@ -196,19 +191,18 @@ def test_class5(op_type, typename):
 
 def test_class6(op_type, typename):
     class TestGatherNdOpWithHighRankSame(OpTest):
-        #Both Index and X have high rank, and Rank(Index) = Rank(X)
+        # Both Index and X have high rank, and Rank(Index) = Rank(X)
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             shape = (5, 2, 3, 1, 10)
             xnp = np.random.rand(*shape).astype(typename)
-            index = np.vstack([np.random.randint(
-                0, s, size=2) for s in shape]).T
+            index = np.vstack([np.random.randint(0, s, size=2) for s in shape]).T
 
-            self.inputs = {'X': xnp, 'Index': index.astype("int32")}
-            self.outputs = {'Out': xnp[tuple(index.T)]}
+            self.inputs = {"X": xnp, "Index": index.astype("int32")}
+            self.outputs = {"Out": xnp[tuple(index.T)]}
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -220,7 +214,7 @@ def test_class6(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_6".format(op_type, typename)
     TestGatherNdOpWithHighRankSame.__name__ = cls_name
@@ -229,21 +223,19 @@ def test_class6(op_type, typename):
 
 def test_class7(op_type, typename):
     class TestGatherNdOpWithHighRankDiff(OpTest):
-        #Both Index and X have high rank, Rank(Index) < Rank(X)
+        # Both Index and X have high rank, Rank(Index) < Rank(X)
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace('npu', 0)
+            self.place = paddle.CustomPlace("npu", 0)
             self.op_type = "gather_nd"
             shape = (2, 3, 4, 1, 10)
             xnp = np.random.rand(*shape).astype(typename)
-            index = np.vstack(
-                [np.random.randint(
-                    0, s, size=200) for s in shape]).T
+            index = np.vstack([np.random.randint(0, s, size=200) for s in shape]).T
             index_re = index.reshape([20, 5, 2, 5])
 
-            self.inputs = {'X': xnp, 'Index': index_re.astype("int32")}
-            self.outputs = {'Out': xnp[tuple(index.T)].reshape([20, 5, 2])}
+            self.inputs = {"X": xnp, "Index": index_re.astype("int32")}
+            self.outputs = {"Out": xnp[tuple(index.T)].reshape([20, 5, 2])}
 
         def set_npu(self):
             self.__class__.use_custom_device = True
@@ -255,7 +247,7 @@ def test_class7(op_type, typename):
             if typename == "float16" or typename == "int64":
                 self.__class__.no_need_check_grad = True
             else:
-                self.check_grad_with_place(self.place, ['X'], 'Out')
+                self.check_grad_with_place(self.place, ["X"], "Out")
 
     cls_name = "{0}_{1}_7".format(op_type, typename)
     TestGatherNdOpWithHighRankDiff.__name__ = cls_name
@@ -276,14 +268,14 @@ class TestGatherNdAPI(unittest.TestCase):
         paddle.enable_static()
 
 
-for _typename in {'float16', 'float32', 'int64'}:
-    test_class1('gather_nd', _typename)
-    test_class2('gather_nd', _typename)
-    test_class3('gather_nd', _typename)
-    test_class4('gather_nd', _typename)
-    test_class5('gather_nd', _typename)
-    test_class6('gather_nd', _typename)
-    test_class7('gather_nd', _typename)
+for _typename in {"float16", "float32", "int64"}:
+    test_class1("gather_nd", _typename)
+    test_class2("gather_nd", _typename)
+    test_class3("gather_nd", _typename)
+    test_class4("gather_nd", _typename)
+    test_class5("gather_nd", _typename)
+    test_class6("gather_nd", _typename)
+    test_class7("gather_nd", _typename)
 
 if __name__ == "__main__":
     unittest.main()

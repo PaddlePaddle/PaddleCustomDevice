@@ -15,7 +15,7 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "kernels/funcs/slice_utils.h"
-
+#include "kernels/funcs/string_helper.h"
 namespace custom_kernel {
 
 template <typename T, typename Context>
@@ -67,7 +67,7 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
   }
 
   TensorCopy(dev_ctx, x, false, out);
-
+  auto stream = dev_ctx.stream();
   auto starts_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto ends_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto strides_indices = std::vector<int64_t>(in_dims.size(), 0);
@@ -82,38 +82,11 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
     starts_indices[axis_index] = starts_local[i];
     ends_indices[axis_index] = ends_local[i];
     strides_indices[axis_index] = steps_local[i];
-  }
-
-  int64_t stride_step = phi::product(in_dims);
-  std::vector<int64_t> index_indices(1, 0);
-  for (size_t i = 0; i < strides_indices.size(); ++i) {
-    auto index_size = index_indices.size();
-    stride_step /= in_dims[i];
-    for (size_t j = 0; j < index_size; ++j) {
-      auto start_index = *index_indices.begin();
-      if (strides_indices[i] > 0) {
-        for (int64_t k = starts_indices[i]; k < ends_indices[i];
-             k += strides_indices[i]) {
-          index_indices.push_back(start_index + k * stride_step);
-        }
-      } else {
-        for (int64_t k = starts_indices[i]; k > ends_indices[i];
-             k += strides_indices[i]) {
-          index_indices.push_back(start_index + k * stride_step);
-        }
-      }
-      index_indices.erase(index_indices.begin());
+    if (starts_local[i] ==
+        ends_local[i]) {  // slice is empty, data will not be changed
+      return;
     }
   }
-
-  PADDLE_ENFORCE_EQ(
-      static_cast<int64_t>(index_indices.size()),
-      phi::product(slice_dims_for_assign),
-      phi::errors::InvalidArgument(
-          "OP(set_value) error index indices and value update not match "));
-
-  auto stream = dev_ctx.stream();
-
   phi::DenseTensor value_temp;
   if (slice_dims_for_assign == value.dims()) {
     value_temp = value;
@@ -128,22 +101,76 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
         .Run(stream);
   }
 
-  int64_t input_numel = phi::product(in_dims);
-  int64_t index_numel = index_indices.size();
-
-  phi::DenseTensor in_temp(x), out_temp(*out), val_temp(value_temp);
-  in_temp.Resize(phi::make_ddim({input_numel}));
-  out_temp.Resize(phi::make_ddim({input_numel}));
-  val_temp.Resize(phi::make_ddim({index_numel}));
-
-  NpuOpRunner runner;
-  runner.SetType("ScatterUpdate")
-      .AddInput(in_temp)
-      .AddInput(dev_ctx, std::move(index_indices))
-      .AddInput(val_temp)
-      .AddOutput(out_temp)
-      .AddAttrs({{"use_locking", false}})
+  NpuOpRunner strideslicerunner;
+  strideslicerunner.SetType("StridedSliceAssign")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(starts_indices))
+      .AddInput(dev_ctx, std::move(ends_indices))
+      .AddInput(dev_ctx, std::move(strides_indices))
+      .AddInput(value_temp)
+      .AddAttr("begin_mask", 0)
+      .AddAttr("end_mask", 0)
+      .AddAttr("ellipsis_mask", 0)
+      .AddAttr("new_axis_mask", 0)
+      .AddAttr("shrink_axis_mask", 0)
+      .AddOutput(*out)
       .Run(stream);
+
+  // int64_t stride_step = phi::product(in_dims);
+  // std::vector<int64_t> index_indices(1, 0);
+
+  // phi::DenseTensor slice_tensor;
+  // phi::DenseTensorMeta slice_tensor_meta = {x.dtype(), slice_dims};
+  // slice_tensor.set_meta(slice_tensor_meta);
+  // dev_ctx.template Alloc<T>(&slice_tensor);
+  // FillNpuTensorWithConstant<T>(
+  //     &slice_tensor, dev_ctx, static_cast<T>(0));
+
+  // auto stream = dev_ctx.stream();
+  // NpuOpRunner strideslicerunner;
+  //   strideslicerunner.SetType("StridedSlice")
+  //       .AddInput(*out)
+  //       .AddInput(dev_ctx, std::move(starts_indices))
+  //       .AddInput(dev_ctx, std::move(ends_indices))
+  //       .AddInput(dev_ctx, std::move(strides_indices))
+  //       .AddAttr("begin_mask", 0)
+  //       .AddAttr("end_mask", 0)
+  //       .AddAttr("ellipsis_mask", 0)
+  //       .AddAttr("new_axis_mask", 0)
+  //       .AddAttr("shrink_axis_mask", 0)
+  //       .AddOutput(slice_tensor)
+  //       .Run(stream);
+
+  // slice_tensor.ResizeLike(slice_dims_for_assign);
+  // CheckIsDimsMatch(slice_dims_for_assign, value.dims());
+
+  // // elementwise_substract
+
+  // slice_tensor.Resize(slice_dims);
+
+  // phi::DenseTensor pad_tensor;
+  // phi::DenseTensorMeta pad_tensor_meta = {x.dtype(), in_dims};
+  // pad_tensor.set_meta(pad_tensor_meta);
+  // dev_ctx.template Alloc<T>(&pad_tensor);
+  // FillNpuTensorWithConstant<T>(
+  //     &pad_tensor, dev_ctx, static_cast<T>(0));
+
+  // NpuOpRunner strideslicerunner;
+  //   strideslicerunner.SetType("StridedSlice")
+  //       .AddInput(slice_tensor)
+  //       .AddInput(dev_ctx, std::move(starts_indices))
+  //       .AddInput(dev_ctx, std::move(ends_indices))
+  //       .AddInput(dev_ctx, std::move(strides_indices))
+  //       .AddAttr("begin_mask", 0)
+  //       .AddAttr("end_mask", 0)
+  //       .AddAttr("ellipsis_mask", 0)
+  //       .AddAttr("new_axis_mask", 0)
+  //       .AddAttr("shrink_axis_mask", 0)
+  //       .AddOutput(pad_tensor)
+  //       .Run(stream);
+
+  // // set out
+  VLOG(0) << GetPDTensorString<Context>(dev_ctx, *out);
 }
 
 template <typename T, typename Context>

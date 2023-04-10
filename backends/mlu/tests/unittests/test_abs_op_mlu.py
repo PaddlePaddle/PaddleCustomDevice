@@ -50,7 +50,7 @@ class TestAbs(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ["X"], ["Out"], check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], ["Out"])
 
 
 class TestAbsHalf(OpTest):
@@ -80,7 +80,7 @@ class TestAbsHalf(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ["X"], ["Out"], check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], ["Out"])
 
 
 if __name__ == "__main__":

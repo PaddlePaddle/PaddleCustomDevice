@@ -51,7 +51,7 @@ class TestCast1_FP32(OpTest):
             self.place,
             ["X", "Updates"],
             "Out",
-            check_eager=False,
+            check_dygraph=False,
             numeric_place=paddle.CPUPlace(),
         )
 
@@ -106,7 +106,7 @@ class TestCast2_FP32(OpTest):
             self.place,
             ["X", "Updates"],
             "Out",
-            check_eager=False,
+            check_dygraph=False,
             numeric_place=paddle.CPUPlace(),
         )
 
@@ -139,7 +139,7 @@ class TestCast3_FP32(OpTest):
             self.place,
             ["X", "Updates"],
             "Out",
-            check_eager=False,
+            check_dygraph=False,
             numeric_place=paddle.CPUPlace(),
         )
 

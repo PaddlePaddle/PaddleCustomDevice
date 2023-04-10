@@ -18,7 +18,7 @@ from tests.op_test import OpTest
 
 import numpy as np
 import paddle.fluid.core as core
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 import paddle

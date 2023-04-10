@@ -16,14 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
 import paddle
 import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid.op import Operator
-from paddle.fluid.executor import Executor
 
 paddle.enable_static()
 SEED = 2021
@@ -45,17 +40,20 @@ class TestTruncatedNormal(unittest.TestCase):
                 weight_attr = paddle.framework.ParamAttr(
                     name="linear_weight",
                     initializer=paddle.nn.initializer.TruncatedNormal(
-                        mean=0.0, std=2.0))
+                        mean=0.0, std=2.0
+                    ),
+                )
                 linear = paddle.nn.Linear(
-                    2, 2, weight_attr=weight_attr, bias_attr=False)
+                    2, 2, weight_attr=weight_attr, bias_attr=False
+                )
 
             if run_npu:
-                place = paddle.CustomPlace('npu', 0)
+                place = paddle.CustomPlace("npu", 0)
             else:
                 place = paddle.CPUPlace()
 
             exe = paddle.static.Executor(place)
-            w = exe.run(startup_prog, fetch_list=['linear_weight'])
+            w = exe.run(startup_prog, fetch_list=["linear_weight"])
             return w
 
     def test_npu(self):
@@ -65,5 +63,5 @@ class TestTruncatedNormal(unittest.TestCase):
         self.assertTrue(np.allclose(npu_w, cpu_w))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

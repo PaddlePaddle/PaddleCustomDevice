@@ -16,12 +16,8 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
 
@@ -36,7 +32,7 @@ class TestSqueeze2Op(OpTest):
         self.init_attrs()
         self.outputs = {
             "Out": self.inputs["X"].reshape(self.new_shape),
-            "XShape": np.random.random(self.ori_shape).astype("float32")
+            "XShape": np.random.random(self.ori_shape).astype("float32"),
         }
 
     def set_npu(self):
@@ -44,10 +40,11 @@ class TestSqueeze2Op(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace('npu', 0), no_check_set=['XShape'])
+            paddle.CustomPlace("npu", 0), no_check_set=["XShape"]
+        )
 
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace('npu', 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 
     def init_test_case(self):
         self.ori_shape = (1, 3, 1, 40)

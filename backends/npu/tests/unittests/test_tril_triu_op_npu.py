@@ -55,7 +55,7 @@ class TestNPUTrilTriu(OpTest):
             self.place,
             ["X"],
             "Out",
-            check_eager=False,
+            check_dygraph=False,
             max_relative_error=0.009,
             numeric_place=paddle.CPUPlace(),
         )

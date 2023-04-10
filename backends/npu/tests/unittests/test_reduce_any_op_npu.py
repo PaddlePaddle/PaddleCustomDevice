@@ -17,12 +17,8 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-from tests.op_test import OpTest, skip_check_grad_ci
+from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
-from paddle.fluid.framework import convert_np_dtype_to_dtype_
 
 paddle.enable_static()
 
@@ -31,13 +27,12 @@ class TestAny8DOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "reduce_any"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.inputs = {
-            'X': np.random.randint(0, 2,
-                                   (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
+            "X": np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
         }
-        self.attrs = {'dim': (3, 5, 4)}
-        self.outputs = {'Out': self.inputs['X'].any(axis=self.attrs['dim'])}
+        self.attrs = {"dim": (3, 5, 4)}
+        self.outputs = {"Out": self.inputs["X"].any(axis=self.attrs["dim"])}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -50,10 +45,10 @@ class TestAnyOpWithDim(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "reduce_any"
-        self.place = paddle.CustomPlace('npu', 0)
-        self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
-        self.attrs = {'dim': [1]}
-        self.outputs = {'Out': self.inputs['X'].any(axis=1)}
+        self.place = paddle.CustomPlace("npu", 0)
+        self.inputs = {"X": np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
+        self.attrs = {"dim": [1]}
+        self.outputs = {"Out": self.inputs["X"].any(axis=1)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -66,13 +61,12 @@ class TestAny8DOpWithDim(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "reduce_any"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.inputs = {
-            'X': np.random.randint(0, 2,
-                                   (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
+            "X": np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
         }
-        self.attrs = {'dim': (3, 6)}
-        self.outputs = {'Out': self.inputs['X'].any(axis=self.attrs['dim'])}
+        self.attrs = {"dim": (3, 6)}
+        self.outputs = {"Out": self.inputs["X"].any(axis=self.attrs["dim"])}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -85,12 +79,11 @@ class TestAnyOpWithKeepDim(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "reduce_any"
-        self.place = paddle.CustomPlace('npu', 0)
-        self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
-        self.attrs = {'dim': (1, ), 'keep_dim': True}
+        self.place = paddle.CustomPlace("npu", 0)
+        self.inputs = {"X": np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
+        self.attrs = {"dim": (1,), "keep_dim": True}
         self.outputs = {
-            'Out': np.expand_dims(
-                self.inputs['X'].any(axis=self.attrs['dim']), axis=1)
+            "Out": np.expand_dims(self.inputs["X"].any(axis=self.attrs["dim"]), axis=1)
         }
 
     def set_npu(self):
@@ -104,15 +97,13 @@ class TestAny8DOpWithKeepDim(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "reduce_any"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.inputs = {
-            'X': np.random.randint(0, 2,
-                                   (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
+            "X": np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype("bool")
         }
-        self.attrs = {'dim': (1, ), 'keep_dim': True}
+        self.attrs = {"dim": (1,), "keep_dim": True}
         self.outputs = {
-            'Out': np.expand_dims(
-                self.inputs['X'].any(axis=self.attrs['dim']), axis=1)
+            "Out": np.expand_dims(self.inputs["X"].any(axis=self.attrs["dim"]), axis=1)
         }
 
     def set_npu(self):
@@ -122,5 +113,5 @@ class TestAny8DOpWithKeepDim(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -34,7 +34,7 @@ def fill_constant_batch_size_like(
 class TestFillConstantBatchSizeLike(OpTest):
     def setUp(self):
         self.place = paddle.CustomPlace("mlu", 0)
-        self.__class__.use_custom_place = True
+        self.__class__.use_custom_device = True
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()
@@ -132,7 +132,7 @@ class TestFillConstantBatchSizeLikeLodTensor(TestFillConstantBatchSizeLike):
     # test LodTensor
     def setUp(self):
         self.place = paddle.CustomPlace("mlu", 0)
-        self.__class__.use_custom_place = True
+        self.__class__.use_custom_device = True
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()

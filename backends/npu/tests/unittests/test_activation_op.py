@@ -39,7 +39,7 @@ class TestActivation(OpTest):
         self.init_dtype()
         self.init_shape()
         self.init_kernel_type()
-        self.check_eager = True
+        self.check_dygraph = True
         self.python_api = paddle.exp
 
         np.random.seed(2049)
@@ -50,18 +50,20 @@ class TestActivation(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        check_eager = False
-        if hasattr(self, "check_eager"):
-            check_eager = self.check_eager
-        self.check_output_with_place(self.place, check_eager=check_eager)
+        check_dygraph = False
+        if hasattr(self, "check_dygraph"):
+            check_dygraph = self.check_dygraph
+        self.check_output_with_place(self.place, check_dygraph=check_dygraph)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        check_eager = False
-        if hasattr(self, "check_eager"):
-            check_eager = self.check_eager
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=check_eager)
+        check_dygraph = False
+        if hasattr(self, "check_dygraph"):
+            check_dygraph = self.check_dygraph
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", check_dygraph=check_dygraph
+        )
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -370,7 +372,7 @@ class TestCELU(TestActivation):
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=True)
+        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
 
 class TestCELU_ZeroDim(TestCELU):
@@ -427,7 +429,7 @@ class TestLog(TestActivation):
     def setUp(self):
         self.set_npu()
         self.op_type = "log"
-        self.check_eager = True
+        self.check_dygraph = True
         self.python_api = paddle.log
         self.init_dtype()
         self.init_shape()
@@ -442,7 +444,7 @@ class TestLog(TestActivation):
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=True)
+        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
 
 class TestLog_ZeroDim(TestLog):
@@ -455,7 +457,7 @@ class TestPow(TestActivation):
         self.set_npu()
         self.op_type = "pow"
         self.python_api = paddle.pow
-        self.check_eager = True
+        self.check_dygraph = True
         self.init_dtype()
         self.init_shape()
 
@@ -468,13 +470,13 @@ class TestPow(TestActivation):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=self.check_eager)
+        self.check_output_with_place(self.place, check_dygraph=self.check_dygraph)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ["X"], "Out", check_eager=self.check_eager
+            self.place, ["X"], "Out", check_dygraph=self.check_dygraph
         )
 
 
@@ -487,7 +489,7 @@ class TestPow_factor_tensor(TestActivation):
     def setUp(self):
         self.set_npu()
         self.op_type = "pow"
-        self.check_eager = False
+        self.check_dygraph = False
         self.python_api = paddle.pow
         self.init_dtype()
 
@@ -504,13 +506,13 @@ class TestPow_factor_tensor(TestActivation):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=self.check_eager)
+        self.check_output_with_place(self.place, check_dygraph=self.check_dygraph)
 
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ["X"], "Out", check_eager=self.check_eager
+            self.place, ["X"], "Out", check_dygraph=self.check_dygraph
         )
 
 
@@ -613,7 +615,7 @@ class TestRelu6(TestActivation):
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=True)
+        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
 
 class TestRelu6_ZeroDim(TestRelu6):
@@ -683,11 +685,11 @@ class TestSquare(TestActivation):
         if self.dtype == np.float16:
             return
         self.check_grad_with_place(
-            self.place, ["X"], "Out", max_relative_error=0.007, check_eager=True
+            self.place, ["X"], "Out", max_relative_error=0.007, check_dygraph=True
         )
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=True)
+        self.check_output_with_place(self.place, check_dygraph=True)
 
 
 class TestSquare_ZeroDim(TestSquare):
@@ -713,10 +715,10 @@ class TestSqrt(TestActivation):
     def test_check_grad(self):
         if self.dtype == np.float16:
             return
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=True)
+        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=True)
+        self.check_output_with_place(self.place, check_dygraph=True)
 
 
 class TestSqrt_ZeroDim(TestSqrt):
@@ -822,7 +824,7 @@ class TestFloor(TestActivation):
     def setUp(self):
         self.set_npu()
         self.op_type = "floor"
-        self.check_eager = True
+        self.check_dygraph = True
         self.python_api = paddle.floor
         self.init_dtype()
         self.init_shape()

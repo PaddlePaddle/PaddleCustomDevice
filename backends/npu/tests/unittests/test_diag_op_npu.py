@@ -38,10 +38,10 @@ class TestDiagOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.offset = 0
         self.padding_value = 0.0
 
@@ -58,12 +58,9 @@ class TestDiagOp(OpTest):
         x = -0.1 + 0.2 * x
         result = reference_diag(x, self.offset)
         result = result.astype(self.dtype)
-        self.inputs = {'X': x}
-        self.attrs = {
-            'offset': self.offset,
-            'padding_value': self.padding_value
-        }
-        self.outputs = {'Out': result}
+        self.inputs = {"X": x}
+        self.attrs = {"offset": self.offset, "padding_value": self.padding_value}
+        self.outputs = {"Out": result}
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-7)
@@ -75,7 +72,7 @@ class TestDiagOp1(TestDiagOp):
     """
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.offset = 1
         self.padding_value = 0.0
 
@@ -92,7 +89,7 @@ class TestDiagOp2(TestDiagOp):
     """
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.offset = 0
         self.padding_value = 0.0
 
@@ -109,7 +106,7 @@ class TestDiagOp3(TestDiagOp):
     """
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.offset = 0
         self.padding_value = 0.0
 
@@ -121,12 +118,9 @@ class TestDiagOp3(TestDiagOp):
         x = np.random.randint(0, high=5, size=self.x_shape).astype(self.dtype)
         result = reference_diag(x, self.offset)
         result = result.astype(self.dtype)
-        self.inputs = {'X': x}
-        self.attrs = {
-            'offset': self.offset,
-            'padding_value': self.padding_value
-        }
-        self.outputs = {'Out': result}
+        self.inputs = {"X": x}
+        self.attrs = {"offset": self.offset, "padding_value": self.padding_value}
+        self.outputs = {"Out": result}
 
     def init_kernel_type(self):
         self.dtype = np.int32
@@ -135,5 +129,5 @@ class TestDiagOp3(TestDiagOp):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

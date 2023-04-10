@@ -16,11 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 from scipy.special import expit
 
 paddle.enable_static()
@@ -40,29 +38,27 @@ class TestSwishOp(OpTest):
         np.random.seed(2048)
         x = np.random.uniform(-1, 1, [10, 12]).astype(self.dtype)
         out = ref_swish(x)
-        self.inputs = {'X': x}
-        self.attrs = {'beta': 1.0}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": x}
+        self.attrs = {"beta": 1.0}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        beta = self.attrs['beta']
-        out = self.outputs['Out']
-        x = self.inputs['X']
+        beta = self.attrs["beta"]
+        out = self.outputs["Out"]
+        x = self.inputs["X"]
         dx = beta * out + expit(x) * (1 - beta * out)
         dx = dx / x.size
 
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            max_relative_error=0.01,
-            user_defined_grads=[dx])
+            self.place, ["X"], "Out", max_relative_error=0.01, user_defined_grads=[dx]
+        )
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -76,5 +72,5 @@ class TestSwishOpFp16(TestSwishOp):
         self.dtype = np.float16
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

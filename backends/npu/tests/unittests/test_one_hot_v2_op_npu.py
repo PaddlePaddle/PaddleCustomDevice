@@ -72,7 +72,7 @@ class TestOneHotOp_non_lod(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
 
 
 class TestOneHotOp_attr(OpTest):

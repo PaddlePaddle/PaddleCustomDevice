@@ -373,7 +373,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   const int n = custom_kernel::SizeToAxis(use_axis, logits_grad_dims);
   VLOG(5) << "[CrossEntropyGrad] rank: " << rank << " use_axis: " << use_axis
           << " axis_dim: " << axis_dim << " n: " << n;
-  if (!soft_label && labels.numel() == n && ignore_index < 0) {
+  if (!soft_label && labels.numel() == n && ignore_index == -1) {
     int cls_num = softmax.dims()[softmax.dims().size() - 1];
 
     // cast label from int64/int32 to int32 for OneHotD

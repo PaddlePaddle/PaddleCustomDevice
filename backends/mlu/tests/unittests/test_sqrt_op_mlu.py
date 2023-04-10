@@ -42,7 +42,7 @@ class TestSqrt(OpTest):
         self.__class__.use_custom_device = True
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ["X"], "Out", check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -67,9 +67,7 @@ class TestSqrtHalf(OpTest):
         self.__class__.use_custom_device = True
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", check_eager=False, max_relative_error=0.85
-        )
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.85)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

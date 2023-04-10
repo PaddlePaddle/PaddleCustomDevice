@@ -23,6 +23,7 @@ paddle.enable_static()
 class TestSizeOp(OpTest):
     def setUp(self):
         self.op_type = "size"
+        self.__class__.use_custom_device = True
         self.shape = []
         self.config()
         input = np.zeros(self.shape, dtype="bool")

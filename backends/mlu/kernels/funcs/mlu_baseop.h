@@ -598,7 +598,9 @@ class MLUCnnlBatchSpaceDesc {
 class MLUCnnlTrigonDesc {
  public:
   explicit MLUCnnlTrigonDesc(
-      const cnnlTrigonFunctionMode_t trigon_function_mode);
+      const cnnlTrigonFunctionMode_t trigon_function_mode,
+      const cnnlComputationPreference_t prefer =
+          CNNL_COMPUTATION_HIGH_PRECISION);
 
   const cnnlTrigonDescriptor_t get() const;
 

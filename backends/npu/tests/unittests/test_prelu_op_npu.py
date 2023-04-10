@@ -18,7 +18,6 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 import paddle.nn.functional as F
-from paddle.fluid.framework import _test_eager_guard
 from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
@@ -75,8 +74,7 @@ class TestFunctionalPReluAPI(unittest.TestCase):
         self.dygraph_check(self.weight_np_1)
 
     def test_dygraph_api_eager(self):
-        with _test_eager_guard():
-            self.test_dygraph_api()
+        self.test_dygraph_api()
 
 
 class TestNNPReluAPI(unittest.TestCase):
@@ -137,9 +135,8 @@ class TestNNPReluAPI(unittest.TestCase):
         paddle.enable_static()
 
 
-def prelu_api_wrapper(x, weight, data_format="NCHW"):
-    weight = weight.reshape([-1])
-    return paddle.nn.functional.prelu(x, weight, data_format, name=None)
+def prelu_api_wrapper(x, alpha, data_format="NCHW", mode="all"):
+    return paddle._C_ops.prelu(x, alpha, data_format, mode)
 
 
 class PReluTest(OpTest):
@@ -148,7 +145,6 @@ class PReluTest(OpTest):
         self.init_dtype()
         self.init_input_shape()
         self.init_place()
-        self.eager_mode = True
         self.init_attr()
         self.op_type = "prelu"
         self.python_api = prelu_api_wrapper
@@ -169,8 +165,6 @@ class PReluTest(OpTest):
             alpha_np = np.random.uniform(-1, -0.5, [1, 1, 1, self.x_shape[-1]])
         else:
             alpha_np = np.random.uniform(-1, -0.5, [1] + self.x_shape[1:])
-            # eager check don't support mode = 'all'
-            self.eager_mode = False
         alpha_np = alpha_np.astype(self.dtype)
 
         self.inputs = {"X": x_np, "Alpha": alpha_np}

@@ -24,19 +24,18 @@ paddle.enable_static()
 
 
 class TestL2LossOp(OpTest):
-    """Test npu squared_l2_norm
-    """
+    """Test npu squared_l2_norm"""
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "squared_l2_norm"
         self.max_relative_error = 0.05
 
         X = np.random.uniform(-1, 1, (13, 19)).astype("float32")
         X[np.abs(X) < self.max_relative_error] = 0.1
-        self.inputs = {'X': X}
-        self.outputs = {'Out': np.square(LA.norm(X))}
+        self.inputs = {"X": X}
+        self.outputs = {"Out": np.square(LA.norm(X))}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -46,9 +45,8 @@ class TestL2LossOp(OpTest):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            max_relative_error=self.max_relative_error)
+            self.place, ["X"], "Out", max_relative_error=self.max_relative_error
+        )
 
 
 if __name__ == "__main__":

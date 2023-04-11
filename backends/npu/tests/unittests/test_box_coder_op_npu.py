@@ -113,7 +113,9 @@ def batch_box_coder(p_box, pb_v, t_box, lod, code_type, norm, axis=0):
     return output_box
 
 
-@unittest.skipIf(not paddle.is_compiled_with_npu(), "core is not compiled with NPU")
+@unittest.skipIf(
+    not paddle.is_compiled_with_custom_device("npu"), "core is not compiled with NPU"
+)
 class TestBoxCoderOp(OpTest):
     def setUp(self):
         self.op_type = "box_coder"

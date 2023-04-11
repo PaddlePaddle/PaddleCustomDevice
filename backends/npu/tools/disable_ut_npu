@@ -3,3 +3,6 @@ test_adam_op_npu
 test_set_value_op_npu
 test_softmax_with_cross_entropy_op_npu
 test_zero_dim_tensor_npu
+test_check_finite_and_unscale_op_npu
+test_strided_slice_op_npu
+test_pad3d_op_npu

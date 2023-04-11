@@ -660,25 +660,41 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}

@@ -508,7 +508,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
                 linear = paddle.nn.Linear(
                     2, 4, weight_attr=weight_attr, bias_attr=bias_attr
                 )
-                x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
+                x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 y = linear(x)
                 exe.run(fluid.default_startup_program())
                 r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
@@ -528,7 +528,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
                 linear = paddle.nn.Linear(
                     2, 4, weight_attr=weight_attr, bias_attr=bias_attr
                 )
-                x = fluid.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
+                x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 x = paddle.incubate._npu_identity(x, 29)
                 y = linear(x)
                 exe.run(fluid.default_startup_program())

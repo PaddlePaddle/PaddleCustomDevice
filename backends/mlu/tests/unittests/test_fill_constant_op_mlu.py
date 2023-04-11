@@ -20,7 +20,7 @@ from tests.op_test import OpTest
 
 import paddle
 import paddle.fluid.core as core
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import numpy as np
 
 paddle.enable_static()

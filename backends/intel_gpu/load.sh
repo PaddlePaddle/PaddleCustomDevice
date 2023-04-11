@@ -20,7 +20,7 @@ echo $d
 export PYTHONPATH=$PYTHONPATH:${PaddleDev}/python/tests/
 
 
-comp="dnnl tbb compiler dpl"
+comp="dnnl tbb compiler"
 
 for item in $comp;
 do

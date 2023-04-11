@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 paddle.enable_static()
 

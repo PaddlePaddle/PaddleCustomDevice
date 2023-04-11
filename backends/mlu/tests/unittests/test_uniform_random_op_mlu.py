@@ -20,7 +20,7 @@ from tests.op_test import OpTest
 import paddle
 import paddle.fluid.core as core
 import paddle
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import paddle.fluid as fluid
 
 paddle.enable_static()
@@ -61,8 +61,8 @@ class TestUniformRandomOp(OpTest):
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_cuda():
-            places.append(core.CUDAPlace(0))
+        if core.is_compiled_with_custom_device("mlu"):
+            places.append(paddle.CustomPlace("mlu", 0))
         return places
 
     def test_check_output(self):
@@ -121,7 +121,7 @@ class TestMLUUniformRandomOp(OpTest):
 class TestMLUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_mlu():
+        if core.is_compiled_with_custom_device("mlu"):
             places.append(paddle.CustomPlace("mlu", 0))
         return places
 

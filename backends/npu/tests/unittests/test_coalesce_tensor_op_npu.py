@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 from paddle.fluid import core
-from tests.eager_op_test import OpTest
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021

@@ -15,7 +15,6 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "kernels/funcs/slice_utils.h"
-#include "kernels/funcs/tensor_utils.h"
 
 namespace custom_kernel {
 
@@ -72,7 +71,6 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
   auto starts_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto ends_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto strides_indices = std::vector<int64_t>(in_dims.size(), 0);
-  std::vector<int> flip_axis;
 
   for (int i = 0; i < in_dims.size(); ++i) {
     starts_indices[i] = 0;
@@ -120,7 +118,6 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
         .AddAttr("shrink_axis_mask", 0)
         .AddOutput(*out)
         .Run(stream);
-    // }
   } else {
     int64_t stride_step = phi::product(in_dims);
     std::vector<int64_t> index_indices(1, 0);

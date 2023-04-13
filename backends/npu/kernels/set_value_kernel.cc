@@ -15,21 +15,49 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "kernels/funcs/slice_utils.h"
-#include "kernels/funcs/string_helper.h"
+
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SetTensorValueNPUKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& value,
-                             const phi::IntArray& starts,
-                             const phi::IntArray& ends,
-                             const phi::IntArray& steps,
-                             const std::vector<int64_t>& axes,
-                             const std::vector<int64_t>& decrease_axes,
-                             const std::vector<int64_t>& none_axes,
-                             phi::DenseTensor* out) {
+void SetTensorValueNPUImplKernel(const Context& dev_ctx,
+                                 const phi::DenseTensor& x,
+                                 const phi::DenseTensor& value,
+                                 const phi::IntArray& starts,
+                                 const phi::IntArray& ends,
+                                 const phi::IntArray& steps,
+                                 const std::vector<int64_t>& axes,
+                                 const std::vector<int64_t>& decrease_axes,
+                                 const std::vector<int64_t>& none_axes,
+                                 phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
   auto in_dims = x.dims();
+  // Unsqueeze and Pad x in the last dim from 1 to 8/16.
+  // StridedSliceAssign op only support the last dim of
+  // the input greater than 8 for 4 bytes input and 16
+  // for 8 bytes input.
+  std::vector<int32_t> in_dims_arr = phi::vectorize<int32_t>(x.dims());
+  std::vector<int32_t> pad_in_dims_arr = phi::vectorize<int32_t>(x.dims());
+  in_dims_arr.push_back(1);
+  pad_in_dims_arr.push_back(8);
+
+  phi::DenseTensor x_tmp(x);
+  x_tmp.Resize(phi::make_ddim(in_dims_arr));
+
+  phi::DenseTensor pad_last_dim_x, pad_last_dim_out;
+  pad_last_dim_x.Resize(phi::make_ddim(pad_in_dims_arr));
+  dev_ctx.template Alloc<T>(&pad_last_dim_x);
+  pad_last_dim_out.Resize(phi::make_ddim(pad_in_dims_arr));
+  dev_ctx.template Alloc<T>(&pad_last_dim_out);
+  // Broadcast x to pad_last_dims_x
+  NpuOpRunner runner_brd;
+  runner_brd.SetType("BroadcastTo")
+      .AddInput(x_tmp)
+      .AddInput(dev_ctx, std::move(pad_in_dims_arr))
+      .AddOutput(pad_last_dim_x)
+      .Run(stream);
+
+  auto pad_in_dims = pad_last_dim_x.dims();
+
   std::vector<int64_t> starts_local = starts.GetData();
   std::vector<int64_t> ends_local = ends.GetData();
   std::vector<int64_t> steps_local = steps.GetData();
@@ -66,11 +94,12 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
     slice_dims_for_assign = phi::make_ddim(slice_dims_with_none);
   }
 
-  TensorCopy(dev_ctx, x, false, out);
-  auto stream = dev_ctx.stream();
+  TensorCopy(dev_ctx, pad_last_dim_x, false, &pad_last_dim_out);
+
   auto starts_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto ends_indices = std::vector<int64_t>(in_dims.size(), 0);
   auto strides_indices = std::vector<int64_t>(in_dims.size(), 0);
+  std::vector<int> flip_axis;
 
   for (int i = 0; i < in_dims.size(); ++i) {
     starts_indices[i] = 0;
@@ -82,9 +111,23 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
     starts_indices[axis_index] = starts_local[i];
     ends_indices[axis_index] = ends_local[i];
     strides_indices[axis_index] = steps_local[i];
-    if (starts_local[i] ==
-        ends_local[i]) {  // slice is empty, data will not be changed
-      return;
+  }
+
+  // Because StridedSliceAssign does not support the case
+  // of stride < 0 temporarily, the coordinates of
+  // starts_indices, ends_indices and strides_indices
+  // need to be converted.
+  bool need_flip = false;
+  for (size_t i = 0; i < in_dims.size(); ++i) {
+    if (strides_indices[i] < 0) {
+      if (!need_flip) {
+        need_flip = true;
+      }
+      flip_axis.push_back(i);
+      strides_indices[i] = strides_indices[i] * (-1);
+      ends_indices[i] = starts_indices[i] + 1;
+      starts_indices[i] =
+          starts_indices[i] - (slice_dims[i] - 1) * strides_indices[i];
     }
   }
   phi::DenseTensor value_temp;
@@ -101,76 +144,159 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
         .Run(stream);
   }
 
+  phi::DenseTensor reverse_value;
+  if (need_flip) {
+    reverse_value.Resize(value_temp.dims());
+    dev_ctx.template Alloc<T>(&reverse_value);
+    NpuOpRunner reverse_runner;
+    reverse_runner.SetType("ReverseV2")
+        .AddInput(value_temp)
+        .AddInput(dev_ctx, std::move(flip_axis))
+        .AddOutput(reverse_value);
+    reverse_runner.Run(stream);
+  } else {
+    reverse_value = value_temp;
+  }
+
+  // Add last dim for index
+  starts_indices.push_back(0);
+  ends_indices.push_back(8);
+  strides_indices.push_back(1);
+
+  // Broadcast value;
+  phi::DenseTensor value_brd;
+  auto slice_dims_brd = phi::vectorize<int32_t>(slice_dims_for_assign);
+  slice_dims_brd.push_back(1);
+  reverse_value.Resize(phi::make_ddim(slice_dims_brd));
+  slice_dims_brd[slice_dims_brd.size() - 1] = 8;
+  value_brd.Resize(phi::make_ddim(slice_dims_brd));
+  dev_ctx.template Alloc<T>(&value_brd);
+  NpuOpRunner runner_brd1;
+  runner_brd1.SetType("BroadcastTo")
+      .AddInput(reverse_value)
+      .AddInput(dev_ctx, std::move(slice_dims_brd))
+      .AddOutput(value_brd)
+      .Run(stream);
+
   NpuOpRunner strideslicerunner;
   strideslicerunner.SetType("StridedSliceAssign")
-      .AddInput(x)
+      .AddInput(pad_last_dim_x)
       .AddInput(dev_ctx, std::move(starts_indices))
       .AddInput(dev_ctx, std::move(ends_indices))
       .AddInput(dev_ctx, std::move(strides_indices))
-      .AddInput(value_temp)
+      .AddInput(value_brd)
       .AddAttr("begin_mask", 0)
       .AddAttr("end_mask", 0)
       .AddAttr("ellipsis_mask", 0)
       .AddAttr("new_axis_mask", 0)
       .AddAttr("shrink_axis_mask", 0)
+      .AddOutput(pad_last_dim_out)
+      .Run(stream);
+
+  int32_t axis = static_cast<int32_t>(pad_last_dim_x.dims().size() - 1);
+  auto out_dims_arr = phi::vectorize(in_dims);
+  out_dims_arr.push_back(1);
+  out->Resize(phi::make_ddim(out_dims_arr));
+  dev_ctx.template Alloc<T>(out);
+  NpuOpRunner gather_runner;
+  // StridedSliceAssign op's output shares memory with in-place output.
+  // So, here use pad_last_dim_x as the input.
+  gather_runner.SetType("GatherV2")
+      .AddInput(pad_last_dim_x)
+      .AddInput(dev_ctx, std::vector<int32_t>({0}))
+      .AddInput(dev_ctx, std::vector<int32_t>({axis}))
       .AddOutput(*out)
       .Run(stream);
 
-  // int64_t stride_step = phi::product(in_dims);
-  // std::vector<int64_t> index_indices(1, 0);
+  out->Resize(in_dims);
+}
 
-  // phi::DenseTensor slice_tensor;
-  // phi::DenseTensorMeta slice_tensor_meta = {x.dtype(), slice_dims};
-  // slice_tensor.set_meta(slice_tensor_meta);
-  // dev_ctx.template Alloc<T>(&slice_tensor);
-  // FillNpuTensorWithConstant<T>(
-  //     &slice_tensor, dev_ctx, static_cast<T>(0));
-
-  // auto stream = dev_ctx.stream();
-  // NpuOpRunner strideslicerunner;
-  //   strideslicerunner.SetType("StridedSlice")
-  //       .AddInput(*out)
-  //       .AddInput(dev_ctx, std::move(starts_indices))
-  //       .AddInput(dev_ctx, std::move(ends_indices))
-  //       .AddInput(dev_ctx, std::move(strides_indices))
-  //       .AddAttr("begin_mask", 0)
-  //       .AddAttr("end_mask", 0)
-  //       .AddAttr("ellipsis_mask", 0)
-  //       .AddAttr("new_axis_mask", 0)
-  //       .AddAttr("shrink_axis_mask", 0)
-  //       .AddOutput(slice_tensor)
-  //       .Run(stream);
-
-  // slice_tensor.ResizeLike(slice_dims_for_assign);
-  // CheckIsDimsMatch(slice_dims_for_assign, value.dims());
-
-  // // elementwise_substract
-
-  // slice_tensor.Resize(slice_dims);
-
-  // phi::DenseTensor pad_tensor;
-  // phi::DenseTensorMeta pad_tensor_meta = {x.dtype(), in_dims};
-  // pad_tensor.set_meta(pad_tensor_meta);
-  // dev_ctx.template Alloc<T>(&pad_tensor);
-  // FillNpuTensorWithConstant<T>(
-  //     &pad_tensor, dev_ctx, static_cast<T>(0));
-
-  // NpuOpRunner strideslicerunner;
-  //   strideslicerunner.SetType("StridedSlice")
-  //       .AddInput(slice_tensor)
-  //       .AddInput(dev_ctx, std::move(starts_indices))
-  //       .AddInput(dev_ctx, std::move(ends_indices))
-  //       .AddInput(dev_ctx, std::move(strides_indices))
-  //       .AddAttr("begin_mask", 0)
-  //       .AddAttr("end_mask", 0)
-  //       .AddAttr("ellipsis_mask", 0)
-  //       .AddAttr("new_axis_mask", 0)
-  //       .AddAttr("shrink_axis_mask", 0)
-  //       .AddOutput(pad_tensor)
-  //       .Run(stream);
-
-  // // set out
-  VLOG(0) << GetPDTensorString<Context>(dev_ctx, *out);
+template <typename T, typename Context>
+void SetTensorValueNPUKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& value,
+                             const phi::IntArray& starts,
+                             const phi::IntArray& ends,
+                             const phi::IntArray& steps,
+                             const std::vector<int64_t>& axes,
+                             const std::vector<int64_t>& decrease_axes,
+                             const std::vector<int64_t>& none_axes,
+                             phi::DenseTensor* out) {
+  phi::DenseTensor tmp_x, tmp_value, tmp_out;
+  phi::DenseTensorMeta tmp_x_meta, tmp_value_meta, tmp_out_meta;
+  // StridedSliceAssign only support fp32 and int32.
+  // We directly transform fp64/int64 to fp32/int32 before impl function.
+  auto stream = dev_ctx.stream();
+  if (x.dtype() == phi::DataType::FLOAT64) {
+    tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
+    tmp_value_meta = {phi::DataType::FLOAT32, value.dims()};
+    tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+    tmp_x.set_meta(tmp_x_meta);
+    tmp_value.set_meta(tmp_value_meta);
+    tmp_out.set_meta(tmp_out_meta);
+    dev_ctx.template Alloc<float>(&tmp_x);
+    dev_ctx.template Alloc<float>(&tmp_value);
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& runner1 =
+        NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    runner1.Run(stream);
+    const auto& runner2 =
+        NpuOpRunner("Cast", {value}, {tmp_value}, {{"dst_type", ACL_FLOAT}});
+    runner2.Run(stream);
+    SetTensorValueNPUImplKernel<float, Context>(dev_ctx,
+                                                tmp_x,
+                                                tmp_value,
+                                                starts,
+                                                ends,
+                                                steps,
+                                                axes,
+                                                decrease_axes,
+                                                none_axes,
+                                                &tmp_out);
+    const auto& runner3 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
+    runner3.Run(stream);
+  } else if (x.dtype() == phi::DataType::INT64) {
+    tmp_x_meta = {phi::DataType::INT32, x.dims()};
+    tmp_value_meta = {phi::DataType::INT32, value.dims()};
+    tmp_out_meta = {phi::DataType::INT32, out->dims()};
+    tmp_x.set_meta(tmp_x_meta);
+    tmp_value.set_meta(tmp_value_meta);
+    tmp_out.set_meta(tmp_out_meta);
+    dev_ctx.template Alloc<int32_t>(&tmp_x);
+    dev_ctx.template Alloc<int32_t>(&tmp_value);
+    dev_ctx.template Alloc<int32_t>(&tmp_out);
+    const auto& runner1 =
+        NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_INT32}});
+    runner1.Run(stream);
+    const auto& runner2 =
+        NpuOpRunner("Cast", {value}, {tmp_value}, {{"dst_type", ACL_INT32}});
+    runner2.Run(stream);
+    SetTensorValueNPUImplKernel<int32_t, Context>(dev_ctx,
+                                                  tmp_x,
+                                                  tmp_value,
+                                                  starts,
+                                                  ends,
+                                                  steps,
+                                                  axes,
+                                                  decrease_axes,
+                                                  none_axes,
+                                                  &tmp_out);
+    const auto& runner3 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_INT64}});
+    runner3.Run(stream);
+  } else {
+    SetTensorValueNPUImplKernel<T, Context>(dev_ctx,
+                                            x,
+                                            value,
+                                            starts,
+                                            ends,
+                                            steps,
+                                            axes,
+                                            decrease_axes,
+                                            none_axes,
+                                            out);
+  }
 }
 
 template <typename T, typename Context>

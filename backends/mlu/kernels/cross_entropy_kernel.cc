@@ -373,77 +373,80 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   const int n = custom_kernel::SizeToAxis(use_axis, logits_grad_dims);
   VLOG(5) << "[CrossEntropyGrad] rank: " << rank << " use_axis: " << use_axis
           << " axis_dim: " << axis_dim << " n: " << n;
-  if (!soft_label && labels.numel() == n && ignore_index == -1) {
-    int cls_num = softmax.dims()[softmax.dims().size() - 1];
-
-    // cast label from int64/int32 to int32 for OneHotD
-    phi::DenseTensor casted_labels;
-    if (labels.dtype() != phi::DataType::INT32) {
-      phi::DenseTensorMeta casted_labels_meta = {phi::DataType::INT32,
-                                                 labels.dims()};
-      casted_labels.set_meta(casted_labels_meta);
-      dev_ctx.template Alloc<int32_t>(&casted_labels);
-
-      MLUCnnlTensorDesc labels_desc(labels);
+  if ((!soft_label && labels.numel() == n && ignore_index == -1) ||
+      soft_label) {
+    phi::DenseTensor last_labels;
+    if (!soft_label && labels.numel() == n && ignore_index == -1) {
+      // hard label: last_labels = onehot(labels), onehot only supports
+      // dtype-int32
+      int cls_num = softmax.dims()[softmax.dims().size() - 1];
+      // cast label from int64/int32 to int32 for OneHotD
+      phi::DenseTensor casted_labels;
+      if (labels.dtype() != phi::DataType::INT32) {
+        phi::DenseTensorMeta casted_labels_meta = {phi::DataType::INT32,
+                                                   labels.dims()};
+        casted_labels.set_meta(casted_labels_meta);
+        dev_ctx.template Alloc<int32_t>(&casted_labels);
+        MLUCnnlTensorDesc labels_desc(labels);
+        MLUCnnlTensorDesc casted_labels_desc(casted_labels);
+        cnnlCastDataType_t cast_type =
+            GetCastDataType(labels.dtype(), DataType::INT32);
+        MLUCnnl::Cast(dev_ctx,
+                      cast_type,
+                      labels_desc.get(),
+                      GetBasePtr(&labels),
+                      casted_labels_desc.get(),
+                      GetBasePtr(&casted_labels));
+      } else {
+        casted_labels = labels;
+      }
+      // on and off
+      phi::DenseTensor on_tensor, off_tensor;
+      phi::DenseTensorMeta on_off_meta = {phi::DataType::INT32, {1}};
+      on_tensor.set_meta(on_off_meta);
+      off_tensor.set_meta(on_off_meta);
+      dev_ctx.template Alloc<int32_t>(&on_tensor);
+      dev_ctx.template Alloc<int32_t>(&off_tensor);
+      FillMLUTensorWithHostValue(dev_ctx, static_cast<int>(1), &on_tensor);
+      FillMLUTensorWithHostValue(dev_ctx, static_cast<int>(0), &off_tensor);
+      // one_hot
+      phi::DenseTensor tmp_onehot;
+      phi::DenseTensorMeta tmp_onehot_meta = {on_tensor.dtype(),
+                                              softmax.dims()};
+      tmp_onehot.set_meta(tmp_onehot_meta);
+      dev_ctx.template Alloc<int32_t>(&tmp_onehot);
       MLUCnnlTensorDesc casted_labels_desc(casted_labels);
-
-      cnnlCastDataType_t cast_type =
-          GetCastDataType(labels.dtype(), DataType::INT32);
-      MLUCnnl::Cast(dev_ctx,
-                    cast_type,
-                    labels_desc.get(),
-                    GetBasePtr(&labels),
-                    casted_labels_desc.get(),
-                    GetBasePtr(&casted_labels));
+      MLUCnnlTensorDesc tmp_onehot_desc(tmp_onehot);
+      VLOG(5) << "[CrossEntropyGrad] cls_num: " << cls_num;
+      MLUCnnl::OneHot(dev_ctx,
+                      casted_labels_desc.get(),
+                      GetBasePtr(&casted_labels),
+                      cls_num,
+                      GetBasePtr(&on_tensor),
+                      GetBasePtr(&off_tensor),
+                      -1,
+                      CNNL_DTYPE_INT32,
+                      GetBasePtr(&tmp_onehot));
+      // cast one_hot from int32 to T
+      if (softmax.dtype() != phi::DataType::INT32) {
+        phi::DenseTensorMeta onehot_meta = {softmax.dtype(), tmp_onehot.dims()};
+        last_labels.set_meta(onehot_meta);
+        dev_ctx.template Alloc<T>(&last_labels);
+        cnnlCastDataType_t cast_type =
+            GetCastDataType(DataType::INT32, softmax.dtype());
+        MLUCnnlTensorDesc casted_onehot_desc(last_labels);
+        MLUCnnl::Cast(dev_ctx,
+                      cast_type,
+                      tmp_onehot_desc.get(),
+                      GetBasePtr(&tmp_onehot),
+                      casted_onehot_desc.get(),
+                      GetBasePtr(&last_labels));
+      } else {
+        last_labels = tmp_onehot;
+      }
     } else {
-      casted_labels = labels;
-    }
-
-    // on and off
-    phi::DenseTensor on_tensor, off_tensor;
-    phi::DenseTensorMeta on_off_meta = {phi::DataType::INT32, {1}};
-    on_tensor.set_meta(on_off_meta);
-    off_tensor.set_meta(on_off_meta);
-    dev_ctx.template Alloc<int32_t>(&on_tensor);
-    dev_ctx.template Alloc<int32_t>(&off_tensor);
-    FillMLUTensorWithHostValue(dev_ctx, static_cast<int>(1), &on_tensor);
-    FillMLUTensorWithHostValue(dev_ctx, static_cast<int>(0), &off_tensor);
-
-    // one_hot
-    phi::DenseTensor tmp_onehot;
-    phi::DenseTensorMeta tmp_onehot_meta = {on_tensor.dtype(), softmax.dims()};
-    tmp_onehot.set_meta(tmp_onehot_meta);
-    dev_ctx.template Alloc<int32_t>(&tmp_onehot);
-    MLUCnnlTensorDesc casted_labels_desc(casted_labels);
-    MLUCnnlTensorDesc tmp_onehot_desc(tmp_onehot);
-    VLOG(5) << "[CrossEntropyGrad] cls_num: " << cls_num;
-    MLUCnnl::OneHot(dev_ctx,
-                    casted_labels_desc.get(),
-                    GetBasePtr(&casted_labels),
-                    cls_num,
-                    GetBasePtr(&on_tensor),
-                    GetBasePtr(&off_tensor),
-                    -1,
-                    CNNL_DTYPE_INT32,
-                    GetBasePtr(&tmp_onehot));
-
-    // cast one_hot from int32 to T
-    phi::DenseTensor casted_onehot;
-    if (softmax.dtype() != phi::DataType::INT32) {
-      phi::DenseTensorMeta onehot_meta = {softmax.dtype(), tmp_onehot.dims()};
-      casted_onehot.set_meta(onehot_meta);
-      dev_ctx.template Alloc<T>(&casted_onehot);
-      cnnlCastDataType_t cast_type =
-          GetCastDataType(DataType::INT32, softmax.dtype());
-      MLUCnnlTensorDesc casted_onehot_desc(casted_onehot);
-      MLUCnnl::Cast(dev_ctx,
-                    cast_type,
-                    tmp_onehot_desc.get(),
-                    GetBasePtr(&tmp_onehot),
-                    casted_onehot_desc.get(),
-                    GetBasePtr(&casted_onehot));
-    } else {
-      casted_onehot = tmp_onehot;
+      // soft_labels: last_labels = labels
+      last_labels = labels;
     }
 
     // sub
@@ -455,17 +458,17 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
         CNNL_OP_TENSOR_SUB, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
     MLUCnnlTensorDesc softmax_desc(softmax);
     MLUCnnlTensorDesc tmp_sub_desc(tmp_sub);
-    MLUCnnlTensorDesc casted_onehot_desc(casted_onehot);
+    MLUCnnlTensorDesc last_labels_desc(last_labels);
+
     MLUCnnl::OpTensor(dev_ctx,
                       mul_sub_op_desc.get(),
                       softmax_desc.get(),
                       GetBasePtr(&softmax),
-                      casted_onehot_desc.get(),
-                      GetBasePtr(&casted_onehot),
+                      last_labels_desc.get(),
+                      GetBasePtr(&last_labels),
                       tmp_sub_desc.get(),
                       GetBasePtr(&tmp_sub),
                       ToCnnlDataType<T>());
-
     dev_ctx.template Alloc<T>(logits_grad);
     MLUCnnlOpTensorDesc mul_mul_op_desc(
         CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
@@ -486,10 +489,6 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
                  "of logits, but got size of labels is "
               << labels.numel() << " and phi::funcs::SizeToAxis is " << n;
     }
-    if (soft_label) {
-      VLOG(5) << "soft_label = True is not supported in the mlu kernel of "
-                 "softmax_with_cross_entropy.";
-    }
     if (ignore_index != -1) {
       VLOG(5) << "ignore_index = -1 is not supported in the mlu kernel of "
                  "softmax_with_cross_entropy.";
@@ -497,18 +496,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
     VLOG(5) << "CrossEntropyWithSoftmaxGradKernel of mlu is implemented using "
                "the CPU";
 
-    if (soft_label) {
-      CrossEntropyWithSoftmaxGradCPUKernel<T, Context, T>(dev_ctx,
-                                                          labels,
-                                                          softmax,
-                                                          loss_grad,
-                                                          soft_label,
-                                                          use_softmax,
-                                                          numeric_stable_mode,
-                                                          ignore_index,
-                                                          axis,
-                                                          logits_grad);
-    } else if (labels.dtype() == phi::DataType::INT32) {
+    if (labels.dtype() == phi::DataType::INT32) {
       CrossEntropyWithSoftmaxGradCPUKernel<T, Context, int32_t>(
           dev_ctx,
           labels,

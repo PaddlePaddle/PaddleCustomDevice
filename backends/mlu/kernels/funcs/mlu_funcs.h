@@ -349,14 +349,19 @@ inline std::vector<T> get_new_data_from_tensor(
   std::vector<T> vec_new_data;
   auto place = new_data_tensor->place();
   phi::DenseTensor cpu_starts_tensor;
-  cpu_starts_tensor.Resize(new_data_tensor->dims());
-  T* new_data = dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
   if (place.GetType() == phi::AllocationType::CUSTOM) {
+    // if tensor on CUSTOM place, do memcpy to host
+    cpu_starts_tensor.Resize(new_data_tensor->dims());
+    dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
     TensorCopy(
         dev_ctx, *new_data_tensor, true, &cpu_starts_tensor, phi::CPUPlace());
-    new_data = cpu_starts_tensor.data<T>();
+  } else {
+    // if tensor on CPU place, return ptr
+    cpu_starts_tensor = *new_data_tensor;
   }
-  vec_new_data = std::vector<T>(new_data, new_data + cpu_starts_tensor.numel());
+  auto new_data_ptr = reinterpret_cast<T*>(cpu_starts_tensor.data<T>());
+  vec_new_data =
+      std::vector<T>(new_data_ptr, new_data_ptr + cpu_starts_tensor.numel());
   return vec_new_data;
 }
 

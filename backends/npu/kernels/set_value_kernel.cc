@@ -100,6 +100,12 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
         .Run(stream);
   }
 
+  // StridedSliceAssign only support the input whose last
+  // dimension is greater than 8, and the last dimension
+  // of stride has to be equal to 1. And, it only support
+  // float and int type. If the double/int64 input is
+  // transformed to float/int32, the calculation results
+  // is wrong.
   if (in_dims[in_dims.size() - 1] > 8 &&
       strides_indices[strides_indices.size() - 1] == 1 &&
       x.dtype() != phi::DataType::FLOAT64 &&
@@ -119,6 +125,7 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
         .AddOutput(*out)
         .Run(stream);
   } else {
+    // Calculate the index to assign value in input tensor.
     int64_t stride_step = phi::product(in_dims);
     std::vector<int64_t> index_indices(1, 0);
     for (size_t i = 0; i < strides_indices.size(); ++i) {

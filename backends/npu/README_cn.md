@@ -6,13 +6,14 @@
 
 ## 环境准备与源码同步
 
-> 注意：当前支持 [CANN 6.0.0.alpha005](https://www.hiascend.com/software/cann/community-history) 版本，最新 [CANN 6.3.RC1.alpha001](https://www.hiascend.com/software/cann/community) 存在算子问题待修复，见 [modelzoo/issues](https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue)。
+> 注意：当前支持 [CANN 6.0.0.alpha005](https://www.hiascend.com/software/cann/community-history) 版本，最新 [CANN 6.3.RC1.alpha002](https://www.hiascend.com/software/cann/community) 存在算子问题待修复，见 [modelzoo/issues](https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue)。
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-npu:cann605-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann605-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann605-kylinv10-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -21,7 +22,7 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann605-$(uname -m)-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-$(uname -m)-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -41,8 +42,7 @@ git submodule update --remote --init --recursive
 cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
-# 默认 NPU 开发镜像中已经装有飞桨 CPU 安装包 (飞桨 develop 分支的 nightly build 版本)
-# 也可以通过如下地址下载得到 PaddlePaddle develop 分支的 nightly build 版本的安装包
+# 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle develop 分支的 nightly build 版本的安装包
 https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
 https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
 

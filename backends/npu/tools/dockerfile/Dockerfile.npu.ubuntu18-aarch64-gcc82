@@ -72,10 +72,6 @@ ENV LD_PRELOAD=/opt/py37env/lib/python3.7/site-packages/scikit_learn.libs/libgom
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver
 
-# install paddlepaddle-cpu whl package
-RUN wget -q https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl && \
-    pip install paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl && rm -rf paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
-
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge

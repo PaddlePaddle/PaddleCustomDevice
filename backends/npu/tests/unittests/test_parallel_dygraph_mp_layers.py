@@ -29,12 +29,12 @@ from paddle.distributed.utils.launch_utils import (
 )
 
 
-def get_gpus(selected_gpus):
-    selected_gpus = [x.strip() for x in selected_gpus.split(",")]
-    return selected_gpus
+def get_devices(selected_devices):
+    selected_devices = [x.strip() for x in selected_devices.split(",")]
+    return selected_devices
 
 
-def get_cluster_from_args(selected_gpus):
+def get_cluster_from_args(selected_devices):
     cluster_node_ips = "127.0.0.1"
     node_ip = "127.0.0.1"
 
@@ -44,14 +44,14 @@ def get_cluster_from_args(selected_gpus):
 
     free_ports = None
 
-    free_ports = find_free_ports(len(selected_gpus))
+    free_ports = find_free_ports(len(selected_devices))
     if free_ports is not None:
         free_ports = list(free_ports)
 
     trainer_endpoints = []
     for ip in node_ips:
         trainer_endpoints.append(["%s:%d" % (ip, port) for port in free_ports])
-    return get_cluster(node_ips, node_ip, trainer_endpoints, selected_gpus)
+    return get_cluster(node_ips, node_ip, trainer_endpoints, selected_devices)
 
 
 def start_local_trainers(
@@ -74,7 +74,8 @@ def start_local_trainers(
     procs = []
     for t in pod.trainers:
         proc_env = {
-            f"FLAGS_selected_{device_type}s": "%s" % ",".join([str(g) for g in t.gpus]),
+            f"FLAGS_selected_{device_type}s": "%s"
+            % ",".join([str(g) for g in t.devices]),
             "PADDLE_DISTRI_BACKEND": "xccl",
             "PADDLE_XCCL_BACKEND": device_type,
             "PADDLE_TRAINER_ID": "%d" % t.rank,
@@ -127,11 +128,11 @@ class TestMultipleCustomDevices(unittest.TestCase):
         if dev_cnt < 2:
             return
 
-        selected_gpus = get_gpus("0,1")
+        selected_devices = get_devices("0,1")
         cluster = None
         pod = None
 
-        cluster, pod = get_cluster_from_args(selected_gpus)
+        cluster, pod = get_cluster_from_args(selected_devices)
 
         procs = start_local_trainers(
             cluster,

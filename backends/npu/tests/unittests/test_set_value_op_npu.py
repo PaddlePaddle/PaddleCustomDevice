@@ -505,10 +505,10 @@ create_test_value_int64(TestSetValueItemSlice3)
 create_test_value_int64(TestSetValueItemSlice4)
 
 
-def create_test_value_tensor_fp32(parent):
+def create_test_value_tensor_fp64(parent):
     class TestValueInt(parent):
         def set_dtype(self):
-            self.dtype = "float32"
+            self.dtype = "float64"
 
         def _call_setitem(self, x):
             value = paddle.full(shape=[1], fill_value=3, dtype=self.dtype)
@@ -517,16 +517,16 @@ def create_test_value_tensor_fp32(parent):
         def _get_answer(self):
             self.data[0, 1] = 3
 
-    cls_name = "{0}_{1}".format(parent.__name__, "ValueTensorFp32")
+    cls_name = "{0}_{1}".format(parent.__name__, "ValueTensorFp64")
     TestValueInt.__name__ = cls_name
     globals()[cls_name] = TestValueInt
 
 
-create_test_value_tensor_fp32(TestSetValueItemInt)
-create_test_value_tensor_fp32(TestSetValueItemSlice)
-create_test_value_tensor_fp32(TestSetValueItemSlice2)
-create_test_value_tensor_fp32(TestSetValueItemSlice3)
-create_test_value_tensor_fp32(TestSetValueItemSlice4)
+create_test_value_tensor_fp64(TestSetValueItemInt)
+create_test_value_tensor_fp64(TestSetValueItemSlice)
+create_test_value_tensor_fp64(TestSetValueItemSlice2)
+create_test_value_tensor_fp64(TestSetValueItemSlice3)
+create_test_value_tensor_fp64(TestSetValueItemSlice4)
 
 
 # 3. Test different shape of value

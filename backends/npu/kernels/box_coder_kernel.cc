@@ -212,9 +212,13 @@ struct BoxCoderFunction {
     phi::DenseTensor y;
     y.Resize(shape);
     dev_ctx.template Alloc<T>(&y);
-    const auto& runner =
-        NpuOpRunner("SliceD", {x}, {y}, {{"offsets", offsets}, {"size", size}});
-    runner.Run(stream);
+    NpuOpRunner slice_runner;
+    slice_runner.SetType("Slice")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(offsets))
+        .AddInput(dev_ctx, std::move(size))
+        .AddOutput(y);
+    slice_runner.Run(stream);
     return y;
   }
 

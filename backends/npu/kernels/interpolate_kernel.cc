@@ -24,14 +24,6 @@ struct InterpolateFunction {
   explicit InterpolateFunction(const Context& dev_ctx) : dev_ctx(dev_ctx) {
     place = dev_ctx.GetPlace();
     stream = dev_ctx.stream();
-    t0.Resize({1});
-    t1.Resize({1});
-    tn.Resize({1});
-    dev_ctx.template Alloc<float>(&t0);
-    dev_ctx.template Alloc<float>(&t1);
-    dev_ctx.template Alloc<float>(&tn);
-    FillNpuTensorWithConstant<float>(&t0, dev_ctx, static_cast<float>(0));
-    FillNpuTensorWithConstant<float>(&t1, dev_ctx, static_cast<float>(1));
   }
   void Arange(int n, phi::DenseTensor* x) {
     if (x->dtype() == phi::DataType::FLOAT16) {
@@ -39,13 +31,38 @@ struct InterpolateFunction {
       phi::DenseTensorMeta x_fp32_meta = {phi::DataType::FLOAT32, x->dims()};
       x_fp32.set_meta(x_fp32_meta);
       dev_ctx.template Alloc<float>(&x_fp32);
-      FillNpuTensorWithConstant<float>(&tn, dev_ctx, static_cast<float>(n));
-      const auto& runner = NpuOpRunner("Range", {t0, tn, t1}, {x_fp32}, {});
+
+      NpuOpRunner runner;
+      // Fix refer to
+      // https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue
+      runner.SetType("Range")
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(0)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(n)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(1)}),
+                    false)
+          .AddOutput(x_fp32);
       runner.Run(stream);
       Cast(&x_fp32, x);
     } else {
-      FillNpuTensorWithConstant<float>(&tn, dev_ctx, static_cast<float>(n));
-      const auto& runner = NpuOpRunner("Range", {t0, tn, t1}, {*x}, {});
+      NpuOpRunner runner;
+      // Fix refer to
+      // https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue
+      runner.SetType("Range")
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(0)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(n)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(1)}),
+                    false)
+          .AddOutput(*x);
       runner.Run(stream);
     }
   }
@@ -169,9 +186,6 @@ struct InterpolateFunction {
   phi::Place place;
   aclrtStream stream;
   const Context& dev_ctx;
-  phi::DenseTensor t0;
-  phi::DenseTensor t1;
-  phi::DenseTensor tn;
 };
 
 void InterpolateParamCompute(const float scale_h,

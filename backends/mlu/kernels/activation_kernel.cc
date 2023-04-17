@@ -136,7 +136,7 @@ void ReluGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float attr,
+                    float threshold,
                     phi::DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_RELU6, out);
 }
@@ -152,7 +152,6 @@ template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& out,
                      const phi::DenseTensor& dout,
-                     float attr,
                      phi::DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
       dev_ctx, out, dout, CNNL_ACTIVATION_RELU6, dx);

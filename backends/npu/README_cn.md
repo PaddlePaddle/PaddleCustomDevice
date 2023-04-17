@@ -6,14 +6,14 @@
 
 ## 环境准备与源码同步
 
-> 注意：当前支持 [CANN 6.0.0.alpha005](https://www.hiascend.com/software/cann/community-history) 版本，最新 [CANN 6.3.RC1.alpha002](https://www.hiascend.com/software/cann/community) 存在算子问题待修复，见 [modelzoo/issues](https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue)。
+> 注意：当前支持 [CANN 6.0.1](https://www.hiascend.com/software/cann/community-history?id=6.0.1.alpha001) 版本
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann605-kylinv10-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -22,7 +22,7 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann605-ubuntu18-$(uname -m)-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-$(uname -m)-gcc82 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

@@ -23,7 +23,6 @@ void CosKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Cos", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -64,7 +63,6 @@ void AtanKernel(const Context& dev_ctx,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Atan", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -87,7 +85,6 @@ void ExpKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Exp", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -99,7 +96,6 @@ void ExpGradKernel(const Context& dev_ctx,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Mul", {dout, out}, {*dx}, {});
   runner.Run(stream);
 }
@@ -110,7 +106,6 @@ void FloorKernel(const Context& dev_ctx,
                  phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Floor", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -155,7 +150,6 @@ void SinKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Sin", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -168,15 +162,8 @@ void SwishRawKernel(const Context& dev_ctx,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
-  const auto& muls_runner = NpuOpRunner("Muls", {x}, {*out}, {{"value", beta}});
-  muls_runner.Run(stream);
-
-  const auto& sigmoid_runner = NpuOpRunner("Sigmoid", {*out}, {*out}, {});
-  sigmoid_runner.Run(stream);
-
-  const auto& mul_runner = NpuOpRunner("Mul", {x, *out}, {*out});
-  mul_runner.Run(stream);
+  const auto& runner = NpuOpRunner("Swish", {x}, {*out}, {{"scale", beta}});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -190,9 +177,8 @@ template <typename T, typename Context>
 void SwishGradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& dout,
-                     float beta,
-                     phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
   phi::DenseTensor beta_x, sigmoid_out, swish_out;
@@ -204,7 +190,7 @@ void SwishGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&swish_out);
 
   const auto& muls_runner =
-      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", beta}});
+      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", static_cast<float>(1.0)}});
   muls_runner.Run(stream);
 
   const auto& sigmoid_runner =
@@ -215,21 +201,21 @@ void SwishGradKernel(const Context& dev_ctx,
       NpuOpRunner("Mul", {sigmoid_out, x}, {swish_out}, {});
   mul_runner.Run(stream);
 
-  const auto& muls_runner2 =
-      NpuOpRunner("Muls", {swish_out}, {swish_out}, {{"value", beta}});
+  const auto& muls_runner2 = NpuOpRunner(
+      "Muls", {swish_out}, {swish_out}, {{"value", static_cast<float>(1.0)}});
   muls_runner2.Run(stream);
 
   const auto& mul_runner1 =
-      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*out}, {});
+      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*dx}, {});
   mul_runner1.Run(stream);
 
-  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *out}, {*out}, {});
+  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *dx}, {*dx}, {});
   sub_runner.Run(stream);
 
-  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *out}, {*out}, {});
+  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *dx}, {*dx}, {});
   add_runner.Run(stream);
 
-  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *out}, {*out}, {});
+  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *dx}, {*dx}, {});
   mul_runner2.Run(stream);
 }
 
@@ -258,11 +244,10 @@ void ReluGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float attr,
+                    float threshold,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
-
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
@@ -278,7 +263,6 @@ template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& out,
                      const phi::DenseTensor& dout,
-                     float attr,
                      phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(dx);

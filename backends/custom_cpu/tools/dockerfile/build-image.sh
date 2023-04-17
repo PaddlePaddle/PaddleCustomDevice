@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# kylinv10-gcc82
+# export proxy=http://172.19.57.45:3128
+docker build --network=host -f Dockerfile.kylinv10-$(uname -m)-gcc82 \
+       --build-arg http_proxy=${proxy} \
+       --build-arg https_proxy=${proxy} \
+       --build-arg ftp_proxy=${proxy} \
+       --build-arg no_proxy=bcebos.com,baidu.com \
+       -t registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
+
 # ubuntu18-gcc82
 docker build --network=host -f Dockerfile.ubuntu18-$(uname -m)-gcc82 \
        --build-arg http_proxy=${proxy} \

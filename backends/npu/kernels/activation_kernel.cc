@@ -258,11 +258,10 @@ void ReluGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
-                    float attr,
+                    float threshold,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
-
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
@@ -278,7 +277,6 @@ template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& out,
                      const phi::DenseTensor& dout,
-                     float attr,
                      phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(dx);

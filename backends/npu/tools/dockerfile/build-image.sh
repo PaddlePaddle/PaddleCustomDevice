@@ -17,15 +17,15 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.RC1
+# export CANN_VERSION=6.0.1
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.RC1} # default 6.0.0.alpha005
+CANN_VERSION=${1:-6.0.1} # default 6.0.1
 CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run
 
-#DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 601
-DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 60RC1
-DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
+DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 601
+#DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 60RC1
+#DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # download $(uname -m) pkgs
 if [ ! -f ${CANN_TOOLKIT} ]; then
@@ -40,17 +40,6 @@ if [ ! -f version.info ]; then
     cp /usr/local/Ascend/driver/version.info ./
 fi
 
-# kylinv10-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
-docker build --network=host -f Dockerfile.npu.kylinv10-$(uname -m)-gcc82 \
-       --build-arg CANN_VERSION=${CANN_VERSION} \
-       --build-arg http_proxy=${proxy} \
-       --build-arg https_proxy=${proxy} \
-       --build-arg ftp_proxy=${proxy} \
-       --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82
-
 # ubuntu18-$(uname -m)-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82
 docker build --network=host -f Dockerfile.npu.ubuntu18-$(uname -m)-gcc82 \
@@ -61,3 +50,14 @@ docker build --network=host -f Dockerfile.npu.ubuntu18-$(uname -m)-gcc82 \
        --build-arg no_proxy=bcebos.com \
        -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82 .
 docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82
+
+# kylinv10-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
+docker build --network=host -f Dockerfile.npu.kylinv10-$(uname -m)-gcc82 \
+      --build-arg CANN_VERSION=${CANN_VERSION} \
+      --build-arg http_proxy=${proxy} \
+      --build-arg https_proxy=${proxy} \
+      --build-arg ftp_proxy=${proxy} \
+      --build-arg no_proxy=bcebos.com \
+      -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82

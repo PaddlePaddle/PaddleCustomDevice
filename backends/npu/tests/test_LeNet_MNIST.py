@@ -61,7 +61,7 @@ def test(epoch_id, test_loader, model, cost):
         avg_acc[1].append(acc_top5.numpy())
     model.train()
     print(
-        "Epoch ID: {}, Top1 accurary:: {:.5f}, Top5 accurary:: {:.5f}".format(
+        "Eval - Epoch ID: {}, Top1 accurary:: {:.5f}, Top5 accurary:: {:.5f}".format(
             epoch_id + 1, np.array(avg_acc[0]).mean(), np.array(avg_acc[1]).mean()
         )
     )
@@ -186,12 +186,11 @@ def main(args):
         epoch_cost = time.time() - epoch_start
         avg_ips = iter_max * BATCH_SIZE / epoch_cost
         print(
-            "Epoch ID: {}, Epoch time: {:.5f} s, reader_cost: {:.5f} s, batch_cost: {:.5f} s, exec_cost: {:.5f} s, average ips: {:.5f} samples/s".format(
+            "Epoch ID: {}, Epoch time: {:.5f} s, reader_cost: {:.5f} s, batch_cost: {:.5f} s, avg ips: {:.5f} samples/s".format(
                 epoch_id + 1,
                 epoch_cost,
                 reader_cost.sum,
                 batch_cost.sum,
-                batch_cost.sum - reader_cost.sum,
                 avg_ips,
             )
         )
@@ -243,14 +242,13 @@ def log_info(reader_cost, batch_cost, epoch_id, iter_max, iter_id):
     eta_sec = ((EPOCH_NUM - epoch_id) * iter_max - iter_id) * batch_cost.avg
     eta_msg = "eta: {:s}".format(str(datetime.timedelta(seconds=int(eta_sec))))
     print(
-        "Epoch [{}/{}], Iter [{:0>2d}/{}], reader_cost: {:.5f} s, batch_cost: {:.5f} s, exec_cost: {:.5f} s, ips: {:.5f} samples/s, {}".format(
+        "Epoch [{}/{}], Iter [{:0>2d}/{}], reader_cost: {:.5f} s, batch_cost: {:.5f} s, ips: {:.5f} samples/s, {}".format(
             epoch_id + 1,
             EPOCH_NUM,
             iter_id + 1,
             iter_max,
             reader_cost.avg,
             batch_cost.avg,
-            batch_cost.avg - reader_cost.avg,
             BATCH_SIZE / batch_cost.avg,
             eta_msg,
         )

@@ -34,6 +34,6 @@ function(py_test_modules TARGET_NAME)
   endif()
 endfunction()
 
-py_test_modules(test_MNIST_model MODULES test_MNIST_model)
+py_test_modules(test_LeNet_MNIST MODULES test_LeNet_MNIST)
 
 add_subdirectory(unittests)

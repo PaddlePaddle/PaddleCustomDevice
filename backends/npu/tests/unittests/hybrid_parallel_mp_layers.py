@@ -293,6 +293,7 @@ class TestDistTraning(unittest.TestCase):
         paddle.seed(rank_id * 10)
         random.seed(seed)
         np.random.seed(seed)
+        check_group = dist.new_group(list(range(self.model_parallel_size)))
 
         for _ in range(5):
             np_label = np.random.randint(0, vocab_size, (batch_size, seq_length))
@@ -304,7 +305,6 @@ class TestDistTraning(unittest.TestCase):
             )
             data.stop_gradient = False
 
-            check_group = dist.new_group(list(range(self.model_parallel_size)))
             integral_data = []
             partial_data = data.clone().detach()
             paddle.distributed.all_gather(

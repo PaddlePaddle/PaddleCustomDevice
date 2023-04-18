@@ -1,1 +1,1 @@
-../../Paddle/python/paddle/fluid/tests/unittests/rnn/rnn_numpy.py
+../../Paddle/test/rnn/rnn_numpy.py

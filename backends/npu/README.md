@@ -44,8 +44,8 @@ cd backends/npu
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
 # you may download and install the nightly built cpu whl package with links below
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_aarch64.whl
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -176,6 +176,6 @@ WITH_ARM=OFF # Turn ON if aarch64
 | Debug     | FLAGS_npu_check_nan_inf | Bool   | check nan or inf of all npu kernels | False                                                       |
 | Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu kernels | False                                                     |
 | Profiling | FLAGS_npu_profiling_dir | String |   ACL profiling output dir     | "ascend_profiling"                                           |
-| Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
-| Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
+| Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.5/backends/npu/runtime/runtime.cc#L31) |
+| Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.5/backends/npu/runtime/runtime.cc#L36) |
 | Performance | FLAGS_npu_storage_format         | Bool   | enable Conv/BN acceleration | False                                                        |

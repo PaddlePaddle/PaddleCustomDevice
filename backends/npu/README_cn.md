@@ -43,8 +43,8 @@ cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
 # 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle develop 分支的 nightly build 版本的安装包
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_aarch64.whl
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -174,6 +174,6 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 | 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False                                                        |
 | 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False                                                        |
 | 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling"                                           |
-| 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
-| 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
+| 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.5/backends/npu/runtime/runtime.cc#L31) |
+| 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc]https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.5/backends/npu/runtime/runtime.cc#L36) |
 | 性能加速 | FLAGS_npu_storage_format  | Bool   | 是否开启 Conv/BN 等算子的计算加速 | False                                                        |

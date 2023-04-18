@@ -17,6 +17,25 @@
 
 namespace custom_kernel {
 
+void GetSeed(const phi::DeviceContext& dev_ctx,
+             const paddle::optional<phi::DenseTensor>& seed_tensor,
+             int seed,
+             bool fix_seed,
+             int* seed1,
+             int* seed2) {
+  if (seed_tensor) {
+    MemCpyD2H(nullptr, seed1, seed_tensor->data(), sizeof(int));
+  } else if (!fix_seed) {
+    // use cpu engine to generate a seed for npu.
+    auto offset = 0;
+    auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
+    *seed1 = static_cast<int>(engine());
+  } else {
+    *seed1 = seed;
+  }
+  *seed2 = 0;
+}
+
 template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
@@ -72,6 +91,11 @@ void DropoutRawKernel(const Context& dev_ctx,
 
   // only achieve the default `upscale_in_train` method
   if (!is_test) {
+    int seed1 = 0;
+    int seed2 = 0;
+    GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed1, &seed2);
+    float keep_prob = static_cast<float>(1. - dropout_prob);
+
     if (x.dtype() == phi::DataType::FLOAT64) {
       // transform x
       phi::DenseTensor tmp_x;
@@ -97,35 +121,27 @@ void DropoutRawKernel(const Context& dev_ctx,
         tmp_out.Resize(phi::make_ddim({vec_dim[0], 1}));
       }
 
-      int seed = 0;
-      int seed2 = 0;
-      float keep_prob = static_cast<float>(1. - dropout_prob);
-      if (seed_tensor) {
-        MemCpyD2H(nullptr, &seed, seed_tensor->data(), sizeof(int));
-      } else {
-        seed = fix_seed ? seed : 0;
-      }
+      NpuOpRunner runner_gen_mask;
+      runner_gen_mask.SetType("StatelessDropOutGenMask")
+          .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
+          .AddInput(dev_ctx, std::vector<float>({keep_prob}))
+          .AddInput(dev_ctx, std::vector<int32_t>({seed1}))
+          .AddInput(dev_ctx, std::vector<int32_t>({seed2}))
+          .AddInput(dev_ctx, std::vector<int64_t>({0, 0}))
+          .AddOutput(*mask);
+      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
+      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
       phi::DenseTensor keep_prob_tensor;
       phi::DenseTensorMeta keep_prob_tensor_meta = {phi::DataType::FLOAT32,
                                                     {1}};
       keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+      keep_prob_tensor.Resize(phi::DDim({}));
       AsyncMemCpyH2D(nullptr,
-                     static_cast<C_Stream>(
-                         SecondaryStream::Instance().Get(dev_ctx.stream())),
+                     static_cast<C_Stream>(dev_ctx.stream()),
                      dev_ctx.template Alloc<float>(&keep_prob_tensor),
                      &keep_prob,
                      sizeof(float));
-      NpuOpRunner runner_gen_mask;
-      runner_gen_mask.SetType("DropOutGenMask")
-          .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
-          .AddInput(keep_prob_tensor)
-          .AddOutput(*mask)
-          .AddAttr("seed", seed)
-          .AddAttr("seed2", seed2);
-      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
-      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
-
       NpuOpRunner runner_dropout;
       runner_dropout.SetType("DropOutDoMask")
           .AddInput(tmp_x)
@@ -152,39 +168,30 @@ void DropoutRawKernel(const Context& dev_ctx,
         tmp_out.Resize(phi::make_ddim({vec_dim[0], 1}));
       }
 
-      int seed = 0;
-      int seed2 = 0;
-      T keep_prob = static_cast<T>(1. - dropout_prob);
-      if (seed_tensor) {
-        MemCpyD2H(nullptr, &seed, seed_tensor->data(), sizeof(int));
-      } else {
-        seed = fix_seed ? seed : 0;
-      }
-
-      phi::DenseTensor keep_prob_tensor;
-      phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};
-      keep_prob_tensor.set_meta(keep_prob_tensor_meta);
-      AsyncMemCpyH2D(nullptr,
-                     static_cast<C_Stream>(
-                         SecondaryStream::Instance().Get(dev_ctx.stream())),
-                     dev_ctx.template Alloc<T>(&keep_prob_tensor),
-                     &keep_prob,
-                     sizeof(T));
-
       // TODO(pangyoki): `keep_prob` used in `DropOutGenMask` NPU
       // OP must be a scalar with shape[0]. At present, the shape
       // of the `prob` Tensor of this OP is forced to be set to 0
       // in `npu_op_runner.cc`, which needs to be optimized later.
       NpuOpRunner runner_gen_mask;
-      runner_gen_mask.SetType("DropOutGenMask")
+      runner_gen_mask.SetType("StatelessDropOutGenMask")
           .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
-          .AddInput(keep_prob_tensor)
-          .AddOutput(*mask)
-          .AddAttr("seed", seed)
-          .AddAttr("seed2", seed2);
+          .AddInput(dev_ctx, std::vector<float>({keep_prob}))
+          .AddInput(dev_ctx, std::vector<int32_t>({seed1}))
+          .AddInput(dev_ctx, std::vector<int32_t>({seed2}))
+          .AddInput(dev_ctx, std::vector<int64_t>({0, 0}))
+          .AddOutput(*mask);
       runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
       SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
+      phi::DenseTensor keep_prob_tensor;
+      phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};
+      keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+      keep_prob_tensor.Resize(phi::DDim({}));
+      AsyncMemCpyH2D(nullptr,
+                     static_cast<C_Stream>(dev_ctx.stream()),
+                     dev_ctx.template Alloc<T>(&keep_prob_tensor),
+                     &keep_prob,
+                     sizeof(T));
       if (!is_upscale) {
         const auto& muls_runner =
             NpuOpRunner("OnesLike", {keep_prob_tensor}, {keep_prob_tensor});

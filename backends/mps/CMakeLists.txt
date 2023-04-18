@@ -66,6 +66,10 @@ target_link_libraries(
   ${PLUGIN_NAME} PRIVATE ${METAL_LIBRARY} ${MPS_LIBRARY} ${FOUNDATION_LIBRARY}
                          ${MPS_GRAPH_LIBRARY})
 
+include(third_party)
+add_dependencies(${PLUGIN_NAME} third_party)
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
+
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)

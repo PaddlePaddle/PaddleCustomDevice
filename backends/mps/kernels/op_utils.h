@@ -15,6 +15,7 @@
 #pragma once
 
 #include <MetalPerformanceShadersGraph/MetalPerformanceShadersGraph.h>
+#include <vector>
 #include "runtime/mps_stream.h"
 
 namespace mps {
@@ -29,5 +30,7 @@ void runMPSGraph(MPSStream *mpsStream,
                  MPSGraph *mpsGraph,
                  NSDictionary *feeds,
                  NSDictionary *results);
+
+NSArray<NSNumber *> *shape2Array(const std::vector<int64_t> &shape);
 
 }  // namespace mps

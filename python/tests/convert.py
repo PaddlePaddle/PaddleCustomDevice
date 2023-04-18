@@ -1,1 +1,1 @@
-../../Paddle/python/paddle/fluid/tests/unittests/rnn/convert.py
+../../Paddle/test/rnn/convert.py

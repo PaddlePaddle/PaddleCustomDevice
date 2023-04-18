@@ -178,3 +178,11 @@ I0216 03:11:44.346190 17725 resnet50_test.cc:92] 900 : 1.52387e-30
 ```bash
 export PADDLE_MLU_ALLOW_TF32=true
 ```
+
+### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
+该功能会关闭CNCL对于多通信域（CLIQUE）管理的内存限制，默认该限制是开启状态，会在某些需要管理多通信域的集合通信中导致CNCL进程卡死。
+
+关闭多通信域内存限制。
+```bash
+export PADDLE_MLU_ALLOW_TF32=0
+```

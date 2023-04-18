@@ -34,7 +34,7 @@ void runMPSGraph(MPSStream *mpsStream,
   mpsStream->executeMPSGraph(mpsGraph, feeds, results, SyncType::COMMIT_AND_WAIT);
 }
 
-NSArray<NSNumber *> *shape2Array(std::vector<int64_t> &shape) {
+NSArray<NSNumber *> *shape2Array(const std::vector<int64_t> &shape) {
   NSMutableArray *nsArray = [NSMutableArray array];
   for (int i = 0; i < shape.size(); i++) {
     NSNumber *number = [NSNumber numberWithLongLong:shape[i]];

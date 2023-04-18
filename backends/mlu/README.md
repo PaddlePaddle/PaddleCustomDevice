@@ -182,3 +182,11 @@ Turn on TF32 data type calculation.
 ```bash
 export PADDLE_MLU_ALLOW_TF32=true
 ```
+
+### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
+This function controls whether to disable multiply clique restriction by CNCL. Currently, this ENV is set to enable, which will cause process stuck in multi-clique collective communication senario.
+
+Turn off multi-clique mem restriction.
+```bash
+export PADDLE_MLU_ALLOW_TF32=0
+```

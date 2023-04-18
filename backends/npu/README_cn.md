@@ -64,23 +64,45 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 预期得到如下输出结果
 ['npu']
 
-# 2) 运行简单模型训练任务
-python tests/test_MNIST_model.py
+# 2) 检查当前安装版本
+python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
+version: 0.0.0
+commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+cann: 6.0.1
+
+# 3) 运行简单模型训练、评估和推理任务
+python tests/test_LeNet_MNIST.py
+# 预期得到如下输出结果
+Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44
+Epoch [1/2], Iter [02/14], reader_cost: 1.13547 s, batch_cost: 7.23942 s, ips: 565.79091 samples/s, eta: 0:03:15
 ... ...
-Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
-Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
-Epoch 0 step 200, Loss = [2.002725], Accuracy = 0.453125
-Epoch 0 step 300, Loss = [1.912869], Accuracy = 0.546875
-Epoch 0 step 400, Loss = [1.9169667], Accuracy = 0.5625
-Epoch 0 step 500, Loss = [1.9007692], Accuracy = 0.5625
-Epoch 0 step 600, Loss = [1.8512673], Accuracy = 0.625
-Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
-Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
-Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
+Epoch [2/2], Iter [10/14], reader_cost: 0.24073 s, batch_cost: 0.26355 s, ips: 15541.84990 samples/s, eta: 0:00:01
+Epoch [2/2], Iter [11/14], reader_cost: 0.21886 s, batch_cost: 0.24141 s, ips: 16967.21446 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [12/14], reader_cost: 0.20063 s, batch_cost: 0.22291 s, ips: 18374.78776 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [13/14], reader_cost: 0.18521 s, batch_cost: 0.20728 s, ips: 19760.84536 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [14/14], reader_cost: 0.17199 s, batch_cost: 0.19436 s, ips: 21074.31905 samples/s, eta: 0:00:00
+Epoch ID: 2, Epoch time: 3.68077 s, reader_cost: 2.40789 s, batch_cost: 2.72104 s, avg ips: 15579.36234 samples/s
+Eval - Epoch ID: 2, Top1 accurary:: 0.86450, Top5 accurary:: 0.99023
+I0418 16:45:47.717545 85550 interpretercore.cc:267] New Executor is Running.
+I0418 16:45:47.788849 85550 analysis_predictor.cc:1414] CustomDevice is enabled
+--- Running analysis [ir_graph_build_pass]
+I0418 16:45:47.790328 85550 executor.cc:186] Old Executor is Running.
+--- Running analysis [ir_analysis_pass]
+I0418 16:45:47.792423 85550 ir_analysis_pass.cc:53] argument has no fuse statis
+--- Running analysis [ir_params_sync_among_devices_pass]
+I0418 16:45:47.792572 85550 ir_params_sync_among_devices_pass.cc:142] Sync params from CPU to CustomDevicenpu/0
+--- Running analysis [adjust_cudnn_workspace_size_pass]
+--- Running analysis [inference_op_replace_pass]
+--- Running analysis [ir_graph_to_program_pass]
+I0418 16:45:47.880336 85550 analysis_predictor.cc:1565] ======= optimize end =======
+I0418 16:45:47.880510 85550 naive_executor.cc:151] ---  skip [feed], feed -> inputs
+I0418 16:45:47.881462 85550 naive_executor.cc:151] ---  skip [linear_5.tmp_1], fetch -> fetch
+Output data size is 10
+Output data shape is (1, 10)
 ```
 
-## PaddleInference 推理安装与运行
+## PaddleInference C++ 推理安装与运行
 
 ### PaddleInference C++ 预测库编译
 
@@ -174,6 +196,6 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 | 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False                                                        |
 | 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False                                                        |
 | 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling"                                           |
-| 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
-| 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L28) |
+| 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
+| 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |
 | 性能加速 | FLAGS_npu_storage_format  | Bool   | 是否开启 Conv/BN 等算子的计算加速 | False                                                        |

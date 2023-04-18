@@ -87,7 +87,9 @@ function main() {
     # skip paddlepaddle cpu install as mlu docker image already have cpu whl package installed
 
     # custom_mlu build and install
-    export MLU_VISIBLE_DEVICES=0
+    export MLU_VISIBLE_DEVICES=0,1
+    export PADDLE_MLU_ALLOW_TF32=0
+    export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
     cd ${CODE_ROOT}
     git submodule update --init
     bash tools/compile.sh

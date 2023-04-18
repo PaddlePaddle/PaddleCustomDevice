@@ -64,23 +64,60 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 预期得到如下输出结果
 ['npu']
 
-# 2) 运行简单模型训练任务
-python tests/test_MNIST_model.py
+# 2) 检查当前安装版本
+python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
+version: 0.0.0
+commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+cann: 6.0.1
+
+# 3) 运行简单模型训练、评估和推理任务
+python tests/test_LeNet_MNIST.py
+# 预期得到如下输出结果
+I0418 16:03:15.711134 47831 init.cc:231] ENV [CUSTOM_DEVICE_ROOT]=/opt/py37env/lib/python3.7/site-packages/paddle_custom_device
+I0418 16:03:15.711213 47831 init.cc:140] Try loading custom device libs from: [/opt/py37env/lib/python3.7/site-packages/paddle_custom_device]
+I0418 16:03:17.998291 47831 custom_device.cc:1042] Successed in loading custom runtime in lib: /opt/py37env/lib/python3.7/site-packages/paddle_custom_device/libpaddle-custom-npu.so
+I0418 16:03:18.004529 47831 custom_kernel.cc:76] Successed in loading 294 custom kernel(s) from loaded lib(s), will be used like native ones.
+I0418 16:03:18.004814 47831 init.cc:152] Finished in LoadCustomDevice with libs_path: [/opt/py37env/lib/python3.7/site-packages/paddle_custom_device]
+I0418 16:03:18.004879 47831 init.cc:237] CustomDevice: npu, visible devices count: 4
+Epoch [1/2], Iter [01/14], reader_cost: 2.34917 s, batch_cost: 14.65099 s, exec_cost: 12.30182 s, ips: 279.57154 samples/s, eta: 0:06:50
 ... ...
-Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
-Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
-Epoch 0 step 200, Loss = [2.002725], Accuracy = 0.453125
-Epoch 0 step 300, Loss = [1.912869], Accuracy = 0.546875
-Epoch 0 step 400, Loss = [1.9169667], Accuracy = 0.5625
-Epoch 0 step 500, Loss = [1.9007692], Accuracy = 0.5625
-Epoch 0 step 600, Loss = [1.8512673], Accuracy = 0.625
-Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
-Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
-Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
+Epoch ID: 1, Top1 accurary:: 0.67004, Top5 accurary:: 0.97046
+Epoch [2/2], Iter [01/14], reader_cost: 2.36397 s, batch_cost: 2.40033 s, exec_cost: 0.03636 s, ips: 1706.43504 samples/s, eta: 0:00:33
+Epoch [2/2], Iter [02/14], reader_cost: 1.18212 s, batch_cost: 1.21051 s, exec_cost: 0.02839 s, ips: 3383.71107 samples/s, eta: 0:00:15
+Epoch [2/2], Iter [03/14], reader_cost: 0.80954 s, batch_cost: 0.83597 s, exec_cost: 0.02643 s, ips: 4899.66985 samples/s, eta: 0:00:10
+Epoch [2/2], Iter [04/14], reader_cost: 0.60720 s, batch_cost: 0.63206 s, exec_cost: 0.02485 s, ips: 6480.40241 samples/s, eta: 0:00:06
+Epoch [2/2], Iter [05/14], reader_cost: 0.48579 s, batch_cost: 0.50966 s, exec_cost: 0.02387 s, ips: 8036.70622 samples/s, eta: 0:00:05
+Epoch [2/2], Iter [06/14], reader_cost: 0.40486 s, batch_cost: 0.42803 s, exec_cost: 0.02318 s, ips: 9569.33711 samples/s, eta: 0:00:03
+Epoch [2/2], Iter [07/14], reader_cost: 0.34704 s, batch_cost: 0.36986 s, exec_cost: 0.02282 s, ips: 11074.47279 samples/s, eta: 0:00:02
+Epoch [2/2], Iter [08/14], reader_cost: 0.30716 s, batch_cost: 0.33001 s, exec_cost: 0.02285 s, ips: 12411.77884 samples/s, eta: 0:00:02
+Epoch [2/2], Iter [09/14], reader_cost: 0.27305 s, batch_cost: 0.29560 s, exec_cost: 0.02255 s, ips: 13856.73598 samples/s, eta: 0:00:01
+Epoch [2/2], Iter [10/14], reader_cost: 0.24576 s, batch_cost: 0.26805 s, exec_cost: 0.02229 s, ips: 15280.88734 samples/s, eta: 0:00:01
+Epoch [2/2], Iter [11/14], reader_cost: 0.22344 s, batch_cost: 0.24554 s, exec_cost: 0.02211 s, ips: 16681.37363 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [12/14], reader_cost: 0.20483 s, batch_cost: 0.22675 s, exec_cost: 0.02193 s, ips: 18063.73369 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [13/14], reader_cost: 0.18908 s, batch_cost: 0.21084 s, exec_cost: 0.02176 s, ips: 19426.75412 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [14/14], reader_cost: 0.17559 s, batch_cost: 0.19720 s, exec_cost: 0.02161 s, ips: 20770.56952 samples/s, eta: 0:00:00
+Epoch ID: 2, Epoch time: 3.67349 s, reader_cost: 2.45828 s, batch_cost: 2.76083 s, exec_cost: 0.30255 s, average ips: 15610.21825 samples/s
+Epoch ID: 2, Top1 accurary:: 0.86475, Top5 accurary:: 0.99023
+I0418 16:03:51.944557 47831 interpretercore.cc:267] New Executor is Running.
+I0418 16:03:52.050382 47831 analysis_predictor.cc:1414] CustomDevice is enabled
+--- Running analysis [ir_graph_build_pass]
+I0418 16:03:52.051512 47831 executor.cc:186] Old Executor is Running.
+--- Running analysis [ir_analysis_pass]
+I0418 16:03:52.053032 47831 ir_analysis_pass.cc:53] argument has no fuse statis
+--- Running analysis [ir_params_sync_among_devices_pass]
+I0418 16:03:52.053099 47831 ir_params_sync_among_devices_pass.cc:142] Sync params from CPU to CustomDevicenpu/0
+--- Running analysis [adjust_cudnn_workspace_size_pass]
+--- Running analysis [inference_op_replace_pass]
+--- Running analysis [ir_graph_to_program_pass]
+I0418 16:03:52.095099 47831 analysis_predictor.cc:1565] ======= optimize end =======
+I0418 16:03:52.095325 47831 naive_executor.cc:151] ---  skip [feed], feed -> inputs
+I0418 16:03:52.096426 47831 naive_executor.cc:151] ---  skip [linear_5.tmp_1], fetch -> fetch
+Output data size is 10
+Output data shape is (1, 10)
 ```
 
-## PaddleInference 推理安装与运行
+## PaddleInference C++ 推理安装与运行
 
 ### PaddleInference C++ 预测库编译
 

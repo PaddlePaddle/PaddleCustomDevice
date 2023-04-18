@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
 import time
 import argparse
 import datetime
@@ -20,8 +22,9 @@ import numpy as np
 import paddle
 import paddle.nn as nn
 import paddle.vision.transforms as transforms
+import paddle.inference as paddle_infer
 
-EPOCH_NUM = 5
+EPOCH_NUM = 2
 BATCH_SIZE = 4096
 
 
@@ -62,6 +65,39 @@ def test(epoch_id, test_loader, model, cost):
             epoch_id + 1, np.array(avg_acc[0]).mean(), np.array(avg_acc[1]).mean()
         )
     )
+
+
+def infer(model_dir):
+    # model file
+    params_file = os.path.join(model_dir, "model.pdiparams")
+    model_file = os.path.join(model_dir, "model.pdmodel")
+
+    # create config
+    config = paddle_infer.Config(model_file, params_file)
+    config.enable_custom_device("npu")
+
+    # create predictor
+    predictor = paddle_infer.create_predictor(config)
+
+    # prepare input
+    input_names = predictor.get_input_names()
+    input_tensor = predictor.get_input_handle(input_names[0])
+
+    # copy from cpu
+    fake_input = np.random.randn(1, 1, 28, 28).astype("float32")
+    input_tensor.copy_from_cpu(fake_input)
+
+    # run predictor
+    predictor.run()
+
+    # get output tensor
+    output_names = predictor.get_output_names()
+    output_tensor = predictor.get_output_handle(output_names[0])
+
+    # get output data
+    output_data = output_tensor.copy_to_cpu()
+    print("Output data size is {}".format(output_data.size))
+    print("Output data shape is {}".format(output_data.shape))
 
 
 def main(args):
@@ -162,6 +198,17 @@ def main(args):
 
         # evaluate after each epoch
         test(epoch_id, test_loader, model, cost)
+
+    # save inferece model
+    model = paddle.jit.to_static(
+        model,
+        input_spec=[paddle.static.InputSpec(shape=[None, 1, 28, 28], dtype="float32")],
+    )
+    paddle.jit.save(model, "output/model")
+
+    # infernece and clear
+    infer("output")
+    shutil.rmtree("output")
 
 
 class AverageMeter(object):

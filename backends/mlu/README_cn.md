@@ -32,7 +32,7 @@ git submodule update --remote --init --recursive
 cd backends/mlu
 
 # 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.5.0 -f https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 
 # 创建编译目录并编译
 mkdir build && cd build

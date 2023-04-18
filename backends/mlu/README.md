@@ -32,7 +32,7 @@ git submodule update --remote --init --recursive
 cd backends/mlu
 
 # before compiling, ensure that Paddle is installed, you can run the following command
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.5.0 -f https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 
 # create the build directory and navigate in
 mkdir build && cd build

@@ -94,9 +94,10 @@ void DropoutRawKernel(const Context& dev_ctx,
     int seed1 = 0;
     int seed2 = 0;
     GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed1, &seed2);
-    float keep_prob = static_cast<float>(1. - dropout_prob);
 
     if (x.dtype() == phi::DataType::FLOAT64) {
+      float keep_prob = static_cast<float>(1. - dropout_prob);
+
       // transform x
       phi::DenseTensor tmp_x;
       phi::DenseTensorMeta tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
@@ -157,6 +158,8 @@ void DropoutRawKernel(const Context& dev_ctx,
           .AddAttr("dst_type", ACL_DOUBLE)
           .Run(stream);
     } else {
+      T keep_prob = static_cast<T>(1. - dropout_prob);
+
       phi::DenseTensor tmp_x(x);
       phi::DenseTensor tmp_out(*out);
 

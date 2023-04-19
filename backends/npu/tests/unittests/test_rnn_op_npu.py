@@ -19,8 +19,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-import sys
-sys.path.append("../../../../../Paddle/test/rnn")
+
 from tests.convert import get_params_for_net
 from tests.rnn_numpy import LSTM, GRU
 

@@ -30,7 +30,7 @@ set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-option(WITH_TESTING "compile with unit testing" OFF)
+option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 
 set(PLUGIN_NAME "paddle-mps")

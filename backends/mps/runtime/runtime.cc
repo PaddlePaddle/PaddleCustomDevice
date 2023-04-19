@@ -175,6 +175,11 @@ C_Status DeviceMinChunkSize(const C_Device device, size_t* size) {
   return C_SUCCESS;
 }
 
+C_Status DeviceMaxChunkSize(const C_Device device, size_t* size) {
+  *size = 0;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams* params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "mps";
@@ -215,4 +220,5 @@ void InitPlugin(CustomRuntimeParams* params) {
   params->interface->get_device_list = GetDevicesList;
   params->interface->device_memory_stats = DeviceMemStats;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
+  params->interface->device_max_chunk_size = DeviceMaxChunkSize;
 }

@@ -287,8 +287,9 @@ class TestRecompute(unittest.TestCase):
     def test_fc_net_with_amp(self):
         self.test_base_case(enable_autocast=True)
 
-    def test_fc_net_with_fp16(self):
-        self.test_base_case(enable_autocast=True, pure_fp16=True)
+    # NOTE(wangran16): data_transform is not supported on custom device.
+    # def test_fc_net_with_fp16(self):
+    #     self.test_base_case(enable_autocast=True, pure_fp16=True)
 
     def test_recompute_kwargs(self):
         paddle.set_device("npu")

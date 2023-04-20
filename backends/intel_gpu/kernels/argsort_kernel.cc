@@ -252,4 +252,6 @@ PD_BUILD_PHI_KERNEL(argsort,
                     float,
                     double,
                     int,
-                    int64_t) {}
+                    int64_t) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}

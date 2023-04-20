@@ -157,168 +157,36 @@ void GreaterThanKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::EqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
+#define PD_REGISTER_COMPARE_KERNEL(name, func)              \
+  PD_REGISTER_PLUGIN_KERNEL(name,                           \
+                            npu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##Kernel,    \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16,            \
+                            double) {                       \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }                                                         \
+  PD_REGISTER_PLUGIN_KERNEL(name##_raw,                     \
+                            npu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##RawKernel, \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16,            \
+                            double) {                       \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }
 
-PD_REGISTER_PLUGIN_KERNEL(equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::EqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(not_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::NotEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::NotEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(less_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(less_than,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessThanRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_than,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterThanRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
+PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)
+PD_REGISTER_COMPARE_KERNEL(equal, Equal)
+PD_REGISTER_COMPARE_KERNEL(not_equal, NotEqual)

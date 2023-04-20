@@ -42,10 +42,6 @@ std::string GetDataBufferString(const aclDataBuffer* buf) {
 
   std::stringstream ss;
   ss << "TensorData: " << GetVectorString(cpu_data);
-  // for (auto value : cpu_data) {
-  //   ss << value << ",";
-  // }
-  // ss << "]";
   return ss.str();
 }
 
@@ -94,9 +90,11 @@ std::string GetOpInfoString(std::vector<aclTensorDesc*> descs,
 
   std::stringstream ss;
   for (auto i = 0; i < descs.size(); ++i) {
-    ss << msg << "[" << std::to_string(i) << "]: ";  // Input[i] or Output[i]
-    ss << GetTensorDescString(descs[i]) << "\n";
-    ss << GetDataBufferString(buffs[i]) << "\n";
+    ss << msg << "[" << std::to_string(i)
+       << "] : { \n";  // Input[i] or Output[i]
+    ss << " - " << GetTensorDescString(descs[i]) << "\n";
+    ss << " - " << GetDataBufferString(buffs[i]) << "\n";
+    ss << "}\n";
   }
   return ss.str();
 }

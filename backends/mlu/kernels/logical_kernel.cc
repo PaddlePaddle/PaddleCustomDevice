@@ -84,7 +84,9 @@ PD_REGISTER_PLUGIN_KERNEL(logical_not,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_and,
                           mlu,
@@ -96,7 +98,9 @@ PD_REGISTER_PLUGIN_KERNEL(logical_and,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_or,
                           mlu,
@@ -108,7 +112,9 @@ PD_REGISTER_PLUGIN_KERNEL(logical_or,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_xor,
                           mlu,
@@ -120,4 +126,6 @@ PD_REGISTER_PLUGIN_KERNEL(logical_xor,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

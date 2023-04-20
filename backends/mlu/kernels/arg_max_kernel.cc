@@ -122,4 +122,6 @@ PD_REGISTER_PLUGIN_KERNEL(argmax,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

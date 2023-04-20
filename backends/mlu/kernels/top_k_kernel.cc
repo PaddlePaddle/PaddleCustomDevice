@@ -86,4 +86,6 @@ PD_REGISTER_PLUGIN_KERNEL(topk,
                           ALL_LAYOUT,
                           custom_kernel::TopkKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}

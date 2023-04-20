@@ -301,7 +301,9 @@ PD_REGISTER_PLUGIN_KERNEL(dropout,
                           custom_kernel::DropoutRawKernel,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(dropout_grad,
                           npu,

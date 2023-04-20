@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
 
@@ -43,7 +44,9 @@ void AbsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    abs, npu, ALL_LAYOUT, custom_kernel::AbsKernel, float, double, int64_t) {}
+    abs, npu, ALL_LAYOUT, custom_kernel::AbsKernel, float, double, int64_t) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}
 
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
                           npu,
@@ -51,4 +54,6 @@ PD_REGISTER_PLUGIN_KERNEL(abs_grad,
                           custom_kernel::AbsGradKernel,
                           float,
                           double,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}

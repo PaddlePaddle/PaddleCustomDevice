@@ -167,7 +167,9 @@ PD_REGISTER_PLUGIN_KERNEL(equal,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(equal_raw,
                           npu,
@@ -179,7 +181,9 @@ PD_REGISTER_PLUGIN_KERNEL(equal_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           npu,
@@ -191,7 +195,9 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
                           npu,
@@ -203,7 +209,9 @@ PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(less_equal,
                           npu,
@@ -215,7 +223,9 @@ PD_REGISTER_PLUGIN_KERNEL(less_equal,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
                           npu,
@@ -227,7 +237,9 @@ PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(less_than,
                           npu,
@@ -239,7 +251,9 @@ PD_REGISTER_PLUGIN_KERNEL(less_than,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
                           npu,
@@ -251,7 +265,9 @@ PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           npu,
@@ -263,7 +279,9 @@ PD_REGISTER_PLUGIN_KERNEL(greater_equal,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
                           npu,
@@ -275,7 +293,9 @@ PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           npu,
@@ -288,6 +308,7 @@ PD_REGISTER_PLUGIN_KERNEL(greater_than,
                           float,
                           phi::dtype::float16,
                           double) {}
+
 PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
                           npu,
                           ALL_LAYOUT,
@@ -298,4 +319,6 @@ PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

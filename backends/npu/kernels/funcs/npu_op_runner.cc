@@ -148,8 +148,8 @@ NpuOpRunner &NpuOpRunner::AddAttrDataType(const std::string &name,
     attr_ = aclopCreateAttr();
   }
   VLOG(4) << "AddAttrDataType call";
-  auto dtype = ConvertToNpuDtype(
-      static_cast<phi::DataType>(paddle::get<int>(attr)));
+  auto dtype =
+      ConvertToNpuDtype(static_cast<phi::DataType>(paddle::get<int>(attr)));
   PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrDataType(attr_, name.c_str(), dtype));
   return *this;
 }
@@ -316,13 +316,22 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
   auto origin_dims = phi::vectorize(tensor.dims());
 
   auto origin_size = origin_dims.size();
-  if (op_type_ == "DropOutGenMask" && origin_size == 1 &&
-      *(origin_dims.data()) == 1) {
+  bool is_scalar = tensor.dims().size() == 0;
+  if ((op_type_ == "DropOutGenMask" || op_type_ == "StatelessDropOutGenMask") &&
+      origin_size == 1 && *(origin_dims.data()) == 1) {
     origin_size = 0;
+    is_scalar = true;
+  }
+  if (is_scalar) {
+    origin_dims.clear();
+    origin_dims.push_back(0);
   }
 
-  auto *desc = aclCreateTensorDesc(
-      data_type, origin_size, origin_dims.data(), origin_format);
+  auto *desc =
+      is_scalar
+          ? aclCreateTensorDesc(data_type, 0, nullptr, ACL_FORMAT_ND)
+          : aclCreateTensorDesc(
+                data_type, origin_size, origin_dims.data(), origin_format);
   PADDLE_ENFORCE_NOT_NULL(
       desc, phi::errors::External("Call aclCreateTensorDesc failed."));
 
@@ -333,8 +342,10 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
     auto storage_dims = phi::vectorize(npu_properties.storage_dims);
     PADDLE_ENFORCE_NPU_SUCCESS(
         aclSetTensorFormat(desc, (aclFormat)storage_format));
-    PADDLE_ENFORCE_NPU_SUCCESS(
-        aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+    if (!is_scalar) {
+      PADDLE_ENFORCE_NPU_SUCCESS(
+          aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+    }
     VLOG(1) << "CreateTensorDesc for OP: " << op_type_
             << ", data_type: " << data_type
             << ", origin_format: " << origin_format

@@ -24,7 +24,19 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                            std::vector<phi::DenseTensor*> outs,
                            phi::DenseTensor* found_inf) {
   auto stream = dev_ctx.stream();
-  auto scale = &t_scale;
+  phi::DenseTensor scale;
+  if (std::is_same<T, phi::dtype::float16>::value) {
+    scale.Resize(t_scale.dims());
+    dev_ctx.template Alloc<T>(&scale);
+    const auto& cast_runner =
+        NpuOpRunner("Cast",
+                    {t_scale},
+                    {scale},
+                    {{"dst_type", static_cast<int>(ACL_FLOAT16)}});
+    cast_runner.Run(stream);
+  } else {
+    scale = t_scale;
+  }
 
   dev_ctx.template Alloc<bool>(found_inf);
 
@@ -35,12 +47,12 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(&const_tensor, dev_ctx, static_cast<T>(1.0));
 
   // Inverse(1.0/scale)
-  phi::DenseTensor* tmp_inverse_out = const_cast<phi::DenseTensor*>(scale);
+  phi::DenseTensor* tmp_inverse_out = const_cast<phi::DenseTensor*>(&scale);
   phi::DenseTensor inverse_out;
-  inverse_out.Resize(scale->dims());
+  inverse_out.Resize(scale.dims());
   dev_ctx.template Alloc<T>(&inverse_out);
   const auto& runner_inverse =
-      NpuOpRunner("Div", {const_tensor, *scale}, {inverse_out}, {});
+      NpuOpRunner("Div", {const_tensor, scale}, {inverse_out}, {});
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
@@ -58,8 +70,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
     const auto* x = xs[i];
     auto* out = outs[i];
     dev_ctx.template Alloc<T>(out);
-    const auto& runner_mul =
-        NpuOpRunner("Mul", {*x, *tmp_inverse_out}, {*out}, {});
+    const auto& runner_mul = NpuOpRunner("Mul", {*x, inverse_out}, {*out}, {});
     runner_mul.Run(stream);
   }
 
@@ -73,4 +84,5 @@ PD_REGISTER_PLUGIN_KERNEL(check_finite_and_unscale,
                           ALL_LAYOUT,
                           custom_kernel::CheckFiniteAndUnscale,
                           float,
+                          phi::dtype::float16,
                           double) {}

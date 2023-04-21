@@ -14,6 +14,10 @@
 
 set -x
 
+if [ -z ${PADDLE_BRANCH} ]; then
+    PADDLE_BRANCH="develop"
+fi
+
 # use pre-commit 2.17
 if ! [[ $(pre-commit --version) == *"2.17.0"* ]]; then
     pip install pre-commit==2.17.0 1>nul
@@ -29,9 +33,9 @@ if ! [[ $(python -V 2>&1 | awk '{print $2}' | awk -F '.' '{print $1$2}') -ge 36 
     exit 1
 fi
 
-diff_files=$(git diff --numstat develop ':(exclude)Paddle' | awk '{print $NF}')
+diff_files=$(git diff --numstat ${PADDLE_BRANCH} ':(exclude)Paddle' | awk '{print $NF}')
 num_diff_files=$(echo "$diff_files" | wc -l)
-echo -e "diff files between pr and develop:\n${diff_files}"
+echo -e "diff files between pr and ${PADDLE_BRANCH}:\n${diff_files}"
 
 echo "Checking code style by pre-commit ..."
 pre-commit run --files ${diff_files};check_error=$?

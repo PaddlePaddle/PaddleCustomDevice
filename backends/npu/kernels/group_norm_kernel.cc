@@ -421,7 +421,12 @@ PD_REGISTER_PLUGIN_KERNEL(group_norm,
                           ALL_LAYOUT,
                           custom_kernel::GroupNormKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(group_norm_grad,
                           npu,

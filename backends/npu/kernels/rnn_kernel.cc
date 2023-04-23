@@ -746,7 +746,9 @@ void RnnKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn, npu, ALL_LAYOUT, custom_kernel::RnnKernel, float) {}
+    rnn, npu, ALL_LAYOUT, custom_kernel::RnnKernel, float) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+}
 
 // TODO(songkai05): implement grad op
 // PD_REGISTER_PLUGIN_KERNEL(rnn_grad,

@@ -85,4 +85,6 @@ PD_REGISTER_PLUGIN_KERNEL(one_hot_raw,
                           int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    one_hot, npu, ALL_LAYOUT, custom_kernel::OneHotKernel, int32_t, int64_t) {}
+    one_hot, npu, ALL_LAYOUT, custom_kernel::OneHotKernel, int32_t, int64_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+}

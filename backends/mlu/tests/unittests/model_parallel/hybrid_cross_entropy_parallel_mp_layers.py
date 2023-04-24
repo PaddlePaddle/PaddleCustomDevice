@@ -166,7 +166,7 @@ class TestDistTraning(unittest.TestCase):
             loss_b = model_b(integral_data, label).sum() / batch_size
             print("loss_a: ", loss_a.numpy(), "loss_b: ", loss_b.numpy())
 
-            np.testing.assert_allclose(loss_a.numpy(), loss_b.numpy(), rtol=1e-1)
+            np.testing.assert_allclose(loss_a.numpy(), loss_b.numpy(), rtol=1e-2)
 
             loss_a.backward()
             loss_b.backward()

@@ -34,9 +34,13 @@ void GaussianKernel(const Context& dev_ctx,
 
   int64_t size = out->numel();
 
-  auto gen_ptr = dev_ctx.GetGenerator();
-  gen_ptr->SetCurrentSeed(static_cast<int64_t>(seed));
-  auto engine = gen_ptr->GetCPUEngine();
+  std::shared_ptr<std::mt19937_64> engine;
+  if (seed) {
+    engine = std::make_shared<std::mt19937_64>();
+    engine->seed(seed);
+  } else {
+    engine = dev_ctx.GetGenerator()->GetCPUEngine();
+  }
 
   for (int64_t i = 0; i < size; ++i) {
     cpu_data[i] = dist(*engine);

@@ -24,9 +24,11 @@ set(third_party_deps)
 ########################### include third_party ###############################
 include(external/gflags)    # download, build, install gflags
 include(external/glog)      # download, build, install glog
+list(APPEND third_party_deps extern_gflags extern_glog)
+if(NOT ON_INFER)
 include(external/pybind11)
-
-list(APPEND third_party_deps extern_gflags extern_glog extern_pybind)
+list(APPEND third_party_deps extern_pybind)
+endif()
 
 if (WITH_TESTING)
     include(external/gtest)     # download, build, install gtest

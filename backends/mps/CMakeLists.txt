@@ -76,14 +76,14 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
-          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.dylib
-    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMAND
     install_name_tool -change @loader_path/../libs/ ${PADDLE_CORE_LIB}
-    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/lib${PLUGIN_NAME}.dylib
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib${PLUGIN_NAME}.dylib
   COMMENT "Creating plugin dirrectories------>>>")
 
 find_package(

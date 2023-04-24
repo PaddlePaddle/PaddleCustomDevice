@@ -23,7 +23,7 @@ function(py_test_modules TARGET_NAME)
     NAME ${TARGET_NAME}
     COMMAND
       ${CMAKE_COMMAND} -E env
-      CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle-plugins/
+      CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
       PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/python/paddle/fluid/tests/unittests:$ENV{PYTHONPATH}
       ${py_test_modules_ENVS}
       # python ${PYTHON_SOURCE_DIR}/tools/test_runner.py

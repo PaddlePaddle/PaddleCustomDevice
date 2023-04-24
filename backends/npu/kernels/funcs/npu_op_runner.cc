@@ -414,7 +414,7 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
-  })
+  });
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   aclopDestroyAttr(attr);

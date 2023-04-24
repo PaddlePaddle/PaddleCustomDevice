@@ -20,6 +20,8 @@ import numpy as np
 import paddle
 from paddle.distributed.fleet.utils import recompute
 
+paddle.set_device("npu")
+
 
 class Model(paddle.nn.Layer):
     def __init__(self, block_idx, input_size, is_last=False):
@@ -292,7 +294,6 @@ class TestRecompute(unittest.TestCase):
     #     self.test_base_case(enable_autocast=True, pure_fp16=True)
 
     def test_recompute_kwargs(self):
-        paddle.set_device("npu")
         pos = paddle.randn(shape=[10, 10], dtype="float32")
         pos.stop_gradient = False
 

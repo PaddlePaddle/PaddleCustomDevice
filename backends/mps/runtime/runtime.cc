@@ -171,7 +171,7 @@ C_Status DeviceMemStats(const C_Device device,
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t* size) {
-  *size = 512;
+  *size = 1;
   return C_SUCCESS;
 }
 

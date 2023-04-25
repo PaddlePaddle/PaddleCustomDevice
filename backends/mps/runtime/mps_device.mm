@@ -15,6 +15,7 @@
 #include <memory>
 #include <mutex>
 
+#include "glog/logging.h"
 #include "mps_device.h"
 #include "mps_runtime.h"
 #include "mps_stream.h"
@@ -43,15 +44,18 @@ bool init_device() {
 }
 
 bool alloc_memory(void **ptr, size_t size) {
-  *ptr =
-      (void *)[MPSDevice::getInstance()->device() newBufferWithLength:size
-                                                              options:MTLResourceStorageModeShared];
+  char *tmp = (char *)[MPSDevice::getInstance()->device()
+                  newBufferWithLength:size
+                              options:MTLResourceStorageModeShared] -
+              64;
+  *ptr = tmp;
+  VLOG(5) << "alloc_memory: " << *ptr << " size: " << size;
   return *ptr ? true : false;
 }
 
 bool dealloc_memory(void *ptr) {
   if (!ptr) return true;
-  id<MTLBuffer> buffer = (id<MTLBuffer>)ptr;
+  id<MTLBuffer> buffer = (id<MTLBuffer>)((char *)ptr + 64);
   [buffer release];
   ptr = 0;
   return true;
@@ -73,9 +77,27 @@ bool memcpy_d2h(void *dst, const void *src, size_t size) {
 }
 
 bool memcpy_h2d(void *dst, const void *src, size_t size) {
+  VLOG(5) << "memcpy_h2d start";
   if (!dst || !src) return false;
+  VLOG(5) << "dst: " << dst;
+
   id<MTLBuffer> dst_buffer = (id<MTLBuffer>)dst;
+  if (!dst_buffer) {
+    VLOG(5) << "dst_buffer is null";
+    return false;
+  }
+  VLOG(5) << "dst_buffer: " << dst;
+
+  if (!dst_buffer.contents) {
+    VLOG(5) << "dst_buffer.contents is null";
+    return false;
+  }
+
+  VLOG(5) << "dst.contents: " << dst_buffer.contents;
+
   memcpy([dst_buffer contents], src, size);
+  VLOG(5) << "memcpy_h2d done";
+
   return true;
 }
 

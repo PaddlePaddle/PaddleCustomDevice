@@ -238,6 +238,73 @@ void Vector2Tensor(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void BoxCoderEncCpu(const Context& dev_ctx,
+                    const phi::DenseTensor* tb,
+                    const phi::DenseTensor* pb,
+                    const phi::DenseTensor* pbv,
+                    const bool normalized,
+                    const std::vector<float>& variance,
+                    phi::DenseTensor* out) {
+  int64_t row = tb->dims()[0];
+  int64_t col = pb->dims()[0];
+  int64_t len = pb->dims()[1];
+  std::vector<T> target_box_data, prior_box_data, prior_box_var_data;
+  std::vector<T> output(row * col * len, 0);
+  custom_kernel::TensorToVector(dev_ctx, *tb, dev_ctx, &target_box_data);
+  custom_kernel::TensorToVector(dev_ctx, *pb, dev_ctx, &prior_box_data);
+  for (int64_t i = 0; i < row; ++i) {
+    for (int64_t j = 0; j < col; ++j) {
+      size_t offset = i * col * len + j * len;
+      T prior_box_width = prior_box_data[j * len + 2] -
+                          prior_box_data[j * len] + (normalized == false);
+      T prior_box_height = prior_box_data[j * len + 3] -
+                           prior_box_data[j * len + 1] + (normalized == false);
+      T prior_box_center_x = prior_box_data[j * len] + prior_box_width / 2;
+      T prior_box_center_y = prior_box_data[j * len + 1] + prior_box_height / 2;
+      T target_box_center_x =
+          (target_box_data[i * len + 2] + target_box_data[i * len]) / 2;
+      T target_box_center_y =
+          (target_box_data[i * len + 3] + target_box_data[i * len + 1]) / 2;
+      T target_box_width = target_box_data[i * len + 2] -
+                           target_box_data[i * len] + (normalized == false);
+      T target_box_height = target_box_data[i * len + 3] -
+                            target_box_data[i * len + 1] +
+                            (normalized == false);
+      output[offset] =
+          (target_box_center_x - prior_box_center_x) / prior_box_width;
+      output[offset + 1] =
+          (target_box_center_y - prior_box_center_y) / prior_box_height;
+      output[offset + 2] =
+          std::log(std::fabs(target_box_width / prior_box_width));
+      output[offset + 3] =
+          std::log(std::fabs(target_box_height / prior_box_height));
+    }
+  }
+  if (pbv) {
+    custom_kernel::TensorToVector(dev_ctx, *pbv, dev_ctx, &prior_box_var_data);
+    for (int64_t i = 0; i < row; ++i) {
+      for (int64_t j = 0; j < col; ++j) {
+        for (int k = 0; k < 4; ++k) {
+          size_t offset = i * col * len + j * len;
+          int prior_var_offset = j * len;
+          output[offset + k] /= prior_box_var_data[prior_var_offset + k];
+        }
+      }
+    }
+  } else if (!(variance.empty())) {
+    for (int64_t i = 0; i < row; ++i) {
+      for (int64_t j = 0; j < col; ++j) {
+        for (int k = 0; k < 4; ++k) {
+          size_t offset = i * col * len + j * len;
+          output[offset + k] /= static_cast<T>(variance[k]);
+        }
+      }
+    }
+  }
+  TensorFromVector<float>(dev_ctx, output, dev_ctx, out);
+}
+
+template <typename T, typename Context>
 void BoxCoderEnc(const Context& dev_ctx,
                  const phi::DenseTensor* tb,
                  const phi::DenseTensor* pb,
@@ -448,13 +515,38 @@ void BoxCoderKernel(const Context& dev_ctx,
   }
   auto code_type_data = GetBoxCodeType(code_type);
   if (code_type_data == BoxCodeType::kEncodeCenterSize) {
-    BoxCoderEnc<T, Context>(dev_ctx,
-                            &target_box,
-                            &prior_box,
-                            prior_box_var.get_ptr(),
-                            box_normalized,
-                            variance,
-                            output_box);
+    if (target_box.dtype() == phi::DataType::FLOAT32) {
+      // TODO(duanyanhui): Ascend op "MatMul" transform the fp32
+      // input to fp16, which will bring diff to the following
+      // calculation. In this kernel, the diff in "MatMul" op will
+      // be expanded in the following "Div" op.
+      // For example, 1e-4 diff is generated in "MatMul" op, and
+      // the expect value is 1e-4 and the actual value is 2e-4.
+      // Assuming the form of "Div" op is a/b, and a equals to 1e-2,
+      // then the diff will be expanded to 1e+2. So, We use cpu to
+      // do the calculation.
+      auto row = target_box.dims()[0];
+      auto col = prior_box.dims()[0];
+      auto len = prior_box.dims()[1];
+      output_box->Resize({1, row * col * len});
+      dev_ctx.template Alloc<T>(output_box);
+      BoxCoderEncCpu<float, Context>(dev_ctx,
+                                     &target_box,
+                                     &prior_box,
+                                     prior_box_var.get_ptr(),
+                                     box_normalized,
+                                     variance,
+                                     output_box);
+      output_box->Resize({row, col, len});
+    } else {
+      BoxCoderEnc<T, Context>(dev_ctx,
+                              &target_box,
+                              &prior_box,
+                              prior_box_var.get_ptr(),
+                              box_normalized,
+                              variance,
+                              output_box);
+    }
   } else {
     BoxCoderDec<T, Context>(dev_ctx,
                             &target_box,

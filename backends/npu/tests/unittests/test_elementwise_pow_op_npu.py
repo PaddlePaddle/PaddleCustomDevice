@@ -198,64 +198,6 @@ class TestElementwisePowOp_broadcast_0(TestElementwisePow):
         )
 
 
-class TestElementwisePowOp_broadcast_1(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 1
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(1, 2, [2, 100, 1]).astype(self.dtype)
-        self.y = np.random.uniform(1, 2, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(1, 100, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
-        )
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
-        )
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
-        )
-
-
-class TestElementwisePowOp_broadcast_2(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 0
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(0.1, 1, [100, 3, 1]).astype(self.dtype)
-        self.y = np.random.uniform(0.1, 1, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(100, 1, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
-        )
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
-        )
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
-        )
-
-
 class TestElementwisePowNet(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()

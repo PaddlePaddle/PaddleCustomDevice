@@ -40,7 +40,6 @@ void GatherGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& index,
                       const phi::DenseTensor& out_grad,
                       const phi::Scalar& axis,
-                      bool overwrite,
                       phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 

@@ -20,19 +20,16 @@
 
 namespace mps_kernel {
 
-void Softmax(const float *in,
-             float *out,
-             std::vector<int64_t> x_shape,
-             std::vector<int64_t> out_shape,
-             int axis) {
+void Softmax(const float *in, float *out, const std::vector<int64_t> &dims, int axis) {
+  VLOG(5) << "mps_kernel::Softmax start";
   mps::MPSStream *stream = mps::getCurrentMPSStream();
   @autoreleasepool {
     MPSGraph *mpsGraph = mps::make_mps_graph();
 
-    NSArray *input_shape = mps::shape2Array(x_shape);
+    NSArray *shape = mps::vector_2_nsarray(dims);
 
     MPSGraphTensor *inputTensor =
-        mps::mpsGraphRankedPlaceHolder(mpsGraph, MPSDataTypeFloat32, input_shape);
+        mps::mpsGraphRankedPlaceHolder(mpsGraph, MPSDataTypeFloat32, shape);
     MPSGraphTensor *outputTensor = [mpsGraph softMaxWithTensor:inputTensor axis:axis name:nil];
 
     id<MTLBuffer> in_buffer = (id<MTLBuffer>)in;
@@ -40,17 +37,71 @@ void Softmax(const float *in,
 
     NSDictionary<MPSGraphTensor *, MPSGraphTensorData *> *feeds = @{
       inputTensor : [[[MPSGraphTensorData alloc] initWithMTLBuffer:in_buffer
-                                                             shape:input_shape
+                                                             shape:shape
                                                           dataType:MPSDataTypeFloat32] autorelease]
     };
     NSDictionary<MPSGraphTensor *, MPSGraphTensorData *> *results = @{
       outputTensor : [[[MPSGraphTensorData alloc] initWithMTLBuffer:out_buffer
-                                                              shape:input_shape
+                                                              shape:shape
                                                            dataType:MPSDataTypeFloat32] autorelease]
     };
 
     runMPSGraph(stream, mpsGraph, feeds, results);
-    VLOG(5) << "Softmax done";
+  }
+  VLOG(5) << "mps_kernel::Softmax done";
+}
+
+void SoftmaxGrad(const float *out,
+                 const float *out_grad,
+                 const std::vector<int64_t> &dims,
+                 int axis,
+                 float *in_grad) {
+  mps::MPSStream *stream = mps::getCurrentMPSStream();
+  @autoreleasepool {
+    MPSGraph *mpsGraph = mps::make_mps_graph();
+
+    MPSShape *shape = mps::vector_2_nsarray(dims);
+
+    MPSGraphTensor *softmaxTensor =
+        mps::mpsGraphRankedPlaceHolder(mpsGraph, MPSDataTypeFloat32, shape);
+    MPSGraphTensor *outputGradTensor =
+        mps::mpsGraphRankedPlaceHolder(mpsGraph, MPSDataTypeFloat32, shape);
+
+    MPSGraphTensor *mulTensor = [mpsGraph multiplicationWithPrimaryTensor:softmaxTensor
+                                                          secondaryTensor:outputGradTensor
+                                                                     name:nil];
+    MPSGraphTensor *mulSumTensor = [mpsGraph reductionSumWithTensor:mulTensor
+                                                               axis:(NSInteger)axis
+                                                               name:nil];
+    MPSGraphTensor *gradSubTensor = [mpsGraph subtractionWithPrimaryTensor:outputGradTensor
+                                                           secondaryTensor:mulSumTensor
+                                                                      name:nil];
+
+    MPSGraphTensor *inputGradTensor = [mpsGraph multiplicationWithPrimaryTensor:softmaxTensor
+                                                                secondaryTensor:gradSubTensor
+                                                                           name:nil];
+    id<MTLBuffer> out_buffer = (id<MTLBuffer>)out;
+    id<MTLBuffer> out_grad_buffer = (id<MTLBuffer>)out_grad;
+    id<MTLBuffer> in_grad_buffer = (id<MTLBuffer>)in_grad;
+
+    NSDictionary<MPSGraphTensor *, MPSGraphTensorData *> *feeds = @{
+      softmaxTensor :
+          [[[MPSGraphTensorData alloc] initWithMTLBuffer:out_buffer
+                                                   shape:shape
+                                                dataType:MPSDataTypeFloat32] autorelease],
+      outputGradTensor :
+          [[[MPSGraphTensorData alloc] initWithMTLBuffer:out_grad_buffer
+                                                   shape:shape
+                                                dataType:MPSDataTypeFloat32] autorelease]
+    };
+    NSDictionary<MPSGraphTensor *, MPSGraphTensorData *> *results = @{
+      inputGradTensor :
+          [[[MPSGraphTensorData alloc] initWithMTLBuffer:in_grad_buffer
+                                                   shape:shape
+                                                dataType:MPSDataTypeFloat32] autorelease]
+    };
+    runMPSGraph(stream, mpsGraph, feeds, results);
+    VLOG(5) << "SoftmaxGrad done";
   }
 }
 

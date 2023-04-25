@@ -18,10 +18,14 @@
 
 namespace mps_kernel {
 
-void Softmax(const float* in,
-             float* out,
-             std::vector<int64_t> x_shape,
-             std::vector<int64_t> out_shape,
+void Softmax(const float *in,
+             float *out,
+             const std::vector<int64_t> &dims,
              int axis);
+void SoftmaxGrad(const float *out,
+                 const float *out_grad,
+                 const std::vector<int64_t> &dims,
+                 int axis,
+                 float *in_grad);
 
 }  // namespace mps_kernel

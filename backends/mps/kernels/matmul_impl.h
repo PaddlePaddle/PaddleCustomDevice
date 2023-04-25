@@ -14,23 +14,16 @@
 
 #pragma once
 
-#include <MetalPerformanceShadersGraph/MetalPerformanceShadersGraph.h>
 #include <vector>
-#include "runtime/mps_stream.h"
 
-namespace mps {
+namespace mps_kernel {
 
-MPSGraph *make_mps_graph();
+void Matmul(const float* x,
+            const float* y,
+            float* out,
+            const std::vector<int64_t>& x_dims,
+            const std::vector<int64_t>& y_dims,
+            bool transpose_x,
+            bool transpose_y);
 
-MPSGraphTensor *mpsGraphRankedPlaceHolder(MPSGraph *mpsGraph,
-                                          MPSDataType dataType,
-                                          MPSShape *mpsShape);
-
-void runMPSGraph(MPSStream *mpsStream,
-                 MPSGraph *mpsGraph,
-                 NSDictionary *feeds,
-                 NSDictionary *results);
-
-NSArray<NSNumber *> *vector_2_nsarray(const std::vector<int64_t> &vec);
-
-}  // namespace mps
+}  // namespace mps_kernel

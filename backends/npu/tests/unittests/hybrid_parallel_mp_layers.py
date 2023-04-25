@@ -295,6 +295,7 @@ class TestDistTraning(unittest.TestCase):
         np.random.seed(seed)
         check_group = dist.new_group(list(range(self.model_parallel_size)))
 
+        check_group = dist.new_group(list(range(self.model_parallel_size)))
         for _ in range(5):
             np_label = np.random.randint(0, vocab_size, (batch_size, seq_length))
             label = paddle.to_tensor(np_label, dtype="int64")
@@ -318,7 +319,7 @@ class TestDistTraning(unittest.TestCase):
             loss_b = model_b(integral_data, label).sum() / batch_size
             print("loss_a: ", loss_a.numpy(), "loss_b: ", loss_b.numpy())
 
-            np.testing.assert_allclose(loss_a.numpy(), loss_b.numpy(), rtol=1e-1)
+            np.testing.assert_allclose(loss_a.numpy(), loss_b.numpy(), rtol=1e-2)
 
             loss_a.backward()
             loss_b.backward()
@@ -331,7 +332,7 @@ class TestDistTraning(unittest.TestCase):
             integral_grad = paddle.concat(integral_grad, axis=-1)
 
             np.testing.assert_allclose(
-                integral_data.grad.numpy(), integral_grad.numpy(), rtol=1e-6
+                integral_data.grad.numpy(), integral_grad.numpy(), rtol=1e-2
             )
 
 

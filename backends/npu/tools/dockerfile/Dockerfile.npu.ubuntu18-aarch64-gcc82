@@ -4,8 +4,8 @@ FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser
-RUN groupadd HwHiAiUser && \
-    useradd -g HwHiAiUser -m -d /home/HwHiAiUser HwHiAiUser
+RUN groupadd -g 1000 HwHiAiUser && \
+    useradd -u 1000 -g 1000 -m -d /home/HwHiAiUser HwHiAiUser
 
 # copy /etc/ascend_install.info to current dir fist
 COPY ascend_install.info /etc/ascend_install.info

@@ -17,6 +17,23 @@
 
 namespace custom_kernel {
 
+void GetSeed(const phi::DeviceContext& dev_ctx,
+             const paddle::optional<phi::DenseTensor>& seed_tensor,
+             int seed,
+             bool fix_seed,
+             int* seed_out) {
+  if (seed_tensor) {
+    MemCpyD2H(nullptr, seed_out, seed_tensor->data(), sizeof(int));
+  } else if (!fix_seed) {
+    // use cpu engine to generate a seed for npu.
+    auto offset = 0;
+    auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
+    *seed_out = static_cast<int>(engine());
+  } else {
+    *seed_out = seed;
+  }
+}
+
 template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
@@ -44,13 +61,7 @@ void DropoutRawKernel(const Context& dev_ctx,
     // dropout op for training: out = input * mask / ( 1.0 - dropout_prob ) or
     // out = input * mask, downscale_in_infer mode
     int seed_data = 0;
-    if (seed_tensor) {
-      std::vector<int> seed_vec;
-      TensorToVector(dev_ctx, seed_tensor.get(), dev_ctx, &seed_vec);
-      seed_data = seed_vec[0];
-    } else {
-      seed_data = fix_seed ? seed : 0;
-    }
+    GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed_data);
 
     dev_ctx.template Alloc<uint8_t>(mask);
     MLUCnnlTensorDesc mask_desc(*mask);
@@ -70,17 +81,17 @@ void DropoutRawKernel(const Context& dev_ctx,
       return;
     }
 
-    // create mlu random generator
-    const int device_id = dev_ctx.GetPlace().GetDeviceId();
-    auto mlu_gen_random = GetMLURandomGenerator(dev_ctx, device_id, seed_data);
+    // Note, no api to set seed on device, so we
+    // use random seed generated from cpu instread of device one.
+    auto mlu_gen_random = MLUCnnlRandomGeneratorDesc(dev_ctx, seed);
 
     // compute out = input * mask / ( 1.0 - dropout_prob )
     MLUCnnl::FusedDropout(dev_ctx,
-                          mlu_gen_random->get(),
+                          mlu_gen_random.get(),
                           x_desc.get(),
                           GetBasePtr(&x),
                           dropout_prob,
-                          GetBasePtr(&(mlu_gen_random->get_state())),
+                          GetBasePtr(&(mlu_gen_random.get_state())),
                           mask_desc.get(),
                           GetBasePtr(mask),
                           out_desc.get(),

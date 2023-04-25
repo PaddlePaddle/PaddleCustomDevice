@@ -50,10 +50,16 @@ void LogicalAndNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_not, npu, ALL_LAYOUT, custom_kernel::LogicalNotNPUKernel, bool) {}
+    logical_not, npu, ALL_LAYOUT, custom_kernel::LogicalNotNPUKernel, bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_or, npu, ALL_LAYOUT, custom_kernel::LogicalOrNPUKernel, bool) {}
+    logical_or, npu, ALL_LAYOUT, custom_kernel::LogicalOrNPUKernel, bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    logical_and, npu, ALL_LAYOUT, custom_kernel::LogicalAndNPUKernel, bool) {}
+    logical_and, npu, ALL_LAYOUT, custom_kernel::LogicalAndNPUKernel, bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

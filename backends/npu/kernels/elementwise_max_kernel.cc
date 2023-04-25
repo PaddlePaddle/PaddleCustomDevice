@@ -63,9 +63,9 @@ void MaximumGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        const phi::DenseTensor& dout,
-                       int axis,
                        phi::DenseTensor* dx,
                        phi::DenseTensor* dy) {
+  int axis = -1;
   auto stream = dev_ctx.stream();
 
   // The npu elementwise_max_grad op only supports broadcast

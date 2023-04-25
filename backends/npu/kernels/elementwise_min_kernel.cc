@@ -62,9 +62,9 @@ void MinimumGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        const phi::DenseTensor& dout,
-                       int axis,
                        phi::DenseTensor* dx,
                        phi::DenseTensor* dy) {
+  int axis = -1;
   auto stream = dev_ctx.stream();
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);

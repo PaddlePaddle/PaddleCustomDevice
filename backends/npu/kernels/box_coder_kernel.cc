@@ -238,70 +238,25 @@ void Vector2Tensor(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void BoxCoderEncCpu(const Context& dev_ctx,
-                    const phi::DenseTensor* tb,
-                    const phi::DenseTensor* pb,
-                    const phi::DenseTensor* pbv,
-                    const bool normalized,
-                    const std::vector<float>& variance,
-                    phi::DenseTensor* out) {
-  int64_t row = tb->dims()[0];
-  int64_t col = pb->dims()[0];
-  int64_t len = pb->dims()[1];
-  std::vector<T> target_box_data, prior_box_data, prior_box_var_data;
-  std::vector<T> output(row * col * len, 0);
-  custom_kernel::TensorToVector(dev_ctx, *tb, dev_ctx, &target_box_data);
-  custom_kernel::TensorToVector(dev_ctx, *pb, dev_ctx, &prior_box_data);
-  for (int64_t i = 0; i < row; ++i) {
-    for (int64_t j = 0; j < col; ++j) {
-      size_t offset = i * col * len + j * len;
-      T prior_box_width = prior_box_data[j * len + 2] -
-                          prior_box_data[j * len] + (normalized == false);
-      T prior_box_height = prior_box_data[j * len + 3] -
-                           prior_box_data[j * len + 1] + (normalized == false);
-      T prior_box_center_x = prior_box_data[j * len] + prior_box_width / 2;
-      T prior_box_center_y = prior_box_data[j * len + 1] + prior_box_height / 2;
-      T target_box_center_x =
-          (target_box_data[i * len + 2] + target_box_data[i * len]) / 2;
-      T target_box_center_y =
-          (target_box_data[i * len + 3] + target_box_data[i * len + 1]) / 2;
-      T target_box_width = target_box_data[i * len + 2] -
-                           target_box_data[i * len] + (normalized == false);
-      T target_box_height = target_box_data[i * len + 3] -
-                            target_box_data[i * len + 1] +
-                            (normalized == false);
-      output[offset] =
-          (target_box_center_x - prior_box_center_x) / prior_box_width;
-      output[offset + 1] =
-          (target_box_center_y - prior_box_center_y) / prior_box_height;
-      output[offset + 2] =
-          std::log(std::fabs(target_box_width / prior_box_width));
-      output[offset + 3] =
-          std::log(std::fabs(target_box_height / prior_box_height));
-    }
+std::vector<phi::DenseTensor> GetSplitTensor(const Context& dev_ctx,
+                                             const phi::DenseTensor& x,
+                                             const phi::DDim shape) {
+  std::vector<phi::DenseTensor> outputs;
+  for (size_t i = 0; i < 4; ++i) {
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(shape);
+    dev_ctx.template Alloc<T>(&tmp_out);
+    outputs.push_back(tmp_out);
   }
-  if (pbv) {
-    custom_kernel::TensorToVector(dev_ctx, *pbv, dev_ctx, &prior_box_var_data);
-    for (int64_t i = 0; i < row; ++i) {
-      for (int64_t j = 0; j < col; ++j) {
-        for (int k = 0; k < 4; ++k) {
-          size_t offset = i * col * len + j * len;
-          int prior_var_offset = j * len;
-          output[offset + k] /= prior_box_var_data[prior_var_offset + k];
-        }
-      }
-    }
-  } else if (!(variance.empty())) {
-    for (int64_t i = 0; i < row; ++i) {
-      for (int64_t j = 0; j < col; ++j) {
-        for (int k = 0; k < 4; ++k) {
-          size_t offset = i * col * len + j * len;
-          output[offset + k] /= static_cast<T>(variance[k]);
-        }
-      }
-    }
-  }
-  TensorFromVector<float>(dev_ctx, output, dev_ctx, out);
+  NpuOpRunner runner;
+  runner.SetType("Split")
+      .AddInput(dev_ctx, std::vector<int32_t>({1}))
+      .AddInput(x)
+      .AddOutputs(outputs)
+      .AddAttrs({{"num_split", static_cast<int32_t>(4)}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+  return outputs;
 }
 
 template <typename T, typename Context>
@@ -315,49 +270,58 @@ void BoxCoderEnc(const Context& dev_ctx,
   auto M = pb->dims()[0];
   auto N = tb->dims()[0];
   auto shape_0 = phi::make_ddim({4, 2});
-  phi::DenseTensor m_diff;
-  phi::DenseTensor m_aver;
-  std::vector<T> vec_diff = {static_cast<T>(-1),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(-1),
-                             static_cast<T>(1),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(1)};
-  std::vector<T> vec_aver = {static_cast<T>(0.5),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(0.5),
-                             static_cast<T>(0.5),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(0.5)};
-  Vector2Tensor<T, Context>(dev_ctx, vec_diff, shape_0, &m_diff);
-  Vector2Tensor<T, Context>(dev_ctx, vec_aver, shape_0, &m_aver);
 
   BoxCoderFunction<T, Context> F(dev_ctx);
-  phi::DenseTensor pb_xy = F.Adds(F.Dot(*pb, m_aver), (norm ? 0 : 0.5));
-  phi::DenseTensor pb_wh = F.Adds(F.Dot(*pb, m_diff), (norm ? 0 : 1));
-  phi::DenseTensor tb_xy = F.Dot(*tb, m_aver);
-  phi::DenseTensor tb_wh = F.Adds(F.Dot(*tb, m_diff), (norm ? 0 : 1));
+  auto shape_1 = phi::make_ddim({1, M});
+  auto shape_2 = phi::make_ddim({N, 1});
 
-  pb_xy.Resize({1, M, 2});
-  pb_wh.Resize({1, M, 2});
-  tb_xy.Resize({N, 1, 2});
-  tb_wh.Resize({N, 1, 2});
+  std::vector<phi::DenseTensor> pb_split_tensors =
+      GetSplitTensor<T, Context>(dev_ctx, *pb, shape_1);
+  std::vector<phi::DenseTensor> tb_split_tensors =
+      GetSplitTensor<T, Context>(dev_ctx, *tb, shape_2);
+  phi::DenseTensor pb_w = F.Adds(
+      F.SubWithBroadCast(pb_split_tensors[2], pb_split_tensors[0], shape_1),
+      (norm ? 0 : 1));
+  phi::DenseTensor pb_h = F.Adds(
+      F.SubWithBroadCast(pb_split_tensors[3], pb_split_tensors[1], shape_1),
+      (norm ? 0 : 1));
+  phi::DenseTensor pb_x =
+      F.AddWithBroadCast(pb_split_tensors[0], F.Muls(pb_w, 0.5), shape_1);
+  phi::DenseTensor pb_y =
+      F.AddWithBroadCast(pb_split_tensors[1], F.Muls(pb_h, 0.5), shape_1);
+  phi::DenseTensor tb_x = F.AddWithBroadCast(F.Muls(tb_split_tensors[0], 0.5),
+                                             F.Muls(tb_split_tensors[2], 0.5),
+                                             shape_2);
+  phi::DenseTensor tb_y = F.AddWithBroadCast(F.Muls(tb_split_tensors[1], 0.5),
+                                             F.Muls(tb_split_tensors[3], 0.5),
+                                             shape_2);
+  phi::DenseTensor tb_w = F.Adds(
+      F.SubWithBroadCast(tb_split_tensors[2], tb_split_tensors[0], shape_2),
+      (norm ? 0 : 1));
+  phi::DenseTensor tb_h = F.Adds(
+      F.SubWithBroadCast(tb_split_tensors[3], tb_split_tensors[1], shape_2),
+      (norm ? 0 : 1));
 
-  auto shape_half = phi::make_ddim({N, M, 2});
+  auto shape_3 = phi::make_ddim({N, M});
   auto shape_full = phi::make_ddim({N, M, 4});
+  phi::DenseTensor out_0 = F.DivWithBroadCast(
+      F.SubWithBroadCast(tb_x, pb_x, shape_3), pb_w, shape_3);
+  phi::DenseTensor out_1 = F.DivWithBroadCast(
+      F.SubWithBroadCast(tb_y, pb_y, shape_3), pb_h, shape_3);
+  phi::DenseTensor out_2 =
+      F.Log(F.Abs(F.DivWithBroadCast(tb_w, pb_w, shape_3)));
+  phi::DenseTensor out_3 =
+      F.Log(F.Abs(F.DivWithBroadCast(tb_h, pb_h, shape_3)));
 
-  phi::DenseTensor out_xy_0 = F.DivWithBroadCast(
-      F.SubWithBroadCast(tb_xy, pb_xy, shape_half), pb_wh, shape_half);
-  phi::DenseTensor out_wh_0 =
-      F.Log(F.Abs(F.DivWithBroadCast(tb_wh, pb_wh, shape_half)));
-  phi::DenseTensor out_0 = F.Concat({out_xy_0, out_wh_0}, shape_full, 2);
-
+  out_0.Resize({N, M, 1});
+  out_1.Resize({N, M, 1});
+  out_2.Resize({N, M, 1});
+  out_3.Resize({N, M, 1});
+  phi::DenseTensor out_tmp;
+  std::vector<phi::DenseTensor> out_vector = {out_0, out_1, out_2, out_3};
+  F.ConcatVoid(out_vector, shape_full, 2, &out_tmp);
   if (pbv) {
-    F.DivWithBroadCastVoid(out_0, *pbv, shape_full, out);
+    F.DivWithBroadCastVoid(out_tmp, *pbv, shape_full, out);
   } else {
     phi::DenseTensor t_var;
     std::vector<T> vec_var(4);
@@ -366,7 +330,7 @@ void BoxCoderEnc(const Context& dev_ctx,
     }
     Vector2Tensor<T, Context>(
         dev_ctx, vec_var, phi::make_ddim({1, 1, 4}), &t_var);
-    F.DivWithBroadCastVoid(out_0, t_var, shape_full, out);
+    F.DivWithBroadCastVoid(out_tmp, t_var, shape_full, out);
   }
 }
 
@@ -515,38 +479,13 @@ void BoxCoderKernel(const Context& dev_ctx,
   }
   auto code_type_data = GetBoxCodeType(code_type);
   if (code_type_data == BoxCodeType::kEncodeCenterSize) {
-    if (target_box.dtype() == phi::DataType::FLOAT32) {
-      // TODO(duanyanhui): Ascend op "MatMul" transform the fp32
-      // input to fp16, which will bring diff to the following
-      // calculation. In this kernel, the diff in "MatMul" op will
-      // be expanded in the following "Div" op.
-      // For example, 1e-4 diff is generated in "MatMul" op, and
-      // the expect value is 1e-4 and the actual value is 2e-4.
-      // Assuming the form of "Div" op is a/b, and a equals to 1e-2,
-      // then the diff will be expanded to 1e+2. So, We use cpu to
-      // do the calculation.
-      auto row = target_box.dims()[0];
-      auto col = prior_box.dims()[0];
-      auto len = prior_box.dims()[1];
-      output_box->Resize({1, row * col * len});
-      dev_ctx.template Alloc<T>(output_box);
-      BoxCoderEncCpu<float, Context>(dev_ctx,
-                                     &target_box,
-                                     &prior_box,
-                                     prior_box_var.get_ptr(),
-                                     box_normalized,
-                                     variance,
-                                     output_box);
-      output_box->Resize({row, col, len});
-    } else {
-      BoxCoderEnc<T, Context>(dev_ctx,
-                              &target_box,
-                              &prior_box,
-                              prior_box_var.get_ptr(),
-                              box_normalized,
-                              variance,
-                              output_box);
-    }
+    BoxCoderEnc<T, Context>(dev_ctx,
+                            &target_box,
+                            &prior_box,
+                            prior_box_var.get_ptr(),
+                            box_normalized,
+                            variance,
+                            output_box);
   } else {
     BoxCoderDec<T, Context>(dev_ctx,
                             &target_box,

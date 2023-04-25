@@ -107,11 +107,11 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
-          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so
-    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMENT "Creating plugin dirrectories------>>>")
 
 add_custom_command(

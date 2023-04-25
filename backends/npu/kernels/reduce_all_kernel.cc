@@ -67,4 +67,6 @@ PD_REGISTER_PLUGIN_KERNEL(
     all, npu, ALL_LAYOUT, custom_kernel::AllKernel, bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    all_raw, npu, ALL_LAYOUT, custom_kernel::AllRawKernel, bool) {}
+    all_raw, npu, ALL_LAYOUT, custom_kernel::AllRawKernel, bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

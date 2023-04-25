@@ -39,9 +39,9 @@ void MaximumGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        const phi::DenseTensor& dout,
-                       int axis,
                        phi::DenseTensor* dx,
                        phi::DenseTensor* dy) {
+  int axis = -1;
   MLUMinMaxGradHelper<MAXIMUM_GRAD, T>(dev_ctx, x, y, dout, axis, dx, dy);
 }
 

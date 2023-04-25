@@ -65,4 +65,9 @@ void AdagradDenseKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    adagrad, npu, ALL_LAYOUT, custom_kernel::AdagradDenseKernel, float) {}
+    adagrad, npu, ALL_LAYOUT, custom_kernel::AdagradDenseKernel, float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
+}

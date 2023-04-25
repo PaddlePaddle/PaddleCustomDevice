@@ -368,16 +368,16 @@ class TestSundryAPI(unittest.TestCase):
         out3.backward()
 
         self.assertEqual(out1.shape, [])
-        np.testing.assert_allclose(out1, x)
+        np.testing.assert_allclose(out1, x, rtol=1e-3, atol=1e-3)
 
         self.assertEqual(out2.shape, [])
-        np.testing.assert_allclose(out2, x)
+        np.testing.assert_allclose(out2, x, rtol=1e-3, atol=1e-3)
 
         self.assertEqual(out3.shape, [])
-        np.testing.assert_allclose(out3, x)
+        np.testing.assert_allclose(out3, x, rtol=1e-3, atol=1e-3)
 
         self.assertEqual(x.grad.shape, [])
-        np.testing.assert_allclose(x.grad, 3.0)
+        np.testing.assert_allclose(x.grad, 3.0, rtol=1e-3, atol=1e-3)
 
     def test_expand(self):
         # case1

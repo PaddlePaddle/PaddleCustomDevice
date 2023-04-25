@@ -42,7 +42,6 @@ void HistogramKernel(const Context& dev_ctx,
       .AddOutput(*output)
       .Run(dev_ctx.stream());
   output->Resize(output_dim);
-  VLOG(0) << output->dims();
 }
 };  // namespace custom_kernel
 
@@ -52,4 +51,6 @@ PD_REGISTER_PLUGIN_KERNEL(histogram,
                           custom_kernel::HistogramKernel,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->OutputAt(0).SetDataType(paddle::DataType::INT64);
+}

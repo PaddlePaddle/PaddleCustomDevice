@@ -460,18 +460,40 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);   // mean
+    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);   // variance
+    kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);   // scale
+    kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);   // bias
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // variance_out
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);  // saved_mean
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);  // saved_variance
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormGradKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);  // x_grad
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // scale_grad
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormInferKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // variance_out
+  }
+}

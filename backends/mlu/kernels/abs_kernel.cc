@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
 
@@ -69,11 +70,15 @@ PD_REGISTER_PLUGIN_KERNEL(abs,
                           ALL_LAYOUT,
                           custom_kernel::AbsKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}
 
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::AbsGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}

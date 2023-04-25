@@ -121,7 +121,9 @@ PD_REGISTER_PLUGIN_KERNEL(argsort,
                           uint8_t,
                           int16_t,
                           int32_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(argsort_grad,
                           mlu,

@@ -76,4 +76,6 @@ void NonZeroKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    nonzero, mlu, ALL_LAYOUT, custom_kernel::NonZeroKernel, bool, int, float) {}
+    nonzero, mlu, ALL_LAYOUT, custom_kernel::NonZeroKernel, bool, int, float) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::INT64);
+}

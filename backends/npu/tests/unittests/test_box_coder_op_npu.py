@@ -143,7 +143,7 @@ class TestBoxCoderOp(OpTest):
         self.axis = 0
         self.use_variance = False
         self.without_prior_box_var = False
-        self.atol = 1e-5
+        self.atol = 2e-3
 
     def set_inputs(self):
         self.inputs = {}

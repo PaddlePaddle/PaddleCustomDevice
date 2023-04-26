@@ -24,7 +24,7 @@ void Elementwise(const float* x,
                  const float* y,
                  float* out,
                  const std::vector<int64_t>& dims,
-                 MPSElementwiseOP op) {
+                 ElementwiseOP op) {
   VLOG(5) << "mps_kernel::Elementwise start";
   mps::MPSStream* stream = mps::getCurrentMPSStream();
 
@@ -42,22 +42,22 @@ void Elementwise(const float* x,
     MPSGraphTensor* output_tensor = nil;
 
     switch (op) {
-      case MPSElementwiseOP::ADD:
+      case ElementwiseOP::ADD:
         output_tensor = [mpsGraph additionWithPrimaryTensor:x_tensor
                                             secondaryTensor:y_tensor
                                                        name:nil];
         break;
-      case MPSElementwiseOP::SUB:
+      case ElementwiseOP::SUB:
         output_tensor = [mpsGraph subtractionWithPrimaryTensor:x_tensor
                                                secondaryTensor:y_tensor
                                                           name:nil];
         break;
-      case MPSElementwiseOP::MUL:
+      case ElementwiseOP::MUL:
         output_tensor = [mpsGraph multiplicationWithPrimaryTensor:x_tensor
                                                   secondaryTensor:y_tensor
                                                              name:nil];
         break;
-      case MPSElementwiseOP::DIV:
+      case ElementwiseOP::DIV:
         output_tensor = [mpsGraph divisionWithPrimaryTensor:x_tensor
                                             secondaryTensor:y_tensor
                                                        name:nil];

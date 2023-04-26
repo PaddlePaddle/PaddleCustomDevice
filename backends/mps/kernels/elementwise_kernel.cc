@@ -24,7 +24,7 @@ void BinaryElementwiseKernel(const phi::Context& dev_ctx,
                              const phi::DenseTensor& y,
                              int axis,
                              phi::DenseTensor* out,
-                             mps_kernel::MPSElementwiseOP op) {
+                             mps_kernel::ElementwiseOP op) {
   dev_ctx.template Alloc<T>(out);
   auto x_dims = x.dims();
   auto y_dims = y.dims();
@@ -46,7 +46,7 @@ void AddRawKernel(const phi::Context& dev_ctx,
                   int axis,
                   phi::DenseTensor* out) {
   BinaryElementwiseKernel<T>(
-      dev_ctx, x, y, axis, out, mps_kernel::MPSElementwiseOP::ADD);
+      dev_ctx, x, y, axis, out, mps_kernel::ElementwiseOP::ADD);
 }
 
 template <typename T>
@@ -65,7 +65,7 @@ void DivRawKernel(const phi::Context& dev_ctx,
                   int axis,
                   phi::DenseTensor* out) {
   BinaryElementwiseKernel<T>(
-      dev_ctx, x, y, axis, out, mps_kernel::MPSElementwiseOP::DIV);
+      dev_ctx, x, y, axis, out, mps_kernel::ElementwiseOP::DIV);
 }
 
 template <typename T>
@@ -84,7 +84,7 @@ void MulRawKernel(const phi::Context& dev_ctx,
                   int axis,
                   phi::DenseTensor* out) {
   BinaryElementwiseKernel<T>(
-      dev_ctx, x, y, axis, out, mps_kernel::MPSElementwiseOP::MUL);
+      dev_ctx, x, y, axis, out, mps_kernel::ElementwiseOP::MUL);
 }
 
 template <typename T>
@@ -103,7 +103,7 @@ void SubRawKernel(const phi::Context& dev_ctx,
                   int axis,
                   phi::DenseTensor* out) {
   BinaryElementwiseKernel<T>(
-      dev_ctx, x, y, axis, out, mps_kernel::MPSElementwiseOP::SUB);
+      dev_ctx, x, y, axis, out, mps_kernel::ElementwiseOP::SUB);
 }
 
 template <typename T>

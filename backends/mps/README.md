@@ -1,4 +1,4 @@
-#PaddlePaddle Custom Device Implementaion for Custom CPU
+# PaddlePaddle Custom Device Implementaion for Custom CPU
 
 
 Please refer to the following steps to compile, install and verify the custom device implementaion for MPS backend.
@@ -37,6 +37,8 @@ pip install dist/paddle_mps*.whl
 ## Verification
 
 ```bash
+export FLAGS_allocator_strategy=naive_best_fit
+
 #list available hardware backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 

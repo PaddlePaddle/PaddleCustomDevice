@@ -18,7 +18,7 @@
 
 namespace mps_kernel {
 
-enum MPSElementwiseOP {
+enum ElementwiseOP {
   ADD,
   SUB,
   MUL,
@@ -29,6 +29,6 @@ void Elementwise(const float *x,
                  const float *y,
                  float *out,
                  const std::vector<int64_t> &dims,
-                 MPSElementwiseOP op);
+                 ElementwiseOP op);
 
 }  // namespace mps_kernel

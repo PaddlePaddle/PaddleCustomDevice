@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// #include "kernels/reshape_impl.h"
-#include "kernel/phi_funcs.h"
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
 #include "runtime/mps_runtime.h"
 

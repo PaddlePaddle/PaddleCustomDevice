@@ -21,6 +21,13 @@ import paddle.fluid.core as core
 import paddle
 import paddle.nn.functional as F
 
+import os
+
+proc_env = {}
+
+os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+
+
 np.random.seed(10)
 
 paddle.enable_static()
@@ -63,7 +70,7 @@ class TestSoftmaxOp(OpTest):
         self.use_cudnn = False
         self.use_mkldnn = False
         # explicilty use float32 for ROCm, as MIOpen does not yet support float64
-        self.dtype = np.float32 if core.is_compiled_with_rocm() else np.float64
+        self.dtype = np.float32
         self.init_kernel_type()
         self.shape = self.get_x_shape()
         self.axis = self.get_axis()
@@ -134,7 +141,7 @@ class TestSoftmaxOp6(TestSoftmaxOp):
 
 class TestSoftmaxAPI(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace("custom_cpu", 0)
+        self.place = paddle.CustomPlace("mps", 0)
         self.x_np = np.random.uniform(-1.0, 1.0, [2, 3, 4, 5]).astype("float32")
         self.out_ref = np.apply_along_axis(stable_softmax, -1, self.x_np)
         self.executed_api()
@@ -179,8 +186,8 @@ class TestSoftmaxAPI(unittest.TestCase):
             out = self.softmax(x, dtype=np.float32)
             out_ref = ref_softmax(self.x_np, axis=-1, dtype=np.float32)
         else:
-            out = self.softmax(x, dtype=np.float64)
-            out_ref = ref_softmax(self.x_np, axis=-1, dtype=np.float64)
+            out = self.softmax(x, dtype=np.float32)
+            out_ref = ref_softmax(self.x_np, axis=-1, dtype=np.float32)
         self.assertEqual(np.allclose(out_ref, out.numpy()), True)
 
         paddle.enable_static()

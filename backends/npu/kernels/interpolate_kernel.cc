@@ -570,11 +570,6 @@ void InterpolateKernel(
         get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
     out_h = output_h[0];
     out_w = output_w[0];
-  } else if (out_size) {
-    auto out_size_data =
-        get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
-    out_h = out_size_data[0];
-    out_w = out_size_data[1];
   } else {
     if (scale_tensor) {
       auto scale_data =
@@ -624,6 +619,15 @@ void InterpolateKernel(
     if (scale_h > 0. && scale_w > 0.) {
       out_h = static_cast<int>(in_h * scale_h);
       out_w = static_cast<int>(in_w * scale_w);
+    }
+    if (out_size) {
+      auto size_data =
+          get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
+      // phi::DenseTensor sizes;
+      // TensorCopy(dev_ctx, *out_size, true, &sizes, phi::CPUPlace());
+      // auto size_data = sizes.data<int>();
+      out_h = size_data[0];
+      out_w = size_data[1];
     }
   }
   PADDLE_ENFORCE_GT(out_h,
@@ -948,6 +952,7 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
                           custom_kernel::NearestInterpKernel,
                           float,
                           phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }
@@ -968,6 +973,7 @@ PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
                           custom_kernel::BilinearInterpKernel,
                           float,
                           phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
 }

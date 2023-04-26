@@ -85,8 +85,8 @@ inline void TensorCopy(const Context& dev_ctx,
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
-  auto size = (src.dims().size() != 0 ? src.numel() : 1) *
-              phi::SizeOf(src.dtype());
+  auto size =
+      (src.dims().size() != 0 ? src.numel() : 1) * phi::SizeOf(src.dtype());
   if (UNLIKELY(size) == 0) {
     return;
   }
@@ -502,16 +502,14 @@ inline std::vector<T> get_new_data_from_tensor(
     const phi::CustomContext& dev_ctx,
     const phi::DenseTensor* new_data_tensor) {
   std::vector<T> vec_new_data;
-  auto place = new_data_tensor->place();
+  auto* new_data = new_data_tensor->data<T>();
   phi::DenseTensor cpu_starts_tensor;
-  cpu_starts_tensor.Resize(new_data_tensor->dims());
-  T* new_data = dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
-  if (place.GetType() == phi::AllocationType::CUSTOM) {
+  if (new_data_tensor->place().GetType() == phi::AllocationType::CUSTOM) {
     TensorCopy(
         dev_ctx, *new_data_tensor, true, &cpu_starts_tensor, phi::CPUPlace());
     new_data = cpu_starts_tensor.data<T>();
   }
-  vec_new_data = std::vector<T>(new_data, new_data + cpu_starts_tensor.numel());
+  vec_new_data = std::vector<T>(new_data, new_data + new_data_tensor->numel());
   return vec_new_data;
 }
 

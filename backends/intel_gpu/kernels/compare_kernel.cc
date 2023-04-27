@@ -259,74 +259,22 @@ void GreaterEqualKernel(const phi::Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_BUILD_PHI_KERNEL(not_equal,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::NotEqualKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
-
-PD_BUILD_PHI_KERNEL(equal,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::EqualKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
-
-PD_BUILD_PHI_KERNEL(less_than,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::LessThanKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
-
-PD_BUILD_PHI_KERNEL(less_equal,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::LessEqualKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
-
-PD_BUILD_PHI_KERNEL(greater_than,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::GreaterThanKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
-
-PD_BUILD_PHI_KERNEL(greater_equal,
-                    intel_gpu,
-                    ALL_LAYOUT,
-                    custom_kernel::GreaterEqualKernel,
-                    float,
-                    double,
-                    uint8_t,
-                    int16_t,
-                    int32_t,
-                    int64_t,
-                    bool) {}
+#define PD_REGISTER_COMPARE_KERNEL(name, func)            \
+  PD_BUILD_PHI_KERNEL(name,                               \
+                      intel_gpu,                          \
+                      ALL_LAYOUT,                         \
+                      custom_kernel::func##Kernel,        \
+                      float,                              \
+                      double,                             \
+                      uint8_t,                            \
+                      int16_t,                            \
+                      int32_t,                            \
+                      int64_t,                            \
+                      bool) {                             \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
+  }
+PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)
+PD_REGISTER_COMPARE_KERNEL(equal, Equal)
+PD_REGISTER_COMPARE_KERNEL(not_equal, NotEqual)

@@ -623,9 +623,6 @@ void InterpolateKernel(
     if (out_size) {
       auto size_data =
           get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
-      // phi::DenseTensor sizes;
-      // TensorCopy(dev_ctx, *out_size, true, &sizes, phi::CPUPlace());
-      // auto size_data = sizes.data<int>();
       out_h = size_data[0];
       out_w = size_data[1];
     }

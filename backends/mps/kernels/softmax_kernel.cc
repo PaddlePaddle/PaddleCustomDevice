@@ -22,7 +22,7 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out) {
-  const int rank = x.dims().size();
+  const size_t rank = x.dims().size();
   // allocate memory on device.
   T* out_data = dev_ctx.template Alloc<T>(out);
   if (out->numel() == 0) {
@@ -34,10 +34,28 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
     return;
   }
 
-  mps_kernel::Softmax(x.data<T>(), out->data<T>(), x.dims(), out->dims(), axis);
+  mps_kernel::Softmax(x.data<T>(), out->data<T>(), x.dims(), axis);
+}
+
+template <typename T>
+void SoftmaxGradKernel(const phi::Context& dev_ctx,
+                       const phi::DenseTensor& out,
+                       const phi::DenseTensor& out_grad,
+                       int axis,
+                       phi::DenseTensor* x_grad) {
+  const size_t rank = out.dims().size();
+  // allocate memory on device.
+  T* x_grad_data = dev_ctx.template Alloc<T>(x_grad);
+  if (x_grad->numel() == 0) {
+    return;
+  }
+  mps_kernel::SoftmaxGrad(
+      out.data<T>(), out_grad.data<T>(), out.dims(), axis, x_grad->data<T>());
 }
 
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(
     softmax, mps, ALL_LAYOUT, custom_kernel::SoftmaxKernel, float) {}
+PD_BUILD_PHI_KERNEL(
+    softmax_grad, mps, ALL_LAYOUT, custom_kernel::SoftmaxGradKernel, float) {}

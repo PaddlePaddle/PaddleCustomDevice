@@ -34,4 +34,14 @@ void runMPSGraph(MPSStream *mpsStream,
   mpsStream->executeMPSGraph(mpsGraph, feeds, results, SyncType::COMMIT_AND_WAIT);
 }
 
+NSArray<NSNumber *> *vector_2_nsarray(const std::vector<int64_t> &vec) {
+  NSMutableArray *nsArray = [NSMutableArray array];
+  for (int i = 0; i < vec.size(); i++) {
+    NSNumber *number = [NSNumber numberWithLongLong:vec[i]];
+    [nsArray addObject:number];
+  }
+  NSArray *array = [NSArray arrayWithArray:nsArray];
+  return array;
+}
+
 }  // namespace mps

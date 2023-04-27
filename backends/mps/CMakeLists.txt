@@ -30,7 +30,7 @@ set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-option(WITH_TESTING "compile with unit testing" OFF)
+option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 
 set(PLUGIN_NAME "paddle-mps")
@@ -65,6 +65,10 @@ find_library(MPS_GRAPH_LIBRARY MetalPerformanceShadersGraph REQUIRED)
 target_link_libraries(
   ${PLUGIN_NAME} PRIVATE ${METAL_LIBRARY} ${MPS_LIBRARY} ${FOUNDATION_LIBRARY}
                          ${MPS_GRAPH_LIBRARY})
+
+include(third_party)
+add_dependencies(${PLUGIN_NAME} third_party)
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
 
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in

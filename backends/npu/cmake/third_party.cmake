@@ -29,7 +29,6 @@ include(external/glog) # download, build, install glog
 list(APPEND third_party_deps extern_gflags extern_glog)
 if(NOT ON_INFER)
   include(external/pybind11)
-
   list(APPEND third_party_deps extern_pybind)
 endif()
 

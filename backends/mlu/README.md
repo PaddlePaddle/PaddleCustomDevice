@@ -48,11 +48,17 @@ pip install dist/paddle_custom_mlu*.whl
 ## Verification
 
 ```bash
-# list available hardware backends
+# list available custom backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 
 # expected output
 ['mlu']
+
+# 2. check installed custom mlu version
+python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
+# expected output
+version: 0.0.0
+commit: 7112037a5b7149bc165e8008fb70c72ba71beb04
 
 # run a simple model
 python ../tests/test_MNIST_model.py

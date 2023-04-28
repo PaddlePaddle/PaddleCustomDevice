@@ -245,7 +245,7 @@ void AddApiRecord(const cnpapiActivityAPI *api,
   event.thread_id = api->thread_id;
   event.correlation_id = api->correlation_id;
   event.callback_id = api->cbid;
-  event.type = phi::TracerEventType::MluRuntime;
+  event.type = phi::TracerEventType::CudaRuntime;
   profiler_add_runtime_trace_event(collector, &event);
 }
 

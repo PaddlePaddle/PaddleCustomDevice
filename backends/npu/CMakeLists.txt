@@ -54,7 +54,7 @@ endif()
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib}
-                                                 ${ascend_hccl_lib})
+                                                 ${ascend_hccl_lib} glog gflags)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
 # link paddle shared library
@@ -62,14 +62,14 @@ include(third_party)
 add_dependencies(${CUSTOM_NPU_NAME} third_party)
 if(ON_INFER)
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE paddle_inference)
+  target_compile_definitions(${CUSTOM_NPU_NAME} PRIVATE PADDLE_ON_INFERENCE)
 else()
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
+  find_package(PythonInterp ${PY_VERSION} REQUIRED)
+  find_package(PythonLibs ${PY_VERSION} REQUIRED)
+  include_directories(${PYTHON_INCLUDE_DIR})
 endif()
-
-find_package(PythonInterp ${PY_VERSION} REQUIRED)
-find_package(PythonLibs ${PY_VERSION} REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIR})
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
 
 # testing
 if(WITH_TESTING)

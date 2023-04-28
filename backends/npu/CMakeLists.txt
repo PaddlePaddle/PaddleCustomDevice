@@ -54,7 +54,7 @@ endif()
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib}
-                                                 ${ascend_hccl_lib})
+                                                 ${ascend_hccl_lib} glog gflags)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
 # link paddle shared library

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(paddle-custom-mlu CXX C)
+set(CUSTOM_MLU_NAME "paddle-custom-mlu")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include(paddle)
+include(version)
 include(generic)
 include(external/neuware)
 include_directories(${CMAKE_SOURCE_DIR})
@@ -15,9 +17,6 @@ option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_PROFILE "compile with profile" ON)
-
-set(CUSTOM_MLU_NAME "paddle-custom-mlu")
-set(CUSTOM_MLU_VERSION "0.0.1")
 
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
@@ -79,6 +78,14 @@ if(WITH_TESTING)
                     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tests/.timestamp)
 endif()
 
+# get git commit id
+execute_process(
+  COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+message(STATUS "Git commit id is: ${GIT_HASH}")
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 
@@ -89,11 +96,11 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
-          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${CUSTOM_MLU_NAME}.so
-    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle-plugins/
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMENT "Creating custom device dirrectories------>>>")
 
 add_custom_command(

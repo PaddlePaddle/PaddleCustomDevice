@@ -1,40 +1,103 @@
+import os
 from setuptools import setup, Distribution
+
 
 packages = []
 package_data = {}
+
+
+def write_version_py(filename='python/paddle_custom_device/mlu/__init__.py'):
+    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+full_version  = '@PADDLE_VERSION@'
+git_commit_id = '@GIT_HASH@'
+
+__all__ = ['version']
+
+def version():
+    """Get the version info of paddle custom mlu
+
+    Returns:
+        version: version of paddle custom mlu
+        commit: the commit id of paddle custom mlu
+        cann: the cann version of paddle custom mlu
+
+    Examples:
+        .. code-block:: python
+
+            import paddle_custom_device
+
+            paddle_custom_device.mlu.version()
+            # version: 2.5.0
+            # commit: b1539a921dbabf708807ebedb2671fa7bd3fd2f9
+            # cann: 6.0.1
+    """
+    print('version:', full_version)
+    print('commit:', git_commit_id)
+'''
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+    with open(filename, 'w') as f:
+        f.write(cnt)
+
+
+def write_init_py(filename='python/paddle_custom_device/__init__.py'):
+    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+from . import mlu # noqa: F401
+
+__all__ = [  # noqa
+    'mlu',
+]
+
+'''
+    with open(filename, 'w') as f:
+        f.write(cnt)
+
 
 class BinaryDistribution(Distribution):
     def has_ext_modules(self):
         return True
 
-setup(
-    name = '@CMAKE_PROJECT_NAME@',
-    version='@PLUGIN_VERSION@',
-    description='Paddle mlu plugin',
-    long_description='',
-    long_description_content_type="text/markdown",
-    author_email="Paddle-better@baidu.com",
-    maintainer="PaddlePaddle",
-    maintainer_email="Paddle-better@baidu.com",
-    project_urls={},
-    license='Apache Software License',
-    packages= [
-        'paddle-plugins',
-    ],
-    include_package_data=True,
-    package_data = {
-        '': ['*.so', '*.h', '*.py', '*.hpp'],
-    },
-    package_dir = {
-        '': 'python',
-    },
-    zip_safe=False,
-    distclass=BinaryDistribution,
-    entry_points={
-        'console_scripts': [
-        ]
-    },
-    classifiers=[
-    ],
-    keywords='paddle mlu plugin',
-)
+def main():
+    write_version_py()
+    write_init_py()
+
+    setup(
+        name = '@CMAKE_PROJECT_NAME@',
+        version='@PADDLE_VERSION@',
+        description='PaddlePaddle Custom Device mlu Plugin',
+        long_description='',
+        long_description_content_type="text/markdown",
+        author_email="Paddle-better@baidu.com",
+        maintainer="PaddlePaddle",
+        maintainer_email="Paddle-better@baidu.com",
+        project_urls={},
+        license='Apache Software License',
+        packages= [
+            'paddle_custom_device',
+            'paddle_custom_device.mlu'
+        ],
+        include_package_data=True,
+        package_data = {
+            '': ['*.so', '*.h', '*.py', '*.hpp'],
+        },
+        package_dir = {
+            '': 'python',
+        },
+        zip_safe=False,
+        distclass=BinaryDistribution,
+        entry_points={
+            'console_scripts': [
+            ]
+        },
+        classifiers=[
+        ],
+        keywords='PaddlePaddle Custom Device mlu Plugin',
+    )
+
+
+if __name__ == '__main__':
+    main()

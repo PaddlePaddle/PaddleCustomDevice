@@ -57,6 +57,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 期待输出以下结果
 ['mlu']
 
+# 2) 检查当前安装版本
+python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
+# 预期得到如下输出结果
+version: 0.0.0
+commit: 7112037a5b7149bc165e8008fb70c72ba71beb04
+
 # 运行简单模型
 python ../tests/test_MNIST_model.py
 # 期待输出以下类似结果

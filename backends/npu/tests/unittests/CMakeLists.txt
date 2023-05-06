@@ -62,6 +62,10 @@ set_tests_properties(test_softmax_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
 set_tests_properties(test_softmax_with_cross_entropy_op_npu
                      PROPERTIES ENVIRONMENT FLAGS_USE_STANDALONE_EXECUTOR=0)
+set_tests_properties(test_batch_norm_op_npu
+                     PROPERTIES ENVIRONMENT FLAGS_npu_storage_format=0)
+set_tests_properties(test_conv2d_op_npu PROPERTIES ENVIRONMENT
+                                                   FLAGS_npu_storage_format=0)
 set_tests_properties(
   test_transpose_op_npu PROPERTIES ENVIRONMENT
                                    FLAGS_allocator_strategy=auto_growth)

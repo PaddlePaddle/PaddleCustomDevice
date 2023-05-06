@@ -161,7 +161,7 @@ class TestGatherGrad(unittest.TestCase):
             if epoch % 10 == 0:
                 print(
                     "Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                        epoch, pred_res[0], loss_res[0]
+                        epoch, pred_res[0], loss_res
                     )
                 )
 

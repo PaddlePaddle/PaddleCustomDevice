@@ -308,8 +308,11 @@ C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
     LOG(ERROR) << "unique_id->sz must be equal sizeof(cnclCliqueId)";
     return C_FAILED;
   }
+  VLOG(4) << "[CNCL] create clique.";
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclGetCliqueId(reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] clique created: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   return C_SUCCESS;
 }
 
@@ -321,6 +324,7 @@ C_Status XcclCommInitRank(size_t nranks,
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&dev_id));
   int dev_list[] = {dev_id};
   int rank_list[] = {rank};
+  VLOG(4) << "[CNCL] create comm.";
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclInitComms(reinterpret_cast<cnclComm_t *>(comm),
                     1,
@@ -328,6 +332,9 @@ C_Status XcclCommInitRank(size_t nranks,
                     rank_list,
                     nranks,
                     reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] comm inited: " << reinterpret_cast<cnclComm_t>(*comm)
+          << " clique: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   return C_SUCCESS;
 }
 
@@ -347,6 +354,7 @@ C_Status XcclAllReduce(void *send_buf,
                     C_DataType::INT64,
                     phi::errors::InvalidArgument(
                         "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllReduce(send_buf,
                                            recv_buf,
                                            count,
@@ -368,6 +376,7 @@ C_Status XcclBroadcast(void *buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclBroadcast(buf,
                                            buf,
                                            count,
@@ -387,6 +396,7 @@ C_Status XcclReduce(void *send_buf,
                     C_CCLComm comm,
                     C_Stream stream) {
   LOG(ERROR) << "xccl_reduce is not supported  on mlu device.";
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclReduce(send_buf,
                                         recv_buf,
                                         count,
@@ -409,6 +419,7 @@ C_Status XcclAllGather(void *send_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllGather(send_buf,
                                            recv_buf,
                                            count,
@@ -429,6 +440,7 @@ C_Status XcclReduceScatter(void *send_buf,
                     C_DataType::INT64,
                     phi::errors::InvalidArgument(
                         "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclReduceScatter(send_buf,
                         recv_buf,
@@ -461,6 +473,7 @@ C_Status XcclSend(void *send_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclSend(send_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),
@@ -481,6 +494,7 @@ C_Status XcclRecv(void *recv_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclRecv(recv_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),

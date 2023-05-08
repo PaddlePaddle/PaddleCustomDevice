@@ -897,9 +897,7 @@ class TestAvgPoolAdaptive_AsyPadding_channel_last(TestAvgPoolAdaptive_AsyPadding
 class TestCase1_strides(TestCase1):
     def init_test_case(self):
         self.ksize = [2, 2]
-        # fixme: CANN AvgPoolGradV3 dose not support asymmetric strides
-        # self.strides = [1, 2]
-        self.strides = [2, 2]
+        self.strides = [1, 2]
 
     def init_shape(self):
         self.shape = [2, 3, 8, 8]

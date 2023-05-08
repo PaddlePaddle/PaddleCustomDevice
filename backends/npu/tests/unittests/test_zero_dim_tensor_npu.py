@@ -1433,5 +1433,58 @@ class TestNoBackwardAPI(unittest.TestCase):
         self.assertEqual(one_hot_label.numpy()[2], 1)
 
 
+class TestLossAPI(unittest.TestCase):
+    def setUp(self):
+        paddle.disable_static()
+
+    def test_sigmoid_focal_loss(self):
+        logit = paddle.to_tensor(
+            [[0.97, 0.91, 0.03], [0.55, 0.43, 0.71]],
+            dtype="float32",
+            stop_gradient=False,
+        )
+        logit.retain_grads()
+        label = paddle.to_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype="float32")
+        fg_num_0 = paddle.full([], 2.0)
+        fg_num_1 = paddle.full([1], 2.0)
+
+        out0 = F.sigmoid_focal_loss(logit, label, normalizer=fg_num_0, reduction="sum")
+        out1 = F.sigmoid_focal_loss(logit, label, normalizer=fg_num_1, reduction="sum")
+        out0.retain_grads()
+
+        np.testing.assert_array_equal(
+            out0.numpy(),
+            out1.numpy(),
+        )
+
+        out0.backward()
+        self.assertEqual(out0.shape, [])
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out0.grad.shape, [])
+        self.assertEqual(logit.grad.shape, [2, 3])
+
+    def test_cross_entropy(self):
+        input = paddle.rand([3, 5])
+        input.stop_gradient = False
+        label = paddle.randint(0, 5, shape=[3])
+
+        loss = paddle.nn.functional.cross_entropy(input, label, reduction="sum")
+        loss.backward()
+
+        self.assertEqual(loss.shape, [])
+        self.assertEqual(input.grad.shape, [3, 5])
+
+    def test_l1_loss(self):
+        input = paddle.rand([3, 5])
+        input.stop_gradient = False
+        label = paddle.rand([3, 5])
+
+        loss = paddle.nn.functional.l1_loss(input, label, reduction="mean")
+        loss.backward()
+
+        self.assertEqual(loss.shape, [])
+        self.assertEqual(input.grad.shape, [3, 5])
+
+
 if __name__ == "__main__":
     unittest.main()

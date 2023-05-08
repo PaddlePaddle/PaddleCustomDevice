@@ -1153,6 +1153,137 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x1.grad.shape, [])
         self.assertEqual(x1.grad.numpy(), 1.0)
 
+    def test_cov(self):
+        xt = paddle.randn((3, 4))
+        xt.stop_gradient = False
+        xt_1 = paddle.randn((12,))
+        xt_1.stop_gradient = False
+
+        xt_out = paddle.linalg.cov(xt)
+        xt_out.retain_grads()
+        xt_out.backward()
+        self.assertEqual(xt_out.shape, [3, 3])
+        self.assertEqual(xt.grad.shape, [3, 4])
+
+        xt_1_out = paddle.linalg.cov(xt_1)
+        xt_1.retain_grads()
+        xt_1_out.backward()
+        self.assertEqual(xt_1_out.shape, [])
+        self.assertEqual(xt_1.grad.shape, [12])
+
+    def test_is_empty(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        # 2) x is 1D
+        x = paddle.rand([5])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        # 3) x is ND
+        x = paddle.rand([3, 5])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        x = paddle.rand([3, 0, 5])
+        out = paddle.is_empty(x)
+        self.assertTrue(out)
+        self.assertEqual(out.shape, [])
+
+    def test_squeeze_(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.squeeze_(0)
+        self.assertEqual(x.shape, [])
+
+        # 2) x is 1D
+        x = paddle.rand([1])
+        x.squeeze_(0)
+        self.assertEqual(x.shape, [])
+
+        # 3）x is ND
+        x = paddle.rand([2, 1])
+        x.squeeze_(1)
+        self.assertEqual(x.shape, [2])
+
+    def test_inner(self):
+        # 0) input is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        y = paddle.rand([])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 1) input is 1D
+        x = paddle.rand([2])
+        x.stop_gradient = False
+        y = paddle.rand([2])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 2) input is 2D
+        x = paddle.rand([2, 3])
+        x.stop_gradient = False
+        y = paddle.rand([3, 3])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2, 3])
+        self.assertEqual(out.shape, [2, 3])
+        self.assertEqual(out.grad.shape, [2, 3])
+
+    def test_tensordot(self):
+
+        # 1) input is 1D
+        x = paddle.arange(10, dtype="float64")
+        x.stop_gradient = False
+        y = paddle.arange(10, dtype="float64")
+        y.stop_gradient = False
+        out = paddle.tensordot(x, y, axes=1)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [10])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 2) input is 2D
+        x = paddle.arange(6, dtype="float64").reshape([2, 3])
+        y = paddle.arange(6, dtype="float64").reshape([2, 3])
+        x.stop_gradient = False
+        out = paddle.tensordot(x, y, axes=2)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2, 3])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+    def test_metric_accuracy(self):
+        x = paddle.full(shape=[2, 4], fill_value=0.25)
+        y = paddle.full(shape=[2, 1], fill_value=1, dtype="int64")
+        out = paddle.metric.accuracy(input=x, label=y, k=1)
+        self.assertEqual(out.shape, [])
+
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
 class TestNoBackwardAPI(unittest.TestCase):

@@ -1284,6 +1284,57 @@ class TestSundryAPI(unittest.TestCase):
         out = paddle.metric.accuracy(input=x, label=y, k=1)
         self.assertEqual(out.shape, [])
 
+    def test_std(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        out1 = paddle.std(x)
+        out2 = paddle.std(x, [])
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1, 0)
+        self.assertEqual(out2, 0)
+
+        self.assertEqual(x.grad.shape, [])
+
+        # 2) x is ND
+        x = paddle.rand([3, 5])
+        x.stop_gradient = False
+        out = paddle.std(x)
+        out.backward()
+
+        self.assertEqual(out.shape, [])
+        self.assertEqual(x.grad.shape, [3, 5])
+
+    def test_var(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        out1 = paddle.var(x)
+        out2 = paddle.var(x, [])
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1, 0)
+        self.assertEqual(out2, 0)
+
+        self.assertEqual(x.grad.shape, [])
+        np.testing.assert_allclose(x.grad, 0)
+
+        # 2) x is ND
+        x = paddle.rand([3, 5])
+        x.stop_gradient = False
+        out = paddle.std(x)
+        out.backward()
+
+        self.assertEqual(out.shape, [])
+        self.assertEqual(x.grad.shape, [3, 5])
+
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
 class TestNoBackwardAPI(unittest.TestCase):

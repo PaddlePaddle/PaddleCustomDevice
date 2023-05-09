@@ -112,18 +112,28 @@ void BatchNormKernel(const Context& dev_ctx,
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
   } else {
+    phi::DenseTensor tmp_running_mean, tmp_running_var;
+    tmp_running_mean.Resize(mean_out->dims());
+    tmp_running_var.Resize(variance_out->dims());
+
     if (FLAGS_npu_storage_format &&
         x_dims.size() == 4) {  // TODO(qili93): add 3D support
+      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &tmp_running_mean);
+      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &tmp_running_var);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, mean_out);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, variance_out);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, saved_mean);
       AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, saved_variance);
     } else {
+      dev_ctx.template Alloc<float>(&tmp_running_mean);
+      dev_ctx.template Alloc<float>(&tmp_running_var);
       dev_ctx.template Alloc<float>(mean_out);
       dev_ctx.template Alloc<float>(variance_out);
       dev_ctx.template Alloc<float>(saved_mean);
       dev_ctx.template Alloc<float>(saved_variance);
     }
+    TensorCopy(dev_ctx, running_mean, false, &tmp_running_mean);
+    TensorCopy(dev_ctx, running_var, false, &tmp_running_var);
 
     // BN3DTrainingReduce will throw output size mismatch if output tensor in
     // NCHW format should change output tensor format same with input tensor
@@ -179,8 +189,38 @@ void BatchNormKernel(const Context& dev_ctx,
         .AddOutput(*saved_mean)
         .AddOutput(*saved_variance)
         .AddAttrs({{"epsilon", static_cast<float>(epsilon)}})
-        .AddAttrs({{"factor", static_cast<float>(momentum)}})
+        .AddAttrs({{"factor", static_cast<float>(1 - momentum)}})
         .Run(stream);
+
+    // CANN mean_out/var_out and paddlepaddle-cpu mean_out/var_out are
+    // defferent.
+    const auto& mean_muls_runner =
+        NpuOpRunner("Muls",
+                    {tmp_running_mean},
+                    {*mean_out},
+                    {{"value", static_cast<float>(momentum)}});
+    mean_muls_runner.Run(stream);
+
+    const auto& mean_axpy_runner =
+        NpuOpRunner("Axpy",
+                    {*mean_out, *saved_mean},
+                    {*mean_out},
+                    {{"alpha", static_cast<float>(1 - momentum)}});
+    mean_axpy_runner.Run(stream);
+
+    const auto& var_muls_runner =
+        NpuOpRunner("Muls",
+                    {tmp_running_var},
+                    {*variance_out},
+                    {{"value", static_cast<float>(momentum)}});
+    var_muls_runner.Run(stream);
+
+    const auto& var_axpy_runner =
+        NpuOpRunner("Axpy",
+                    {*variance_out, *saved_variance},
+                    {*variance_out},
+                    {{"alpha", static_cast<float>(1 - momentum)}});
+    var_axpy_runner.Run(stream);
   }
 }
 
@@ -275,31 +315,30 @@ void BatchNormGradKernel(
   }
 
   auto stream = dev_ctx.stream();
-  if (d_scale && d_bias) {
-    if (FLAGS_npu_storage_format &&
-        x_dims.size() == 4) {  // TODO(qili93): add 3D support
-      AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_scale);
-      AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_bias);
-    } else {
-      dev_ctx.template Alloc<float>(d_scale);
-      dev_ctx.template Alloc<float>(d_bias);
-    }
 
-    const auto* running_mean = use_global_stats ? mean.get_ptr() : &saved_mean;
-    const auto* running_vstd =
-        use_global_stats ? variance.get_ptr() : &saved_variance;
-
-    NpuOpRunner runner_update;
-    runner_update.SetType(update_name)
-        .AddInput(dy_tensor)
-        .AddInput(x_tensor)
-        .AddInput(*running_mean)
-        .AddInput(*running_vstd)
-        .AddOutput(*d_scale)
-        .AddOutput(*d_bias)
-        .AddAttr("epsilon", epsilon)
-        .Run(stream);
+  if (FLAGS_npu_storage_format &&
+      x_dims.size() == 4) {  // TODO(qili93): add 3D support
+    AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_scale);
+    AllocNPUTensor<float>(dev_ctx, ACL_FORMAT_NC1HWC0, d_bias);
+  } else {
+    dev_ctx.template Alloc<float>(d_scale);
+    dev_ctx.template Alloc<float>(d_bias);
   }
+
+  const auto* running_mean = use_global_stats ? mean.get_ptr() : &saved_mean;
+  const auto* running_vstd =
+      use_global_stats ? variance.get_ptr() : &saved_variance;
+
+  NpuOpRunner runner_update;
+  runner_update.SetType(update_name)
+      .AddInput(dy_tensor)
+      .AddInput(x_tensor)
+      .AddInput(*running_mean)
+      .AddInput(*running_vstd)
+      .AddOutput(*d_scale)
+      .AddOutput(*d_bias)
+      .AddAttr("epsilon", epsilon)
+      .Run(stream);
 
   if (d_x) {
     if (FLAGS_npu_storage_format &&

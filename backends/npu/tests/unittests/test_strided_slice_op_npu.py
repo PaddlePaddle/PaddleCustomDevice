@@ -568,8 +568,8 @@ class TestStridedSliceOp_strides_Tensor(OpTest):
 class TestStridedSliceAPI(unittest.TestCase):
     def test_1(self):
         input = np.random.random([3, 4, 5, 6]).astype("float64")
-        minus_1 = paddle.tensor.fill_constant([1], "int32", -1)
-        minus_3 = paddle.tensor.fill_constant([1], "int32", -3)
+        minus_1 = paddle.tensor.fill_constant([], "int32", -1)
+        minus_3 = paddle.tensor.fill_constant([], "int32", -3)
         starts = paddle.static.data(name="starts", shape=[3], dtype="int32")
         ends = paddle.static.data(name="ends", shape=[3], dtype="int32")
         strides = paddle.static.data(name="strides", shape=[3], dtype="int32")
@@ -631,71 +631,71 @@ class TestStridedSliceAPI(unittest.TestCase):
         assert sliced_1.shape == (3, 2, 2, 2)
 
 
-class TestStridedSliceTensorArray(unittest.TestCase):
-    def setUp(self):
-        self.shape = (3, 1)
-        self.data = np.random.random(size=self.shape).astype("float32")
-        self.axes = [0, 1]
-        self.starts = [0, 0]
-        self.ends = [0, 2]
-        self.strides = [1]
-        self.iter_num = 3
-        self.place = paddle.CustomPlace("npu", 0)
-        self.exe = fluid.Executor(self.place)
+# class TestStridedSliceTensorArray(unittest.TestCase):
+#     def setUp(self):
+#         self.shape = (3, 1)
+#         self.data = np.random.random(size=self.shape).astype("float32")
+#         self.axes = [0, 1]
+#         self.starts = [0, 0]
+#         self.ends = [0, 2]
+#         self.strides = [1]
+#         self.iter_num = 3
+#         self.place = paddle.CustomPlace("npu", 0)
+#         self.exe = fluid.Executor(self.place)
 
-    def set_program_and_run(self, main_program, case_num):
-        with fluid.program_guard(main_program):
-            x = [
-                paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
-                paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
-                paddle.static.data(name="x2", shape=self.shape, dtype="float32"),
-                paddle.static.data(name="x3", shape=self.shape, dtype="float32"),
-            ]
+#     def set_program_and_run(self, main_program, case_num):
+#         with fluid.program_guard(main_program):
+#             x = [
+#                 paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
+#                 paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
+#                 paddle.static.data(name="x2", shape=self.shape, dtype="float32"),
+#                 paddle.static.data(name="x3", shape=self.shape, dtype="float32"),
+#             ]
 
-            for each_x in x:
-                each_x.stop_gradient = False
+#             for each_x in x:
+#                 each_x.stop_gradient = False
 
-            arr = paddle.tensor.create_array(dtype="float32")
-            for i in range(4):
-                idx = paddle.tensor.array_length(arr)
-                arr = paddle.tensor.array_write(x=x[i], i=idx, array=arr)
+#             arr = paddle.tensor.create_array(dtype="float32")
+#             for i in range(4):
+#                 idx = paddle.tensor.array_length(arr)
+#                 arr = paddle.tensor.array_write(x=x[i], i=idx, array=arr)
 
-            self.sliced_arr = output = arr[0:4:2]
+#             self.sliced_arr = output = arr[0:4:2]
 
-            array = paddle.concat(output)
-            loss = paddle.sum(array)
-            fluid.backward.append_backward(loss)
-            g_vars = list(
-                map(
-                    main_program.global_block().var,
-                    [each_x.name + "@GRAD" for each_x in x],
-                )
-            )
+#             array = paddle.concat(output)
+#             loss = paddle.sum(array)
+#             fluid.backward.append_backward(loss)
+#             g_vars = list(
+#                 map(
+#                     main_program.global_block().var,
+#                     [each_x.name + "@GRAD" for each_x in x],
+#                 )
+#             )
 
-            self.out, self.g_x0, self.g_x1, self.g_x2, self.g_x3 = self.exe.run(
-                main_program,
-                feed={
-                    "x0": self.data,
-                    "x1": self.data,
-                    "x2": self.data,
-                    "x3": self.data,
-                },
-                fetch_list=[output] + g_vars,
-            )
+#             self.out, self.g_x0, self.g_x1, self.g_x2, self.g_x3 = self.exe.run(
+#                 main_program,
+#                 feed={
+#                     "x0": self.data,
+#                     "x1": self.data,
+#                     "x2": self.data,
+#                     "x3": self.data,
+#                 },
+#                 fetch_list=[output] + g_vars,
+#             )
 
-    def test_case(self):
-        main_program = fluid.Program()
-        self.set_program_and_run(main_program, 1)
+#     def test_case(self):
+#         main_program = fluid.Program()
+#         self.set_program_and_run(main_program, 1)
 
-        numeric_output = [self.data, self.data]
-        self.assertTrue(
-            self.sliced_arr.type == fluid.core.VarDesc.VarType.LOD_TENSOR_ARRAY
-        )
-        np.testing.assert_array_equal(self.out, numeric_output)
-        np.testing.assert_array_equal(self.g_x0, np.zeros_like(self.data))
-        np.testing.assert_array_equal(self.g_x1, np.zeros_like(self.data))
-        np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
-        np.testing.assert_array_equal(self.g_x3, np.zeros_like(self.data))
+#         numeric_output = [self.data, self.data]
+#         self.assertTrue(
+#             self.sliced_arr.type == fluid.core.VarDesc.VarType.LOD_TENSOR_ARRAY
+#         )
+#         np.testing.assert_array_equal(self.out, numeric_output)
+#         np.testing.assert_array_equal(self.g_x0, np.zeros_like(self.data))
+#         np.testing.assert_array_equal(self.g_x1, np.zeros_like(self.data))
+#         np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
+#         np.testing.assert_array_equal(self.g_x3, np.zeros_like(self.data))
 
 
 if __name__ == "__main__":

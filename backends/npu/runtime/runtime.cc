@@ -676,20 +676,13 @@ C_Status ProfilerCollectData(C_Profiler prof,
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
-  if (params->size != sizeof(CustomRuntimeParams) &&
-      params->interface->size != sizeof(C_DeviceInterface)) {
-    return;
-  }
-
-  params->device_type = "npu";
-  params->sub_device_type = "Ascend910";
-  params->version.major = PADDLE_CUSTOM_RUNTIME_MAJOR_VERSION;
-  params->version.minor = PADDLE_CUSTOM_RUNTIME_MINOR_VERSION;
-  params->version.patch = PADDLE_CUSTOM_RUNTIME_PATCH_VERSION;
-
+  PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   memset(reinterpret_cast<void *>(params->interface),
          0,
          sizeof(C_DeviceInterface));
+
+  params->device_type = "npu";
+  params->sub_device_type = "Ascend910";
 
   params->interface->initialize = Init;
   params->interface->finalize = Finalize;

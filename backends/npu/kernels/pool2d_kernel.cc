@@ -359,13 +359,6 @@ void Pool2dGradKernel(const Context& dev_ctx,
                                      attrs);  // 0: floor, 1: ceil
     runner.Run(dev_ctx.stream());
   } else if (pooling_type == "avg") {
-    PADDLE_ENFORCE(strides[0] == strides[1],
-                   phi::errors::InvalidArgument(
-                       "AvgPoolGrad dose not support Asymmetric strides. but "
-                       "strides = (%d, %d)",
-                       strides[0],
-                       strides[1]));
-
     NpuOpRunner runner;
     runner.SetType("AvgPoolV2Grad");
     runner.AddInput(dev_ctx, phi::vectorize<int>(in_x.dims()));

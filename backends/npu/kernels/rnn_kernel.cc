@@ -301,8 +301,20 @@ void RnnKernel(const Context& dev_ctx,
   std::vector<int> SequenceLength(batch_size, seq_length);
   bool has_seq_length = sequence_length.is_initialized();
   if (has_seq_length) {
-    TensorToVector(
-        dev_ctx, *sequence_length.get_ptr(), dev_ctx, &SequenceLength);
+    if (sequence_length.get_ptr()->dtype() == phi::DataType::INT32) {
+      TensorToVector<int>(
+          dev_ctx, *sequence_length.get_ptr(), dev_ctx, &SequenceLength);
+    } else if (sequence_length.get_ptr()->dtype() == phi::DataType::INT64) {
+      std::vector<int64_t> SequenceLengthLong(batch_size, seq_length);
+      TensorToVector<int64_t>(
+          dev_ctx, *sequence_length.get_ptr(), dev_ctx, &SequenceLengthLong);
+      SequenceLength = std::vector<int>(SequenceLengthLong.begin(),
+                                        SequenceLengthLong.end());
+    } else {
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "The dtype of Tensor must be int32 or int64, but received: %s",
+          phi::TransToProtoVarType(sequence_length.get_ptr()->dtype())));
+    }
   }
 
   if (mode == "LSTM") {

@@ -218,7 +218,6 @@ void GreaterEqualKernel(const Context& dev_ctx,
                             bool,                           \
                             int16_t,                        \
                             int,                            \
-                            int64_t,                        \
                             float,                          \
                             phi::dtype::float16) {          \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \

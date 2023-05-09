@@ -732,6 +732,31 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x.grad.shape, [2, 3])
         self.assertEqual(out.grad.shape, [2])
 
+    def test_gather_nd(self):
+        x1 = paddle.to_tensor([1.0, 3.0, 5.0, 7.0, 9.0], stop_gradient=False)
+        x2 = paddle.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], stop_gradient=False)
+
+        index1 = paddle.full([1], 1, "int64")
+        index2 = paddle.full([2], 1, "int64")
+
+        out1 = paddle.gather_nd(x1, index1)
+        out2 = paddle.gather_nd(x2, index2)
+
+        out1.retain_grads()
+        out2.retain_grads()
+
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        np.testing.assert_array_equal(out1, np.array(3.0))
+        np.testing.assert_array_equal(out2, np.array(5.0))
+        self.assertEqual(x1.grad.shape, [5])
+        self.assertEqual(x2.grad.shape, [2, 3])
+        self.assertEqual(out1.grad.shape, [])
+        self.assertEqual(out2.grad.shape, [])
+
     def test_scatter_1D(self):
         # have no backward, not register
         x = paddle.to_tensor([1.0, 3.0, 5.0, 7.0, 9.0])
@@ -1040,6 +1065,31 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(x1.grad.numpy(), 0)
         self.assertEqual(x2.grad.numpy(), 0)
 
+    def test_unstack(self):
+        x1 = paddle.full([1], 0)
+        x2 = paddle.full([2], 2)
+        x1.retain_grads()
+        x2.retain_grads()
+        x1.stop_gradient = False
+        x2.stop_gradient = False
+
+        [out1] = paddle.unstack(x1, 0)
+        out1.retain_grads()
+        out1.backward()
+        [out2_1, out2_2] = paddle.unstack(x2, 0)
+        out2 = paddle.add_n([out2_1, out2_2])
+        out2.retain_grads()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out1.numpy(), 0)
+
+        self.assertEqual(out2_1.shape, [])
+        self.assertEqual(out2_1.numpy(), 2)
+        self.assertEqual(out2_2.shape, [])
+        self.assertEqual(out2_2.numpy(), 2)
+        self.assertEqual(x2.grad.shape, [2])
+
     def test_maseked_select(self):
         x = paddle.rand([])
         x.stop_gradient = False
@@ -1053,6 +1103,26 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(y.grad.shape, [1])
         self.assertEqual(x.grad.shape, [])
         self.assertEqual(x.grad.numpy(), 1)
+
+    def test_squeeze(self):
+        x1 = paddle.full([], 2)
+        x1.stop_gradient = False
+        x1.retain_grads()
+        out1 = paddle.squeeze(x1, axis=0)
+        out1.retain_grads()
+        out1.backward()
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(x1.grad.shape, [])
+
+        x2 = paddle.full([], 3)
+        x3 = paddle.full([1], 0, dtype="int32")
+        x2.stop_gradient = False
+        x2.retain_grads()
+        out2 = paddle.squeeze(x2, axis=x3)
+        out2.retain_grads()
+        out2.backward()
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(x2.grad.shape, [])
 
     def test_unsqueeze(self):
         x1 = paddle.full([], 2)
@@ -1082,6 +1152,188 @@ class TestSundryAPI(unittest.TestCase):
         self.assertEqual(out1.grad.shape, [])
         self.assertEqual(x1.grad.shape, [])
         self.assertEqual(x1.grad.numpy(), 1.0)
+
+    def test_cov(self):
+        xt = paddle.randn((3, 4))
+        xt.stop_gradient = False
+        xt_1 = paddle.randn((12,))
+        xt_1.stop_gradient = False
+
+        xt_out = paddle.linalg.cov(xt)
+        xt_out.retain_grads()
+        xt_out.backward()
+        self.assertEqual(xt_out.shape, [3, 3])
+        self.assertEqual(xt.grad.shape, [3, 4])
+
+        xt_1_out = paddle.linalg.cov(xt_1)
+        xt_1.retain_grads()
+        xt_1_out.backward()
+        self.assertEqual(xt_1_out.shape, [])
+        self.assertEqual(xt_1.grad.shape, [12])
+
+    def test_is_empty(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        # 2) x is 1D
+        x = paddle.rand([5])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        # 3) x is ND
+        x = paddle.rand([3, 5])
+        out = paddle.is_empty(x)
+        self.assertFalse(out)
+        self.assertEqual(out.shape, [])
+
+        x = paddle.rand([3, 0, 5])
+        out = paddle.is_empty(x)
+        self.assertTrue(out)
+        self.assertEqual(out.shape, [])
+
+    def test_squeeze_(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.squeeze_(0)
+        self.assertEqual(x.shape, [])
+
+        # 2) x is 1D
+        x = paddle.rand([1])
+        x.squeeze_(0)
+        self.assertEqual(x.shape, [])
+
+        # 3）x is ND
+        x = paddle.rand([2, 1])
+        x.squeeze_(1)
+        self.assertEqual(x.shape, [2])
+
+    def test_inner(self):
+        # 0) input is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        y = paddle.rand([])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 1) input is 1D
+        x = paddle.rand([2])
+        x.stop_gradient = False
+        y = paddle.rand([2])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 2) input is 2D
+        x = paddle.rand([2, 3])
+        x.stop_gradient = False
+        y = paddle.rand([3, 3])
+        y.stop_gradient = False
+        out = paddle.inner(x, y)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2, 3])
+        self.assertEqual(out.shape, [2, 3])
+        self.assertEqual(out.grad.shape, [2, 3])
+
+    def test_tensordot(self):
+
+        # 1) input is 1D
+        x = paddle.arange(10, dtype="float64")
+        x.stop_gradient = False
+        y = paddle.arange(10, dtype="float64")
+        y.stop_gradient = False
+        out = paddle.tensordot(x, y, axes=1)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [10])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+        # 2) input is 2D
+        x = paddle.arange(6, dtype="float64").reshape([2, 3])
+        y = paddle.arange(6, dtype="float64").reshape([2, 3])
+        x.stop_gradient = False
+        out = paddle.tensordot(x, y, axes=2)
+        out.retain_grads()
+        out.backward()
+
+        self.assertEqual(x.grad.shape, [2, 3])
+        self.assertEqual(out.shape, [])
+        self.assertEqual(out.grad.shape, [])
+
+    def test_metric_accuracy(self):
+        x = paddle.full(shape=[2, 4], fill_value=0.25)
+        y = paddle.full(shape=[2, 1], fill_value=1, dtype="int64")
+        out = paddle.metric.accuracy(input=x, label=y, k=1)
+        self.assertEqual(out.shape, [])
+
+    def test_std(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        out1 = paddle.std(x)
+        out2 = paddle.std(x, [])
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1, 0)
+        self.assertEqual(out2, 0)
+
+        self.assertEqual(x.grad.shape, [])
+
+        # 2) x is ND
+        x = paddle.rand([3, 5])
+        x.stop_gradient = False
+        out = paddle.std(x)
+        out.backward()
+
+        self.assertEqual(out.shape, [])
+        self.assertEqual(x.grad.shape, [3, 5])
+
+    def test_var(self):
+        # 1) x is 0D
+        x = paddle.rand([])
+        x.stop_gradient = False
+        out1 = paddle.var(x)
+        out2 = paddle.var(x, [])
+        out1.backward()
+        out2.backward()
+
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out2.shape, [])
+        self.assertEqual(out1, 0)
+        self.assertEqual(out2, 0)
+
+        self.assertEqual(x.grad.shape, [])
+        np.testing.assert_allclose(x.grad, 0)
+
+        # 2) x is ND
+        x = paddle.rand([3, 5])
+        x.stop_gradient = False
+        out = paddle.std(x)
+        out.backward()
+
+        self.assertEqual(out.shape, [])
+        self.assertEqual(x.grad.shape, [3, 5])
 
 
 # Use to test API whose zero-dim input tensors don't have grad and not need to test backward in OpTest.
@@ -1230,6 +1482,59 @@ class TestNoBackwardAPI(unittest.TestCase):
         one_hot_label = paddle.nn.functional.one_hot(label, num_classes=4)
         self.assertEqual(one_hot_label.shape, [4])
         self.assertEqual(one_hot_label.numpy()[2], 1)
+
+
+class TestLossAPI(unittest.TestCase):
+    def setUp(self):
+        paddle.disable_static()
+
+    def test_sigmoid_focal_loss(self):
+        logit = paddle.to_tensor(
+            [[0.97, 0.91, 0.03], [0.55, 0.43, 0.71]],
+            dtype="float32",
+            stop_gradient=False,
+        )
+        logit.retain_grads()
+        label = paddle.to_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype="float32")
+        fg_num_0 = paddle.full([], 2.0)
+        fg_num_1 = paddle.full([1], 2.0)
+
+        out0 = F.sigmoid_focal_loss(logit, label, normalizer=fg_num_0, reduction="sum")
+        out1 = F.sigmoid_focal_loss(logit, label, normalizer=fg_num_1, reduction="sum")
+        out0.retain_grads()
+
+        np.testing.assert_array_equal(
+            out0.numpy(),
+            out1.numpy(),
+        )
+
+        out0.backward()
+        self.assertEqual(out0.shape, [])
+        self.assertEqual(out1.shape, [])
+        self.assertEqual(out0.grad.shape, [])
+        self.assertEqual(logit.grad.shape, [2, 3])
+
+    def test_cross_entropy(self):
+        input = paddle.rand([3, 5])
+        input.stop_gradient = False
+        label = paddle.randint(0, 5, shape=[3])
+
+        loss = paddle.nn.functional.cross_entropy(input, label, reduction="sum")
+        loss.backward()
+
+        self.assertEqual(loss.shape, [])
+        self.assertEqual(input.grad.shape, [3, 5])
+
+    def test_l1_loss(self):
+        input = paddle.rand([3, 5])
+        input.stop_gradient = False
+        label = paddle.rand([3, 5])
+
+        loss = paddle.nn.functional.l1_loss(input, label, reduction="mean")
+        loss.backward()
+
+        self.assertEqual(loss.shape, [])
+        self.assertEqual(input.grad.shape, [3, 5])
 
 
 if __name__ == "__main__":

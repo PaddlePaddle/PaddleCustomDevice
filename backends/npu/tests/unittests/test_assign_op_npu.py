@@ -52,5 +52,10 @@ class TestAssignInt64(TestAssign):
         self.dtype = np.int64
 
 
+class TestAssignBool(TestAssign):
+    def init_dtype(self):
+        self.dtype = np.bool
+
+
 if __name__ == "__main__":
     unittest.main()

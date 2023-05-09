@@ -94,6 +94,11 @@ void DropoutRawKernel(const Context& dev_ctx,
     int seed1 = 0;
     int seed2 = 0;
     GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed1, &seed2);
+    phi::DenseTensor seed1_tensor, seed2_tensor;
+    custom_kernel::TensorFromVector<int32_t>(
+        dev_ctx, {seed1}, dev_ctx, &seed1_tensor);
+    custom_kernel::TensorFromVector<int32_t>(
+        dev_ctx, {seed2}, dev_ctx, &seed2_tensor);
 
     if (x.dtype() == phi::DataType::FLOAT64) {
       float keep_prob = static_cast<float>(1. - dropout_prob);
@@ -126,9 +131,8 @@ void DropoutRawKernel(const Context& dev_ctx,
       runner_gen_mask.SetType("StatelessDropOutGenMask")
           .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
           .AddInput(dev_ctx, std::vector<float>({keep_prob}))
-          .AddInput(dev_ctx, std::vector<int32_t>({seed1}))
-          .AddInput(dev_ctx, std::vector<int32_t>({seed2}))
-          .AddInput(dev_ctx, std::vector<int64_t>({0, 0}))
+          .AddInput(seed1_tensor)
+          .AddInput(seed2_tensor)
           .AddOutput(*mask);
       runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
       SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
@@ -179,9 +183,8 @@ void DropoutRawKernel(const Context& dev_ctx,
       runner_gen_mask.SetType("StatelessDropOutGenMask")
           .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
           .AddInput(dev_ctx, std::vector<float>({keep_prob}))
-          .AddInput(dev_ctx, std::vector<int32_t>({seed1}))
-          .AddInput(dev_ctx, std::vector<int32_t>({seed2}))
-          .AddInput(dev_ctx, std::vector<int64_t>({0, 0}))
+          .AddInput(seed1_tensor)
+          .AddInput(seed2_tensor)
           .AddOutput(*mask);
       runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
       SecondaryStream::Instance().RecordBefore(dev_ctx.stream());

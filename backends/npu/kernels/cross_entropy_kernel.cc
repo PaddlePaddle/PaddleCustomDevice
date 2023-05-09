@@ -57,8 +57,9 @@ void CrossEntropyCpuImpl(const T* logits,
         loss_out[i * num_remain + k] = 0;
         for (auto j = 0; j < axis_dim; ++j) {
           auto idx = i * num_classes + j * num_remain + k;
-          loss_out[i * num_remain + k] -=
-              labels[idx] * TolerableValue<T>(std::log(logits[idx]));
+          loss_out[i * num_remain + k] -= static_cast<T>(
+              static_cast<float>(labels[idx]) *
+              TolerableValue<float>(std::log(static_cast<float>(logits[idx]))));
         }
       }
     }
@@ -84,9 +85,10 @@ void CrossEntropyCpuImpl(const T* logits,
         }
         int index = i * num_classes + lbl * num_remain + j;
         int loss_idx = i * num_remain + j;
-        loss_out[loss_idx] = lbl == ignore_index
-                                 ? 0
-                                 : -TolerableValue<T>(std::log(logits[index]));
+        loss_out[loss_idx] = static_cast<T>(
+            lbl == ignore_index ? 0
+                                : -TolerableValue<float>(std::log(
+                                      static_cast<float>(logits[index]))));
       }
     }
   }
@@ -312,9 +314,9 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const Context& dev_ctx,
           for (auto k = 0; k < remain; ++k) {
             auto index = i * d + j * remain + k;
             auto l_index = i * remain + k;
-            cpu_logits_grad_data[index] = -label_data_vec[index] /
-                                          cpu_logits_grad_data[index] *
-                                          out_grad_vec[l_index];
+            cpu_logits_grad_data[index] =
+                -static_cast<T>(label_data_vec[index]) /
+                cpu_logits_grad_data[index] * out_grad_vec[l_index];
           }
         }
       }
@@ -332,11 +334,13 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const Context& dev_ctx,
             // only for this sample's label_idx, the label is 1, others is 0,
             // so, only compute this label_idx's class
             cpu_logits_grad_data[i * d + lbl * remain + j] =
-                (-1 / cpu_logits_grad_data[i * d + lbl * remain + j]) *
+                (static_cast<T>(-1) /
+                 cpu_logits_grad_data[i * d + lbl * remain + j]) *
                 out_grad_vec[idx];
             for (int k = 0; k < axis_dim; ++k) {  // for each class id's label
-              if (k != label_data_vec[idx]) {     // label_data_vec[idx]: this
-                                                  // sample's label
+              if (static_cast<LabelT>(k) !=
+                  label_data_vec[idx]) {  // label_data_vec[idx]: this
+                                          // sample's label
                 cpu_logits_grad_data[i * d + k * remain + j] = 0;
               }
             }
@@ -356,8 +360,8 @@ void CrossEntropyWithSoftmaxGradCPUKernel(const Context& dev_ctx,
           auto index = i * d + j * remain + k;
           auto l_index = i * remain + k;
           cpu_logits_grad_data[index] =
-              out_grad_vec[l_index] *
-              (cpu_logits_grad_data[index] - label_data_vec[index]);
+              out_grad_vec[l_index] * (cpu_logits_grad_data[index] -
+                                       static_cast<T>(label_data_vec[index]));
         }
       }
     }
@@ -589,10 +593,12 @@ PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::CrossEntropyWithSoftmaxKernel,
+                          phi::dtype::float16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::CrossEntropyWithSoftmaxGradKernel,
+                          phi::dtype::float16,
                           float) {}

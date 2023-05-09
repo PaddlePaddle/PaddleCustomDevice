@@ -29,17 +29,22 @@ void ScaleKernel(const Context& dev_ctx,
   float power = 1.0;
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
+  dev_ctx.template Alloc<T>(out);
   if (std::isinf(scale)) {
     if (std::signbit(scale)) {
-      scale = -std::numeric_limits<float>::max();
+      FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
     } else {
-      scale = std::numeric_limits<float>::max();
+      FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
     }
+    return;
+  } else if (std::isnan(scale)) {
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
+    return;
   }
+
   if (!bias_after_scale) {
     bias *= scale;
   }
-  dev_ctx.template Alloc<T>(out);
 
   NPUAttributeMap attrs = {{"power", power}, {"scale", scale}, {"shift", bias}};
 

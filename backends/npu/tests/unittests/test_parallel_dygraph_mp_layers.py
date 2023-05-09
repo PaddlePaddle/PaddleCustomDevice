@@ -81,6 +81,8 @@ def start_local_trainers(
             "PADDLE_CURRENT_ENDPOINT": "%s" % t.endpoint,
             "PADDLE_TRAINERS_NUM": "%d" % cluster.trainers_nranks(),
             "PADDLE_TRAINER_ENDPOINTS": ",".join(cluster.trainers_endpoints()),
+            # NPU only supports sync p2p.
+            "PADDLE_P2P_SYNC_SEND": "1",
         }
 
         proc_env["FLAGS_allocator_strategy"] = allocator_strategy
@@ -127,7 +129,7 @@ class TestMultipleCustomDevices(unittest.TestCase):
         if dev_cnt < 2:
             return
 
-        selected_gpus = get_gpus("0,1")
+        selected_gpus = get_gpus(os.getenv(f"FLAGS_selected_{device_type}s", "0,1"))
         cluster = None
         pod = None
 

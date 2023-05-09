@@ -30,18 +30,10 @@ void ScaleKernel(const Context& dev_ctx,
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
   dev_ctx.template Alloc<T>(out);
-  if (std::isinf(scale)) {
-    if (std::signbit(scale)) {
-      FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    } else {
-      FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    }
-    return;
-  } else if (std::isnan(scale)) {
+  if (std::isinf(scale) || std::isnan(scale)) {
     FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
     return;
   }
-
   if (!bias_after_scale) {
     bias *= scale;
   }

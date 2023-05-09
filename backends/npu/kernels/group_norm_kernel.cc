@@ -197,7 +197,7 @@ void GroupNormKernel(const Context& dev_ctx,
     xnorm.Resize({x.dims()[0], x.dims()[2], x.dims()[1]});
     Transpose<Context>(dev_ctx, &x, &xnorm, std::vector<int>{0, 2, 1});
   } else {
-    TensorCopy(dev_ctx, x, false, &xnorm, phi::CustomPlace());
+    TensorCopy(dev_ctx, x, false, &xnorm, dev_ctx.GetPlace());
   }
   auto N = xnorm.dims()[0];
   auto C = xnorm.dims()[1];

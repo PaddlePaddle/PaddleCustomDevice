@@ -120,6 +120,12 @@ void Pool2dKernel(const Context& dev_ctx,
     strides_vec[2] = strides[0];
     strides_vec[3] = strides[1];
   }
+
+  if (data_dims[0] == 1 && data_dims[1] == 1) {
+    TensorCopy(dev_ctx, in_x, false, out);
+    return;
+  }
+
   UpdatePadding(&paddings,
                 global_pooling,
                 adaptive,
@@ -283,6 +289,10 @@ void Pool2dGradKernel(const Context& dev_ctx,
     ksize_vec[3] = ksize[1];
     strides_vec[2] = strides[0];
     strides_vec[3] = strides[1];
+  }
+  if (data_dims[0] == 1 && data_dims[1] == 1) {
+    TensorCopy(dev_ctx, out_grad, false, in_x_grad);
+    return;
   }
   UpdatePadding(&paddings,
                 global_pooling,

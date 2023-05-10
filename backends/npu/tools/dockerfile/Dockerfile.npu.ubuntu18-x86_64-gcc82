@@ -60,6 +60,8 @@ ENV ASCEND_GLOBAL_LOG_LEVEL=3
 ENV HCCL_CONNECT_TIMEOUT=7200
 ENV HCCL_WHITELIST_DISABLE=1
 ENV HCCL_SECURITY_MODE=1
+# npu do not support asynchronized send/receive, so use synchronized p2p.
+ENV PADDLE_P2P_SYNC_SEND=1
 
 # environment for PaddlePaddle
 ENV FLAGS_npu_storage_format=1

@@ -17,7 +17,7 @@
 
 namespace custom_kernel {
 
-inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
+inline phi::DDim GetUnsqueezeShape(const std::vector<int64_t> unsqz_dims,
                                    const phi::DDim& in_dims) {
   int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
   int cur_output_size = in_dims.size();
@@ -74,13 +74,9 @@ void UnsqueezeInferKernel(const Context& dev_ctx,
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
-  std::vector<int32_t> tmp;
-  tmp.reserve(axes.GetData().size());
-  std::for_each(axes.GetData().begin(),
-                axes.GetData().end(),
-                [&tmp](const int64_t& t) { tmp.push_back(t); });
-  out_dims = GetUnsqueezeShape(tmp, x_dims);
-
+  if (axes.FromTensor()) {
+    out_dims = GetUnsqueezeShape(axes.GetData(), x_dims);
+  }
   out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
   custom_kernel::TensorCopy(dev_ctx, x, false, out);

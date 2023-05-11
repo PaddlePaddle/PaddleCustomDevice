@@ -61,9 +61,27 @@ void NotEqualRawKernel(const Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("NotEqual", {x, y}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("NotEqual", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else {
+    const auto& runner = NpuOpRunner("NotEqual", {x, y}, {*out}, {});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -81,10 +99,27 @@ void LessEqualRawKernel(const Context& dev_ctx,
                         int axis,
                         phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  auto stream = dev_ctx.stream();
-
-  const auto& runner = NpuOpRunner("LessEqual", {x, y}, {*out}, {});
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("LessEqual", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else {
+    auto stream = dev_ctx.stream();
+    const auto& runner = NpuOpRunner("LessEqual", {x, y}, {*out}, {});
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -102,9 +137,27 @@ void LessThanRawKernel(const Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("Less", {x, y}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("Less", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else {
+    const auto& runner = NpuOpRunner("Less", {x, y}, {*out}, {});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -122,9 +175,27 @@ void GreaterEqualRawKernel(const Context& dev_ctx,
                            int axis,
                            phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("GreaterEqual", {x, y}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("GreaterEqual", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else {
+    const auto& runner = NpuOpRunner("GreaterEqual", {x, y}, {*out}, {});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -142,9 +213,27 @@ void GreaterThanRawKernel(const Context& dev_ctx,
                           int axis,
                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  const auto& runner = NpuOpRunner("Greater", {x, y}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("Greater", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else {
+    const auto& runner = NpuOpRunner("Greater", {x, y}, {*out}, {});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -157,145 +246,37 @@ void GreaterThanKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::EqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
+#define PD_REGISTER_COMPARE_KERNEL(name, func)              \
+  PD_REGISTER_PLUGIN_KERNEL(name,                           \
+                            npu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##Kernel,    \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16,            \
+                            double) {                       \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }                                                         \
+  PD_REGISTER_PLUGIN_KERNEL(name##_raw,                     \
+                            npu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##RawKernel, \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16,            \
+                            double) {                       \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }
 
-PD_REGISTER_PLUGIN_KERNEL(equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::EqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(not_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::NotEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(not_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::NotEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_than,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_than_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::LessThanRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_equal,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_equal_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterEqualRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_than,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
-PD_REGISTER_PLUGIN_KERNEL(greater_than_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterThanRawKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          int64_t,
-                          float,
-                          phi::dtype::float16,
-                          double) {}
+PD_REGISTER_COMPARE_KERNEL(less_than, LessThan)
+PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)
+PD_REGISTER_COMPARE_KERNEL(equal, Equal)
+PD_REGISTER_COMPARE_KERNEL(not_equal, NotEqual)

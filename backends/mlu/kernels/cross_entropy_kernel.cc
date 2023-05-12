@@ -373,10 +373,11 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   const int n = custom_kernel::SizeToAxis(use_axis, logits_grad_dims);
   VLOG(5) << "[CrossEntropyGrad] rank: " << rank << " use_axis: " << use_axis
           << " axis_dim: " << axis_dim << " n: " << n;
-  if ((!soft_label && labels.numel() == n && ignore_index == -1) ||
+  if ((!soft_label && labels.numel() == n &&
+       (ignore_index == -1 || ignore_index == 255)) ||
       soft_label) {
     phi::DenseTensor last_labels;
-    if (!soft_label && labels.numel() == n && ignore_index == -1) {
+    if (!soft_label) {
       // hard label: last_labels = onehot(labels), onehot only supports
       // dtype-int32
       int cls_num = softmax.dims()[softmax.dims().size() - 1];

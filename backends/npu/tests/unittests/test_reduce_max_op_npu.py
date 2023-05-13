@@ -103,7 +103,7 @@ class TestReduceMaxOpWithOutDtype_bool(TestNPUReduceMaxOp):
         }
 
     def init_dtype(self):
-        self.dtype = np.bool
+        self.dtype = np.bool_
 
 
 @skip_check_grad_ci(

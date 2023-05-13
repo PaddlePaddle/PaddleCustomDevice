@@ -84,7 +84,7 @@ class TestReduceSum2(OpTest):
 
 class TestReduceSum3(OpTest):
     def init_dtype(self):
-        self.dtype = np.bool
+        self.dtype = np.bool_
 
 
 class TestReduceSumNet(unittest.TestCase):

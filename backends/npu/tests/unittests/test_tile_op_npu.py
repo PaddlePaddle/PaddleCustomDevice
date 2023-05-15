@@ -89,6 +89,24 @@ class TestTileOpRank4(TestTileOpRank1):
         self.repeat_times = (3, 2, 1, 2)
 
 
+class TestTileOpRank_ZeroDim1(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = []
+
+
+class TestTileOpRank_ZeroDim2(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = [2]
+
+
+class TestTileOpRank_ZeroDim3(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = [2, 3]
+
+
 # Situation 2: repeat_times is a list (with tensor)
 class TestTileOpRank1_tensor_attr(OpTest):
     def setUp(self):

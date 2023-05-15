@@ -101,7 +101,8 @@ void AddGradKernel(const Context& dev_ctx,
 
   if (dx) {
     if (dout.storage_properties_initialized()) {
-      auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+      auto npu_properties =
+          dout.storage_properties<phi::NPUStorageProperties>();
       int64_t storage_format = npu_properties.storage_format;
       AllocNPUTensor<T>(dev_ctx, aclFormat(storage_format), dx);
     } else {
@@ -139,7 +140,8 @@ void AddGradKernel(const Context& dev_ctx,
   }
   if (dy) {
     if (dout.storage_properties_initialized()) {
-      auto npu_properties = y.storage_properties<phi::NPUStorageProperties>();
+      auto npu_properties =
+          dout.storage_properties<phi::NPUStorageProperties>();
       int64_t storage_format = npu_properties.storage_format;
       AllocNPUTensor<T>(dev_ctx, aclFormat(storage_format), dy);
     } else {

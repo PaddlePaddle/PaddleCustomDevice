@@ -84,6 +84,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           custom_kernel::GatherKernel,
                           float,
                           double,
+                          int32_t,
                           int64_t,
                           phi::dtype::float16) {}
 
@@ -93,5 +94,6 @@ PD_REGISTER_PLUGIN_KERNEL(gather_grad,
                           custom_kernel::GatherGradKernel,
                           float,
                           double,
+                          int32_t,
                           int64_t,
                           phi::dtype::float16) {}

@@ -200,27 +200,37 @@ void BatchNormKernel(const Context& dev_ctx,
                     {*mean_out},
                     {{"value", static_cast<float>(momentum)}});
     mean_muls_runner.Run(stream);
-
     const auto& mean_axpy_runner =
         NpuOpRunner("Axpy",
                     {*mean_out, *saved_mean},
                     {*mean_out},
                     {{"alpha", static_cast<float>(1 - momentum)}});
     mean_axpy_runner.Run(stream);
-
     const auto& var_muls_runner =
         NpuOpRunner("Muls",
                     {tmp_running_var},
                     {*variance_out},
                     {{"value", static_cast<float>(momentum)}});
     var_muls_runner.Run(stream);
-
     const auto& var_axpy_runner =
         NpuOpRunner("Axpy",
                     {*variance_out, *saved_variance},
                     {*variance_out},
                     {{"alpha", static_cast<float>(1 - momentum)}});
     var_axpy_runner.Run(stream);
+
+    const auto& adds_runner =
+        NpuOpRunner("Adds",
+                    {*saved_variance},
+                    {*saved_variance},
+                    {{"value", static_cast<float>(epsilon)}});
+    adds_runner.Run(stream);
+    const auto& inv_runner =
+        NpuOpRunner("Inv", {*saved_variance}, {*saved_variance}, {});
+    inv_runner.Run(stream);
+    const auto& sqrt_ruuner =
+        NpuOpRunner("Sqrt", {*saved_variance}, {*saved_variance}, {});
+    sqrt_ruuner.Run(stream);
   }
 }
 
@@ -326,8 +336,21 @@ void BatchNormGradKernel(
   }
 
   const auto* running_mean = use_global_stats ? mean.get_ptr() : &saved_mean;
-  const auto* running_vstd =
-      use_global_stats ? variance.get_ptr() : &saved_variance;
+  phi::DenseTensor running_invstd;
+  auto* running_vstd = use_global_stats ? variance.get_ptr() : &running_invstd;
+  if (!use_global_stats) {
+    running_invstd.Resize(saved_variance.dims());
+    dev_ctx.template Alloc<float>(&running_invstd);
+    const auto& square_runner = NpuOpRunner(
+        "Square",
+        {*(use_global_stats ? variance.get_ptr() : &saved_variance)},
+        {running_invstd},
+        {});
+    square_runner.Run(stream);
+    const auto& inv_runner =
+        NpuOpRunner("Inv", {running_invstd}, {running_invstd}, {});
+    inv_runner.Run(stream);
+  }
 
   NpuOpRunner runner_update;
   runner_update.SetType(update_name)
@@ -364,26 +387,17 @@ void BatchNormGradKernel(
       }
     }
 
-    if (use_global_stats) {
-      const auto* running_vstd = variance.get_ptr();
-      const auto& runner_infer = NpuOpRunner("BNInferGrad",
-                                             {dy_tensor, scale, *running_vstd},
-                                             {dx_tensor},
-                                             {{"epsilon", epsilon}});
-      runner_infer.Run(stream);
-    } else {
-      const auto& runner_reduce = NpuOpRunner(reduce_name,
-                                              {dy_tensor,
-                                               x_tensor,
-                                               *d_scale,
-                                               *d_bias,
-                                               scale,
-                                               saved_mean,
-                                               saved_variance},
-                                              {dx_tensor},
-                                              {{"epsilon", epsilon}});
-      runner_reduce.Run(stream);
-    }
+    const auto& runner_reduce = NpuOpRunner(reduce_name,
+                                            {dy_tensor,
+                                             x_tensor,
+                                             *d_scale,
+                                             *d_bias,
+                                             scale,
+                                             *running_mean,
+                                             *running_vstd},
+                                            {dx_tensor},
+                                            {{"epsilon", epsilon}});
+    runner_reduce.Run(stream);
   }
 }
 

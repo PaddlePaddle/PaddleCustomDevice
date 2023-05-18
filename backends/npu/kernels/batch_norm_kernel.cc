@@ -387,14 +387,6 @@ void BatchNormGradKernel(
       }
     }
 
-    // if (use_global_stats) {
-    //   const auto* running_vstd = variance.get_ptr();
-    //   const auto& runner_infer = NpuOpRunner("BNInferGrad",
-    //                                          {dy_tensor, scale,
-    //                                          *running_vstd}, {dx_tensor},
-    //                                          {{"epsilon", epsilon}});
-    //   runner_infer.Run(stream);
-    // } else {
     const auto& runner_reduce = NpuOpRunner(reduce_name,
                                             {dy_tensor,
                                              x_tensor,
@@ -406,7 +398,6 @@ void BatchNormGradKernel(
                                             {dx_tensor},
                                             {{"epsilon", epsilon}});
     runner_reduce.Run(stream);
-    // }
   }
 }
 

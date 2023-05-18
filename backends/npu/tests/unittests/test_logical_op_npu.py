@@ -16,8 +16,9 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
+
 import paddle
-import paddle.fluid as fluid
+from paddle.static import Executor, Program, program_guard
 
 SUPPORTED_DTYPES = [bool]
 
@@ -51,13 +52,13 @@ TEST_META_WRONG_SHAPE_DATA = {
 
 def run_static(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
     paddle.enable_static()
-    startup_program = fluid.Program()
-    main_program = fluid.Program()
+    startup_program = Program()
+    main_program = Program()
     place = paddle.CPUPlace()
     if use_custom_device:
         place = paddle.CustomPlace("npu", 0)
-    exe = fluid.Executor(place)
-    with fluid.program_guard(main_program, startup_program):
+    exe = Executor(place)
+    with program_guard(main_program, startup_program):
         x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
         op = getattr(paddle, op_str)
         feed_list = {"x": x_np}
@@ -136,11 +137,11 @@ def test_type_error(unit_test, use_custom_device, type_str_map):
         if binary_op:
             if type_str_map["x"] != type_str_map["y"]:
                 unit_test.assertRaises(error_type, op, x=x, y=y)
-            if not fluid._non_static_mode():
+            if not paddle.in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, y=y, out=1)
         else:
-            if not fluid._non_static_mode():
+            if not paddle.in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, out=1)
 

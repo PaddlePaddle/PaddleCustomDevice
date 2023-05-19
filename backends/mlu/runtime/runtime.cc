@@ -324,7 +324,8 @@ C_Status XcclCommInitRank(size_t nranks,
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&dev_id));
   int dev_list[] = {dev_id};
   int rank_list[] = {rank};
-  VLOG(4) << "[CNCL] create comm.";
+  VLOG(4) << "[CNCL] create comm with rank: " << rank << " clique: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclInitComms(reinterpret_cast<cnclComm_t *>(comm),
                     1,
@@ -332,9 +333,7 @@ C_Status XcclCommInitRank(size_t nranks,
                     rank_list,
                     nranks,
                     reinterpret_cast<cnclCliqueId *>(unique_id->data)));
-  VLOG(4) << "[CNCL] comm inited: " << reinterpret_cast<cnclComm_t>(*comm)
-          << " clique: "
-          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
+  VLOG(4) << "[CNCL] comm inited: " << reinterpret_cast<cnclComm_t>(*comm);
   return C_SUCCESS;
 }
 

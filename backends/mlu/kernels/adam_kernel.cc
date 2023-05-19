@@ -231,29 +231,23 @@ void AdamWKernel(const Context& dev_ctx,
   VLOG(3) << "Skip update" << skip_update_ << ", With decay: " << with_decay;
 
   if (!skip_update_ && with_decay) {
-    if (master_param.is_initialized()) {
-      PADDLE_THROW(
-          phi::errors::Unimplemented("Master Param is not supported on MLU"));
-    } else {
-      // update param with decay coeff: mul(-1 * lr, coeff * param) + param
-      MLUCnnlTensorDesc lr_desc(learning_rate);
-      MLUCnnlTensorDesc param_desc(param);
-      MLUCnnlOpTensorDesc mul_op_desc(
-          CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+    MLUCnnlTensorDesc lr_desc(learning_rate);
+    MLUCnnlTensorDesc param_desc(param);
+    MLUCnnlOpTensorDesc mul_op_desc(
+        CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
 
-      MLUCnnl::OpTensor(dev_ctx,
-                        mul_op_desc.get(),
-                        lr_desc.get(),
-                        GetBasePtr(&learning_rate),
-                        param_desc.get(),
-                        GetBasePtr(&param),
-                        param_desc.get(),
-                        const_cast<void*>(GetBasePtr(&param)),
-                        ToCnnlDataType<T>(),
-                        /*alpha1*/ -1.f,
-                        /*alpha2*/ coeff,
-                        /*beta*/ 1.f);
-    }
+    MLUCnnl::OpTensor(dev_ctx,
+                      mul_op_desc.get(),
+                      lr_desc.get(),
+                      GetBasePtr(&learning_rate),
+                      param_desc.get(),
+                      GetBasePtr(&param),
+                      param_desc.get(),
+                      const_cast<void*>(GetBasePtr(&param)),
+                      ToCnnlDataType<T>(),
+                      /*alpha1*/ -1.f,
+                      /*alpha2*/ coeff,
+                      /*beta*/ 1.f);
   }
 
   custom_kernel::AdamKernel<T, Context>(dev_ctx,

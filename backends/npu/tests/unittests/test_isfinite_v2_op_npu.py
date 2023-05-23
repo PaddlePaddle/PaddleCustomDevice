@@ -20,7 +20,7 @@ import paddle
 from paddle import fluid
 
 
-def run_static(x_np, dtype, op_str, use_gpu=False):
+def run_static(x_np, dtype, op_str):
     paddle.enable_static()
     startup_program = fluid.Program()
     main_program = fluid.Program()
@@ -34,7 +34,7 @@ def run_static(x_np, dtype, op_str, use_gpu=False):
     return static_result
 
 
-def run_dygraph(x_np, op_str, use_gpu=True):
+def run_dygraph(x_np, op_str):
     place = paddle.CustomPlace("npu", 0)
     paddle.disable_static(place)
     x = paddle.to_tensor(x_np)
@@ -42,10 +42,8 @@ def run_dygraph(x_np, op_str, use_gpu=True):
     return dygraph_result
 
 
-def run_eager(x_np, op_str, use_gpu=True):
-    with paddle.fluid.dygraph.guard():
-        place = paddle.CustomPlace("npu", 0)
-
+def run_eager(x_np, op_str):
+    with paddle.fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
         x = paddle.to_tensor(x_np)
         dygraph_result = getattr(paddle.tensor, op_str)(x)
         return dygraph_result
@@ -104,14 +102,14 @@ TEST_META_DATA = [
 ]
 
 
-def test(test_case, op_str, use_gpu=False):
+def test(test_case, op_str):
     for meta_data in TEST_META_DATA:
         meta_data = dict(meta_data)
         meta_data["op_str"] = op_str
         x_np, result_np = np_data_generator(**meta_data)
-        static_result = run_static(x_np, meta_data["type"], op_str, use_gpu)
-        dygraph_result = run_dygraph(x_np, op_str, use_gpu)
-        eager_result = run_eager(x_np, op_str, use_gpu)
+        static_result = run_static(x_np, meta_data["type"], op_str)
+        dygraph_result = run_dygraph(x_np, op_str)
+        eager_result = run_eager(x_np, op_str)
         test_case.assertTrue((static_result == result_np).all())
         test_case.assertTrue((dygraph_result.numpy() == result_np).all())
         test_case.assertTrue((eager_result.numpy() == result_np).all())

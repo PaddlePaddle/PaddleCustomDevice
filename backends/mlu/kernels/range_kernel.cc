@@ -89,8 +89,4 @@ PD_REGISTER_PLUGIN_KERNEL(arange,
                           int,
                           int64_t,
                           float,
-                          double) {
-  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
-  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
-  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
-}
+                          double) {}

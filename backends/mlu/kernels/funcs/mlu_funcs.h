@@ -57,34 +57,35 @@ inline void TensorCopy(const Context& dev_ctx,
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
   auto size = src.numel() * phi::SizeOf(src.dtype());
-  if (UNLIKELY(size) == 0) {
-    return;
-  }
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
-    if (blocking) dev_ctx.Wait();
-    AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+    if (blocking) {
+      MemCpyH2D(nullptr, dst_ptr, src_ptr, size);
+    } else {
+      AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+    }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
-    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
-    if (blocking) dev_ctx.Wait();
+    if (blocking) {
+      MemCpyD2H(nullptr, dst_ptr, src_ptr, size);
+    } else {
+      AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
+    }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CUSTOM) {
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
-        AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
-        if (blocking) dev_ctx.Wait();
+        if (blocking) {
+          MemCpyD2D(nullptr, dst_ptr, src_ptr, size);
+        } else {
+          AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
+        }
       } else {
-        PADDLE_THROW(
-            phi::errors::Unimplemented("TensorCopy is not supported."));
       }
     } else {
-      PADDLE_THROW(phi::errors::Unimplemented("TensorCopy is not supported."));
     }
-  } else if (src_place.GetType() == phi::AllocationType::CPU &&
-             dst_place_.GetType() == phi::AllocationType::CPU) {
-    std::memcpy(dst_ptr, src_ptr, size);
+  } else {
   }
 }
 

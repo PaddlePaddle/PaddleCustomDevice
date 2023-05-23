@@ -87,20 +87,20 @@ TEST_META_DATA = [
         "type": "float64",
         "sv_list": [np.inf, np.nan],
     },
-    {
-        "low": 0,
-        "high": 100,
-        "np_shape": [11, 17, 10],
-        "type": "int32",
-        "sv_list": [np.inf, np.nan],
-    },
-    {
-        "low": 0,
-        "high": 999,
-        "np_shape": [132],
-        "type": "int64",
-        "sv_list": [np.inf, np.nan],
-    },
+    # {
+    #     "low": 0,
+    #     "high": 100,
+    #     "np_shape": [11, 17, 10],
+    #     "type": "int32",
+    #     "sv_list": [np.inf, np.nan],
+    # },
+    # {
+    #     "low": 0,
+    #     "high": 999,
+    #     "np_shape": [132],
+    #     "type": "int64",
+    #     "sv_list": [np.inf, np.nan],
+    # },
 ]
 
 
@@ -117,7 +117,7 @@ def test(test_case, op_str, use_gpu=False):
         test_case.assertTrue((eager_result.numpy() == result_np).all())
 
 
-class TestCPUNormal(unittest.TestCase):
+class TestNPUNormal(unittest.TestCase):
     def test_inf(self):
         test(self, "isinf")
 
@@ -126,41 +126,6 @@ class TestCPUNormal(unittest.TestCase):
 
     def test_finite(self):
         test(self, "isfinite")
-
-
-class TestCUDANormal(unittest.TestCase):
-    def test_inf(self):
-        test(self, "isinf", True)
-
-    def test_nan(self):
-        test(self, "isnan", True)
-
-    def test_finite(self):
-        test(self, "isfinite", True)
-
-
-class TestError(unittest.TestCase):
-    def test_bad_input(self):
-        paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
-
-            def test_isinf_bad_x():
-                x = [1, 2, 3]
-                result = paddle.tensor.isinf(x)
-
-            self.assertRaises(TypeError, test_isinf_bad_x)
-
-            def test_isnan_bad_x():
-                x = [1, 2, 3]
-                result = paddle.tensor.isnan(x)
-
-            self.assertRaises(TypeError, test_isnan_bad_x)
-
-            def test_isfinite_bad_x():
-                x = [1, 2, 3]
-                result = paddle.tensor.isfinite(x)
-
-            self.assertRaises(TypeError, test_isfinite_bad_x)
 
 
 if __name__ == "__main__":

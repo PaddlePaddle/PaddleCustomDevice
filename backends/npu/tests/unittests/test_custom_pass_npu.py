@@ -60,6 +60,7 @@ class TestCustomPass(unittest.TestCase):
         config = paddle.inference.Config()
         config.set_prog_file(MODLE_FILE + ".pdmodel")
         config.enable_memory_optim()
+        config.enable_custom_device("npu")
         pass_builder = config.pass_builder()
         pass_builder.append_pass("generate_add_n")
         print(pass_builder.all_passes())

@@ -42,6 +42,12 @@ if(WITH_KERNELS)
     RELATIVE ${CMAKE_SOURCE_DIR}
     kernels/*.cc)
   list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
+
+  file(
+    GLOB_RECURSE CUSTOM_CUSTOM_OP_SRCS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    custom_op/*.cc)
+  list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 endif()
 
 # C++ infer lib need to compatiable with CXX11

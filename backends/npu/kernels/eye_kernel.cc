@@ -28,15 +28,30 @@ void EyeKernel(const Context& dev_ctx,
   auto num_rows = rows.to<int64_t>();
   if (num_columns == -1) num_columns = num_rows;
 
-  NPUAttributeMap attr_input = {{"num_rows", num_rows},
-                                {"num_columns", num_columns},
-                                {"dtype", npu_dtype}};
-
   dev_ctx.template Alloc<T>(out);
-
-  const auto& runner = NpuOpRunner("Eye", {}, {*out}, attr_input);
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  if (out->dtype() == phi::DataType::INT64 ||
+      out->dtype() == phi::DataType::FLOAT64) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("Eye", {}, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {
+        {"num_rows", num_rows},
+        {"num_columns", num_columns},
+        {"dtype", ConvertToNpuDtype(phi::DataType::FLOAT32)}};
+    NpuOpRunner::TypeAdapter(
+        {}, {*out}, attr_input, dev_ctx, op_func, {}, {phi::DataType::FLOAT32});
+  } else {
+    NPUAttributeMap attr_input = {{"num_rows", num_rows},
+                                  {"num_columns", num_columns},
+                                  {"dtype", npu_dtype}};
+    const auto& runner = NpuOpRunner("Eye", {}, {*out}, attr_input);
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel

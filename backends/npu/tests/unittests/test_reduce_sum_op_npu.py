@@ -77,12 +77,12 @@ class TestReduceSum(OpTest):
     #
 
 
-class TestReduceSum2(OpTest):
+class TestReduceSum2(TestReduceSum):
     def init_dtype(self):
         self.dtype = np.int32
 
 
-class TestReduceSum3(OpTest):
+class TestReduceSum3(TestReduceSum):
     def init_dtype(self):
         self.dtype = np.bool_
 

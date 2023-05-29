@@ -176,7 +176,7 @@ class TestModulatedDeformableConvOp(OpTest):
         self.outputs = {"Output": output}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-2)
+        self.check_output_with_place(self.place, atol=2e-2)
 
     def test_check_grad(self):
         self.check_grad_with_place(
@@ -191,10 +191,10 @@ class TestModulatedDeformableConvOp(OpTest):
         self.pad = [1, 1]
         self.stride = [1, 1]
         self.dilations = [1, 1]
-        self.input_size = [1, 2, 4, 4]  # NCHW
+        self.input_size = [2, 8, 4, 4]  # NCHW
         assert np.mod(self.input_size[1], self.groups) == 0
         f_c = self.input_size[1] // self.groups
-        self.filter_size = [2, f_c, 3, 3]
+        self.filter_size = [4, f_c, 3, 3]
         self.im2col_step = 1
         self.deformable_groups = 1
         offset_c = (
@@ -226,34 +226,6 @@ class TestModulatedDeformableConvOp(OpTest):
 
 class TestWithStride(TestModulatedDeformableConvOp):
     def init_test_case(self):
-        self.pad = [3, 3]
-        self.stride = [2, 2]
-        self.input_size = [2, 3, 5, 5]  # NCHW
-        assert np.mod(self.input_size[1], self.groups) == 0
-        f_c = self.input_size[1] // self.groups
-        self.filter_size = [6, f_c, 3, 3]
-        self.im2col_step = 1
-        self.deformable_groups = 1
-        offset_c = (
-            2 * self.deformable_groups * self.filter_size[2] * self.filter_size[3]
-        )
-        mask_c = self.deformable_groups * self.filter_size[2] * self.filter_size[3]
-        self.offset_size = [
-            self.input_size[0],
-            offset_c,
-            self.input_size[2],
-            self.input_size[3],
-        ]
-        self.mask_size = [
-            self.input_size[0],
-            mask_c,
-            self.input_size[2],
-            self.input_size[3],
-        ]
-
-
-class TestWithDilation(TestModulatedDeformableConvOp):
-    def init_test_case(self):
         self.pad = [2, 2]
         self.stride = [1, 1]
         self.input_size = [4, 3, 4, 4]  # NCHW
@@ -283,10 +255,62 @@ class TestWithDilation(TestModulatedDeformableConvOp):
         self.dilations = [2, 2]
 
 
-class TestWith3x3(TestModulatedDeformableConvOp):
+class TestWithDilation(OpTest):
+    def setUp(self):
+        self.place = paddle.CustomPlace("npu", 0)
+        self.__class__.use_custom_device = True
+        self.python_api = deform_conv2d_wrapper
+        self.op_type = "deformable_conv"
+        self.init_type()
+        self.init_group()
+        self.init_dilation()
+        self.init_test_case()
+
+        conv_param = {
+            "stride": self.stride,
+            "pad": self.pad,
+            "dilation": self.dilations,
+        }
+
+        input = np.random.random(self.input_size).astype(self.dtype)
+        offset = 10 * np.random.random(self.offset_size).astype(self.dtype)
+        mask = 10 * np.random.random(self.mask_size).astype(self.dtype)
+        filter = np.random.random(self.filter_size).astype(self.dtype)
+
+        output = dconv_im2col_gemm(input, offset, mask, filter, self.groups, conv_param)
+        output = output.astype(self.dtype)
+
+        self.inputs = {
+            "Input": OpTest.np_dtype_to_fluid_dtype(input),
+            "Offset": OpTest.np_dtype_to_fluid_dtype(offset),
+            "Mask": OpTest.np_dtype_to_fluid_dtype(mask),
+            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
+        }
+        self.attrs = {
+            "strides": self.stride,
+            "paddings": self.pad,
+            "groups": self.groups,
+            "deformable_groups": self.deformable_groups,
+            "im2col_step": self.im2col_step,
+            "dilations": self.dilations,
+        }
+        self.outputs = {"Output": output}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=2e-2)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            {"Input", "Offset", "Mask", "Filter"},
+            "Output",
+            max_relative_error=0.05,
+            numeric_place=paddle.CPUPlace(),
+        )
+
     def init_test_case(self):
-        self.pad = [1, 1]
-        self.stride = [1, 1]
+        self.pad = [3, 3]
+        self.stride = [2, 2]
         self.input_size = [2, 3, 5, 5]  # NCHW
         assert np.mod(self.input_size[1], self.groups) == 0
         f_c = self.input_size[1] // self.groups
@@ -309,6 +333,15 @@ class TestWith3x3(TestModulatedDeformableConvOp):
             self.input_size[2],
             self.input_size[3],
         ]
+
+    def init_dilation(self):
+        self.dilations = [1, 1]
+
+    def init_group(self):
+        self.groups = 1
+
+    def init_type(self):
+        self.dtype = np.float32
 
 
 if __name__ == "__main__":

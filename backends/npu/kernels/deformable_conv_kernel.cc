@@ -277,7 +277,7 @@ void DeformableConvKernel(const Context& dev_ctx,
                                          &offset_out);
   phi::DenseTensor deformableOffsetsOutput = offset_out[1];
 
-  std::vector<int> conv2d_strides{1, 1, filter.dims()[3], filter.dims()[2]};
+  std::vector<int> conv2d_strides{1, 1, filter.dims()[2], filter.dims()[3]};
   std::vector<int> conv2d_paddings{0, 0, 0, 0};
   std::vector<int> conv2d_dilations{1, 1, 1, 1};
 
@@ -455,6 +455,7 @@ void DeformableConvGradKernel(const Context& dev_ctx,
       .AddOutput(offset_grad_nhwc)
       .Run(stream);
 
+  dev_ctx.Wait();
   // transform dx_nhwc, offset_grad_nhwc to NCHW format.
   std::vector<int64_t> perm_nchw = {0, 3, 1, 2};
   TranposeNPU<Context, T>(dev_ctx, stream, &perm_nchw, dx_nhwc, dx);

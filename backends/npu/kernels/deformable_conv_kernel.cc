@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -159,7 +159,7 @@ void GetDeformableOffsetsOutput(const Context& dev_ctx,
       .AddInputNames(concat_names);
   concat_runner.Run(stream);
 
-  out[0] = offset_all;
+  (*out)[0] = offset_all;
 
   std::vector<int> trans_strides{1, strides[0], strides[1], 1};
   std::vector<int> trans_paddings{
@@ -227,7 +227,7 @@ void GetDeformableOffsetsOutput(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&deformableOffsetsOutput);
   TranposeNPU<Context, T>(
       dev_ctx, stream, &perm_nchw, tmp_output, &deformableOffsetsOutput);
-  out[1] = deformableOffsetsOutput;
+  (*out)[1] = deformableOffsetsOutput;
 }
 
 template <typename T, typename Context>
@@ -320,7 +320,6 @@ void DeformableConvGradKernel(const Context& dev_ctx,
   std::vector<int> conv2d_strides{1, 1, filter.dims()[2], filter.dims()[3]};
   std::vector<int> conv2d_paddings{0, 0, 0, 0};
   std::vector<int> conv2d_dilations{1, 1, 1, 1};
-  std::vector<int> kernel_sizes{filter.dims()[2], filter.dims()[3]};
 
   // get deformableOffsetsOutput
   std::vector<phi::DenseTensor> offset_out(2);
@@ -379,8 +378,8 @@ void DeformableConvGradKernel(const Context& dev_ctx,
       paddings[0], paddings[0], paddings[1], paddings[1]};
   std::vector<int> trans_dilations{1, dilations[0], dilations[1], 1};
 
-  phi::DenseTensor offset_input_nhwc, x_nhwc, offset_all_nhwc, dx_nhwc,
-      offset_grad_nhwc;
+  phi::DenseTensor offset_input_nhwc, x_nhwc, offset_all_nhwc;
+  phi::DenseTensor dx_nhwc, offset_grad_nhwc;
   std::vector<int64_t> perm_nhwc = {0, 2, 3, 1};
   // transform offset_grad
   std::vector<int> offset_input_nhwc_dims = {
@@ -399,7 +398,7 @@ void DeformableConvGradKernel(const Context& dev_ctx,
                           deformableOffsetsBackwardInput,
                           &offset_input_nhwc);
 
-  // transform x
+  // transform x to x_nhwc
   phi::DDim x_nhwc_dims =
       phi::make_ddim({x.dims()[0], x.dims()[2], x.dims()[3], x.dims()[1]});
   phi::DenseTensorMeta x_nhwc_meta = {
@@ -407,7 +406,7 @@ void DeformableConvGradKernel(const Context& dev_ctx,
   x_nhwc.set_meta(x_nhwc_meta);
   TranposeNPU<Context, T>(dev_ctx, stream, &perm_nhwc, x, &x_nhwc);
 
-  // transform offset_all
+  // transform offset_all to offset_all_nhwc
   phi::DDim offset_nhwc_dims = phi::make_ddim({offset_all.dims()[0],
                                                offset_all.dims()[2],
                                                offset_all.dims()[3],
@@ -417,14 +416,16 @@ void DeformableConvGradKernel(const Context& dev_ctx,
   offset_all_nhwc.set_meta(offset_nhwc_meta);
   TranposeNPU<Context, T>(
       dev_ctx, stream, &perm_nhwc, offset_all, &offset_all_nhwc);
-  // transform dx
+
+  // transform dx to dx_nhwc
   std::vector<int> dx_nhwc_dims = {
       dx->dims()[0], dx->dims()[2], dx->dims()[3], dx->dims()[1]};
   phi::DenseTensorMeta dx_nhwc_meta = {
       dx->dtype(), phi::make_ddim(dx_nhwc_dims), phi::DataLayout::NHWC};
   dx_nhwc.set_meta(dx_nhwc_meta);
   dev_ctx.template Alloc<T>(&dx_nhwc);
-  // transform offset_grad
+
+  // transform offset_grad to offset_grad_nhwc
   std::vector<int> offset_grad_nhwc_dims = {offset_all.dims()[0],
                                             offset_all.dims()[2],
                                             offset_all.dims()[3],
@@ -436,6 +437,7 @@ void DeformableConvGradKernel(const Context& dev_ctx,
   offset_grad_nhwc.set_meta(offset_grad_nhwc_meta);
   dev_ctx.template Alloc<T>(&offset_grad_nhwc);
 
+  std::vector<int> kernel_sizes{filter.dims()[3], filter.dims()[2]};
   std::string dataFormat_nhwc = "NHWC";
   NpuOpRunner runner_deformable_conv;
   runner_deformable_conv.SetType("DeformableOffsetsGrad")

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ from tests.op_test import OpTest
 
 paddle.enable_static()
 
-np.random.seed(0)
-paddle.seed(0)
+np.random.seed(2023)
+paddle.seed(2023)
 
 
 def dmc_bilinear(data_im, height, width, h, w):

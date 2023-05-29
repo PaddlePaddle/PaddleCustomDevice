@@ -77,6 +77,24 @@ class TestTileOpRank3(TestTileOpRank1):
         self.repeat_times = (2, 1, 4)
 
 
+class TestTileOpRank_ZeroDim1(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = []
+
+
+class TestTileOpRank_ZeroDim2(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = [2]
+
+
+class TestTileOpRank_ZeroDim3(TestTileOpRank1):
+    def init_data(self):
+        self.ori_shape = []
+        self.repeat_times = [2, 3]
+
+
 class TestTileOpRank4(TestTileOpRank1):
     def init_data(self):
         self.ori_shape = (2, 4, 5, 7)

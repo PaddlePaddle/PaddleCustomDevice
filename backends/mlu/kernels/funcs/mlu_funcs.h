@@ -82,10 +82,14 @@ inline void TensorCopy(const Context& dev_ctx,
           AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
         }
       } else {
+        PADDLE_THROW(
+            phi::errors::Unimplemented("TensorCopy is not supported."));
       }
     } else {
+      PADDLE_THROW(phi::errors::Unimplemented("TensorCopy is not supported."));
     }
   } else {
+    std::memcpy(dst_ptr, src_ptr, size);
   }
 }
 

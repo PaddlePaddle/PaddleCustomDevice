@@ -54,7 +54,7 @@ class TestAssignInt64(TestAssign):
 
 class TestAssignBool(TestAssign):
     def init_dtype(self):
-        self.dtype = np.bool
+        self.dtype = np.bool_
 
 
 if __name__ == "__main__":

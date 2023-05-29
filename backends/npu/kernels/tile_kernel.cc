@@ -21,6 +21,7 @@ template <typename T, typename Context>
 void TileKernelImpl(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     std::vector<int64_t> repeat_times,
+                    int rank,
                     phi::DenseTensor* out) {
   auto x_dims = x.dims();
   for (size_t i = 0; i < repeat_times.size(); ++i) {
@@ -49,6 +50,11 @@ void TileKernelImpl(const Context& dev_ctx,
           vec_x_dims.size(),
           repeat_times.size()));
 
+  if (rank == 0) {
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  }
+
   phi::DDim new_x_dims = phi::make_ddim(vec_x_dims);
   phi::DDim out_dims(new_x_dims);
   for (size_t i = 0; i < repeat_times.size(); ++i) {
@@ -72,14 +78,13 @@ void TileKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 const phi::IntArray& repeat_times,
                 phi::DenseTensor* out) {
-  auto rank = x.dims().size();
-  PADDLE_ENFORCE_GE(
-      rank,
-      1,
-      phi::errors::InvalidArgument(
-          "The rank of the input 'x' for tile op must be a positive "
-          "integer, but the value received is %d.",
-          rank));
+  int rank = static_cast<int>(x.dims().size());
+  PADDLE_ENFORCE_GE(rank,
+                    0,
+                    phi::errors::InvalidArgument(
+                        "The rank of the input 'x' for tile op must be a >=0 "
+                        "integer, but the value received is %d.",
+                        rank));
   PADDLE_ENFORCE_LE(
       rank,
       MAX_RANK_SUPPORTED,
@@ -92,10 +97,10 @@ void TileKernel(const Context& dev_ctx,
   int repeat_times_size = repeat_times_data.size();
   PADDLE_ENFORCE_GE(
       repeat_times_size,
-      1,
+      0,
       phi::errors::InvalidArgument(
           "The number of elements of the input 'repeat_times' for tile "
-          "op must be positive, but the value received is %d.",
+          "op must be >=0, but the value received is %d.",
           repeat_times_size));
   PADDLE_ENFORCE_LE(
       repeat_times_size,
@@ -106,7 +111,7 @@ void TileKernel(const Context& dev_ctx,
           MAX_RANK_SUPPORTED,
           repeat_times_size));
   rank = std::max(rank, repeat_times_size);
-  TileKernelImpl<T, Context>(dev_ctx, x, repeat_times_data, out);
+  TileKernelImpl<T, Context>(dev_ctx, x, repeat_times_data, rank, out);
 }
 
 template <typename T, typename Context>

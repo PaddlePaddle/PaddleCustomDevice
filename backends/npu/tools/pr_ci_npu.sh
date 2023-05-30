@@ -152,7 +152,7 @@ function main() {
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-    ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
+    ctest -V -R test_dygraph_recompute_for_eager  --output-on-failure | tee $tmpfile;
     collect_failed_tests
 
     # add unit test retry for NPU

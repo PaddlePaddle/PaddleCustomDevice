@@ -69,12 +69,10 @@ class TestReduceSum(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
-    # TODO(npurc): Add grad test
-    # def test_check_grad(self):
-    #     if self.dtype == np.float16:
-    #         return
-    #     self.check_grad(['X'], 'Out')
-    #
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestReduceSum2(TestReduceSum):

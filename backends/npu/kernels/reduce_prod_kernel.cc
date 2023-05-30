@@ -38,6 +38,9 @@ void ProdKernel(const Context& dev_ctx,
     }
   }
 
+  // TODO(Aganlengzi): remove this branch when performance of ReduceProdD
+  // is good enough for big shapes.
+  // Here, we use SplitV and Mul to deal with special cases.
   if (x_dims[x_dims_size - 1] == 2 && dims.size() == 1 &&
       (dims[0] == -1 || dims[0] == x_dims_size - 1)) {
     auto stream = dev_ctx.stream();

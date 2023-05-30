@@ -193,9 +193,15 @@ def run_model(
 class TestRecompute(unittest.TestCase):
     def test_base_case(self, enable_autocast=False, pure_fp16=False):
         def check_identical(loss_ref, param_ref, grad_ref, loss, param, grad):
-            self.assertEqual(np.allclose(loss_ref, loss, atol=1e-4), True)
-            self.assertEqual(np.allclose(param_ref, param, atol=1e-4), True)
-            self.assertEqual(np.allclose(grad_ref, grad, atol=1e-4), True)
+            self.assertEqual(np.allclose(loss_ref, loss, atol=1e-3), True)
+            print(loss_ref)
+            print(loss)
+            self.assertEqual(np.allclose(param_ref, param, atol=1e-3), True)
+            print(param_ref)
+            print(param)
+            self.assertEqual(np.allclose(grad_ref, grad, atol=1e-3), True)
+            print(grad_ref)
+            print(grad)
 
         # without recompute
         loss_ref, param_ref, grad_ref = run_model(

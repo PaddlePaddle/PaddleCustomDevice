@@ -220,6 +220,28 @@ class TestExpandV2OpInteger(OpTest):
         self.check_output_with_place(self.place)
 
 
+# Situation 6: input x is float64
+# skip grad check for float64
+class TestExpandV2OpFloat64(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "expand_v2"
+        self.dtype = np.double
+        self.ori_shape = (2, 4, 20)
+        self.inputs = {"X": np.random.random(self.ori_shape).astype(self.dtype)}
+        self.attrs = {"shape": [2, 4, 20]}
+        output = np.tile(self.inputs["X"], (1, 1, 1))
+        self.outputs = {"Out": output}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+
 class TesstExpandV2OpInt64(TestExpandV2OpInteger):
     def init_dtype(self):
         self.dtype = "int64"

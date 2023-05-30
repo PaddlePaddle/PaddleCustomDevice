@@ -31,66 +31,45 @@ void ProdKernel(const Context& dev_ctx,
   auto x_dims_size = x_dims.size();
   dev_ctx.template Alloc<T>(out);
 
-  NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};
-
   if (reduce_all) {
-    std::vector<int> dim_vec;
+    dims.clear();
     for (int i = 0; i < x_dims_size; i++) {
-      dim_vec.push_back(i);
+      dims.push_back(i);
     }
-
-    attr_input = {{"axes", dim_vec}, {"keep_dims", keep_dim}};
   }
 
-  if (x.dtype() == phi::DataType::INT64) {
-    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                      const std::vector<phi::DenseTensor>& outputs,
-                      const NPUAttributeMap& attrs,
-                      const phi::CustomContext& dev_ctx) {
-      const auto& runner =
-          NpuOpRunner("ReduceProdD", {inputs[0]}, {outputs[0]}, attrs);
-      runner.Run(dev_ctx.stream());
-    };
-
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attr_input,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
+  if (x_dims[x_dims_size - 1] == 2 && dims.size() == 1 &&
+      (dims[0] == -1 || dims[0] == x_dims_size - 1)) {
+    auto stream = dev_ctx.stream();
+    phi::DenseTensor x1, x2;
+    x1.set_meta(out->meta());
+    x2.set_meta(out->meta());
+    dev_ctx.template Alloc<T>(&x1);
+    dev_ctx.template Alloc<T>(&x2);
+    // split
+    std::vector<phi::DenseTensor> outputs;
+    outputs.push_back(x1);
+    outputs.push_back(x2);
+    std::vector<int> sections = {1, 1};
+    NpuOpRunner runner_split;
+    runner_split.SetType("SplitV")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(sections))
+        .AddInput(dev_ctx, std::vector<int32_t>({-1}))
+        .AddOutputs(outputs)
+        .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}})
+        .Run(stream);
+    // elementwise mul
+    const auto& runner = NpuOpRunner("Mul", {x1, x2}, {*out}, {});
+    runner.Run(stream);
   } else {
-    // TODO(Aganlengzi): remove this branch when performance of ReduceProdD
-    // is good enough for big shapes.
-    // Here, we use SplitV and Mul to deal with special cases.
-    if (x_dims[x_dims_size - 1] == 2 && dims.size() == 1 &&
-        (dims[0] == -1 || dims[0] == x_dims_size - 1)) {
-      auto stream = dev_ctx.stream();
-      phi::DenseTensor x1, x2;
-      x1.set_meta(out->meta());
-      x2.set_meta(out->meta());
-      dev_ctx.template Alloc<T>(&x1);
-      dev_ctx.template Alloc<T>(&x2);
-      // split
-      std::vector<phi::DenseTensor> outputs;
-      outputs.push_back(x1);
-      outputs.push_back(x2);
-      std::vector<int> sections = {1, 1};
-      NpuOpRunner runner_split;
-      runner_split.SetType("SplitV")
-          .AddInput(x)
-          .AddInput(dev_ctx, std::move(sections))
-          .AddInput(dev_ctx, std::vector<int32_t>({-1}))
-          .AddOutputs(outputs)
-          .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}})
-          .Run(stream);
-      // elementwise mul
-      const auto& runner = NpuOpRunner("Mul", {x1, x2}, {*out}, {});
-      runner.Run(stream);
-    } else {
-      const auto& runner = NpuOpRunner("ReduceProdD", {x}, {*out}, attr_input);
-      runner.Run(dev_ctx.stream());
-    }
+    NpuOpRunner runner;
+    runner.SetType("ReduceProd")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(dims))
+        .AddOutput(*out)
+        .AddAttr("keep_dims", keep_dim);
+    runner.Run(dev_ctx.stream());
   }
 }
 
@@ -198,18 +177,24 @@ PD_REGISTER_PLUGIN_KERNEL(prod,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          int32_t,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod_infer,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ProdInferKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          int32_t,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ProdGradKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          int32_t,
+                          int64_t) {}

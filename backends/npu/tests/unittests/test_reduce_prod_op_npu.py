@@ -80,6 +80,24 @@ class TestNPUReduceProd4(TestNPUReduceProd):
         self.outputs = {"Out": self.inputs["X"].prod(axis=tuple([-1]))}
 
 
+class TestNPUReduceProdInt32(TestNPUReduceProd):
+    def init_dtype(self):
+        self.dtype = np.int32
+
+    # int32 is not supported for gradient check
+    def test_check_grad(self):
+        pass
+
+
+class TestNPUReduceProdInt64(TestNPUReduceProd):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    # int64 is not supported for gradient check
+    def test_check_grad(self):
+        pass
+
+
 class TestNPUReduceProd6D(TestNPUReduceProd):
     def setUp(self):
         self.op_type = "reduce_prod"

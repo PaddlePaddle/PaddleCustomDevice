@@ -82,8 +82,7 @@ PD_REGISTER_PLUGIN_KERNEL(clip,
                           custom_kernel::ClipKernel,
                           float,
                           phi::dtype::float16,
-                          double,
-                          int64_t) {}
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(clip_grad,
                           npu,

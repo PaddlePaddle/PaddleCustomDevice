@@ -181,25 +181,19 @@ class TestClipAPI(unittest.TestCase):
         paddle.disable_static(place)
         data_shape = [1, 9, 9, 4]
         data = np.random.random(data_shape).astype("float32")
-        data_int64 = np.random.randint(-10, 11, data_shape, np.int64)
         images = paddle.to_tensor(data, dtype="float32")
-        images_int64 = paddle.to_tensor(data_int64)
         v_min = paddle.to_tensor(np.array([0.2], dtype=np.float32))
-        v_min_int64 = paddle.to_tensor(np.array([-5], dtype=np.int64))
         v_max = paddle.to_tensor(np.array([0.8], dtype=np.float32))
-        v_max_int64 = paddle.to_tensor(np.array([5], dtype=np.int64))
 
         out_1 = self._executed_api(images, min=0.2, max=0.8)
         images = paddle.to_tensor(data, dtype="float32")
         out_2 = self._executed_api(images, min=0.2, max=0.9)
         images = paddle.to_tensor(data, dtype="float32")
         out_3 = self._executed_api(images, min=v_min, max=v_max)
-        out_4 = self._executed_api(images_int64, min=v_min_int64, max=v_max_int64)
 
         self.assertTrue(np.allclose(out_1.numpy(), data.clip(0.2, 0.8)))
         self.assertTrue(np.allclose(out_2.numpy(), data.clip(0.2, 0.9)))
         self.assertTrue(np.allclose(out_3.numpy(), data.clip(0.2, 0.8)))
-        self.assertTrue(np.allclose(out_4.numpy(), data_int64.clip(-5, 5)))
 
     def test_errors(self):
         paddle.enable_static()

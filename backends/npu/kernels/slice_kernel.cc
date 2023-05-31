@@ -281,12 +281,12 @@ void SliceGradRawKernel(const Context& dev_ctx,
   std::vector<int> size(rank);
   UpdateAttr(in_dims, axes, starts, ends, &offsets, &size);
 
-  std::vector<std::vector<int64_t>> paddings(rank, std::vector<int64_t>(2));
+  std::vector<int64_t> paddings(rank * 2);
   for (int i = 0; i < rank; ++i) {
-    paddings[i][0] = static_cast<int64_t>(offsets[i]);
-    paddings[i][1] = static_cast<int64_t>(in_dims[i] - size[i] - offsets[i]);
+    paddings[i * rank + 0] = static_cast<int64_t>(offsets[i]);
+    paddings[i * rank + 1] =
+        static_cast<int64_t>(in_dims[i] - size[i] - offsets[i]);
   }
-
   phi::DenseTensor tmp_dout(out_grad);
   auto out_dims = out_grad.dims();
 
@@ -313,8 +313,20 @@ void SliceGradRawKernel(const Context& dev_ctx,
 
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = static_cast<aclrtStream>(dev_ctx.stream());
-  const auto& runner =
-      NpuOpRunner("PadD", {tmp_dout}, {*x_grad}, {{"paddings", paddings}});
+
+  phi::DenseTensor paddings_t;
+  std::vector<int> paddings_dims = {rank, 2};
+  paddings_t.Resize(phi::make_ddim(paddings_dims));
+  dev_ctx.template Alloc<int64_t>(&paddings_t);
+  custom_kernel::TensorFromVector<int64_t>(
+      dev_ctx, paddings, dev_ctx, &paddings_t);
+  paddings_t.Resize(phi::make_ddim(paddings_dims));
+  NpuOpRunner runner;
+  runner.SetType("Pad")
+      .AddInput(tmp_dout)
+      .AddInput(paddings_t)
+      .AddOutput(*x_grad);
+
   runner.Run(stream);
 }
 

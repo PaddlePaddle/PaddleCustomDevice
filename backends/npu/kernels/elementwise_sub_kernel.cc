@@ -70,6 +70,11 @@ void SubtractGradKernel(const Context& dev_ctx,
     for (auto i = 0; i < reduce_ndim; ++i) {
       axes.push_back(i);
     }
+    phi::DenseTensor axes_t;
+    axes_t.Resize({axes.size()});
+    dev_ctx.template Alloc<int>(&axes_t);
+    custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t);
+
     phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
     phi::DenseTensor reduced_dout;
     if (axes.size() != 0) {
@@ -83,11 +88,9 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dout.set_meta(reduced_dout_meta);
       dev_ctx.template Alloc<T>(&reduced_dout);
 
-      const auto& runner = NpuOpRunner("ReduceSumD",
-                                       {dout},
-                                       {reduced_dout},
-                                       {{"axes", axes}, {"keep_dims", false}});
-      runner.Run(stream);
+      const auto& sum_runner = NpuOpRunner(
+          "ReduceSum", {dout, axes_t}, {reduced_dout}, {{"keep_dims", false}});
+      sum_runner.Run(stream, true);
       tmp_dout = &reduced_dout;
     }
 
@@ -99,11 +102,13 @@ void SubtractGradKernel(const Context& dev_ctx,
       }
     }
     if (axes.size() != 0) {
-      const auto& runner = NpuOpRunner("ReduceSumD",
-                                       {*tmp_dout},
-                                       {*dx},
-                                       {{"axes", axes}, {"keep_dims", true}});
-      runner.Run(stream);
+      phi::DenseTensor axes_t1;
+      axes_t1.Resize({axes.size()});
+      dev_ctx.template Alloc<int>(&axes_t1);
+      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
+      const auto& sum_runner = NpuOpRunner(
+          "ReduceSum", {*tmp_dout, axes_t1}, {*dx}, {{"keep_dims", true}});
+      sum_runner.Run(stream, true);
     } else {
       TensorCopy(dev_ctx, *tmp_dout, false, dx);
     }
@@ -132,11 +137,13 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dout.set_meta(reduced_dout_meta);
       dev_ctx.template Alloc<T>(&reduced_dout);
 
-      const auto& runner = NpuOpRunner("ReduceSumD",
-                                       {dout},
-                                       {reduced_dout},
-                                       {{"axes", axes}, {"keep_dims", false}});
-      runner.Run(stream);
+      phi::DenseTensor axes_t2;
+      axes_t2.Resize({axes.size()});
+      dev_ctx.template Alloc<int>(&axes_t2);
+      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t2);
+      const auto& sum_runner = NpuOpRunner(
+          "ReduceSum", {dout, axes_t2}, {reduced_dout}, {{"keep_dims", false}});
+      sum_runner.Run(stream, true);
       tmp_dout = &reduced_dout;
     }
 
@@ -153,11 +160,16 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dy.set_meta(reduced_dy_meta);
       dev_ctx.template Alloc<T>(&reduced_dy);
 
-      const auto& runner = NpuOpRunner("ReduceSumD",
-                                       {*tmp_dout},
-                                       {reduced_dy},
-                                       {{"axes", axes}, {"keep_dims", true}});
-      runner.Run(stream);
+      phi::DenseTensor axes_t3;
+      axes_t3.Resize({axes.size()});
+      dev_ctx.template Alloc<int>(&axes_t3);
+      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t3);
+      const auto& sum_runner = NpuOpRunner("ReduceSum",
+                                           {*tmp_dout, axes_t3},
+                                           {reduced_dy},
+                                           {{"keep_dims", true}});
+      sum_runner.Run(stream, true);
+
       tmp_dy = &reduced_dy;
     }
 

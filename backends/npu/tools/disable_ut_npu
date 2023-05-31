@@ -1,3 +1,2 @@
 disable_ut_npu
-test_adam_op_npu
 test_softmax_with_cross_entropy_op_npu

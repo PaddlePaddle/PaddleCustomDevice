@@ -31,6 +31,11 @@ void ProdKernel(const Context& dev_ctx,
   auto x_dims_size = x_dims.size();
   dev_ctx.template Alloc<T>(out);
 
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
+
   if (reduce_all) {
     dims.clear();
     for (int i = 0; i < x_dims_size; i++) {

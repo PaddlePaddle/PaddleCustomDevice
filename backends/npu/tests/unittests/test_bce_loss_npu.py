@@ -235,12 +235,12 @@ class TestBceLossOp(OpTest):
         self.shape = [10, 10]
 
 
-class TestBceLossOpCase1(OpTest):
+class TestBceLossOpCase1(TestBceLossOp):
     def init_test_cast(self):
         self.shape = [2, 3, 4, 5]
 
 
-class TestBceLossOpCase2(OpTest):
+class TestBceLossOpCase2(TestBceLossOp):
     def init_test_cast(self):
         self.shape = [2, 3, 20]
 

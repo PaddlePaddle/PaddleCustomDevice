@@ -63,28 +63,41 @@ class TestReduceSum(OpTest):
         self.reduce_all = False
 
     def initTestCase(self):
-        self.shape = (5, 6)
+        self.shape = (5, 6, 10)
         self.axis = (0,)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
-    # TODO(npurc): Add grad test
-    # def test_check_grad(self):
-    #     if self.dtype == np.float16:
-    #         return
-    #     self.check_grad(['X'], 'Out')
-    #
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
-class TestReduceSum2(OpTest):
+class TestReduceSumFP16(TestReduceSum):
     def init_dtype(self):
-        self.dtype = np.int32
+        self.dtype = np.float16
 
 
-class TestReduceSum3(OpTest):
-    def init_dtype(self):
-        self.dtype = np.bool_
+class TestReduceSumOp5D(TestReduceSum):
+    def initTestCase(self):
+        self.shape = (1, 2, 5, 6, 10)
+        self.axis = (-1, -2)
+
+
+class TestKeepDimReduce(TestReduceSum):
+    def init_op_type(self):
+        self.op_type = "reduce_sum"
+        self.use_mkldnn = False
+        self.keep_dim = True
+        self.reduce_all = False
+
+
+class TestReduceAll(TestReduceSum):
+    def init_op_type(self):
+        self.op_type = "reduce_sum"
+        self.use_mkldnn = False
+        self.keep_dim = False
+        self.reduce_all = True
 
 
 class TestReduceSumNet(unittest.TestCase):

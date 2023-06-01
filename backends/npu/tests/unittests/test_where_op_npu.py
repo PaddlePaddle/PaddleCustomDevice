@@ -63,6 +63,13 @@ class TestNPUWhereOp3(TestNPUWhereOp):
         self.cond = np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
 
 
+class TestNPUWhereFp16(TestNPUWhereOp):
+    def init_config(self):
+        self.x = np.random.uniform(-5, 5, (60, 2)).astype("float16")
+        self.y = np.random.uniform(-5, 5, (60, 2)).astype("float16")
+        self.cond = np.ones((60, 2)).astype("bool")
+
+
 class TestNPUWhereAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True

@@ -106,7 +106,8 @@ PD_REGISTER_PLUGIN_KERNEL(split,
                           int,
                           bool,
                           uint8_t,
-                          int8_t) {}
+                          int8_t,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(split_with_num,
                           npu,
@@ -118,4 +119,5 @@ PD_REGISTER_PLUGIN_KERNEL(split_with_num,
                           int,
                           bool,
                           uint8_t,
-                          int8_t) {}
+                          int8_t,
+                          phi::dtype::float16) {}

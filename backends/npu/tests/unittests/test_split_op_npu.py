@@ -86,6 +86,38 @@ class TestNPUSplitOp_2(NPUOpTest):
         pass
 
 
+class TestNPUSplitOpFp16(NPUOpTest):
+    def setUp(self):
+        self.set_plugin()
+        self._set_op_type()
+        self.dtype = self.get_dtype()
+        self.init_data()
+        self.inputs = {"X": self.x}
+        self.attrs = {"axis": self.axis, "sections": self.sections, "num": self.num}
+
+        out = np.split(self.x, self.indices_or_sections, self.axis)
+        self.outputs = {"Out": [("out%d" % i, out[i]) for i in range(len(out))]}
+
+    def init_data(self):
+        self.x = np.random.random((4, 5, 6)).astype(self.dtype)
+        self.axis = 2
+        self.sections = []
+        self.num = 3
+        self.indices_or_sections = 3
+
+    def get_dtype(self):
+        return "float16"
+
+    def _set_op_type(self):
+        self.op_type = "split"
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        pass
+
+
 # attr(axis) is Tensor
 class TestSplitOp_AxisTensor(NPUOpTest):
     def setUp(self):

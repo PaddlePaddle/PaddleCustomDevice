@@ -34,12 +34,12 @@ std::vector<T> ComputeDimStride(const std::vector<T> dim) {
 }
 
 template <typename T, typename Context>
-void DiagonalKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    int offset,
-                    int axis1,
-                    int axis2,
-                    phi::DenseTensor* out) {
+void DiagonalKernelImpl(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        int offset,
+                        int axis1,
+                        int axis2,
+                        phi::DenseTensor* out) {
   auto input_dim = phi::vectorize(x.dims());
   auto input_dim_size = input_dim.size();
   auto output_dim = phi::vectorize(out->dims());
@@ -103,10 +103,48 @@ void DiagonalKernel(const Context& dev_ctx,
     }
     output_data[idx] = input_data[input_offset];
   }
+  dev_ctx.template Alloc<T>(out);
   TensorCopy(dev_ctx, output_cpu_t, true, out);
+}
+
+template <typename T, typename Context>
+void DiagonalKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    int offset,
+                    int axis1,
+                    int axis2,
+                    phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  if (x.dtype() == phi::DataType::FLOAT16) {
+    phi::DenseTensor tmp_x, tmp_out;
+    tmp_x.Resize(x.dims());
+    dev_ctx.template Alloc<float>(&tmp_x);
+    tmp_out.Resize(out->dims());
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& cast_runner1 =
+        NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(stream);
+    DiagonalKernelImpl<float, Context>(
+        dev_ctx, tmp_x, offset, axis1, axis2, &tmp_out);
+
+    dev_ctx.template Alloc<T>(out);
+    const auto& cast_runner2 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_FLOAT16}});
+    cast_runner2.Run(stream);
+  } else {
+    DiagonalKernelImpl<T, Context>(dev_ctx, x, offset, axis1, axis2, out);
+  }
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    diagonal, npu, ALL_LAYOUT, custom_kernel::DiagonalKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(diagonal,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::DiagonalKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          bool,
+                          phi::dtype::float16) {}

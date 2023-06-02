@@ -16,11 +16,12 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
+#include "kernels/funcs/string_helper.h"
 namespace custom_kernel {
 
 inline static void ValidationCheck(const std::string& equation) {
-  auto n_part = paddle::string::split_string(equation, "->").size();
+  const std::string arrow = "->";
+  auto n_part = split_string(equation, arrow).size();
   PADDLE_ENFORCE_EQ(n_part,
                     2,
                     phi::errors::InvalidArgument(
@@ -159,7 +160,7 @@ inline static void GlobalInfo(const std::vector<std::string>& op_labels,
     *sorted_labels = union_labels(tmp, *sorted_labels);
   }
   VLOG(5) << "GlobalInfo: sorted_labels after: "
-          << paddle::string::join_strings(*sorted_labels, ",");
+          << join_strings(*sorted_labels, ",");
 }
 
 inline static void InferLabelShape(const std::vector<std::string>& op_labels,
@@ -208,7 +209,7 @@ inline static void InferLabelShape(const std::vector<std::string>& op_labels,
   }
   for (size_t i = 0; i < op_labels.size(); ++i) {
     VLOG(5) << "InferLabelShape: Ellipsis ndims:"
-            << paddle::string::join_strings(ellipsis_dims->at(i), ",");
+            << join_strings(ellipsis_dims->at(i), ",");
     int idx = n_broadcast_dims - ellipsis_dims->at(i).size();
     for (auto v : ellipsis_dims->at(i)) {
       PADDLE_ENFORCE_EQ(
@@ -222,7 +223,7 @@ inline static void InferLabelShape(const std::vector<std::string>& op_labels,
     }
   }
   VLOG(5) << "InferLabelShape: Broadcast dims:"
-          << paddle::string::join_strings(*broadcast_dims, ",");
+          << join_strings(*broadcast_dims, ",");
 }
 
 template <class CharIterable>
@@ -269,12 +270,14 @@ inline static void ParseEinsumEquation(
     std::string* right,
     std::vector<std::string>* input_strs) {
   VLOG(5) << "Start ParseEinsumEquation " << equation;
-  auto results = paddle::string::split_string(equation, "->");
+  const std::string arrow = "->";
+  auto results = split_string(equation, arrow);
   auto left = results[0];
   ReplaceEllipsis(left);
   *right = results[1];
   ReplaceEllipsis(*right);
-  auto op_labels = paddle::string::split_string(left, ",");
+  const std::string dot = ",";
+  auto op_labels = split_string(left, dot);
   // split_string("i,") -> ["i", ""], we push back a "".
   // split_string("->") -> [], we push back a "".
   if (op_labels.size() == 0) op_labels.push_back("");
@@ -282,8 +285,7 @@ inline static void ParseEinsumEquation(
   GlobalInfo(op_labels, *right, labeltype, all_labels);
   InferLabelShape(op_labels, inputs, labelshape, ellipsis_dims, broadcast_dims);
   VLOG(5) << "Einsum Infershape: right:" << *right;
-  VLOG(5) << "Einsum Infershape: left :"
-          << paddle::string::join_strings(op_labels, '\n');
+  VLOG(5) << "Einsum Infershape: left :" << join_strings(op_labels, '\n');
   InferOutputDims(*right, *broadcast_dims, *labelshape, output_dims);
   for (size_t i = 0; i < inputs.size(); ++i) {
     InferLabelPerm(
@@ -380,10 +382,11 @@ phi::DenseTensor PerformDiagonalAndReduction(
       if (cur != label2perm[c]) {
         // do diagonal, followed by movedim().
         VLOG(5) << "Do diagonal with shape="
-                << paddle::string::join_strings(vectorize<int>(res.dims()), ',')
+                << join_strings(phi::vectorize<int>(res.dims()), ',')
                 << ", axis1=" << cur << ", axis2=" << label2perm[c];
-        res = Diagonal<T, Context>(dev_ctx, res, 0, cur, label2perm[c]);
-        res = Transpose<T, Context>(
+        res = custom_kernel::Diagonal<T, Context>(
+            dev_ctx, res, 0, cur, label2perm[c]);
+        res = custom_kernel::Transpose<T, Context>(
             dev_ctx, res, perm_moveto(res.dims().size(), -1, label2perm[c]));
       }
       --cur;
@@ -393,9 +396,9 @@ phi::DenseTensor PerformDiagonalAndReduction(
   auto indices = GetLabelIndexByType<int64_t>(
       all_labels, label2type, label2perm, ellipsis, LabelType::Reduction);
   VLOG(5) << "call PerformDiagonalAndReduction: with axis: "
-          << paddle::string::join_strings(indices, ",");
+          << join_strings(indices, ",");
   if (indices.size() == 0) return res;
-  return Sum<T, Context>(
+  return custom_kernel::Sum<T, Context>(
       dev_ctx, res, phi::IntArray(indices), res.dtype(), true);
 }
 
@@ -415,17 +418,17 @@ phi::DenseTensor PerformTranspose(const Context& dev_ctx,
                                   const LabelMap& label2type) {
   auto axis = GetLabelIndexByType<int>(
       all_labels, label2type, label2perm, ellipsis, LabelType::ALL_TYPE);
-  VLOG(5) << "PerformTranspose: " << paddle::string::join_strings(axis, ",");
+  VLOG(5) << "PerformTranspose: " << join_strings(axis, ",");
   if (is_no_need_transpose(axis)) {
     return tensor;
   }
-  auto ret = Transpose<T, Context>(dev_ctx, tensor, axis);
+  auto ret = custom_kernel::Transpose<T, Context>(dev_ctx, tensor, axis);
   VLOG(5) << "PerformTranspose: do_transpose()";
   return ret;
 }
 
 template <typename T, typename Context>
-DenseTensor PerformContraction(
+phi::DenseTensor PerformContraction(
     const Context& dev_ctx,
     const std::vector<const phi::DenseTensor*>& operands,
     const std::vector<std::string>& input_strs,
@@ -445,10 +448,10 @@ DenseTensor PerformContraction(
                                          label2shape,
                                          broadcast_dims,
                                          {LabelType::Batch});
-  auto preprocess = [&](const DenseTensor& t,
+  auto preprocess = [&](const phi::DenseTensor& t,
                         const LabelMap& perm,
                         const std::vector<int>& ellipsis,
-                        int operand_idx) -> DenseTensor {
+                        int operand_idx) -> phi::DenseTensor {
     // reshape
     auto frees = GetShapeByType<int>(all_labels,
                                      label2type,
@@ -475,7 +478,7 @@ DenseTensor PerformContraction(
     // reduction
     phi::DenseTensor trans_t;
     if (use_cache && cache[operand_idx] != nullptr &&
-        cache[operand_idx]->IsInitialized()) {
+        cache[operand_idx]->initialized()) {
       //   trans_t.ShareBufferWith(*(cache[operand_idx]));
       //   TensorCopy<Context>(dev_ctx, *(cache[operand_idx]), true, &trans_t);
       trans_t = *(cache[operand_idx]);
@@ -494,7 +497,7 @@ DenseTensor PerformContraction(
       if (cache[operand_idx] != nullptr)
         // todo
         // cache[operand_idx]->ShareBufferWith(trans_t);
-        cache[operand_idx] = trans_t;
+        cache[operand_idx] = &trans_t;
     }
     auto mul_dims = GetShapeByType<int>(all_labels,
                                         label2type,
@@ -514,29 +517,28 @@ DenseTensor PerformContraction(
       mul_dims.push_back(std::accumulate(
           frees.begin(), frees.end(), 1, std::multiplies<int>()));
     }
-    VLOG(5) << "PerformContraction: mul_dims: "
-            << paddle::string::join_strings(mul_dims, ",");
-    trans_t.Resize(make_ddim(mul_dims));
+    VLOG(5) << "PerformContraction: mul_dims: " << join_strings(mul_dims, ",");
+    trans_t.Resize(phi::make_ddim(mul_dims));
     return trans_t;
   };
 
   // Reduction, Reshape and Matmul
-  DenseTensor after_contraction;
+  phi::DenseTensor after_contraction;
   if (operands.size() == 2) {
     auto trans_a =
         preprocess(*(operands[0]), label2perm[0], ellipsis_dims[0], 0);
     auto trans_b =
         preprocess(*(operands[1]), label2perm[1], ellipsis_dims[1], 1);
-    after_contraction =
-        Matmul<T, Context>(dev_ctx, trans_a, trans_b, false, false);
+    after_contraction = custom_kernel::Matmul<T, Context>(
+        dev_ctx, trans_a, trans_b, false, false);
   } else if (operands.size() == 1) {
     after_contraction =
         preprocess(*(operands[0]), label2perm[0], ellipsis_dims[0], 0);
   }
   if (recover_dim.size() == 0) recover_dim.push_back(1);
   VLOG(5) << "PerformContraction: recover_dim: "
-          << paddle::string::join_strings(recover_dim, ",");
-  after_contraction.Resize(make_ddim(recover_dim));
+          << join_strings(recover_dim, ",");
+  after_contraction.Resize(phi::make_ddim(recover_dim));
   return after_contraction;
 }
 
@@ -566,9 +568,8 @@ phi::DenseTensor TransposeToOutput(const Context& dev_ctx,
   if (is_no_need_transpose(axis)) {
     return to_trans;
   }
-  VLOG(5) << "call TransposeToOutput: with axis: "
-          << paddle::string::join_strings(axis, ",");
-  return Transpose<T, Context>(dev_ctx, to_trans, axis);
+  VLOG(5) << "call TransposeToOutput: with axis: " << join_strings(axis, ",");
+  return custom_kernel::Transpose<T, Context>(dev_ctx, to_trans, axis);
 }
 
 template <typename T, typename Context>
@@ -588,10 +589,10 @@ phi::DenseTensor Undiagonal(const Context& dev_ctx,
     else
       shape[i] = tensor.dims()[point++];
   }
-  auto zeros = Full<T, Context>(dev_ctx, shape, 0);
-  auto diags = Transpose<T, Context>(
+  auto zeros = custom_kernel::Full<T, Context>(dev_ctx, shape, 0);
+  auto diags = custom_kernel::Transpose<T, Context>(
       dev_ctx, tensor, perm_moveto(tensor.dims().size(), axis, -1));
-  return FillDiagonalTensor<T, Context>(
+  return custom_kernel::FillDiagonalTensor<T, Context>(
       dev_ctx, zeros, diags, 0, insert_pos, axis + (insert_pos <= axis));
 }
 
@@ -600,10 +601,9 @@ phi::DenseTensor PerformUndiagonal(const Context& dev_ctx,
                                    const phi::DenseTensor& tensor,
                                    int n_broadcast,
                                    const std::string& equ) {
-  //  if the equ is 'iijjkij', then the tensor must be 'ijk', so we have
-  enough
-      //  information to do un-diagonal with equ.
-      auto res = tensor;
+  //  if the equ is 'iijjkij', then the tensor must be 'ijk', so we have nenough
+  //  information to do un-diagonal with equ.
+  auto res = tensor;
   LabelMap label2perm(-1);
   InferLabelPerm(equ, n_broadcast, &label2perm);
   // Un-Diagonal
@@ -688,7 +688,7 @@ void EinsumKernelImpl(const Context& dev_ctx,
                                        broadcast_dims.size());
   *out = PerformUndiagonal<T, Context>(
       dev_ctx, *out, broadcast_dims.size(), right);
-  out->Resize(make_ddim(output_dims));
+  out->Resize(phi::make_ddim(output_dims));
 }
 
 template <typename T, typename Context>
@@ -701,9 +701,8 @@ void EinsumKernel(const Context& dev_ctx,
   std::vector<char> tmp;
   // for the sake of compatibility, we may load and run v2.3 EinsumOp. Output
   // may have nullptr and the cache.size() is not equal to inputs.size().
-  refer
-      // to BuildPhiKernelContext for details.
-      int diff = inputs.size() - cache.size();
+  // refer to BuildPhiKernelContext for details.
+  int diff = inputs.size() - cache.size();
   for (int i = 0; i < diff; ++i) {
     cache.push_back(nullptr);
   }
@@ -717,7 +716,7 @@ void EinsumInferKernel(const Context& dev_ctx,
                        const std::string& equation,
                        phi::DenseTensor* out) {
   std::vector<char> place_holder;
-  std::vector<DenseTensor*> cache_tensor(
+  std::vector<phi::DenseTensor*> cache_tensor(
       inputs.size());  // set empty; TA, TB, TdC
   for (size_t i = 0; i < inputs.size(); ++i) {
     cache_tensor[i] = nullptr;

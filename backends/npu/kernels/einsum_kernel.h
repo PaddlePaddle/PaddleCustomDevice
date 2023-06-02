@@ -126,9 +126,8 @@ phi::DenseTensor Transpose(const Context& dev_ctx,
     for (int i = 0; i < axis_size; ++i) {
       out_dims[i] = x_dims[formated_axis[i]];
     }
-
-    out.set_dims(out_dims);
-    out.set_dtype(x.dtype());
+    phi::DenseTensorMeta out_meta = {x.dtype(), out_dims};
+    out.set_meta(out_meta);
   }
   custom_kernel::TransposeKernel<T, Context>(dev_ctx, x, axis, &out);
   return out;
@@ -137,15 +136,15 @@ phi::DenseTensor Transpose(const Context& dev_ctx,
 // DiagonalKernel
 template <typename T, typename Context>
 void DiagonalKernel(const Context& dev_ctx,
-                    const DenseTensor& x,
+                    const phi::DenseTensor& x,
                     int offset,
                     int axis1,
                     int axis2,
-                    DenseTensor* out);
+                    phi::DenseTensor* out);
 
 template <typename T, typename Context>
 phi::DenseTensor Diagonal(const Context& dev_ctx,
-                          const DenseTensor& input,
+                          const phi::DenseTensor& input,
                           int offset,
                           int axis1,
                           int axis2) {
@@ -236,7 +235,9 @@ phi::DenseTensor Diagonal(const Context& dev_ctx,
         out_dims.push_back(0);
       }
     }
-    out.set_dims(phi::make_ddim(out_dims));
+    auto out_dtype = input.dtype();
+    phi::DenseTensorMeta out_meta = {out_dtype, phi::make_ddim(out_dims)};
+    out.set_meta(out_meta);
   }
   custom_kernel::DiagonalKernel<T, Context>(
       dev_ctx, input, offset, axis1, axis2, &out);
@@ -245,28 +246,25 @@ phi::DenseTensor Diagonal(const Context& dev_ctx,
 
 // FillDiagonalKernel
 template <typename T, typename Context>
-void FillDiagonalKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        float value,
-                        int offset,
-                        bool wrap,
-                        phi::DenseTensor* out);
+void FillDiagonalTensorKernel(const Context& dev_ctx,
+                              const phi::DenseTensor& x,
+                              const phi::DenseTensor& y,
+                              int64_t offset,
+                              int dim1,
+                              int dim2,
+                              phi::DenseTensor* out);
 
 template <typename T, typename Context>
-DenseTensor FillDiagonalTensor(const Context& ctx,
-                               const DenseTensor& x,
-                               const DenseTensor& y,
-                               int64_t offset,
-                               int dim1,
-                               int dim2) {
+phi::DenseTensor FillDiagonalTensor(const Context& dev_ctx,
+                                    const phi::DenseTensor& x,
+                                    const phi::DenseTensor& y,
+                                    int64_t offset,
+                                    int dim1,
+                                    int dim2) {
   phi::DenseTensor out;
-  // infer out shape
-  PADDLE_ENFORCE_NOT_NULL(out,
-                          phi::errors::InvalidArgument(
-                              "Output Tensor (out) should not be nullptr."));
-  out.set_dims(x.dims());
-  out.set_dtype(x.dtype());
-  custom_kernel::FillDiagonalTensor<T, Context>(
+  phi::DenseTensorMeta out_meta = {x.dtype(), x.dims()};
+  out.set_meta(out_meta);
+  custom_kernel::FillDiagonalTensorKernel<T, Context>(
       dev_ctx, x, y, offset, dim1, dim2, &out);
   return out;
 }
@@ -294,9 +292,9 @@ phi::DenseTensor Sum(const Context& dev_ctx,
       reduce_all = true;
     }
     phi::DDim out_dim;
-    if (config.is_runtime || !axis.FromTensor()) {
+    if (!axis.FromTensor()) {
       auto x_rank = x.dims().size();
-      std::vector<int64_t> formated_axis = axis;
+      std::vector<int64_t> formated_axis = axis.GetData();
       for (size_t i = 0; i < axis.size(); ++i) {
         if (x_rank == 0) {
           PADDLE_ENFORCE_EQ(
@@ -308,7 +306,7 @@ phi::DenseTensor Sum(const Context& dev_ctx,
           PADDLE_ENFORCE_LT(
               axis[i],
               x_rank,
-              errors::InvalidArgument(
+              phi::errors::InvalidArgument(
                   "The reduce dim index %d should be in the "
                   "range [ -dimension(X), dimension(X) ) "
                   "which dimesion = %d. But received dim index = %d.",
@@ -318,7 +316,7 @@ phi::DenseTensor Sum(const Context& dev_ctx,
           PADDLE_ENFORCE_GE(
               axis[i],
               -x_rank,
-              errors::InvalidArgument(
+              phi::errors::InvalidArgument(
                   "The reduce dim index %d should be in the "
                   "range [ -dimension(X), dimension(X) )  "
                   "which dimesion = %d. But received dim index = %d.",
@@ -393,11 +391,11 @@ phi::DenseTensor Sum(const Context& dev_ctx,
       }
     }
 
-    out.set_dims(out_dim);
-    out.set_dtype(out_dtype);
-    out.set_layout(x.layout());
+    phi::DenseTensorMeta out_meta = {out_dtype, out_dim, x.layout()};
+    dense_out.set_meta(out_meta);
   }
-  custom::SumKernel<T, Context>(dev_ctx, x, axis, dtype, keep_dim, &dense_out);
+  custom_kernel::SumKernel<T, Context>(
+      dev_ctx, x, axis, dtype, keep_dim, &dense_out);
   return dense_out;
 }
 
@@ -449,12 +447,12 @@ phi::DenseTensor Matmul(const Context& dev_ctx,
     }
 
     size_t M, N;
-    if (trans_x) {
+    if (transpose_x) {
       M = dims_x[ndims_x - 1];
     } else {
       M = dims_x[ndims_x - 2];
     }
-    if (trans_y) {
+    if (transpose_y) {
       N = dims_y[ndims_y - 2];
     } else {
       N = dims_y[ndims_y - 1];
@@ -480,9 +478,8 @@ phi::DenseTensor Matmul(const Context& dev_ctx,
 
     auto ddim_out = phi::make_ddim(new_dims);
 
-    out.set_dims(ddim_out);
-    out.set_dtype(x.dtype());
-    out.set_layout(x.layout());
+    phi::DenseTensorMeta out_meta = {x.dtype(), ddim_out, x.layout()};
+    dense_out.set_meta(out_meta);
   }
   custom_kernel::MatmulKernel<T, Context>(
       dev_ctx, x, y, transpose_x, transpose_y, &dense_out);
@@ -502,9 +499,11 @@ phi::DenseTensor Full(const Context& dev_ctx,
                       const phi::IntArray& shape,
                       const phi::Scalar& val) {
   phi::DenseTensor dense_out;
-  dense_out.set_dims(phi::make_ddim(shape.GetData()));
-  dense_out.set_dtype(phi::CppTypeToDataType<T>::Type());
-  dense_out.set_layout(phi::DataLayout::NCHW);
+  auto dtype = phi::CppTypeToDataType<T>::Type();
+  phi::DenseTensorMeta out_meta = {phi::CppTypeToDataType<T>::Type(),
+                                   phi::make_ddim(shape.GetData()),
+                                   phi::DataLayout::NCHW};
+  dense_out.set_meta(out_meta);
   // infer shape
   custom_kernel::FullKernel<T, Context>(dev_ctx, shape, val, dtype, &dense_out);
   return dense_out;

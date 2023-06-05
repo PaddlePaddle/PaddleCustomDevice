@@ -8,7 +8,7 @@ RUN yum update -y
 RUN yum install -y bzip2 make openssl-devel openssh-server python3 python3-pip python3-devel \
         blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison yasm diffutils \
         automake which file net-tools tree lrzsz zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool \
-        xz graphviz wget curl-devel numactl-devel initscripts gcc gcc-c++
+        xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++
 
 # add bash envs
 COPY root/ /root/
@@ -56,7 +56,7 @@ RUN pip install PyGithub distro
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
-   sed -i "/\bpaddle2onnx\b/d" requirements.txt && pip install -r requirements.txt && rm -rf requirements.txt
+    pip install -r requirements.txt && rm -rf requirements.txt
 
 # # Install Go and glide
 # RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \

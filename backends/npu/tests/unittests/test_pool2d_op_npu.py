@@ -954,5 +954,17 @@ create_test_fp16_class(TestCase3_channel_last)
 create_test_fp16_class(TestCase4_channel_last)
 create_test_fp16_class(TestCase5_channel_last)
 
+
+class TestCase1_strides(TestCase1):
+    def init_test_case(self):
+        self.ksize = [3, 3]
+        self.strides = [1, 2]
+
+    def init_shape(self):
+        self.shape = [2, 3, 4, 5]
+
+
+create_test_padding_SAME_class(TestCase1_strides)
+
 if __name__ == "__main__":
     unittest.main()

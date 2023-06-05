@@ -201,3 +201,58 @@ template std::string GetPDTensorString(const phi::CustomContext& dev_ctx,
                                        const phi::DenseTensor& print_tensor,
                                        const std::string& tensor_name,
                                        const std::string& message);
+
+template <typename T>
+std::vector<T> split_string(const std::string& str, const std::string& delim) {
+  size_t pre_pos = 0;
+  size_t pos = 0;
+  std::string tmp_str;
+  std::vector<T> res_list;
+  res_list.clear();
+  if (str.empty()) {
+    return res_list;
+  }
+  while ((pos = str.find(delim, pre_pos)) != std::string::npos) {
+    tmp_str.assign(str, pre_pos, pos - pre_pos);
+    res_list.push_back(tmp_str);
+    pre_pos = pos + delim.size();
+  }
+  tmp_str.assign(str, pre_pos, str.length() - pre_pos);
+  res_list.push_back(tmp_str);
+  return res_list;
+}
+
+template std::vector<std::string> split_string(const std::string& str,
+                                               const std::string& delim);
+
+template <typename T>
+std::vector<T> split_string(const std::string& str) {
+  std::vector<T> list;
+  const char* p;
+  int pre_pos = 0;
+  int pos = 0;
+  std::string tmp_str;
+  if (str.empty()) {
+    return list;
+  }
+  for (p = str.c_str(); *p != 0;) {
+    if (!isspace(*p)) {
+      pos = pre_pos;
+      p++;
+
+      while (*p != 0 && !isspace(*p)) {
+        pos++;
+        p++;
+      }
+      tmp_str.assign(str, pre_pos, pos - pre_pos + 1);
+      list.push_back(tmp_str);
+      pre_pos = pos + 1;
+    } else {
+      pre_pos++;
+      p++;
+    }
+  }
+  return list;
+}
+
+template std::vector<std::string> split_string(const std::string& str);

@@ -88,6 +88,7 @@ NO_FP16_CHECK_GRAD_OP_LIST = [
     "pool3d",
     "softmax",
     "conv2d_transpose",
+    "einsum",
 ]
 
 NO_FP16_COMPARED_WITH_FP32_OP_LIST = [

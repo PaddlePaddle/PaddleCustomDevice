@@ -50,6 +50,7 @@ PD_REGISTER_PLUGIN_KERNEL(multinomial,
                           ALL_LAYOUT,
                           custom_kernel::MultinomialKernel,
                           float,
-                          double) {
+                          double,
+                          phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::INT64);
 }

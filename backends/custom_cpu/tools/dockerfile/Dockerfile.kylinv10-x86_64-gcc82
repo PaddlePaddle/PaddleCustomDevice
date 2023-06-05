@@ -1,29 +1,37 @@
-# Docker Image for PaddlePaddle ubuntu develop base environment
+# Docker Image for PaddlePaddle Kylin V10 develop base environment
 
-FROM ubuntu:20.04
+FROM opstool/kylin:v10sp1-x86_64
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
-RUN apt-get update && apt-get install -y apt-utils
-RUN ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && add-apt-repository ppa:ubuntu-toolchain-r/test
-
-# install other requirements
-RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils libssl-dev bzip2 gzip make cmake sudo
-RUN apt-get update && apt-get install -y coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx
-RUN apt-get update && apt-get install -y bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool
-RUN apt-get update && apt-get install -y openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen gdb
-RUN apt-get update && apt-get install -y openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 gcc g++ gfortran
+RUN yum makecache
+RUN yum update -y
+RUN yum install -y bzip2 make openssl-devel openssh-server python3 python3-pip python3-devel \
+        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison yasm diffutils \
+        automake which file net-tools tree lrzsz zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool \
+        xz graphviz wget curl-devel numactl-devel initscripts gcc gcc-c++
 
 # add bash envs
 COPY root/ /root/
 
-# # install gcc-8.4.0
-RUN apt-get install -y gcc-8 g++-8 gfortran-8
-RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-8  90 && \
-    update-alternatives --install /usr/bin/gcc  gcc  /usr/bin/gcc-8  90 && \
-    update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-8  90
+# GCC 8.2
+WORKDIR /opt
+RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
+    tar -xvf gcc-8.2.0.tar.xz && cd gcc-8.2.0 && \
+    unset LIBRARY_PATH CPATH C_INCLUDE_PATH PKG_CONFIG_PATH CPLUS_INCLUDE_PATH INCLUDE && \
+    ./contrib/download_prerequisites && \
+    cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
+    ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
+    make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
+RUN cd /usr/lib/x86_64-linux-gnu && \
+    mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
+    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/x86_64-linux-gnu/libstdc++.so.5 && \
+    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/x86_64-linux-gnu/libstdc++.so.6 && \
+    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /usr/lib/x86_64-linux-gnu && \
+    cd /usr/bin && mv gcc gcc.bak && mv g++ g++.bak && \
+    ln -s /opt/compiler/gcc-8.2/bin/gcc /usr/bin/gcc && \
+    ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
+ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LIBRARY_PATH
 
 # cmake 3.19
 WORKDIR /opt
@@ -31,14 +39,6 @@ RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \
     tar -zxf cmake-3.19.0-Linux-x86_64.tar.gz && rm cmake-3.19.0-Linux-x86_64.tar.gz && \
     mv cmake-3.19.0-Linux-x86_64 cmake-3.19
 ENV PATH=/opt/cmake-3.19/bin:${PATH}
-
-# # install python3.7 and pip
-RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv
-RUN rm -rf /usr/bin/python3 && ln -s /usr/bin/python3.7 /usr/bin/python3 && \
-    rm -rf /usr/bin/python  && ln -s /usr/bin/python3.7 /usr/bin/python
-# install and upgrade pip
-RUN /usr/bin/python3.7 -m ensurepip --upgrade
-RUN /usr/bin/python3.7 -m pip install --upgrade pip setuptools wheel
 
 # create venv and activate
 RUN /usr/bin/python3.7 -m venv /opt/py37env
@@ -52,10 +52,6 @@ RUN pip install --upgrade pip setuptools wheel
 RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole gitpython
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
 RUN pip install PyGithub distro
-
-# add more libs
-RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libprotoc-dev lsof libgeos-dev \
-    pkg-config libhdf5-103 libhdf5-dev lrzsz libsndfile1 tree ninja-build -y
 
 # install Paddle requirement
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
@@ -76,7 +72,8 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/un
 # RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
-RUN git config --global credential.helper store
+RUN git config --global credential.helper store && \
+    git config --global pull.rebase false
 
 # Fix locales to en_US.UTF-8
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
@@ -93,14 +90,16 @@ RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
     make -j8 && make install && cd .. && rm -rf ccache-3.7.9* && \
     ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
 
-# Configure OpenSSH server. c.f. https://docs.docker.com/engine/examples/running_ssh_service
-RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
-    sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
-CMD source ~/.bashrc
+# configure ssh
+RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \
+    sed -i "s/^#PubkeyAuthentication/PubkeyAuthentication/" /etc/ssh/sshd_config && \
+    sed -i "s/^#RSAAuthentication/RSAAuthentication/" /etc/ssh/sshd_config && \
+    sed -i "s/#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
 
-# Clean
-RUN apt-get clean -y
-RUN pip cache purge
+# yum clean
+RUN yum clean all && \
+    rm -rf /var/cache/yum && \
+    rm -rf /var/lib/yum/yumdb && \
+    rm -rf /var/lib/yum/history
 
 EXPOSE 22

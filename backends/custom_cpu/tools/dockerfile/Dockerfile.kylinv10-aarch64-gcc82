@@ -58,17 +58,17 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/re
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
    sed -i "/\bpaddle2onnx\b/d" requirements.txt && pip install -r requirements.txt && rm -rf requirements.txt
 
-# Install Go and glide
-RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
-    tar -xz -C /usr/local && \
-    mkdir /root/gopath && \
-    mkdir /root/gopath/bin && \
-    mkdir /root/gopath/src
-ENV GOROOT=/usr/local/go GOPATH=/root/gopath
-# should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
-ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
-# install glide
-RUN curl -s -q https://glide.sh/get | sh
+# # Install Go and glide
+# RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
+#     tar -xz -C /usr/local && \
+#     mkdir /root/gopath && \
+#     mkdir /root/gopath/bin && \
+#     mkdir /root/gopath/src
+# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
+# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
+# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
+# # install glide
+# RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
 RUN git config --global credential.helper store && \

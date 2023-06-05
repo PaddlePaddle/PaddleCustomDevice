@@ -69,3 +69,6 @@ set_tests_properties(test_conv2d_op_npu PROPERTIES ENVIRONMENT
 set_tests_properties(
   test_transpose_op_npu PROPERTIES ENVIRONMENT
                                    FLAGS_allocator_strategy=auto_growth)
+
+set_tests_properties(test_parallel_dygraph_pipeline_parallel
+                     PROPERTIES ENVIRONMENT PADDLE_P2P_SYNC_SEND=1)

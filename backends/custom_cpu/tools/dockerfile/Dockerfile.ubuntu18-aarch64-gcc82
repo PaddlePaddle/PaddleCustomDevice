@@ -23,9 +23,8 @@ RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
     ./contrib/download_prerequisites && \
     cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
     ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
-    make -j8 && make install && \
-    cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0* && \
-    cd /usr/lib/aarch64-linux-gnu && \
+    make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
+RUN cd /usr/lib/aarch64-linux-gnu && \
     mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
     ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/aarch64-linux-gnu/libstdc++.so.5 && \
     ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/aarch64-linux-gnu/libstdc++.so.6 && \
@@ -110,10 +109,6 @@ CMD source ~/.bashrc
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge
-
-# install gcc-10 for baidu icoding on aarch64
-RUN wget -q https://bcloud-buildkit.bj.bcebos.com/build_env/gcc/ampere/gcc-10-with-glibc2.33.tar.gz && \
-    tar xf gcc-10-with-glibc2.33.tar.gz -C /opt/compiler/ && rm -rf gcc-10-with-glibc2.33.tar.gz
 
 # Create /lib64/ld-linux-aarch64.so.1
 RUN umask 0022 && \

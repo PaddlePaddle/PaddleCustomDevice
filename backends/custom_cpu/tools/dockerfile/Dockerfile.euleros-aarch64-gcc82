@@ -74,6 +74,10 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/un
 RUN git config --global credential.helper store && \
     git config --global pull.rebase false
 
+# Fix locales to en_US.UTF-8
+RUN yum -y install glibc-locale-source glibc-langpack-en
+RUN localedef -i en_US -f UTF-8 en_US.UTF-8
+
 # patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216
 RUN wget -O /opt/0.14.5.tar.gz https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
     cd /opt && tar xzf 0.14.5.tar.gz && cd /opt/patchelf-0.14.5 && ./bootstrap.sh && ./configure && \

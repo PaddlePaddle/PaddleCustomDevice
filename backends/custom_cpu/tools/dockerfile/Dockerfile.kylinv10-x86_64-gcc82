@@ -22,12 +22,11 @@ RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
     cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
     ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
     make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
-RUN cd /usr/lib/x86_64-linux-gnu && \
-    mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/x86_64-linux-gnu/libstdc++.so.5 && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/x86_64-linux-gnu/libstdc++.so.6 && \
-    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /usr/lib/x86_64-linux-gnu && \
-    cd /usr/bin && mv gcc gcc.bak && mv g++ g++.bak && \
+RUN cd /lib64 && mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.24 libstdc++.so.6.0.24.bak && \
+    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /lib64/libstdc++.so.5 && \
+    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /lib64/libstdc++.so.6 && \
+    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /lib64 && \
+    cd /bin && mv gcc gcc.bak && mv g++ g++.bak && \
     ln -s /opt/compiler/gcc-8.2/bin/gcc /usr/bin/gcc && \
     ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
 ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
@@ -76,6 +75,7 @@ RUN git config --global credential.helper store && \
     git config --global pull.rebase false
 
 # Fix locales to en_US.UTF-8
+RUN yum -y install glibc-locale-source glibc-langpack-en
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
 # patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216

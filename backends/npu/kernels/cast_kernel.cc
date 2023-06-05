@@ -59,9 +59,28 @@ void CastKernel(const Context& dev_ctx,
 
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  const auto& runner = NpuOpRunner(
-      "Cast", {x}, {*out}, {{"dst_type", static_cast<int32_t>(aclDtype)}});
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::INT64) {
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(out->dims());
+    dev_ctx.template Alloc<int32_t>(&tmp_out);
+    const auto& runner =
+        NpuOpRunner("Cast",
+                    {x},
+                    {tmp_out},
+                    {{"dst_type", static_cast<int32_t>(ACL_INT32)}});
+    runner.Run(stream);
+
+    const auto& runner1 =
+        NpuOpRunner("Cast",
+                    {tmp_out},
+                    {*out},
+                    {{"dst_type", static_cast<int32_t>(aclDtype)}});
+    runner1.Run(stream);
+  } else {
+    const auto& runner = NpuOpRunner(
+        "Cast", {x}, {*out}, {{"dst_type", static_cast<int32_t>(aclDtype)}});
+    runner.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel

@@ -51,7 +51,7 @@ docker build --network=host -f Dockerfile.npu.ubuntu18-$(uname -m)-gcc82 \
        -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82 .
 docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82
 
-# kylinv10-aarch64-gcc82
+# kylinv10-$(uname -m)-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
 docker build --network=host -f Dockerfile.npu.kylinv10-$(uname -m)-gcc82 \
       --build-arg CANN_VERSION=${CANN_VERSION} \
@@ -61,3 +61,14 @@ docker build --network=host -f Dockerfile.npu.kylinv10-$(uname -m)-gcc82 \
       --build-arg no_proxy=bcebos.com \
       -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82 .
 docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82
+
+# euleros-$(uname -m)-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82
+docker build --network=host -f Dockerfile.npu.euleros-$(uname -m)-gcc82 \
+      --build-arg CANN_VERSION=${CANN_VERSION} \
+      --build-arg http_proxy=${proxy} \
+      --build-arg https_proxy=${proxy} \
+      --build-arg ftp_proxy=${proxy} \
+      --build-arg no_proxy=bcebos.com \
+      -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-euleros-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-euleros-$(uname -m)-gcc82

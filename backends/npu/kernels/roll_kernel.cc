@@ -67,7 +67,9 @@ PD_REGISTER_PLUGIN_KERNEL(roll,
                           custom_kernel::RollKernel,
                           float,
                           phi::dtype::float16,
-                          int) {}
+                          double,
+                          int,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(roll_grad,
                           npu,
@@ -75,4 +77,6 @@ PD_REGISTER_PLUGIN_KERNEL(roll_grad,
                           custom_kernel::RollGradKernel,
                           float,
                           phi::dtype::float16,
-                          int) {}
+                          double,
+                          int,
+                          int64_t) {}

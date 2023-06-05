@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Kylin V10 develop base environment
 
-FROM registry.baidubce.com/qili93/os-base:euleros_2.0_sp8_aarch64
+FROM euleros-server-2.0-sp8-aarch64
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache

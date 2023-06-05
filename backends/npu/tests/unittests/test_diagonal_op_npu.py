@@ -38,8 +38,7 @@ class TestDiagonalOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        pass
-        # self.check_grad_with_place(self.place, ["Input"], "Out")
+        self.check_grad_with_place(self.place, ["Input"], "Out")
 
     def init_dtype(self):
         self.dtype = "float64"

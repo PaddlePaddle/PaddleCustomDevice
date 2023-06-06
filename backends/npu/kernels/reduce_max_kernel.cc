@@ -25,39 +25,53 @@ void MaxRawKernel(const Context& dev_ctx,
                   bool reduce_all,
                   phi::DenseTensor* out) {
   auto dims = axes.GetData();
+  auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(out);
 
-  NPUAttributeMap attr_input = {{"axes", dims}, {"keep_dims", keep_dim}};
-
+  NPUAttributeMap attr_input = {{"keep_dims", keep_dim}};
+  std::vector<int> tmp_dims;
   if (reduce_all) {
-    std::vector<int> dim_vec;
     for (int i = 0; i < x.dims().size(); i++) {
-      dim_vec.push_back(i);
+      tmp_dims.push_back(i);
     }
-
-    attr_input = {{"axes", dim_vec}, {"keep_dims", keep_dim}};
+  } else {
+    for (auto item : dims) {
+      tmp_dims.push_back(static_cast<int>(item));
+    }
   }
 
-  if (x.dtype() == phi::DataType::INT64) {
-    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                      const std::vector<phi::DenseTensor>& outputs,
-                      const NPUAttributeMap& attrs,
-                      const phi::CustomContext& dev_ctx) {
-      const auto& runner =
-          NpuOpRunner("ReduceMaxD", {inputs[0]}, {outputs[0]}, attrs);
-      runner.Run(dev_ctx.stream());
-    };
+  if (x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL ||
+      x.dtype() == phi::DataType::INT32) {
+    phi::DenseTensor tmp_x, tmp_out;
+    tmp_x.Resize(x.dims());
+    dev_ctx.template Alloc<float>(&tmp_x);
+    tmp_out.Resize(out->dims());
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& cast_runner1 =
+        NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(stream);
 
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attr_input,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
+    NpuOpRunner runner;
+    runner.SetType("ReduceMax")
+        .AddInput(tmp_x)
+        .AddInput(dev_ctx, std::move(tmp_dims))
+        .AddOutput(tmp_out)
+        .AddAttrs(attr_input)
+        .Run(stream);
+
+    auto out_type = ConvertToNpuDtype(out->dtype());
+    dev_ctx.template Alloc<T>(out);
+    const auto& cast_runner2 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", out_type}});
+    cast_runner2.Run(stream);
   } else {
-    const auto& runner = NpuOpRunner("ReduceMaxD", {x}, {*out}, attr_input);
-    runner.Run(dev_ctx.stream());
+    NpuOpRunner runner;
+    runner.SetType("ReduceMax")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(tmp_dims))
+        .AddOutput(*out)
+        .AddAttrs(attr_input)
+        .Run(dev_ctx.stream());
   }
 }
 

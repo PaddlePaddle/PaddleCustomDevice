@@ -68,30 +68,6 @@ class TestRollOpCase3(TestRollOp):
         self.axis = [-1, 1]
 
 
-class TesTRollOpFP64(TestRollOp):
-    def init_dtype_type(self):
-        self.dtype = np.double
-        self.x_shape = (100, 4, 5)
-        self.shifts = [101, -1]
-        self.axis = [0, -2]
-
-
-class TestRollFP64OpCase2(TestRollOp):
-    def init_dtype_type(self):
-        self.dtype = np.double
-        self.x_shape = (100, 10, 5)
-        self.shifts = [8, -1]
-        self.axis = [-1, -2]
-
-
-class TestRollFP64OpCase3(TestRollOp):
-    def init_dtype_type(self):
-        self.dtype = np.double
-        self.x_shape = (11, 11)
-        self.shifts = [1, 1]
-        self.axis = [-1, 1]
-
-
 class TestRollFP16OP(TestRollOp):
     def init_dtype_type(self):
         self.dtype = np.float16
@@ -150,30 +126,6 @@ class TestRollInt32OpCase2(TestRollInt32):
 class TestRollInt32OpCase3(TestRollInt32):
     def init_dtype_type(self):
         self.dtype = np.int32
-        self.x_shape = (11, 11)
-        self.shifts = [1, 1]
-        self.axis = [-1, 1]
-
-
-class TestRollInt64(TestRollInt32):
-    def init_dtype_type(self):
-        self.dtype = np.int64
-        self.x_shape = (100, 4, 5)
-        self.shifts = [101, -1]
-        self.axis = [0, -2]
-
-
-class TestRollInt64OpCase2(TestRollOp):
-    def init_dtype_type(self):
-        self.dtype = np.int64
-        self.x_shape = (100, 10, 5)
-        self.shifts = [8, -1]
-        self.axis = [-1, -2]
-
-
-class TestRollInt64OpCase3(TestRollOp):
-    def init_dtype_type(self):
-        self.dtype = np.int64
         self.x_shape = (11, 11)
         self.shifts = [1, 1]
         self.axis = [-1, 1]

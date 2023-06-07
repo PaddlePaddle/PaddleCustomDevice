@@ -41,6 +41,8 @@ void AdamKernel(const Context& dev_ctx,
                 phi::DenseTensor* beta1_pow_out,
                 phi::DenseTensor* beta2_pow_out,
                 phi::DenseTensor* master_param_out) {
+  using MPDType = typename phi::dtype::MPTypeTrait<T>::Type;
+
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
     PADDLE_ENFORCE_EQ(skip_update->numel(),
@@ -72,25 +74,25 @@ void AdamKernel(const Context& dev_ctx,
   VLOG(4) << "use_global_beta_pow:" << use_global_beta_pow;
 
   dev_ctx.template Alloc<T>(param_out);
-  dev_ctx.template Alloc<T>(moment1_out);
-  dev_ctx.template Alloc<T>(moment2_out);
+  dev_ctx.template Alloc<MPDType>(moment1_out);
+  dev_ctx.template Alloc<MPDType>(moment2_out);
 
   // NOTE(zhiqiu): beta1_pow and beta2_pow may on CPU and not transform
   // place.
   phi::DenseTensor beta1_pow_tmp;
   phi::DenseTensor beta2_pow_tmp;
   if (beta1_pow->place().GetType() == phi::AllocationType::CPU) {
-    T beta1 = *beta1_pow->data<T>();
+    MPDType beta1 = *beta1_pow->data<MPDType>();
     beta1_pow_tmp.Resize({1});
-    dev_ctx.template Alloc<T>(&beta1_pow_tmp);
-    FillNpuTensorWithConstant<T>(&beta1_pow_tmp, dev_ctx, beta1);
+    dev_ctx.template Alloc<MPDType>(&beta1_pow_tmp);
+    FillNpuTensorWithConstant<MPDType>(&beta1_pow_tmp, dev_ctx, beta1);
     beta1_pow = &beta1_pow_tmp;
   }
   if (beta2_pow->place().GetType() == phi::AllocationType::CPU) {
-    T beta2 = *beta2_pow->data<T>();
+    MPDType beta2 = *beta2_pow->data<MPDType>();
     beta2_pow_tmp.Resize({1});
-    dev_ctx.template Alloc<T>(&beta2_pow_tmp);
-    FillNpuTensorWithConstant<T>(&beta2_pow_tmp, dev_ctx, beta2);
+    dev_ctx.template Alloc<MPDType>(&beta2_pow_tmp);
+    FillNpuTensorWithConstant<MPDType>(&beta2_pow_tmp, dev_ctx, beta2);
     beta2_pow = &beta2_pow_tmp;
   }
 
@@ -101,24 +103,23 @@ void AdamKernel(const Context& dev_ctx,
   phi::DenseTensor beta1_tmp;
   phi::DenseTensor beta2_tmp;
   phi::DenseTensor epsilon_tmp;
-  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
-  beta1_tmp.set_meta(meta);
-  beta2_tmp.set_meta(meta);
-  epsilon_tmp.set_meta(meta);
+  beta1_tmp.Resize({1});
+  beta2_tmp.Resize({1});
+  epsilon_tmp.Resize({1});
 
-  T beta1 = beta1_in.to<T>();
-  dev_ctx.template Alloc<T>(&beta1_tmp);
-  FillNpuTensorWithConstant<T>(&beta1_tmp, dev_ctx, beta1);
+  MPDType beta1 = beta1_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&beta1_tmp);
+  FillNpuTensorWithConstant<MPDType>(&beta1_tmp, dev_ctx, beta1);
   beta1_tensor = &beta1_tmp;
 
-  T beta2 = beta2_in.to<T>();
-  dev_ctx.template Alloc<T>(&beta2_tmp);
-  FillNpuTensorWithConstant<T>(&beta2_tmp, dev_ctx, beta2);
+  MPDType beta2 = beta2_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&beta2_tmp);
+  FillNpuTensorWithConstant<MPDType>(&beta2_tmp, dev_ctx, beta2);
   beta2_tensor = &beta2_tmp;
 
-  T epsilon = epsilon_in.to<T>();
-  dev_ctx.template Alloc<T>(&epsilon_tmp);
-  FillNpuTensorWithConstant<T>(&epsilon_tmp, dev_ctx, epsilon);
+  MPDType epsilon = epsilon_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&epsilon_tmp);
+  FillNpuTensorWithConstant<MPDType>(&epsilon_tmp, dev_ctx, epsilon);
   epsilon_tensor = &epsilon_tmp;
 
   VLOG(3) << "beta1_pow.numel() : " << beta1_pow->numel()
@@ -126,41 +127,112 @@ void AdamKernel(const Context& dev_ctx,
   VLOG(3) << "param.numel(): " << param.numel();
 
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("ApplyAdamD",
-                                   {
-                                       param,
-                                       moment1,
-                                       moment2,
-                                       *beta1_pow,
-                                       *beta2_pow,
-                                       learning_rate,
-                                       *beta1_tensor,
-                                       *beta2_tensor,
-                                       *epsilon_tensor,
-                                       grad,
-                                   },
-                                   {
-                                       *param_out,
-                                       *moment1_out,
-                                       *moment2_out,
-                                   },
-                                   {});
-  runner.Run(stream);
 
-  // NOTE(zhiqiu): ApplyAdamD updates params inplace, so
-  // if param and param_out is not same, we need to do copy.
-  if (param_out->data<T>() != param.data<T>()) {
+  const phi::DenseTensor* calc_param =
+      multi_precision ? &master_param.get() : &param;
+
+  // NOTE(zhiqiu): ApplyAdamD updates params inplace
+  TensorCopy(dev_ctx, moment1, false, moment1_out);
+  TensorCopy(dev_ctx, moment2, false, moment2_out);
+
+  if (multi_precision) {
+    dev_ctx.template Alloc<MPDType>(master_param_out);
+    TensorCopy(dev_ctx, master_param.get(), false, master_param_out);
+    const auto& runner = NpuOpRunner("ApplyAdamD",
+                                     {
+                                         *master_param_out,
+                                         *moment1_out,
+                                         *moment2_out,
+                                         *beta1_pow,
+                                         *beta2_pow,
+                                         learning_rate,
+                                         *beta1_tensor,
+                                         *beta2_tensor,
+                                         *epsilon_tensor,
+                                         grad,
+                                     },
+                                     {
+                                         *master_param_out,
+                                         *moment1_out,
+                                         *moment2_out,
+                                     },
+                                     {});
+    runner.Run(stream);
+
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {*master_param_out},
+        {*param_out},
+        {{"dst_type",
+          static_cast<int>(ConvertToNpuDtype(param_out->dtype()))}});
+    cast_runner.Run(stream);
+  } else if (param.dtype() == phi::DataType::FLOAT16) {
+    phi::DenseTensor param_fp32;
+    param_fp32.Resize(calc_param->dims());
+    dev_ctx.template Alloc<MPDType>(&param_fp32);
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {param},
+        {param_fp32},
+        {{"dst_type",
+          static_cast<int>(cpp_type_to_acl_dtype<MPDType>::value())}});
+    cast_runner.Run(stream);
+
+    const auto& runner = NpuOpRunner("ApplyAdamD",
+                                     {
+                                         param_fp32,
+                                         *moment1_out,
+                                         *moment2_out,
+                                         *beta1_pow,
+                                         *beta2_pow,
+                                         learning_rate,
+                                         *beta1_tensor,
+                                         *beta2_tensor,
+                                         *epsilon_tensor,
+                                         grad,
+                                     },
+                                     {
+                                         param_fp32,
+                                         *moment1_out,
+                                         *moment2_out,
+                                     },
+                                     {});
+    runner.Run(stream);
+
+    const auto& cast_runner2 = NpuOpRunner(
+        "Cast",
+        {param_fp32},
+        {*param_out},
+        {{"dst_type",
+          static_cast<int>(ConvertToNpuDtype(param_out->dtype()))}});
+    cast_runner2.Run(stream);
+  } else {
     TensorCopy(dev_ctx, param, false, param_out);
+    const auto& runner = NpuOpRunner("ApplyAdamD",
+                                     {
+                                         *param_out,
+                                         *moment1_out,
+                                         *moment2_out,
+                                         *beta1_pow,
+                                         *beta2_pow,
+                                         learning_rate,
+                                         *beta1_tensor,
+                                         *beta2_tensor,
+                                         *epsilon_tensor,
+                                         grad,
+                                     },
+                                     {
+                                         *param_out,
+                                         *moment1_out,
+                                         *moment2_out,
+                                     },
+                                     {});
+    runner.Run(stream);
   }
-  if (moment1_out->data<T>() != moment1.data<T>()) {
-    TensorCopy(dev_ctx, moment1, false, moment1_out);
-  }
-  if (moment2_out->data<T>() != moment2.data<T>()) {
-    TensorCopy(dev_ctx, moment2, false, moment2_out);
-  }
+
   if (!use_global_beta_pow) {
-    dev_ctx.template Alloc<T>(beta1_pow_out);
-    dev_ctx.template Alloc<T>(beta2_pow_out);
+    dev_ctx.template Alloc<MPDType>(beta1_pow_out);
+    dev_ctx.template Alloc<MPDType>(beta2_pow_out);
     const auto& runner_m1 =
         NpuOpRunner("Mul", {*beta1_pow, *beta1_tensor}, {*beta1_pow_out}, {});
     runner_m1.Run(stream);
@@ -197,6 +269,8 @@ void AdamwKernel(const Context& dev_ctx,
                  phi::DenseTensor* beta1_pow_out,
                  phi::DenseTensor* beta2_pow_out,
                  phi::DenseTensor* master_param_outs) {
+  using MPDType = typename phi::dtype::MPTypeTrait<T>::Type;
+
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
     PADDLE_ENFORCE_EQ(skip_update->numel(),
@@ -221,11 +295,12 @@ void AdamwKernel(const Context& dev_ctx,
     decay.set_meta(meta);
     tmp.set_meta(meta);
 
-    dev_ctx.template Alloc<float>(&tmp);
-    dev_ctx.template Alloc<float>(&one);
-    dev_ctx.template Alloc<float>(&decay);
+    dev_ctx.template Alloc<MPDType>(&tmp);
+    dev_ctx.template Alloc<MPDType>(&one);
+    dev_ctx.template Alloc<MPDType>(&decay);
 
-    FillNpuTensorWithConstant<float>(&one, dev_ctx, 1.0f);
+    FillNpuTensorWithConstant<MPDType>(
+        &one, dev_ctx, static_cast<MPDType>(1.0f));
     NPUAttributeMap attr_input = {{"value", coeff}};
 
     auto stream = dev_ctx.stream();
@@ -237,42 +312,40 @@ void AdamwKernel(const Context& dev_ctx,
     const auto& runner2 = NpuOpRunner("Sub", {one, tmp}, {decay}, {});
     runner2.Run(stream);
 
-    // Master Parma is not supported on npu
-    if (master_param.is_initialized()) {
-      PADDLE_THROW(
-          phi::errors::Unimplemented("Master Parma is not supported on npu"));
-    } else {
-      dev_ctx.template Alloc<T>(param_out);
+    dev_ctx.template Alloc<T>(param_out);
+    const phi::DenseTensor* calc_param =
+        multi_precision ? &master_param.get() : &param;
+    const auto& runner =
+        NpuOpRunner("Mul",
+                    {*calc_param, decay},
+                    {*const_cast<phi::DenseTensor*>(calc_param)},
+                    {});
+    runner.Run(stream);
 
-      const auto& runner = NpuOpRunner(
-          "Mul", {param, decay}, {*const_cast<phi::DenseTensor*>(&param)}, {});
-      runner.Run(stream);
-    }
+    custom_kernel::AdamKernel<T, Context>(dev_ctx,
+                                          param,
+                                          grad,
+                                          learning_rate,
+                                          moment1,
+                                          moment2,
+                                          beta1_pow,
+                                          beta2_pow,
+                                          master_param,
+                                          skip_update,
+                                          beta1,
+                                          beta2,
+                                          epsilon,
+                                          lazy_mode,
+                                          min_row_size_to_use_multithread,
+                                          multi_precision,
+                                          use_global_beta_pow,
+                                          param_out,
+                                          moment1_out,
+                                          moment2_out,
+                                          beta1_pow_out,
+                                          beta2_pow_out,
+                                          master_param_outs);
   }
-
-  custom_kernel::AdamKernel<T, Context>(dev_ctx,
-                                        param,
-                                        grad,
-                                        learning_rate,
-                                        moment1,
-                                        moment2,
-                                        beta1_pow,
-                                        beta2_pow,
-                                        master_param,
-                                        skip_update,
-                                        beta1,
-                                        beta2,
-                                        epsilon,
-                                        lazy_mode,
-                                        min_row_size_to_use_multithread,
-                                        multi_precision,
-                                        use_global_beta_pow,
-                                        param_out,
-                                        moment1_out,
-                                        moment2_out,
-                                        beta1_pow_out,
-                                        beta2_pow_out,
-                                        master_param_outs);
 }
 
 }  // namespace custom_kernel

@@ -553,8 +553,15 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported on ascend npu device.";
-  return C_ERROR;
+  HCCL_CHECK(HcclReduce(send_buf,
+                        recv_buf,
+                        count,
+                        PDDataTypeToHcclDataType(data_type),
+                        PDReduceOpToHcclReduceOp(op),
+                        root,
+                        comm,
+                        stream));
+  return C_SUCCESS;
 }
 
 C_Status XcclAllGather(void *send_buf,

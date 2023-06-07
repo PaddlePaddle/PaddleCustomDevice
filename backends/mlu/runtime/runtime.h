@@ -21,9 +21,9 @@
 #include <mlu_op.h>
 
 #include "glog/logging.h"
+#include "paddle/phi/core/os_info.h"
 #include "paddle/phi/extension.h"
-#include "runtime/os_info.h"
-#include "runtime/process_data.h"
+#include "runtime/process_cnpapi_data.h"
 
 template <typename T>
 struct mluStatusType {};

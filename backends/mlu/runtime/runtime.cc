@@ -503,6 +503,7 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+#ifdef WITH_PROFILE
 void BufferRequestedCallback(uint64_t **buffer,
                              size_t *size,
                              size_t *max_num_records) {
@@ -516,7 +517,7 @@ void BufferCompletedCallback(uint64_t *buffer, size_t size, size_t valid_size) {
 
 std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
   std::unordered_map<uint32_t, uint64_t> mapping;
-  std::unordered_map<uint64_t, ThreadId> ids = GetAllThreadIds();
+  std::unordered_map<uint64_t, phi::ThreadId> ids = phi::GetAllThreadIds();
   for (const auto &id : ids) {
     mapping[id.second.cupti_tid] = id.second.sys_tid;
   }
@@ -596,6 +597,7 @@ C_Status ProfilerCollectData(C_Profiler prof,
   ProcessCnpapiActivity(prof, tracing_start_ns_);
   return C_SUCCESS;
 }
+#endif
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
@@ -661,10 +663,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_recv = XcclRecv;
 
   // profiler
+#ifdef WITH_PROFILE
   params->interface->profiler_collect_trace_data = ProfilerCollectData;
   params->interface->profiler_initialize = ProfilerInitialize;
   params->interface->profiler_finalize = ProfilerFinalize;
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+#endif
 }

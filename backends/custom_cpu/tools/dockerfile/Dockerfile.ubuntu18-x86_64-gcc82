@@ -23,9 +23,8 @@ RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
     ./contrib/download_prerequisites && \
     cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
     ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
-    make -j8 && make install && \
-    cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0* && \
-    cd /usr/lib/x86_64-linux-gnu && \
+    make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
+RUN cd /usr/lib/x86_64-linux-gnu && \
     mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
     ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/x86_64-linux-gnu/libstdc++.so.5 && \
     ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/x86_64-linux-gnu/libstdc++.so.6 && \
@@ -71,17 +70,17 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/re
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
 
-# Install Go and glide
-RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
-    tar -xz -C /usr/local && \
-    mkdir /root/gopath && \
-    mkdir /root/gopath/bin && \
-    mkdir /root/gopath/src
-ENV GOROOT=/usr/local/go GOPATH=/root/gopath
-# should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
-ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
-# install glide
-RUN curl -s -q https://glide.sh/get | sh
+# # Install Go and glide
+# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
+#     tar -xz -C /usr/local && \
+#     mkdir /root/gopath && \
+#     mkdir /root/gopath/bin && \
+#     mkdir /root/gopath/src
+# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
+# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
+# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
+# # install glide
+# RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
 RUN git config --global credential.helper store

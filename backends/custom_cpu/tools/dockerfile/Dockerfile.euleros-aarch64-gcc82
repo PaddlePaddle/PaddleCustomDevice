@@ -1,13 +1,13 @@
 # Docker Image for PaddlePaddle Kylin V10 develop base environment
 
-FROM kylin-server-10-sp2-aarch64:b09
+FROM euleros-server-2.0-sp8-aarch64
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache
 RUN yum update -y
 RUN yum install -y bzip2 make openssl-devel openssh-server python3 python3-pip python3-devel \
-        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison yasm diffutils \
-        automake which file net-tools tree lrzsz zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool \
+        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison diffutils \
+        automake which file net-tools tree lrzsz zlib-devel openssl-devel pcre-devel vim libtool \
         xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++
 
 # add bash envs

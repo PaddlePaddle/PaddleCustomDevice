@@ -1007,6 +1007,28 @@ void MishGradKernel(const Context& dev_ctx,
   const auto& runner = NpuOpRunner("MishGrad", {dout, x}, {*dx}, {});
   runner.Run(stream);
 }
+
+template <typename T, typename Context>
+void RoundKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(out);
+
+  const auto& runner = NpuOpRunner("Round", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RoundGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  auto dx_dims = dx->dims();
+  dev_ctx.template Alloc<T>(dx);
+  FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+  dx->Resize(dx_dims);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
@@ -1413,3 +1435,19 @@ PD_REGISTER_PLUGIN_KERNEL(mish_grad,
                           custom_kernel::MishGradKernel,
                           float,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}

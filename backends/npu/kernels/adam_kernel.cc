@@ -63,8 +63,10 @@ void AdamKernel(const Context& dev_ctx,
     TensorCopy(dev_ctx, param, false, param_out);
     TensorCopy(dev_ctx, moment1, false, moment1_out);
     TensorCopy(dev_ctx, moment2, false, moment2_out);
-    TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
-    TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+    if (!use_global_beta_pow) {
+      TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
+      TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+    }
     return;
   }
 
@@ -285,6 +287,16 @@ void AdamwKernel(const Context& dev_ctx,
   }
 
   VLOG(3) << "Skip update" << skip_update_;
+  if (skip_update_) {
+    TensorCopy(dev_ctx, param, false, param_out);
+    TensorCopy(dev_ctx, moment1, false, moment1_out);
+    TensorCopy(dev_ctx, moment2, false, moment2_out);
+    if (!use_global_beta_pow) {
+      TensorCopy(dev_ctx, beta1_pow, false, beta1_pow_out);
+      TensorCopy(dev_ctx, beta2_pow, false, beta2_pow_out);
+    }
+    return;
+  }
 
   if (!skip_update_ && with_decay) {
     phi::DenseTensor one;

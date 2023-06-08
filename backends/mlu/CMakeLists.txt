@@ -29,6 +29,12 @@ set(CUSTOM_MLU_SRCS runtime/runtime.cc)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 # TODO(qiil93): avoid compile error, to be removed
 add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
+if(ON_INFER)
+  add_definitions(-DON_INFER)
+endif()
+if(WITH_PROFILE)
+  add_definitions(-DWITH_PROFILE)
+endif()
 
 # custom kernels
 if(WITH_KERNELS)
@@ -40,7 +46,8 @@ if(WITH_KERNELS)
 endif()
 
 if(WITH_PROFILE)
-  list(APPEND CUSTOM_MLU_SRCS runtime/os_info.cc runtime/process_data.cc)
+  list(APPEND CUSTOM_MLU_SRCS runtime/process_cnpapi_data.h
+       runtime/process_cnpapi_data.cc)
 endif()
 
 # C++ infer lib need to compatiable with CXX11
@@ -51,21 +58,21 @@ endif()
 
 # build shared library
 add_library(${CUSTOM_MLU_NAME} SHARED ${CUSTOM_MLU_SRCS})
-target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE ${NEUWARE_LIBS})
+target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE ${NEUWARE_LIBS} glog gflags)
 
 # link paddle shared library
 include(third_party)
 add_dependencies(${CUSTOM_MLU_NAME} third_party)
 if(ON_INFER)
   target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE paddle_inference)
+  target_compile_definitions(${CUSTOM_MLU_NAME} PRIVATE PADDLE_ON_INFERENCE)
 else()
   target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE ${PADDLE_CORE_LIB})
+  target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE pybind)
+  find_package(PythonInterp ${PY_VERSION} REQUIRED)
+  find_package(PythonLibs ${PY_VERSION} REQUIRED)
+  include_directories(${PYTHON_INCLUDE_DIR})
 endif()
-
-find_package(PythonInterp ${PY_VERSION} REQUIRED)
-find_package(PythonLibs ${PY_VERSION} REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIR})
-target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE pybind)
 
 # testing
 if(WITH_TESTING)

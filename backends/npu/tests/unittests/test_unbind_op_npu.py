@@ -228,15 +228,5 @@ class TestUnbindInt64(TestUnbindOp):
         pass
 
 
-class TestUnbindBool(unittest.TestCase):
-    def test_bool(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
-        x = paddle.to_tensor([[True, True], [False, False]])
-        xs = paddle.unbind(x, axis=0)
-        self.assertEqual(len(xs), 2)
-        np.testing.assert_array_equal(xs[0].numpy(False), [True, True])
-        paddle.enable_static()
-
-
 if __name__ == "__main__":
     unittest.main()

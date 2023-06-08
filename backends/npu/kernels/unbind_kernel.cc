@@ -55,5 +55,4 @@ PD_REGISTER_PLUGIN_KERNEL(unbind,
                           float,
                           phi::dtype::float16,
                           int,
-                          int64_t,
-                          bool) {}
+                          int64_t) {}

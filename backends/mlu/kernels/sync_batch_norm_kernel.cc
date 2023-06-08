@@ -18,6 +18,7 @@
 namespace custom_kernel {
 
 #define GET_LAYOUT_OFFSET 2
+#define NO_USE_COMM 0
 
 static std::vector<cnnlTensorLayout_t> supported_input_layout = {
     CNNL_LAYOUT_NC, CNNL_LAYOUT_NLC, CNNL_LAYOUT_NHWC, CNNL_LAYOUT_NDHWC};
@@ -185,6 +186,7 @@ void SyncBatchNormKernel(const Context& dev_ctx,
     Tensor mean_all;
     Tensor invstd_all;
 
+#if !defined ON_INFER
     auto comm =
         static_cast<cnclComm_t>(phi::detail::GetCCLComm(dev_ctx.GetPlace(), 0));
     auto stream = GetQueue(static_cast<C_Stream>(dev_ctx.stream()));
@@ -225,6 +227,9 @@ void SyncBatchNormKernel(const Context& dev_ctx,
                                                stream));
       // sync queue after communication processes.
       dev_ctx.Wait();
+#else
+    if (NO_USE_COMM) {
+#endif
     } else {
       count_all = input_count;
       mean_all = local_mean;
@@ -415,6 +420,7 @@ void SyncBatchNormGradKernel(
   FillMLUTensorWithHostValue<int32_t>(
       dev_ctx, static_cast<int32_t>(x.numel() / C), &numel_count);
 
+#if !defined ON_INFER
   auto comm =
       static_cast<cnclComm_t>(phi::detail::GetCCLComm(dev_ctx.GetPlace(), 0));
   auto stream = GetQueue(static_cast<C_Stream>(dev_ctx.stream()));
@@ -449,6 +455,7 @@ void SyncBatchNormGradKernel(
     // sync queue after communication processes.
     dev_ctx.Wait();
   }
+#endif
 
   if (x_grad) {
     MLUCnnlTensorDesc desc_count(numel_count);

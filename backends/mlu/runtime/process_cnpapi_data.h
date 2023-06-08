@@ -22,7 +22,7 @@
 
 #include "paddle/phi/api/profiler/trace_event.h"
 #include "paddle/phi/backends/device_ext.h"
-#include "runtime/os_info.h"
+#include "paddle/phi/core/os_info.h"
 
 struct ActivityBuffer {
   ActivityBuffer(uint64_t* addr, size_t size) : addr(addr), valid_size(size) {}

@@ -43,3 +43,64 @@ std::string GetPDTensorString(const Context& dev_ctx,
                               const phi::DenseTensor& print_tensor,
                               const std::string& tensor_name = "",
                               const std::string& message = "");
+
+template <typename T = std::string>
+std::vector<T> split_string(const std::string& str, const std::string& delim);
+
+template <typename T = std::string>
+std::vector<T> split_string(const std::string& str);
+
+template <class Container>
+std::string join_strings(const Container& strs, char delim) {
+  std::string str;
+
+  size_t i = 0;
+  for (auto& elem : strs) {
+    if (i > 0) {
+      str += delim;
+    }
+
+    std::stringstream ss;
+    ss << elem;
+    str += ss.str();
+    ++i;
+  }
+
+  return str;
+}
+
+template <class Container>
+std::string join_strings(const Container& strs, const std::string& delim) {
+  std::string str;
+
+  size_t i = 0;
+  for (auto& elem : strs) {
+    if (i > 0) {
+      str += delim;
+    }
+
+    std::stringstream ss;
+    ss << elem;
+    str += ss.str();
+    ++i;
+  }
+
+  return str;
+}
+
+template <class Container, class DelimT, class ConvertFunc>
+std::string join_strings(const Container& strs,
+                         DelimT&& delim,
+                         ConvertFunc&& func) {
+  std::stringstream ss;
+  size_t i = 0;
+  for (const auto& elem : strs) {
+    if (i > 0) {
+      ss << delim;
+    }
+    ss << func(elem);
+    ++i;
+  }
+
+  return ss.str();
+}

@@ -35,10 +35,10 @@ class TestDiagonalOp(OpTest):
         self.outputs = {"Out": self.target}
 
     def test_check_output(self):
-        self.check_output()
+        self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["Input"], "Out")
+        self.check_grad_with_place(self.place, ["Input"], "Out")
 
     def init_dtype(self):
         self.dtype = "float64"
@@ -83,7 +83,8 @@ class TestDiagonalOpCase2(TestDiagonalOp):
         self.grad_out = np.ones(100).astype("int64")
 
     def test_check_grad(self):
-        self.check_grad(
+        self.check_grad_with_place(
+            self.place,
             ["Input"],
             "Out",
             user_defined_grads=[self.grad_x],

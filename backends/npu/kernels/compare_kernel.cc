@@ -191,6 +191,25 @@ void GreaterEqualRawKernel(const Context& dev_ctx,
                              op_func,
                              {phi::DataType::UINT8, phi::DataType::UINT8},
                              {phi::DataType::BOOL});
+  } else if (x.dtype() == phi::DataType::INT64 ||
+             y.dtype() == phi::DataType::INT64) {
+    // Greater OP will be executed at AI_CPU with bad performance.
+    // Here, we transform the int64 inputs and outputs to int32 to accelarate.
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("GreaterEqual", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::INT32, phi::DataType::INT32},
+                             {phi::DataType::BOOL});
   } else {
     const auto& runner = NpuOpRunner("GreaterEqual", {x, y}, {*out}, {});
     auto stream = dev_ctx.stream();
@@ -228,6 +247,25 @@ void GreaterThanRawKernel(const Context& dev_ctx,
                              dev_ctx,
                              op_func,
                              {phi::DataType::UINT8, phi::DataType::UINT8},
+                             {phi::DataType::BOOL});
+  } else if (x.dtype() == phi::DataType::INT64 ||
+             y.dtype() == phi::DataType::INT64) {
+    // Greater OP will be executed at AI_CPU with bad performance.
+    // Here, we transform the int64 inputs and outputs to int32 to accelarate.
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const Context& dev_ctx) {
+      const auto& runner = NpuOpRunner("Greater", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NPUAttributeMap attr_input = {};
+    NpuOpRunner::TypeAdapter({x, y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::INT32, phi::DataType::INT32},
                              {phi::DataType::BOOL});
   } else {
     const auto& runner = NpuOpRunner("Greater", {x, y}, {*out}, {});

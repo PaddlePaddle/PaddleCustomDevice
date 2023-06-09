@@ -1050,6 +1050,108 @@ class TestSin_ZeroDim(TestSin):
         self.shape = []
 
 
+def ref_mish(x, threshold=20.0):
+    softplus = np.select([x <= threshold, x > threshold], [np.log(1 + np.exp(x)), x])
+    return x * np.tanh(softplus)
+
+
+class TestMish(TestActivation):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "mish"
+        self.init_dtype()
+        self.init_shape()
+
+        # np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = ref_mish(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.02)
+
+
+class TestMishAPI(unittest.TestCase):
+    # test paddle.nn.Mish, paddle.nn.functional.mish
+    def setUp(self):
+        np.random.seed(1024)
+        self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def test_static_api(self):
+        with paddle.fluid.framework._static_guard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
+                out1 = F.mish(x)
+                mish = paddle.nn.Mish()
+                out2 = mish(x)
+                exe = paddle.static.Executor(self.place)
+                res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
+            out_ref = ref_mish(self.x_np)
+            for r in res:
+                np.testing.assert_allclose(out_ref, r, rtol=1e-05)
+
+    def test_dygraph_api(self):
+        paddle.disable_static(self.place)
+        x = paddle.to_tensor(self.x_np)
+        out1 = F.mish(x)
+        mish = paddle.nn.Mish()
+        out2 = mish(x)
+        out_ref = ref_mish(self.x_np)
+        for r in [out1, out2]:
+            np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
+        paddle.enable_static()
+
+    def test_fluid_api(self):
+        with paddle.fluid.framework._static_guard():
+            with fluid.program_guard(fluid.Program()):
+                x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
+                out = paddle.nn.functional.mish(x)
+                exe = fluid.Executor(self.place)
+                res = exe.run(feed={"X": self.x_np}, fetch_list=[out])
+            out_ref = ref_mish(self.x_np)
+            np.testing.assert_allclose(out_ref, res[0], rtol=1e-05)
+
+
+class TestRound(TestActivation):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "round"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = np.round(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def test_check_grad(self):
+        pass
+
+
+class TestRoundDouble(TestRound):
+    def init_dtype(self):
+        self.dtype = np.double
+
+
+class TestRound_ZeroDim(TestRound):
+    def init_shape(self):
+        self.shape = []
+
+
 # ------------------ Test Fp16 ----------------------
 def create_test_act_fp16_class(parent, atol=1e-3, grad_check=True, grad_atol=0.80):
     class TestActFp16(parent):
@@ -1087,6 +1189,8 @@ create_test_act_fp16_class(TestLog, atol=1e-2)
 create_test_act_fp16_class(TestPow, atol=5e-2)
 create_test_act_fp16_class(TestPow_factor_tensor, atol=5e-2)
 create_test_act_fp16_class(TestFloor, grad_check=False)
+create_test_act_fp16_class(TestMish)
+create_test_act_fp16_class(TestRound, grad_check=False)
 
 # TODO(qili93): merge elu, swish ops into activaions
 

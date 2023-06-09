@@ -13,25 +13,6 @@ RUN yum install -y bzip2 make openssl-devel openssh-server python3 python3-pip p
 # add bash envs
 COPY root/ /root/
 
-# GCC 8.2
-WORKDIR /opt
-RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
-    tar -xvf gcc-8.2.0.tar.xz && cd gcc-8.2.0 && \
-    unset LIBRARY_PATH CPATH C_INCLUDE_PATH PKG_CONFIG_PATH CPLUS_INCLUDE_PATH INCLUDE && \
-    ./contrib/download_prerequisites && \
-    cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
-    ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
-    make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
-RUN cd /lib64 && mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.24 libstdc++.so.6.0.24.bak && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /lib64/libstdc++.so.5 && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /lib64/libstdc++.so.6 && \
-    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /lib64 && \
-    cd /bin && mv gcc gcc.bak && mv g++ g++.bak && \
-    ln -s /opt/compiler/gcc-8.2/bin/gcc /usr/bin/gcc && \
-    ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
-ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
-ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LIBRARY_PATH
-
 # cmake 3.19
 WORKDIR /opt
 RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \

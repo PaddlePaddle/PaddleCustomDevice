@@ -71,9 +71,7 @@ static void MatMul2DwithReduceBatch(const Context& dev_ctx,
                                     phi::DenseTensor* out,
                                     const bool transpose_x,
                                     const bool transpose_y) {
-  if (!out->initialized()) {
-    dev_ctx.template Alloc<T>(out);
-  }
+  dev_ctx.template Alloc<T>(out);
   // reshape to 2D matmul
   std::vector<int64_t> x_dims = phi::vectorize(X.dims());
   std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
@@ -102,9 +100,7 @@ static void MatMulND(const Context& dev_ctx,
                      phi::DenseTensor* out,
                      const bool transpose_x,
                      const bool transpose_y) {
-  if (!out->initialized()) {
-    dev_ctx.template Alloc<T>(out);
-  }
+  dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(X, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
   MLUCnnlTensorDesc y_desc(Y, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
   MLUCnnlTensorDesc out_desc(*out, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());

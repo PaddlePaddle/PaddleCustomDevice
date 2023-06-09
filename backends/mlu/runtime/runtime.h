@@ -21,9 +21,9 @@
 #include <mlu_op.h>
 
 #include "glog/logging.h"
+#include "paddle/phi/core/os_info.h"
 #include "paddle/phi/extension.h"
-#include "runtime/os_info.h"
-#include "runtime/process_data.h"
+#include "runtime/process_cnpapi_data.h"
 
 template <typename T>
 struct mluStatusType {};
@@ -108,6 +108,30 @@ struct mluStream {
   cnrtQueue_t queue;
 };
 typedef mluStream *mluStream_t;
+
+struct lastCommStream {
+  static lastCommStream &Instance() {
+    static lastCommStream last_comm_stream;
+    return last_comm_stream;
+  }
+
+  void Update(cnrtQueue_t q) {
+    if (p_queue == nullptr) {
+      VLOG(4) << "previous comm queue is nullptr, set to queue: " << q;
+      p_queue = q;
+    } else if (p_queue != q) {
+      VLOG(4) << "use different comm_queue, prev: " << p_queue
+              << " current: " << q;
+      VLOG(4) << "sync prev_queue: " << p_queue;
+      cnrtQueueSync(p_queue);
+      p_queue = q;
+    }
+  }
+
+ private:
+  lastCommStream() = default;
+  cnrtQueue_t p_queue = nullptr;
+};
 
 inline cnnlHandle_t GetHandle(const C_Stream stream) {
   return reinterpret_cast<mluStream_t>(stream)->handle;

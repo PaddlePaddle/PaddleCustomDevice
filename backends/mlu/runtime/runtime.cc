@@ -308,8 +308,11 @@ C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
     LOG(ERROR) << "unique_id->sz must be equal sizeof(cnclCliqueId)";
     return C_FAILED;
   }
+  VLOG(4) << "[CNCL] create clique.";
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclGetCliqueId(reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] clique created: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   return C_SUCCESS;
 }
 
@@ -321,6 +324,8 @@ C_Status XcclCommInitRank(size_t nranks,
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&dev_id));
   int dev_list[] = {dev_id};
   int rank_list[] = {rank};
+  VLOG(4) << "[CNCL] create comm with rank: " << rank << " clique: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclInitComms(reinterpret_cast<cnclComm_t *>(comm),
                     1,
@@ -328,6 +333,7 @@ C_Status XcclCommInitRank(size_t nranks,
                     rank_list,
                     nranks,
                     reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] comm inited: " << reinterpret_cast<cnclComm_t>(*comm);
   return C_SUCCESS;
 }
 
@@ -347,6 +353,7 @@ C_Status XcclAllReduce(void *send_buf,
                     C_DataType::INT64,
                     phi::errors::InvalidArgument(
                         "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllReduce(send_buf,
                                            recv_buf,
                                            count,
@@ -368,6 +375,7 @@ C_Status XcclBroadcast(void *buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclBroadcast(buf,
                                            buf,
                                            count,
@@ -387,6 +395,7 @@ C_Status XcclReduce(void *send_buf,
                     C_CCLComm comm,
                     C_Stream stream) {
   LOG(ERROR) << "xccl_reduce is not supported  on mlu device.";
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclReduce(send_buf,
                                         recv_buf,
                                         count,
@@ -409,6 +418,7 @@ C_Status XcclAllGather(void *send_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllGather(send_buf,
                                            recv_buf,
                                            count,
@@ -429,6 +439,7 @@ C_Status XcclReduceScatter(void *send_buf,
                     C_DataType::INT64,
                     phi::errors::InvalidArgument(
                         "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclReduceScatter(send_buf,
                         recv_buf,
@@ -461,6 +472,7 @@ C_Status XcclSend(void *send_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclSend(send_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),
@@ -481,6 +493,7 @@ C_Status XcclRecv(void *recv_buf,
     // THE count.
     count = count * 2;
   }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclRecv(recv_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),
@@ -490,6 +503,7 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
+#ifdef WITH_PROFILE
 void BufferRequestedCallback(uint64_t **buffer,
                              size_t *size,
                              size_t *max_num_records) {
@@ -503,7 +517,7 @@ void BufferCompletedCallback(uint64_t *buffer, size_t size, size_t valid_size) {
 
 std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
   std::unordered_map<uint32_t, uint64_t> mapping;
-  std::unordered_map<uint64_t, ThreadId> ids = GetAllThreadIds();
+  std::unordered_map<uint64_t, phi::ThreadId> ids = phi::GetAllThreadIds();
   for (const auto &id : ids) {
     mapping[id.second.cupti_tid] = id.second.sys_tid;
   }
@@ -583,6 +597,7 @@ C_Status ProfilerCollectData(C_Profiler prof,
   ProcessCnpapiActivity(prof, tracing_start_ns_);
   return C_SUCCESS;
 }
+#endif
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
@@ -648,10 +663,12 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_recv = XcclRecv;
 
   // profiler
+#ifdef WITH_PROFILE
   params->interface->profiler_collect_trace_data = ProfilerCollectData;
   params->interface->profiler_initialize = ProfilerInitialize;
   params->interface->profiler_finalize = ProfilerFinalize;
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+#endif
 }

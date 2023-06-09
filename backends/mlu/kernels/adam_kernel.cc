@@ -231,29 +231,23 @@ void AdamWKernel(const Context& dev_ctx,
   VLOG(3) << "Skip update" << skip_update_ << ", With decay: " << with_decay;
 
   if (!skip_update_ && with_decay) {
-    if (master_param.is_initialized()) {
-      PADDLE_THROW(
-          phi::errors::Unimplemented("Master Param is not supported on MLU"));
-    } else {
-      // update param with decay coeff: mul(-1 * lr, coeff * param) + param
-      MLUCnnlTensorDesc lr_desc(learning_rate);
-      MLUCnnlTensorDesc param_desc(param);
-      MLUCnnlOpTensorDesc mul_op_desc(
-          CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+    MLUCnnlTensorDesc lr_desc(learning_rate);
+    MLUCnnlTensorDesc param_desc(param);
+    MLUCnnlOpTensorDesc mul_op_desc(
+        CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
 
-      MLUCnnl::OpTensor(dev_ctx,
-                        mul_op_desc.get(),
-                        lr_desc.get(),
-                        GetBasePtr(&learning_rate),
-                        param_desc.get(),
-                        GetBasePtr(&param),
-                        param_desc.get(),
-                        const_cast<void*>(GetBasePtr(&param)),
-                        ToCnnlDataType<T>(),
-                        /*alpha1*/ -1.f,
-                        /*alpha2*/ coeff,
-                        /*beta*/ 1.f);
-    }
+    MLUCnnl::OpTensor(dev_ctx,
+                      mul_op_desc.get(),
+                      lr_desc.get(),
+                      GetBasePtr(&learning_rate),
+                      param_desc.get(),
+                      GetBasePtr(&param),
+                      param_desc.get(),
+                      const_cast<void*>(GetBasePtr(&param)),
+                      ToCnnlDataType<T>(),
+                      /*alpha1*/ -1.f,
+                      /*alpha2*/ coeff,
+                      /*beta*/ 1.f);
   }
 
   custom_kernel::AdamKernel<T, Context>(dev_ctx,
@@ -489,6 +483,15 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+  }
+  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
@@ -501,6 +504,15 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+  }
+  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(merged_adam,

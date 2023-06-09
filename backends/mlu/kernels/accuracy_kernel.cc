@@ -215,4 +215,8 @@ PD_REGISTER_PLUGIN_KERNEL(accuracy,
                           int,
                           int64_t,
                           int16_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT32);
+  kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
+}

@@ -21,11 +21,7 @@ void AssignKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  MLUCnnlTensorDesc x_desc(x);
-  MLUCnnlTensorDesc out_desc(*out);
-  MLUCnnl::Assign(
-      dev_ctx, x_desc.get(), GetBasePtr(&x), out_desc.get(), GetBasePtr(out));
+  TensorCopy(dev_ctx, x, true, out);
 }
 
 template <typename T, typename Context>
@@ -117,7 +113,8 @@ PD_REGISTER_PLUGIN_KERNEL(assign,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {
+                          bool,
+                          int64_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 
@@ -128,7 +125,8 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {
+                          bool,
+                          int64_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 
@@ -139,7 +137,8 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {
+                          bool,
+                          int64_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 

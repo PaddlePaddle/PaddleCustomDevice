@@ -17,6 +17,7 @@
 #include "acl/acl.h"
 #include "glog/logging.h"
 #include "kernels/funcs/npu_op_prepare.h"
+#include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
@@ -144,9 +145,8 @@ class NpuOpRunner {
     std::vector<phi::DenseTensor> tmp_outputs(outputs.size());
 
     for (size_t i = 0; i < input_type.size(); ++i) {
-      bool cast_input =
-          (input_type[i] == phi::DataType::UNDEFINED ||
-           input_type[i] != inputs[i].dtype());
+      bool cast_input = (input_type[i] == phi::DataType::UNDEFINED ||
+                         input_type[i] != inputs[i].dtype());
       if (!cast_input) {
         tmp_inputs[i] = inputs[i];
       } else {
@@ -162,9 +162,8 @@ class NpuOpRunner {
       }
     }
     for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == phi::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
+      bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
+                          output_type[i] != outputs[i].dtype());
       if (!cast_output) {
         tmp_outputs[i] = outputs[i];
       } else {
@@ -176,9 +175,8 @@ class NpuOpRunner {
     op_runner(tmp_inputs, tmp_outputs, attrs, dev_ctx, host_vecs);
 
     for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == phi::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
+      bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
+                          output_type[i] != outputs[i].dtype());
       if (cast_output) {
         const auto &cast_runner = NpuOpRunner(
             "Cast",

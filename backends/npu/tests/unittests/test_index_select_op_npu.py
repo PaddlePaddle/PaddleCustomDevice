@@ -103,6 +103,24 @@ class TestNPUIndexSelectCase4(TestNPUIndexSelect):
         self.index_size = 10
 
 
+class TestBpuIndexSelectDouble(TestNPUIndexSelect):
+    def config(self):
+        self.x_shape = (100, 4, 5)
+        self.x_type = np.double
+        self.dim = 1
+        self.index_size = 100
+        self.index_type = np.int64
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            numeric_place=paddle.CPUPlace(),
+            max_relative_error=3e-7,
+        )
+
+
 class TestNPUIndexSelectAPI(unittest.TestCase):
     def input_data(self):
         self.data_x = np.array(

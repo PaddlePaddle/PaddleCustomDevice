@@ -109,6 +109,63 @@ class TestCase5(TestClipOp):
         self.min = 0.5
 
 
+class TestClipInt32(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def setUp(self):
+        self.set_npu()
+
+        self.inputs = {}
+        self.initTestCase()
+
+        self.op_type = "clip"
+        self.attrs = {}
+        self.attrs["min"] = self.min
+        self.attrs["max"] = self.max
+        if "Min" in self.inputs:
+            min_v = self.inputs["Min"]
+        else:
+            min_v = self.attrs["min"]
+
+        if "Max" in self.inputs:
+            max_v = self.inputs["Max"]
+        else:
+            max_v = self.attrs["max"]
+
+        input = np.random.randint(0, 10, self.shape, self.dtype)
+
+        self.inputs["X"] = input
+        self.outputs = {"Out": np.clip(self.inputs["X"], min_v, max_v)}
+
+    def test_check_output(self):
+        paddle.enable_static()
+        self.check_output_with_place(self.place)
+        paddle.disable_static()
+
+    def test_check_grad_normal(self):
+        pass
+
+    def initTestCase(self):
+        self.dtype = np.int32
+        self.shape = (4, 10, 10)
+        self.max = 7
+        self.min = 2
+        self.inputs["Max"] = np.array([7]).astype(self.dtype)
+        self.inputs["Min"] = np.array([2]).astype(self.dtype)
+
+
+class TestClipInt64(TestClipInt32):
+    def initTestCase(self):
+        self.dtype = np.int64
+        self.shape = (4, 10, 10)
+        self.max = 7
+        self.min = 2
+        self.inputs["Max"] = np.array([7]).astype(self.dtype)
+        self.inputs["Min"] = np.array([2]).astype(self.dtype)
+
+
 class TestClipOpError(unittest.TestCase):
     def test_errors(self):
         paddle.enable_static()

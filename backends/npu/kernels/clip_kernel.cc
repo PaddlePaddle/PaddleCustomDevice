@@ -44,10 +44,31 @@ void ClipKernel(const Context& dev_ctx,
   min_tensor.Resize(phi::make_ddim({1}));
   FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, min_);
 
-  auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("ClipByValue", {x, min_tensor, max_tensor}, {*out}, {});
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::INT64) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("ClipByValue",
+                                       {inputs[0], inputs[1], inputs[2]},
+                                       {outputs[0]},
+                                       attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NpuOpRunner::TypeAdapter(
+        {x, min_tensor, max_tensor},
+        {*out},
+        {},
+        dev_ctx,
+        op_func,
+        {phi::DataType::INT32, phi::DataType::INT32, phi::DataType::INT32},
+        {phi::DataType::INT32});
+  } else {
+    auto stream = dev_ctx.stream();
+    const auto& runner =
+        NpuOpRunner("ClipByValue", {x, min_tensor, max_tensor}, {*out}, {});
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -80,6 +101,8 @@ PD_REGISTER_PLUGIN_KERNEL(clip,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ClipKernel,
+                          int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}

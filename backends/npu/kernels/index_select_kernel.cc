@@ -27,13 +27,39 @@ void IndexSelectNPUKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
 
-  NpuOpRunner runner;
-  runner.SetType("GatherV2")
-      .AddInput(x)
-      .AddInput(index)
-      .AddInput(dev_ctx, std::vector<int32_t>{dim})
-      .AddOutput(*output);
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::FLOAT64) {
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx,
+                      const auto& host_vecs) {
+      NpuOpRunner runner;
+      runner.SetType("GatherV2")
+          .AddInput(inputs[0])
+          .AddInput(inputs[1])
+          .AddInput(dev_ctx, std::move(host_vecs[0]))
+          .AddOutput(outputs[0])
+          .AddAttrs(attrs);
+      runner.Run(dev_ctx.stream());
+    };
+
+    NpuOpRunner::TypeAdapter<int32_t>({x, index},
+                                      {*output},
+                                      {},
+                                      dev_ctx,
+                                      op_func,
+                                      {phi::DataType::FLOAT32, index.dtype()},
+                                      {phi::DataType::FLOAT32},
+                                      {std::vector<int32_t>({dim})});
+  } else {
+    NpuOpRunner runner;
+    runner.SetType("GatherV2")
+        .AddInput(x)
+        .AddInput(index)
+        .AddInput(dev_ctx, std::vector<int32_t>{dim})
+        .AddOutput(*output);
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -64,18 +90,45 @@ void IndexSelectGradNPUKernel(const Context& dev_ctx,
     casted_index = index;
   }
 
+  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                    const std::vector<phi::DenseTensor>& outputs,
+                    const NPUAttributeMap& attrs,
+                    const phi::CustomContext& dev_ctx,
+                    const auto& host_vecs) {
+    NpuOpRunner runner;
+    runner.SetType("UnsortedSegmentSum")
+        .AddInput(inputs[0])
+        .AddInput(inputs[1])
+        .AddInput(dev_ctx, std::move(host_vecs[0]))
+        .AddOutput(outputs[0])
+        .AddAttrs(attrs);
+    runner.Run(dev_ctx.stream());
+  };
+
   if (dim == 0) {
     dev_ctx.template Alloc<T>(x_grad);
     const auto& zeros_runner = NpuOpRunner("ZerosLike", {*x_grad}, {*x_grad});
     zeros_runner.Run(stream);
 
-    NpuOpRunner runner;
-    runner.SetType("UnsortedSegmentSum")
-        .AddInput(out_grad)
-        .AddInput(casted_index)
-        .AddInput(dev_ctx, std::vector<int64_t>{x_dims[dim]})
-        .AddOutput(*x_grad);
-    runner.Run(stream);
+    if (x.dtype() == phi::DataType::FLOAT64) {
+      NpuOpRunner::TypeAdapter<int64_t>(
+          {out_grad, casted_index},
+          {*x_grad},
+          {},
+          dev_ctx,
+          op_func,
+          {phi::DataType::FLOAT32, casted_index.dtype()},
+          {phi::DataType::FLOAT32},
+          {std::vector<int64_t>({x_dims[dim]})});
+    } else {
+      NpuOpRunner runner;
+      runner.SetType("UnsortedSegmentSum")
+          .AddInput(out_grad)
+          .AddInput(casted_index)
+          .AddInput(dev_ctx, std::vector<int64_t>{x_dims[dim]})
+          .AddOutput(*x_grad);
+      runner.Run(stream);
+    }
   } else {
     phi::DenseTensor transed_out_grad;
     std::vector<int> in_trans_perm;
@@ -110,13 +163,25 @@ void IndexSelectGradNPUKernel(const Context& dev_ctx,
     const auto& zeros_runner = NpuOpRunner("ZerosLike", {sum_out}, {sum_out});
     zeros_runner.Run(stream);
 
-    NpuOpRunner runner;
-    runner.SetType("UnsortedSegmentSum")
-        .AddInput(transed_out_grad)
-        .AddInput(casted_index)
-        .AddInput(dev_ctx, std::vector<int64_t>{x_dims[dim]})
-        .AddOutput(sum_out);
-    runner.Run(stream);
+    if (x.dtype() == phi::DataType::FLOAT64) {
+      NpuOpRunner::TypeAdapter<int64_t>(
+          {transed_out_grad, casted_index},
+          {sum_out},
+          {},
+          dev_ctx,
+          op_func,
+          {phi::DataType::FLOAT32, casted_index.dtype()},
+          {phi::DataType::FLOAT32},
+          {std::vector<int64_t>({x_dims[dim]})});
+    } else {
+      NpuOpRunner runner;
+      runner.SetType("UnsortedSegmentSum")
+          .AddInput(transed_out_grad)
+          .AddInput(casted_index)
+          .AddInput(dev_ctx, std::vector<int64_t>{x_dims[dim]})
+          .AddOutput(sum_out);
+      runner.Run(stream);
+    }
 
     std::vector<int> out_trans_perm;
     for (int i = 1; i < 1 + dim; ++i) {
@@ -143,6 +208,7 @@ PD_REGISTER_PLUGIN_KERNEL(index_select,
                           ALL_LAYOUT,
                           custom_kernel::IndexSelectNPUKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16) {}
@@ -152,6 +218,7 @@ PD_REGISTER_PLUGIN_KERNEL(index_select_grad,
                           ALL_LAYOUT,
                           custom_kernel::IndexSelectGradNPUKernel,
                           float,
+                          double,
                           int,
                           int64_t,
                           phi::dtype::float16) {}

@@ -2502,4 +2502,13 @@ inline void FillMLUTensorWithHostValue(const Context& ctx,
       ctx, CNNL_POINTER_MODE_HOST, &value, out_desc.get(), GetBasePtr(out));
 }
 
+template <typename T>
+inline void FillMLUTensorWithDeviceValue(const Context& ctx,
+                                         T* value,
+                                         Tensor* out) {
+  MLUCnnlTensorDesc out_desc(*out);
+  MLUCnnl::Fill(
+      ctx, CNNL_POINTER_MODE_DEVICE, value, out_desc.get(), GetBasePtr(out));
+}
+
 }  // namespace custom_kernel

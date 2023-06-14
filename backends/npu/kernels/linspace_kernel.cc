@@ -24,8 +24,12 @@ void LinspaceKernel(const Context& dev_ctx,
                     const phi::DenseTensor& number,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
+  phi::DenseTensor start_n, stop_n, number_n;
+  TensorCopy(dev_ctx, start, false, &start_n, phi::CustomPlace());
+  TensorCopy(dev_ctx, stop, false, &stop_n, phi::CustomPlace());
+  TensorCopy(dev_ctx, number, true, &number_n, phi::CustomPlace());
   std::vector<int32_t> number_v;
-  TensorToVector(dev_ctx, number, dev_ctx, &number_v);
+  TensorToVector(dev_ctx, number_n, dev_ctx, &number_v);
 
   PADDLE_ENFORCE_GT(
       number_v[0],
@@ -48,11 +52,11 @@ void LinspaceKernel(const Context& dev_ctx,
   dev_ctx.Alloc(&stop_t, stop_t.dtype());
 
   const auto& cast_runner1 = NpuOpRunner(
-      "Cast", {start}, {start_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
+      "Cast", {start_n}, {start_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
   cast_runner1.Run(stream);
 
   const auto& cast_runner2 = NpuOpRunner(
-      "Cast", {stop}, {stop_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
+      "Cast", {stop_n}, {stop_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
   cast_runner2.Run(stream);
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
@@ -66,7 +70,7 @@ void LinspaceKernel(const Context& dev_ctx,
 
   if (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT64) {
     NpuOpRunner::TypeAdapter(
-        {start_t, stop_t, number},
+        {start_t, stop_t, number_n},
         {*out},
         {},
         dev_ctx,
@@ -75,7 +79,7 @@ void LinspaceKernel(const Context& dev_ctx,
         {phi::DataType::FLOAT32});
   } else {
     NpuOpRunner::TypeAdapter(
-        {start_t, stop_t, number},
+        {start_t, stop_t, number_n},
         {*out},
         {},
         dev_ctx,
@@ -94,4 +98,8 @@ PD_REGISTER_PLUGIN_KERNEL(linspace,
                           float,
                           double,
                           int32_t,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+}

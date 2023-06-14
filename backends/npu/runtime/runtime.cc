@@ -462,6 +462,8 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_INT32;
   } else if (dtype == C_DataType::INT8) {
     return HCCL_DATA_TYPE_INT8;
+  } else if (dtype == C_DataType::UINT8) {
+    return HCCL_DATA_TYPE_UINT8;
   } else {
     LOG(ERROR) << "Datatype " << dtype << " in hccl is not supported.";
   }

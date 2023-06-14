@@ -79,6 +79,8 @@ void Conv2dKernel(const Context& dev_ctx,
         output->dtype(), output->dims(), phi::DataLayout::kNHWC};
     input_tensor.set_meta(input_meta);
     output_tensor.set_meta(output_meta);
+    dev_ctx.template Alloc<T>(&input_tensor);
+    dev_ctx.template Alloc<T>(&output_tensor);
     strides_vec[1] = strides[0];
     strides_vec[2] = strides[1];
     dilations_vec[1] = dilations[0];

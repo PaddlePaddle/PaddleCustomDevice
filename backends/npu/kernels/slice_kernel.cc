@@ -167,8 +167,8 @@ void SliceGradRawKernel(const Context& dev_ctx,
   if (out_grad.dims().size() != 0) {
     std::vector<int64_t> paddings(rank * 2);
     for (int i = 0; i < rank; ++i) {
-      paddings[i * rank + 0] = static_cast<int64_t>(offsets[i]);
-      paddings[i * rank + 1] =
+      paddings[i * 2 + 0] = static_cast<int64_t>(offsets[i]);
+      paddings[i * 2 + 1] =
           static_cast<int64_t>(in_dims[i] - size[i] - offsets[i]);
     }
     phi::DenseTensor paddings_t;

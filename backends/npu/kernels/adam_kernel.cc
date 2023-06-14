@@ -324,39 +324,66 @@ void AdamwKernel(const Context& dev_ctx,
     const auto& runner2 = NpuOpRunner("Sub", {one, tmp}, {decay}, {});
     runner2.Run(stream);
 
-    dev_ctx.template Alloc<T>(param_out);
-    const phi::DenseTensor* calc_param =
-        multi_precision ? &master_param.get() : &param;
-    const auto& runner =
-        NpuOpRunner("Mul",
-                    {*calc_param, decay},
-                    {*const_cast<phi::DenseTensor*>(calc_param)},
-                    {});
-    runner.Run(stream);
-
-    custom_kernel::AdamKernel<T, Context>(dev_ctx,
-                                          param,
-                                          grad,
-                                          learning_rate,
-                                          moment1,
-                                          moment2,
-                                          beta1_pow,
-                                          beta2_pow,
-                                          master_param,
-                                          skip_update,
-                                          beta1,
-                                          beta2,
-                                          epsilon,
-                                          lazy_mode,
-                                          min_row_size_to_use_multithread,
-                                          multi_precision,
-                                          use_global_beta_pow,
-                                          param_out,
-                                          moment1_out,
-                                          moment2_out,
-                                          beta1_pow_out,
-                                          beta2_pow_out,
-                                          master_param_outs);
+    if (multi_precision) {
+      phi::DenseTensor new_master_param;
+      new_master_param.Resize(master_param->dims());
+      dev_ctx.template Alloc<MPDType>(&new_master_param);
+      const auto& runner = NpuOpRunner(
+          "Mul", {master_param.get(), decay}, {new_master_param}, {});
+      runner.Run(stream);
+      custom_kernel::AdamKernel<T, Context>(dev_ctx,
+                                            param,
+                                            grad,
+                                            learning_rate,
+                                            moment1,
+                                            moment2,
+                                            beta1_pow,
+                                            beta2_pow,
+                                            new_master_param,
+                                            skip_update,
+                                            beta1,
+                                            beta2,
+                                            epsilon,
+                                            lazy_mode,
+                                            min_row_size_to_use_multithread,
+                                            multi_precision,
+                                            use_global_beta_pow,
+                                            param_out,
+                                            moment1_out,
+                                            moment2_out,
+                                            beta1_pow_out,
+                                            beta2_pow_out,
+                                            master_param_outs);
+    } else {
+      phi::DenseTensor new_param;
+      new_param.Resize(param.dims());
+      dev_ctx.template Alloc<T>(&new_param);
+      const auto& runner = NpuOpRunner("Mul", {param, decay}, {new_param}, {});
+      runner.Run(stream);
+      custom_kernel::AdamKernel<T, Context>(dev_ctx,
+                                            new_param,
+                                            grad,
+                                            learning_rate,
+                                            moment1,
+                                            moment2,
+                                            beta1_pow,
+                                            beta2_pow,
+                                            master_param,
+                                            skip_update,
+                                            beta1,
+                                            beta2,
+                                            epsilon,
+                                            lazy_mode,
+                                            min_row_size_to_use_multithread,
+                                            multi_precision,
+                                            use_global_beta_pow,
+                                            param_out,
+                                            moment1_out,
+                                            moment2_out,
+                                            beta1_pow_out,
+                                            beta2_pow_out,
+                                            master_param_outs);
+    }
   }
 }
 

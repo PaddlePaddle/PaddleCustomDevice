@@ -495,6 +495,57 @@ void SqrtGradKernel(const Context& dev_ctx,
                     GetBasePtr(dx));
 }
 
+template <typename T, typename Context>
+void RsqrtKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+  MLUCnnl::Rsqrt(dev_ctx,
+                 prefer,
+                 input_desc.get(),
+                 GetBasePtr(&x),
+                 output_desc.get(),
+                 GetBasePtr(out));
+}
+
+template <typename T, typename Context>
+void RsqrtGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+
+  MLUCnnlTensorDesc data_desc(out);
+  MLUCnnl::RsqrtGrad(dev_ctx,
+                     data_desc.get(),
+                     GetBasePtr(&out),
+                     GetBasePtr(&dout),
+                     GetBasePtr(dx));
+}
+
+template <typename T, typename Context>
+void CosKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+  MLUCnnl::Cos(dev_ctx,
+               prefer,
+               input_desc.get(),
+               GetBasePtr(&x),
+               output_desc.get(),
+               GetBasePtr(out));
+}
+
 // CNNL_LOG_E = 0,
 // CNNL_LOG_2 = 1,
 // CNNL_LOG_10 = 2,
@@ -803,6 +854,27 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::SqrtGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(rsqrt,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(cos,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::CosKernel,
                           float,
                           phi::dtype::float16) {}
 

@@ -106,8 +106,12 @@ struct InterpolateFunction {
               const phi::DenseTensor* indices,
               const int axis,
               phi::DenseTensor* y) {
-    const auto& runner =
-        NpuOpRunner("GatherV2D", {*x, *indices}, {*y}, {{"axis", axis}});
+    NpuOpRunner runner;
+    runner.SetType("GatherV2")
+        .AddInput(*x)
+        .AddInput(*indices)
+        .AddInput(dev_ctx, std::vector<int32_t>{axis})
+        .AddOutput(*y);
     runner.Run(stream);
   }
   void GatherGrad(const phi::DenseTensor* gy,

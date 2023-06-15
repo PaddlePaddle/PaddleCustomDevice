@@ -394,7 +394,7 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported  on mlu device.";
+  VLOG(4) << "[CNCL] reduce.";
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclReduce(send_buf,
                                         recv_buf,
@@ -404,7 +404,7 @@ C_Status XcclReduce(void *send_buf,
                                         root,
                                         reinterpret_cast<cnclComm_t>(comm),
                                         GetQueue(stream)));
-  return C_ERROR;
+  return C_SUCCESS;
 }
 
 C_Status XcclAllGather(void *send_buf,

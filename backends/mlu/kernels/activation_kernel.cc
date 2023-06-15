@@ -243,6 +243,51 @@ void SiluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SquareKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+
+  MLUCnnl::Square(dev_ctx,
+                  input_desc.get(),
+                  GetBasePtr(&x),
+                  output_desc.get(),
+                  GetBasePtr(out));
+}
+
+template <typename T, typename Context>
+void SquareGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& dout,
+                      phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto factor_1 = static_cast<float>(1.0);
+  auto factor_2 = static_cast<float>(2.0);
+
+  // compute dx = dout * factor_2 * x
+  MLUCnnlTensorDesc dout_desc(dout);
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc dx_desc(*dx);
+  MLUCnnlOpTensorDesc mul_op_desc(
+      CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+  MLUCnnl::OpTensor(dev_ctx,
+                    mul_op_desc.get(),
+                    dout_desc.get(),
+                    GetBasePtr(&dout),
+                    x_desc.get(),
+                    GetBasePtr(&x),
+                    dx_desc.get(),
+                    GetBasePtr(dx),
+                    ToCnnlDataType<T>(),
+                    /*alpha1*/ factor_1,
+                    /*alpha2*/ factor_2,
+                    /*beta*/ 0.f);
+}
+
+template <typename T, typename Context>
 void PowKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::Scalar& factor_scalar,
@@ -884,6 +929,20 @@ PD_REGISTER_PLUGIN_KERNEL(silu_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::SiluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(square,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SquareKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(square_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SquareGradKernel,
                           float,
                           phi::dtype::float16) {}
 

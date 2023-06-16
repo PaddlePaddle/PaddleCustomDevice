@@ -99,6 +99,9 @@ RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \
     sed -i "s/^#RSAAuthentication/RSAAuthentication/" /etc/ssh/sshd_config && \
     sed -i "s/#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
 
+# https://github.com/keras-team/keras-tuner/issues/317
+ENV LD_PRELOAD=/opt/py37env/lib/python3.7/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
+
 # yum clean
 RUN yum clean all && \
     rm -rf /var/cache/yum && \

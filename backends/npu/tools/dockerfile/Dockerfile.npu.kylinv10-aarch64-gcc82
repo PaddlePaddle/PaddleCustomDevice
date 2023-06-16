@@ -65,9 +65,6 @@ ENV FLAGS_npu_storage_format=1
 ENV FLAGS_allocator_strategy=naive_best_fit
 ENV PADDLE_XCCL_BACKEND=npu
 
-# https://github.com/keras-team/keras-tuner/issues/317
-ENV LD_PRELOAD=/opt/py37env/lib/python3.7/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
-
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver
 

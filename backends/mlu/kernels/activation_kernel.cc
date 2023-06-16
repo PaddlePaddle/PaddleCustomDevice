@@ -589,6 +589,59 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SinKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+  MLUCnnl::Sin(dev_ctx,
+               prefer,
+               input_desc.get(),
+               GetBasePtr(&x),
+               output_desc.get(),
+               GetBasePtr(out));
+}
+
+template <typename T, typename Context>
+void SinGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  phi::DenseTensor cos_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  cos_out.set_meta(meta);
+  dev_ctx.template Alloc<T>(&cos_out);
+
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc cos_out_desc(cos_out);
+  MLUCnnlTensorDesc dout_desc(dout);
+  MLUCnnlTensorDesc dx_desc(*dx);
+
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+  MLUCnnl::Cos(dev_ctx,
+               prefer,
+               x_desc.get(),
+               GetBasePtr(&x),
+               cos_out_desc.get(),
+               GetBasePtr(&cos_out));
+
+  MLUCnnlOpTensorDesc mul_op_desc(
+      CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+  MLUCnnl::OpTensor(dev_ctx,
+                    mul_op_desc.get(),
+                    cos_out_desc.get(),
+                    GetBasePtr(&cos_out),
+                    dout_desc.get(),
+                    GetBasePtr(&dout),
+                    dx_desc.get(),
+                    GetBasePtr(dx),
+                    ToCnnlDataType<T>());
+}
+
+template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DenseTensor* out) {
@@ -893,6 +946,20 @@ PD_REGISTER_PLUGIN_KERNEL(exp_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::ExpGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(sin,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SinKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(sin_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SinGradKernel,
                           float,
                           phi::dtype::float16) {}
 

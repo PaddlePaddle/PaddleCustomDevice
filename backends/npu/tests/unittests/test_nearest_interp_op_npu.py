@@ -85,6 +85,81 @@ def nearest_neighbor_interp_np(
     return out.astype(X.dtype)
 
 
+def nearest_neighbor_interp3d_np(
+    X,
+    out_d,
+    out_h,
+    out_w,
+    scale_d=0,
+    scale_h=0,
+    scale_w=0,
+    out_size=None,
+    actual_shape=None,
+    align_corners=True,
+    data_layout="NCHW",
+):
+    """nearest neighbor interpolation implement in shape [N, C, H, W]"""
+    if data_layout == "NHWC":
+        X = np.transpose(X, (0, 4, 1, 2, 3))  # NDHWC => NCDHW
+    if out_size is not None:
+        out_d = out_size[0]
+        out_h = out_size[1]
+        out_w = out_size[2]
+    if actual_shape is not None:
+        out_d = actual_shape[0]
+        out_h = actual_shape[1]
+        out_w = actual_shape[2]
+    n, c, in_d, in_h, in_w = X.shape
+
+    ratio_d = ratio_h = ratio_w = 0.0
+    if out_d > 1:
+        if align_corners:
+            ratio_d = (in_d - 1.0) / (out_d - 1.0)
+        else:
+            if scale_d > 0:
+                ratio_d = 1.0 / scale_d
+            else:
+                ratio_d = 1.0 * in_d / out_d
+    if out_h > 1:
+        if align_corners:
+            ratio_h = (in_h - 1.0) / (out_h - 1.0)
+        else:
+            if scale_h > 0:
+                ratio_h = 1.0 / scale_h
+            else:
+                ratio_h = 1.0 * in_h / out_h
+    if out_w > 1:
+        if align_corners:
+            ratio_w = (in_w - 1.0) / (out_w - 1.0)
+        else:
+            if scale_w > 0:
+                ratio_w = 1.0 / scale_w
+            else:
+                ratio_w = 1.0 * in_w / out_w
+    out = np.zeros((n, c, out_d, out_h, out_w))
+
+    if align_corners:
+        for d in range(out_d):
+            in_d = int(ratio_d * d + 0.5)
+            for i in range(out_h):
+                in_i = int(ratio_h * i + 0.5)
+                for j in range(out_w):
+                    in_j = int(ratio_w * j + 0.5)
+                    out[:, :, d, i, j] = X[:, :, in_d, in_i, in_j]
+    else:
+        for d in range(out_d):
+            in_d = int(ratio_d * d)
+            for i in range(out_h):
+                in_i = int(ratio_h * i)
+                for j in range(out_w):
+                    in_j = int(ratio_w * j)
+                    out[:, :, d, i, j] = X[:, :, in_d, in_i, in_j]
+
+    if data_layout == "NDHWC":
+        out = np.transpose(out, (0, 2, 3, 4, 1))  # NCDHW => NDHWC
+    return out.astype(X.dtype)
+
+
 class TestNearestInterpOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -100,52 +175,99 @@ class TestNearestInterpOp(OpTest):
         self.op_type = "nearest_interp_v2"
         input_np = np.random.random(self.input_shape).astype(self.dtype)
 
-        if self.data_layout == "NCHW":
+        if self.data_layout == "NCHW" and len(self.input_shape) == 4:
+            in_d = 1
             in_h = self.input_shape[2]
             in_w = self.input_shape[3]
         else:
+            in_d = 1
             in_h = self.input_shape[1]
             in_w = self.input_shape[2]
+
+        if self.data_layout == "NCDHW" and len(self.input_shape) == 5:
+            in_d = self.input_shape[2]
+            in_h = self.input_shape[3]
+            in_w = self.input_shape[4]
+        else:
+            in_d = self.input_shape[1]
+            in_h = self.input_shape[2]
+            in_w = self.input_shape[3]
+        scale_d = 0
         scale_h = 0
         scale_w = 0
         if self.scale:
             if isinstance(self.scale, float) or isinstance(self.scale, int):
                 if self.scale > 0:
-                    scale_h = scale_w = float(self.scale)
+                    scale_d = scale_h = scale_w = float(self.scale)
             if isinstance(self.scale, list) and len(self.scale) == 1:
-                scale_w = scale_h = self.scale[0]
+                scale_d = scale_w = scale_h = self.scale[0]
             elif isinstance(self.scale, list) and len(self.scale) > 1:
-                scale_w = self.scale[1]
-                scale_h = self.scale[0]
-            output_h = int(in_h * scale_h)
-            output_w = int(in_w * scale_w)
-        else:
-            output_h = self.out_h
-            output_w = self.out_w
+                if len(self.scale) == 5:
+                    scale_w = self.scale[2]
+                    scale_h = self.scale[1]
+                    scale_d = self.scale[0]
+                else:
+                    scale_w = self.scale[1]
+                    scale_h = self.scale[0]
 
-        output_np = nearest_neighbor_interp_np(
-            input_np,
-            output_h,
-            output_w,
-            scale_h,
-            scale_w,
-            self.out_size,
-            self.actual_shape,
-            self.align_corners,
-            self.data_layout,
-        )
+            out_h = int(in_h * scale_h)
+            out_w = int(in_w * scale_w)
+            out_d = int(in_d * scale_d)
+        else:
+            if len(self.input_shape) == 5:
+                out_d = self.out_d
+            out_h = self.out_h
+            out_w = self.out_w
+
+        if len(self.input_shape) == 4:
+            output_np = nearest_neighbor_interp_np(
+                input_np,
+                out_h,
+                out_w,
+                scale_h,
+                scale_w,
+                self.out_size,
+                self.actual_shape,
+                self.align_corners,
+                self.data_layout,
+            )
+        elif len(self.input_shape) == 5:
+            output_np = nearest_neighbor_interp3d_np(
+                input_np,
+                out_d,
+                out_h,
+                out_w,
+                scale_d,
+                scale_h,
+                scale_w,
+                self.out_size,
+                self.actual_shape,
+                self.align_corners,
+                self.data_layout,
+            )
+
         self.inputs = {"X": input_np}
         if self.out_size is not None:
             self.inputs["OutSize"] = self.out_size
         if self.actual_shape is not None:
             self.inputs["OutSize"] = self.actual_shape
-        self.attrs = {
-            "out_h": self.out_h,
-            "out_w": self.out_w,
-            "interp_method": self.interp_method,
-            "align_corners": self.align_corners,
-            "data_layout": self.data_layout,
-        }
+        if len(self.input_shape) == 5:
+            self.attrs = {
+                "out_d": self.out_d,
+                "out_h": self.out_h,
+                "out_w": self.out_w,
+                "interp_method": self.interp_method,
+                "align_corners": self.align_corners,
+                "data_layout": self.data_layout,
+            }
+        else:
+            self.attrs = {
+                "out_h": self.out_h,
+                "out_w": self.out_w,
+                "interp_method": self.interp_method,
+                "align_corners": self.align_corners,
+                "data_layout": self.data_layout,
+            }
         if self.scale:
             if isinstance(self.scale, float) or isinstance(self.scale, int):
                 if self.scale > 0:
@@ -301,6 +423,22 @@ class TestNearestNeighborInterpScale3(TestNearestInterpOp):
         self.scale = [2.0, 3.0]
         self.out_size = None
         self.align_corners = False
+
+
+class TestNearestNeighbor3DInterp(TestNearestInterpOp):
+    def init_test_case(self):
+        self.interp_method = "nearest"
+        self.input_shape = [2, 2, 6, 6, 6]
+        self.out_d = 12
+        self.out_h = 12
+        self.out_w = 12
+        self.scale = [2, 2, 2]
+        self.out_size = np.array([12, 12, 12]).astype("int32")
+        self.align_corners = False
+
+    def test_check_grad(self):
+        # self.check_grad_with_place(self.place, ["X"], "Out", in_place=True)
+        pass
 
 
 class TestNearestInterpOp_attr_tensor(OpTest):

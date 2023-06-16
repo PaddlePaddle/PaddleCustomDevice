@@ -513,4 +513,28 @@ inline std::vector<T> get_new_data_from_tensor(
   return vec_new_data;
 }
 
+inline std::vector<int> get_new_shape(
+    const phi::CustomContext& dev_ctx,
+    const std::vector<const phi::DenseTensor*>& list_new_shape_tensor) {
+  // get tensor from
+  std::vector<int> vec_new_shape;
+  auto& pool = phi::DeviceContextPool::Instance();
+  for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {
+    auto tensor = list_new_shape_tensor[i];
+    PADDLE_ENFORCE_EQ(tensor->dims() == phi::make_ddim({1}) ||
+                          tensor->dims() == phi::make_ddim({}),
+                      true,
+                      phi::errors::InvalidArgument(
+                          "The shape of dimension tensor should be [1] or [],"
+                          "but received d%.",
+                          tensor->dims()));
+
+    phi::DenseTensor temp;
+    TensorCopy(dev_ctx, *tensor, true, &temp, phi::CPUPlace());
+    vec_new_shape.push_back(static_cast<int32_t>(*temp.data<int32_t>()));
+    continue;
+  }
+  return vec_new_shape;
+}
+
 }  // namespace custom_kernel

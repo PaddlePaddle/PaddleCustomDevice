@@ -2325,6 +2325,24 @@ class MLUCnnl {
       const void* count,
       const cnnlTensorDescriptor_t diff_x_desc,
       void* diff_x);
+
+  static void RandGenerateNormal(const Context& ctx,
+                                 const cnnlRandGenerator_t generator,
+                                 const cnnlDataType_t type,
+                                 const size_t num,
+                                 const float mean,
+                                 const float stddev,
+                                 void* state, /*inout*/
+                                 void* out);
+
+  static void RandGenerateUniform(const Context& ctx,
+                                  const cnnlRandGenerator_t generator,
+                                  const cnnlDataType_t type,
+                                  const size_t num,
+                                  const float min,
+                                  const float max,
+                                  void* state,
+                                  void* out);
 };
 
 class MLUOP {

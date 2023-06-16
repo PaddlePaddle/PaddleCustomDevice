@@ -26,30 +26,26 @@ void GaussianKernel(const Context& dev_ctx,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor cpu_tensor;
-  phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
-  cpu_tensor.set_meta(cpu_meta);
-  T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_tensor);
-  std::normal_distribution<T> dist(mean, std);
+  int real_seed =
+      seed != 0 ? seed : static_cast<int>(dev_ctx.GetGenerator()->Random64());
+  auto dev_id = static_cast<int64_t>(dev_ctx.GetPlace().GetDeviceId());
+  auto generator_desc = GetMLURandomGenerator(dev_ctx, dev_id, real_seed);
 
-  int64_t size = out->numel();
-
-  std::shared_ptr<std::mt19937_64> engine;
-  if (seed) {
-    engine = std::make_shared<std::mt19937_64>();
-    engine->seed(seed);
-  } else {
-    engine = dev_ctx.GetGenerator()->GetCPUEngine();
-  }
-
-  for (int64_t i = 0; i < size; ++i) {
-    cpu_data[i] = dist(*engine);
-  }
-  TensorCopy(dev_ctx, cpu_tensor, false, out);
-  dev_ctx.Wait();
+  MLUCnnl::RandGenerateNormal(dev_ctx,
+                              generator_desc->get(),
+                              ToCnnlDataType<T>(),
+                              out->numel(),
+                              mean,
+                              std,
+                              GetBasePtr(&generator_desc->get_state()),
+                              GetBasePtr(out));
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    gaussian, mlu, ALL_LAYOUT, custom_kernel::GaussianKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(gaussian,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::GaussianKernel,
+                          float,
+                          phi::dtype::float16) {}

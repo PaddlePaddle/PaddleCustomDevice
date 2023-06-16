@@ -67,12 +67,12 @@ const std::shared_ptr<MLUCnnlRandomGeneratorDesc>& GetMLURandomGenerator(
   static std::once_flag num_devices_init_flag;
   static std::deque<std::once_flag> mlu_device_flags;
   static std::vector<std::shared_ptr<MLUCnnlRandomGeneratorDesc>>
-      mlu_rand_generators;
+      rand_generator_descs;
 
   std::call_once(num_devices_init_flag, []() {
     PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDeviceCount(&num_mlu_devices));
     mlu_device_flags.resize(num_mlu_devices);
-    mlu_rand_generators.resize(num_mlu_devices);
+    rand_generator_descs.resize(num_mlu_devices);
   });
   if (device_id < 0) {
     PADDLE_THROW(
@@ -80,11 +80,11 @@ const std::shared_ptr<MLUCnnlRandomGeneratorDesc>& GetMLURandomGenerator(
   }
 
   std::call_once(mlu_device_flags[device_id], [&]() {
-    mlu_rand_generators[device_id].reset(
+    rand_generator_descs[device_id].reset(
         new MLUCnnlRandomGeneratorDesc(ctx, seed));
     VLOG(4) << "device_id: " << device_id << ", initial seed: " << seed;
   });
-  return mlu_rand_generators[device_id];
+  return rand_generator_descs[device_id];
 }
 
 class MLUCnnlTensorDescPool {
@@ -5515,6 +5515,34 @@ MLURNNDesc::~MLURNNDesc() {
                                                               count,
                                                               diff_x_desc,
                                                               diff_x));
+}
+
+/* static */ void MLUCnnl::RandGenerateNormal(
+    const Context& ctx,
+    const cnnlRandGenerator_t generator,
+    const cnnlDataType_t type,
+    const size_t num,
+    const float mean,
+    const float stddev,
+    void* state, /*inout*/
+    void* out) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRandGenerateNormal(
+      handle, generator, type, state, num, mean, stddev, out));
+}
+
+/* static */ void MLUCnnl::RandGenerateUniform(
+    const Context& ctx,
+    const cnnlRandGenerator_t generator,
+    const cnnlDataType_t type,
+    const size_t num,
+    const float min,
+    const float max,
+    void* state,
+    void* out) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRandGenerateUniform(
+      handle, generator, type, state, num, min, max, out));
 }
 
 /* static */ void MLUOP::OpYoloBox(const Context& ctx,

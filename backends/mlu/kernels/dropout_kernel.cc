@@ -25,10 +25,8 @@ void GetSeed(const phi::DeviceContext& dev_ctx,
   if (seed_tensor) {
     MemCpyD2H(nullptr, seed_out, seed_tensor->data(), sizeof(int));
   } else if (!fix_seed) {
-    // use cpu engine to generate a seed for npu.
-    auto offset = 0;
-    auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
-    *seed_out = static_cast<int>(engine());
+    // use global generator seed for mlu.
+    *seed_out = static_cast<int>(dev_ctx.GetGenerator()->Random64());
   } else {
     *seed_out = seed;
   }
@@ -83,7 +81,7 @@ void DropoutRawKernel(const Context& dev_ctx,
 
     // Note, no api to set seed on device, so we
     // use random seed generated from cpu instread of device one.
-    auto mlu_gen_random = MLUCnnlRandomGeneratorDesc(dev_ctx, seed);
+    auto mlu_gen_random = MLUCnnlRandomGeneratorDesc(dev_ctx, seed_data);
 
     // compute out = input * mask / ( 1.0 - dropout_prob )
     MLUCnnl::FusedDropout(dev_ctx,

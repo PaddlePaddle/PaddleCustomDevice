@@ -44,6 +44,9 @@ class TestCos(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], ["Out"], max_relative_error=0.01)
+
 
 class TestCosHalf(OpTest):
     def setUp(self):
@@ -51,7 +54,6 @@ class TestCosHalf(OpTest):
         self.dtype = "float16"
         self.set_mlu()
         self.python_api = paddle.cos
-        self.__class__.no_need_check_grad = True
 
         np.random.seed(1023)
         x = np.random.uniform(-1, 1, [11, 17]).astype(self.dtype)
@@ -66,6 +68,9 @@ class TestCosHalf(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], ["Out"], max_relative_error=0.01)
 
 
 if __name__ == "__main__":

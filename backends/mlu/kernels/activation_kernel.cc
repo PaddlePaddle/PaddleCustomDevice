@@ -546,6 +546,55 @@ void CosKernel(const Context& dev_ctx,
                GetBasePtr(out));
 }
 
+template <typename T, typename Context>
+void CosGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+
+  phi::DenseTensor sin_out;
+  sin_out.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&sin_out);
+
+  phi::DenseTensor sin_out_temp;
+  sin_out_temp.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&sin_out_temp);
+
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc sin_out_desc(sin_out);
+  MLUCnnlTensorDesc sin_out_temp_desc(sin_out_temp);
+  MLUCnnlTensorDesc dout_desc(dout);
+  MLUCnnlTensorDesc dx_desc(*dx);
+
+  cnnlComputationPreference_t prefer = CNNL_COMPUTATION_HIGH_PRECISION;
+  MLUCnnl::Sin(dev_ctx,
+               prefer,
+               input_desc.get(),
+               GetBasePtr(&x),
+               sin_out_desc.get(),
+               GetBasePtr(&sin_out));
+
+  MLUCnnlOpTensorDesc mul_op_desc(
+      CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+
+  MLUCnnl::OpTensor(dev_ctx,
+                    mul_op_desc.get(),
+                    sin_out_desc.get(),
+                    GetBasePtr(&sin_out),
+                    dout_desc.get(),
+                    GetBasePtr(&dout),
+                    sin_out_temp_desc.get(),
+                    GetBasePtr(&sin_out_temp),
+                    ToCnnlDataType<T>());
+
+  MLUCnnl::Neg(dev_ctx,
+               sin_out_desc.get(),
+               GetBasePtr(&sin_out_temp),
+               dx_desc.get(),
+               GetBasePtr(dx));
+}
+
 // CNNL_LOG_E = 0,
 // CNNL_LOG_2 = 1,
 // CNNL_LOG_10 = 2,
@@ -928,6 +977,13 @@ PD_REGISTER_PLUGIN_KERNEL(cos,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::CosKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(cos_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::CosGradKernel,
                           float,
                           phi::dtype::float16) {}
 

@@ -1182,6 +1182,7 @@ PD_REGISTER_PLUGIN_KERNEL(log,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::LogKernel,
+                          double,
                           float,
                           phi::dtype::float16) {}
 
@@ -1189,6 +1190,7 @@ PD_REGISTER_PLUGIN_KERNEL(log_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
+                          double,
                           float,
                           phi::dtype::float16) {}
 

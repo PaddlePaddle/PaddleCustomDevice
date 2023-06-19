@@ -97,18 +97,34 @@ void GridSampleGradKernel(const Context& dev_ctx,
     if (grid_grad != nullptr) {
       grid_grad->Resize({n, out_h, out_w, 2});
       dev_ctx.template Alloc<T>(grid_grad);
+
+      NpuOpRunner grid_sample_runner;
+      grid_sample_runner.SetType("GridSampler2DGrad")
+          .AddInput(out_grad)
+          .AddInput(x)
+          .AddInput(grid)
+          .AddAttr("interpolation_mode", mode)
+          .AddAttr("padding_mode", padding_mode)
+          .AddAttr("align_corners", align_corners)
+          .AddOutput(*x_grad)
+          .AddOutput(*grid_grad)
+          .Run(dev_ctx.stream());
+    } else {
+      phi::DenseTensor tmp_grid_grad;
+      tmp_grid_grad.Resize({n, out_h, out_w, 2});
+      dev_ctx.template Alloc<T>(&tmp_grid_grad);
+      NpuOpRunner grid_sample_runner;
+      grid_sample_runner.SetType("GridSampler2DGrad")
+          .AddInput(out_grad)
+          .AddInput(x)
+          .AddInput(grid)
+          .AddAttr("interpolation_mode", mode)
+          .AddAttr("padding_mode", padding_mode)
+          .AddAttr("align_corners", align_corners)
+          .AddOutput(*x_grad)
+          .AddOutput(tmp_grid_grad)
+          .Run(dev_ctx.stream());
     }
-    NpuOpRunner grid_sample_runner;
-    grid_sample_runner.SetType("GridSampler2DGrad")
-        .AddInput(out_grad)
-        .AddInput(x)
-        .AddInput(grid)
-        .AddAttr("interpolation_mode", mode)
-        .AddAttr("padding_mode", padding_mode)
-        .AddAttr("align_corners", align_corners)
-        .AddOutput(*x_grad)
-        .AddOutput(*grid_grad)
-        .Run(dev_ctx.stream());
   } else if (x.dims().size() == 5) {
     const int n = grid.dims()[0];
     const int out_d = grid.dims()[1];
@@ -125,18 +141,34 @@ void GridSampleGradKernel(const Context& dev_ctx,
     if (grid_grad != nullptr) {
       grid_grad->Resize({n, out_d, out_h, out_w, 3});
       dev_ctx.template Alloc<T>(grid_grad);
+
+      NpuOpRunner grid_sample_runner;
+      grid_sample_runner.SetType("GridSampler3DGrad")
+          .AddInput(out_grad)
+          .AddInput(x)
+          .AddInput(grid)
+          .AddAttr("interpolation_mode", mode)
+          .AddAttr("padding_mode", padding_mode)
+          .AddAttr("align_corners", align_corners)
+          .AddOutput(*x_grad)
+          .AddOutput(*grid_grad)
+          .Run(dev_ctx.stream());
+    } else {
+      phi::DenseTensor tmp_grid_grad;
+      tmp_grid_grad.Resize({n, out_h, out_w, 3});
+      dev_ctx.template Alloc<T>(&tmp_grid_grad);
+      NpuOpRunner grid_sample_runner;
+      grid_sample_runner.SetType("GridSampler3DGrad")
+          .AddInput(out_grad)
+          .AddInput(x)
+          .AddInput(grid)
+          .AddAttr("interpolation_mode", mode)
+          .AddAttr("padding_mode", padding_mode)
+          .AddAttr("align_corners", align_corners)
+          .AddOutput(*x_grad)
+          .AddOutput(tmp_grid_grad)
+          .Run(dev_ctx.stream());
     }
-    NpuOpRunner grid_sample_runner;
-    grid_sample_runner.SetType("GridSampler3DGrad")
-        .AddInput(out_grad)
-        .AddInput(x)
-        .AddInput(grid)
-        .AddAttr("interpolation_mode", mode)
-        .AddAttr("padding_mode", padding_mode)
-        .AddAttr("align_corners", align_corners)
-        .AddOutput(*x_grad)
-        .AddOutput(*grid_grad)
-        .Run(dev_ctx.stream());
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "the input x must be 4D/5D tensor of grid_sample, but got [%d]D tensor",

@@ -242,4 +242,6 @@ PD_REGISTER_PLUGIN_KERNEL(sum_grad,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

@@ -86,6 +86,16 @@ void SumRawKernel(const Context& dev_ctx,
 
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
+  if (x.dims().size() == 0) {
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {x},
+        {*out},
+        {{"dst_tytpe", static_cast<int>(ConvertToNpuDtype(out->dtype()))}});
+    cast_runner.Run(stream);
+    return;
+  }
+
   phi::DenseTensor cast_x;
   phi::DenseTensor cast_out;
 

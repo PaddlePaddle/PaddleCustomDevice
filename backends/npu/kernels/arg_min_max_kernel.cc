@@ -138,6 +138,7 @@ PD_REGISTER_PLUGIN_KERNEL(argmax,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
+                          int,
                           float,
                           double,
                           phi::dtype::float16) {

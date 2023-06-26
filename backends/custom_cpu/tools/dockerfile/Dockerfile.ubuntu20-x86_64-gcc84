@@ -34,7 +34,7 @@ ENV PATH=/opt/cmake-3.19/bin:${PATH}
 
 # install python3.7 and pip
 RUN apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && apt-get update -y
-RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv python3.7-venv
+RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv
 RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.7
 
 # create venv and activate

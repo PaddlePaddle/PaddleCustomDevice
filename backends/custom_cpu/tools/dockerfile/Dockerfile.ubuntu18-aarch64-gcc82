@@ -44,7 +44,7 @@ ENV PATH=/opt/cmake-3.19/bin:${PATH}
 
 # install python3.7 and pip
 RUN apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && apt-get update -y 
-RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv python3.7-venv
+RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv
 RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.7
 
 # create venv and activate
@@ -105,6 +105,9 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
     sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 CMD source ~/.bashrc
+
+# https://github.com/keras-team/keras-tuner/issues/317
+ENV LD_PRELOAD=/opt/py37env/lib/python3.7/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
 
 # Clean
 RUN apt-get clean -y

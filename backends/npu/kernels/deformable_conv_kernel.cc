@@ -134,8 +134,8 @@ void GetDeformableOffsetsOutput(const Context& dev_ctx,
   std::vector<int> offset_all_dims_vec{
       static_cast<int>(x.dims()[0]),
       static_cast<int>((offset.dims()[1] + mask.dims()[1])),
-      static_cast<int>(x.dims()[2]),
-      static_cast<int>(x.dims()[3])};
+      static_cast<int>(offset.dims()[2]),
+      static_cast<int>(offset.dims()[3])};
   //   offset_all.Resize(phi::make_ddim(offset_all_dims_vec));
   phi::DenseTensor offset_all;
   phi::DenseTensorMeta offset_all_meta = {offset.dtype(),

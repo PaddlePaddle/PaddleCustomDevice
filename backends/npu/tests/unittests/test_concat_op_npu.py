@@ -171,6 +171,27 @@ create_test_int64(TestConcatOp4)
 create_test_int64(TestConcatOp5)
 
 
+# ----------------Concat Bool----------------
+def create_test_bool(parent):
+    class TestConcatBool(parent):
+        def init_dtype(self):
+            self.dtype = np.bool
+
+        def test_check_grad(self):
+            pass
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Bool")
+    TestConcatBool.__name__ = cls_name
+    globals()[cls_name] = TestConcatBool
+
+
+create_test_bool(TestConcatOp)
+create_test_bool(TestConcatOp2)
+create_test_bool(TestConcatOp3)
+create_test_bool(TestConcatOp4)
+create_test_bool(TestConcatOp5)
+
+
 class TestConcatAPIWithLoDTensorArray(unittest.TestCase):
     """
     Test concat api when the input(x) is a LoDTensorArray.

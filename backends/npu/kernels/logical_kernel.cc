@@ -20,10 +20,24 @@ template <typename T, typename Context>
 void LogicalNotNPUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("LogicalNot", {x}, {*out}, {});
-  runner.Run(stream);
+  dev_ctx.template Alloc<bool>(out);
+
+  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                    const std::vector<phi::DenseTensor>& outputs,
+                    const NPUAttributeMap& attrs,
+                    const phi::CustomContext& dev_ctx) {
+    const auto& runner =
+        NpuOpRunner("LogicalNot", {inputs[0]}, {outputs[0]}, attrs);
+    runner.Run(dev_ctx.stream());
+  };
+
+  NpuOpRunner::TypeAdapter({x},
+                           {*out},
+                           {},
+                           dev_ctx,
+                           op_func,
+                           {phi::DataType::BOOL},
+                           {phi::DataType::BOOL});
 }
 
 template <typename T, typename Context>
@@ -31,10 +45,23 @@ void LogicalOrNPUKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
                         phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("LogicalOr", {x, y}, {*out}, {});
-  runner.Run(stream);
+  dev_ctx.template Alloc<bool>(out);
+
+  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                    const std::vector<phi::DenseTensor>& outputs,
+                    const NPUAttributeMap& attrs,
+                    const phi::CustomContext& dev_ctx) {
+    const auto& runner =
+        NpuOpRunner("LogicalOr", {inputs[0], inputs[1]}, {outputs[0]}, attrs);
+    runner.Run(dev_ctx.stream());
+  };
+  NpuOpRunner::TypeAdapter({x, y},
+                           {*out},
+                           {},
+                           dev_ctx,
+                           op_func,
+                           {phi::DataType::BOOL, phi::DataType::BOOL},
+                           {phi::DataType::BOOL});
 }
 
 template <typename T, typename Context>
@@ -42,24 +69,61 @@ void LogicalAndNPUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& y,
                          phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("LogicalAnd", {x, y}, {*out}, {});
-  runner.Run(stream);
+  dev_ctx.template Alloc<bool>(out);
+
+  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                    const std::vector<phi::DenseTensor>& outputs,
+                    const NPUAttributeMap& attrs,
+                    const phi::CustomContext& dev_ctx) {
+    const auto& runner =
+        NpuOpRunner("LogicalAnd", {inputs[0], inputs[1]}, {outputs[0]}, {});
+    runner.Run(dev_ctx.stream());
+  };
+  NpuOpRunner::TypeAdapter({x, y},
+                           {*out},
+                           {},
+                           dev_ctx,
+                           op_func,
+                           {phi::DataType::BOOL, phi::DataType::BOOL},
+                           {phi::DataType::BOOL});
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    logical_not, npu, ALL_LAYOUT, custom_kernel::LogicalNotNPUKernel, bool) {
+PD_REGISTER_PLUGIN_KERNEL(logical_not,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogicalNotNPUKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
 
-PD_REGISTER_PLUGIN_KERNEL(
-    logical_or, npu, ALL_LAYOUT, custom_kernel::LogicalOrNPUKernel, bool) {
+PD_REGISTER_PLUGIN_KERNEL(logical_or,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogicalOrNPUKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
 
-PD_REGISTER_PLUGIN_KERNEL(
-    logical_and, npu, ALL_LAYOUT, custom_kernel::LogicalAndNPUKernel, bool) {
+PD_REGISTER_PLUGIN_KERNEL(logical_and,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogicalAndNPUKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }

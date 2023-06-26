@@ -301,6 +301,87 @@ class TestArgMaxDoubleCase10(BaseTestCase):
         self.axis = 0
 
 
+# test argmax, dtype: int32
+class TestArgMaxInt32Case1(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4, 5)
+        self.dtype = "int32"
+        self.axis = -1
+
+
+class TestArgMaxInt32Case2(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4, 5)
+        self.dtype = "int32"
+        self.axis = 0
+
+
+class TestArgMaxInt32Case3(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4, 5)
+        self.dtype = "int32"
+        self.axis = 1
+
+
+class TestArgMaxInt32Case4(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4, 5)
+        self.dtype = "int32"
+        self.axis = 2
+
+
+class TestArgMaxInt32Case5(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4)
+        self.dtype = "int32"
+        self.axis = -1
+
+
+class TestArgMaxInt32Case6(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4)
+        self.dtype = "int32"
+        self.axis = 0
+
+
+class TestArgMaxInt32Case7(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4)
+        self.dtype = "int32"
+        self.axis = 1
+
+
+class TestArgMaxInt32Case8(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (1,)
+        self.dtype = "int32"
+        self.axis = 0
+
+
+class TestArgMaxInt32Case9(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (2,)
+        self.dtype = "int32"
+        self.axis = 0
+
+
+class TestArgMaxInt32Case10(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3,)
+        self.dtype = "int32"
+        self.axis = 0
+
+
 class BaseTestComplex1_1(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True

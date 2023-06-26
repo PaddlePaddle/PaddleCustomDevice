@@ -86,7 +86,8 @@ void ArgMaxKernel(const Context& dev_ctx,
   phi::DenseTensor transformed_x;
   // TODO(songkai05): CANN512 doesn't support double dtype for ArgMax NPU op,
   // we cast double to float32 to support double dtype for now.
-  if (x.dtype() == phi::DataType::FLOAT64) {
+  if (x.dtype() == phi::DataType::FLOAT64 ||
+      x.dtype() == phi::DataType::INT32) {
     phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, x.dims()};
     transformed_x.set_meta(meta);
     dev_ctx.template Alloc<float>(&transformed_x);
@@ -138,6 +139,7 @@ PD_REGISTER_PLUGIN_KERNEL(argmax,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
+                          int,
                           float,
                           double,
                           phi::dtype::float16) {

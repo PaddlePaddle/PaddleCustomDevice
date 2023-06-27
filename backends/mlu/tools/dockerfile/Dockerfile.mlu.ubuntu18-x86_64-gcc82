@@ -18,7 +18,7 @@ RUN apt update && \
 
 # install cntoolkit
 RUN cd /tmp && \
-    wget -O cntoolkit_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.8.1/cntoolkit_${CNTOOLKIT_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    wget -O cntoolkit_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.9.0/cntoolkit_${CNTOOLKIT_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
     dpkg -i cntoolkit_install_pkg.deb && \
     apt update && \
     apt-get install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnstudio cnrtc && \
@@ -30,19 +30,19 @@ RUN cd /tmp && \
 
 # install cnnl
 RUN cd /tmp && \
-    wget -O cnnl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.8.1/cnnl_${CNNL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    wget -O cnnl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.9.0/cnnl_${CNNL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
     dpkg -i cnnl_install_pkg.deb && \
     rm -f cnnl_install_pkg.deb
 
 # install cncl
 RUN cd /tmp && \
-    wget -O cncl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.8.1/cncl_${CNCL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    wget -O cncl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.9.0/cncl_${CNCL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
     dpkg -i cncl_install_pkg.deb && \
     rm -f cncl_install_pkg.deb
 
 # install mluops
 RUN cd /tmp && \
-    wget -O mluops_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.8.1/mluops_${MLUOPS_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    wget -O mluops_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.9.0/mluops_${MLUOPS_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
     dpkg -i mluops_install_pkg.deb && \
     rm -f mluops_install_pkg.deb
 
@@ -56,8 +56,8 @@ ENV FLAGS_allocator_strategy=naive_best_fit
 ENV PADDLE_XCCL_BACKEND=mlu
 
 # install paddlepaddle-cpu whl package
-RUN wget -q https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl && \
-   pip install paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+COPY paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+RUN pip install paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl && rm -rf paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 
 # Clean
 RUN apt-get clean -y

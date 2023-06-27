@@ -56,6 +56,9 @@ if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
 
+# add pybind.cc
+list(APPEND CUSTOM_NPU_SRCS pybind.cc)
+
 # build shared library
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
@@ -71,7 +74,7 @@ if(ON_INFER)
   target_compile_definitions(${CUSTOM_NPU_NAME} PRIVATE PADDLE_ON_INFERENCE)
 else()
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
-  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
+  # target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
   find_package(PythonInterp ${PY_VERSION} REQUIRED)
   find_package(PythonLibs ${PY_VERSION} REQUIRED)
   include_directories(${PYTHON_INCLUDE_DIR})

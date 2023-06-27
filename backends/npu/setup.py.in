@@ -1,6 +1,5 @@
 import os
-from setuptools import setup, Distribution
-
+from setuptools import setup, Distribution, Extension
 
 packages = []
 package_data = {}
@@ -13,7 +12,15 @@ full_version  = '@PADDLE_VERSION@'
 cann_version  = '@ASCEND_TOOLKIT_VERSION@'
 git_commit_id = '@GIT_HASH@'
 
+import test_dyh
+
+
 __all__ = ['version']
+
+def npu_init():
+    print("set complie config")
+    cfg_file = "/workspace/compile.cfg"
+    set_compile_config(cfg_file)
 
 def version():
     """Get the version info of paddle custom npu
@@ -90,6 +97,7 @@ def main():
         package_dir = {
             '': 'python',
         },
+        ext_modules=[Extension(name='test_dyh',sources=['../pybind.cc'], include_dirs=['third_party/pybind/src/extern_pybind/include', '/usr/local/Ascend/ascend-toolkit/latest/acllib/include', '/usr/local/Ascend/ascend-toolkit/latest/fwkacllib/include','/usr/local/Ascend/ascend-toolkit/latest/compiler/include/acl'], library_libs=['/usr/local/Ascend/ascend-toolkit/latest/fwkacllib/lib64/libascendcl.so', '/usr/local/Ascend/ascend-toolkit/latest/fwkacllib/lib64/libacl_op_compiler.so', '/usr/local/Ascend/ascend-toolkit/latest/fwkacllib/lib64/libhccl.so'])],
         zip_safe=False,
         distclass=BinaryDistribution,
         entry_points={

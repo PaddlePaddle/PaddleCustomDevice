@@ -360,7 +360,7 @@ C_Status XcclAllReduce(void *send_buf,
                                            PDDataTypeToCnclDataType(data_type),
                                            PDReduceOpToCnclReduceOp(op),
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -382,7 +382,7 @@ C_Status XcclBroadcast(void *buf,
                                            PDDataTypeToCnclDataType(data_type),
                                            root,
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -403,7 +403,7 @@ C_Status XcclReduce(void *send_buf,
                                         PDReduceOpToCnclReduceOp(op),
                                         root,
                                         reinterpret_cast<cnclComm_t>(comm),
-                                        GetQueue(stream)));
+                                        lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -424,7 +424,7 @@ C_Status XcclAllGather(void *send_buf,
                                            count,
                                            PDDataTypeToCnclDataType(data_type),
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -447,7 +447,7 @@ C_Status XcclReduceScatter(void *send_buf,
                         PDDataTypeToCnclDataType(data_type),
                         PDReduceOpToCnclReduceOp(op),
                         reinterpret_cast<cnclComm_t>(comm),
-                        GetQueue(stream)));
+                        lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -478,7 +478,7 @@ C_Status XcclSend(void *send_buf,
                                       PDDataTypeToCnclDataType(data_type),
                                       dest_rank,
                                       reinterpret_cast<cnclComm_t>(comm),
-                                      GetQueue(stream)));
+                                      lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -499,7 +499,7 @@ C_Status XcclRecv(void *recv_buf,
                                       PDDataTypeToCnclDataType(data_type),
                                       src_rank,
                                       reinterpret_cast<cnclComm_t>(comm),
-                                      GetQueue(stream)));
+                                      lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 

@@ -156,21 +156,14 @@ void SinKernel(const Context& dev_ctx,
 
 // Swish = x * sigmoid(beta * x)
 template <typename T, typename Context>
-void SwishRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    float beta,
-                    phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Swish", {x}, {*out}, {{"scale", beta}});
-  runner.Run(stream);
-}
-
-template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  phi::DenseTensor* out) {
-  custom_kernel::SwishRawKernel<T, Context>(dev_ctx, x, 1.0, out);
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("Swish", {x}, {*out}, {{"scale", static_cast<float>(1.0)}});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -1091,13 +1084,6 @@ PD_REGISTER_PLUGIN_KERNEL(swish,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishKernel,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(swish_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::SwishRawKernel,
                           float,
                           phi::dtype::float16) {}
 

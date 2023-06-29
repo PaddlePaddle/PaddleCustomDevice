@@ -235,11 +235,12 @@ void SiluKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void SiluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
                     const phi::DenseTensor& out,
                     const phi::DenseTensor& dout,
                     phi::DenseTensor* dx) {
   ActivationGradKernelV3<T, Context>(
-      dev_ctx, out, dout, CNNL_ACTIVATION_SILU, dx);
+      dev_ctx, x, dout, CNNL_ACTIVATION_SILU, dx);
 }
 
 template <typename T, typename Context>

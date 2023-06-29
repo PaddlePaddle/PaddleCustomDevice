@@ -51,7 +51,7 @@ class TestSilu(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["X"], "Out", max_relative_error=0.009)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.009)
 
 
 class TestSiluFp16(OpTest):

@@ -78,6 +78,11 @@ class TestReduceSumFP16(TestReduceSum):
         self.dtype = np.float16
 
 
+class TestRuceSumFP64(TestReduceSum):
+    def init_dtype(self):
+        self.dtype = np.double
+
+
 class TestReduceSumOp5D(TestReduceSum):
     def initTestCase(self):
         self.shape = (1, 2, 5, 6, 10)

@@ -457,6 +457,67 @@ class TestLog_ZeroDim(TestLog):
         self.shape = []
 
 
+class TestLog2(TestActivation):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "log2"
+        self.python_api = paddle.log2
+        self.init_dtype()
+        self.init_shape()
+
+        x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
+        out = np.log2(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
+
+    def test_check_grad_with_place(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+    def test_api(self):
+        with paddle.fluid.framework._static_guard():
+            with paddle.static.program_guard(
+                paddle.static.Program(), paddle.static.Program()
+            ):
+                input_x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
+                data_x = paddle.static.data(
+                    name="data_x", shape=[11, 17], dtype=self.dtype
+                )
+
+                out1 = paddle.log2(data_x)
+                exe = paddle.static.Executor(place=self.place)
+                exe.run(paddle.static.default_startup_program())
+                (res1,) = exe.run(
+                    paddle.static.default_main_program(),
+                    feed={"data_x": input_x},
+                    fetch_list=[out1],
+                )
+            expected_res = np.log2(input_x)
+            rtol = 1e-5
+            if self.dtype == np.float16:
+                rtol = 1e-3
+            np.testing.assert_allclose(res1, expected_res, rtol=rtol)
+
+        # dygraph
+        with fluid.dygraph.guard(self.place):
+            np_x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
+            data_x = paddle.to_tensor(np_x)
+            z = paddle.log2(data_x)
+            np_z = z.numpy()
+            z_expected = np.array(np.log2(np_x))
+        rtol = 1e-5
+        if self.dtype == np.float16:
+            rtol = 1e-3
+        np.testing.assert_allclose(np_z, z_expected, rtol=rtol)
+
+
+class TestLog2_ZeroDim(TestLog2):
+    def init_shape(self):
+        self.shape = []
+
+
 class TestPow(TestActivation):
     def setUp(self):
         self.set_npu()
@@ -1274,6 +1335,7 @@ create_test_act_fp16_class(TestSquare)
 create_test_act_fp16_class(TestSigmoid)
 create_test_act_fp16_class(TestTanh)
 create_test_act_fp16_class(TestLog, atol=1e-2)
+create_test_act_fp16_class(TestLog2)
 create_test_act_fp16_class(TestPow, atol=5e-2)
 create_test_act_fp16_class(TestPow_factor_tensor, atol=5e-2)
 create_test_act_fp16_class(TestFloor, grad_check=False)

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
@@ -535,6 +537,42 @@ void LogGradKernel(const Context& dev_ctx,
 
   const auto& runner = NpuOpRunner("DivNoNan", {dout, x}, {*dx}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Log2Kernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Log",
+                                   {x},
+                                   {*out},
+                                   {{"base", static_cast<float>(2.0)},
+                                    {"scale", static_cast<float>(1.0)},
+                                    {"shift", static_cast<float>(0.0)}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Log2GradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor x_log2;
+  x_log2.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_log2);
+
+  const auto& runner_mul = NpuOpRunner(
+      "Muls", {x}, {x_log2}, {{"value", static_cast<float>(log(2))}});
+  runner_mul.Run(stream);
+
+  const auto& runner_div = NpuOpRunner("DivNoNan", {dout, x_log2}, {*dx}, {});
+  runner_div.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -1177,6 +1215,20 @@ PD_REGISTER_PLUGIN_KERNEL(log_grad,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
                           double,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2Kernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2GradKernel,
                           float,
                           phi::dtype::float16) {}
 

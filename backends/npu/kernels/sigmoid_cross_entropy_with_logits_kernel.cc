@@ -53,6 +53,10 @@ void SigmoidCrossEntropyWithLogitsKernel(
         NpuOpRunner("SigmoidCrossEntropyWithLogits", {x, label}, {*out}, {});
     runner.Run(stream);
   } else {
+    // TODO(duanyanhui): add support for pos_weight with
+    // SigmoidCrossEntropyWithLogitsV2. Manually fill weight tensor with 1 will
+    // get the output filled with 0. Skip the case when pos_weight not equal to
+    // nullptr currently.
     PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
   }
 }
@@ -76,6 +80,8 @@ void SigmoidCrossEntropyWithLogitsGradKernel(
         "SigmoidCrossEntropyWithLogitsGrad", {x, label, dout}, {*dx}, {});
     runner_dx.Run(stream);
   } else {
+    // TODO(duanyanhui): add support for pos_weight with
+    // SigmoidCrossEntropyWithLogitsGradV2.
     PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
   }
 }

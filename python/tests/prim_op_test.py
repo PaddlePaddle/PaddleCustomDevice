@@ -1,1 +1,1 @@
-../../Paddle/python/paddle/fluid/tests/unittests/prim_op_test.py
+../../Paddle/test/legacy_test/prim_op_test.py

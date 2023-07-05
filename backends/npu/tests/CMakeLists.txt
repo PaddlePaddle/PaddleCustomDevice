@@ -24,8 +24,8 @@ function(py_test_modules TARGET_NAME)
     COMMAND
       ${CMAKE_COMMAND} -E env
       CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
-      PYTHONPATH=${PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH} ${py_test_modules_ENVS}
-      python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
+      PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
+      ${py_test_modules_ENVS} python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
       ${py_test_modules_MODULES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 

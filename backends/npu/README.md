@@ -13,7 +13,6 @@ Please refer to the following steps to compile, install and verify the custom de
 # dockerfile of the image is in tools/dockerfile directory
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -27,10 +26,6 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
 # 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4. execute the following commands to update submodule
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
 ## PaddlePaddle Installation and Verification
@@ -69,7 +64,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # expected output
 version: 0.0.0
-commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 
 # 2. demo for training, evaluation and inference

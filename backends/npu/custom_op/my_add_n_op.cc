@@ -15,12 +15,33 @@
 #include <iostream>
 #include <vector>
 
+#include "kernels/funcs/npu_op_runner.h"
 #include "paddle/extension.h"
 
 std::vector<paddle::Tensor> MyAddNOp(const paddle::Tensor& x,
                                      const paddle::Tensor& y,
                                      const paddle::Tensor& z) {
-  return {paddle::add(x, paddle::add(y, z))};
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(x.place()));
+  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+
+  auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
+  auto y_tensor = static_cast<const phi::DenseTensor*>(y.impl().get());
+  auto z_tensor = static_cast<const phi::DenseTensor*>(z.impl().get());
+
+  std::shared_ptr<phi::DenseTensor> out_tensor =
+      std::make_shared<phi::DenseTensor>();
+  out_tensor->Resize(x_tensor->dims());
+  dev_ctx->Alloc(out_tensor.get(), x_tensor->dtype());
+
+  const auto& add_runner1 =
+      NpuOpRunner("Add", {*x_tensor, *y_tensor}, {*out_tensor}, {});
+  add_runner1.Run(stream);
+  const auto& add_runner2 =
+      NpuOpRunner("Add", {*out_tensor, *z_tensor}, {*out_tensor}, {});
+  add_runner2.Run(stream);
+
+  return {paddle::Tensor(out_tensor)};
 }
 
 std::vector<std::vector<int64_t>> MyAddNOpInferShape(

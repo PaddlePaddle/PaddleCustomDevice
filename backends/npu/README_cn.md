@@ -13,7 +13,6 @@
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -27,10 +26,6 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4) 请执行以下命令，以保证 checkout 最新的 PaddlePaddle 主框架源码
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
 ## PaddlePaddle 训练安装与运行
@@ -68,7 +63,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
 version: 0.0.0
-commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 
 # 3) 运行简单模型训练、评估和推理任务

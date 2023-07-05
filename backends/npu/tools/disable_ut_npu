@@ -3,3 +3,9 @@ test_softmax_with_cross_entropy_op_npu
 test_parallel_dygraph_mp_layers
 test_zero_dim_tensor_npu
 test_dygraph_recompute_for_eager
+test_accuracy_op_npu
+test_gather_nd_op_npu
+test_linspace_op_npu
+test_reduce_all_op_npu
+test_squared_l2_norm_op_npu
+test_unsqueeze_op_npu

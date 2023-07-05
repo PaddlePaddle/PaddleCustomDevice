@@ -39,7 +39,7 @@ class TestEmpty(OpTest):
 
     def set_data(self):
         self.inputs = {"X": np.array([1, 2, 3]).astype(self.dtype)}
-        self.outputs = {"Out": np.array([False])}
+        self.outputs = {"Out": np.array(False)}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -48,7 +48,7 @@ class TestEmpty(OpTest):
 class TestNotEmpty(TestEmpty):
     def set_data(self):
         self.inputs = {"X": np.array([])}
-        self.outputs = {"Out": np.array([True])}
+        self.outputs = {"Out": np.array(True)}
 
 
 class TestIsEmptyOpError(unittest.TestCase):

@@ -1,0 +1,1 @@
+../../Paddle/cmake/external/glog.cmake

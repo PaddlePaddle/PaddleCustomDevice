@@ -26,6 +26,9 @@ SEED = 2021
 
 
 def ComputeGrad(x, y, out, axis):
+    origin_x_shape = x.shape
+    origin_y_shape = y.shape
+
     grad = 1 / out.size
     shape_x = x.shape
     shape_y = y.shape
@@ -76,6 +79,10 @@ def ComputeGrad(x, y, out, axis):
     if len(reduce_axes_y) > 0:
         for i, element in enumerate(reduce_axes_y):
             dy = np.add.reduce(dy, element - i)
+
+    # avoid shape check error in new eager_op_test
+    dx = dx.reshape(origin_x_shape)
+    dy = dy.reshape(origin_y_shape)
 
     return dx, dy
 

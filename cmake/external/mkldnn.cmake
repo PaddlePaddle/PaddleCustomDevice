@@ -1,0 +1,1 @@
+../../Paddle/cmake/external/mkldnn.cmake

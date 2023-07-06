@@ -212,6 +212,27 @@ void SwishGradKernel(const Context& dev_ctx,
   mul_runner2.Run(stream);
 }
 
+// Silu = x * sigmoid(x)
+template <typename T, typename Context>
+void SiluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("Swish", {x}, {*out}, {{"scale", static_cast<float>(1.0)}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SiluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
+}
+
 template <typename T, typename Context>
 void ReluKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
@@ -1091,6 +1112,20 @@ PD_REGISTER_PLUGIN_KERNEL(swish_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(silu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(silu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluGradKernel,
                           float,
                           phi::dtype::float16) {}
 

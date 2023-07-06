@@ -210,9 +210,9 @@ export PADDLE_MLU_ALLOW_TF32=true
 ```
 
 ### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
-该功能会关闭CNCL对于多通信域（CLIQUE）管理的内存限制，默认该限制是开启状态，会在某些需要管理多通信域的集合通信中导致CNCL进程卡死。
+该功能会关闭CNCL对于多通信域（CLIQUE）管理的内存限制，CNCL为了节省内存会默认限制进程为单通信域，在某些需要管理多通信域的集合通信中会出现CNCL初始化卡死。
 
 关闭多通信域内存限制。
 ```bash
-export PADDLE_MLU_ALLOW_TF32=0
+export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
 ```

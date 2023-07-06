@@ -69,6 +69,9 @@ target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE ${NEUWARE_LIBS} glog gflags)
 # link paddle shared library
 include(third_party)
 add_dependencies(${CUSTOM_MLU_NAME} third_party)
+# concurrentqueue
+include(external/concurrentqueue)
+add_dependencies(${CUSTOM_MLU_NAME} extern_concurrentqueue)
 if(ON_INFER)
   target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE paddle_inference)
   target_compile_definitions(${CUSTOM_MLU_NAME} PRIVATE PADDLE_ON_INFERENCE)

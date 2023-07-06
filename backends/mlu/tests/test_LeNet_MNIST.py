@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
 import time
 import argparse
 import datetime
@@ -20,8 +22,9 @@ import numpy as np
 import paddle
 import paddle.nn as nn
 import paddle.vision.transforms as transforms
+import paddle.inference as paddle_infer
 
-EPOCH_NUM = 5
+EPOCH_NUM = 2
 BATCH_SIZE = 4096
 
 
@@ -54,14 +57,47 @@ def test(epoch_id, test_loader, model, cost):
         outputs = model(images)
         acc_top1 = paddle.metric.accuracy(input=outputs, label=labels, k=1)
         acc_top5 = paddle.metric.accuracy(input=outputs, label=labels, k=5)
-        avg_acc[0].append(acc_top1.numpy())
-        avg_acc[1].append(acc_top5.numpy())
+        avg_acc[0].append(float(acc_top1))
+        avg_acc[1].append(float(acc_top5))
     model.train()
     print(
-        "Epoch ID: {}, Top1 accurary:: {:.5f}, Top5 accurary:: {:.5f}".format(
+        "Eval - Epoch ID: {}, Top1 accurary:: {:.5f}, Top5 accurary:: {:.5f}".format(
             epoch_id + 1, np.array(avg_acc[0]).mean(), np.array(avg_acc[1]).mean()
         )
     )
+
+
+def infer(model_dir):
+    # model file
+    params_file = os.path.join(model_dir, "model.pdiparams")
+    model_file = os.path.join(model_dir, "model.pdmodel")
+
+    # create config
+    config = paddle_infer.Config(model_file, params_file)
+    config.enable_custom_device("mlu")
+
+    # create predictor
+    predictor = paddle_infer.create_predictor(config)
+
+    # prepare input
+    input_names = predictor.get_input_names()
+    input_tensor = predictor.get_input_handle(input_names[0])
+
+    # copy from cpu
+    fake_input = np.random.randn(1, 1, 28, 28).astype("float32")
+    input_tensor.copy_from_cpu(fake_input)
+
+    # run predictor
+    predictor.run()
+
+    # get output tensor
+    output_names = predictor.get_output_names()
+    output_tensor = predictor.get_output_handle(output_names[0])
+
+    # get output data
+    output_data = output_tensor.copy_to_cpu()
+    print("Output data size is {}".format(output_data.size))
+    print("Output data shape is {}".format(output_data.shape))
 
 
 def main(args):
@@ -150,18 +186,28 @@ def main(args):
         epoch_cost = time.time() - epoch_start
         avg_ips = iter_max * BATCH_SIZE / epoch_cost
         print(
-            "Epoch ID: {}, Epoch time: {:.5f} s, reader_cost: {:.5f} s, batch_cost: {:.5f} s, exec_cost: {:.5f} s, average ips: {:.5f} samples/s".format(
+            "Epoch ID: {}, Epoch time: {:.5f} s, reader_cost: {:.5f} s, batch_cost: {:.5f} s, avg ips: {:.5f} samples/s".format(
                 epoch_id + 1,
                 epoch_cost,
                 reader_cost.sum,
                 batch_cost.sum,
-                batch_cost.sum - reader_cost.sum,
                 avg_ips,
             )
         )
 
         # evaluate after each epoch
         test(epoch_id, test_loader, model, cost)
+
+    # save inferece model
+    model = paddle.jit.to_static(
+        model,
+        input_spec=[paddle.static.InputSpec(shape=[None, 1, 28, 28], dtype="float32")],
+    )
+    paddle.jit.save(model, "output/model")
+
+    # infernece and clear
+    infer("output")
+    shutil.rmtree("output")
 
 
 class AverageMeter(object):
@@ -196,14 +242,13 @@ def log_info(reader_cost, batch_cost, epoch_id, iter_max, iter_id):
     eta_sec = ((EPOCH_NUM - epoch_id) * iter_max - iter_id) * batch_cost.avg
     eta_msg = "eta: {:s}".format(str(datetime.timedelta(seconds=int(eta_sec))))
     print(
-        "Epoch [{}/{}], Iter [{:0>2d}/{}], reader_cost: {:.5f} s, batch_cost: {:.5f} s, exec_cost: {:.5f} s, ips: {:.5f} samples/s, {}".format(
+        "Epoch [{}/{}], Iter [{:0>2d}/{}], reader_cost: {:.5f} s, batch_cost: {:.5f} s, ips: {:.5f} samples/s, {}".format(
             epoch_id + 1,
             EPOCH_NUM,
             iter_id + 1,
             iter_max,
             reader_cost.avg,
             batch_cost.avg,
-            batch_cost.avg - reader_cost.avg,
             BATCH_SIZE / batch_cost.avg,
             eta_msg,
         )

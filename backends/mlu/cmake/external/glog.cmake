@@ -1,1 +1,1 @@
-../../../../Paddle/cmake/external/glog.cmake
+../../../../cmake/external/glog.cmake

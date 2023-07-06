@@ -29,7 +29,7 @@ MLUOPS_VERSION=${6:-0.6.0-1} # default 0.6.0
 
 # ubuntu18-$(uname -m)-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82
-docker build --no-cache --network=host -f Dockerfile.mlu.ubuntu18-$(uname -m)-gcc82 \
+docker build --network=host -f Dockerfile.mlu.ubuntu18-$(uname -m)-gcc82 \
        --build-arg CNTOOLKIT_VERSION=${CNTOOLKIT_VERSION} \
        --build-arg CNNL_VERSION=${CNNL_VERSION} \
        --build-arg CNCL_VERSION=${CNCL_VERSION} \

@@ -11,6 +11,10 @@ def write_version_py(filename='python/paddle_custom_device/mlu/__init__.py'):
 #
 full_version  = '@PADDLE_VERSION@'
 git_commit_id = '@GIT_HASH@'
+cntoolkit_version  = '@CNTOOLKIT_VERSION@'
+cnnl_version  = '@CNNL_VERSION@'
+cncl_version  = '@CNCL_VERSION@'
+mluops_version  = '@MLUOPS_VERSION@'
 
 __all__ = ['version']
 
@@ -28,12 +32,19 @@ def version():
             import paddle_custom_device
 
             paddle_custom_device.mlu.version()
-            # version: 2.5.0
-            # commit: b1539a921dbabf708807ebedb2671fa7bd3fd2f9
-            # cann: 6.0.1
+            # version: 0.0.0
+            # commit: 98ae7a84b51e36fc15a1fef7808a82ed8b792fdf
+            # cntoolkit: 3.4.2
+            # cnnl: 1.17.0
+            # cncl: 1.9.3
+            # mluops: 0.6.0
     """
     print('version:', full_version)
     print('commit:', git_commit_id)
+    print('cntoolkit:', cntoolkit_version)
+    print('cnnl:', cnnl_version)
+    print('cncl:', cncl_version)
+    print('mluops:', mluops_version)
 '''
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):

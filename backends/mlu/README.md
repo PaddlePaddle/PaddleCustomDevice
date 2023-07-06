@@ -36,13 +36,13 @@ cd PaddleCustomDevice
 
 > Note: PaddlePaddle Python WHL package supports both training and inference, while ONLY PaddleInference Python API is supported. Please refer to next section if PaddleInference C++ API is needed.
 
-### Source Code Compile
+### Source Code Compilation
 
 ```bash
 # 1. navigate to implementaion for Cambricon MLU
 cd backends/mlu
 
-# 2. before compiling, ensure that Paddle is installed, you can run the following command
+# 2. before compiling, ensure that PaddlePaddle (CPU version) is installed, you can run the following command
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 3. compile options, whether to compile with unit testing, default is ON
@@ -114,7 +114,7 @@ Output data shape is (1, 10)
 > Note: the official released PaddleInference C++ package do not support custom device, please follow the steps below to source compile PaddleInference C++ package.
 
 ```bash
-# 1. got to Paddle source code directory
+# 1. go to Paddle source code directory
 cd PaddleCustomDevice/Paddle
 
 # 2. prepare build directory
@@ -210,9 +210,9 @@ export PADDLE_MLU_ALLOW_TF32=true
 ```
 
 ### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
-This function controls whether to disable multiply clique restriction by CNCL. Currently, this ENV is set to enable, which will cause process stuck in multi-clique collective communication senario.
+This function controls whether to enable multiply clique of CNCL. Currently, CNCL will not accept multiply communication clique by default, which will cause process stuck in some multi-clique collective communication senario.
 
 Turn off multi-clique mem restriction.
 ```bash
-export PADDLE_MLU_ALLOW_TF32=0
+export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
 ```

@@ -332,8 +332,8 @@ void SyncBatchNormGradKernel(
   using MPDType = typename MPTypeTrait<T>::Type;
   dev_ctx.template Alloc<T>(x_grad);
   if (scale_grad && bias_grad) {
-    dev_ctx.template Alloc<T>(scale_grad);
-    dev_ctx.template Alloc<T>(bias_grad);
+    dev_ctx.template Alloc<MPDType>(scale_grad);
+    dev_ctx.template Alloc<MPDType>(bias_grad);
   }
   PADDLE_ENFORCE_EQ(scale.dims().size(),
                     1UL,
@@ -389,8 +389,8 @@ void SyncBatchNormGradKernel(
   Tensor sum_dy, sum_dy_xmu;
   sum_dy.Resize(bias.dims());
   sum_dy_xmu.Resize(bias.dims());
-  dev_ctx.template Alloc<T>(&sum_dy);
-  dev_ctx.template Alloc<T>(&sum_dy_xmu);
+  dev_ctx.template Alloc<MPDType>(&sum_dy);
+  dev_ctx.template Alloc<MPDType>(&sum_dy_xmu);
   MLUCnnlTensorDesc desc_other_param(bias);
   MLUCnnl::SyncBatchnormBackwardReduce(
       dev_ctx,
@@ -497,12 +497,32 @@ PD_REGISTER_PLUGIN_KERNEL(sync_batch_norm,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::SyncBatchNormKernel,
-                          float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);   // mean
+    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);   // variance
+    kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);   // scale
+    kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);   // bias
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // variance_out
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);  // saved_mean
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);  // saved_variance
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(sync_batch_norm_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::SyncBatchNormGradKernel,
-                          float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);   // mean
+    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);   // variance
+    kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);   // scale
+    kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);   // bias
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // scale_grad
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
+  }
+}

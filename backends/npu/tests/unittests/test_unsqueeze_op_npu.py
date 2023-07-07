@@ -69,7 +69,7 @@ class TestUnsqueeze2Op2(TestUnsqueeze2Op):
     def init_test_case(self):
         self.ori_shape = (20, 5)
         self.axes = ()
-        self.new_shape = (1, 20, 5)
+        self.new_shape = (20, 5)
 
 
 # Correct: Just part of axes be squeezed.

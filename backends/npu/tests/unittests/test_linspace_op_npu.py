@@ -125,7 +125,7 @@ class TestLinspaceOpNumOneCase(OpTest):
         }
         self.attrs = {"dtype": int(core.VarDesc.VarType.FP32)}
 
-        self.outputs = {"Out": np.array(10, dtype=dtype)}
+        self.outputs = {"Out": np.array([10], dtype=dtype)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True

@@ -479,9 +479,8 @@ phi::DenseTensor PerformContraction(
     phi::DenseTensor trans_t;
     if (use_cache && cache[operand_idx] != nullptr &&
         cache[operand_idx]->initialized()) {
-      //   trans_t.ShareBufferWith(*(cache[operand_idx]));
-      //   TensorCopy<Context>(dev_ctx, *(cache[operand_idx]), true, &trans_t);
-      trans_t = *(cache[operand_idx]);
+      // trans_t.ShareBufferWith(*(cache[operand_idx]));
+      TensorCopy<Context>(dev_ctx, *(cache[operand_idx]), true, &trans_t);
       VLOG(5) << "Cache Used!";
     } else {
       auto reduct_t =
@@ -497,7 +496,7 @@ phi::DenseTensor PerformContraction(
       if (cache[operand_idx] != nullptr)
         // todo
         // cache[operand_idx]->ShareBufferWith(trans_t);
-        cache[operand_idx] = &trans_t;
+        TensorCopy<Context>(dev_ctx, trans_t, true, cache[operand_idx]);
     }
     auto mul_dims = GetShapeByType<int>(all_labels,
                                         label2type,
@@ -725,6 +724,229 @@ void EinsumInferKernel(const Context& dev_ctx,
       dev_ctx, place_holder, inputs, equation, out, cache_tensor, true);
 }
 
+template <typename T, typename Context>
+phi::DenseTensor PerformTileAndReduction(const Context& dev_ctx,
+                                         const LabelMap& label2type,
+                                         const LabelMap& label2shape,
+                                         const std::vector<int>& broadcast_dims,
+                                         const std::vector<int>& ellipsis_dims,
+                                         std::string equ,        // value pass
+                                         phi::DenseTensor& t) {  // NOLINT
+  auto tmp_label = equ;
+  ReplaceEllipsis(tmp_label);
+  auto tmp_union = unique_labels(tmp_label);
+  auto op_label = std::string(tmp_union.begin(), tmp_union.end());
+  VLOG(5) << "Start PerformTileAndReduction" << equ;
+  phi::DenseTensor ret;
+  std::vector<int> repeat_times;
+  std::vector<int> resize_dims;
+  std::vector<int> recover_shape;
+  for (int c : op_label) {
+    if (label2type[c] == LabelType::Reduction) {
+      // '.' can't be Reduction, so we don't deal '.' here.
+      repeat_times.push_back(label2shape[c]);
+      resize_dims.push_back(1);
+      recover_shape.push_back(label2shape[c]);
+    } else {
+      if (c != '.') {
+        resize_dims.push_back(label2shape[c]);
+        repeat_times.push_back(1);
+        recover_shape.push_back(label2shape[c]);
+      } else {
+        int n_dims = broadcast_dims.size();
+        resize_dims.insert(
+            resize_dims.end(), broadcast_dims.begin(), broadcast_dims.end());
+        recover_shape.insert(
+            recover_shape.end(), ellipsis_dims.begin(), ellipsis_dims.end());
+        while (n_dims--) repeat_times.push_back(1);
+      }
+    }
+  }
+  t.Resize(phi::make_ddim(resize_dims));
+  phi::DenseTensor after_tile;
+  if (std::all_of(repeat_times.begin(), repeat_times.end(), [](int x) {
+        return x == 1;
+      })) {
+    after_tile = t;
+  } else {
+    VLOG(4) << "do TileKernel with repeat_times="
+            << join_strings(repeat_times, ",");
+    custom_kernel::TileKernel<T, Context>(
+        dev_ctx, t, repeat_times, &after_tile);
+  }
+  size_t n_ellipsis_idx = op_label.find(".", 0);
+  if (n_ellipsis_idx != std::string::npos) {
+    // may be we need reduce. broadcast_dims is not equal to ellipsis dims.
+    std::vector<int64_t> to_reduce;
+    for (size_t i = 0; i < broadcast_dims.size() - ellipsis_dims.size(); ++i)
+      to_reduce.push_back(i + n_ellipsis_idx);
+
+    int new_offset =
+        n_ellipsis_idx + broadcast_dims.size() - ellipsis_dims.size();
+    for (size_t i = 0; i < ellipsis_dims.size(); ++i)
+      if (ellipsis_dims[i] == 1) to_reduce.push_back(i + new_offset);
+
+    VLOG(5) << "PermformTileAndReduction: reduce sum axis: "
+            << join_strings(to_reduce, ",");
+    if (to_reduce.size() != 0) {
+      ret = custom_kernel::Sum<T, Context>(dev_ctx,
+                                           after_tile,
+                                           phi::IntArray(to_reduce),
+                                           after_tile.dtype(),
+                                           false);  // not keep dim.
+    } else {
+      ret = after_tile;
+    }
+  } else {
+    ret = after_tile;
+  }
+  VLOG(5) << "PermformTileAndReduction: recover shape: "
+          << join_strings(recover_shape, ",");
+  ret.Resize(phi::make_ddim(recover_shape));
+  // undiagonalize by einsum equation. only contain undiagonal operations.
+  phi::DenseTensor out;
+  VLOG(5) << "Undiagonal by einsum with args: " << op_label + "->" + equ;
+  custom_kernel::EinsumInferKernel<T, Context>(
+      dev_ctx, {&ret}, op_label + "->" + equ, &out);
+  return out;
+}
+
+template <typename T, typename Context>
+void EinsumGradKernel(const Context& dev_ctx,
+                      const std::vector<const phi::DenseTensor*>& x,
+                      const std::vector<const phi::DenseTensor*>& inner_cache,
+                      const phi::DenseTensor& out_grad,
+                      const std::string& equation,
+                      std::vector<phi::DenseTensor*> x_grad) {
+  VLOG(5) << "Start EinsumGradKernel:";
+  LabelMap labelshape(0);
+  LabelMap labeltype(LabelType::Reduction);
+  std::vector<LabelMap> label2perms(x.size(), LabelMap(-1));
+  std::vector<char> all_labels;  // order: ABO, AO, BO, AB, Reduce
+  std::vector<std::vector<int>> ellipsis_dims(2);
+  std::vector<int> broadcast_dims;
+  std::vector<int> output_dims;
+
+  std::vector<phi::DDim> input_dims;
+  for (auto& i : x) {
+    input_dims.push_back(i->dims());
+  }
+  std::vector<std::string> input_strs;
+  std::string right;
+  ParseEinsumEquation(equation,
+                      input_dims,
+                      &labelshape,
+                      &labeltype,
+                      &all_labels,
+                      &label2perms,
+                      &ellipsis_dims,
+                      &broadcast_dims,
+                      &output_dims,
+                      &right,
+                      &input_strs);
+
+  auto gather_labels_except_reduction = [&labeltype](std::string all) {
+    std::string res("");
+    for (auto c : all)
+      if (labeltype[static_cast<int>(c)] != LabelType::Reduction) res += c;
+    auto tmp_unique = unique_labels(res);
+    return std::string(tmp_unique.begin(), tmp_unique.end());
+  };
+  if (x.size() == 1) {  // Unary
+    auto splits = split_string(equation, "->");
+    auto left = splits[0];
+    right = splits[1];
+    auto new_equation = right + "->" + gather_labels_except_reduction(left);
+    auto new_operands = std::vector<const phi::DenseTensor*>();
+    new_operands.push_back(&out_grad);
+    phi::DenseTensor before_tile;
+    VLOG(5) << "new_equation is " << new_equation;
+    custom_kernel::EinsumInferKernel<T, Context>(
+        dev_ctx, new_operands, new_equation, &before_tile);
+    dev_ctx.template Alloc<T>(x_grad[0]);
+    *(x_grad[0]) = PerformTileAndReduction<T, Context>(dev_ctx,
+                                                       labeltype,
+                                                       labelshape,
+                                                       broadcast_dims,
+                                                       ellipsis_dims[0],
+                                                       left,
+                                                       before_tile);
+  } else {
+    auto splits = split_string(equation, "->");
+    auto left = splits[0];
+    auto ops = split_string(left, ",");
+    right = splits[1];
+    auto equation_for_A =
+        ops[1] + "," + right + "->" + gather_labels_except_reduction(ops[0]);
+    auto equation_for_B =
+        right + "," + ops[0] + "->" + gather_labels_except_reduction(ops[1]);
+    auto operands_for_A = std::vector<const phi::DenseTensor*>();
+    auto operands_for_B = std::vector<const phi::DenseTensor*>();
+    phi::DenseTensor dA, dB;
+    auto out_grad_conj = custom_kernel::Conj<T, Context>(dev_ctx, out_grad);
+    // dA = einsum(B, dC)
+    operands_for_A.push_back(x[1]);
+    operands_for_A.push_back(&out_grad_conj);
+    // dB = einsum(dC, A)
+    operands_for_B.push_back(&out_grad_conj);
+    operands_for_B.push_back(x[0]);
+
+    phi::DenseTensor before_tile;
+
+    std::vector<phi::DenseTensor> cache(3);  // set empty; TA, TB, TdC
+    if (inner_cache.size() >
+        0) {  // for compatibility,  we can load and run v2.3 EinsumOp.
+      // cache[0].ShareBufferWith(*(inner_cache[0]));
+      // cache[1].ShareBufferWith(*(inner_cache[1]));
+      TensorCopy<Context>(dev_ctx, *(inner_cache[0]), true, &cache[0]);
+      TensorCopy<Context>(dev_ctx, *(inner_cache[1]), true, &cache[1]);
+    }
+    custom_kernel::EinsumKernelImpl<T, Context>(dev_ctx,
+                                                all_labels,
+                                                operands_for_A,
+                                                equation_for_A,
+                                                &dA,
+                                                {&cache[1], &cache[2]},
+                                                false);
+
+    custom_kernel::EinsumKernelImpl<T, Context>(dev_ctx,
+                                                all_labels,
+                                                operands_for_B,
+                                                equation_for_B,
+                                                &dB,
+                                                {&cache[2], &cache[0]},
+                                                false);
+
+    // release the cache tensor dTC to save memory right now. they are useless
+    // now.
+    cache.clear();
+    if (x_grad[0]) {
+      dev_ctx.template Alloc<T>(x_grad[0]);
+      *(x_grad[0]) =
+          custom_kernel::PerformTileAndReduction<T, Context>(dev_ctx,
+                                                             labeltype,
+                                                             labelshape,
+                                                             broadcast_dims,
+                                                             ellipsis_dims[0],
+                                                             ops[0],
+                                                             dA);
+      *(x_grad[0]) = custom_kernel::Conj<T, Context>(dev_ctx, *x_grad[0]);
+    }
+    if (x_grad[1]) {
+      dev_ctx.template Alloc<T>(x_grad[1]);
+      *(x_grad[1]) =
+          custom_kernel::PerformTileAndReduction<T, Context>(dev_ctx,
+                                                             labeltype,
+                                                             labelshape,
+                                                             broadcast_dims,
+                                                             ellipsis_dims[1],
+                                                             ops[1],
+                                                             dB);
+      *(x_grad[1]) = custom_kernel::Conj<T, Context>(dev_ctx, *x_grad[1]);
+    }
+  }
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(einsum,
@@ -738,5 +960,12 @@ PD_REGISTER_PLUGIN_KERNEL(einsum_infer,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::EinsumInferKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(einsum_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::EinsumGradKernel,
                           float,
                           phi::dtype::float16) {}

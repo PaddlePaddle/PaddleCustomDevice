@@ -81,10 +81,11 @@ class TestEinsumBinary(OpTest):
                 self.place, atol=1e-3, rtol=2e-2, no_check_set=["InnerCache", "XShape"]
             )
 
-    # def test_grad(self):
-    # pass
-    # if not self.disable:
-    #     self.check_grad([op[0] for op in self.operands], ["Out"])
+    def test_grad(self):
+        if not self.disable:
+            self.check_grad_with_place(
+                self.place, [op[0] for op in self.operands], ["Out"]
+            )
 
 
 class TestEinsum1(TestEinsumBinary):
@@ -150,18 +151,18 @@ class TestEinsumWithBroadcast2(TestEinsumBinary):
         self.equation = "...ij,...i->j..."
 
 
-# # class TestEinsumWithBroadcast3(TestEinsumBinary):
-# #     def set_mandatory(self):
-# #         self.shapes = [(10, 3, 2, 3, 4), (12, 10)]
-# #         self.types = [self.dtype, self.dtype]
-# #         self.equation = "k...,...jk->...k"
+# class TestEinsumWithBroadcast3(TestEinsumBinary):
+#     def set_mandatory(self):
+#         self.shapes = [(10, 3, 2, 3, 4), (12, 10)]
+#         self.types = [self.dtype, self.dtype]
+#         self.equation = "k...,...jk->...k"
 
 
-# # class TestEinsumWithBroadcast4(TestEinsumBinary):
-# #     def set_mandatory(self):
-# #         self.shapes = [(10, 3, 2, 3, 4), (12, 10)]
-# #         self.types = [self.dtype, self.dtype]
-# #         self.equation = "a...d,...cb->...abcd"
+# class TestEinsumWithBroadcast4(TestEinsumBinary):
+#     def set_mandatory(self):
+#         self.shapes = [(10, 3, 2, 3, 4), (12, 10)]
+#         self.types = [self.dtype, self.dtype]
+#         self.equation = "a...d,...cb->...abcd"
 
 
 class TestEinsumWithBroadcast5(TestEinsumBinary):
@@ -227,9 +228,25 @@ class TestEinsumWithDiagonal8(TestEinsumBinary):
         self.equation = "ijki,jkjk->"
 
 
-class TestEinsumFP16Op(TestEinsumBinary):
+class TestEinsumFP32Op(TestEinsumBinary):
     def init_dtype(self):
-        self.dtype = np.float16
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        if not self.disable:
+            self.check_output_with_place(
+                self.place, atol=2e-2, rtol=1e-3, no_check_set=["InnerCache", "XShape"]
+            )
+
+    def test_grad(self):
+        if not self.disable:
+            self.check_grad_with_place(
+                self.place,
+                [op[0] for op in self.operands],
+                ["Out"],
+                numeric_place=paddle.CPUPlace(),
+                max_relative_error=3e-2,
+            )
 
 
 if __name__ == "__main__":

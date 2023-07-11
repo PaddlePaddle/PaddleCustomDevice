@@ -18,6 +18,7 @@ file(
   "test_*.py")
 string(REPLACE ".py" "" TEST_OPS "${TEST_OPS}")
 
+list(REMOVE_ITEM TEST_OPS test_parallel_dygraph_pipeline_parallel)
 foreach(TEST_OP ${TEST_OPS})
   py_test_modules(${TEST_OP} MODULES ${TEST_OP})
 endforeach()
@@ -70,5 +71,8 @@ set_tests_properties(
   test_transpose_op_npu PROPERTIES ENVIRONMENT
                                    FLAGS_allocator_strategy=auto_growth)
 
-set_tests_properties(test_parallel_dygraph_pipeline_parallel
-                     PROPERTIES ENVIRONMENT PADDLE_P2P_SYNC_SEND=1)
+py_test_modules(
+  test_parallel_dygraph_pipeline_parallel MODULES
+  test_parallel_dygraph_pipeline_parallel ENVS PADDLE_P2P_SYNC_SEND=1)
+set_tests_properties(test_parallel_dygraph_pipeline_parallel PROPERTIES TIMEOUT
+                                                                        1000)

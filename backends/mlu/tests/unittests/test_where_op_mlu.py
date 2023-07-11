@@ -19,6 +19,7 @@ import numpy as np
 import paddle
 import paddle.fluid as fluid
 from tests.op_test import OpTest
+from paddle.fluid.backward import append_backward
 from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
@@ -29,7 +30,6 @@ class TestWhereOp(OpTest):
         self.op_type = "where"
         self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
-        self.__class__.no_need_check_grad = True
         self.python_api = paddle.where
         self.init_config()
         self.inputs = {"Condition": self.cond, "X": self.x, "Y": self.y}
@@ -39,7 +39,7 @@ class TestWhereOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad(["X", "Y"], "Out")
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
 
     def init_config(self):
         self.x = np.random.uniform((-3), 5, 100).astype("float32")
@@ -61,11 +61,17 @@ class TestWhereOp3(TestWhereOp):
         self.cond = np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
 
 
+class TestWhereOp4(TestWhereOp):
+    def init_config(self):
+        self.x = np.random.uniform((-3), 5, (20, 2, 4)).astype("float16")
+        self.y = np.random.uniform((-3), 5, (20, 2, 4)).astype("float16")
+        self.cond = np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
+
+
 class TestWhereAPI(unittest.TestCase):
     def setUp(self):
         self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
-        self.__class__.no_need_check_grad = True
         self.init_data()
 
     def init_data(self):
@@ -83,46 +89,48 @@ class TestWhereAPI(unittest.TestCase):
         # flake8: noqa
         return np.where((self.cond == False), dout, 0)
 
-    # def test_api(self):
-    #     for x_stop_gradient in [False, True]:
-    #         for y_stop_gradient in [False, True]:
-    #             train_prog = fluid.Program()
-    #             startup = fluid.Program()
-    #             with fluid.program_guard(train_prog, startup):
-    #                 cond = fluid.data(name="cond", shape=self.shape, dtype="bool")
-    #                 x = fluid.data(name="x", shape=self.shape, dtype="float32")
-    #                 y = fluid.data(name="y", shape=self.shape, dtype="float32")
+    def test_api(self):
+        for x_stop_gradient in [False, True]:
+            for y_stop_gradient in [False, True]:
+                train_prog = fluid.Program()
+                startup = fluid.Program()
+                with fluid.program_guard(train_prog, startup):
+                    cond = paddle.static.data(
+                        name="cond", shape=self.shape, dtype="bool"
+                    )
+                    x = paddle.static.data(name="x", shape=self.shape, dtype="float32")
+                    y = paddle.static.data(name="y", shape=self.shape, dtype="float32")
 
-    #                 x.stop_gradient = x_stop_gradient
-    #                 y.stop_gradient = y_stop_gradient
+                    x.stop_gradient = x_stop_gradient
+                    y.stop_gradient = y_stop_gradient
 
-    #                 result = paddle.where(cond, x, y)
-    #                 result.stop_gradient = False
-    #                 append_backward(paddle.mean(result))
+                    result = paddle.where(cond, x, y)
+                    result.stop_gradient = False
+                    append_backward(paddle.mean(result))
 
-    #                 exe = fluid.Executor(self.place)
-    #                 exe.run(startup)
+                    exe = fluid.Executor(self.place)
+                    exe.run(startup)
 
-    #                 fetch_list = [result, result.grad_name]
-    #                 if x_stop_gradient is False:
-    #                     fetch_list.append(x.grad_name)
-    #                 if y_stop_gradient is False:
-    #                     fetch_list.append(y.grad_name)
-    #                 out = exe.run(
-    #                     train_prog,
-    #                     feed={"cond": self.cond, "x": self.x, "y": self.y},
-    #                     fetch_list=fetch_list,
-    #                 )
-    #                 assert np.array_equal(out[0], self.out)
+                    fetch_list = [result, result.grad_name]
+                    if x_stop_gradient is False:
+                        fetch_list.append(x.grad_name)
+                    if y_stop_gradient is False:
+                        fetch_list.append(y.grad_name)
+                    out = exe.run(
+                        train_prog,
+                        feed={"cond": self.cond, "x": self.x, "y": self.y},
+                        fetch_list=fetch_list,
+                    )
+                    assert np.array_equal(out[0], self.out)
 
-    #                 if x_stop_gradient is False:
-    #                     assert np.array_equal(out[2], self.ref_x_backward(out[1]))
-    #                     if y.stop_gradient is False:
-    #                         assert np.array_equal(out[3], self.ref_y_backward(out[1]))
-    #                 elif y.stop_gradient is False:
-    #                     assert np.array_equal(out[2], self.ref_y_backward(out[1]))
+                    if x_stop_gradient is False:
+                        assert np.array_equal(out[2], self.ref_x_backward(out[1]))
+                        if y.stop_gradient is False:
+                            assert np.array_equal(out[3], self.ref_y_backward(out[1]))
+                    elif y.stop_gradient is False:
+                        assert np.array_equal(out[2], self.ref_y_backward(out[1]))
 
-    def test_api_broadcast(self, use_mlu=False):
+    def test_api_broadcast(self, use_mlu=True):
         main_program = Program()
         with fluid.program_guard(main_program):
             x = paddle.static.data(name="x", shape=[-1, 4, 1], dtype="float32")

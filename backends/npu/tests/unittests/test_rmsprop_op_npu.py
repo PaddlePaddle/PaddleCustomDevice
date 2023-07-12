@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2021
@@ -49,7 +48,7 @@ class TestNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            rmsprop = fluid.optimizer.RMSProp(learning_rate=0.01)
+            rmsprop = paddle.optimizer.RMSProp(learning_rate=0.01)
             rmsprop.minimize(loss)
 
         if run_npu:
@@ -110,7 +109,7 @@ class TestCenteredNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            rmsprop = fluid.optimizer.RMSProp(learning_rate=0.01, centered=True)
+            rmsprop = paddle.optimizer.RMSProp(learning_rate=0.01, centered=True)
             rmsprop.minimize(loss)
 
         if run_npu:

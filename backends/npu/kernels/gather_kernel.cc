@@ -23,15 +23,37 @@ void GatherKernel(const Context& dev_ctx,
                   const phi::DenseTensor& index,
                   const phi::Scalar& axis,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  NpuOpRunner runner;
-  runner.SetType("GatherV2")
-      .AddInput(x)
-      .AddInput(index)
-      .AddInput(dev_ctx, std::vector<int32_t>({axis.to<int32_t>()}))
-      .AddOutput(*out);
   auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  dev_ctx.template Alloc<T>(out);
+  if (x.dtype() == phi::DataType::BOOL) {
+    phi::DenseTensor trans_x, trans_y;
+    phi::DenseTensorMeta trans_x_meta = {phi::DataType::UINT8, x.dims()};
+    trans_x.set_meta(trans_x_meta);
+    dev_ctx.template Alloc<uint8_t>(&trans_x);
+    trans_y.Resize(out->dims());
+    dev_ctx.template Alloc<uint8_t>(&trans_y);
+    const auto& cast_runner1 =
+        NpuOpRunner("Cast", {x}, {trans_x}, {{"dst_type", ACL_UINT8}});
+    cast_runner1.Run(stream);
+    NpuOpRunner gather_runner;
+    gather_runner.SetType("GatherV2")
+        .AddInput(trans_x)
+        .AddInput(index)
+        .AddInput(dev_ctx, std::vector<int32_t>({axis.to<int32_t>()}))
+        .AddOutput(trans_y);
+    gather_runner.Run(stream);
+    const auto& cast_runner2 =
+        NpuOpRunner("Cast", {trans_y}, {*out}, {{"dst_type", ACL_BOOL}});
+    cast_runner2.Run(stream);
+  } else {
+    NpuOpRunner runner;
+    runner.SetType("GatherV2")
+        .AddInput(x)
+        .AddInput(index)
+        .AddInput(dev_ctx, std::vector<int32_t>({axis.to<int32_t>()}))
+        .AddOutput(*out);
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -81,6 +103,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::GatherKernel,
+                          bool,
                           float,
                           double,
                           int32_t,
@@ -91,6 +114,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::GatherGradKernel,
+                          bool,
                           float,
                           double,
                           int32_t,

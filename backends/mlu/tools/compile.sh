@@ -16,6 +16,8 @@
 
 set -ex
 
+export PADDLE_VERSION=2.5.0
+
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
 # prepare build directory

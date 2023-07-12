@@ -44,7 +44,7 @@ cd backends/mlu
 
 # 2. please ensure the PaddlePaddle (CPU version) is already installed
 # please download and install the pre-built whl package with links here
-https://paddle-wheel.bj.bcebos.com/2.5.0/linux/linux-cpu-mkl-avx/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -68,8 +68,8 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2. check installed custom mlu version
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # expected output
-version: 0.0.0
-commit: 98ae7a84b51e36fc15a1fef7808a82ed8b792fdf
+version: 2.5.0
+commit: 2e26a091323b8fba4f96dbee91203425c37362bf
 cntoolkit: 3.4.2
 cnnl: 1.17.0
 cncl: 1.9.3

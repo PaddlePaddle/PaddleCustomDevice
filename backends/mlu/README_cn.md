@@ -43,7 +43,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
-https://paddle-wheel.bj.bcebos.com/2.5.0/linux/linux-cpu-mkl-avx/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -66,8 +66,8 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) 检查当前安装版本
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # 预期得到如下输出结果
-version: 0.0.0
-commit: 98ae7a84b51e36fc15a1fef7808a82ed8b792fdf
+version: 2.5.0
+commit: 2e26a091323b8fba4f96dbee91203425c37362bf
 cntoolkit: 3.4.2
 cnnl: 1.17.0
 cncl: 1.9.3

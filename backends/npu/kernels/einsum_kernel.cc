@@ -480,6 +480,7 @@ phi::DenseTensor PerformContraction(
     if (use_cache && cache[operand_idx] != nullptr &&
         cache[operand_idx]->initialized()) {
       // trans_t.ShareBufferWith(*(cache[operand_idx]));
+      // deal with grad op no memory error
       TensorCopy<Context>(dev_ctx, *(cache[operand_idx]), true, &trans_t);
       VLOG(5) << "Cache Used!";
     } else {

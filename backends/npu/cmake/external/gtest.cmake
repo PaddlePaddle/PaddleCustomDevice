@@ -1,1 +1,1 @@
-../../../../Paddle/cmake/external/gtest.cmake
+../../../../cmake/external/gtest.cmake

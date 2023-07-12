@@ -1,1 +1,1 @@
-../../../Paddle/cmake/version.cmake
+../../../cmake/version.cmake

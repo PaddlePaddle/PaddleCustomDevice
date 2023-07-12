@@ -1,1 +1,1 @@
-../../Paddle/python/paddle/fluid/tests/unittests/config.py
+../../Paddle/test/legacy_test/config.py

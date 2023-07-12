@@ -13,7 +13,6 @@
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -27,10 +26,6 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4) 请执行以下命令，以保证 checkout 最新的 PaddlePaddle 主框架源码
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
 ## PaddlePaddle 训练安装与运行

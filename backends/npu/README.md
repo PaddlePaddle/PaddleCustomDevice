@@ -13,7 +13,6 @@ Please refer to the following steps to compile, install and verify the custom de
 # dockerfile of the image is in tools/dockerfile directory
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -27,10 +26,6 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
 # 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4. execute the following commands to update submodule
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
 ## PaddlePaddle Installation and Verification
@@ -41,9 +36,8 @@ git submodule update --remote --init --recursive
 # 1. go to ascend npu directory
 cd backends/npu
 
-# 2. please ensure the PaddlePaddle cpu whl package is already installed
-# the development docker image NOT have PaddlePaddle cpu whl installed by default
-# you may download and install the nightly built cpu whl package with links below
+# 2. please ensure the PaddlePaddle (CPU version) is already installed
+# please download and install the pre-built whl package with links here
 https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
 https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_aarch64.whl
 
@@ -110,7 +104,7 @@ Output data shape is (1, 10)
 > Note: the official released PaddleInference C++ package do not support custom device, please follow the steps below to source compile PaddleInference C++ package.
 
 ```bash
-# 1. got ot Paddle source code directory
+# 1. go to Paddle source code directory
 cd PaddleCustomDevice/Paddle
 
 # 2. prepare build directory

@@ -69,3 +69,5 @@ set_tests_properties(test_conv2d_op_npu PROPERTIES ENVIRONMENT
 set_tests_properties(
   test_transpose_op_npu PROPERTIES ENVIRONMENT
                                    FLAGS_allocator_strategy=auto_growth)
+set_tests_properties(test_einsum_op_npu PROPERTIES ENVIRONMENT
+                                                   FLAGS_npu_storage_format=0)

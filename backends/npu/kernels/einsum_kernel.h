@@ -509,4 +509,23 @@ phi::DenseTensor Full(const Context& dev_ctx,
   return dense_out;
 }
 
+// Tile kernel
+template <typename T, typename Context>
+void TileKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::IntArray& repeat_times,
+                phi::DenseTensor* out);
+
+// If T is not complex
+template <
+    typename T,
+    typename Context,
+    std::enable_if_t<!std::is_same<T, phi::dtype::complex<float>>::value &&
+                         !std::is_same<T, phi::dtype::complex<double>>::value,
+                     bool> = true>
+phi::DenseTensor Conj(const Context& dev_ctx UNUSED,
+                      const phi::DenseTensor& x) {
+  return x;
+}
+
 }  // namespace custom_kernel

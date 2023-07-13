@@ -239,7 +239,7 @@ C_Status ReleaseDevice(const C_Device device) {
     // global_allocator_list->GetAllocator(device->id)->ClearEvent();
     global_allocator_list->Deinit(device->id);
   }
-  // ACL_CHECK(aclrtResetDevice(device->id));
+  ACL_CHECK(aclrtResetDevice(device->id));
   return C_SUCCESS;
 }
 
@@ -248,7 +248,7 @@ C_Status Finalize() {
     delete global_allocator_list;
     global_allocator_list = nullptr;
   }
-  // ACL_CHECK(aclFinalize());
+  ACL_CHECK(aclFinalize());
   return C_SUCCESS;
 }
 

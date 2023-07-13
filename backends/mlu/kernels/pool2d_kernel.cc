@@ -212,7 +212,6 @@ void Pool2dKernel(const Context& dev_ctx,
                                 trans_out_desc.get(),
                                 static_cast<void*>(h_extra_tensor_ptr));
       TensorCopy(dev_ctx, extra_host_tensor, false, &extra_device_tensor);
-      dev_ctx.Wait();
 
       MLUCnnl::PoolingForward(
           dev_ctx,
@@ -227,6 +226,7 @@ void Pool2dKernel(const Context& dev_ctx,
           GetBasePtr(&extra_device_tensor) /*params_shape_ptr*/,
           trans_out_desc.get(),
           GetBasePtr(&trans_out));
+      dev_ctx.Wait();
     } else {
       MLUCnnl::PoolingForward(dev_ctx,
                               pool_mode,

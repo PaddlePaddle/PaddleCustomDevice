@@ -86,6 +86,7 @@ PD_REGISTER_PLUGIN_KERNEL(stack,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(stack_grad,
@@ -95,4 +96,5 @@ PD_REGISTER_PLUGIN_KERNEL(stack_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::float16,
                           double) {}

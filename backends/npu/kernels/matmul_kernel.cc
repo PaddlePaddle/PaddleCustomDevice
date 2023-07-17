@@ -99,7 +99,7 @@ static void MatMul2D(const Context& dev_ctx,
     custom_kernel::NPUIdentityKernel<T, Context>(
         dev_ctx, out_tmp, ConvertToNpuFormat(out->layout()), out);
   } else {
-    TensorCopy(dev_ctx, out_tmp, true, out);
+    TensorCopy(dev_ctx, out_tmp, false, out);
   }
   out->Resize(out_dim);
 }
@@ -158,7 +158,7 @@ static void MatMulND(const Context& dev_ctx,
         .AddOutput(*out)
         .Run(stream);
   } else {
-    TensorCopy(dev_ctx, out_tmp, true, out);
+    TensorCopy(dev_ctx, out_tmp, false, out);
   }
   out->Resize(out_dim);
 }

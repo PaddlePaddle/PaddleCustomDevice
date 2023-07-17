@@ -411,7 +411,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   const int axis_dim = logits_grad_dims[use_axis];
   const int n = SizeToAxis(use_axis, logits_grad_dims);
   // Use NPU IR
-  if (!soft_label && labels.numel() == n && ignore_index == -1) {
+  if (!soft_label && labels.numel() == n && ignore_index == -100) {
     int cls_num = softmax.dims()[softmax.dims().size() - 1];
     auto stream = dev_ctx.stream();
     // cast label from int64/int32 to int32 for OneHotD

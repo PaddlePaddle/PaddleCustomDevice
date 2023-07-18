@@ -44,9 +44,9 @@ void NonZeroKernel(const Context& dev_ctx,
   }
 
   phi::DenseTensor casted_cond;
-  auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT32);
+  auto dst_dtype = ConvertToNpuDtype(phi::DataType::FLOAT32);
   casted_cond.Resize(dims);
-  dev_ctx.template Alloc<int32_t>(&casted_cond);
+  dev_ctx.template Alloc<float>(&casted_cond);
   const auto& cast_runner =
       NpuOpRunner("Cast",
                   {booled_cond},
@@ -56,7 +56,7 @@ void NonZeroKernel(const Context& dev_ctx,
 
   phi::DenseTensor sumed_true_num;
   sumed_true_num.Resize({1});
-  dev_ctx.template Alloc<int32_t>(&sumed_true_num);
+  dev_ctx.template Alloc<float>(&sumed_true_num);
   phi::DenseTensor cond_axes;
   cond_axes.Resize({dims.size()});
   dev_ctx.template Alloc<int>(&cond_axes);
@@ -73,7 +73,7 @@ void NonZeroKernel(const Context& dev_ctx,
 
   phi::DenseTensor local_true_num;
   TensorCopy(dev_ctx, sumed_true_num, true, &local_true_num, phi::CPUPlace());
-  auto true_num = *local_true_num.data<int32_t>();
+  int true_num = static_cast<int32_t>(*local_true_num.data<float>());
 
   out->Resize(phi::make_ddim({true_num, rank}));
   dev_ctx.template Alloc<int64_t>(out);

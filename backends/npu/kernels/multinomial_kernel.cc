@@ -26,10 +26,14 @@ void MultinomialKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int64_t>(out);
   auto num_samples = num.to<int>();
   auto stream = dev_ctx.stream();
+
+  auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
+  auto seed_val = static_cast<int>(engine());
+
   phi::DenseTensor seed, offset;
   seed.Resize({1});
   offset.Resize({1});
-  FillNpuTensorWithConstant<int64_t>(&seed, dev_ctx, -1);
+  FillNpuTensorWithConstant<int64_t>(&seed, dev_ctx, seed_val);
   FillNpuTensorWithConstant<int64_t>(&offset, dev_ctx, 0);
 
   NpuOpRunner runner;

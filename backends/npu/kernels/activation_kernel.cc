@@ -724,6 +724,48 @@ void SquareGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void HardTanhKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    float t_min,
+                    float t_max,
+                    phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  // t_min
+  phi::DenseTensor min_tensor;
+  phi::DenseTensorMeta min_tensor_meta = {x.dtype(), x.dims()};
+  min_tensor.set_meta(min_tensor_meta);
+  dev_ctx.template Alloc<T>(&min_tensor);
+  FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, static_cast<T>(t_min));
+  // t_max
+  phi::DenseTensor max_tensor;
+  phi::DenseTensorMeta max_tensor_meta = {x.dtype(), x.dims()};
+  max_tensor.set_meta(max_tensor_meta);
+  dev_ctx.template Alloc<T>(&max_tensor);
+  FillNpuTensorWithConstant<T>(&max_tensor, dev_ctx, static_cast<T>(t_max));
+
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("ClipByValue", {x, min_tensor, max_tensor}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardTanhGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& out,
+                        const phi::DenseTensor& dout,
+                        float t_min,
+                        float t_max,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+
+  NPUAttributeMap attr_input = {{"min_val", t_min}, {"max_val", t_max}};
+  auto stream = dev_ctx.stream();
+  const auto& runner_dx =
+      NpuOpRunner("HardtanhGrad", {out, dout}, {*dx}, attr_input);
+  runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
 void HardSigmoidKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        float slope,
@@ -1356,6 +1398,20 @@ PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           float,
                           phi::dtype::float16,
                           double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hardtanh,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardTanhKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hardtanh_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardTanhGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
                           npu,

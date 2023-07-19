@@ -41,8 +41,8 @@ cd backends/npu
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
 # you may download and install the nightly built cpu whl package with links below
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -116,12 +116,12 @@ mkdir build && cd build
 
 # 3.1 build command for X86_64
 cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_XBYAK=OFF -DWITH_ARM=OFF
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=OFF
 make -j8
 
 # 3.2 build command for aarch64
 cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_XBYAK=OFF -DWITH_ARM=ON
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
 # 4) PaddleInference C++ package will be generated into build/paddle_inference_install_dir directory

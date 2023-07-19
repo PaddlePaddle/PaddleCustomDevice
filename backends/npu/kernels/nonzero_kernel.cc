@@ -44,37 +44,34 @@ void NonZeroKernel(const Context& dev_ctx,
   }
 
   phi::DenseTensor casted_cond;
-  auto dst_dtype = ConvertToNpuDtype(phi::DataType::INT64);
+  auto dst_dtype = ConvertToNpuDtype(phi::DataType::FLOAT32);
   casted_cond.Resize(dims);
-  dev_ctx.template Alloc<int64_t>(&casted_cond);
+  dev_ctx.template Alloc<float>(&casted_cond);
   const auto& cast_runner =
       NpuOpRunner("Cast",
                   {booled_cond},
                   {casted_cond},
                   {{"dst_type", static_cast<int>(dst_dtype)}});
-  cast_runner.Run(stream, true);
+  cast_runner.Run(stream);
 
   phi::DenseTensor sumed_true_num;
   sumed_true_num.Resize({1});
-  dev_ctx.template Alloc<int64_t>(&sumed_true_num);
-  phi::DenseTensor cond_axes;
-  cond_axes.Resize({dims.size()});
-  dev_ctx.template Alloc<int>(&cond_axes);
+  dev_ctx.template Alloc<float>(&sumed_true_num);
+
   std::vector<int> axes_vec;
   for (int i = 0; i < dims.size(); ++i) {
     axes_vec.push_back(i);
   }
-  custom_kernel::TensorFromVector(dev_ctx, axes_vec, dev_ctx, &cond_axes);
-  const auto& sum_runner = NpuOpRunner("ReduceSum",
-                                       {casted_cond, cond_axes},
-                                       {sumed_true_num},
-                                       {{"keep_dims", false}});
-  sum_runner.Run(stream, true);
-
+  NpuOpRunner sum_runner;
+  sum_runner.SetType("ReduceSum");
+  sum_runner.AddInput(casted_cond);
+  sum_runner.AddInput(dev_ctx, std::move(axes_vec));
+  sum_runner.AddOutput(sumed_true_num);
+  sum_runner.AddAttr("keep_dims", false);
+  sum_runner.Run(stream);
   phi::DenseTensor local_true_num;
   TensorCopy(dev_ctx, sumed_true_num, true, &local_true_num, phi::CPUPlace());
-  auto true_num = *local_true_num.data<int64_t>();
-
+  int true_num = static_cast<int32_t>(*local_true_num.data<float>());
   out->Resize(phi::make_ddim({true_num, rank}));
   dev_ctx.template Alloc<int64_t>(out);
 

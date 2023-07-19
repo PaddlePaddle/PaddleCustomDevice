@@ -730,17 +730,15 @@ void HardTanhKernel(const Context& dev_ctx,
                     float t_max,
                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  // t_min
-  phi::DenseTensor min_tensor;
-  phi::DenseTensorMeta min_tensor_meta = {x.dtype(), x.dims()};
-  min_tensor.set_meta(min_tensor_meta);
+  // t_min and t_max
+  phi::DenseTensor min_tensor, max_tensor;
+  phi::DenseTensorMeta meta1 = {x.dtype(), {1}};
+  min_tensor.set_meta(meta1);
+  max_tensor.set_meta(meta1);
   dev_ctx.template Alloc<T>(&min_tensor);
-  FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, static_cast<T>(t_min));
-  // t_max
-  phi::DenseTensor max_tensor;
-  phi::DenseTensorMeta max_tensor_meta = {x.dtype(), x.dims()};
-  max_tensor.set_meta(max_tensor_meta);
   dev_ctx.template Alloc<T>(&max_tensor);
+
+  FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, static_cast<T>(t_min));
   FillNpuTensorWithConstant<T>(&max_tensor, dev_ctx, static_cast<T>(t_max));
 
   auto stream = dev_ctx.stream();

@@ -38,7 +38,7 @@ class TestHardTanh(OpTest):
         self.op_type = "brelu"
         self.set_npu()
         self.init_dtype()
-        self.shape = [1, 100]
+        self.shape = [10, 12]
 
         np.random.seed(1024)
         x = np.random.uniform(-5, 5, self.shape).astype(self.dtype)
@@ -95,7 +95,7 @@ class TestHardTanh_ZeroDim(TestHardTanh):
 class TestHardTanhAPI(unittest.TestCase):
     # test paddle.nn.Hardtanh, paddle.nn.functional.hardtanh
     def setUp(self):
-        self.x_np = np.random.uniform(-5, 5, [1, 100]).astype(np.float32)
+        self.x_np = np.random.uniform(-5, 5, [10, 12]).astype(np.float32)
         self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):

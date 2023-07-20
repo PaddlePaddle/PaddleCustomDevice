@@ -1,0 +1,44 @@
+from __future__ import print_function, division
+
+import numpy as np
+import unittest
+from tests.op_test import OpTest
+import paddle
+
+paddle.enable_static()
+
+
+class TestSUPAAbs(OpTest):
+    def setUp(self):
+        self.op_type = "abs"
+        self.set_device()
+        self.init_dtype()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, [4, 25]).astype(self.dtype)
+        # Because we set delta = 0.005 in calculating numeric gradient,
+        # if x is too small, such as 0.002, x_neg will be -0.003
+        # x_pos will be 0.007, so the numeric gradient is inaccurate.
+        # we should avoid this
+        x[np.abs(x) < 0.005] = 0.02
+        out = np.abs(x)
+
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
+
+    def set_device(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+        self.place = paddle.CustomPlace("SUPA", 0)
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+if __name__ == "__main__":
+    unittest.main()

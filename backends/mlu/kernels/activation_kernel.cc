@@ -133,9 +133,9 @@ void ReluGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void Relu6RawKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float attr,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    float attr,
+                    phi::DenseTensor* out) {
   ActivationKernel<T, Context>(dev_ctx, x, 1.0, CNNL_ACTIVATION_RELU6, out);
 }
 
@@ -398,11 +398,11 @@ void ExpGradKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void HardSwishRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     float threshold,
-                     float scale,
-                     float offset,
-                     phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        float threshold,
+                        float scale,
+                        float offset,
+                        phi::DenseTensor* out) {
   PADDLE_ENFORCE_EQ(
       threshold,
       6.0f,
@@ -434,7 +434,7 @@ template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DenseTensor* out) {
-custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
+  custom_kernel::HardSwishRawKernel<T, Context>(dev_ctx, x, 6, 6, 3, out);
 }
 
 template <typename T, typename Context>
@@ -711,14 +711,14 @@ PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
                           CustomMLU,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidGradKernel,

@@ -22,8 +22,37 @@ void CastKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   if (x.dtype() == dtype) {
-    dev_ctx.template Alloc<T>(out);
-    TensorCopy(dev_ctx, x, false, out);
+    *out = x;
+    return;
+  }
+
+  if (x.dtype() == DataType::BOOL && dtype == DataType::INT64) {
+    // Cast bool to float, then float to int64
+    VLOG(3) << "Cast from " << x.dtype() << " to " << dtype
+            << ". MLU does not support this type, do chain cast instread.";
+    Tensor t_tmp_float;
+    t_tmp_float.Resize(x.dims());
+    dev_ctx.template Alloc<float>(&t_tmp_float);
+    dev_ctx.Alloc(out, dtype);
+    MLUCnnlTensorDesc x_desc(x);
+    MLUCnnlTensorDesc cast_tmp_desc(t_tmp_float);
+    MLUCnnlTensorDesc out_desc(*out);
+    cnnlCastDataType_t cast2float_type =
+        GetCastDataType(x.dtype(), DataType::FLOAT32);
+    cnnlCastDataType_t cast2int64_type =
+        GetCastDataType(DataType::FLOAT32, dtype);
+    MLUCnnl::Cast(dev_ctx,
+                  cast2float_type,
+                  x_desc.get(),
+                  GetBasePtr(&x),
+                  cast_tmp_desc.get(),
+                  GetBasePtr(&t_tmp_float));
+    MLUCnnl::Cast(dev_ctx,
+                  cast2int64_type,
+                  cast_tmp_desc.get(),
+                  GetBasePtr(&t_tmp_float),
+                  out_desc.get(),
+                  GetBasePtr(out));
     return;
   }
 

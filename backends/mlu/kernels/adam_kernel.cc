@@ -60,12 +60,12 @@ void AdamKernel(const Context& dev_ctx,
   // and TensorCopy will call mutable_data
   if (skip_update_) {
     VLOG(4) << "Adam skip update";
-    TensorCopy(dev_ctx, param, false, param_out);
-    TensorCopy(dev_ctx, moment1, false, moment1_out);
-    TensorCopy(dev_ctx, moment2, false, moment2_out);
+    *param_out = param;
+    *moment1_out = moment1;
+    *moment2_out = moment2;
     if (!use_global_beta_pow) {
-      TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
-      TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+      *beta1_pow_out = beta1_pow_in;
+      *beta2_pow_out = beta2_pow_in;
     }
     return;
   }
@@ -146,8 +146,7 @@ void AdamKernel(const Context& dev_ctx,
   t_param_in_out.Resize(param.dims());
   if (multi_precision) {
     // for multi_precision attribute, master_param_out should be float32.
-    dev_ctx.template Alloc<MPDType>(master_param_out);
-    TensorCopy(dev_ctx, master_param.get(), false, master_param_out);
+    *master_param_out = master_param.get();
     t_param_in_out = *master_param_out;
   } else if (param.dtype() != phi::DataType::FLOAT32) {
     // cast param(T) to t_param_in_out(MPDType)
@@ -291,12 +290,12 @@ void AdamWKernel(const Context& dev_ctx,
 
   VLOG(3) << "Skip update" << skip_update_ << ", With decay: " << with_decay;
   if (skip_update_) {
-    TensorCopy(dev_ctx, param, false, param_out);
-    TensorCopy(dev_ctx, moment1, false, moment1_out);
-    TensorCopy(dev_ctx, moment2, false, moment2_out);
+    *param_out = param;
+    *moment1_out = moment1;
+    *moment2_out = moment2;
     if (!use_global_beta_pow) {
-      TensorCopy(dev_ctx, beta1_pow, false, beta1_pow_out);
-      TensorCopy(dev_ctx, beta2_pow, false, beta2_pow_out);
+      *beta1_pow_out = beta1_pow;
+      *beta2_pow_out = beta2_pow;
     }
     return;
   }
@@ -310,11 +309,9 @@ void AdamWKernel(const Context& dev_ctx,
       reinterpret_cast<MPDType*>(const_cast<void*>(GetBasePtr(&learning_rate))),
       &t_lr);
   if (multi_precision) {
-    dev_ctx.template Alloc<MPDType>(&t_param_bak);
-    TensorCopy(dev_ctx, master_param.get(), false, &t_param_bak);
+    t_param_bak = master_param.get();
   } else {
-    dev_ctx.template Alloc<T>(&t_param_bak);
-    TensorCopy(dev_ctx, param, false, &t_param_bak);
+    t_param_bak = param;
   }
 
   // do adam, then decay

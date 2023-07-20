@@ -36,60 +36,108 @@ void CheckAttrs(bool normalize, int ignore_index) {
 }
 
 template <typename T, typename Context>
-void SigmoidCrossEntropyWithLogitsKernel(const Context& dev_ctx,
-                                         const phi::DenseTensor& x,
-                                         const phi::DenseTensor& label,
-                                         bool normalize,
-                                         int ignore_index,
-                                         phi::DenseTensor* out) {
+void SigmoidCrossEntropyWithLogitsKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& x,
+    const phi::DenseTensor& label,
+    const paddle::optional<phi::DenseTensor>& pos_weight,
+    bool normalize,
+    int ignore_index,
+    phi::DenseTensor* out) {
   CheckAttrs(normalize, ignore_index);
+  const auto* t_pos_weight = pos_weight.get_ptr();
 
-  dev_ctx.template Alloc<T>(out);
-  MLUCnnlTensorDesc x_desc(x);
-  MLUCnnlTensorDesc label_desc(label);
-  MLUCnnlTensorDesc out_desc(*out);
-  MLUCnnl::BceWithLogits(dev_ctx,
-                         CNNL_BCE_WITH_LOGITS_NONE,
-                         x_desc.get(),
-                         GetBasePtr(&x),
-                         label_desc.get(),
-                         GetBasePtr(&label),
-                         nullptr,
-                         nullptr,
-                         nullptr,
-                         nullptr,
-                         out_desc.get(),
-                         GetBasePtr(out));
+  if (t_pos_weight == nullptr) {
+    dev_ctx.template Alloc<T>(out);
+    MLUCnnlTensorDesc x_desc(x);
+    MLUCnnlTensorDesc label_desc(label);
+    MLUCnnlTensorDesc out_desc(*out);
+    MLUCnnl::BceWithLogits(dev_ctx,
+                           CNNL_BCE_WITH_LOGITS_NONE,
+                           x_desc.get(),
+                           GetBasePtr(&x),
+                           label_desc.get(),
+                           GetBasePtr(&label),
+                           nullptr,
+                           nullptr,
+                           nullptr,
+                           nullptr,
+                           out_desc.get(),
+                           GetBasePtr(out));
+  } else {
+    dev_ctx.template Alloc<T>(out);
+    MLUCnnlTensorDesc x_desc(x);
+    MLUCnnlTensorDesc label_desc(label);
+    MLUCnnlTensorDesc pos_weight_desc(*t_pos_weight);
+    MLUCnnlTensorDesc out_desc(*out);
+    MLUCnnl::BceWithLogits(dev_ctx,
+                           CNNL_BCE_WITH_LOGITS_NONE,
+                           x_desc.get(),
+                           GetBasePtr(&x),
+                           label_desc.get(),
+                           GetBasePtr(&label),
+                           nullptr,
+                           nullptr,
+                           pos_weight_desc.get(),
+                           GetBasePtr(t_pos_weight),
+                           out_desc.get(),
+                           GetBasePtr(out));
+  }
 }
 
 template <typename T, typename Context>
-void SigmoidCrossEntropyWithLogitsGradKernel(const Context& dev_ctx,
-                                             const phi::DenseTensor& x,
-                                             const phi::DenseTensor& label,
-                                             const phi::DenseTensor& dout,
-                                             bool normalize,
-                                             int ignore_index,
-                                             phi::DenseTensor* dx) {
+void SigmoidCrossEntropyWithLogitsGradKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& x,
+    const phi::DenseTensor& label,
+    const paddle::optional<phi::DenseTensor>& pos_weight,
+    const phi::DenseTensor& dout,
+    bool normalize,
+    int ignore_index,
+    phi::DenseTensor* dx) {
   CheckAttrs(normalize, ignore_index);
+  const auto* t_pos_weight = pos_weight.get_ptr();
 
-  dev_ctx.template Alloc<T>(dx);
-  MLUCnnlTensorDesc x_desc(x);
-  MLUCnnlTensorDesc label_desc(label);
-  MLUCnnlTensorDesc dout_desc(dout);
-  MLUCnnl::BceWithLogitsBackward(dev_ctx,
-                                 CNNL_BCE_WITH_LOGITS_NONE,
-                                 dout_desc.get(),
-                                 GetBasePtr(&dout),
-                                 x_desc.get(),
-                                 GetBasePtr(&x),
-                                 label_desc.get(),
-                                 GetBasePtr(&label),
-                                 nullptr,
-                                 nullptr,
-                                 nullptr,
-                                 nullptr,
-                                 x_desc.get(),
-                                 GetBasePtr(dx));
+  if (t_pos_weight == nullptr) {
+    dev_ctx.template Alloc<T>(dx);
+    MLUCnnlTensorDesc x_desc(x);
+    MLUCnnlTensorDesc label_desc(label);
+    MLUCnnlTensorDesc dout_desc(dout);
+    MLUCnnl::BceWithLogitsBackward(dev_ctx,
+                                   CNNL_BCE_WITH_LOGITS_NONE,
+                                   dout_desc.get(),
+                                   GetBasePtr(&dout),
+                                   x_desc.get(),
+                                   GetBasePtr(&x),
+                                   label_desc.get(),
+                                   GetBasePtr(&label),
+                                   nullptr,
+                                   nullptr,
+                                   nullptr,
+                                   nullptr,
+                                   x_desc.get(),
+                                   GetBasePtr(dx));
+  } else {
+    dev_ctx.template Alloc<T>(dx);
+    MLUCnnlTensorDesc x_desc(x);
+    MLUCnnlTensorDesc label_desc(label);
+    MLUCnnlTensorDesc pos_weight_desc(*t_pos_weight);
+    MLUCnnlTensorDesc dout_desc(dout);
+    MLUCnnl::BceWithLogitsBackward(dev_ctx,
+                                   CNNL_BCE_WITH_LOGITS_NONE,
+                                   dout_desc.get(),
+                                   GetBasePtr(&dout),
+                                   x_desc.get(),
+                                   GetBasePtr(&x),
+                                   label_desc.get(),
+                                   GetBasePtr(&label),
+                                   nullptr,
+                                   nullptr,
+                                   pos_weight_desc.get(),
+                                   GetBasePtr(t_pos_weight),
+                                   x_desc.get(),
+                                   GetBasePtr(dx));
+  }
 }
 
 }  // namespace custom_kernel

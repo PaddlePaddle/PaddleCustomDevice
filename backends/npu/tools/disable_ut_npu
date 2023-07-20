@@ -2,3 +2,4 @@ disable_ut_npu
 test_softmax_with_cross_entropy_op_npu
 test_parallel_dygraph_mp_layers
 test_dygraph_recompute_for_eager
+test_slice_op_npu

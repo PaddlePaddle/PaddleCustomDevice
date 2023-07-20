@@ -66,7 +66,7 @@ class TestAssignValueNPUOp3(TestAssignValueNPUOp):
 class TestAssignValueNPUOp4(TestAssignValueNPUOp):
     def init_data(self):
         self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
-            numpy.bool
+            numpy.bool_
         )
         self.attrs["bool_values"] = [int(v) for v in self.value.flat]
 

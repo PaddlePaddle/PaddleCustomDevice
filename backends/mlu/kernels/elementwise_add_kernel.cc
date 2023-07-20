@@ -73,7 +73,7 @@ void AddGradKernel(const Context& dev_ctx,
                       dx_desc.get(),
                       GetBasePtr(dx));
     } else {
-      TensorCopy(dev_ctx, dout, false, dx);
+      *dx = dout;
     }
   }
   if (dy) {
@@ -104,7 +104,7 @@ void AddGradKernel(const Context& dev_ctx,
                       dy_desc.get(),
                       GetBasePtr(dy));
     } else {
-      TensorCopy(dev_ctx, dout, false, dy);
+      *dy = dout;
     }
   }
 }

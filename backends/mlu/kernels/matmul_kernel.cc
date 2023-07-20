@@ -23,7 +23,6 @@ static void Mul(const Context& dev_ctx,
                 const phi::DenseTensor& Y,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  float alpha = 1.0;
 
   MLUCnnlTensorDesc x_desc(X, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
   MLUCnnlTensorDesc y_desc(Y, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
@@ -39,8 +38,7 @@ static void Mul(const Context& dev_ctx,
                     GetBasePtr(&Y),
                     out_desc.get(),
                     GetBasePtr(out),
-                    ToCnnlDataType<T>(),
-                    alpha);
+                    ToCnnlDataType<T>());
 }
 
 template <typename T, typename Context>
@@ -67,15 +65,42 @@ static void MatMul2D(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+static void MatMul2DwithReduceBatch(const Context& dev_ctx,
+                                    const phi::DenseTensor& X,
+                                    const phi::DenseTensor& Y,
+                                    phi::DenseTensor* out,
+                                    const bool transpose_x,
+                                    const bool transpose_y) {
+  dev_ctx.template Alloc<T>(out);
+  // reshape to 2D matmul
+  std::vector<int64_t> x_dims = phi::vectorize(X.dims());
+  std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
+  std::vector<int> realx_dims(
+      {static_cast<int>(x_dims[0] * x_dims[1]), static_cast<int>(x_dims[2])});
+  std::vector<int> realy_dims(
+      {static_cast<int>(y_dims[0] * y_dims[1]), static_cast<int>(y_dims[2])});
+  MLUCnnlTensorDesc x_desc(2, realx_dims.data(), ToCnnlDataType<T>());
+  MLUCnnlTensorDesc y_desc(2, realy_dims.data(), ToCnnlDataType<T>());
+  MLUCnnlTensorDesc out_desc(*out, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
+  MLUCnnl::Matmul(dev_ctx,
+                  transpose_x,
+                  transpose_y,
+                  x_desc.get(),
+                  GetBasePtr(&X),
+                  y_desc.get(),
+                  GetBasePtr(&Y),
+                  out_desc.get(),
+                  GetBasePtr(out));
+}
+
+template <typename T, typename Context>
 static void MatMulND(const Context& dev_ctx,
                      const phi::DenseTensor& X,
                      const phi::DenseTensor& Y,
                      phi::DenseTensor* out,
                      const bool transpose_x,
                      const bool transpose_y) {
-  if (!out->initialized()) {
-    dev_ctx.template Alloc<T>(out);
-  }
+  dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc x_desc(X, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
   MLUCnnlTensorDesc y_desc(Y, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
   MLUCnnlTensorDesc out_desc(*out, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
@@ -83,6 +108,7 @@ static void MatMulND(const Context& dev_ctx,
   MLUCnnl::BatchMatmul(dev_ctx,
                        transpose_x,
                        transpose_y,
+                       ToCnnlDataType<T>(),
                        x_desc.get(),
                        GetBasePtr(&X),
                        y_desc.get(),
@@ -345,22 +371,35 @@ void MatmulGradKernel(const Context& dev_ctx,
   }
 
   if (dy) {
-    Tensor dy_temp;
-    if (y_dims != y_bcast_dims) {
-      dy_temp.Resize(phi::make_ddim(y_bcast_dims));
+    // Case 3: [B, M, K] x [K, N] =  [B, M, N]  better performance
+    // otherwise, tensor dy_temp in else branch might encounter
+    // numel overflow due to cnnlTensorDescriptor limitation
+    if (x_dims.size() == 3 && phi::vectorize(y.dims()).size() == 2) {
+      if (transpose_y) {
+        MatMul2DwithReduceBatch<T>(
+            dev_ctx, dout_temp, x_temp, dy, true, transpose_x);
+      } else {
+        MatMul2DwithReduceBatch<T>(
+            dev_ctx, x_temp, dout_temp, dy, !transpose_x, false);
+      }
     } else {
-      dev_ctx.template Alloc<T>(dy);
-      dy_temp = *dy;
-    }
+      Tensor dy_temp;
+      if (y_dims != y_bcast_dims) {
+        dy_temp.Resize(phi::make_ddim(y_bcast_dims));
+      } else {
+        dev_ctx.template Alloc<T>(dy);
+        dy_temp = *dy;
+      }
 
-    if (transpose_y) {
-      MatMulND<T>(dev_ctx, dout_temp, x_temp, &dy_temp, true, transpose_x);
-    } else {
-      MatMulND<T>(dev_ctx, x_temp, dout_temp, &dy_temp, !transpose_x, false);
-    }
+      if (transpose_y) {
+        MatMulND<T>(dev_ctx, dout_temp, x_temp, &dy_temp, true, transpose_x);
+      } else {
+        MatMulND<T>(dev_ctx, x_temp, dout_temp, &dy_temp, !transpose_x, false);
+      }
 
-    if (y_dims != y_bcast_dims) {
-      ReduceDims<T>(dev_ctx, y_dims, y_bcast_dims, dy_temp, dy);
+      if (y_dims != y_bcast_dims) {
+        ReduceDims<T>(dev_ctx, y_dims, y_bcast_dims, dy_temp, dy);
+      }
     }
   }
 }
@@ -416,28 +455,28 @@ void MatmulWithFlattenGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(matmul,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulWithFlattenKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulWithFlattenGradKernel,
                           float,

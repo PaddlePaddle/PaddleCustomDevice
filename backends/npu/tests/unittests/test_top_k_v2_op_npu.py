@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import sys
 
 from tests.op_test import OpTest
 import paddle
@@ -49,11 +48,12 @@ class TestTopkV2NPUOp(OpTest):
         self.set_input_data()
         self.set_attrs()
         output, indices = numpy_topk(
-            self.input_data, axis=self.axis, k=self.k, largest=self.largest)
+            self.input_data, axis=self.axis, k=self.k, largest=self.largest
+        )
 
-        self.inputs = {'X': self.input_data}
-        self.attrs = {'k': self.k, 'axis': self.axis, 'largest': self.largest}
-        self.outputs = {'Out': output, 'Indices': indices}
+        self.inputs = {"X": self.input_data}
+        self.attrs = {"k": self.k, "axis": self.axis, "largest": self.largest}
+        self.outputs = {"Out": output, "Indices": indices}
 
     def set_dtype(self):
         self.dtype = np.int32
@@ -64,8 +64,9 @@ class TestTopkV2NPUOp(OpTest):
         self.largest = True
 
     def set_input_data(self):
-        self.input_data = np.random.choice(
-            10000, size=(10, 20), replace=False).astype(self.dtype)
+        self.input_data = np.random.choice(10000, size=(10, 20), replace=False).astype(
+            self.dtype
+        )
 
     def test_check_output(self):
         self.__class__.no_need_check_grad = True
@@ -76,7 +77,7 @@ class TestTopkV2NPUOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
 
 class TestTopkV2OpFloat16(TestTopkV2NPUOp):
@@ -207,7 +208,7 @@ class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
 class TestTopKAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         np.random.seed(123)
         self.input_data = np.random.rand(6, 7, 8)
         self.large_input_data = np.random.rand(2, 1030)
@@ -255,19 +256,21 @@ class TestTopKAPI(unittest.TestCase):
         self.assertTrue(np.allclose(paddle_result[1].numpy(), numpy_result[1]))
         # test case for basic test case 7 for the unsorted
         paddle_result = paddle.topk(input_tensor, k=2, axis=1, sorted=False)
-        sort_paddle = numpy_topk(
-            np.array(paddle_result[0].numpy()), axis=1, k=2)
+        sort_paddle = numpy_topk(np.array(paddle_result[0].numpy()), axis=1, k=2)
         numpy_result = numpy_topk(self.input_data, k=2, axis=1)
         self.assertTrue(np.allclose(sort_paddle[0], numpy_result[0]))
 
     def run_static(self, place):
         paddle.enable_static()
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
             input_tensor = paddle.static.data(
-                name="x", shape=[6, 7, 8], dtype="float64")
+                name="x", shape=[6, 7, 8], dtype="float64"
+            )
             large_input_tensor = paddle.static.data(
-                name="large_x", shape=[2, 1030], dtype="float64")
+                name="large_x", shape=[2, 1030], dtype="float64"
+            )
             k_tensor = paddle.static.data(name="k", shape=[1], dtype="int32")
             result1 = paddle.topk(input_tensor, k=2)
             result2 = paddle.topk(input_tensor, k=2, axis=-1)
@@ -285,13 +288,25 @@ class TestTopKAPI(unittest.TestCase):
                 feed={
                     "x": self.input_data,
                     "large_x": self.large_input_data,
-                    "k": np.array([2]).astype("int32")
+                    "k": np.array([2]).astype("int32"),
                 },
                 fetch_list=[
-                    result1[0], result1[1], result2[0], result2[1], result3[0],
-                    result3[1], result4[0], result4[1], result5[0], result5[1],
-                    result6[0], result6[1], result7[0], result7[1]
-                ])
+                    result1[0],
+                    result1[1],
+                    result2[0],
+                    result2[1],
+                    result3[0],
+                    result3[1],
+                    result4[0],
+                    result4[1],
+                    result5[0],
+                    result5[1],
+                    result6[0],
+                    result6[1],
+                    result7[0],
+                    result7[1],
+                ],
+            )
             numpy_result = numpy_topk(self.input_data, k=2)
             self.assertTrue(np.allclose(paddle_result[0], numpy_result[0]))
             self.assertTrue(np.allclose(paddle_result[1], numpy_result[1]))
@@ -304,13 +319,11 @@ class TestTopKAPI(unittest.TestCase):
             self.assertTrue(np.allclose(paddle_result[4], numpy_result[0]))
             self.assertTrue(np.allclose(paddle_result[5], numpy_result[1]))
 
-            numpy_result = numpy_topk(
-                self.input_data, k=2, axis=1, largest=False)
+            numpy_result = numpy_topk(self.input_data, k=2, axis=1, largest=False)
             self.assertTrue(np.allclose(paddle_result[6], numpy_result[0]))
             self.assertTrue(np.allclose(paddle_result[7], numpy_result[1]))
 
-            numpy_result = numpy_topk(
-                self.input_data, k=2, axis=-1, largest=False)
+            numpy_result = numpy_topk(self.input_data, k=2, axis=-1, largest=False)
             self.assertTrue(np.allclose(paddle_result[8], numpy_result[0]))
             self.assertTrue(np.allclose(paddle_result[9], numpy_result[1]))
 
@@ -322,14 +335,14 @@ class TestTopKAPI(unittest.TestCase):
             self.assertTrue(np.allclose(sort_paddle[0], numpy_result[0]))
 
     def test_cases(self):
-        places = [core.CustomPlace('npu', 0)]
+        places = [core.CustomPlace("npu", 0)]
         for place in places:
             self.run_dygraph(place)
             self.run_static(place)
 
     def test_errors(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         paddle.disable_static()
         x = paddle.to_tensor([1, 2, 3])
         with self.assertRaises(BaseException):

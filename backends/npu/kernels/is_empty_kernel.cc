@@ -31,4 +31,6 @@ PD_REGISTER_PLUGIN_KERNEL(is_empty,
                           ALL_LAYOUT,
                           custom_kernel::IsEmptyKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

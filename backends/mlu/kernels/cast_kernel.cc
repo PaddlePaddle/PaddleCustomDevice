@@ -19,7 +19,7 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void CastKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
-                phi::DenseTensorMeta::DataType dtype,
+                phi::DataType dtype,
                 phi::DenseTensor* out) {
   if (x.dtype() == dtype) {
     dev_ctx.template Alloc<T>(out);
@@ -61,7 +61,7 @@ void CastKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cast,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::CastKernel,
                           phi::dtype::float16,
@@ -72,4 +72,6 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           int16_t,
                           int32_t,
                           int64_t,
-                          bool) {}
+                          bool) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

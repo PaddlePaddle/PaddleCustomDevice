@@ -1,0 +1,5 @@
+#disable_ut_mlu
+#test_adam_op_mlu
+#test_set_value_op_mlu
+#test_softmax_with_cross_entropy_op_mlu
+#test_zero_dim_tensor_mlu

@@ -14,15 +14,12 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
 import paddle.fluid.framework as framework
+from tests.op_test import OpTest
 
 paddle.enable_static()
 np.random.seed(10)
@@ -30,11 +27,11 @@ np.random.seed(10)
 
 class TestEyeOp(OpTest):
     def setUp(self):
-        '''
+        """
         Test eye op with specified shape
-        '''
+        """
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "eye"
         self.inputs = {}
 
@@ -46,18 +43,18 @@ class TestEyeOp(OpTest):
 
         if self.num_columns == 0:
             self.attrs = {
-                'num_rows': self.num_rows,
-                'dtype': framework.convert_np_dtype_to_dtype_(self.dtype)
+                "num_rows": self.num_rows,
+                "dtype": framework.convert_np_dtype_to_dtype_(self.dtype),
             }
-            self.outputs = {'Out': np.eye(self.num_rows, dtype=self.dtype)}
+            self.outputs = {"Out": np.eye(self.num_rows, dtype=self.dtype)}
         else:
             self.attrs = {
-                'num_rows': self.num_rows,
-                'num_columns': self.num_columns,
-                'dtype': framework.convert_np_dtype_to_dtype_(self.dtype)
+                "num_rows": self.num_rows,
+                "num_columns": self.num_columns,
+                "dtype": framework.convert_np_dtype_to_dtype_(self.dtype),
             }
             self.outputs = {
-                'Out': np.eye(self.num_rows, self.num_columns, dtype=self.dtype)
+                "Out": np.eye(self.num_rows, self.num_columns, dtype=self.dtype)
             }
 
     def initTestCase(self):
@@ -112,64 +109,32 @@ class API_TestTensorEye(unittest.TestCase):
     def test_out(self):
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10)
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
             exe = paddle.static.Executor(place)
-            result, = exe.run(fetch_list=[data])
+            (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="float32")
         self.assertEqual((result == expected_result).all(), True)
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, num_columns=7, dtype="float16")
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
             exe = paddle.static.Executor(place)
-            result, = exe.run(fetch_list=[data])
+            (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, 7, dtype="float16")
         self.assertEqual((result == expected_result).all(), True)
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, dtype="int32")
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
             exe = paddle.static.Executor(place)
-            result, = exe.run(fetch_list=[data])
+            (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="int32")
         self.assertEqual((result == expected_result).all(), True)
 
-        paddle.disable_static(paddle.CustomPlace('npu', 0))
+        paddle.disable_static(paddle.CustomPlace("npu", 0))
         out = paddle.eye(10, dtype="int32")
         expected_result = np.eye(10, dtype="int32")
         paddle.enable_static()
-        self.assertEqual((out.numpy() == expected_result).all(), True)
-
-        paddle.disable_static(paddle.CustomPlace('npu', 0))
-        batch_shape = [2]
-        out = fluid.layers.eye(10, 10, dtype="int32", batch_shape=batch_shape)
-        result = np.eye(10, dtype="int32")
-        expected_result = []
-        for index in reversed(batch_shape):
-            tmp_result = []
-            for i in range(index):
-                tmp_result.append(result)
-            result = tmp_result
-            expected_result = np.stack(result, axis=0)
-        paddle.enable_static()
-        self.assertEqual(out.numpy().shape == np.array(expected_result).shape,
-                         True)
-        self.assertEqual((out.numpy() == expected_result).all(), True)
-
-        paddle.disable_static(paddle.CustomPlace('npu', 0))
-        batch_shape = [3, 2]
-        out = fluid.layers.eye(10, 10, dtype="int32", batch_shape=batch_shape)
-        result = np.eye(10, dtype="int32")
-        expected_result = []
-        for index in reversed(batch_shape):
-            tmp_result = []
-            for i in range(index):
-                tmp_result.append(result)
-            result = tmp_result
-            expected_result = np.stack(result, axis=0)
-        paddle.enable_static()
-        self.assertEqual(out.numpy().shape == np.array(expected_result).shape,
-                         True)
         self.assertEqual((out.numpy() == expected_result).all(), True)
 
     def test_errors(self):

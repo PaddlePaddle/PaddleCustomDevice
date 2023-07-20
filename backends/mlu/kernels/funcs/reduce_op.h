@@ -15,6 +15,7 @@
 #pragma once
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 
@@ -27,6 +28,10 @@ void MLUReduceOp(const Context& dev_ctx,
                  const std::string& reduce_name,
                  phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
 
   auto dims = axes;
   auto input_dims = phi::vectorize(x.dims());
@@ -38,6 +43,7 @@ void MLUReduceOp(const Context& dev_ctx,
     for (size_t i = 0; i < input_dims.size(); i++) {
       reduce_dims.push_back(static_cast<int>(i));
     }
+    out->Resize(phi::make_ddim({1}));
   } else {
     for (size_t i = 0; i < dims.size(); ++i) {
       if (dims[i] < 0) {

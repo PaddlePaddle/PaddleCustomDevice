@@ -37,8 +37,8 @@ class TestActivation(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -50,7 +50,7 @@ class TestActivation(OpTest):
         pass
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -66,17 +66,15 @@ class TestLog(TestActivation):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_error(self):
-        in1 = fluid.layers.data(
-            name="in1", shape=[11, 17], append_batch_size=False, dtype="int32")
-        in2 = fluid.layers.data(
-            name="in2", shape=[11, 17], append_batch_size=False, dtype="int64")
+        in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
+        in2 = paddle.static.data(name="in2", shape=[11, 17], dtype="int64")
 
-        self.assertRaises(TypeError, fluid.layers.log, in1)
-        self.assertRaises(TypeError, fluid.layers.log, in2)
+        self.assertRaises(TypeError, paddle.log, in1)
+        self.assertRaises(TypeError, paddle.log, in2)
 
 
 class TestLog2(TestActivation):
@@ -89,8 +87,8 @@ class TestLog2(TestActivation):
         x = np.random.uniform(1, 10, [11, 17]).astype(self.dtype)
         out = np.log2(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_error(self):
         in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
@@ -100,18 +98,20 @@ class TestLog2(TestActivation):
         self.assertRaises(TypeError, paddle.log2, in2)
 
     def test_api(self):
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
             input_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
-            data_x = paddle.static.data(
-                name="data_x", shape=[11, 17], dtype="float32")
+            data_x = paddle.static.data(name="data_x", shape=[11, 17], dtype="float32")
 
             out1 = paddle.log2(data_x)
             exe = paddle.static.Executor(place=fluid.CPUPlace())
             exe.run(paddle.static.default_startup_program())
-            res1 = exe.run(paddle.static.default_main_program(),
-                           feed={"data_x": input_x},
-                           fetch_list=[out1])
+            res1 = exe.run(
+                paddle.static.default_main_program(),
+                feed={"data_x": input_x},
+                fetch_list=[out1],
+            )
         expected_res = np.log2(input_x)
         np.testing.assert_allclose(res1[0], expected_res, rtol=1e-6)
 
@@ -137,8 +137,8 @@ class TestLog10(TestActivation):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log10(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_error(self):
         in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
@@ -148,18 +148,20 @@ class TestLog10(TestActivation):
         self.assertRaises(TypeError, paddle.log10, in2)
 
     def test_api(self):
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
             input_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
-            data_x = paddle.static.data(
-                name="data_x", shape=[11, 17], dtype="float32")
+            data_x = paddle.static.data(name="data_x", shape=[11, 17], dtype="float32")
 
             out1 = paddle.log10(data_x)
             exe = paddle.static.Executor(place=paddle.CPUPlace())
             exe.run(paddle.static.default_startup_program())
-            res1 = exe.run(paddle.static.default_main_program(),
-                           feed={"data_x": input_x},
-                           fetch_list=[out1])
+            res1 = exe.run(
+                paddle.static.default_main_program(),
+                feed={"data_x": input_x},
+                fetch_list=[out1],
+            )
         expected_res = np.log10(input_x)
         np.testing.assert_allclose(res1[0], expected_res, rtol=1e-6)
 
@@ -197,5 +199,5 @@ class TestLog10Half(TestLog10):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,116 @@
+# Docker Image for PaddlePaddle CentOS develop base environment
+
+FROM centos:7.9.2009
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
+
+RUN yum install -y epel-release deltarpm sudo openssh-server gettext-devel sqlite-devel \
+        zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool xz graphviz wget curl-devel \
+        make bzip2 git patch unzip bison yasm diffutils automake which file kernel-headers kernel-devel \
+        net-tools numactl-devel chrpath screen initscripts tree lrzsz libffi-devel swig
+
+# Add bash enhancements
+COPY root/ /root/
+
+# Install devtoolset-7
+RUN yum install -y yum-utils centos-release-scl && \
+    yum-config-manager --enable rhel-server-rhscl-7-rpms && \
+    yum-config-manager --enable rhel-7-server-rpms && \
+    yum-config-manager --enable rhel-7-server-optional-rpms && \
+    INSTALL_PKGS="devtoolset-7-binutils devtoolset-7-gcc devtoolset-7-gcc-c++ devtoolset-7-gcc-gfortran devtoolset-7-gdb" && \
+    yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    yum -y clean all --enablerepo='*'
+ENV PATH=/opt/rh/devtoolset-7/root/usr/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/rh/devtoolset-7/root/usr/lib64:/opt/rh/devtoolset-7/root/usr/lib:$LD_LIBRARY_PATH
+RUN echo "source scl_source enable devtoolset-7" > "/etc/profile.d/devtoolset-7.sh"
+
+# cmake 3.19
+WORKDIR /opt
+RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \
+    tar -zxf cmake-3.19.0-Linux-x86_64.tar.gz && rm cmake-3.19.0-Linux-x86_64.tar.gz && \
+    mv cmake-3.19.0-Linux-x86_64 cmake-3.19
+ENV PATH=/opt/cmake-3.19/bin:${PATH}
+
+# git 2.17.1
+RUN wget -q https://paddle-ci.gz.bcebos.com/git-2.17.1.tar.gz && \
+  tar -xvf git-2.17.1.tar.gz && cd git-2.17.1 && \
+  ./configure --with-openssl --prefix=/usr/local && \
+  make -j16 && make install && \
+  cd .. && rm -rf git-2.17.1.tar.gz && rm -rf git-2.17.1
+
+# python 3.7.15
+RUN wget -q https://www.python.org/ftp/python/3.7.15/Python-3.7.15.tgz && \
+    tar -xzf Python-3.7.15.tgz && cd Python-3.7.15 && \
+    CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
+    make -j16 > /dev/null && make altinstall > /dev/null && \
+    cd ../ && rm Python-3.7.15.tgz
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.7m:${CPLUS_INCLUDE_PATH}
+# install pip
+RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/local/bin/python3.7
+
+# create venv and activate
+RUN /usr/local/bin/python3.7 -m venv /opt/py37env
+# update env
+ENV PATH=/opt/py37env/bin:$PATH
+RUN echo "source /opt/py37env/bin/activate" >> /root/.bashrc
+# upgrade pip and setuptools
+RUN pip install --upgrade pip setuptools wheel
+
+# install pylint and pre-commit
+RUN pip install pre-commit pylint pytest astroid isort coverage qtconsole gitpython
+RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
+RUN pip install PyGithub distro
+
+# install Paddle requirement
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+    pip install -r requirements.txt && rm -rf requirements.txt
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+    pip install -r requirements.txt && rm -rf requirements.txt
+
+# # Install Go and glide
+# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
+#     tar -xz -C /usr/local && \
+#     mkdir /root/gopath && \
+#     mkdir /root/gopath/bin && \
+#     mkdir /root/gopath/src
+# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
+# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
+# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
+# # install glide
+# RUN curl -s -q https://glide.sh/get | sh
+
+# git credential to skip password typing
+RUN git config --global credential.helper store
+
+# Fix locales to en_US.UTF-8
+RUN localedef -i en_US -f UTF-8 en_US.UTF-8
+
+# ccache 3.7.9
+RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
+    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
+    ./configure -prefix=/usr/local/ccache-3.7.9 && \
+    make -j8 && make install && \
+    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache && \
+    cd .. && rm -rf ccache-3.7.9.tar.gz && rm -rf ccache-3.7.9
+
+# patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/256
+RUN wget -q https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
+    tar xzf 0.14.5.tar.gz && cd patchelf-0.14.5 && \
+    ./bootstrap.sh && ./configure && make -j16 && make install && \
+    cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
+
+# configure ssh
+RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \
+    sed -i "s/^#PubkeyAuthentication/PubkeyAuthentication/" /etc/ssh/sshd_config && \
+    sed -i "s/^#RSAAuthentication/RSAAuthentication/" /etc/ssh/sshd_config && \
+    sed -i "s/#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
+RUN ssh-keygen -A
+
+# yum clean
+RUN yum clean all && \
+    rm -rf /var/cache/yum && \
+    rm -rf /var/lib/yum/yumdb && \
+    rm -rf /var/lib/yum/history
+
+EXPOSE 22

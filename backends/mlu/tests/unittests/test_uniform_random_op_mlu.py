@@ -14,21 +14,19 @@
 
 from __future__ import print_function
 
-import subprocess
 import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
 import paddle.fluid.core as core
 import paddle
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
 
 paddle.enable_static()
 
-class TestUniformRandomOp(OpTest):
 
+class TestUniformRandomOp(OpTest):
     def setUp(self):
         self.op_type = "uniform_random"
         self.python_api = paddle.uniform
@@ -37,12 +35,7 @@ class TestUniformRandomOp(OpTest):
         self.outputs = {"Out": np.zeros((1000, 784)).astype("float32")}
 
     def init_attrs(self):
-        self.attrs = {
-            "shape": [1000, 784],
-            "min": -5.0,
-            "max": 10.0,
-            "seed": 10
-        }
+        self.attrs = {"shape": [1000, 784], "min": -5.0, "max": 10.0, "seed": 10}
         self.output_hist = output_hist
 
     def test_check_output(self):
@@ -56,16 +49,20 @@ class TestUniformRandomOp(OpTest):
         places = self._get_places()
         for place in places:
             with fluid.dygraph.base.guard(place=place):
-                out = self.python_api(self.attrs['shape'], 'float32',
-                                      self.attrs['min'], self.attrs['max'],
-                                      self.attrs['seed'])
+                out = self.python_api(
+                    self.attrs["shape"],
+                    "float32",
+                    self.attrs["min"],
+                    self.attrs["max"],
+                    self.attrs["seed"],
+                )
+
 
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
-
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_cuda():
-            places.append(core.CUDAPlace(0))
+        if core.is_compiled_with_custom_device("mlu"):
+            places.append(paddle.CustomPlace("mlu", 0))
         return places
 
     def test_check_output(self):
@@ -76,16 +73,14 @@ class TestUniformRandomOpSelectedRows(unittest.TestCase):
         scope = core.Scope()
         out = scope.var("X").get_selected_rows()
         paddle.seed(10)
-        op = Operator("uniform_random",
-                      Out="X",
-                      shape=[1000, 784],
-                      min=-5.0,
-                      max=10.0,
-                      seed=10)
+        op = Operator(
+            "uniform_random", Out="X", shape=[1000, 784], min=-5.0, max=10.0, seed=10
+        )
         op.run(scope, place)
         self.assertEqual(out.get_tensor().shape(), [1000, 784])
         hist, prob = output_hist(np.array(out.get_tensor()))
         np.testing.assert_allclose(hist, prob, rtol=0, atol=0.01)
+
 
 def output_hist(out):
     hist, _ = np.histogram(out, range=(-5, 10))
@@ -96,7 +91,6 @@ def output_hist(out):
 
 
 class TestMLUUniformRandomOp(OpTest):
-
     def setUp(self):
         self.set_mlu()
         self.op_type = "uniform_random"
@@ -106,17 +100,12 @@ class TestMLUUniformRandomOp(OpTest):
         self.outputs = {"Out": np.zeros((1000, 784)).astype(self.dtype)}
 
     def init_attrs(self):
-        self.attrs = {
-            "shape": [1000, 784],
-            "min": -5.0,
-            "max": 10.0,
-            "seed": 10
-        }
+        self.attrs = {"shape": [1000, 784], "min": -5.0, "max": 10.0, "seed": 10}
         self.output_hist = output_hist
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -130,11 +119,10 @@ class TestMLUUniformRandomOp(OpTest):
 
 
 class TestMLUUniformRandomOpSelectedRows(unittest.TestCase):
-
     def get_places(self):
         places = [core.CPUPlace()]
-        if core.is_compiled_with_mlu():
-            places.append(paddle.CustomPlace('CustomMLU', 0))
+        if core.is_compiled_with_custom_device("mlu"):
+            places.append(paddle.CustomPlace("mlu", 0))
         return places
 
     def test_check_output(self):
@@ -145,12 +133,9 @@ class TestMLUUniformRandomOpSelectedRows(unittest.TestCase):
         scope = core.Scope()
         out = scope.var("X").get_selected_rows()
         paddle.seed(10)
-        op = Operator("uniform_random",
-                      Out="X",
-                      shape=[1000, 784],
-                      min=-5.0,
-                      max=10.0,
-                      seed=10)
+        op = Operator(
+            "uniform_random", Out="X", shape=[1000, 784], min=-5.0, max=10.0, seed=10
+        )
         op.run(scope, place)
         self.assertEqual(out.get_tensor().shape(), [1000, 784])
         hist, prob = output_hist(np.array(out.get_tensor()))

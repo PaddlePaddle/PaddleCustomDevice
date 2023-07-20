@@ -29,14 +29,14 @@ paddle.enable_static()
 class TestCastOpFp32ToFp16(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float16')}
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": ipt.astype("float16")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP16)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.FP16),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -47,14 +47,14 @@ class TestCastOpFp32ToFp16(OpTest):
 class TestCastOpFp16ToFp32(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float16')}
-        self.outputs = {'Out': ipt.astype('float32')}
+        self.inputs = {"X": ipt.astype("float16")}
+        self.outputs = {"Out": ipt.astype("float32")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
+            "in_dtype": int(core.VarDesc.VarType.FP16),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -65,14 +65,14 @@ class TestCastOpFp16ToFp32(OpTest):
 class TestCastOpFp32ToFp64(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float64')}
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": ipt.astype("float64")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP64)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.FP64),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -83,14 +83,14 @@ class TestCastOpFp32ToFp64(OpTest):
 class TestCastOpInt32ToInt32(OpTest):
     def setUp(self):
         ipt = np.random.randint(1000, size=(10, 10))
-        self.inputs = {'X': ipt.astype('int32')}
-        self.outputs = {'Out': ipt.astype('int32')}
+        self.inputs = {"X": ipt.astype("int32")}
+        self.outputs = {"Out": ipt.astype("int32")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.INT32),
-            'out_dtype': int(core.VarDesc.VarType.INT32)
+            "in_dtype": int(core.VarDesc.VarType.INT32),
+            "out_dtype": int(core.VarDesc.VarType.INT32),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -100,14 +100,14 @@ class TestCastOpInt32ToInt32(OpTest):
 class TestCastOpInt32ToFp32(OpTest):
     def setUp(self):
         ipt = np.random.randint(1000, size=[10, 10])
-        self.inputs = {'X': ipt.astype('int32')}
-        self.outputs = {'Out': ipt.astype('float32')}
+        self.inputs = {"X": ipt.astype("int32")}
+        self.outputs = {"Out": ipt.astype("float32")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.INT32),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
+            "in_dtype": int(core.VarDesc.VarType.INT32),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -117,14 +117,14 @@ class TestCastOpInt32ToFp32(OpTest):
 class TestCastOpInt64ToInt8(OpTest):
     def setUp(self):
         ipt = np.random.randint(1000, size=[10, 10])
-        self.inputs = {'X': ipt.astype('int64')}
-        self.outputs = {'Out': ipt.astype('int8')}
+        self.inputs = {"X": ipt.astype("int64")}
+        self.outputs = {"Out": ipt.astype("int8")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.INT64),
-            'out_dtype': int(core.VarDesc.VarType.INT8)
+            "in_dtype": int(core.VarDesc.VarType.INT64),
+            "out_dtype": int(core.VarDesc.VarType.INT8),
         }
-        self.op_type = 'cast'
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.op_type = "cast"
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def test_check_output(self):
@@ -136,9 +136,10 @@ class TestCastOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
             x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace('CustomMLU', 0))
-            self.assertRaises(TypeError, fluid.layers.cast, x1, 'int32')
+                np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
+            )
+            self.assertRaises(TypeError, paddle.cast, x1, "int32")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

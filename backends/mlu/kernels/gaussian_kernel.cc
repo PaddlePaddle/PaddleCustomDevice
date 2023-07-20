@@ -18,37 +18,34 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GaussianKernel(const Context& dev_ctx,
-                          const phi::IntArray& shape,
-                          float mean,
-                          float std,
-                          int seed,
-                          phi::DataType dtype,
-                          phi::DenseTensor* out) {
+                    const phi::IntArray& shape,
+                    float mean,
+                    float std,
+                    int seed,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor cpu_tensor;
-  phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
-  cpu_tensor.set_meta(cpu_meta);
-  T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_tensor);
-  std::normal_distribution<T> dist(mean, std);
+  int real_seed =
+      seed != 0 ? seed : static_cast<int>(dev_ctx.GetGenerator()->Random64());
+  auto dev_id = static_cast<int64_t>(dev_ctx.GetPlace().GetDeviceId());
+  auto generator_desc = GetMLURandomGenerator(dev_ctx, dev_id, real_seed);
 
-  int64_t size = out->numel();
-
-  auto gen_ptr = dev_ctx.GetGenerator();
-  gen_ptr->SetCurrentSeed(static_cast<int64_t>(seed));
-  auto engine = gen_ptr->GetCPUEngine();
-
-  for (int64_t i = 0; i < size; ++i) {
-    cpu_data[i] = dist(*engine);
-  }
-  TensorCopy(dev_ctx, cpu_tensor, false, out);
-  dev_ctx.Wait();
+  MLUCnnl::RandGenerateNormal(dev_ctx,
+                              generator_desc->get(),
+                              ToCnnlDataType<T>(),
+                              out->numel(),
+                              mean,
+                              std,
+                              GetBasePtr(&generator_desc->get_state()),
+                              GetBasePtr(out));
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(gaussian,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GaussianKernel,
-                          float) {}
+                          float,
+                          phi::dtype::float16) {}

@@ -18,7 +18,7 @@ from tests.op_test import OpTest
 
 import numpy as np
 import paddle.fluid.core as core
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 import paddle
@@ -29,7 +29,7 @@ paddle.enable_static()
 class TestWhereIndexOp(OpTest):
     def setUp(self):
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_config()
 
@@ -37,25 +37,27 @@ class TestWhereIndexOp(OpTest):
         self.check_output_with_place(self.place)
 
     def init_config(self):
-        self.inputs = {'Condition': np.array([True, False, True]), }
+        self.inputs = {
+            "Condition": np.array([True, False, True]),
+        }
 
-        self.outputs = {'Out': np.array([[0], [2]], dtype='int64')}
+        self.outputs = {"Out": np.array([[0], [2]], dtype="int64")}
 
 
 class TestAllFalse(unittest.TestCase):
     def setUp(self):
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_config()
 
     def check_with_place(self, place):
         scope = core.Scope()
-        condition = scope.var('Condition').get_tensor()
+        condition = scope.var("Condition").get_tensor()
         condition.set(self.cond_data, place)
 
         out = scope.var("Out").get_tensor()
-        out.set(np.full(self.shape, 0).astype('int64'), place)
+        out.set(np.full(self.shape, 0).astype("int64"), place)
 
         op = Operator("where_index", Condition="Condition", Out="Out")
         op.run(scope, place)
@@ -66,7 +68,7 @@ class TestAllFalse(unittest.TestCase):
     def init_config(self):
         self.cond_data = np.array([False, False, False])
         self.shape = (3, 1)
-        self.out_data = np.array([], dtype='int64')
+        self.out_data = np.array([], dtype="int64")
 
     def test_all_false(self):
         self.check_with_place(self.place)
@@ -74,45 +76,43 @@ class TestAllFalse(unittest.TestCase):
 
 class TestRank2(TestWhereIndexOp):
     def init_config(self):
-        self.inputs = {'Condition': np.array([[True, False], [False, True]]), }
+        self.inputs = {
+            "Condition": np.array([[True, False], [False, True]]),
+        }
 
-        self.outputs = {'Out': np.array([[0, 0], [1, 1]], dtype='int64')}
+        self.outputs = {"Out": np.array([[0, 0], [1, 1]], dtype="int64")}
 
 
 class TestRank3(TestWhereIndexOp):
     def init_config(self):
         self.inputs = {
-            'Condition': np.array([[[True, False], [False, True]],
-                                   [[False, True], [True, False]],
-                                   [[False, False], [False, True]]]),
+            "Condition": np.array(
+                [
+                    [[True, False], [False, True]],
+                    [[False, True], [True, False]],
+                    [[False, False], [False, True]],
+                ]
+            ),
         }
 
         self.outputs = {
-            'Out': np.array(
-                [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0], [2, 1, 1]],
-                dtype='int64')
+            "Out": np.array(
+                [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0], [2, 1, 1]], dtype="int64"
+            )
         }
 
 
 class TestWhereOpError(unittest.TestCase):
     def test_api(self):
-        paddle.set_device('CustomMLU')
+        paddle.set_device("mlu")
         with program_guard(Program(), Program()):
-            cond = fluid.layers.data(name='cond', shape=[4], dtype='bool')
-            result = fluid.layers.where(cond)
-            exe = fluid.Executor(paddle.CustomPlace('CustomMLU', 0))
+            cond = paddle.static.data(name="cond", shape=[-1, 4], dtype="bool")
+            result = paddle.nonzero(cond)
+
+            exe = fluid.Executor(paddle.CustomPlace("mlu", 0))
             exe.run(fluid.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
-            out = exe.run(fluid.default_main_program(), feed={'cond': cond_i})
-
-
-class TestWhereRaiseError(unittest.TestCase):
-    def test_errors(self):
-        def test_type():
-            paddle.set_device('CustomMLU')
-            fluid.layers.where([10])
-
-        self.assertRaises(TypeError, test_type)
+            out = exe.run(fluid.default_main_program(), feed={"cond": cond_i})
 
 
 if __name__ == "__main__":

@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
@@ -36,13 +35,13 @@ class TestUnsqueezeOp(OpTest):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def init_test_case(self):
         self.ori_shape = (3, 40)
@@ -57,7 +56,7 @@ class TestUnsqueezeOp(OpTest):
 class TestUnsqueezeOp1(TestUnsqueezeOp):
     def init_test_case(self):
         self.ori_shape = (20, 5)
-        self.axes = (-1, )
+        self.axes = (-1,)
         self.new_shape = (20, 5, 1)
 
 

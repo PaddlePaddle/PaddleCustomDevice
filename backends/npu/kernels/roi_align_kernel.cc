@@ -203,7 +203,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
 
   //   PADDLE_ENFORCE_EQ(
   //       boxes.dtype(),
-  //       phi::DenseTensorMeta::DataType::FLOAT32,
+  //       phi::DataType::FLOAT32,
   //       phi::errors::InvalidArgument(
   //           "ROIAlignGradNPU only support ROIs type equaled to FP32."));
 

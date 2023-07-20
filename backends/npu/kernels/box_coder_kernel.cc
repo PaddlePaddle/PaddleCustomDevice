@@ -212,9 +212,13 @@ struct BoxCoderFunction {
     phi::DenseTensor y;
     y.Resize(shape);
     dev_ctx.template Alloc<T>(&y);
-    const auto& runner =
-        NpuOpRunner("SliceD", {x}, {y}, {{"offsets", offsets}, {"size", size}});
-    runner.Run(stream);
+    NpuOpRunner slice_runner;
+    slice_runner.SetType("Slice")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(offsets))
+        .AddInput(dev_ctx, std::move(size))
+        .AddOutput(y);
+    slice_runner.Run(stream);
     return y;
   }
 
@@ -234,6 +238,28 @@ void Vector2Tensor(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+std::vector<phi::DenseTensor> GetSplitTensor(const Context& dev_ctx,
+                                             const phi::DenseTensor& x,
+                                             const phi::DDim shape) {
+  std::vector<phi::DenseTensor> outputs;
+  for (size_t i = 0; i < 4; ++i) {
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(shape);
+    dev_ctx.template Alloc<T>(&tmp_out);
+    outputs.push_back(tmp_out);
+  }
+  NpuOpRunner runner;
+  runner.SetType("Split")
+      .AddInput(dev_ctx, std::vector<int32_t>({1}))
+      .AddInput(x)
+      .AddOutputs(outputs)
+      .AddAttrs({{"num_split", static_cast<int32_t>(4)}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+  return outputs;
+}
+
+template <typename T, typename Context>
 void BoxCoderEnc(const Context& dev_ctx,
                  const phi::DenseTensor* tb,
                  const phi::DenseTensor* pb,
@@ -244,49 +270,58 @@ void BoxCoderEnc(const Context& dev_ctx,
   auto M = pb->dims()[0];
   auto N = tb->dims()[0];
   auto shape_0 = phi::make_ddim({4, 2});
-  phi::DenseTensor m_diff;
-  phi::DenseTensor m_aver;
-  std::vector<T> vec_diff = {static_cast<T>(-1),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(-1),
-                             static_cast<T>(1),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(1)};
-  std::vector<T> vec_aver = {static_cast<T>(0.5),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(0.5),
-                             static_cast<T>(0.5),
-                             static_cast<T>(0),
-                             static_cast<T>(0),
-                             static_cast<T>(0.5)};
-  Vector2Tensor<T, Context>(dev_ctx, vec_diff, shape_0, &m_diff);
-  Vector2Tensor<T, Context>(dev_ctx, vec_aver, shape_0, &m_aver);
 
   BoxCoderFunction<T, Context> F(dev_ctx);
-  phi::DenseTensor pb_xy = F.Adds(F.Dot(*pb, m_aver), (norm ? 0 : 0.5));
-  phi::DenseTensor pb_wh = F.Adds(F.Dot(*pb, m_diff), (norm ? 0 : 1));
-  phi::DenseTensor tb_xy = F.Dot(*tb, m_aver);
-  phi::DenseTensor tb_wh = F.Adds(F.Dot(*tb, m_diff), (norm ? 0 : 1));
+  auto shape_1 = phi::make_ddim({1, M});
+  auto shape_2 = phi::make_ddim({N, 1});
 
-  pb_xy.Resize({1, M, 2});
-  pb_wh.Resize({1, M, 2});
-  tb_xy.Resize({N, 1, 2});
-  tb_wh.Resize({N, 1, 2});
+  std::vector<phi::DenseTensor> pb_split_tensors =
+      GetSplitTensor<T, Context>(dev_ctx, *pb, shape_1);
+  std::vector<phi::DenseTensor> tb_split_tensors =
+      GetSplitTensor<T, Context>(dev_ctx, *tb, shape_2);
+  phi::DenseTensor pb_w = F.Adds(
+      F.SubWithBroadCast(pb_split_tensors[2], pb_split_tensors[0], shape_1),
+      (norm ? 0 : 1));
+  phi::DenseTensor pb_h = F.Adds(
+      F.SubWithBroadCast(pb_split_tensors[3], pb_split_tensors[1], shape_1),
+      (norm ? 0 : 1));
+  phi::DenseTensor pb_x =
+      F.AddWithBroadCast(pb_split_tensors[0], F.Muls(pb_w, 0.5), shape_1);
+  phi::DenseTensor pb_y =
+      F.AddWithBroadCast(pb_split_tensors[1], F.Muls(pb_h, 0.5), shape_1);
+  phi::DenseTensor tb_x = F.AddWithBroadCast(F.Muls(tb_split_tensors[0], 0.5),
+                                             F.Muls(tb_split_tensors[2], 0.5),
+                                             shape_2);
+  phi::DenseTensor tb_y = F.AddWithBroadCast(F.Muls(tb_split_tensors[1], 0.5),
+                                             F.Muls(tb_split_tensors[3], 0.5),
+                                             shape_2);
+  phi::DenseTensor tb_w = F.Adds(
+      F.SubWithBroadCast(tb_split_tensors[2], tb_split_tensors[0], shape_2),
+      (norm ? 0 : 1));
+  phi::DenseTensor tb_h = F.Adds(
+      F.SubWithBroadCast(tb_split_tensors[3], tb_split_tensors[1], shape_2),
+      (norm ? 0 : 1));
 
-  auto shape_half = phi::make_ddim({N, M, 2});
+  auto shape_3 = phi::make_ddim({N, M});
   auto shape_full = phi::make_ddim({N, M, 4});
+  phi::DenseTensor out_0 = F.DivWithBroadCast(
+      F.SubWithBroadCast(tb_x, pb_x, shape_3), pb_w, shape_3);
+  phi::DenseTensor out_1 = F.DivWithBroadCast(
+      F.SubWithBroadCast(tb_y, pb_y, shape_3), pb_h, shape_3);
+  phi::DenseTensor out_2 =
+      F.Log(F.Abs(F.DivWithBroadCast(tb_w, pb_w, shape_3)));
+  phi::DenseTensor out_3 =
+      F.Log(F.Abs(F.DivWithBroadCast(tb_h, pb_h, shape_3)));
 
-  phi::DenseTensor out_xy_0 = F.DivWithBroadCast(
-      F.SubWithBroadCast(tb_xy, pb_xy, shape_half), pb_wh, shape_half);
-  phi::DenseTensor out_wh_0 =
-      F.Log(F.Abs(F.DivWithBroadCast(tb_wh, pb_wh, shape_half)));
-  phi::DenseTensor out_0 = F.Concat({out_xy_0, out_wh_0}, shape_full, 2);
-
+  out_0.Resize({N, M, 1});
+  out_1.Resize({N, M, 1});
+  out_2.Resize({N, M, 1});
+  out_3.Resize({N, M, 1});
+  phi::DenseTensor out_tmp;
+  std::vector<phi::DenseTensor> out_vector = {out_0, out_1, out_2, out_3};
+  F.ConcatVoid(out_vector, shape_full, 2, &out_tmp);
   if (pbv) {
-    F.DivWithBroadCastVoid(out_0, *pbv, shape_full, out);
+    F.DivWithBroadCastVoid(out_tmp, *pbv, shape_full, out);
   } else {
     phi::DenseTensor t_var;
     std::vector<T> vec_var(4);
@@ -295,7 +330,7 @@ void BoxCoderEnc(const Context& dev_ctx,
     }
     Vector2Tensor<T, Context>(
         dev_ctx, vec_var, phi::make_ddim({1, 1, 4}), &t_var);
-    F.DivWithBroadCastVoid(out_0, t_var, shape_full, out);
+    F.DivWithBroadCastVoid(out_tmp, t_var, shape_full, out);
   }
 }
 

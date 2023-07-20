@@ -31,12 +31,13 @@ inline void GetBroadcastDimsArrays(const phi::DDim& x_dims,
       phi::errors::InvalidArgument(
           "Axis should be great than or equal to 0, but received axis is %d.",
           axis));
-  PADDLE_ENFORCE_LE(axis,
-                    max_dim,
-                    phi::errors::InvalidArgument(
-                        "Axis should be less than or equal to %d, but received axis is %d.",
-                        max_dim,
-                        axis));
+  PADDLE_ENFORCE_LE(
+      axis,
+      max_dim,
+      phi::errors::InvalidArgument(
+          "Axis should be less than or equal to %d, but received axis is %d.",
+          max_dim,
+          axis));
   if (x_dims.size() > y_dims.size()) {
     std::fill(y_dims_array, y_dims_array + axis, 1);
     if (axis + y_dims.size() < max_dim) {
@@ -131,9 +132,14 @@ void MLUOpTensorKernel(const Context& dev_ctx,
                     phi::errors::Unavailable(
                         "This kernel of MLU only support ADD, SUB, MUL."));
   dev_ctx.template Alloc<T>(out);
+  Tensor x_t, y_t;
+  x_t = x;
+  y_t = y;
+  if (x.dims().size() == 0) x_t.Resize(phi::make_ddim({1}));
+  if (y.dims().size() == 0) y_t.Resize(phi::make_ddim({1}));
 
-  const auto& x_dims = x.dims();
-  const auto& y_dims = y.dims();
+  const auto& x_dims = x_t.dims();
+  const auto& y_dims = y_t.dims();
   axis =
       (axis < 0 ? (std::abs(x_dims.size() - y_dims.size()) + axis + 1) : axis);
   int max_dim = std::max(x_dims.size(), y_dims.size());
@@ -157,9 +163,9 @@ void MLUOpTensorKernel(const Context& dev_ctx,
   MLUCnnl::OpTensor(dev_ctx,
                     op_tensor_desc.get(),
                     x_desc.get(),
-                    GetBasePtr(&x),
+                    GetBasePtr(&x_t),
                     y_desc.get(),
-                    GetBasePtr(&y),
+                    GetBasePtr(&y_t),
                     out_desc.get(),
                     GetBasePtr(out),
                     ToCnnlDataType<T>());
@@ -240,9 +246,14 @@ void MLUBinaryOp(const Context& dev_ctx,
                  int axis,
                  phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
+  Tensor x_t, y_t;
+  x_t = x;
+  y_t = y;
+  if (x.dims().size() == 0) x_t.Resize(phi::make_ddim({1}));
+  if (y.dims().size() == 0) y_t.Resize(phi::make_ddim({1}));
 
-  const auto& x_dims = x.dims();
-  const auto& y_dims = y.dims();
+  const auto& x_dims = x_t.dims();
+  const auto& y_dims = y_t.dims();
   axis =
       (axis < 0 ? (std::abs(x_dims.size() - y_dims.size()) + axis + 1) : axis);
   int max_dim = std::max(x_dims.size(), y_dims.size());
@@ -265,9 +276,9 @@ void MLUBinaryOp(const Context& dev_ctx,
   MLUBinary<Functor>(dev_ctx,
                      prefer_type,
                      x_desc.get(),
-                     GetBasePtr(&x),
+                     GetBasePtr(&x_t),
                      y_desc.get(),
-                     GetBasePtr(&y),
+                     GetBasePtr(&y_t),
                      out_desc.get(),
                      GetBasePtr(out));
 }

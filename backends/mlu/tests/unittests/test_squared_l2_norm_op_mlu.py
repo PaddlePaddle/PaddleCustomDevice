@@ -19,40 +19,38 @@ import unittest
 from numpy import linalg as LA
 from tests.op_test import OpTest
 import paddle
-from paddle import _C_ops, _legacy_C_ops
+from paddle import _legacy_C_ops
 
 paddle.enable_static()
 
 
 class TestL2LossOp(OpTest):
-    """Test squared_l2_norm
-    """
+    """Test squared_l2_norm"""
 
     def setUp(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.op_type = "squared_l2_norm"
         self.max_relative_error = 0.05
 
         X = np.random.uniform(-1, 1, (13, 19)).astype("float32")
         X[np.abs(X) < self.max_relative_error] = 0.1
-        self.inputs = {'X': X}
-        self.outputs = {'Out': np.square(LA.norm(X))}
+        self.inputs = {"X": X}
+        self.outputs = {"Out": np.square(LA.norm(X))}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'],
-                                   'Out',
-                                   max_relative_error=self.max_relative_error)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=self.max_relative_error
+        )
 
 
 class TestL2LossDeterministic(unittest.TestCase):
-
     def check_place(self, place):
         with paddle.fluid.dygraph.guard(place):
-            x_np = np.random.rand(5, 11, 13).astype('float32')
+            x_np = np.random.rand(5, 11, 13).astype("float32")
             x = paddle.to_tensor(x_np)
             y1 = _legacy_C_ops.squared_l2_norm(x)
             y2 = _legacy_C_ops.squared_l2_norm(x)
@@ -60,8 +58,8 @@ class TestL2LossDeterministic(unittest.TestCase):
 
     def test_main(self):
         self.check_place(paddle.CPUPlace())
-        if paddle.is_compiled_with_mlu():
-            self.check_place(paddle.CustomPlace('CustomMLU', 0))
+        if paddle.is_compiled_with_custom_device("mlu"):
+            self.check_place(paddle.CustomPlace("mlu", 0))
 
 
 if __name__ == "__main__":

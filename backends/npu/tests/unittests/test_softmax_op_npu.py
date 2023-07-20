@@ -14,13 +14,12 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
-import sys
-from tests.op_test import OpTest
+
+import numpy as np
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid import core
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -29,26 +28,33 @@ SEED = 2021
 class TestSoftmax(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "softmax"
         self.init_dtype()
 
-        x = np.random.random([3, 3]).astype(self.dtype)
+        x = np.random.random([10, 10]).astype(self.dtype)
         np_out = np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
 
         self.attrs = {}
-        self.outputs = {'Out': np_out}
+        self.outputs = {"Out": np_out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.__class__.no_need_check_grad = True
 
     def init_dtype(self):
         self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
+
+
+class TestSoftmaxFp64(TestSoftmax):
+    def init_dtype(self):
+        self.dtype = np.float64
 
 
 class TestSoftmaxNet(unittest.TestCase):
@@ -59,34 +65,33 @@ class TestSoftmaxNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(4, 32)).astype('float32')
-        b_np = np.random.random(size=(4, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(4, 1)).astype('int64')
+        a_np = np.random.random(size=(4, 32)).astype("float32")
+        b_np = np.random.random(size=(4, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(4, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[4, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[4, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[4, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[4, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[4, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[4, 1], dtype="int64")
 
             c = paddle.multiply(a, b)
             d = paddle.sqrt(c)
 
             # 4 x 128
-            fc_1 = fluid.layers.fc(input=d, size=128)
+            fc_1 = paddle.static.nn.fc(x=d, size=128)
             # 4 x 2
-            prediction = fluid.layers.fc(input=fc_1, size=2)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2)
 
             # 4 x 2
-            prob = fluid.layers.softmax(prediction, axis=1)
+            prob = paddle.nn.functional.softmax(prediction, axis=1)
 
-            cost = fluid.layers.cross_entropy(input=prob, label=label)
-            loss = fluid.layers.mean(cost)
+            cost = paddle.nn.functional.cross_entropy(input=prob, label=label)
+            loss = paddle.mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -98,13 +103,15 @@ class TestSoftmaxNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -116,5 +123,5 @@ class TestSoftmaxNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss, rtol=1e-2))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

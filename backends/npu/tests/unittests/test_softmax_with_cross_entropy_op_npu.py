@@ -1,10 +1,10 @@
-#  Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+#   Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,23 +14,20 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
-import sys
+import numpy as np
+import paddle
 
 from tests.op_test import OpTest
-import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
-SEED = 2021
 
 
 def stable_softmax(x):
     """Compute the softmax of vector x in a numerically stable way."""
     # clip to shiftx, otherwise, when calc loss with
     # log(exp(shiftx)), may get log(0)=INF
-    shiftx = (x - np.max(x)).clip(-64.)
+    shiftx = (x - np.max(x)).clip(-64.0)
     exps = np.exp(shiftx)
     return exps / np.sum(exps)
 
@@ -42,7 +39,7 @@ def cross_entropy(softmax, label, soft_label, axis, ignore_index=-1):
     axis %= len(shape)
     n = int(np.prod(shape[:axis]))
     axis_dim = shape[axis]
-    remain = int(np.prod(shape[axis + 1:]))
+    remain = int(np.prod(shape[axis + 1 :]))
     softmax_reshape = softmax.reshape((n, axis_dim, remain))
     label_reshape = label.reshape((n, 1, remain))
     result = np.zeros_like(label_reshape, dtype=softmax.dtype)
@@ -54,31 +51,78 @@ def cross_entropy(softmax, label, soft_label, axis, ignore_index=-1):
     return result.reshape(label.shape)
 
 
+def python_api(
+    logits,
+    label,
+    soft_label=False,
+    use_softmax=True,
+    numeric_stable_mode=True,
+    ignore_index=-100,
+    axis=-1,
+):
+    # here only can test paddle.nn.functional.softmax_with_cross_entropy,
+    # the paddle.nn.functional.cross_entropy contains other math ops
+    return paddle.nn.functional.softmax_with_cross_entropy(
+        logits,
+        label,
+        soft_label=soft_label,
+        ignore_index=ignore_index,
+        numeric_stable_mode=numeric_stable_mode,
+        return_softmax=use_softmax,
+        axis=axis,
+    )
+
+
+def python_core_api_without_softmax(
+    logits,
+    label,
+    soft_label=False,
+    use_softmax=False,
+    numeric_stable_mode=True,
+    ignore_index=-100,
+    axis=-1,
+):
+    # the API paddle.nn.functional.softmax_with_cross_entropy cannot
+    # set use_softmax=False, so add a core api manually
+    assert use_softmax is False
+    _, loss = paddle._C_ops.final_state_cross_entropy_with_softmax(
+        logits, label, soft_label, use_softmax, numeric_stable_mode, ignore_index, axis
+    )
+    return loss
+
+
 class TestSoftmaxWithCrossEntropyOp(OpTest):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    """
+
     def set_npu(self):
         self.__class__.use_custom_device = True
 
-    def init_dtype(self):
-        self.dtype = np.float32
-
     def initParams(self):
         self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "softmax_with_cross_entropy"
-        self.numeric_stable_mode = False
-        self.place = paddle.CustomPlace('npu', 0)
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
         self.soft_label = False
-        self.init_dtype()
-        self.axis = -1
+
+        self.dtype = np.float32
+        self.axis = 1
         self.ignore_index = -1
-        self.shape = [41, 37]
-        np.random.seed(SEED)
+        self.shape = [2, 2, 4, 8]
+        self.use_softmax = True
+
+    def hard_label_dtype(self):
+        return "int64"
 
     def setUp(self):
         self.initParams()
 
         logits = getattr(
-            self, "logits",
-            np.random.uniform(0.1, 1.0, self.shape).astype(self.dtype))
+            self, "logits", np.random.uniform(0.1, 1.0, self.shape).astype(self.dtype)
+        )
         softmax = np.apply_along_axis(stable_softmax, self.axis, logits)
 
         if self.soft_label:
@@ -87,26 +131,31 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         else:
             axis_dim = self.shape[self.axis]
             self.shape[self.axis] = 1
-            labels = np.random.randint(0, axis_dim, self.shape, dtype="int64")
+            labels = np.random.randint(
+                0, axis_dim, self.shape, dtype=self.hard_label_dtype()
+            )
 
-        loss = cross_entropy(softmax, labels, self.soft_label, self.axis,
-                             self.ignore_index)
+        loss = cross_entropy(
+            softmax, labels, self.soft_label, self.axis, self.ignore_index
+        )
+        if self.use_softmax == False:  # noqa
+            self.inputs = {"Logits": softmax, "Label": labels}
+        else:
+            self.inputs = {"Logits": logits, "Label": labels}
 
-        one_hot_label = np.eye(axis_dim)[labels.reshape(-1)]
-
-        self.inputs = {"Logits": logits, "Label": labels}
         self.outputs = {
             "Softmax": softmax.astype(self.dtype),
-            "Loss": loss.astype(self.dtype)
+            "Loss": loss.astype(self.dtype),
         }
         self.attrs = {
             "numeric_stable_mode": self.numeric_stable_mode,
             "soft_label": self.soft_label,
             "ignore_index": self.ignore_index,
+            "use_softmax": self.use_softmax,
         }
 
         if self.axis != -1:
-            self.attrs['axis'] = self.axis
+            self.attrs["axis"] = self.axis
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -114,71 +163,554 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
     def test_check_grad(self):
         # fp32 has low precision, cpu and npu both need to relax the max_relative_error if using fp32
         self.check_grad_with_place(
-            self.place, ['Logits'],
-            'Loss',
+            self.place,
+            ["Logits"],
+            "Loss",
             numeric_grad_delta=0.001,
-            max_relative_error=0.5)
+            max_relative_error=0.5,
+        )
 
 
-class TestPowNet(unittest.TestCase):
-    def _test(self, run_npu=True):
-        main_prog = paddle.static.Program()
-        startup_prog = paddle.static.Program()
-        main_prog.random_seed = SEED
-        startup_prog.random_seed = SEED
-        np.random.seed(SEED)
-
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
-
-        with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
-
-            sum = paddle.add(a, b)
-            z = paddle.pow(sum, 2.0)
-
-            fc_1 = fluid.layers.fc(input=z, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2)
-
-            cost = fluid.layers.softmax_with_cross_entropy(prediction, label)
-            loss = fluid.layers.reduce_mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
-            sgd.minimize(loss)
-
-        if run_npu:
-            place = paddle.CustomPlace('npu', 0)
-        else:
-            place = paddle.CPUPlace()
-
-        exe = paddle.static.Executor(place)
-        exe.run(startup_prog)
-
-        print("Start run on {}".format(place))
-        for epoch in range(100):
-
-            pred_res, loss_res = exe.run(
-                main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
-            if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
-
-        return pred_res, loss_res
-
-    def test_npu(self):
-        cpu_pred, cpu_loss = self._test(False)
-        npu_pred, npu_loss = self._test(True)
-
-        self.assertTrue(np.allclose(npu_pred, cpu_pred))
-        self.assertTrue(np.allclose(npu_loss, cpu_loss))
+class TestSoftmaxWithCrossEntropyOpInt32(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "int32"
 
 
-if __name__ == '__main__':
+class TestSoftmaxWithCrossEntropyOpInt16(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "int16"
+
+
+class TestSoftmaxWithCrossEntropyOpInt8(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "int8"
+
+
+class TestSoftmaxWithCrossEntropyOpUInt8(TestSoftmaxWithCrossEntropyOp):
+    def hard_label_dtype(self):
+        return "uint8"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_1D(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [13, 8]
+        self.axis = -1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+##############################################################################
+# NotWithSoftmax_SoftLabel_2D start
+##############################################################################
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [3, 5, 7, 11]
+        self.axis = -1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis2(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.dtype = np.float32
+        self.axis = 1
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis3(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.dtype = np.float32
+        self.axis = 2
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis4(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.dtype = np.float32
+        self.axis = 3
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+##############################################################################
+# NotWithSoftmax_SoftLabel_2D end
+##############################################################################
+
+##############################################################################
+# NotWithSoftmax_HardLabel_2D start
+##############################################################################
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis2(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 1
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis3(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 2
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+##############################################################################
+# NotWithSoftmax_HardLabel_2D end
+##############################################################################
+
+##############################################################################
+# NotWithSoftmax_HardLabel_2D_Ignore start
+##############################################################################
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_Ignore(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = False
+        self.soft_label = False
+        self.shape = [13, 8]
+        self.axis = -1
+        self.ignore_index = 2
+        self.dtype = np.float32
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_Ignore_Axis(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = False
+        self.soft_label = False
+        self.shape = [13, 8]
+        self.axis = 1
+        self.ignore_index = 2
+        self.dtype = np.float32
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Ignore(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.shape = [3, 5, 7, 11]
+        self.axis = -1
+        self.ignore_index = 2
+        self.dtype = np.float32
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Ignore_Axis3(
+    TestSoftmaxWithCrossEntropyOp
+):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_core_api_without_softmax
+        self.python_out_sig = ["Loss"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 2
+        self.ignore_index = 2
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = False  # default is true, means "with softmax"
+
+
+##############################################################################
+# NotWithSoftmax_HardLabel_2D_Ignore end
+##############################################################################
+
+
+class TestSoftmaxWithCrossEntropyOpNoCudnn(TestSoftmaxWithCrossEntropyOp):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.shape = [3, 5, 7, 11]
+        self.axis = -1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOp2(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with soft labels.
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.dtype = np.float32
+        self.axis = -1
+        self.ignore_index = -1
+        self.shape = [41, 37]
+        self.use_softmax = True
+
+    def test_check_output(self):
+        if self.python_api is not None:
+            self.check_output_with_place(self.place, check_dygraph=False)
+        self.check_output_with_place(self.place)
+
+    # def test_check_grad(self):
+    #     if self.python_api is not None:
+    #         self.check_grad(["Logits"], "Loss", check_dygraph=False)
+    #     self.check_grad(["Logits"], "Loss")
+
+
+class TestSoftmaxWithCrossEntropyOp3(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with ignore_index.
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = False
+        self.soft_label = False
+        self.shape = [41, 37]
+        self.ignore_index = 5
+        self.axis = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOp3NoCudnn(TestSoftmaxWithCrossEntropyOp3):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.shape = [3, 5, 7, 11]
+        self.ignore_index = 4
+        self.axis = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpAxis1(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    Given axis != -1
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 0
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpAxis2(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    Given axis != -1
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 1
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpAxis3(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    Given axis != -1
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 2
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpAxis4(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    Given axis != -1
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = 3
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 11]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpAxisDimEqualOne(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test softmax with cross entropy operator with discreate one-hot labels.
+    Given axis != -1
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.dtype = np.float32
+        self.axis = -1
+        self.ignore_index = -1
+        self.shape = [3, 5, 7, 1]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpSoftLabelAxis1(TestSoftmaxWithCrossEntropyOp2):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [3, 5, 7, 11]
+        self.axis = 0
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpSoftLabelAxis2(TestSoftmaxWithCrossEntropyOp2):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [3, 5, 7, 11]
+        self.axis = 1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpSoftLabelAxis3(TestSoftmaxWithCrossEntropyOp2):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [3, 5, 7, 11]
+        self.axis = 2
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpSoftLabelAxis4(TestSoftmaxWithCrossEntropyOp2):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = True
+        self.shape = [3, 5, 7, 11]
+        self.axis = 3
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpBoundary0(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test stable softmax with cross entropy operator will not product INF
+    with small logits value.
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.shape = [3, 5, 7, 11]
+        self.axis = -1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.logits = np.full(self.shape, -500.0).astype(self.dtype)
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpBoundary1(TestSoftmaxWithCrossEntropyOp):
+    """
+    Test stable softmax with cross entropy operator will not product INF
+    with small logits value.
+    """
+
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+        self.shape = [3, 5, 7, 11]
+        self.axis = -1
+        self.ignore_index = -1
+        self.dtype = np.float32
+        self.logits = np.full(self.shape, 1000.0).astype(self.dtype)
+        self.logits[:, :, 0, :] = -1000.0
+        self.use_softmax = True
+
+
+if __name__ == "__main__":
+    paddle.enable_static()
     unittest.main()

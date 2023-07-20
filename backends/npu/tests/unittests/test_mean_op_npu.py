@@ -16,12 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
 
 paddle.enable_static()
 SEED = 2021
@@ -30,16 +27,16 @@ SEED = 2021
 class TestMean(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "mean"
         self.init_dtype()
 
         x = np.random.random([1, 100]).astype(self.dtype)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
 
         self.attrs = {}
         np_out = np.mean(x)
-        self.outputs = {'Out': np_out}
+        self.outputs = {"Out": np_out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -51,22 +48,22 @@ class TestMean(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestMeanFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "mean"
         self.init_dtype()
 
         x = np.random.random([3, 200]).astype(self.dtype)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
 
         self.attrs = {}
         np_out = np.mean(x)
-        self.outputs = {'Out': np_out}
+        self.outputs = {"Out": np_out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -79,5 +76,5 @@ class TestMeanFP16(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

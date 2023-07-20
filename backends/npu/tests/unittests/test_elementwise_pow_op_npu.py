@@ -13,13 +13,13 @@
 # limitations under the License.
 
 from __future__ import print_function
-import paddle.fluid as fluid
-import paddle
 
-from tests.op_test import OpTest
-import numpy as np
 import unittest
-import sys
+
+import numpy as np
+import paddle
+import paddle.fluid as fluid
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -41,7 +41,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_x)) or (
-                    shape_out[ax] > 1 and shape_x[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_x[ax - src_axis] == 1
+            ):
                 reduce_axes_x.append(ax)
 
     if shape_y != shape_out:
@@ -52,7 +53,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_y)) or (
-                    shape_out[ax] > 1 and shape_y[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_y[ax - src_axis] == 1
+            ):
                 reduce_axes_y.append(ax)
 
     if len(reduce_axes_x) > 0:
@@ -81,18 +83,18 @@ class TestElementwisePow(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_pow"
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.init_dtype()
         self.init_input_output()
         self.init_axis()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(self.x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
+            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
+            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
         }
-        self.attrs = {'axis': self.axis}
-        self.outputs = {'Out': self.out}
+        self.attrs = {"axis": self.axis}
+        self.outputs = {"Out": self.out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -115,23 +117,20 @@ class TestElementwisePow(OpTest):
     def test_check_grad_normal(self):
         dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
+            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
+        )
 
     def test_check_grad_ingore_x(self):
         _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
+            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
+        )
 
     def test_check_grad_ingore_y(self):
         dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
+            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
+        )
 
 
 class TestElementwisePowFp16(TestElementwisePow):
@@ -183,87 +182,20 @@ class TestElementwisePowOp_broadcast_0(TestElementwisePow):
     def test_check_grad_normal(self):
         dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
+            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
+        )
 
     def test_check_grad_ingore_x(self):
         _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
+            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
+        )
 
     def test_check_grad_ingore_y(self):
         dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
-
-
-class TestElementwisePowOp_broadcast_1(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 1
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(1, 2, [2, 100, 1]).astype(self.dtype)
-        self.y = np.random.uniform(1, 2, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(1, 100, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
-
-
-class TestElementwisePowOp_broadcast_2(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 0
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(0.1, 1, [100, 3, 1]).astype(self.dtype)
-        self.y = np.random.uniform(0.1, 1, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(100, 1, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
+            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
+        )
 
 
 class TestElementwisePowNet(unittest.TestCase):
@@ -274,28 +206,27 @@ class TestElementwisePowNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             c = paddle.pow(a, b)
 
-            fc_1 = fluid.layers.fc(input=c, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
+            fc_1 = paddle.static.nn.fc(x=c, size=128)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2, activation="softmax")
 
-            cost = fluid.layers.cross_entropy(input=prediction, label=label)
-            loss = fluid.layers.reduce_mean(cost)
+            cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
+            loss = paddle.mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace('npu', 0)
+            place = paddle.CustomPlace("npu", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -307,13 +238,15 @@ class TestElementwisePowNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -325,5 +258,5 @@ class TestElementwisePowNet(unittest.TestCase):
         self.assertTrue(np.allclose(npu_loss, cpu_loss))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

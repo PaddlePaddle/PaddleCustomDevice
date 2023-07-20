@@ -31,11 +31,11 @@ class TestSGD(OpTest):
         g = np.random.random((self.h, self.w)).astype("float32")
         lr = np.array([0.1]).astype("float32")
 
-        self.inputs = {'Param': w, 'Grad': g, 'LearningRate': lr}
-        self.outputs = {'ParamOut': w - lr * g}
+        self.inputs = {"Param": w, "Grad": g, "LearningRate": lr}
+        self.outputs = {"ParamOut": w - lr * g}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -57,29 +57,28 @@ class TestNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             sum = paddle.add(a, b)
             z = paddle.pow(sum, 2.0)
 
-            fc_1 = fluid.layers.fc(input=z, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
+            fc_1 = paddle.static.nn.fc(x=z, size=128)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2, activation="softmax")
 
-            cost = fluid.layers.cross_entropy(input=prediction, label=label)
-            loss = fluid.layers.reduce_mean(cost)
+            cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
+            loss = paddle.mean(cost)
             sgd = fluid.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -91,23 +90,25 @@ class TestNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
-    def test_npu(self):
+    def test_mlu(self):
         cpu_pred, cpu_loss = self._test(False)
-        npu_pred, npu_loss = self._test(True)
+        mlu_pred, mlu_loss = self._test(True)
 
-        self.assertTrue(np.allclose(npu_pred, cpu_pred))
-        self.assertTrue(np.allclose(npu_loss, cpu_loss))
+        self.assertTrue(np.allclose(mlu_pred, cpu_pred))
+        self.assertTrue(np.allclose(mlu_loss, cpu_loss))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

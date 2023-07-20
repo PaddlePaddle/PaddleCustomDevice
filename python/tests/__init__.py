@@ -1,1 +1,0 @@
-../../Paddle/python/paddle/fluid/tests/unittests/__init__.py

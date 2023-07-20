@@ -32,15 +32,15 @@ inline void UniformRealDistribution(T* data,
 
 template <typename T, typename Context>
 void UniformRawKernel(const Context& dev_ctx,
-                            const phi::IntArray& shape,
-                            phi::DataType dtype,
-                            const phi::Scalar& min,
-                            const phi::Scalar& max,
-                            int seed,
-                            int diag_num,
-                            int diag_step,
-                            float diag_val,
-                            phi::DenseTensor* out) {
+                      const phi::IntArray& shape,
+                      phi::DataType dtype,
+                      const phi::Scalar& min,
+                      const phi::Scalar& max,
+                      int seed,
+                      int diag_num,
+                      int diag_step,
+                      float diag_val,
+                      phi::DenseTensor* out) {
   out->Resize(phi::make_ddim(shape.GetData()));
   VLOG(4) << out->dims();
   T* data = dev_ctx.template Alloc<T>(out);
@@ -85,26 +85,20 @@ void UniformRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UniformKernel(const Context& dev_ctx,
-                         const phi::IntArray& shape,
-                         phi::DataType dtype,
-                         const phi::Scalar& min,
-                         const phi::Scalar& max,
-                         int seed,
-                         phi::DenseTensor* out) {
+                   const phi::IntArray& shape,
+                   phi::DataType dtype,
+                   const phi::Scalar& min,
+                   const phi::Scalar& max,
+                   int seed,
+                   phi::DenseTensor* out) {
   custom_kernel::UniformRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(uniform_raw,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::UniformRawKernel,
-                          float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    uniform_raw, mlu, ALL_LAYOUT, custom_kernel::UniformRawKernel, float) {}
 
-PD_REGISTER_PLUGIN_KERNEL(uniform,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::UniformKernel,
-                          float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    uniform, mlu, ALL_LAYOUT, custom_kernel::UniformKernel, float) {}

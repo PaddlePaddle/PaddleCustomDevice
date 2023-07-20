@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 
@@ -31,10 +32,17 @@ void ArgsortKernel(const Context& dev_ctx,
   }
 
   auto in_dims = in.dims();
+  auto rank = in_dims.size();
   size_t k = in_dims[axis];
 
   dev_ctx.template Alloc<T>(output);
   dev_ctx.template Alloc<int64_t>(indices);
+
+  if (rank == 0) {
+    TensorCopy(dev_ctx, in, false, output);
+    FillMLUTensorWithHostValue(dev_ctx, 0, indices);
+    return;
+  }
 
   // cnnl only support int32/int16 type of indices
   Tensor indices_int32;
@@ -79,8 +87,15 @@ void ArgsortGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(in_grad);
 
   auto in_dims = indices.dims();
+  auto rank = input.dims().size();
   axis = (axis < 0) ? (in_dims.size() + axis) : axis;
+  FillMLUTensorWithHostValue(dev_ctx, 0., in_grad);
   if (out_grad.numel() == 0) return;
+
+  if (rank == 0) {
+    TensorCopy(dev_ctx, out_grad, false, in_grad);
+    return;
+  }
 
   MLUCnnlTensorDesc dout_desc(out_grad);
   MLUCnnlTensorDesc indices_desc(indices);
@@ -98,7 +113,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(argsort,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortKernel,
                           float,
@@ -106,10 +121,12 @@ PD_REGISTER_PLUGIN_KERNEL(argsort,
                           uint8_t,
                           int16_t,
                           int32_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(argsort_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortGradKernel,
                           float,

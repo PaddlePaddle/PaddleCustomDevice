@@ -41,6 +41,8 @@ void AdamKernel(const Context& dev_ctx,
                 phi::DenseTensor* beta1_pow_out,
                 phi::DenseTensor* beta2_pow_out,
                 phi::DenseTensor* master_param_out) {
+  using MPDType = typename MPTypeTrait<T>::Type;
+
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
     PADDLE_ENFORCE_EQ(skip_update->numel(),
@@ -49,13 +51,11 @@ void AdamKernel(const Context& dev_ctx,
                           "Input(SkipUpdate) size must be 1, but get %d",
                           skip_update->numel()));
     std::vector<bool> skip_update_vec;
-    TensorToVector(
-        dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
+    TensorToVector(dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
     dev_ctx.Wait();
     skip_update_ = skip_update_vec[0];
   }
-  
-  
+
   // skip_update_=true, just copy input to output asynchronously on the device,
   // and TensorCopy will call mutable_data
   if (skip_update_) {
@@ -63,8 +63,10 @@ void AdamKernel(const Context& dev_ctx,
     TensorCopy(dev_ctx, param, false, param_out);
     TensorCopy(dev_ctx, moment1, false, moment1_out);
     TensorCopy(dev_ctx, moment2, false, moment2_out);
-    TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
-    TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+    if (!use_global_beta_pow) {
+      TensorCopy(dev_ctx, beta1_pow_in, false, beta1_pow_out);
+      TensorCopy(dev_ctx, beta2_pow_in, false, beta2_pow_out);
+    }
     return;
   }
 
@@ -72,80 +74,106 @@ void AdamKernel(const Context& dev_ctx,
   phi::DenseTensor* beta2_pow = const_cast<phi::DenseTensor*>(&beta2_pow_in);
 
   VLOG(4) << "use_global_beta_pow:" << use_global_beta_pow;
-  
-  *param_out = param;
+
+  // param, moment1(momentum), moment2(velocity) in cnnl are in&out tensors.
+  // *param_out = param; // alloc later
   *moment1_out = moment1;
   *moment2_out = moment2;
-  
+
   phi::DenseTensor beta1_pow_tmp;
   phi::DenseTensor beta2_pow_tmp;
   if (beta1_pow->place().GetType() == phi::AllocationType::CPU) {
-    T beta1 = *beta1_pow->data<T>();
+    MPDType beta1 = *beta1_pow->data<MPDType>();
     beta1_pow_tmp.Resize({1});
-    dev_ctx.template Alloc<T>(&beta1_pow_tmp);
-    FillMLUTensorWithHostValue(dev_ctx, beta1, &beta1_pow_tmp);
+    dev_ctx.template Alloc<MPDType>(&beta1_pow_tmp);
+    FillMLUTensorWithHostValue<MPDType>(dev_ctx, beta1, &beta1_pow_tmp);
     beta1_pow = &beta1_pow_tmp;
   }
   if (beta2_pow->place().GetType() == phi::AllocationType::CPU) {
-    T beta2 = *beta2_pow->data<T>();
+    MPDType beta2 = *beta2_pow->data<MPDType>();
     beta2_pow_tmp.Resize({1});
-    dev_ctx.template Alloc<T>(&beta2_pow_tmp);
-    FillMLUTensorWithHostValue(dev_ctx, beta2, &beta2_pow_tmp);
+    dev_ctx.template Alloc<MPDType>(&beta2_pow_tmp);
+    FillMLUTensorWithHostValue<MPDType>(dev_ctx, beta2, &beta2_pow_tmp);
     beta2_pow = &beta2_pow_tmp;
   }
-  
+
   VLOG(3) << "beta1_pow->numel() : " << beta1_pow->numel()
           << "beta2_pow->numel() : " << beta2_pow->numel();
   VLOG(3) << "param.numel(): " << param.numel();
-  
+
   PADDLE_ENFORCE_EQ(beta1_pow_out->numel(),
                     1,
                     phi::errors::InvalidArgument(
                         "beta1 pow output size should be 1, but received "
                         "value is:%d.",
                         beta1_pow_out->numel()));
-  
+
   PADDLE_ENFORCE_EQ(beta2_pow_out->numel(),
                     1,
                     phi::errors::InvalidArgument(
                         "beta2 pow output size should be 1, but received "
                         "value is:%d.",
                         beta2_pow_out->numel()));
-  
+
   const phi::DenseTensor* beta1_tensor = nullptr;
   const phi::DenseTensor* beta2_tensor = nullptr;
   const phi::DenseTensor* epsilon_tensor = nullptr;
-  
+
   phi::DenseTensor beta1_tmp;
   phi::DenseTensor beta2_tmp;
   phi::DenseTensor epsilon_tmp;
   phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {1}};
-  beta1_tmp.set_meta(meta);
-  beta2_tmp.set_meta(meta);
-  epsilon_tmp.set_meta(meta);
+  beta1_tmp.Resize({1});
+  beta2_tmp.Resize({1});
+  epsilon_tmp.Resize({1});
 
-  T beta1 = beta1_in.to<T>();
-  dev_ctx.template Alloc<T>(&beta1_tmp);
-  FillMLUTensorWithHostValue<T>(dev_ctx, beta1, &beta1_tmp);
+  MPDType beta1 = beta1_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&beta1_tmp);
+  FillMLUTensorWithHostValue<MPDType>(dev_ctx, beta1, &beta1_tmp);
   beta1_tensor = &beta1_tmp;
 
-  T beta2 = beta2_in.to<T>();
-  dev_ctx.template Alloc<T>(&beta2_tmp);
-  FillMLUTensorWithHostValue<T>(dev_ctx, beta2, &beta2_tmp);
+  MPDType beta2 = beta2_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&beta2_tmp);
+  FillMLUTensorWithHostValue<MPDType>(dev_ctx, beta2, &beta2_tmp);
   beta2_tensor = &beta2_tmp;
 
-  T epsilon = epsilon_in.to<T>();
-  dev_ctx.template Alloc<T>(&epsilon_tmp);
-  FillMLUTensorWithHostValue<T>(dev_ctx, epsilon, &epsilon_tmp);
+  MPDType epsilon = epsilon_in.to<MPDType>();
+  dev_ctx.template Alloc<MPDType>(&epsilon_tmp);
+  FillMLUTensorWithHostValue<MPDType>(dev_ctx, epsilon, &epsilon_tmp);
   epsilon_tensor = &epsilon_tmp;
-  
-  MLUCnnlTensorDesc param_desc(param);
+
+  Tensor t_param_in_out;
+  t_param_in_out.Resize(param.dims());
+  if (multi_precision) {
+    // for multi_precision attribute, master_param_out should be float32.
+    dev_ctx.template Alloc<MPDType>(master_param_out);
+    TensorCopy(dev_ctx, master_param.get(), false, master_param_out);
+    t_param_in_out = *master_param_out;
+  } else if (param.dtype() != phi::DataType::FLOAT32) {
+    // cast param(T) to t_param_in_out(MPDType)
+    dev_ctx.template Alloc<MPDType>(&t_param_in_out);
+    MLUCnnlTensorDesc param_out_desc(param);
+    MLUCnnlTensorDesc param_in_out_desc(t_param_in_out);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(param.dtype(), DataType::FLOAT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  param_out_desc.get(),
+                  GetBasePtr(&param),
+                  param_in_out_desc.get(),
+                  GetBasePtr(&t_param_in_out));
+  } else {
+    *param_out = param;
+    t_param_in_out = *param_out;
+  }
+
+  MLUCnnlTensorDesc param_desc(t_param_in_out);
   MLUCnnlTensorDesc mom1_desc(moment1);
   MLUCnnlTensorDesc mom2_desc(moment2);
   MLUCnnlTensorDesc grad_desc(grad);
   MLUCnnl::ApplyAdam(dev_ctx,
                      param_desc.get(),
-                     GetBasePtr(param_out),
+                     GetBasePtr(&t_param_in_out),
                      mom1_desc.get(),
                      GetBasePtr(moment1_out),
                      mom2_desc.get(),
@@ -159,34 +187,64 @@ void AdamKernel(const Context& dev_ctx,
                      GetBasePtr(beta2_pow),
                      GetBasePtr(epsilon_tensor),
                      /*use_nesterov*/ false);
-  
+
+  if (multi_precision) {
+    // copy param_in_out to param_out
+    TensorCopy(dev_ctx, t_param_in_out, false, param_out);
+  } else if (param.dtype() != phi::DataType::FLOAT32) {
+    // cast param_in_out(MPDType) to param_out(T) anyway.
+    phi::DenseTensorMeta meta = {param.dtype(), param.dims()};
+    param_out->set_meta(meta);
+    dev_ctx.template Alloc<T>(param_out);
+    MLUCnnlTensorDesc param_out_desc(*param_out);
+    MLUCnnlTensorDesc param_in_out_desc(t_param_in_out);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::FLOAT32, param_out->dtype());
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  param_in_out_desc.get(),
+                  GetBasePtr(&t_param_in_out),
+                  param_out_desc.get(),
+                  GetBasePtr(param_out));
+  }
+
   if (!use_global_beta_pow) {
-    dev_ctx.template Alloc<T>(beta1_pow_out);
-    dev_ctx.template Alloc<T>(beta2_pow_out);
-  
-    MLUCnnlTensorDesc beta1_desc(*beta1_tensor);
-    MLUCnnlOpTensorDesc mul_op_desc(
-        CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+    if (beta1_pow->place().GetType() == phi::AllocationType::CPU &&
+        beta2_pow->place().GetType() == phi::AllocationType::CPU) {
+      // cpu update
+      dev_ctx.template HostAlloc<MPDType>(beta1_pow_out)[0] =
+          beta1 * beta1_pow->data<MPDType>()[0];
+      dev_ctx.template HostAlloc<MPDType>(beta2_pow_out)[0] =
+          beta2 * beta2_pow->data<MPDType>()[0];
+    } else {
+      // mlu update
+      dev_ctx.template Alloc<T>(beta1_pow_out);
+      dev_ctx.template Alloc<T>(beta2_pow_out);
 
-    MLUCnnl::OpTensor(dev_ctx,
-                      mul_op_desc.get(),
-                      beta1_desc.get(),
-                      GetBasePtr(beta1_pow),
-                      beta1_desc.get(),
-                      GetBasePtr(beta1_tensor),
-                      beta1_desc.get(),
-                      GetBasePtr(beta1_pow_out),
-                      ToCnnlDataType<T>());
+      MLUCnnlTensorDesc beta1_desc(*beta1_tensor);
+      MLUCnnlOpTensorDesc mul_op_desc(
+          CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
 
-    MLUCnnl::OpTensor(dev_ctx,
-                      mul_op_desc.get(),
-                      beta1_desc.get(),
-                      GetBasePtr(beta2_pow),
-                      beta1_desc.get(),
-                      GetBasePtr(beta2_tensor),
-                      beta1_desc.get(),
-                      GetBasePtr(beta2_pow_out),
-                      ToCnnlDataType<T>());
+      MLUCnnl::OpTensor(dev_ctx,
+                        mul_op_desc.get(),
+                        beta1_desc.get(),
+                        GetBasePtr(beta1_pow),
+                        beta1_desc.get(),
+                        GetBasePtr(beta1_tensor),
+                        beta1_desc.get(),
+                        GetBasePtr(beta1_pow_out),
+                        ToCnnlDataType<T>());
+
+      MLUCnnl::OpTensor(dev_ctx,
+                        mul_op_desc.get(),
+                        beta1_desc.get(),
+                        GetBasePtr(beta2_pow),
+                        beta1_desc.get(),
+                        GetBasePtr(beta2_tensor),
+                        beta1_desc.get(),
+                        GetBasePtr(beta2_pow_out),
+                        ToCnnlDataType<T>());
+    }
   }
 }
 
@@ -217,6 +275,7 @@ void AdamWKernel(const Context& dev_ctx,
                  phi::DenseTensor* beta1_pow_out,
                  phi::DenseTensor* beta2_pow_out,
                  phi::DenseTensor* master_param_outs) {
+  using MPDType = typename MPTypeTrait<T>::Type;
   bool skip_update_ = false;
   if (skip_update.is_initialized()) {
     PADDLE_ENFORCE_EQ(skip_update->numel(),
@@ -225,40 +284,40 @@ void AdamWKernel(const Context& dev_ctx,
                           "Input(SkipUpdate) size must be 1, but get %d",
                           skip_update->numel()));
     std::vector<bool> skip_update_vec;
-    TensorToVector(
-        dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
+    TensorToVector(dev_ctx, *skip_update, dev_ctx, &skip_update_vec);
     dev_ctx.Wait();
     skip_update_ = skip_update_vec[0];
   }
 
   VLOG(3) << "Skip update" << skip_update_ << ", With decay: " << with_decay;
-
-  if (!skip_update_ && with_decay) {
-    if (master_param.is_initialized()) {
-      PADDLE_THROW(phi::errors::Unimplemented(
-          "Master Param is not supported on MLU"));
-    } else {
-      // update param with decay coeff: mul(-1 * lr, coeff * param) + param
-      MLUCnnlTensorDesc lr_desc(learning_rate);
-      MLUCnnlTensorDesc param_desc(param);
-      MLUCnnlOpTensorDesc mul_op_desc(
-          CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
-  
-      MLUCnnl::OpTensor(dev_ctx,
-                        mul_op_desc.get(),
-                        lr_desc.get(),
-                        GetBasePtr(&learning_rate),
-                        param_desc.get(),
-                        GetBasePtr(&param),
-                        param_desc.get(),
-                        const_cast<void*>(GetBasePtr(&param)),
-                        ToCnnlDataType<T>(),
-                        /*alpha1*/ -1.f,
-                        /*alpha2*/ coeff,
-                        /*beta*/ 1.f);
+  if (skip_update_) {
+    TensorCopy(dev_ctx, param, false, param_out);
+    TensorCopy(dev_ctx, moment1, false, moment1_out);
+    TensorCopy(dev_ctx, moment2, false, moment2_out);
+    if (!use_global_beta_pow) {
+      TensorCopy(dev_ctx, beta1_pow, false, beta1_pow_out);
+      TensorCopy(dev_ctx, beta2_pow, false, beta2_pow_out);
     }
+    return;
   }
 
+  Tensor t_param_bak, t_lr;
+  t_param_bak.Resize(param.dims());
+  t_lr.Resize(param.dims());
+  dev_ctx.template Alloc<MPDType>(&t_lr);
+  FillMLUTensorWithDeviceValue<MPDType>(
+      dev_ctx,
+      reinterpret_cast<MPDType*>(const_cast<void*>(GetBasePtr(&learning_rate))),
+      &t_lr);
+  if (multi_precision) {
+    dev_ctx.template Alloc<MPDType>(&t_param_bak);
+    TensorCopy(dev_ctx, master_param.get(), false, &t_param_bak);
+  } else {
+    dev_ctx.template Alloc<T>(&t_param_bak);
+    TensorCopy(dev_ctx, param, false, &t_param_bak);
+  }
+
+  // do adam, then decay
   custom_kernel::AdamKernel<T, Context>(dev_ctx,
                                         param,
                                         grad,
@@ -282,6 +341,42 @@ void AdamWKernel(const Context& dev_ctx,
                                         beta1_pow_out,
                                         beta2_pow_out,
                                         master_param_outs);
+  if (!skip_update_ && with_decay) {
+    MLUCnnlTensorDesc lr_desc(t_lr);
+    MLUCnnlTensorDesc param_desc(t_param_bak);
+    MLUCnnlOpTensorDesc mul_op_desc(
+        CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+
+    if (multi_precision) {
+      MLUCnnlTensorDesc out_desc(*master_param_outs);
+      MLUCnnl::OpTensor(dev_ctx,
+                        mul_op_desc.get(),
+                        param_desc.get(),
+                        GetBasePtr(&t_param_bak),
+                        lr_desc.get(),
+                        GetBasePtr(&t_lr),
+                        out_desc.get(),
+                        const_cast<void*>(GetBasePtr(master_param_outs)),
+                        ToCnnlDataType<T>(),
+                        /*alpha1*/ -1.f,
+                        /*alpha2*/ coeff,
+                        /*beta*/ 1.f);
+    } else {
+      MLUCnnlTensorDesc out_desc(*param_out);
+      MLUCnnl::OpTensor(dev_ctx,
+                        mul_op_desc.get(),
+                        param_desc.get(),
+                        GetBasePtr(&t_param_bak),
+                        lr_desc.get(),
+                        GetBasePtr(&t_lr),
+                        out_desc.get(),
+                        const_cast<void*>(GetBasePtr(param_out)),
+                        ToCnnlDataType<T>(),
+                        /*alpha1*/ -1.f,
+                        /*alpha2*/ coeff,
+                        /*beta*/ 1.f);
+    }
+  }
 }
 
 template <typename T, typename Context>
@@ -307,14 +402,14 @@ void MergedAdamKernel(
     std::vector<phi::DenseTensor*> beta2_pow_out,
     std::vector<phi::DenseTensor*> master_param_out) {
   size_t param_num = param.size();
-  PADDLE_ENFORCE_EQ(
-      param_num,
-      grad.size(),
-      phi::errors::InvalidArgument("The size of Input(grad) must be equal to "
-                              "Input(param), but got the size of Input(grad) "
-                              "is %d, the size of Input(param) is %d.",
-                              grad.size(),
-                              param_num));
+  PADDLE_ENFORCE_EQ(param_num,
+                    grad.size(),
+                    phi::errors::InvalidArgument(
+                        "The size of Input(grad) must be equal to "
+                        "Input(param), but got the size of Input(grad) "
+                        "is %d, the size of Input(param) is %d.",
+                        grad.size(),
+                        param_num));
   PADDLE_ENFORCE_EQ(
       param_num,
       learning_rate.size(),
@@ -362,7 +457,7 @@ void MergedAdamKernel(
   const phi::DenseTensor* beta1_tensor = nullptr;
   const phi::DenseTensor* beta2_tensor = nullptr;
   const phi::DenseTensor* epsilon_tensor = nullptr;
-  
+
   phi::DenseTensor beta1_tmp;
   phi::DenseTensor beta2_tmp;
   phi::DenseTensor epsilon_tmp;
@@ -391,40 +486,44 @@ void MergedAdamKernel(
     *param_out[idx] = *param[idx];
     *moment1_out[idx] = *moment1[idx];
     *moment2_out[idx] = *moment2[idx];
-    
-    phi::DenseTensor* beta1_pow_tensor = const_cast<phi::DenseTensor*>(beta1_pow[idx]);
-    phi::DenseTensor* beta2_pow_tensor = const_cast<phi::DenseTensor*>(beta2_pow[idx]);
+
+    phi::DenseTensor* beta1_pow_tensor =
+        const_cast<phi::DenseTensor*>(beta1_pow[idx]);
+    phi::DenseTensor* beta2_pow_tensor =
+        const_cast<phi::DenseTensor*>(beta2_pow[idx]);
     phi::DenseTensor beta1_pow_tmp;
     phi::DenseTensor beta2_pow_tmp;
     if (beta1_pow_tensor->place().GetType() == phi::AllocationType::CPU) {
       T beta1_pow_ = *beta1_pow_tensor->data<T>();
+      beta1_pow_tmp.Resize({1});
       dev_ctx.template Alloc<T>(&beta1_pow_tmp);
       FillMLUTensorWithHostValue(dev_ctx, beta1_pow_, &beta1_pow_tmp);
       beta1_pow_tensor = &beta1_pow_tmp;
     }
     if (beta2_pow_tensor->place().GetType() == phi::AllocationType::CPU) {
-      T beta2_pow_ = *beta1_pow_tensor->data<T>();
+      T beta2_pow_ = *beta2_pow_tensor->data<T>();
+      beta2_pow_tmp.Resize({1});
       dev_ctx.template Alloc<T>(&beta2_pow_tmp);
       FillMLUTensorWithHostValue(dev_ctx, beta2_pow_, &beta2_pow_tmp);
-      beta1_pow_tensor = &beta2_pow_tmp;
+      beta2_pow_tensor = &beta2_pow_tmp;
     }
 
     VLOG(3) << "beta1_pow_tensor.numel() : " << beta1_pow_tensor->numel()
             << "beta2_pow_tensor.numel() : " << beta2_pow_tensor->numel();
     VLOG(3) << "param.numel(): " << param[idx]->numel();
     PADDLE_ENFORCE_EQ(beta1_pow_out[idx]->numel(),
-                    1,
-                    phi::errors::InvalidArgument(
-                        "beta1 pow output size should be 1, but received "
-                        "value is:%d.",
-                        beta1_pow_out[idx]->numel()));
+                      1,
+                      phi::errors::InvalidArgument(
+                          "beta1 pow output size should be 1, but received "
+                          "value is:%d.",
+                          beta1_pow_out[idx]->numel()));
 
     PADDLE_ENFORCE_EQ(beta2_pow_out[idx]->numel(),
-                    1,
-                    phi::errors::InvalidArgument(
-                        "beta2 pow output size should be 1, but received "
-                        "value is:%d.",
-                        beta2_pow_out[idx]->numel()));
+                      1,
+                      phi::errors::InvalidArgument(
+                          "beta2 pow output size should be 1, but received "
+                          "value is:%d.",
+                          beta2_pow_out[idx]->numel()));
     MLUCnnlTensorDesc param_desc(*param[idx]);
     MLUCnnlTensorDesc mom1_desc(*moment1[idx]);
     MLUCnnlTensorDesc mom2_desc(*moment2[idx]);
@@ -448,11 +547,11 @@ void MergedAdamKernel(
     if (!use_global_beta_pow) {
       dev_ctx.template Alloc<T>(beta1_pow_out[idx]);
       dev_ctx.template Alloc<T>(beta2_pow_out[idx]);
-  
+
       MLUCnnlTensorDesc beta1_desc(*beta1_tensor);
       MLUCnnlOpTensorDesc mul_op_desc(
           CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
-  
+
       MLUCnnl::OpTensor(dev_ctx,
                         mul_op_desc.get(),
                         beta1_desc.get(),
@@ -462,7 +561,7 @@ void MergedAdamKernel(
                         beta1_desc.get(),
                         GetBasePtr(beta1_pow_out[idx]),
                         ToCnnlDataType<T>());
-  
+
       MLUCnnl::OpTensor(dev_ctx,
                         mul_op_desc.get(),
                         beta1_desc.get(),
@@ -479,7 +578,7 @@ void MergedAdamKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(adam,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AdamKernel,
                           phi::dtype::float16,
@@ -488,10 +587,19 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+  }
+  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AdamWKernel,
                           phi::dtype::float16,
@@ -500,11 +608,20 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+  }
+  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(merged_adam,
-                   CustomMLU,
-                   ALL_LAYOUT,
-                   custom_kernel::MergedAdamKernel,
-                   phi::dtype::float16,
-                   float) {}
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::MergedAdamKernel,
+                          phi::dtype::float16,
+                          float) {}

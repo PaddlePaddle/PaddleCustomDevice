@@ -1,133 +1,158 @@
-# 飞桨自定义接入硬件后端(昇腾NPU)
+# PaddlePaddle Custom Device Implementation for Ascend NPU
 
-简体中文 | [English](./README.md)
+English | [简体中文](./README_cn.md)
 
-请参考以下步骤进行硬件后端(昇腾NPU)的编译安装与验证
+Please refer to the following steps to compile, install and verify the custom device implementation for Ascend NPU.
 
-## 环境准备与源码同步
+## Prepare environment and source code
+
+> Note: [CANN 6.0.1](https://www.hiascend.com/software/cann/community-history?id=6.0.1.alpha001) is supported.
 
 ```bash
-# 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
-#    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann600-aarch64-gcc82
+# 1. pull PaddlePaddle Ascend NPU development docker image
+# dockerfile of the image is in tools/dockerfile directory
+docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
 
-# 2) 参考如下命令启动容器，如果是 aarch64 环境，则相应替换为 aarch64 镜像即可
-docker run -it --name paddle-dev-cann600 -v `pwd`:/workspace \
+# 2. refer to the following commands to start docker container
+docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        --workdir=/workspace --pids-limit 409600 \
        --privileged --network=host --shm-size=128G \
        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
        -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann600-x86_64-gcc82 /bin/bash
+       registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-$(uname -m)-gcc82 /bin/bash
 
-# 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
-git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
+# 3. clone the source code
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4) 请执行以下命令，以保证 checkout 最新的 PaddlePaddle 主框架源码
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
-## PaddlePaddle 训练安装与运行
+## PaddlePaddle Installation and Verification
 
-### 训练编译安装
+> Note: PaddlePaddle Python WHL package supports both training and inference, while ONLY PaddleInference Python API is supported. Please refer to next section if PaddleInference C++ API is needed.
+
+### Source Code Compile
 
 ```bash
-# 1) 进入硬件后端(昇腾NPU)目录
+# 1. go to ascend npu directory
 cd backends/npu
 
-# 2) 编译之前需要先保证环境下装有飞桨安装包，可以直接安装 CPU 版本
-# 注意：如果是 aarch64 环境，需要源码编译得到 Paddle CPU 的 WHL 安装包
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+# 2. please ensure the PaddlePaddle cpu whl package is already installed
+# the development docker image NOT have PaddlePaddle cpu whl installed by default
+# you may download and install the nightly built cpu whl package with links below
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-linux_aarch64.whl
 
-# 3) 编译选项，是否打开单元测试编译，默认值为 ON
+# 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
 
-# 4) 执行编译脚本
+# 4. execute compile script - submodules will be synced on demand when compile
 bash tools/compile.sh
 
-# 5) 编译产出在 build/dist 路径下，使用 pip 安装
+# 5. install the generated whl package, which is under build/dist directory
 pip install build/dist/paddle_custom_npu*.whl
 ```
 
-### 训练功能验证
+## Verification
 
 ```bash
-# 1) 列出可用硬件后端
+# 1. list available custom backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-# 预期得到如下输出结果
+# expected output
 ['npu']
 
-# 2) 运行简单模型训练任务
-python tests/test_MNIST_model.py
-# 预期得到如下输出结果
+# 2. check installed custom npu version
+python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
+# expected output
+version: 0.0.0
+commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
+cann: 6.0.1
+
+# 3. demo for training, evaluation and inference
+python tests/test_LeNet_MNIST.py
+# expected output - training
+Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44
+Epoch [1/2], Iter [02/14], reader_cost: 1.13547 s, batch_cost: 7.23942 s, ips: 565.79091 samples/s, eta: 0:03:15
 ... ...
-Epoch 0 step 0, Loss = [2.3313463], Accuracy = 0.046875
-Epoch 0 step 100, Loss = [1.9624571], Accuracy = 0.484375
-Epoch 0 step 200, Loss = [2.002725], Accuracy = 0.453125
-Epoch 0 step 300, Loss = [1.912869], Accuracy = 0.546875
-Epoch 0 step 400, Loss = [1.9169667], Accuracy = 0.5625
-Epoch 0 step 500, Loss = [1.9007692], Accuracy = 0.5625
-Epoch 0 step 600, Loss = [1.8512673], Accuracy = 0.625
-Epoch 0 step 700, Loss = [1.8759218], Accuracy = 0.59375
-Epoch 0 step 800, Loss = [1.8942316], Accuracy = 0.5625
-Epoch 0 step 900, Loss = [1.8966292], Accuracy = 0.5625
+Epoch [2/2], Iter [10/14], reader_cost: 0.24073 s, batch_cost: 0.26355 s, ips: 15541.84990 samples/s, eta: 0:00:01
+Epoch [2/2], Iter [11/14], reader_cost: 0.21886 s, batch_cost: 0.24141 s, ips: 16967.21446 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [12/14], reader_cost: 0.20063 s, batch_cost: 0.22291 s, ips: 18374.78776 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [13/14], reader_cost: 0.18521 s, batch_cost: 0.20728 s, ips: 19760.84536 samples/s, eta: 0:00:00
+Epoch [2/2], Iter [14/14], reader_cost: 0.17199 s, batch_cost: 0.19436 s, ips: 21074.31905 samples/s, eta: 0:00:00
+Epoch ID: 2, Epoch time: 3.68077 s, reader_cost: 2.40789 s, batch_cost: 2.72104 s, avg ips: 15579.36234 samples/s
+Eval - Epoch ID: 2, Top1 accurary:: 0.86450, Top5 accurary:: 0.99023
+# expected output - inference
+I0418 16:45:47.717545 85550 interpretercore.cc:267] New Executor is Running.
+I0418 16:45:47.788849 85550 analysis_predictor.cc:1414] CustomDevice is enabled
+--- Running analysis [ir_graph_build_pass]
+I0418 16:45:47.790328 85550 executor.cc:186] Old Executor is Running.
+--- Running analysis [ir_analysis_pass]
+I0418 16:45:47.792423 85550 ir_analysis_pass.cc:53] argument has no fuse statis
+--- Running analysis [ir_params_sync_among_devices_pass]
+I0418 16:45:47.792572 85550 ir_params_sync_among_devices_pass.cc:142] Sync params from CPU to CustomDevicenpu/0
+--- Running analysis [adjust_cudnn_workspace_size_pass]
+--- Running analysis [inference_op_replace_pass]
+--- Running analysis [ir_graph_to_program_pass]
+I0418 16:45:47.880336 85550 analysis_predictor.cc:1565] ======= optimize end =======
+I0418 16:45:47.880510 85550 naive_executor.cc:151] ---  skip [feed], feed -> inputs
+I0418 16:45:47.881462 85550 naive_executor.cc:151] ---  skip [linear_5.tmp_1], fetch -> fetch
+Output data size is 10
+Output data shape is (1, 10)
 ```
 
-## PaddleInference 推理安装与运行
+## PaddleInference C++ Installation and Verification
 
-### PaddleInference C++ 预测库编译
+### PaddleInference C++ Source Compile
 
-> 注意：飞桨官网发布的 PaddleInference C++ 预测库中默认不含有 CustomDevice 功能支持，因此这里我们需要重新编译得到 PaddleInference C++ 预测库。
+> Note: the official released PaddleInference C++ package do not support custom device, please follow the steps below to source compile PaddleInference C++ package.
 
 ```bash
-# 1) 进入 PaddlePaddle 主框架源码目录
+# 1. got to Paddle source code directory
 cd PaddleCustomDevice/Paddle
 
-# 2) 创建编译目录
+# 2. prepare build directory
 mkdir build && cd build
 
-# 3.1) X86-64 环境下的编译命令 - 编译 CPU 版本即可
+# 3.1 build command for X86_64
 cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_XBYAK=OFF -DWITH_ARM=OFF
 make -j8
 
-# 3.2) Aarch64 环境下的编译命令 - 编译 CPU 版本即可
+# 3.2 build command for aarch64
 cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_XBYAK=OFF -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
-# 4) 生成的 PaddleInference C++ 预测库即为 build/paddle_inference_install_dir 目录
+# 4) PaddleInference C++ package will be generated into build/paddle_inference_install_dir directory
 ```
 
-### 推理编译安装
-
+### Ascend NPU Inference Source Compile
 ```bash
-# 1) 进入硬件后端(昇腾NPU)目录
+# 1. go to ascend npu directory
 cd backends/npu
 
-# 2) 编译选项，PADDLE_INFERENCE_LIB_DIR 为上一步编译得到的 C++ 预测库的地址
-export ON_INFER=ON # 是否打开推理库编译，默认为 OFF
+# 2. compile options, the PADDLE_INFERENCE_LIB_DIR is the path of Paddle Inference C++ package
+# generated in the previous step, i.e. build/paddle_inference_install_dir directory
+export ON_INFER=ON # whether to enable C++ inference, default is OFF
 export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_dir
 
-# 4) 执行编译脚本
+# 3. execute compile script
 bash tools/compile.sh
 
-# 5) 编译产出为 build 目录下的 libpaddle-custom-npu.so 文件，指定插件路径到库文件目录下
+# 4. Specify CUSTOM_DEVICE_ROOT to the folder of libpaddle-custom-npu.so
 export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
 ```
 
-### 推理功能验证
+### Ascend NPU Inference Verification
 
 ```bash
-# 1) 下载 Paddle-Inference-Demo 代码
+# 1. clone Paddle-Inference-Demo source code
 git clone https://github.com/PaddlePaddle/Paddle-Inference-Demo.git
 
-# 2) 拷贝源码编译生成的 C++ 预测库到 Paddle-Inference-Demo/c++/lib 目录下
+# 2. Copy the PaddleInference C++ package to Paddle-Inference-Demo/c++/lib
 cp -r PaddleCustomDevice/Paddle/build/paddle_inference_install_dir Paddle-Inference-Demo/c++/lib/paddle_inference
-# 拷贝完成之后 Paddle-Inference-Demo/c++/lib 目录结构如下
+# directory structure of Paddle-Inference-Demo/c++/lib as following after copy
 Paddle-Inference-Demo/c++/lib/
 ├── CMakeLists.txt
 └── paddle_inference
@@ -136,24 +161,24 @@ Paddle-Inference-Demo/c++/lib/
     ├── third_party
     └── version.txt
 
-# 3) 进入 C++ 示例代码目录，下载推理模型
+# 3. go to resnet50 demo directory, and download inference model
 cd Paddle-Inference-Demo/c++/cpu/resnet50/
 wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
 tar xzf resnet50.tgz
 
-# 4) 修改 resnet50_test.cc，使用 config.EnableCustomDevice("npu", 0) 接口替换 config.EnableUseGpu(100, 0)
+# 4. Modify resnet50_test.cc, use config.EnableCustomDevice("npu", 0) to replace config.EnableUseGpu(100, 0)
 
-# 5) 修改 compile.sh 编译文件，需根据 C++ 预测库的 version.txt 信息对以下的几处内容进行修改
-WITH_MKL=ON  # 如果是 Aarch 环境，请设置为 OFF
+# 5. Modify compile.sh based on the version.txt in PaddleInfernce C++ package
+WITH_MKL=ON  # Turn OFF if aarch64
 WITH_GPU=OFF
-WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
+WITH_ARM=OFF # Turn ON if aarch64
 
-# 6) 执行编译，编译完成之后在 build 下生成 resnet50_test 可执行文件
+# 6. execute compile script, and executable binary resnet50_test will be generated into build directory
 ./compile.sh
 
-# 7) 运行 C++ 预测程序
+# 7. execute inference test
 ./build/resnet50_test --model_file resnet50/inference.pdmodel --params_file resnet50/inference.pdiparams
-# 预期得到如下输出结果
+# expected output
 # I0525 11:07:28.354579 40116 resnet50_test.cc:76] run avg time is 713.049 ms
 # I0525 11:07:28.354732 40116 resnet50_test.cc:113] 0 : 8.76171e-29
 # I0525 11:07:28.354772 40116 resnet50_test.cc:113] 100 : 8.76171e-29
@@ -161,3 +186,16 @@ WITH_ARM=OFF # 如果是 Aarch 环境，请设置为 ON
 # I0525 11:07:28.354880 40116 resnet50_test.cc:113] 800 : 3.85244e-25
 # I0525 11:07:28.354895 40116 resnet50_test.cc:113] 900 : 8.76171e-29
 ```
+
+## Environment Variables
+
+
+| Subject     | Variable Name       | Type   | Description    | Default Value |
+| -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
+| Debug     | CUSTOM_DEVICE_BLACK_LIST| String | Ops in back list will fallbacks to CPU  |  ""  |
+| Debug     | FLAGS_npu_check_nan_inf | Bool   | check nan or inf of all npu kernels | False                                                       |
+| Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu kernels | False                                                     |
+| Profiling | FLAGS_npu_profiling_dir | String |   ACL profiling output dir     | "ascend_profiling"                                           |
+| Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
+| Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |
+| Performance | FLAGS_npu_storage_format         | Bool   | enable Conv/BN acceleration | False                                                        |

@@ -12,22 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/kernels/transpose_kernel.h"
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void NPUIdentityKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const int format,
+                       phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const std::vector<int>& axis,
                      phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
+  phi::DenseTensor x_tmp;
+  // TODO(songkai05): CANN does not support trans from NC1HWC0 to ND between
+  // Transpose_in_0 and Transpose, so we trans NC1HWC0 to its original format
+  // first temporarily.
+  if (x.storage_properties_initialized()) {
+    phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+    x_tmp.set_meta(meta);
+    custom_kernel::NPUIdentityKernel<T, Context>(
+        dev_ctx, x, ConvertToNpuFormat(x.layout()), &x_tmp);
+  } else {
+    x_tmp = x;
+  }
 
+  dev_ctx.template Alloc<T>(out);
+
+  if (axis.size() == 0) {
+    phi::Copy<Context>(dev_ctx, x, dev_ctx.GetPlace(), false, out);
+    return;
+  }
+
+  auto stream = dev_ctx.stream();
   NpuOpRunner runner;
   runner.SetType("Transpose")
-      .AddInput(x)
+      .AddInput(x_tmp)
       .AddInput(dev_ctx, std::move(axis))
       .AddOutput(*out);
   runner.Run(stream);
@@ -40,6 +66,11 @@ void TransposeGradKernel(const Context& dev_ctx,
                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
+
+  if (axis.size() == 0) {
+    phi::Copy<Context>(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
+    return;
+  }
 
   std::vector<int> reversed_axis(axis);
   for (size_t i = 0; i < axis.size(); i++) {
@@ -64,7 +95,8 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           uint8_t,
                           int8_t,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
                           npu,
@@ -75,4 +107,5 @@ PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
                           uint8_t,
                           int8_t,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16) {}

@@ -26,31 +26,34 @@ paddle.enable_static()
 
 
 def check_randperm_out(n, data_np):
-    assert isinstance(data_np, np.ndarray), \
-        "The input data_np should be np.ndarray."
+    assert isinstance(data_np, np.ndarray), "The input data_np should be np.ndarray."
     gt_sorted = np.arange(n)
     out_sorted = np.sort(data_np)
     return list(gt_sorted == out_sorted)
 
 
 def error_msg(data_np):
-    return "The sorted ground truth and sorted out should " + \
- "be equal, out = " + str(data_np)
+    return (
+        "The sorted ground truth and sorted out should "
+        + "be equal, out = "
+        + str(data_np)
+    )
 
 
 def convert_dtype(dtype_str):
     dtype_str_list = ["int32", "int64", "float32", "float64"]
     dtype_num_list = [
-        core.VarDesc.VarType.INT32, core.VarDesc.VarType.INT64,
-        core.VarDesc.VarType.FP32, core.VarDesc.VarType.FP64
+        core.VarDesc.VarType.INT32,
+        core.VarDesc.VarType.INT64,
+        core.VarDesc.VarType.FP32,
+        core.VarDesc.VarType.FP64,
     ]
-    assert dtype_str in dtype_str_list, dtype_str + \
-        " should in " + str(dtype_str_list)
+    assert dtype_str in dtype_str_list, dtype_str + " should in " + str(dtype_str_list)
     return dtype_num_list[dtype_str_list.index(dtype_str)]
 
 
 class TestRandpermOp(OpTest):
-    """ Test randperm op."""
+    """Test randperm op."""
 
     def setUp(self):
         self.set_npu()
@@ -70,7 +73,7 @@ class TestRandpermOp(OpTest):
         self.__class__.use_custom_device = True
 
     def _get_places(self):
-        return [paddle.CustomPlace('npu', 0)]
+        return [paddle.CustomPlace("npu", 0)]
 
     def init_attrs(self):
         pass
@@ -80,8 +83,7 @@ class TestRandpermOp(OpTest):
 
     def verify_output(self, outs):
         out_np = np.array(outs[0])
-        self.assertTrue(
-            check_randperm_out(self.n, out_np), msg=error_msg(out_np))
+        self.assertTrue(check_randperm_out(self.n, out_np), msg=error_msg(out_np))
 
 
 class TestRandpermOpN(TestRandpermOp):
@@ -108,16 +110,16 @@ class TestRandpermOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             self.assertRaises(ValueError, paddle.randperm, -3)
-            self.assertRaises(TypeError, paddle.randperm, 10, 'int8')
+            self.assertRaises(TypeError, paddle.randperm, 10, "int8")
 
 
 class TestRandpermAPI(unittest.TestCase):
     def test_out(self):
         n = 10
-        place = paddle.CustomPlace('npu', 0)
+        place = paddle.CustomPlace("npu", 0)
         with program_guard(Program(), Program()):
             x1 = paddle.randperm(n)
-            x2 = paddle.randperm(n, 'float32')
+            x2 = paddle.randperm(n, "float32")
 
             exe = paddle.static.Executor(place)
             res = exe.run(fetch_list=[x1, x2])
@@ -130,13 +132,12 @@ class TestRandpermAPI(unittest.TestCase):
 
 class TestRandpermImperative(unittest.TestCase):
     def test_out(self):
-        paddle.disable_static(paddle.CustomPlace('npu', 0))
+        paddle.disable_static(paddle.CustomPlace("npu", 0))
         n = 10
-        for dtype in ['int32', np.int64, 'float32', 'float64']:
+        for dtype in ["int32", np.int64, "float32", "float64"]:
             data_p = paddle.randperm(n, dtype)
             data_np = data_p.numpy()
-            self.assertTrue(
-                check_randperm_out(n, data_np), msg=error_msg(data_np))
+            self.assertTrue(check_randperm_out(n, data_np), msg=error_msg(data_np))
         paddle.enable_static()
 
 

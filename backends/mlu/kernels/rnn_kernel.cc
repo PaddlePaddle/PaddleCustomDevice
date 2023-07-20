@@ -87,9 +87,36 @@ void RnnKernel(const Context& dev_ctx,
   if (sequence_length.is_initialized()) {  // set seq_len if no padding,
                                            // otherwise seq_len for
                                            // each element.
-    custom_kernel::TensorToVector(
-        dev_ctx, *sequence_length, dev_ctx, &seq_len_vec);
+    Tensor tseq_len, seq_len_int32;
+    tseq_len = *sequence_length.get_ptr();
+    seq_len_int32.Resize(tseq_len.dims());
+    if (tseq_len.dtype() == DataType::INT32) {
+      seq_len_int32 = tseq_len;
+    } else {
+      // do cast for cnnl usage
+      dev_ctx.template Alloc<int32_t>(&seq_len_int32);
+      MLUCnnlTensorDesc seq_len_desc(tseq_len);
+      MLUCnnlTensorDesc seq_len_int32_desc(seq_len_int32);
+      cnnlCastDataType_t cast_type =
+          GetCastDataType(tseq_len.dtype(), DataType::INT32);
+      MLUCnnl::Cast(dev_ctx,
+                    cast_type,
+                    seq_len_desc.get(),
+                    GetBasePtr(&tseq_len),
+                    seq_len_int32_desc.get(),
+                    GetBasePtr(&seq_len_int32));
+    }
+
+    // copy int32 seq_len to cpu vector
+    dev_ctx.Wait();
+    TensorToVector<int>(dev_ctx, seq_len_int32, dev_ctx, &seq_len_vec);
   }
+
+  dropout_state->Resize(out->dims());
+  dev_ctx.template Alloc<T>(dropout_state);
+  FillMLUTensorWithHostValue<uint8_t>(
+      dev_ctx, static_cast<uint8_t>(1), dropout_state);
+
   cnnlDirectionMode_t direction =
       is_bidirec ? CNNL_RNN_BIDIRECTIONAL : CNNL_RNN_UNIDIRECTIONAL;
 
@@ -172,9 +199,8 @@ void RnnKernel(const Context& dev_ctx,
       GetHandleFromCTX(dev_ctx), rnn_desc.get(), &weightspace_size));
 
   weightspace.Resize({static_cast<int64_t>(weightspace_size)});
-  dev_ctx.template Alloc<T>(&weightspace);
-
   void* weightspace_ptr = dev_ctx.template Alloc<T>(&weightspace);
+
   auto w_x = parameter_lists[0][0];
   auto w_h = parameter_lists[0][1];
   auto b_x = parameter_lists[0][2];
@@ -188,7 +214,6 @@ void RnnKernel(const Context& dev_ctx,
                   w_h.second + b_x.second;
 
   MemCpyD2D(nullptr, w_x_ptr, w_x.first, w_x.second);
-
   MemCpyD2D(nullptr, w_h_ptr, w_h.first, w_h.second);
   MemCpyD2D(nullptr, b_x_ptr, b_x.first, b_x.second);
   MemCpyD2D(nullptr, b_h_ptr, b_h.first, b_h.second);
@@ -225,8 +250,15 @@ void RnnKernel(const Context& dev_ctx,
   int gate_num = 4;
   int hidden_data_idx = (num_layers - 1);
   hidden_data_idx += (gate_num + 1) * num_layers;
-  const int& block_size = direction_num * seq_len * batch_size * hidden_size;
-  reserve->Resize({hidden_data_idx, block_size});
+  size_t workspace_size, reservespace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetRNNTempSizes(GetHandleFromCTX(dev_ctx),
+                                                 rnn_desc.get(),
+                                                 input_seq_data_desc.get(),
+                                                 &workspace_size,
+                                                 &reservespace_size));
+  reserve->Resize({hidden_data_idx,
+                   static_cast<int64_t>(reservespace_size) /
+                       (sizeof(T) * hidden_data_idx)});
 
   dev_ctx.template Alloc<T>(reserve);
 
@@ -416,8 +448,29 @@ void RnnGradKernel(const Context& dev_ctx,
 
   std::vector<int> seq_len_vec(batch_size, seq_len);
   if (sequence_length.is_initialized()) {
-    custom_kernel::TensorToVector(
-        dev_ctx, *sequence_length, dev_ctx, &seq_len_vec);
+    Tensor tseq_len, seq_len_int32;
+    tseq_len = *sequence_length.get_ptr();
+    seq_len_int32.Resize(tseq_len.dims());
+    if (tseq_len.dtype() == DataType::INT32) {
+      seq_len_int32 = tseq_len;
+    } else {
+      // do cast for cnnl usage
+      dev_ctx.template Alloc<int32_t>(&seq_len_int32);
+      MLUCnnlTensorDesc seq_len_desc(tseq_len);
+      MLUCnnlTensorDesc seq_len_int32_desc(seq_len_int32);
+      cnnlCastDataType_t cast_type =
+          GetCastDataType(tseq_len.dtype(), DataType::INT32);
+      MLUCnnl::Cast(dev_ctx,
+                    cast_type,
+                    seq_len_desc.get(),
+                    GetBasePtr(&tseq_len),
+                    seq_len_int32_desc.get(),
+                    GetBasePtr(&seq_len_int32));
+    }
+
+    // copy int32 seq_len to cpu vector
+    dev_ctx.Wait();
+    TensorToVector<int>(dev_ctx, seq_len_int32, dev_ctx, &seq_len_vec);
   }
   cnnlDirectionMode_t direction =
       is_bidirec ? CNNL_RNN_BIDIRECTIONAL : CNNL_RNN_UNIDIRECTIONAL;
@@ -593,7 +646,9 @@ void RnnGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn, CustomMLU, ALL_LAYOUT, custom_kernel::RnnKernel, float) {}
+    rnn, mlu, ALL_LAYOUT, custom_kernel::RnnKernel, float) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rnn_grad, CustomMLU, ALL_LAYOUT, custom_kernel::RnnGradKernel, float) {}
+    rnn_grad, mlu, ALL_LAYOUT, custom_kernel::RnnGradKernel, float) {}

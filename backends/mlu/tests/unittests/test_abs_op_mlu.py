@@ -17,9 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-from paddle.fluid import compiler, Program, program_guard
 import paddle
-import paddle.nn.functional as F
 
 paddle.enable_static()
 np.random.seed(10)
@@ -29,7 +27,7 @@ class TestAbs(OpTest):
     def setUp(self):
         self.op_type = "abs"
         self.set_mlu()
-        self.dtype = 'float32'
+        self.dtype = "float32"
         self.shape = [4, 25]
 
         np.random.seed(1024)
@@ -41,26 +39,25 @@ class TestAbs(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = np.abs(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], ['Out'], check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], ["Out"])
 
 
 class TestAbsHalf(OpTest):
     def setUp(self):
         self.op_type = "abs"
         self.set_mlu()
-        self.dtype = 'float16'
+        self.dtype = "float16"
         self.shape = [7, 9, 13, 19]
 
         np.random.seed(1024)
@@ -72,19 +69,18 @@ class TestAbsHalf(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = np.abs(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ['X'], ['Out'], check_eager=False)
+        self.check_grad_with_place(self.place, ["X"], ["Out"])
 
 
 if __name__ == "__main__":

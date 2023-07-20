@@ -26,7 +26,7 @@ paddle.enable_static()
 class TestGaussianRandomOp(OpTest):
     def setUp(self):
         self.op_type = "gaussian_random"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.set_attrs()
         self.inputs = {}
@@ -38,11 +38,11 @@ class TestGaussianRandomOp(OpTest):
         }
         paddle.seed(10)
 
-        self.outputs = {'Out': np.zeros((123, 92), dtype='float32')}
+        self.outputs = {"Out": np.zeros((123, 92), dtype="float32")}
 
     def set_attrs(self):
         self.mean = 1.0
-        self.std = 2.
+        self.std = 2.0
 
     def test_check_output(self):
         self.check_output_with_place_customized(self.verify_output, self.place)

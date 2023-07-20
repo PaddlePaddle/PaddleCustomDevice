@@ -16,20 +16,105 @@
 
 #include <cstring>
 #include <iostream>
+#include <list>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "glog/logging.h"
+#include "runtime/flags.h"
+
+FLAGS_DEFINE_string(npu_profiling_dir,
+                    "ascend_profiling",
+                    "ACL profiling output dir");
+FLAGS_DEFINE_uint64(npu_profiling_dtypes,
+                    ACL_PROF_ACL_API | ACL_PROF_TASK_TIME |
+                        ACL_PROF_AICORE_METRICS | ACL_PROF_AICPU |
+                        ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API,
+                    "ACL datatypes to profile");
+FLAGS_DEFINE_uint64(npu_profiling_metrics,
+                    static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION),
+                    "AI Core metric to profile");
+
+thread_local int g_current_device_id(-1);
+
+aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  return aicpu_streams[aicore_stream];
+}
+
+void SecondaryStream::Create(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) == aicpu_streams.cend());
+  aclrtStream aicpu_stream;
+  ACL_CHECK(aclrtCreateStream(&aicpu_stream));
+  aicpu_streams[aicore_stream] = aicpu_stream;
+}
+
+void SecondaryStream::Destroy(aclrtStream aicore_stream) {
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  ACL_CHECK(aclrtDestroyStream(aicpu_streams[aicore_stream]));
+  aicpu_streams.erase(aicore_stream);
+}
+
+void SecondaryStream::RecordBefore(aclrtStream aicore_stream) {
+  static std::list<aclrtEvent> events;
+
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  auto aicpu_stream = aicpu_streams[aicore_stream];
+
+  for (auto iter = events.begin(); iter != events.end();) {
+    auto event = *iter;
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+      iter = events.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+  {
+    aclrtEvent event;
+    ACL_CHECK(aclrtCreateEvent(&event));
+    ACL_CHECK(aclrtRecordEvent(event, aicpu_stream));
+    ACL_CHECK(aclrtStreamWaitEvent(aicore_stream, event));
+    events.push_back(event);
+  }
+}
+
+void SecondaryStream::RecordAfter(aclrtStream aicore_stream) {
+  static std::list<aclrtEvent> events;
+
+  RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  auto aicpu_stream = aicpu_streams[aicore_stream];
+
+  for (auto iter = events.begin(); iter != events.end();) {
+    auto event = *iter;
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+      iter = events.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+  {
+    aclrtEvent event;
+    ACL_CHECK(aclrtCreateEvent(&event));
+    ACL_CHECK(aclrtRecordEvent(event, aicore_stream));
+    ACL_CHECK(aclrtStreamWaitEvent(aicpu_stream, event));
+    events.push_back(event);
+  }
+}
 
 class AlignnedAllocator {
  public:
   void *Alloc(size_t size, size_t align) {
     std::lock_guard<std::mutex> lock(mtx_);
     ProcessEvents();
-    void *p = nullptr;
-    ACL_CHECK(aclrtMallocHost(&p, size + align));
+    void *p = malloc(size + align);
     void *ret =
         reinterpret_cast<void *>(reinterpret_cast<size_t>(p) + align -
                                  (reinterpret_cast<size_t>(p) & (align - 1)));
@@ -49,9 +134,9 @@ class AlignnedAllocator {
       if (!event) continue;
       ACL_CHECK(aclrtSynchronizeEvent(event));
       void *ptr = it->second.first;
-      ACL_CHECK(aclrtFreeHost(ptr));
+      free(ptr);
       ACL_CHECK(aclrtDestroyEvent(event));
-      recorded_events_.erase(it++);
+      it = recorded_events_.erase(it);
     }
   }
 
@@ -59,13 +144,12 @@ class AlignnedAllocator {
     for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
       aclrtEvent event = it->second.second;
       if (!event) continue;
-      aclrtEventStatus status = ACL_EVENT_STATUS_COMPLETE;
-      ACL_CHECK(aclrtQueryEvent(event, &status));
-
-      if (status == ACL_EVENT_STATUS_COMPLETE) {
+      aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+      ACL_CHECK(aclrtQueryEventStatus(event, &status));
+      if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
         void *ptr = it->second.first;
-        ACL_CHECK(aclrtFreeHost(ptr));
-        recorded_events_.erase(it++);
+        free(ptr);
+        it = recorded_events_.erase(it);
         ACL_CHECK(aclrtDestroyEvent(event));
       } else {
         ++it;
@@ -100,10 +184,17 @@ class AlignnedAllocatorList {
 
 static AlignnedAllocatorList *global_allocator_list = nullptr;
 
+inline void check_uninitialized_thread(int dev_id) {
+  if (g_current_device_id == -1) {
+    g_current_device_id = dev_id;
+    ACL_CHECK(aclrtSetDevice(dev_id));
+  }
+}
+
 inline size_t get_current_device_id() {
-  int dev_id = 0;
-  ACL_CHECK(aclrtGetDevice(&dev_id));
-  return dev_id;
+  check_uninitialized_thread(0);
+  ACL_CHECK(aclrtGetDevice(&g_current_device_id));
+  return g_current_device_id;
 }
 
 inline size_t get_devices_count() {
@@ -130,7 +221,10 @@ C_Status InitDevice(const C_Device device) {
 }
 
 C_Status SetDevice(const C_Device device) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  if (g_current_device_id != device->id) {
+    ACL_CHECK(aclrtSetDevice(device->id));
+    g_current_device_id = device->id;
+  }
   return C_SUCCESS;
 }
 
@@ -145,7 +239,7 @@ C_Status ReleaseDevice(const C_Device device) {
     // global_allocator_list->GetAllocator(device->id)->ClearEvent();
     global_allocator_list->Deinit(device->id);
   }
-  // ACL_CHECK(aclrtResetDevice(device->id));
+  ACL_CHECK(aclrtResetDevice(device->id));
   return C_SUCCESS;
 }
 
@@ -154,7 +248,7 @@ C_Status Finalize() {
     delete global_allocator_list;
     global_allocator_list = nullptr;
   }
-  // ACL_CHECK(aclFinalize());
+  ACL_CHECK(aclFinalize());
   return C_SUCCESS;
 }
 
@@ -233,13 +327,16 @@ C_Status AsyncMemCpyD2H(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  if (device) {
+    check_uninitialized_thread(device->id);
+  }
   ACL_CHECK(aclrtMemcpyAsync(
       dst, size, src, size, ACL_MEMCPY_DEVICE_TO_HOST, (aclrtStream)(stream)));
   return C_SUCCESS;
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   void *data;
   aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
   if (data) {
@@ -252,7 +349,6 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
   void *data = nullptr;
   ACL_CHECK(aclrtMallocHost(&data, size));
   if (data) {
@@ -265,7 +361,7 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
   return C_SUCCESS;
 }
@@ -277,11 +373,13 @@ C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
   ACL_CHECK(aclrtCreateStream(reinterpret_cast<aclrtStream *>(stream)));
+  SecondaryStream::Instance().Create(*reinterpret_cast<aclrtStream *>(stream));
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
   ACL_CHECK(aclrtDestroyStream(reinterpret_cast<aclrtStream>(stream)));
+  SecondaryStream::Instance().Destroy(reinterpret_cast<aclrtStream>(stream));
   return C_SUCCESS;
 }
 
@@ -352,7 +450,9 @@ C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
 
 // CCL
 HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
-  if (dtype == C_DataType::FLOAT32) {
+  if (dtype == C_DataType::FLOAT64) {
+    return HCCL_DATA_TYPE_FP64;
+  } else if (dtype == C_DataType::FLOAT32) {
     return HCCL_DATA_TYPE_FP32;
   } else if (dtype == C_DataType::FLOAT16) {
     return HCCL_DATA_TYPE_FP16;
@@ -362,6 +462,8 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_INT32;
   } else if (dtype == C_DataType::INT8) {
     return HCCL_DATA_TYPE_INT8;
+  } else if (dtype == C_DataType::UINT8) {
+    return HCCL_DATA_TYPE_UINT8;
   } else {
     LOG(ERROR) << "Datatype " << dtype << " in hccl is not supported.";
   }
@@ -453,8 +555,15 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported on ascend npu device.";
-  return C_ERROR;
+  HCCL_CHECK(HcclReduce(send_buf,
+                        recv_buf,
+                        count,
+                        PDDataTypeToHcclDataType(data_type),
+                        PDReduceOpToHcclReduceOp(op),
+                        root,
+                        comm,
+                        stream));
+  return C_SUCCESS;
 }
 
 C_Status XcclAllGather(void *send_buf,
@@ -529,27 +638,24 @@ C_Status XcclRecv(void *recv_buf,
   return C_SUCCESS;
 }
 
-ENV_string(ascend_profiling_dir, "ascend_profiling");
-ENV_uint64(ascend_profiling_data_type,
-           ACL_PROF_ACL_API | ACL_PROF_TASK_TIME | ACL_PROF_AICORE_METRICS |
-               ACL_PROF_AICPU | ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API);
-ENV_uint64(ascend_profiling_metrics,
-           static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION));
-
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
   // NOTE(wangran16):
   // https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/60RC1alpha001/infacldevg/aclcppdevg/aclcppdevg_03_0784.html
+  VLOG(1) << "Init NPU Profiling, FLAGS_npu_profiling_dir: "
+          << FLAGS_npu_profiling_dir
+          << ", FLAGS_npu_profiling_dtypes: " << FLAGS_npu_profiling_dtypes
+          << ", FLAGS_npu_profiling_metrics: " << FLAGS_npu_profiling_metrics;
   std::vector<uint32_t> device_ids(
       {static_cast<uint32_t>(get_current_device_id())});
   AscendProfiler::Instance().update_config(
       device_ids,
-      static_cast<aclprofAicoreMetrics>(FLAGS_ascend_profiling_metrics),
+      static_cast<aclprofAicoreMetrics>(FLAGS_npu_profiling_metrics),
       nullptr,
-      FLAGS_ascend_profiling_data_type);
-  ACL_CHECK(aclprofInit(FLAGS_ascend_profiling_dir.c_str(),
-                        FLAGS_ascend_profiling_dir.size()));
+      FLAGS_npu_profiling_dtypes);
+  ACL_CHECK(aclprofInit(FLAGS_npu_profiling_dir.c_str(),
+                        FLAGS_npu_profiling_dir.size()));
   LOG(INFO) << "ascend profiling data will be saved in "
-            << FLAGS_ascend_profiling_dir;
+            << FLAGS_npu_profiling_dir;
   return C_SUCCESS;
 }
 
@@ -579,20 +685,13 @@ C_Status ProfilerCollectData(C_Profiler prof,
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
-  if (params->size != sizeof(CustomRuntimeParams) &&
-      params->interface->size != sizeof(C_DeviceInterface)) {
-    return;
-  }
-
-  params->device_type = "npu";
-  params->sub_device_type = "Ascend910";
-  params->version.major = PADDLE_CUSTOM_RUNTIME_MAJOR_VERSION;
-  params->version.minor = PADDLE_CUSTOM_RUNTIME_MINOR_VERSION;
-  params->version.patch = PADDLE_CUSTOM_RUNTIME_PATCH_VERSION;
-
+  PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   memset(reinterpret_cast<void *>(params->interface),
          0,
          sizeof(C_DeviceInterface));
+
+  params->device_type = "npu";
+  params->sub_device_type = "Ascend910";
 
   params->interface->initialize = Init;
   params->interface->finalize = Finalize;

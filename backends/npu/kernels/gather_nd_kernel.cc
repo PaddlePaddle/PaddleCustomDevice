@@ -23,11 +23,30 @@ void GatherNdKernel(const Context &dev_ctx,
                     const phi::DenseTensor &index,
                     phi::DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
 
   if (x.numel() == 0) return;
 
   if (index.numel() == 0) {
-    TensorCopy(dev_ctx, x, false, out);
+    int diff = out->dims().size() - x.dims().size();
+    if (diff == 0) {
+      TensorCopy(dev_ctx, x, false, out);
+    } else {
+      std::vector<int64_t> new_dims(diff, 1);
+      for (size_t i = 0; i < x.dims().size(); ++i) {
+        new_dims.emplace_back(x.dims()[i]);
+      }
+
+      phi::DenseTensor x_tmp(x);
+      x_tmp.Resize(phi::make_ddim(new_dims));
+
+      NpuOpRunner runner;
+      runner.SetType("BroadcastTo")
+          .AddInput(x_tmp)
+          .AddInput(dev_ctx, phi::vectorize(out->dims()))
+          .AddOutput(*out);
+      runner.Run(stream);
+    }
     return;
   }
 
@@ -44,7 +63,6 @@ void GatherNdKernel(const Context &dev_ctx,
                                    phi::DataType::INT64));
 
   const auto &runner = NpuOpRunner("GatherNd", {x, index}, {*out}, {});
-  auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
 
@@ -56,11 +74,28 @@ void GatherNdGradKernel(const Context &dev_ctx,
                         phi::DenseTensor *dx) {
   auto x_dims = dx->dims();
   dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
 
   if (dx->numel() == 0) return;
 
   if (index.numel() == 0) {
-    TensorCopy(dev_ctx, dout, false, dx);
+    int diff = dout.dims().size() - x_dims.size();
+    if (diff == 0) {
+      TensorCopy(dev_ctx, dout, false, dx);
+    } else {
+      std::vector<int> axes;
+      for (size_t i = 0; i < diff; ++i) {
+        axes.push_back(i);
+      }
+
+      NpuOpRunner runner;
+      runner.SetType("ReduceSum")
+          .AddInput(dout)
+          .AddInput(dev_ctx, std::move(axes))
+          .AddOutput(*dx)
+          .AddAttr("keep_dims", false);
+      runner.Run(stream);
+    }
     return;
   }
 
@@ -82,7 +117,6 @@ void GatherNdGradKernel(const Context &dev_ctx,
     p_dout = &tmp_tensor2;
   }
 
-  auto stream = dev_ctx.stream();
   FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
   dx->Resize(x_dims);
 

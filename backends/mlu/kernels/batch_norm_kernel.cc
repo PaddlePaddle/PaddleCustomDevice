@@ -24,7 +24,7 @@ void BatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& running_var,
                      const phi::DenseTensor& scale,
                      const phi::DenseTensor& bias,
-                      bool is_test,
+                     bool is_test,
                      float momentum,
                      float epsilon,
                      const std::string& data_layout_str,
@@ -105,8 +105,21 @@ void BatchNormKernel(const Context& dev_ctx,
     transformed_y = *y;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
+
   MLUCnnl::FusedBatchNorm(dev_ctx,
                           !global_stats,
+                          activation_desc.get(),
+                          mode,
+                          bn_ops,
                           transformed_desc.get(),
                           GetBasePtr(&transformed_x),
                           others_input_desc.get(),
@@ -250,11 +263,24 @@ void BatchNormGradKernel(
     transformed_d_x = *d_x;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
+
   if (use_global_stats) {
     const auto* running_mean = mean.get_ptr();
     const auto* running_variance = variance.get_ptr();
     MLUCnnl::FusedBatchNormGrad(dev_ctx,
                                 false /*is_training*/,
+                                activation_desc.get(),
+                                mode,
+                                bn_ops,
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_d_y),
                                 transformed_desc.get(),
@@ -271,6 +297,9 @@ void BatchNormGradKernel(
   } else {
     MLUCnnl::FusedBatchNormGrad(dev_ctx,
                                 true /*is_training*/,
+                                activation_desc.get(),
+                                mode,
+                                bn_ops,
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_d_y),
                                 transformed_desc.get(),
@@ -378,8 +407,21 @@ void BatchNormInferKernel(const Context& dev_ctx,
     transformed_y = *y;
   }
 
+  cnnlActivationMode_t act_mode = CNNL_ACTIVATION_IDENTITY;
+  cnnlBatchNormMode_t mode = CNNL_BATCHNORM_SPATIAL;
+  cnnlBatchNormOps_t bn_ops = CNNL_BATCHNORM_OPS_BN;
+  // coef is a scalar value which is only used when you set mode to
+  // CNNL_ACTIVATION_CLIPPED_RELU, CNNL_ACTIVATION_ELU,
+  // CNNL_ACTIVATION_LEAKYRELU, CNNL_ACTIVATION_TF_LEAKYRELU, or
+  // CNNL_ACTIVATION_CAFFE_RELU6.
+  MLUCnnlActivationDesc activation_desc(
+      act_mode, /*ceof*/ 1.0f, /*sliced_dim*/ -1);
+
   MLUCnnl::FusedBatchNorm(dev_ctx,
                           false /* is_traing */,
+                          activation_desc.get(),
+                          mode,
+                          bn_ops,
                           transformed_desc.get(),
                           GetBasePtr(&transformed_x),
                           others_input_desc.get(),
@@ -414,22 +456,44 @@ void BatchNormInferKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);   // mean
+    kernel->InputAt(2).SetDataType(phi::DataType::FLOAT32);   // variance
+    kernel->InputAt(3).SetDataType(phi::DataType::FLOAT32);   // scale
+    kernel->InputAt(4).SetDataType(phi::DataType::FLOAT32);   // bias
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // variance_out
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);  // saved_mean
+    kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);  // saved_variance
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormGradKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);  // x_grad
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // scale_grad
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // bias_grad
+  }
+}
 
 PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BatchNormInferKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);  // variance_out
+  }
+}

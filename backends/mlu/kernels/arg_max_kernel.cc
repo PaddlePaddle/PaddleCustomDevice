@@ -117,9 +117,11 @@ void ArgMaxKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(arg_max,
-                          CustomMLU,
+PD_REGISTER_PLUGIN_KERNEL(argmax,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

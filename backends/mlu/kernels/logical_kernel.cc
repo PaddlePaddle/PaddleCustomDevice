@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/mlu_funcs.h"
 #include "kernels/funcs/mlu_baseop.h"
+#include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
 template <typename T, typename Context, cnnlLogicOp_t log_method>
@@ -22,11 +22,11 @@ void LogicalBaseMLUKernel(const Context& dev_ctx,
                           const phi::DenseTensor& y,
                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  
+
   MLUCnnlTensorDesc x_desc(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
   MLUCnnlTensorDesc y_desc(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
   MLUCnnlTensorDesc out_desc(*out);
-  
+
   MLUCnnl::Logic(dev_ctx,
                  log_method,
                  x_desc.get(),
@@ -43,10 +43,7 @@ void LogicalNotMLUKernel(const Context& dev_ctx,
                          phi::DenseTensor* out) {
   // LogicalNot only has one input x, set y = x also for cnnl computation
   custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_NOT>(
-        dev_ctx,
-        x,
-        x,
-        out);
+      dev_ctx, x, x, out);
 }
 
 template <typename T, typename Context>
@@ -55,22 +52,16 @@ void LogicalAndMLUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& y,
                          phi::DenseTensor* out) {
   custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_AND>(
-        dev_ctx,
-        x,
-        y,
-        out);
+      dev_ctx, x, y, out);
 }
 
 template <typename T, typename Context>
 void LogicalOrMLUKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
-                         phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out) {
   custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_OR>(
-        dev_ctx,
-        x,
-        y,
-        out);
+      dev_ctx, x, y, out);
 }
 
 template <typename T, typename Context>
@@ -79,15 +70,12 @@ void LogicalXorMLUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& y,
                          phi::DenseTensor* out) {
   custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_XOR>(
-        dev_ctx,
-        x,
-        y,
-        out);
+      dev_ctx, x, y, out);
 }
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(logical_not,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LogicalNotMLUKernel,
                           bool,
@@ -96,10 +84,12 @@ PD_REGISTER_PLUGIN_KERNEL(logical_not,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_and,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LogicalAndMLUKernel,
                           bool,
@@ -108,10 +98,12 @@ PD_REGISTER_PLUGIN_KERNEL(logical_and,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_or,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LogicalOrMLUKernel,
                           bool,
@@ -120,15 +112,20 @@ PD_REGISTER_PLUGIN_KERNEL(logical_or,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(logical_xor,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LogicalXorMLUKernel,
-                          bool,int,
+                          bool,
+                          int,
                           float,
                           phi::dtype::float16,
                           int16_t,
                           int8_t,
-                          uint8_t) {}
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

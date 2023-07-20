@@ -22,53 +22,48 @@ void StackKernel(const Context& dev_ctx,
                  const std::vector<const phi::DenseTensor*>& x,
                  int axis,
                  phi::DenseTensor* y) {
-    if (axis < 0) axis += (x[0]->dims().size() + 1);
-    int num = static_cast<int>(x.size());
+  if (axis < 0) axis += (x[0]->dims().size() + 1);
+  int num = static_cast<int>(x.size());
 
-    PADDLE_ENFORCE_GT(
-        num,
-        0,
-        phi::errors::InvalidArgument("number of input Tensor <= 0"));
+  PADDLE_ENFORCE_GT(
+      num, 0, phi::errors::InvalidArgument("number of input Tensor <= 0"));
 
-    std::vector<MLUCnnlTensorDesc> x_descs;
-    std::vector<cnnlTensorDescriptor_t> x_raw_descs;
-    std::vector<const void*> x_ptrs;
-    for (int i = 0; i < num; i++) {
-      if (x[i]->dims().size() != 0) {
-        std::vector<int64_t> in_dims = phi::vectorize(x[i]->dims());
-        in_dims.insert(in_dims.begin() + axis, 1);
-        x_descs.emplace_back(MLUCnnlTensorDesc(
-            in_dims.size(), in_dims.data(), ToCnnlDataType<T>()));
-      } else {
-        int input_dims = 1;
-        x_descs.emplace_back(
-            MLUCnnlTensorDesc(1, &input_dims, ToCnnlDataType<T>()));
-      }
-      x_raw_descs.push_back(x_descs.back().get());
-      x_ptrs.push_back(GetBasePtr(x[i]));
+  std::vector<MLUCnnlTensorDesc> x_descs;
+  std::vector<cnnlTensorDescriptor_t> x_raw_descs;
+  std::vector<const void*> x_ptrs;
+  for (int i = 0; i < num; i++) {
+    if (x[i]->dims().size() != 0) {
+      std::vector<int64_t> in_dims = phi::vectorize(x[i]->dims());
+      in_dims.insert(in_dims.begin() + axis, 1);
+      x_descs.emplace_back(MLUCnnlTensorDesc(
+          in_dims.size(), in_dims.data(), ToCnnlDataType<T>()));
+    } else {
+      int input_dims = 1;
+      x_descs.emplace_back(
+          MLUCnnlTensorDesc(1, &input_dims, ToCnnlDataType<T>()));
     }
-    dev_ctx.template Alloc<T>(y);
+    x_raw_descs.push_back(x_descs.back().get());
+    x_ptrs.push_back(GetBasePtr(x[i]));
+  }
+  dev_ctx.template Alloc<T>(y);
 
-    MLUCnnlTensorDesc y_desc(*y);
-    MLUCnnl::Concat(dev_ctx,
-                    num,
-                    axis,
-                    x_raw_descs.data(),
-                    x_ptrs.data(),
-                    y_desc.get(),
-                    GetBasePtr(y));
+  MLUCnnlTensorDesc y_desc(*y);
+  MLUCnnl::Concat(dev_ctx,
+                  num,
+                  axis,
+                  x_raw_descs.data(),
+                  x_ptrs.data(),
+                  y_desc.get(),
+                  GetBasePtr(y));
 }
-
-
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(stack,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::StackKernel,
                           int,
                           int64_t,
                           float,
                           phi::dtype::float16) {}
-

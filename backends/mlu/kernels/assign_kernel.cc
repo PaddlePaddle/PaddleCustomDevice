@@ -21,11 +21,7 @@ void AssignKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  MLUCnnlTensorDesc x_desc(x);
-  MLUCnnlTensorDesc out_desc(*out);
-  MLUCnnl::Assign(
-      dev_ctx, x_desc.get(), GetBasePtr(&x), out_desc.get(), GetBasePtr(out));
+  TensorCopy(dev_ctx, x, true, out);
 }
 
 template <typename T, typename Context>
@@ -96,7 +92,7 @@ void AssignValueKernel(const Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  auto template_dtype = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto template_dtype = phi::CppTypeToDataType<T>::Type();
   PADDLE_ENFORCE_EQ(
       dtype,
       template_dtype,
@@ -111,36 +107,43 @@ void AssignValueKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(assign,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignKernel,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {}
+                          bool,
+                          int64_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignRawKernel,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {
+                          bool,
+                          int64_t) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(assign_array,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignArrayKernel,
                           int,
                           phi::dtype::float16,
                           float,
-                          bool) {}
+                          bool,
+                          int64_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AssignValueKernel,
                           bool,

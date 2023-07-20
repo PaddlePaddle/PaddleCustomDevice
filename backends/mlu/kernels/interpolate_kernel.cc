@@ -71,38 +71,56 @@ void InterpolateKernel(
   float scale_h = -1;
   float scale_w = -1;
 
+  // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
-    // have size tensor
-    auto new_size = get_new_shape_mlu(dev_ctx, size_tensor.get());
-    if (new_size.size() <= 2) {
-      // default NCHW
-      out_h = new_size[0];
-      out_w = new_size[1];
+    // have SizeTensor
+    VLOG(5) << "[Interp] get out_w and out_w from SizeTensor";
+    auto list_new_shape_tensor = size_tensor.get();
+
+    if (list_new_shape_tensor.size() <= 2) {
+      auto output_h =
+          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
+      auto output_w =
+          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
+      out_h = output_h[0];
+      out_w = output_w[0];
     } else {
-      // rank of x is 5, HCDHW
-      out_d = new_size[0];
-      out_h = new_size[1];
-      out_w = new_size[2];
+      auto output_d =
+          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
+      auto output_h =
+          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
+      auto output_w =
+          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[2]);
+      out_h = output_h[0];
+      out_w = output_w[0];
+      out_d = output_d[0];
     }
+  } else if (out_size) {
+    VLOG(5) << "[Interp] get out_w and out_w from OutSize";
+    auto out_size_data =
+        get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
+    out_h = out_size_data[0];
+    out_w = out_size_data[1];
   } else {
     if (scale_tensor) {
+      VLOG(5) << "[Interp] get out_w and out_w from ScaleTensor";
       std::vector<float> scale_data;
       scale_data =
           get_new_data_from_tensor<float>(dev_ctx, scale_tensor.get_ptr());
-      if (scale_data.size() > 1 && scale_data.size() <= 2) {
+      if (scale_data.size() == 1) {
+        scale_h = scale_data[0];
+        scale_w = scale_data[0];
+      } else if (scale_data.size() == 2) {
         scale_h = scale_data[0];
         scale_w = scale_data[1];
-      } else if (scale_data.size() > 2) {
+      } else {
         scale_d = scale_data[0];
         scale_h = scale_data[1];
         scale_w = scale_data[2];
-      } else {
-        scale_d = scale_data[0];
-        scale_h = scale_data[0];
-        scale_w = scale_data[0];
       }
+
       PADDLE_ENFORCE_EQ(
-          scale_w > 0 && scale_h > 0,
+          scale_d > 0 && scale_w > 0 && scale_h > 0,
           true,
           phi::errors::InvalidArgument("scale of Op(interpolate) "
                                        "should be greater than 0."));
@@ -128,6 +146,7 @@ void InterpolateKernel(
       }
     }
     if (scale_h > 0. && scale_w > 0.) {
+      VLOG(5) << "[Interp] get out_w and out_w from scale";
       out_h = static_cast<int>(in_h * scale_h);
       out_w = static_cast<int>(in_w * scale_w);
     }
@@ -135,20 +154,11 @@ void InterpolateKernel(
     if (scale_d > 0.) {
       out_d = static_cast<int>(in_d * scale_d);
     }
-    if (out_size) {
-      std::vector<int32_t> out_size_data;
-      out_size_data =
-          get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
-      if (out_size_data.size() <= 2) {
-        out_h = out_size_data[0];
-        out_w = out_size_data[1];
-      } else {
-        out_d = out_size_data[0];
-        out_h = out_size_data[1];
-        out_w = out_size_data[2];
-      }
-    }
   }
+
+  VLOG(5) << "[Interp] n: " << n << " in_d: " << in_d << " in_h: " << in_h
+          << " in_w: " << in_w << " out_d: " << out_d << " out_h: " << out_h
+          << " out_w: " << out_w << " c: " << c;
   PADDLE_ENFORCE_GT(out_h,
                     0,
                     phi::errors::InvalidArgument("out_h in Attr(out_shape) of "
@@ -646,29 +656,45 @@ void NearestInterpGradKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}

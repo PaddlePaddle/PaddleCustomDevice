@@ -26,6 +26,10 @@ void TopkKernel(const Context& dev_ctx,
                 bool sorted,
                 phi::DenseTensor* out,
                 phi::DenseTensor* indices) {
+  const int64_t kMaxTopkSize = 32768;
+  const int64_t kMaxK = 8;
+  const int64_t kMinK = 0;
+
   if (axis < 0) {
     axis += x.dims().size();
   }
@@ -41,15 +45,28 @@ void TopkKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<int64_t>(indices);
 
+  // Support 0D
+  if (output_dims.size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    FillNpuTensorWithConstant<int64_t>(
+        indices, dev_ctx, static_cast<int64_t>(0.0));
+    indices->Resize(output_dims);
+    return;
+  }
+
   phi::DenseTensor indices_int32;
   phi::DenseTensorMeta indices_int32_meta = {phi::DataType::INT32, output_dims};
   indices_int32.set_meta(indices_int32_meta);
   dev_ctx.template Alloc<int32_t>(&indices_int32);
 
   auto npu_stream = dev_ctx.stream();
+  // TopK have a better performance in this case.
+  std::string op_type =
+      ((x.numel() > kMaxTopkSize) && (k > kMinK) && (k < kMaxK)) ? "TopK"
+                                                                 : "TopKV2";
 
   NpuOpRunner npu_op_runner_topkv2;
-  npu_op_runner_topkv2.SetType("TopKV2")
+  npu_op_runner_topkv2.SetType(op_type)
       .AddInput(x)
       .AddInput(dev_ctx, std::vector<int32_t>{k})
       .AddOutput(*out)
@@ -71,7 +88,7 @@ void TopkKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(top_k,
+PD_REGISTER_PLUGIN_KERNEL(topk,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::TopkKernel,
@@ -79,4 +96,6 @@ PD_REGISTER_PLUGIN_KERNEL(top_k,
                           float,
                           double,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}

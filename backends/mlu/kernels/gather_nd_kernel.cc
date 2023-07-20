@@ -108,14 +108,14 @@ void GatherNdGradKernel(const Context &dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(gather_nd,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_nd_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdGradKernel,
                           float,

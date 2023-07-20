@@ -17,17 +17,16 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle.fluid.core as core
-from op_test import OpTest, convert_float_to_uint16
+from op_test import OpTest
 import paddle.fluid as fluid
 import paddle.fluid.layers as layers
 import paddle
-from paddle.fluid.framework import _test_eager_guard
 
 paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -39,13 +38,13 @@ class TestSliceOp(OpTest):
     def setUp(self):
         self.op_type = "slice"
         self.config()
-        self.inputs = {'Input': self.input}
-        self.outputs = {'Out': self.out}
+        self.inputs = {"Input": self.input}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            'starts': self.starts,
-            'ends': self.ends,
-            'infer_flags': self.infer_flags
+            "axes": self.axes,
+            "starts": self.starts,
+            "ends": self.ends,
+            "infer_flags": self.infer_flags,
         }
 
     def config(self):
@@ -60,7 +59,7 @@ class TestSliceOp(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 class TestCase1(TestSliceOp):
@@ -88,14 +87,14 @@ class TestSliceOp_decs_dim(OpTest):
     def setUp(self):
         self.op_type = "slice"
         self.config()
-        self.inputs = {'Input': self.input}
-        self.outputs = {'Out': self.out}
+        self.inputs = {"Input": self.input}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            'starts': self.starts,
-            'ends': self.ends,
-            'infer_flags': self.infer_flags,
-            'decrease_axis': self.decrease_axis,
+            "axes": self.axes,
+            "starts": self.starts,
+            "ends": self.ends,
+            "infer_flags": self.infer_flags,
+            "decrease_axis": self.decrease_axis,
         }
 
     def config(self):
@@ -111,7 +110,7 @@ class TestSliceOp_decs_dim(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 class TestSliceOp_decs_dim_2(TestSliceOp_decs_dim):
@@ -178,16 +177,15 @@ class TestSliceOp_starts_ListTensor(OpTest):
 
         starts_tensor = []
         for index, ele in enumerate(self.starts):
-            starts_tensor.append(("x" + str(index), np.ones(
-                (1)).astype('int64') * ele))
+            starts_tensor.append(("x" + str(index), np.ones((1)).astype("int64") * ele))
 
-        self.inputs = {'Input': self.input, 'StartsTensorList': starts_tensor}
-        self.outputs = {'Out': self.out}
+        self.inputs = {"Input": self.input, "StartsTensorList": starts_tensor}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            'starts': self.starts_infer,
-            'ends': self.ends,
-            'infer_flags': self.infer_flags
+            "axes": self.axes,
+            "starts": self.starts_infer,
+            "ends": self.ends,
+            "infer_flags": self.infer_flags,
         }
 
     def config(self):
@@ -204,7 +202,7 @@ class TestSliceOp_starts_ListTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 # Situation 2: starts(list, have tensor), ends(list, no tensor)
@@ -216,18 +214,17 @@ class TestSliceOp_decs_dim_starts_ListTensor(OpTest):
 
         starts_tensor = []
         for index, ele in enumerate(self.starts):
-            starts_tensor.append(("x" + str(index), np.ones(
-                (1)).astype('int32') * ele))
+            starts_tensor.append(("x" + str(index), np.ones((1)).astype("int32") * ele))
 
-        self.inputs = {'Input': self.input, 'StartsTensorList': starts_tensor}
+        self.inputs = {"Input": self.input, "StartsTensorList": starts_tensor}
 
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            'starts': self.starts_infer,
-            'ends': self.ends,
-            'infer_flags': self.infer_flags,
-            'decrease_axis': self.decrease_axis,
+            "axes": self.axes,
+            "starts": self.starts_infer,
+            "ends": self.ends,
+            "infer_flags": self.infer_flags,
+            "decrease_axis": self.decrease_axis,
         }
 
     def config(self):
@@ -245,11 +242,10 @@ class TestSliceOp_decs_dim_starts_ListTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
-class TestSliceOp_decs_dim_5_starts_ListTensor(
-        TestSliceOp_decs_dim_starts_ListTensor):
+class TestSliceOp_decs_dim_5_starts_ListTensor(TestSliceOp_decs_dim_starts_ListTensor):
     def config(self):
         self.input = np.random.random([3, 4, 5, 6]).astype("float64")
         self.starts = [-1]
@@ -269,17 +265,16 @@ class TestSliceOp_decs_dim_starts_OneTensor(OpTest):
         self.op_type = "slice"
         self.config()
         self.inputs = {
-            'Input': self.input,
-            "StartsTensor": np.array(
-                self.starts, dtype="int32")
+            "Input": self.input,
+            "StartsTensor": np.array(self.starts, dtype="int32"),
         }
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            #'starts': self.starts,
-            'ends': self.ends,
-            'infer_flags': self.infer_flags,
-            'decrease_axis': self.decrease_axis,
+            "axes": self.axes,
+            # 'starts': self.starts,
+            "ends": self.ends,
+            "infer_flags": self.infer_flags,
+            "decrease_axis": self.decrease_axis,
         }
 
     def config(self):
@@ -295,7 +290,7 @@ class TestSliceOp_decs_dim_starts_OneTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 # Situation 4: starts(tensor), ends(tensor)
@@ -306,18 +301,16 @@ class TestSliceOp_starts_OneTensor_ends_OneTensor(OpTest):
         self.config()
 
         self.inputs = {
-            'Input': self.input,
-            "StartsTensor": np.array(
-                self.starts, dtype="int64"),
-            "EndsTensor": np.array(
-                self.ends, dtype="int32")
+            "Input": self.input,
+            "StartsTensor": np.array(self.starts, dtype="int64"),
+            "EndsTensor": np.array(self.ends, dtype="int32"),
         }
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            #'starts': self.starts,
-            #'ends': self.ends_infer,
-            'infer_flags': self.infer_flags
+            "axes": self.axes,
+            # 'starts': self.starts,
+            # 'ends': self.ends_infer,
+            "infer_flags": self.infer_flags,
         }
 
     def config(self):
@@ -332,7 +325,7 @@ class TestSliceOp_starts_OneTensor_ends_OneTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 # Situation 5: starts(tensor), ends(tensor)
@@ -342,19 +335,17 @@ class TestSliceOp_decs_dim_starts_and_ends_OneTensor(OpTest):
         self.op_type = "slice"
         self.config()
         self.inputs = {
-            'Input': self.input,
-            "StartsTensor": np.array(
-                self.starts, dtype="int32"),
-            "EndsTensor": np.array(
-                self.ends, dtype="int32")
+            "Input": self.input,
+            "StartsTensor": np.array(self.starts, dtype="int32"),
+            "EndsTensor": np.array(self.ends, dtype="int32"),
         }
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            #'starts': self.starts,
-            #'ends': self.ends,
-            'infer_flags': self.infer_flags,
-            'decrease_axis': self.decrease_axis,
+            "axes": self.axes,
+            # 'starts': self.starts,
+            # 'ends': self.ends,
+            "infer_flags": self.infer_flags,
+            "decrease_axis": self.decrease_axis,
         }
 
     def config(self):
@@ -370,7 +361,7 @@ class TestSliceOp_decs_dim_starts_and_ends_OneTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 # Situation 6: starts(tensor), ends(list, have tensor)
@@ -382,21 +373,19 @@ class TestSliceOp_starts_OneTensor_ends_ListTensor(OpTest):
 
         ends_tensor = []
         for index, ele in enumerate(self.ends):
-            ends_tensor.append(("y" + str(index), np.ones(
-                (1)).astype('int32') * ele))
+            ends_tensor.append(("y" + str(index), np.ones((1)).astype("int32") * ele))
 
         self.inputs = {
-            'Input': self.input,
-            "StartsTensor": np.array(
-                self.starts, dtype="int32"),
-            'EndsTensorList': ends_tensor
+            "Input": self.input,
+            "StartsTensor": np.array(self.starts, dtype="int32"),
+            "EndsTensorList": ends_tensor,
         }
-        self.outputs = {'Out': self.out}
+        self.outputs = {"Out": self.out}
         self.attrs = {
-            'axes': self.axes,
-            #'starts': self.starts,
-            'ends': self.ends_infer,
-            'infer_flags': self.infer_flags
+            "axes": self.axes,
+            # 'starts': self.starts,
+            "ends": self.ends_infer,
+            "infer_flags": self.infer_flags,
         }
 
     def config(self):
@@ -413,50 +402,50 @@ class TestSliceOp_starts_OneTensor_ends_ListTensor(OpTest):
         self.check_output()
 
     def test_check_grad_normal(self):
-        self.check_grad(['Input'], 'Out', max_relative_error=0.006)
+        self.check_grad(["Input"], "Out", max_relative_error=0.006)
 
 
 # Test python API
 class TestSliceAPI(unittest.TestCase):
     def test_1(self):
         input = np.random.random([3, 4, 5, 6]).astype("float64")
-        minus_1 = fluid.layers.fill_constant([1], "int32", -1)
-        minus_3 = fluid.layers.fill_constant([1], "int64", -3)
-        starts = fluid.layers.data(
-            name='starts', shape=[1, 3], append_batch_size=False)
-        ends = fluid.layers.data(
-            name='ends', shape=[3], append_batch_size=False)
+        minus_1 = paddle.tensor.fill_constant([1], "int32", -1)
+        minus_3 = paddle.tensor.fill_constant([1], "int64", -3)
+        starts = paddle.static.data(name="starts", shape=[1, 3], dtype="float32")
+        starts.desc.set_need_check_feed(False)
+        ends = paddle.static.data(name="ends", shape=[3], dtype="float32")
+        ends.desc.set_need_check_feed(False)
 
-        x = fluid.layers.data(
-            name="x",
-            shape=[3, 4, 5, 6],
-            append_batch_size=False,
-            dtype="float64")
+        x = paddle.static.data(name="x", shape=[3, 4, 5, 6], dtype="float64")
 
         # value_int64 is greater than 2147483647 which is the max of int32
-        value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
+        value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
 
         out_1 = paddle.slice(
-            x, axes=[0, 1, 2], starts=[-3, 0, 2], ends=[value_int64, 100, -1])
+            x, axes=[0, 1, 2], starts=[-3, 0, 2], ends=[value_int64, 100, -1]
+        )
         out_2 = paddle.slice(
-            x, axes=[0, 1, 3], starts=[minus_3, 0, 2], ends=[3, 100, -1])
+            x, axes=[0, 1, 3], starts=[minus_3, 0, 2], ends=[3, 100, -1]
+        )
         out_3 = paddle.slice(
-            x, axes=[0, 1, 3], starts=[minus_3, 0, 2], ends=[3, 100, minus_1])
+            x, axes=[0, 1, 3], starts=[minus_3, 0, 2], ends=[3, 100, minus_1]
+        )
         out_4 = paddle.slice(x, axes=[0, 1, 2], starts=starts, ends=ends)
 
         out_5 = x[-3:3, 0:100, 2:-1]
         out_6 = x[minus_3:3, 0:100, :, 2:-1]
         out_7 = x[minus_1, 0:100, :, 2:minus_1]
 
-        exe = fluid.Executor(place=fluid.CustomPlace('custom_cpu', 0))
+        exe = fluid.Executor(place=fluid.CustomPlace("custom_cpu", 0))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
             fluid.default_main_program(),
             feed={
                 "x": input,
-                'starts': np.array([-3, 0, 2]).astype("int32"),
-                'ends': np.array([3, 100, -1]).astype("int32")
+                "starts": np.array([-3, 0, 2]).astype("int32"),
+                "ends": np.array([3, 100, -1]).astype("int32"),
             },
-            fetch_list=[out_1, out_2, out_3, out_4, out_5, out_6, out_7])
+            fetch_list=[out_1, out_2, out_3, out_4, out_5, out_6, out_7],
+        )
 
         assert np.array_equal(res_1, input[-3:3, 0:100, 2:-1, :])
         assert np.array_equal(res_2, input[-3:3, 0:100, :, 2:-1])
@@ -469,25 +458,24 @@ class TestSliceAPI(unittest.TestCase):
 
 class TestSliceApiWithTensor(unittest.TestCase):
     def test_starts_ends_is_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-            a = paddle.rand(shape=[4, 5, 6], dtype='float32')
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+            a = paddle.rand(shape=[4, 5, 6], dtype="float32")
             axes = [0, 1, 2]
             starts = [-3, 0, 2]
             ends = [3, 2, 4]
             a_1 = paddle.slice(
                 a,
                 axes=axes,
-                starts=paddle.to_tensor(
-                    starts, dtype='int32'),
-                ends=paddle.to_tensor(
-                    ends, dtype='int32'))
+                starts=paddle.to_tensor(starts, dtype="int32"),
+                ends=paddle.to_tensor(ends, dtype="int32"),
+            )
             a_2 = paddle.slice(a, axes=axes, starts=starts, ends=ends)
 
             self.assertTrue(np.array_equal(a_1.numpy(), a_2.numpy()))
 
     def test_bool_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-            array = (np.arange(60).reshape([3, 4, 5]) % 3).astype('bool')
+        with paddle.fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+            array = (np.arange(60).reshape([3, 4, 5]) % 3).astype("bool")
             tt = paddle.to_tensor(array)
             tt.stop_gradient = False
 
@@ -531,26 +519,25 @@ class TestSliceApiWithTensor(unittest.TestCase):
 class TestSliceApiWithLoDTensorArray(unittest.TestCase):
     def setUp(self):
         self.shape = (3, 4)
-        self.data = np.random.random(size=self.shape).astype('float32')
+        self.data = np.random.random(size=self.shape).astype("float32")
         self.idx = 0
         self.start = 0
         self.end = 2
         self.axis = 1
 
-        self.place = fluid.CustomPlace(
-            'custom_cpu',
-            0) if fluid.is_compiled_with_cuda() else fluid.CustomPlace(
-                'custom_cpu', 0)
+        self.place = (
+            fluid.CustomPlace("custom_cpu", 0)
+            if fluid.is_compiled_with_cuda()
+            else fluid.CustomPlace("custom_cpu", 0)
+        )
         self.exe = fluid.Executor(self.place)
 
     def set_program_and_run(self, main_program, case_num):
         with fluid.program_guard(main_program):
             x = [
-                fluid.data(
-                    name='x0', shape=self.shape, dtype="float32"), fluid.data(
-                        name='x1', shape=self.shape, dtype="float32"),
-                fluid.data(
-                    name='x2', shape=self.shape, dtype="float32")
+                paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
+                paddle.static.data(name="x2", shape=self.shape, dtype="float32"),
             ]
 
             for each_x in x:
@@ -565,29 +552,31 @@ class TestSliceApiWithLoDTensorArray(unittest.TestCase):
                 self.sliced_arr = output = arr[0]
 
             elif case_num == 2:
-                end = fluid.layers.array_length(
-                    arr) - 1  # dtype of end is int64
-                self.sliced_arr = slice_arr = arr[self.start:end]
+                end = fluid.layers.array_length(arr) - 1  # dtype of end is int64
+                self.sliced_arr = slice_arr = arr[self.start : end]
                 output, _ = fluid.layers.tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True)
+                    slice_arr, axis=self.axis, use_stack=True
+                )
             elif case_num == 3:
-                value_int64 = fluid.layers.fill_constant([1], "int64",
-                                                         2147483648)
-                self.sliced_arr = slice_arr = arr[self.start:value_int64]
+                value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
+                self.sliced_arr = slice_arr = arr[self.start : value_int64]
                 output, _ = fluid.layers.tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True)
+                    slice_arr, axis=self.axis, use_stack=True
+                )
 
             loss = fluid.layers.reduce_sum(output)
             fluid.backward.append_backward(loss)
             g_vars = list(
-                map(main_program.global_block().var,
-                    [each_x.name + "@GRAD" for each_x in x]))
-            self.out, self.g_x0, self.g_x1, self.g_x2 = \
-                self.exe.run(main_program,
-                             feed = {'x0': self.data,
-                                     'x1': self.data,
-                                     'x2': self.data},
-                             fetch_list=[output] + g_vars)
+                map(
+                    main_program.global_block().var,
+                    [each_x.name + "@GRAD" for each_x in x],
+                )
+            )
+            self.out, self.g_x0, self.g_x1, self.g_x2 = self.exe.run(
+                main_program,
+                feed={"x0": self.data, "x1": self.data, "x2": self.data},
+                fetch_list=[output] + g_vars,
+            )
 
     def test_case_1(self):
         main_program = fluid.Program()
@@ -604,13 +593,11 @@ class TestSliceApiWithLoDTensorArray(unittest.TestCase):
         main_program = fluid.Program()
         self.set_program_and_run(main_program, 2)
 
-        self.assertTrue(
-            self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
         self.assertEqual(self.sliced_arr.shape, self.shape)
         self.assertTrue(
-            np.array_equal(
-                self.out, np.stack(
-                    [self.data, self.data], axis=self.axis)))
+            np.array_equal(self.out, np.stack([self.data, self.data], axis=self.axis))
+        )
         self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
         self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
         self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
@@ -619,14 +606,13 @@ class TestSliceApiWithLoDTensorArray(unittest.TestCase):
         main_program = fluid.Program()
         self.set_program_and_run(main_program, 3)
 
-        self.assertTrue(
-            self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
+        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
         self.assertEqual(self.sliced_arr.shape, self.shape)
         self.assertTrue(
             np.array_equal(
-                self.out,
-                np.stack(
-                    [self.data, self.data, self.data], axis=self.axis)))
+                self.out, np.stack([self.data, self.data, self.data], axis=self.axis)
+            )
+        )
         self.assertTrue(np.array_equal(self.g_x0, np.ones_like(self.data)))
         self.assertTrue(np.array_equal(self.g_x1, np.ones_like(self.data)))
         self.assertTrue(np.array_equal(self.g_x2, np.ones_like(self.data)))
@@ -634,27 +620,27 @@ class TestSliceApiWithLoDTensorArray(unittest.TestCase):
 
 class TestImperativeVarBaseGetItem(unittest.TestCase):
     def test_getitem_with_long(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-            data = np.random.random((2, 80, 16128)).astype('float32')
+        with fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+            data = np.random.random((2, 80, 16128)).astype("float32")
             var = fluid.dygraph.to_variable(data)
-            sliced = var[:, 10:, :var.shape[1]]  # var.shape[1] is 80L here
+            sliced = var[:, 10:, : var.shape[1]]  # var.shape[1] is 80L here
             self.assertEqual(sliced.shape, [2, 70, 80])
 
-            sliced = var[:, var.shape[0]:, var.shape[0]:var.shape[1]]
+            sliced = var[:, var.shape[0] :, var.shape[0] : var.shape[1]]
             self.assertEqual(sliced.shape, [2, 78, 78])
 
     def test_getitem_with_float(self):
         def test_float_in_slice_item():
-            with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-                data = np.random.random((2, 80, 16128)).astype('float32')
+            with fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+                data = np.random.random((2, 80, 16128)).astype("float32")
                 var = fluid.dygraph.to_variable(data)
-                sliced = var[:, 1.1:, :var.shape[1]]
+                sliced = var[:, 1.1:, : var.shape[1]]
 
         self.assertRaises(Exception, test_float_in_slice_item)
 
         def test_float_in_index():
-            with fluid.dygraph.guard(paddle.CustomPlace('custom_cpu', 0)):
-                data = np.random.random((2, 80, 16128)).astype('float32')
+            with fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+                data = np.random.random((2, 80, 16128)).astype("float32")
                 var = fluid.dygraph.to_variable(data)
                 sliced = var[1.1]
 
@@ -724,6 +710,6 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 #             sliced = var[:, 10:, :var.shape[1]]
 #             self.assertEqual(sliced.shape, [2, 70, 80])
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     paddle.enable_static()
     unittest.main()

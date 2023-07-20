@@ -42,17 +42,7 @@
 
 #define ACL_CHECK(func) RUNTIME_CHECK(func, ACL_ERROR_NONE)
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
-
-#define ENV_Cat(x, y) x##y
-#define ENV_Str(x) #x
-#define ENV_Call(x, y) x(y)
-#define ENV_DEFINE(type, name, value, parser)                        \
-  type FLAGS_##name =                                                \
-      getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))               \
-          ? parser(getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))) \
-          : value
-#define ENV_uint64(x, value) ENV_DEFINE(uint64_t, x, value, std::stoul)
-#define ENV_string(x, value) ENV_DEFINE(std::string, x, value, std::string)
+#define RUN_CHECK(func) RUNTIME_CHECK(func, true)
 
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
@@ -190,4 +180,31 @@ class AscendProfiler {
   aclrtStream stream_ = nullptr;
 
   bool start_ = false;
+};
+
+struct SecondaryStream {
+  static SecondaryStream &Instance() {
+    static SecondaryStream ins;
+    return ins;
+  }
+
+  aclrtStream Get(aclrtStream aicore_stream);
+
+  void Create(aclrtStream aicore_stream);
+
+  void Destroy(aclrtStream aicore_stream);
+
+  // aicpu  --
+  //           \
+  // aicore ----  aicore
+  void RecordBefore(aclrtStream aicore_stream);
+
+  //          -- aicpu
+  //        /
+  // aicore ---- aicore
+  void RecordAfter(aclrtStream aicore_stream);
+
+ private:
+  SecondaryStream() = default;
+  std::unordered_map<aclrtStream, aclrtStream> aicpu_streams;
 };

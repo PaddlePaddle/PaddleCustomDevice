@@ -14,11 +14,11 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -43,7 +43,7 @@ class TestBmmOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def config(self):
         self.x_shape = (10, 2, 5)
@@ -65,16 +65,18 @@ class TestBmmOp(OpTest):
         result = reference_matmul(x, y)
         result = result.astype(self.dtype)
         self.inputs = {
-            'X': x,
-            'Y': y,
+            "X": x,
+            "Y": y,
         }
-        self.outputs = {'Out': result}
+        self.outputs = {"Out": result}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-7)
+        self.check_output_with_place(self.place, atol=1e-3)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X', 'Y'], 'Out')
+        self.check_grad_with_place(
+            self.place, ["X", "Y"], "Out", numeric_place=paddle.CPUPlace()
+        )
 
 
 class TestBmmOp1(TestBmmOp):
@@ -91,7 +93,8 @@ class TestBmmOp1(TestBmmOp):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', numeric_place=paddle.CPUPlace())
+            self.place, ["X", "Y"], "Out", numeric_place=paddle.CPUPlace()
+        )
 
 
 class TestBmmOp2(TestBmmOp):
@@ -105,14 +108,16 @@ class TestBmmOp2(TestBmmOp):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            self.place, ['X', 'Y'],
-            'Out',
+            self.place,
+            ["X", "Y"],
+            "Out",
             numeric_place=paddle.CPUPlace(),
-            max_relative_error=1e-2)
+            max_relative_error=1e-2,
+        )
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

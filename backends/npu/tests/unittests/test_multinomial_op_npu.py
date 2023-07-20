@@ -17,12 +17,9 @@ from __future__ import print_function
 import unittest
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid import core
-import sys
 
 from tests.op_test import OpTest
 import numpy as np
-import os
 
 paddle.enable_static()
 
@@ -56,7 +53,7 @@ class TestMultinomialOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_data(self):
         # input probability is a vector, and replacement is True
@@ -65,8 +62,7 @@ class TestMultinomialOp(OpTest):
         self.attrs = {"num_samples": 100000, "replacement": True}
 
     def test_check_output(self):
-        self.check_output_customized(
-            self.verify_output, custom_place=self.place)
+        self.check_output_customized(self.verify_output, custom_place=self.place)
 
     def sample_output(self, out):
         return sample_output_one_dimension(out, 4)
@@ -76,9 +72,9 @@ class TestMultinomialOp(OpTest):
         prob = self.input_np / self.input_np.sum(axis=-1, keepdims=True)
         sample_prob = self.sample_output(np.array(outs[0]))
         self.assertTrue(
-            np.allclose(
-                sample_prob, prob, rtol=0, atol=0.01),
-            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob))
+            np.allclose(sample_prob, prob, rtol=0, atol=0.01),
+            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+        )
 
 
 class TestMultinomialOp2(TestMultinomialOp):
@@ -103,14 +99,16 @@ class TestMultinomialOp3(TestMultinomialOp):
         out = np.array(outs[0])
         unique_out = np.unique(out)
         self.assertEqual(
-            len(unique_out), 100,
-            "replacement is False. categories can't be sampled repeatedly")
+            len(unique_out),
+            100,
+            "replacement is False. categories can't be sampled repeatedly",
+        )
 
 
 class TestMultinomialApi(unittest.TestCase):
     def test_dygraph(self):
         # input probability is a vector, and replacement is True
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         paddle.disable_static()
         x_numpy = np.random.rand(4)
         x = paddle.to_tensor(x_numpy)
@@ -119,14 +117,14 @@ class TestMultinomialApi(unittest.TestCase):
         sample_prob = sample_output_one_dimension(out.numpy(), 4)
         prob = x_numpy / x_numpy.sum(axis=-1, keepdims=True)
         self.assertTrue(
-            np.allclose(
-                sample_prob, prob, rtol=0, atol=0.01),
-            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob))
+            np.allclose(sample_prob, prob, rtol=0, atol=0.01),
+            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+        )
         paddle.enable_static()
 
     def test_dygraph2(self):
         # input probability is a matrix, and replacement is True
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         paddle.disable_static()
         x_numpy = np.random.rand(3, 4)
         x = paddle.to_tensor(x_numpy)
@@ -135,14 +133,14 @@ class TestMultinomialApi(unittest.TestCase):
         sample_prob = sample_output_two_dimension(out.numpy(), [3, 4])
         prob = x_numpy / x_numpy.sum(axis=-1, keepdims=True)
         self.assertTrue(
-            np.allclose(
-                sample_prob, prob, rtol=0, atol=0.01),
-            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob))
+            np.allclose(sample_prob, prob, rtol=0, atol=0.01),
+            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+        )
         paddle.enable_static()
 
     def test_dygraph3(self):
         # replacement is False. number of samples must be less than number of categories.
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         paddle.disable_static()
         x_numpy = np.random.rand(1000)
         x = paddle.to_tensor(x_numpy)
@@ -150,12 +148,14 @@ class TestMultinomialApi(unittest.TestCase):
 
         unique_out = np.unique(out.numpy())
         self.assertEqual(
-            len(unique_out), 100,
-            "replacement is False. categories can't be sampled repeatedly")
+            len(unique_out),
+            100,
+            "replacement is False. categories can't be sampled repeatedly",
+        )
         paddle.enable_static()
 
     def test_dygraph4(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         paddle.disable_static()
         logits = -1 * paddle.ones([2800])
         # Categorical.sample API will call multinomial op with replacement=True
@@ -164,41 +164,103 @@ class TestMultinomialApi(unittest.TestCase):
         paddle.enable_static()
 
     def test_static(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         startup_program = fluid.Program()
         train_program = fluid.Program()
         with fluid.program_guard(train_program, startup_program):
-            x = fluid.data('x', shape=[4], dtype='float32')
+            x = paddle.static.data("x", shape=[4], dtype="float32")
             out = paddle.multinomial(x, num_samples=100000, replacement=True)
 
-            place = fluid.CustomPlace('npu', 0)
+            place = fluid.CustomPlace("npu", 0)
             exe = fluid.Executor(place)
 
         exe.run(startup_program)
-        x_np = np.random.rand(4).astype('float32')
-        out = exe.run(train_program, feed={'x': x_np}, fetch_list=[out])
+        x_np = np.random.rand(4).astype("float32")
+        out = exe.run(train_program, feed={"x": x_np}, fetch_list=[out])
 
         sample_prob = sample_output_one_dimension(out, 4)
         prob = x_np / x_np.sum(axis=-1, keepdims=True)
         self.assertTrue(
-            np.allclose(
-                sample_prob, prob, rtol=0, atol=0.01),
-            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob))
+            np.allclose(sample_prob, prob, rtol=0, atol=0.01),
+            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+        )
+
+
+class TestMultinomialFP16Op(OpTest):
+    def setUp(self):
+        paddle.enable_static()
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "multinomial"
+        self.dtype = np.float16
+        self.init_data()
+        self.inputs = {"X": self.input_np}
+
+    def init_data(self):
+        # input probability is a vector, and replacement is True
+        self.input_np = np.random.rand(4).astype(self.dtype)
+        self.outputs = {"Out": np.zeros(100000).astype("int64")}
+        self.attrs = {"num_samples": 100000, "replacement": True}
+
+    def test_check_output(self):
+        self.check_output_customized(self.verify_output, custom_place=self.place)
+
+    def sample_output(self, out):
+        return sample_output_one_dimension(out, 4)
+
+    def verify_output(self, outs):
+        # normalize the input to get the probability
+        prob = self.input_np / self.input_np.sum(axis=-1, keepdims=True)
+        sample_prob = self.sample_output(np.array(outs[0]))
+        np.testing.assert_allclose(
+            sample_prob,
+            prob,
+            rtol=0,
+            atol=0.01,
+            err_msg="sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+        )
+
+
+class TestMultinomialFP16Op2(TestMultinomialFP16Op):
+    def init_data(self):
+        # input probability is a matrix
+        self.input_np = np.random.rand(3, 4).astype(self.dtype)
+        self.outputs = {"Out": np.zeros((3, 100000)).astype("int64")}
+        self.attrs = {"num_samples": 100000, "replacement": True}
+
+    def sample_output(self, out):
+        return sample_output_two_dimension(out, [3, 4])
+
+
+class TestMultinomialFP16Op3(TestMultinomialFP16Op):
+    def init_data(self):
+        # replacement is False. number of samples must be less than number of categories.
+        self.input_np = np.random.rand(1000).astype(self.dtype)
+        self.outputs = {"Out": np.zeros(100).astype("int64")}
+        self.attrs = {"num_samples": 100, "replacement": False}
+
+    def verify_output(self, outs):
+        out = np.array(outs[0])
+        unique_out = np.unique(out)
+        self.assertEqual(
+            len(unique_out),
+            100,
+            "replacement is False. categories can't be sampled repeatedly",
+        )
 
 
 class TestMultinomialAlias(unittest.TestCase):
     def test_alias(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         x = paddle.rand([4])
         out1 = paddle.multinomial(x, num_samples=10, replacement=True)
         out2 = paddle.tensor.multinomial(x, num_samples=10, replacement=True)
-        out3 = paddle.tensor.random.multinomial(
-            x, num_samples=10, replacement=True)
+        out3 = paddle.tensor.random.multinomial(x, num_samples=10, replacement=True)
 
 
 class TestMultinomialError(unittest.TestCase):
     def setUp(self):
-        paddle.set_device('npu:0')
+        paddle.set_device("npu:0")
         paddle.disable_static()
 
     def tearDown(self):

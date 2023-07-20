@@ -21,7 +21,7 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void CastKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
-                phi::DenseTensorMeta::DataType dtype,
+                phi::DataType dtype,
                 phi::DenseTensor* out) {
   if (x.dtype() == dtype) {
     dev_ctx.template Alloc<T>(out);
@@ -31,33 +31,56 @@ void CastKernel(const Context& dev_ctx,
 
   int aclDtype = ConvertToNpuDtype(dtype);
 
-  if (dtype == phi::DenseTensorMeta::DataType::FLOAT32) {
+  if (dtype == phi::DataType::FLOAT32) {
     dev_ctx.template Alloc<float>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::FLOAT64) {
+  } else if (dtype == phi::DataType::FLOAT64) {
     dev_ctx.template Alloc<double>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::FLOAT16) {
+  } else if (dtype == phi::DataType::FLOAT16) {
     dev_ctx.template Alloc<phi::dtype::float16>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::INT16) {
+  } else if (dtype == phi::DataType::INT16) {
     dev_ctx.template Alloc<int16_t>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::INT32) {
+  } else if (dtype == phi::DataType::INT32) {
     dev_ctx.template Alloc<int32_t>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::INT64) {
+  } else if (dtype == phi::DataType::INT64) {
     dev_ctx.template Alloc<int64_t>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::BOOL) {
+  } else if (dtype == phi::DataType::BOOL) {
     dev_ctx.template Alloc<bool>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::UINT8) {
+  } else if (dtype == phi::DataType::UINT8) {
     dev_ctx.template Alloc<uint8_t>(out);
-  } else if (dtype == phi::DenseTensorMeta::DataType::INT8) {
+  } else if (dtype == phi::DataType::INT8) {
     dev_ctx.template Alloc<int8_t>(out);
+  } else if (dtype == phi::DataType::COMPLEX64) {
+    dev_ctx.template Alloc<phi::dtype::complex<float>>(out);
+  } else if (dtype == phi::DataType::COMPLEX128) {
+    dev_ctx.template Alloc<phi::dtype::complex<double>>(out);
   } else {
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }
 
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  const auto& runner = NpuOpRunner(
-      "Cast", {x}, {*out}, {{"dst_type", static_cast<int32_t>(aclDtype)}});
-  runner.Run(stream);
+  if (x.dtype() == phi::DataType::INT64) {
+    phi::DenseTensor tmp_out;
+    tmp_out.Resize(out->dims());
+    dev_ctx.template Alloc<int32_t>(&tmp_out);
+    const auto& runner =
+        NpuOpRunner("Cast",
+                    {x},
+                    {tmp_out},
+                    {{"dst_type", static_cast<int32_t>(ACL_INT32)}});
+    runner.Run(stream);
+
+    const auto& runner1 =
+        NpuOpRunner("Cast",
+                    {tmp_out},
+                    {*out},
+                    {{"dst_type", static_cast<int32_t>(aclDtype)}});
+    runner1.Run(stream);
+  } else {
+    const auto& runner = NpuOpRunner(
+        "Cast", {x}, {*out}, {{"dst_type", static_cast<int32_t>(aclDtype)}});
+    runner.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel
@@ -69,6 +92,8 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           phi::dtype::float16,
                           float,
                           double,
+                          int8_t,
+                          uint8_t,
                           int16_t,
                           int32_t,
                           int64_t,

@@ -22,10 +22,7 @@ void AssignKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  const auto& runner = NpuOpRunner("Assign", {*out, x}, {*out}, {});
-  auto stream = dev_ctx.stream();
-  runner.Run(stream);
+  TensorCopy(dev_ctx, x, true, out);
 }
 
 template <typename T, typename Context>
@@ -94,7 +91,7 @@ void AssignValueKernel(const Context& dev_ctx,
                        phi::DataType dtype,
                        const std::vector<phi::Scalar>& values,
                        phi::DenseTensor* out) {
-  auto template_dtype = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto template_dtype = phi::CppTypeToDataType<T>::Type();
   PADDLE_ENFORCE_EQ(
       dtype,
       template_dtype,
@@ -108,8 +105,17 @@ void AssignValueKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    assign, npu, ALL_LAYOUT, custom_kernel::AssignKernel, int, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(assign,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::AssignKernel,
+                          int,
+                          float,
+                          double,
+                          int64_t,
+                          bool) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           npu,
@@ -117,7 +123,9 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           custom_kernel::AssignRawKernel,
                           int,
                           float,
-                          double) {
+                          double,
+                          int64_t,
+                          bool) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 
@@ -127,7 +135,11 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           custom_kernel::AssignArrayKernel,
                           int,
                           float,
-                          double) {}
+                          double,
+                          int64_t,
+                          bool) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(assign_value,
                           npu,

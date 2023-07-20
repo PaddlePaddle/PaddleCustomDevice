@@ -29,7 +29,7 @@ def stable_softmax(x):
     """Compute the softmax of vector x in a numerically stable way."""
     # clip to shiftx, otherwise, when calc loss with
     # log(exp(shiftx)), may get log(0)=INF
-    shiftx = (x - np.max(x)).clip(-64.)
+    shiftx = (x - np.max(x)).clip(-64.0)
     exps = np.exp(shiftx)
     return exps / np.sum(exps)
 
@@ -51,7 +51,7 @@ class TestSoftmaxOp(OpTest):
         return -1
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def setUp(self):
@@ -66,9 +66,11 @@ class TestSoftmaxOp(OpTest):
         x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
         out = np.apply_along_axis(stable_softmax, self.axis, x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
-        self.attrs = {'axis': self.axis, }
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
+        self.attrs = {
+            "axis": self.axis,
+        }
 
     def init_kernel_type(self):
         pass
@@ -77,8 +79,7 @@ class TestSoftmaxOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            self.place, ["X"], "Out", max_relative_error=0.01)
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
 
 
 class TestSoftmaxOp2(TestSoftmaxOp):
@@ -120,8 +121,8 @@ class TestSoftmaxOp6(TestSoftmaxOp):
 
 class TestSoftmaxAPI(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
-        self.x_np = np.random.uniform(-1., 1., [2, 3, 4, 5]).astype('float32')
+        self.place = paddle.CustomPlace("mlu", 0)
+        self.x_np = np.random.uniform(-1.0, 1.0, [2, 3, 4, 5]).astype("float32")
         self.out_ref = np.apply_along_axis(stable_softmax, -1, self.x_np)
         self.executed_api()
 
@@ -130,12 +131,12 @@ class TestSoftmaxAPI(unittest.TestCase):
 
     def test_static_check(self):
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data('X', self.x_np.shape, 'float32')
+            x = paddle.static.data("X", self.x_np.shape, "float32")
             out1 = self.softmax(x)
             m = paddle.nn.Softmax()
             out2 = m(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_softmax(self.x_np, axis=-1, dtype=None)
         for r in res:
             self.assertEqual(np.allclose(out_ref, r), True)
@@ -171,12 +172,10 @@ class TestSoftmaxAPI(unittest.TestCase):
             # The input type must be Variable.
             self.assertRaises(TypeError, self.softmax, 1)
             # The input dtype must be float16, float32
-            x_int32 = paddle.fluid.data(
-                name='x_int32', shape=[2, 3], dtype='int32')
+            x_int32 = paddle.static.data(name="x_int32", shape=[2, 3], dtype="int32")
             self.assertRaises(TypeError, self.softmax, x_int32)
             # support the input dtype is float16
-            x_fp16 = paddle.fluid.data(
-                name='x_fp16', shape=[2, 3], dtype='float16')
+            x_fp16 = paddle.static.data(name="x_fp16", shape=[2, 3], dtype="float16")
             self.softmax(x_fp16)
 
 

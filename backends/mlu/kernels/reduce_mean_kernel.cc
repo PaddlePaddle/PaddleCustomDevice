@@ -103,21 +103,21 @@ void MeanGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(mean_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MeanRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MeanKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MeanGradKernel,
                           float,

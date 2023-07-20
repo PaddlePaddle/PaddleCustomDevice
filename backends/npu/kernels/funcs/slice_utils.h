@@ -21,6 +21,8 @@
 
 #include "kernels/funcs/npu_enforce.h"
 
+DECLARE_bool(set_to_1d);
+
 namespace custom_kernel {
 
 template <typename T = int64_t>
@@ -79,6 +81,9 @@ inline void CheckAndUpdateSliceAttrs(const phi::DDim in_dims,
         // dim_value-1
         // "end is -1" means contain the 0-th element of this axis.
         start = std::min(start, dim_value - 1);
+        if (end < -1) {
+          end += dim_value;
+        }
         end = std::max(end, static_cast<T>(-1));
         PADDLE_ENFORCE_GE(
             start,
@@ -114,7 +119,9 @@ inline phi::DDim GetSliceDims(const phi::DDim in_dims,
       slice_dims[axis] = -1;
       continue;
     }
-
+    if (in_dims[axis] == -1) {
+      continue;
+    }
     T start = starts[i];
     T end = ends[i];
     T step = steps == nullptr ? 1 : (*steps)[i];
@@ -154,9 +161,9 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
       }
     }
 
-    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
-    // uses [1] instead.
-    if (new_shape.size() == 0) {
+    if (FLAGS_set_to_1d && new_shape.size() == 0) {
+      // NOTE(zoooo0820): Hack procssing to 1-D, when axes decrease to 0-D in
+      // slice. This will remove in release 2.6.
       new_shape.push_back(1);
     }
 
@@ -196,8 +203,7 @@ inline phi::DenseTensor Slice(const phi::DenseTensor& src,
     phi::DDim dst_dims = meta.dims;
     dst_dims[0] = end_idx - begin_idx;
     size_t dst_offset =
-        meta.offset +
-        begin_idx * base * paddle::experimental::SizeOf(meta.dtype);
+        meta.offset + begin_idx * base * phi::SizeOf(meta.dtype);
     phi::DenseTensorMeta dst_meta = {
         meta.dtype, dst_dims, meta.layout, dst_offset};
     dst.set_meta(dst_meta);

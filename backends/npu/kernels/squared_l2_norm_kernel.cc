@@ -81,10 +81,12 @@ PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormKernel,
-                          float) {}
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormGradKernel,
-                          float) {}
+                          float,
+                          phi::dtype::float16) {}

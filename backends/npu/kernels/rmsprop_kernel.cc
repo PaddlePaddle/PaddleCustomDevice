@@ -18,21 +18,31 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void RMSPROPKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& param,
-                   const phi::DenseTensor& mean_square,
-                   const phi::DenseTensor& grad,
-                   const phi::DenseTensor& moment,
-                   const phi::DenseTensor& learning_rate,
-                   const paddle::optional<phi::DenseTensor>& mean_grad,
-                   float epsilon,
-                   float decay,
-                   float momentum,
-                   bool centered,
-                   phi::DenseTensor* param_out,
-                   phi::DenseTensor* moment_out,
-                   phi::DenseTensor* mean_square_out,
-                   phi::DenseTensor* mean_grad_out) {
+void RmspropDenseKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& param,
+                        const phi::DenseTensor& mean_square,
+                        const phi::DenseTensor& grad,
+                        const phi::DenseTensor& moment,
+                        const phi::DenseTensor& learning_rate,
+                        const paddle::optional<phi::DenseTensor>& mean_grad,
+                        const paddle::optional<phi::DenseTensor>& master_param,
+                        float epsilon,
+                        float decay,
+                        float momentum,
+                        bool centered,
+                        bool multi_precision,
+                        phi::DenseTensor* param_out,
+                        phi::DenseTensor* moment_out,
+                        phi::DenseTensor* mean_square_out,
+                        phi::DenseTensor* mean_grad_out,
+                        phi::DenseTensor* master_param_outs) {
+  // TODO(qili93): add fp16 support based on Paddle PR#50132
+  PADDLE_ENFORCE_EQ(
+      multi_precision,
+      false,
+      phi::errors::InvalidArgument("Paddle Custom NPU only support "
+                                   "multi_precision = false, but got = <%d>",
+                                   multi_precision));
   dev_ctx.template Alloc<T>(param_out);
   dev_ctx.template Alloc<T>(moment_out);
   dev_ctx.template Alloc<T>(mean_square_out);
@@ -42,7 +52,7 @@ void RMSPROPKernel(const Context& dev_ctx,
   if (centered) {
     NPUAttributeMap attr_input = {{"use_locking", false}};
 
-    phi::DenseTensorMeta tmp_meta = {paddle::experimental::DataType::FLOAT32,
+    phi::DenseTensorMeta tmp_meta = {phi::DataType::FLOAT32,
                                      {1}};
 
     phi::DenseTensor rho_tmp;
@@ -90,4 +100,4 @@ void RMSPROPKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    rmsprop, npu, ALL_LAYOUT, custom_kernel::RMSPROPKernel, float) {}
+    rmsprop, npu, ALL_LAYOUT, custom_kernel::RmspropDenseKernel, float) {}

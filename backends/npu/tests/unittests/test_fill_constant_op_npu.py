@@ -16,11 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 from paddle.fluid import core
 
 paddle.enable_static()
@@ -30,13 +28,13 @@ SEED = 2021
 class TestFillConstant(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
         self.init_dtype()
 
         self.inputs = {}
-        self.attrs = {'shape': [123, 92], 'value': 3.8}
-        self.outputs = {'Out': np.full((123, 92), 3.8)}
+        self.attrs = {"shape": [123, 92], "value": 3.8}
+        self.outputs = {"Out": np.full((123, 92), 3.8)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -51,16 +49,16 @@ class TestFillConstant(OpTest):
 class TestFillConstantInt(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
 
         self.inputs = {}
         self.attrs = {
-            'shape': [123, 92],
-            'value': 1,
-            'dtype': core.VarDesc.VarType.INT32
+            "shape": [123, 92],
+            "value": 1,
+            "dtype": core.VarDesc.VarType.INT32,
         }
-        self.outputs = {'Out': np.full((123, 92), 1).astype(self.dtype)}
+        self.outputs = {"Out": np.full((123, 92), 1).astype(self.dtype)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -75,16 +73,16 @@ class TestFillConstantInt(OpTest):
 class TestFillConstantInt64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
 
         self.inputs = {}
         self.attrs = {
-            'shape': [123, 92],
-            'value': 1,
-            'dtype': core.VarDesc.VarType.INT64
+            "shape": [123, 92],
+            "value": 1,
+            "dtype": core.VarDesc.VarType.INT64,
         }
-        self.outputs = {'Out': np.full((123, 92), 1).astype(self.dtype)}
+        self.outputs = {"Out": np.full((123, 92), 1).astype(self.dtype)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -99,16 +97,16 @@ class TestFillConstantInt64(OpTest):
 class TestFillConstantFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
 
         self.inputs = {}
         self.attrs = {
-            'shape': [123, 92],
-            'value': 1.0,
-            'dtype': core.VarDesc.VarType.FP16
+            "shape": [123, 92],
+            "value": 1.0,
+            "dtype": core.VarDesc.VarType.FP16,
         }
-        self.outputs = {'Out': np.full((123, 92), 1.0).astype(self.dtype)}
+        self.outputs = {"Out": np.full((123, 92), 1.0).astype(self.dtype)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -123,16 +121,16 @@ class TestFillConstantFP16(OpTest):
 class TestFillConstantBool(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
 
         self.inputs = {}
         self.attrs = {
-            'shape': [123, 92],
-            'value': True,
-            'dtype': core.VarDesc.VarType.BOOL
+            "shape": [123, 92],
+            "value": True,
+            "dtype": core.VarDesc.VarType.BOOL,
         }
-        self.outputs = {'Out': np.full((123, 92), True).astype(self.dtype)}
+        self.outputs = {"Out": np.full((123, 92), True).astype(self.dtype)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -147,13 +145,13 @@ class TestFillConstantBool(OpTest):
 class TestFillConstantWithPlaceType(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "fill_constant"
         self.init_dtype()
 
         self.inputs = {}
-        self.attrs = {'shape': [123, 92], 'value': 3.8, 'place_type': 0}
-        self.outputs = {'Out': np.full((123, 92), 3.8)}
+        self.attrs = {"shape": [123, 92], "value": 3.8, "place_type": 0}
+        self.outputs = {"Out": np.full((123, 92), 3.8)}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -165,5 +163,5 @@ class TestFillConstantWithPlaceType(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

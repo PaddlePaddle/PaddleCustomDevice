@@ -26,7 +26,7 @@ paddle.enable_static()
 class TestFloor(OpTest):
     def setUp(self):
         self.op_type = "floor"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.init_dtype()
         self.__class__.no_need_check_grad = True
@@ -36,11 +36,11 @@ class TestFloor(OpTest):
         x = np.random.uniform(-1, 1, [10, 12]).astype(self.dtype)
         out = np.floor(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -51,5 +51,5 @@ class TestFloorFP16(TestFloor):
         self.dtype = np.float16
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

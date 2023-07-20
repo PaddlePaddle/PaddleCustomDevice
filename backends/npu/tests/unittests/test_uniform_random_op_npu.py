@@ -14,8 +14,6 @@
 
 from __future__ import print_function
 
-import sys
-import subprocess
 import unittest
 import numpy as np
 
@@ -23,10 +21,8 @@ from tests.op_test import OpTest
 import paddle
 import paddle.fluid.core as core
 import paddle
-from paddle.fluid.op import Operator
+from tests.op import Operator
 import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
-from paddle.fluid.framework import _test_eager_guard
 
 paddle.enable_static()
 
@@ -40,12 +36,7 @@ class TestUniformRandomOp(OpTest):
         self.outputs = {"Out": np.zeros((1000, 784)).astype("float32")}
 
     def init_attrs(self):
-        self.attrs = {
-            "shape": [1000, 784],
-            "min": -5.0,
-            "max": 10.0,
-            "seed": 10
-        }
+        self.attrs = {"shape": [1000, 784], "min": -5.0, "max": 10.0, "seed": 10}
         self.output_hist = output_hist
 
     def test_check_output(self):
@@ -54,20 +45,23 @@ class TestUniformRandomOp(OpTest):
     def verify_output(self, outs):
         hist, prob = self.output_hist(np.array(outs[0]))
         self.assertTrue(
-            np.allclose(
-                hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
+            np.allclose(hist, prob, rtol=0, atol=0.01), "hist: " + str(hist)
+        )
 
     def test_check_api(self):
         places = self._get_places()
         for place in places:
             with fluid.dygraph.base.guard(place=place):
-                out = self.python_api(self.attrs['shape'], 'float32',
-                                      self.attrs['min'], self.attrs['max'],
-                                      self.attrs['seed'])
+                out = self.python_api(
+                    self.attrs["shape"],
+                    "float32",
+                    self.attrs["min"],
+                    self.attrs["max"],
+                    self.attrs["seed"],
+                )
 
     def test_check_api_eager(self):
-        with _test_eager_guard():
-            self.test_check_api()
+        self.test_check_api()
 
 
 class TestUniformRandomOpSelectedRows(unittest.TestCase):
@@ -84,18 +78,14 @@ class TestUniformRandomOpSelectedRows(unittest.TestCase):
         out = scope.var("X").get_selected_rows()
         paddle.seed(10)
         op = Operator(
-            "uniform_random",
-            Out="X",
-            shape=[1000, 784],
-            min=-5.0,
-            max=10.0,
-            seed=10)
+            "uniform_random", Out="X", shape=[1000, 784], min=-5.0, max=10.0, seed=10
+        )
         op.run(scope, place)
         self.assertEqual(out.get_tensor().shape(), [1000, 784])
         hist, prob = output_hist(np.array(out.get_tensor()))
         self.assertTrue(
-            np.allclose(
-                hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
+            np.allclose(hist, prob, rtol=0, atol=0.01), "hist: " + str(hist)
+        )
 
 
 def output_hist(out):
@@ -116,17 +106,12 @@ class TestNPUUniformRandomOp(OpTest):
         self.outputs = {"Out": np.zeros((1000, 784)).astype(self.dtype)}
 
     def init_attrs(self):
-        self.attrs = {
-            "shape": [1000, 784],
-            "min": -5.0,
-            "max": 10.0,
-            "seed": 10
-        }
+        self.attrs = {"shape": [1000, 784], "min": -5.0, "max": 10.0, "seed": 10}
         self.output_hist = output_hist
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('npu', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -137,14 +122,14 @@ class TestNPUUniformRandomOp(OpTest):
     def verify_output(self, outs):
         hist, prob = self.output_hist(np.array(outs[0]))
         self.assertTrue(
-            np.allclose(
-                hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
+            np.allclose(hist, prob, rtol=0, atol=0.01), "hist: " + str(hist)
+        )
 
 
 class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
     def get_places(self):
         places = [core.CPUPlace()]
-        places.append(core.CustomPlace('npu', 0))
+        places.append(core.CustomPlace("npu", 0))
         return places
 
     def test_check_output(self):
@@ -156,18 +141,14 @@ class TestNPUUniformRandomOpSelectedRows(unittest.TestCase):
         out = scope.var("X").get_selected_rows()
         paddle.seed(10)
         op = Operator(
-            "uniform_random",
-            Out="X",
-            shape=[1000, 784],
-            min=-5.0,
-            max=10.0,
-            seed=10)
+            "uniform_random", Out="X", shape=[1000, 784], min=-5.0, max=10.0, seed=10
+        )
         op.run(scope, place)
         self.assertEqual(out.get_tensor().shape(), [1000, 784])
         hist, prob = output_hist(np.array(out.get_tensor()))
         self.assertTrue(
-            np.allclose(
-                hist, prob, rtol=0, atol=0.01), "hist: " + str(hist))
+            np.allclose(hist, prob, rtol=0, atol=0.01), "hist: " + str(hist)
+        )
 
 
 if __name__ == "__main__":

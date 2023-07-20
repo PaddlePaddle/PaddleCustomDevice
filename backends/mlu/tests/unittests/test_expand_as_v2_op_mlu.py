@@ -30,15 +30,15 @@ def test_class1(op_type, typename):
             self.python_api = paddle.expand_as
             x = np.random.rand(100).astype(typename)
             target_tensor = np.random.rand(2, 100).astype(typename)
-            self.inputs = {'X': x}
-            self.attrs = {'target_shape': target_tensor.shape}
+            self.inputs = {"X": x}
+            self.attrs = {"target_shape": target_tensor.shape}
             bcast_dims = [2, 1]
-            output = np.tile(self.inputs['X'], bcast_dims)
-            self.outputs = {'Out': output}
+            output = np.tile(self.inputs["X"], bcast_dims)
+            self.outputs = {"Out": output}
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace('CustomMLU', 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -57,15 +57,15 @@ def test_class2(op_type, typename):
             self.python_api = paddle.expand_as
             x = np.random.rand(10, 12).astype(typename)
             target_tensor = np.random.rand(10, 12).astype(typename)
-            self.inputs = {'X': x}
-            self.attrs = {'target_shape': target_tensor.shape}
+            self.inputs = {"X": x}
+            self.attrs = {"target_shape": target_tensor.shape}
             bcast_dims = [1, 1]
-            output = np.tile(self.inputs['X'], bcast_dims)
-            self.outputs = {'Out': output}
+            output = np.tile(self.inputs["X"], bcast_dims)
+            self.outputs = {"Out": output}
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace('CustomMLU', 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -84,15 +84,15 @@ def test_class3(op_type, typename):
             self.python_api = paddle.expand_as
             x = np.random.rand(2, 3, 20).astype(typename)
             target_tensor = np.random.rand(2, 3, 20).astype(typename)
-            self.inputs = {'X': x}
-            self.attrs = {'target_shape': target_tensor.shape}
+            self.inputs = {"X": x}
+            self.attrs = {"target_shape": target_tensor.shape}
             bcast_dims = [1, 1, 1]
-            output = np.tile(self.inputs['X'], bcast_dims)
-            self.outputs = {'Out': output}
+            output = np.tile(self.inputs["X"], bcast_dims)
+            self.outputs = {"Out": output}
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace('CustomMLU', 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -111,15 +111,15 @@ def test_class4(op_type, typename):
             self.python_api = paddle.expand_as
             x = np.random.rand(1, 1, 7, 16).astype(typename)
             target_tensor = np.random.rand(4, 6, 7, 16).astype(typename)
-            self.inputs = {'X': x}
-            self.attrs = {'target_shape': target_tensor.shape}
+            self.inputs = {"X": x}
+            self.attrs = {"target_shape": target_tensor.shape}
             bcast_dims = [4, 6, 1, 1]
-            output = np.tile(self.inputs['X'], bcast_dims)
-            self.outputs = {'Out': output}
+            output = np.tile(self.inputs["X"], bcast_dims)
+            self.outputs = {"Out": output}
 
         def set_mlu(self):
             self.__class__.use_custom_device = True
-            self.place = paddle.CustomPlace('CustomMLU', 0)
+            self.place = paddle.CustomPlace("mlu", 0)
             self.__class__.no_need_check_grad = True
 
         def test_check_output(self):
@@ -135,32 +135,26 @@ class TestExpandAsV2API(unittest.TestCase):
     def test_api(self):
         input1 = np.random.random([12, 14]).astype("float32")
         input2 = np.random.random([2, 12, 14]).astype("float32")
-        x = fluid.layers.data(
-            name='x', shape=[12, 14], append_batch_size=False, dtype="float32")
+        x = paddle.static.data(name="x", shape=[12, 14], dtype="float32")
 
-        y = fluid.layers.data(
-            name='target_tensor',
-            shape=[2, 12, 14],
-            append_batch_size=False,
-            dtype="float32")
+        y = paddle.static.data(name="target_tensor", shape=[2, 12, 14], dtype="float32")
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace('CustomMLU', 0))
-        res_1 = exe.run(fluid.default_main_program(),
-                        feed={"x": input1,
-                              "target_tensor": input2},
-                        fetch_list=[out_1])
+        exe = fluid.Executor(place=fluid.CustomPlace("mlu", 0))
+        res_1 = exe.run(
+            fluid.default_main_program(),
+            feed={"x": input1, "target_tensor": input2},
+            fetch_list=[out_1],
+        )
         assert np.array_equal(res_1[0], np.tile(input1, (2, 1, 1)))
 
 
-for _typename in {
-        'float16', 'float32', 'int64', 'int32', 'int8', 'uint8', 'bool'
-}:
-    test_class1('expand_as_v2', _typename)
-    test_class2('expand_as_v2', _typename)
-    test_class3('expand_as_v2', _typename)
-    test_class4('expand_as_v2', _typename)
+for _typename in {"float16", "float32", "int64", "int32", "int8", "uint8", "bool"}:
+    test_class1("expand_as_v2", _typename)
+    test_class2("expand_as_v2", _typename)
+    test_class3("expand_as_v2", _typename)
+    test_class4("expand_as_v2", _typename)
 
 if __name__ == "__main__":
     unittest.main()

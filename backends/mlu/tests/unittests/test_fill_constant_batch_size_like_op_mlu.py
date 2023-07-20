@@ -16,32 +16,25 @@ from __future__ import print_function
 
 import paddle
 import paddle.fluid.core as core
-from paddle.static import program_guard, Program
-import paddle.compat as cpt
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-from paddle.fluid.framework import convert_np_dtype_to_dtype_
 
 paddle.enable_static()
 
 
-def fill_constant_batch_size_like(input,
-                                  shape,
-                                  value,
-                                  data_type,
-                                  input_dim_idx=0,
-                                  output_dim_idx=0,
-                                  force_cpu=False):
+def fill_constant_batch_size_like(
+    input, shape, value, data_type, input_dim_idx=0, output_dim_idx=0, force_cpu=False
+):
     return paddle.fluid.layers.fill_constant_batch_size_like(
-        input, shape, data_type, value, input_dim_idx, output_dim_idx,
-        force_cpu)
+        input, shape, data_type, value, input_dim_idx, output_dim_idx, force_cpu
+    )
 
 
 class TestFillConstantBatchSizeLike(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
-        self.__class__.use_custom_place = True
+        self.place = paddle.CustomPlace("mlu", 0)
+        self.__class__.use_custom_device = True
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()
@@ -49,21 +42,18 @@ class TestFillConstantBatchSizeLike(OpTest):
         self.init_force_cpu()
         self.init_dim_idx()
 
-        self.inputs = {
-            'Input': np.random.random(self.input_shape).astype("float32")
-        }
+        self.inputs = {"Input": np.random.random(self.input_shape).astype("float32")}
         self.attrs = {
-            'shape': self.shape,
-            'value': self.value,
-            'str_value': self.str_value,
-            'dtype': self.dtype,
-            'force_cpu': self.force_cpu,
-            'input_dim_idx': self.input_dim_idx,
-            'output_dim_idx': self.output_dim_idx
+            "shape": self.shape,
+            "value": self.value,
+            "str_value": self.str_value,
+            "dtype": self.dtype,
+            "force_cpu": self.force_cpu,
+            "input_dim_idx": self.input_dim_idx,
+            "output_dim_idx": self.output_dim_idx,
         }
         self.outputs = {
-            'Out': np.full(self.output_shape, self.output_value,
-                           self.output_dtype)
+            "Out": np.full(self.output_shape, self.output_value, self.output_dtype)
         }
 
     def init_shape(self):
@@ -73,7 +63,7 @@ class TestFillConstantBatchSizeLike(OpTest):
 
     def init_value(self):
         self.value = 3.8
-        self.str_value = ''
+        self.str_value = ""
         self.output_value = 3.8
 
     def init_dtype(self):
@@ -103,7 +93,7 @@ class TestFillConstantBatchSizeLike3(TestFillConstantBatchSizeLike):
     def init_value(self):
         # use 'str_value' rather than 'value'
         self.value = 3.8
-        self.str_value = '4.5'
+        self.str_value = "4.5"
         self.output_value = 4.5
 
 
@@ -141,8 +131,8 @@ class TestFillConstantBatchSizeLike9(TestFillConstantBatchSizeLike):
 class TestFillConstantBatchSizeLikeLodTensor(TestFillConstantBatchSizeLike):
     # test LodTensor
     def setUp(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
-        self.__class__.use_custom_place = True
+        self.place = paddle.CustomPlace("mlu", 0)
+        self.__class__.use_custom_device = True
         self.op_type = "fill_constant_batch_size_like"
         self.init_shape()
         self.init_value()
@@ -152,20 +142,19 @@ class TestFillConstantBatchSizeLikeLodTensor(TestFillConstantBatchSizeLike):
 
         lod = [[3, 2, 5]]
         self.inputs = {
-            'Input': (np.random.random(self.input_shape).astype("float32"), lod)
+            "Input": (np.random.random(self.input_shape).astype("float32"), lod)
         }
         self.attrs = {
-            'shape': self.shape,
-            'value': self.value,
-            'str_value': self.str_value,
-            'dtype': self.dtype,
-            'force_cpu': self.force_cpu,
-            'input_dim_idx': self.input_dim_idx,
-            'output_dim_idx': self.output_dim_idx
+            "shape": self.shape,
+            "value": self.value,
+            "str_value": self.str_value,
+            "dtype": self.dtype,
+            "force_cpu": self.force_cpu,
+            "input_dim_idx": self.input_dim_idx,
+            "output_dim_idx": self.output_dim_idx,
         }
         self.outputs = {
-            'Out': np.full(self.output_shape, self.output_value,
-                           self.output_dtype)
+            "Out": np.full(self.output_shape, self.output_value, self.output_dtype)
         }
 
     def init_shape(self):
@@ -174,8 +163,7 @@ class TestFillConstantBatchSizeLikeLodTensor(TestFillConstantBatchSizeLike):
         self.output_shape = (3, 92)
 
 
-class TestFillConstantBatchSizeLikeLodTensor2(
-        TestFillConstantBatchSizeLikeLodTensor):
+class TestFillConstantBatchSizeLikeLodTensor2(TestFillConstantBatchSizeLikeLodTensor):
     # test LodTensor with 'input_dim_idx' != 0
     def init_shape(self):
         self.input_shape = [10, 20]

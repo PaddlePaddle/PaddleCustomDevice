@@ -16,12 +16,11 @@
 
 #include "acl/acl.h"
 #include "glog/logging.h"
+#include "kernels/funcs/npu_op_prepare.h"
+#include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype);
-aclFormat ConvertToNpuFormat(phi::DataLayout layout);
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,
@@ -68,20 +67,10 @@ class NpuOpRunner {
 
   NpuOpRunner &AddInput(const phi::DenseTensor &tensor, aclMemType mem_type);
 
+  template <typename T>
   NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int32_t> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<int64_t> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<float> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<double> &&values);
-
-  NpuOpRunner &AddInput(const phi::CustomContext &dev_ctx,
-                        const std::vector<bool> &&values);
+                        const std::vector<T> &&values,
+                        const bool is_const = true);
 
   NpuOpRunner &AddOutput(const phi::DenseTensor &tensor);
 
@@ -114,15 +103,50 @@ class NpuOpRunner {
                          const std::vector<phi::DenseTensor> &,
                          const NPUAttributeMap &,
                          const phi::CustomContext &)> op_runner,
-      const std::vector<paddle::experimental::DataType> &input_type,
-      const std::vector<paddle::experimental::DataType> &output_type) {
+      const std::vector<phi::DataType> &input_type,
+      const std::vector<phi::DataType> &output_type) {
+    std::function<void(const std::vector<phi::DenseTensor> &,
+                       const std::vector<phi::DenseTensor> &,
+                       const NPUAttributeMap &,
+                       const phi::CustomContext &,
+                       const std::vector<std::vector<int>> &)>
+        new_op_runner =
+            [&](const std::vector<phi::DenseTensor> &inputs,
+                const std::vector<phi::DenseTensor> &outputs,
+                const NPUAttributeMap &attrs,
+                const phi::CustomContext &dev_ctx,
+                const std::vector<std::vector<int>> &host_vecs = {}) {
+              op_runner(inputs, outputs, attrs, dev_ctx);
+            };
+    TypeAdapter<int>(inputs,
+                     outputs,
+                     attrs,
+                     dev_ctx,
+                     new_op_runner,
+                     input_type,
+                     output_type);
+  }
+
+  template <typename T>
+  static void TypeAdapter(
+      const std::vector<phi::DenseTensor> &inputs,
+      const std::vector<phi::DenseTensor> &outputs,
+      const NPUAttributeMap &attrs,
+      const phi::CustomContext &dev_ctx,
+      std::function<void(const std::vector<phi::DenseTensor> &,
+                         const std::vector<phi::DenseTensor> &,
+                         const NPUAttributeMap &,
+                         const phi::CustomContext &,
+                         const std::vector<std::vector<T>> &)> op_runner,
+      const std::vector<phi::DataType> &input_type,
+      const std::vector<phi::DataType> &output_type,
+      const std::vector<std::vector<T>> &&host_vecs = {}) {
     std::vector<phi::DenseTensor> tmp_inputs(inputs.size());
     std::vector<phi::DenseTensor> tmp_outputs(outputs.size());
 
     for (size_t i = 0; i < input_type.size(); ++i) {
-      bool cast_input =
-          (input_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           input_type[i] != inputs[i].dtype());
+      bool cast_input = (input_type[i] == phi::DataType::UNDEFINED ||
+                         input_type[i] != inputs[i].dtype());
       if (!cast_input) {
         tmp_inputs[i] = inputs[i];
       } else {
@@ -138,9 +162,8 @@ class NpuOpRunner {
       }
     }
     for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
+      bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
+                          output_type[i] != outputs[i].dtype());
       if (!cast_output) {
         tmp_outputs[i] = outputs[i];
       } else {
@@ -149,12 +172,11 @@ class NpuOpRunner {
       }
     }
 
-    op_runner(tmp_inputs, tmp_outputs, attrs, dev_ctx);
+    op_runner(tmp_inputs, tmp_outputs, attrs, dev_ctx, host_vecs);
 
     for (size_t i = 0; i < output_type.size(); ++i) {
-      bool cast_output =
-          (output_type[i] == paddle::experimental::DataType::UNDEFINED ||
-           output_type[i] != outputs[i].dtype());
+      bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
+                          output_type[i] != outputs[i].dtype());
       if (cast_output) {
         const auto &cast_runner = NpuOpRunner(
             "Cast",
@@ -167,18 +189,16 @@ class NpuOpRunner {
     }
   }
 
+  static bool GetFloatStatus(aclrtStream stream);
+  static void ClearFloatStatus(aclrtStream stream);
+
  private:
   aclTensorDesc *CreateTensorDesc(phi::DenseTensor tensor,
                                   aclMemType mem_type = ACL_MEMTYPE_DEVICE);
   aclDataBuffer *CreateDataBuffer(phi::DenseTensor tensor);
-  void GetFloatStatus(aclrtStream stream, std::string op_type) const;
   void InitFloatStatus(aclrtStream stream) const;
-  void ClearFloatStatus(aclrtStream stream) const;
   void AllocFloatStatus(aclrtStream stream) const;
   void PrintOpInfo() const;
-  template <typename T>
-  void AddConstantInputHelper(const phi::CustomContext &dev_ctx,
-                              const std::vector<T> &values);
 
  private:
   std::string op_type_;

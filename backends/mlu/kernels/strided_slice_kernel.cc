@@ -109,22 +109,22 @@ static void ProcessStridedSliceParams(
     std::vector<int>* starts_indices_vector,
     std::vector<int>* ends_indices_vector,
     std::vector<int>* strides_indices_vector) {
-    for (size_t axis = 0; axis < axes.size(); axis++) {
-      int64_t start = starts[axis];
-      int64_t end = ends[axis];
-      int64_t stride = strides[axis];
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    int64_t start = starts[axis];
+    int64_t end = ends[axis];
+    int64_t stride = strides[axis];
 
-      int axis_index = axes[axis];
-      int64_t dim_size = input_dims[axis_index];
+    int axis_index = axes[axis];
+    int64_t dim_size = input_dims[axis_index];
 
-      bool decrease_axis_affect = false;
-      if (start == -1 && end == 0 && infer_flags[axis] == -1) {
-        auto ret =
-            std::find(decrease_axis.begin(), decrease_axis.end(), axis_index);
-        if (ret != decrease_axis.end()) {
-          decrease_axis_affect = true;
-        }
+    bool decrease_axis_affect = false;
+    if (start == -1 && end == 0 && infer_flags[axis] == -1) {
+      auto ret =
+          std::find(decrease_axis.begin(), decrease_axis.end(), axis_index);
+      if (ret != decrease_axis.end()) {
+        decrease_axis_affect = true;
       }
+    }
 
     if (stride < 0) {
       if (start < 0) {
@@ -164,7 +164,6 @@ static void ProcessStridedSliceParams(
   }
 }
 
-
 template <typename T, typename Context, size_t D>
 void StridedSliceCompute(const Context& dev_ctx,
                          const phi::DenseTensor& x,
@@ -175,84 +174,81 @@ void StridedSliceCompute(const Context& dev_ctx,
                          const std::vector<int>& infer_flags,
                          const std::vector<int>& decrease_axis,
                          phi::DenseTensor* out) {
+  auto in_dims = x.dims();
+  auto starts = starts_array.GetData();
+  auto ends = ends_array.GetData();
+  auto strides = strides_array.GetData();
 
-    auto in_dims = x.dims();
-    auto starts = starts_array.GetData();
-    auto ends = ends_array.GetData();
-    auto strides = strides_array.GetData();
+  // out dims calculation
+  std::vector<int64_t> out_dims_vector(in_dims.size(), -1);
+  custom_kernel::StridedSliceOutDims(starts,
+                                     ends,
+                                     strides,
+                                     axes,
+                                     infer_flags,
+                                     in_dims,
+                                     decrease_axis,
+                                     out_dims_vector.data(),
+                                     axes.size(),
+                                     false);
+  phi::DDim out_dims(phi::make_ddim(out_dims_vector));
 
-    // out dims calculation
-    std::vector<int64_t> out_dims_vector(in_dims.size(), -1);
-    custom_kernel::StridedSliceOutDims(starts,
-                                    ends,
-                                    strides,
-                                    axes,
-                                    infer_flags,
-                                    in_dims,
-                                    decrease_axis,
-                                    out_dims_vector.data(),
-                                    axes.size(),
-                                    false);
-    phi::DDim out_dims(phi::make_ddim(out_dims_vector));
+  // construct the starts_indices, ends_indices and strides_indices tensor for
+  // calling StridedSlice op
+  std::vector<int> starts_indices_vector(D, 0);
+  std::vector<int> ends_indices_vector(out_dims_vector.begin(),
+                                       out_dims_vector.end());
+  std::vector<int> strides_indices_vector(D, 1);
 
-    // construct the starts_indices, ends_indices and strides_indices tensor for
-    // calling StridedSlice op
-    std::vector<int> starts_indices_vector(D, 0);
-    std::vector<int> ends_indices_vector(out_dims_vector.begin(),
-                                         out_dims_vector.end());
-    std::vector<int> strides_indices_vector(D, 1);
+  custom_kernel::ProcessStridedSliceParams(axes,
+                                           in_dims,
+                                           starts,
+                                           ends,
+                                           strides,
+                                           infer_flags,
+                                           decrease_axis,
+                                           &starts_indices_vector,
+                                           &ends_indices_vector,
+                                           &strides_indices_vector);
 
-    custom_kernel::ProcessStridedSliceParams(axes,
-                              in_dims,
-                              starts,
-                              ends,
-                              strides,
-                              infer_flags,
-                              decrease_axis,
-                              &starts_indices_vector,
-                              &ends_indices_vector,
-                              &strides_indices_vector);
-
-    auto out_dims_origin = out_dims;
-    if (decrease_axis.size() > 0) {
-      std::vector<int64_t> new_out_shape;
-      for (size_t i = 0; i < decrease_axis.size(); ++i) {
-        PADDLE_ENFORCE_EQ(
-            out_dims[decrease_axis[i]],
-            1,
-            phi::errors::InvalidArgument(
-                "the size of decrease dimension should be 1, but received %d.",
-                out_dims[decrease_axis[i]]));
-        out_dims_origin[decrease_axis[i]] = 0;
-      }
-
-      for (int i = 0; i < out_dims_origin.size(); ++i) {
-        if (out_dims_origin[i] != 0) {
-          new_out_shape.push_back(out_dims_origin[i]);
-        }
-      }
-      if (new_out_shape.size() == 0) {
-        new_out_shape.push_back(1);
-      }
-      out_dims_origin = phi::make_ddim(new_out_shape);
+  auto out_dims_origin = out_dims;
+  if (decrease_axis.size() > 0) {
+    std::vector<int64_t> new_out_shape;
+    for (size_t i = 0; i < decrease_axis.size(); ++i) {
+      PADDLE_ENFORCE_EQ(
+          out_dims[decrease_axis[i]],
+          1,
+          phi::errors::InvalidArgument(
+              "the size of decrease dimension should be 1, but received %d.",
+              out_dims[decrease_axis[i]]));
+      out_dims_origin[decrease_axis[i]] = 0;
     }
 
-    out->Resize(out_dims_origin);
-    dev_ctx.template Alloc<T>(out);
+    for (int i = 0; i < out_dims_origin.size(); ++i) {
+      if (out_dims_origin[i] != 0) {
+        new_out_shape.push_back(out_dims_origin[i]);
+      }
+    }
+    if (new_out_shape.size() == 0) {
+      new_out_shape.push_back(1);
+    }
+    out_dims_origin = phi::make_ddim(new_out_shape);
+  }
 
+  out->Resize(out_dims_origin);
+  dev_ctx.template Alloc<T>(out);
 
-    MLUCnnlTensorDesc in_desc(x);
-    MLUCnnlTensorDesc out_desc(
-        out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
-    MLUCnnl::StridedSlice(dev_ctx,
-                          starts_indices_vector.data(),
-                          ends_indices_vector.data(),
-                          strides_indices_vector.data(),
-                          in_desc.get(),
-                          GetBasePtr(&x),
-                          out_desc.get(),
-                          GetBasePtr(out));
-
+  MLUCnnlTensorDesc in_desc(x);
+  MLUCnnlTensorDesc out_desc(
+      out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
+  MLUCnnl::StridedSlice(dev_ctx,
+                        starts_indices_vector.data(),
+                        ends_indices_vector.data(),
+                        strides_indices_vector.data(),
+                        in_desc.get(),
+                        GetBasePtr(&x),
+                        out_desc.get(),
+                        GetBasePtr(out));
 }
 
 template <typename T, typename Context>
@@ -265,10 +261,10 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                            const std::vector<int>& infer_flags,
                            const std::vector<int>& decrease_axis,
                            phi::DenseTensor* out) {
-    int rank = x.dims().size();
-    switch (rank) {
-      case 1:
-        custom_kernel::StridedSliceCompute<T, Context,1>(dev_ctx,
+  int rank = x.dims().size();
+  switch (rank) {
+    case 1:
+      custom_kernel::StridedSliceCompute<T, Context, 1>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -277,9 +273,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 2:
-        custom_kernel::StridedSliceCompute<T, Context,2>(dev_ctx,
+      break;
+    case 2:
+      custom_kernel::StridedSliceCompute<T, Context, 2>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -288,9 +284,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 3:
-        custom_kernel::StridedSliceCompute<T, Context,3>(dev_ctx,
+      break;
+    case 3:
+      custom_kernel::StridedSliceCompute<T, Context, 3>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -299,9 +295,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 4:
-        custom_kernel::StridedSliceCompute<T, Context,4>(dev_ctx,
+      break;
+    case 4:
+      custom_kernel::StridedSliceCompute<T, Context, 4>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -310,9 +306,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 5:
-        custom_kernel::StridedSliceCompute<T, Context,5>(dev_ctx,
+      break;
+    case 5:
+      custom_kernel::StridedSliceCompute<T, Context, 5>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -321,9 +317,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 6:
-        custom_kernel::StridedSliceCompute<T, Context,6>(dev_ctx,
+      break;
+    case 6:
+      custom_kernel::StridedSliceCompute<T, Context, 6>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -332,9 +328,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 7:
-        custom_kernel::StridedSliceCompute<T, Context,7>(dev_ctx,
+      break;
+    case 7:
+      custom_kernel::StridedSliceCompute<T, Context, 7>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -343,9 +339,9 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      case 8:
-        custom_kernel::StridedSliceCompute<T, Context,8>(dev_ctx,
+      break;
+    case 8:
+      custom_kernel::StridedSliceCompute<T, Context, 8>(dev_ctx,
                                                         x,
                                                         axes,
                                                         starts,
@@ -354,12 +350,12 @@ void StridedSliceRawKernel(const Context& dev_ctx,
                                                         infer_flags,
                                                         decrease_axis,
                                                         out);
-        break;
-      default:
-        PADDLE_THROW(phi::errors::InvalidArgument(
-            "The rank of input is supported up to 8."));
-        break;
-    }
+      break;
+    default:
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "The rank of input is supported up to 8."));
+      break;
+  }
 }
 
 template <typename T, typename Context, size_t D>
@@ -373,56 +369,54 @@ void StridedSliceGradCompute(const Context& dev_ctx,
                              const std::vector<int>& infer_flags,
                              const std::vector<int>& decrease_axis,
                              phi::DenseTensor* x_grad) {
+  auto input_dims = x.dims();
+  x_grad->Resize(input_dims);
+  dev_ctx.template Alloc<T>(x_grad);
 
-    auto input_dims = x.dims();
-    x_grad->Resize(input_dims);
-    dev_ctx.template Alloc<T>(x_grad);
+  auto starts = starts_array.GetData();
+  auto ends = ends_array.GetData();
+  auto strides = strides_array.GetData();
 
-    auto starts = starts_array.GetData();
-    auto ends = ends_array.GetData();
-    auto strides = strides_array.GetData();
+  std::vector<int64_t> out_dims_vector(input_dims.size(), -1);
+  custom_kernel::StridedSliceOutDims(starts,
+                                     ends,
+                                     strides,
+                                     axes,
+                                     infer_flags,
+                                     input_dims,
+                                     decrease_axis,
+                                     out_dims_vector.data(),
+                                     axes.size(),
+                                     false);
 
-    std::vector<int64_t> out_dims_vector(input_dims.size(), -1);
-    custom_kernel::StridedSliceOutDims(starts,
-                                    ends,
-                                    strides,
-                                    axes,
-                                    infer_flags,
-                                    input_dims,
-                                    decrease_axis,
-                                    out_dims_vector.data(),
-                                    axes.size(),
-                                    false);
+  std::vector<int> starts_indices_vector(D, 0);
+  std::vector<int> ends_indices_vector(out_dims_vector.begin(),
+                                       out_dims_vector.end());
+  std::vector<int> strides_indices_vector(D, 1);
 
-    std::vector<int> starts_indices_vector(D, 0);
-    std::vector<int> ends_indices_vector(out_dims_vector.begin(),
-                                         out_dims_vector.end());
-    std::vector<int> strides_indices_vector(D, 1);
+  custom_kernel::ProcessStridedSliceParams(axes,
+                                           input_dims,
+                                           starts,
+                                           ends,
+                                           strides,
+                                           infer_flags,
+                                           decrease_axis,
+                                           &starts_indices_vector,
+                                           &ends_indices_vector,
+                                           &strides_indices_vector);
 
-    custom_kernel::ProcessStridedSliceParams(axes,
-                              input_dims,
-                              starts,
-                              ends,
-                              strides,
-                              infer_flags,
-                              decrease_axis,
-                              &starts_indices_vector,
-                              &ends_indices_vector,
-                              &strides_indices_vector);
-
-    MLUCnnlTensorDesc out_grad_desc(
-        out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
-    MLUCnnlTensorDesc x_grad_desc(x);
-    MLUCnnl::StridedSliceGrad(dev_ctx,
-                              starts_indices_vector.data(),
-                              ends_indices_vector.data(),
-                              strides_indices_vector.data(),
-                              out_grad_desc.get(),
-                              GetBasePtr(&out_grad),
-                              x_grad_desc.get(),
-                              GetBasePtr(x_grad));
+  MLUCnnlTensorDesc out_grad_desc(
+      out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
+  MLUCnnlTensorDesc x_grad_desc(x);
+  MLUCnnl::StridedSliceGrad(dev_ctx,
+                            starts_indices_vector.data(),
+                            ends_indices_vector.data(),
+                            strides_indices_vector.data(),
+                            out_grad_desc.get(),
+                            GetBasePtr(&out_grad),
+                            x_grad_desc.get(),
+                            GetBasePtr(x_grad));
 }
-
 
 template <typename T, typename Context>
 void StridedSliceRawGradKernel(const Context& dev_ctx,
@@ -435,11 +429,11 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                const std::vector<int>& infer_flags,
                                const std::vector<int>& decrease_axis,
                                phi::DenseTensor* x_grad) {
-    int rank = x.dims().size();
+  int rank = x.dims().size();
 
-    switch (rank) {
-      case 1:
-        custom_kernel::StridedSliceGradCompute<T, Context, 1>(dev_ctx,
+  switch (rank) {
+    case 1:
+      custom_kernel::StridedSliceGradCompute<T, Context, 1>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -449,9 +443,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 2:
-        custom_kernel::StridedSliceGradCompute<T, Context, 2>(dev_ctx,
+      break;
+    case 2:
+      custom_kernel::StridedSliceGradCompute<T, Context, 2>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -461,9 +455,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 3:
-       custom_kernel::StridedSliceGradCompute<T, Context, 3>(dev_ctx,
+      break;
+    case 3:
+      custom_kernel::StridedSliceGradCompute<T, Context, 3>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -473,9 +467,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 4:
-        custom_kernel::StridedSliceGradCompute<T, Context, 4>(dev_ctx,
+      break;
+    case 4:
+      custom_kernel::StridedSliceGradCompute<T, Context, 4>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -485,9 +479,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 5:
-        custom_kernel::StridedSliceGradCompute<T, Context, 5>(dev_ctx,
+      break;
+    case 5:
+      custom_kernel::StridedSliceGradCompute<T, Context, 5>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -497,9 +491,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 6:
-        custom_kernel::StridedSliceGradCompute<T, Context, 6>(dev_ctx,
+      break;
+    case 6:
+      custom_kernel::StridedSliceGradCompute<T, Context, 6>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -509,9 +503,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 7:
-        custom_kernel::StridedSliceGradCompute<T, Context, 7>(dev_ctx,
+      break;
+    case 7:
+      custom_kernel::StridedSliceGradCompute<T, Context, 7>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -521,9 +515,9 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      case 8:
-        custom_kernel::StridedSliceGradCompute<T, Context, 8>(dev_ctx,
+      break;
+    case 8:
+      custom_kernel::StridedSliceGradCompute<T, Context, 8>(dev_ctx,
                                                             x,
                                                             out_grad,
                                                             axes,
@@ -533,20 +527,18 @@ void StridedSliceRawGradKernel(const Context& dev_ctx,
                                                             infer_flags,
                                                             decrease_axis,
                                                             x_grad);
-        break;
-      default:
-        PADDLE_THROW(phi::errors::InvalidArgument(
-            "The rank of input is supported up to 8."));
-        break;
-    }
-
+      break;
+    default:
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "The rank of input is supported up to 8."));
+      break;
   }
-
+}
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawKernel,
                           bool,
@@ -556,7 +548,7 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_raw_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::StridedSliceRawGradKernel,
                           bool,

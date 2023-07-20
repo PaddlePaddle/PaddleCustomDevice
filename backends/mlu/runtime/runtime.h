@@ -16,22 +16,34 @@
 
 #include <cncl.h>
 #include <cnnl.h>
-#include <mlu_op.h>
 #include <cnpapi.h>
 #include <cnrt.h>
+#include <mlu_op.h>
 
 #include "glog/logging.h"
+#include "paddle/phi/core/os_info.h"
 #include "paddle/phi/extension.h"
+#include "runtime/process_cnpapi_data.h"
 
 template <typename T>
-struct CustomMLUStatusType {};
+struct mluStatusType {};
 
 #define DEFINE_CUSTOM_MLU_STATUS_TYPE(type, success_value) \
   template <>                                              \
-  struct CustomMLUStatusType<type> {                       \
+  struct mluStatusType<type> {                             \
     using Type = type;                                     \
     static constexpr Type kSuccess = success_value;        \
   }
+
+#define CNPAPI_CALL(call)                                                    \
+  do {                                                                       \
+    cnpapiResult _status = call;                                             \
+    if (_status != CNPAPI_SUCCESS) {                                         \
+      const char *errstr;                                                    \
+      cnpapiGetResultString(_status, &errstr);                               \
+      LOG(ERROR) << "Function " << #call << " failed with error " << errstr; \
+    }                                                                        \
+  } while (0)
 
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnrtRet_t, cnrtSuccess);
 DEFINE_CUSTOM_MLU_STATUS_TYPE(cnnlStatus_t, CNNL_STATUS_SUCCESS);
@@ -59,16 +71,15 @@ inline std::string build_mlu_error_msg(cnnlStatus_t stat) {
 }
 
 /*************** MLUOP ERROR ***************/
-inline bool is_error(mluOpStatus_t stat) { return stat != MLUOP_STATUS_SUCCESS; }
+inline bool is_error(mluOpStatus_t stat) {
+  return stat != MLUOP_STATUS_SUCCESS;
+}
 
 inline std::string build_mlu_error_msg(mluOpStatus_t stat) {
   std::ostringstream sout;
-  sout << "MLU OP error(" << stat << "), " << mluOpGetErrorString(stat)
-       << ". ";
+  sout << "MLU OP error(" << stat << "), " << mluOpGetErrorString(stat) << ". ";
   return sout.str();
 }
-
-
 
 /*************** CNCL ERROR ***************/
 inline bool is_error(cnclResult_t e) { return e != CNCL_RET_SUCCESS; }
@@ -79,24 +90,50 @@ inline std::string build_mlu_error_msg(cnclResult_t e) {
   return sout.str();
 }
 
-#define PADDLE_ENFORCE_MLU_SUCCESS(COND)                    \
-  do {                                                      \
-    auto __cond__ = (COND);                                 \
-    using __MLU_STATUS_TYPE__ = decltype(__cond__);         \
-    constexpr auto __success_type__ =                       \
-        CustomMLUStatusType<__MLU_STATUS_TYPE__>::kSuccess; \
-    if (UNLIKELY(__cond__ != __success_type__)) {           \
-      auto __summary__ = build_mlu_error_msg(__cond__);     \
-      __THROW_ERROR_INTERNAL__(__summary__);                \
-    }                                                       \
+#define PADDLE_ENFORCE_MLU_SUCCESS(COND)                \
+  do {                                                  \
+    auto __cond__ = (COND);                             \
+    using __MLU_STATUS_TYPE__ = decltype(__cond__);     \
+    constexpr auto __success_type__ =                   \
+        mluStatusType<__MLU_STATUS_TYPE__>::kSuccess;   \
+    if (UNLIKELY(__cond__ != __success_type__)) {       \
+      auto __summary__ = build_mlu_error_msg(__cond__); \
+      __THROW_ERROR_INTERNAL__(__summary__);            \
+    }                                                   \
   } while (0)
 
-struct CustomMLUStream {
+struct mluStream {
   cnnlHandle_t handle;
   mluOpHandle_t op_handle;
   cnrtQueue_t queue;
 };
-typedef CustomMLUStream *mluStream_t;
+typedef mluStream *mluStream_t;
+
+struct lastCommStream {
+  static lastCommStream &Instance() {
+    static lastCommStream last_comm_stream;
+    return last_comm_stream;
+  }
+
+  void Update(cnrtQueue_t q) {
+    if (p_queue == nullptr) {
+      VLOG(4) << "previous comm queue is nullptr, set to queue: " << q;
+      p_queue = q;
+    } else if (p_queue != q) {
+      VLOG(4) << "use different comm_queue, prev: " << p_queue
+              << " current: " << q;
+      VLOG(4) << "sync prev_queue: " << p_queue;
+      cnrtQueueSync(p_queue);
+      p_queue = q;
+    }
+  }
+
+  cnrtQueue_t get() { return p_queue; }
+
+ private:
+  lastCommStream() = default;
+  cnrtQueue_t p_queue = nullptr;
+};
 
 inline cnnlHandle_t GetHandle(const C_Stream stream) {
   return reinterpret_cast<mluStream_t>(stream)->handle;

@@ -5,10 +5,10 @@ LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache
 RUN yum update -y
-RUN yum install -y bzip2 make openssl-devel openssh-server python3 python3-pip python3-devel elfutils-devel \
-        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison yasm diffutils \
-        automake which file net-tools tree lrzsz zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool \
-        xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++ gcc-gfortran rpm-build iproute
+RUN yum install -y bzip2 make openssl-devel openssh-server elfutils-devel diffutils libtool iproute yasm \
+        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git patch unzip bison hostname \
+        automake which file net-tools tree lrzsz zlib-devel libffi-devel pcre-devel vim tk-devel tkinter \
+        xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++ gcc-gfortran rpm-build 
 
 # add bash envs
 COPY root/ /root/
@@ -20,11 +20,20 @@ RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \
     mv cmake-3.19.0-Linux-x86_64 cmake-3.19
 ENV PATH=/opt/cmake-3.19/bin:${PATH}
 
+# Python 3.9.17
+RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
+    tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+    CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
+    make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
+    cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.9:${CPLUS_INCLUDE_PATH}
+
 # create venv and activate
-RUN /usr/bin/python3.7 -m venv /opt/py37env
+RUN /usr/local/bin/python3.9 -m venv /opt/py39
 # update env
-ENV PATH=/opt/py37env/bin:$PATH
-RUN echo "source /opt/py37env/bin/activate" >> /root/.bashrc
+ENV PATH=/opt/py39/bin:$PATH
+RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
 # upgrade pip and setuptools
 RUN pip install --upgrade pip setuptools wheel
 

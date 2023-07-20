@@ -16,6 +16,7 @@
 - [飞桨自定义接入硬件后端(寒武纪MLU)](backends/mlu/README_cn.md)
 - [飞桨自定义接入硬件后端(英特尔GPU)](backends/intel_gpu/README.md)
 - [飞桨自定义接入硬件后端(苹果MPS)](backends/mps/README.md)
+- [飞桨自定义接入硬件后端(壁仞GPU)](backends/biren_gpu/README.md)
 
 ## 版权和许可证
 

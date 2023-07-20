@@ -121,13 +121,13 @@ cd PaddleCustomDevice/Paddle
 mkdir build && cd build
 
 # 3.1) X86-64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=OFF
+cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=OFF
 make -j8
 
 # 3.2) Aarch64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=ON
+cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
 # 4) 生成的 PaddleInference C++ 预测库即为 build/paddle_inference_install_dir 目录

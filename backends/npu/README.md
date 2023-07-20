@@ -115,13 +115,13 @@ cd PaddleCustomDevice/Paddle
 mkdir build && cd build
 
 # 3.1 build command for X86_64
-cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=OFF
+cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=OFF
 make -j8
 
 # 3.2 build command for aarch64
-cmake .. -DPY_VERSION=3 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_ARM=ON
+cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 
 # 4) PaddleInference C++ package will be generated into build/paddle_inference_install_dir directory

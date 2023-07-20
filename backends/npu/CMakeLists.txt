@@ -1,3 +1,17 @@
+# Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License
+
 cmake_minimum_required(VERSION 3.10)
 
 project(paddle-custom-npu CXX C)
@@ -12,7 +26,6 @@ include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
 option(WITH_MKLDNN "compile with MKLDNN support" ON)
-option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
@@ -25,56 +38,56 @@ message(STATUS "AR tools: ${CMAKE_AR}")
 set(CMAKE_CXX_FLAGS
     "${CMAKE_CXX_FLAGS} -Wno-narrowing -Wno-terminate -Wno-write-strings -Wno-return-type"
 )
+# Note: _GLIBCXX_USE_CXX11_ABI should be same with libpaddle.so, default is 1
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 
 # custom runtime
 set(CUSTOM_NPU_SRCS runtime/runtime.cc)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
-# TODO(qiil93): avoid compile error, to be removed
 add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
 if(WITH_ARM)
   add_definitions(-DPADDLE_WITH_ARM)
 endif()
 
 # custom kernels
-if(WITH_KERNELS)
-  file(
-    GLOB_RECURSE CUSTOM_KERNEL_SRCS
-    RELATIVE ${CMAKE_SOURCE_DIR}
-    kernels/*.cc)
-  list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
+file(
+  GLOB_RECURSE CUSTOM_KERNEL_SRCS
+  RELATIVE ${CMAKE_SOURCE_DIR}
+  kernels/*.cc)
+list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
 
-  file(
-    GLOB_RECURSE CUSTOM_CUSTOM_OP_SRCS
-    RELATIVE ${CMAKE_SOURCE_DIR}
-    custom_op/*.cc)
-  list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
-endif()
+# custom op with kernel
+file(
+  GLOB_RECURSE CUSTOM_CUSTOM_OP_SRCS
+  RELATIVE ${CMAKE_SOURCE_DIR}
+  custom_op/*.cc)
+list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 
-# C++ infer lib need to compatiable with CXX11
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
 
 # build shared library
 add_library(${CUSTOM_NPU_NAME} SHARED ${CUSTOM_NPU_SRCS})
+
+# link ascend libs
 add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
-target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib}
-                                                 ${ascend_hccl_lib} glog gflags)
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib})
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascend_hccl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
-# link paddle shared library
+# link third_party
 include(third_party)
 add_dependencies(${CUSTOM_NPU_NAME} third_party)
+target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE gflags glog)
+
+# link paddle libs
 if(ON_INFER)
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE paddle_inference)
   target_compile_definitions(${CUSTOM_NPU_NAME} PRIVATE PADDLE_ON_INFERENCE)
 else()
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${PADDLE_CORE_LIB})
   target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE pybind)
-  find_package(PythonInterp ${PY_VERSION} REQUIRED)
-  find_package(PythonLibs ${PY_VERSION} REQUIRED)
-  include_directories(${PYTHON_INCLUDE_DIR})
 endif()
 
 # testing
@@ -96,6 +109,7 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 message(STATUS "Git commit id is: ${GIT_HASH}")
 
+# configure setup.py
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 

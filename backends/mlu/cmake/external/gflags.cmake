@@ -1,1 +1,1 @@
-../../../../Paddle/cmake/external/gflags.cmake
+../../../../cmake/external/gflags.cmake

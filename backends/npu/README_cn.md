@@ -13,7 +13,6 @@
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -24,18 +23,16 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        -v /usr/local/dcmi:/usr/local/dcmi \
        registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-$(uname -m)-gcc82 /bin/bash
 
-# 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
-git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
+# 3) 克隆 PaddleCustomDevice 源码
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4) 请执行以下命令，以保证 checkout 最新的 PaddlePaddle 主框架源码
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
-## PaddlePaddle 训练安装与运行
+## PaddlePaddle 安装与运行
 
-### 训练编译安装
+> 注意：此步骤编译得到的 PaddlePaddle Python WHL 安装包同时包含训练和推理功能，其中推理仅支持 PaddleInference Python API，如果需要 PaddleInference C++ API 请参考下一章节 "PaddleInference C++ 推理安装与运行"。
+
+### 编译安装
 
 ```bash
 # 1) 进入硬件后端(昇腾NPU)目录
@@ -49,14 +46,14 @@ https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-li
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
 
-# 4) 执行编译脚本
+# 4) 执行编译脚本 - submodule 在编译时会按需下载
 bash tools/compile.sh
 
 # 5) 编译产出在 build/dist 路径下，使用 pip 安装
 pip install build/dist/paddle_custom_npu*.whl
 ```
 
-### 训练功能验证
+### 功能验证
 
 ```bash
 # 1) 列出可用硬件后端
@@ -68,12 +65,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
 version: 0.0.0
-commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 
 # 3) 运行简单模型训练、评估和推理任务
 python tests/test_LeNet_MNIST.py
-# 预期得到如下输出结果
+# 预期得到如下输出结果 - 训练输出
 Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44
 Epoch [1/2], Iter [02/14], reader_cost: 1.13547 s, batch_cost: 7.23942 s, ips: 565.79091 samples/s, eta: 0:03:15
 ... ...
@@ -84,6 +81,7 @@ Epoch [2/2], Iter [13/14], reader_cost: 0.18521 s, batch_cost: 0.20728 s, ips: 1
 Epoch [2/2], Iter [14/14], reader_cost: 0.17199 s, batch_cost: 0.19436 s, ips: 21074.31905 samples/s, eta: 0:00:00
 Epoch ID: 2, Epoch time: 3.68077 s, reader_cost: 2.40789 s, batch_cost: 2.72104 s, avg ips: 15579.36234 samples/s
 Eval - Epoch ID: 2, Top1 accurary:: 0.86450, Top5 accurary:: 0.99023
+# 预期得到如下输出结果 - 推理输出
 I0418 16:45:47.717545 85550 interpretercore.cc:267] New Executor is Running.
 I0418 16:45:47.788849 85550 analysis_predictor.cc:1414] CustomDevice is enabled
 --- Running analysis [ir_graph_build_pass]

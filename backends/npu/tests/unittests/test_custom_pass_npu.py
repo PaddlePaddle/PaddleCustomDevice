@@ -44,7 +44,7 @@ def func(x, y, z):
     return x + y + z
 
 
-MODLE_FILE = "./saved_model"
+MODEL_FILE = "./saved_model"
 
 
 class TestCustomPass(unittest.TestCase):
@@ -54,11 +54,11 @@ class TestCustomPass(unittest.TestCase):
                 paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
                     lib
                 )
-        paddle.jit.save(func, MODLE_FILE)
+        paddle.jit.save(func, MODEL_FILE)
 
     def test_my_add_n(self):
         config = paddle.inference.Config()
-        config.set_prog_file(MODLE_FILE + ".pdmodel")
+        config.set_prog_file(MODEL_FILE + ".pdmodel")
         config.enable_memory_optim()
         config.enable_custom_device("npu")
         pass_builder = config.pass_builder()

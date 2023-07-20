@@ -128,6 +128,8 @@ struct lastCommStream {
     }
   }
 
+  cnrtQueue_t get() { return p_queue; }
+
  private:
   lastCommStream() = default;
   cnrtQueue_t p_queue = nullptr;

@@ -1,1 +1,1 @@
-../../../Paddle/cmake/generic.cmake
+../../../cmake/generic.cmake

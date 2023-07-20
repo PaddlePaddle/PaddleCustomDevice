@@ -13,7 +13,6 @@ Please refer to the following steps to compile, install and verify the custom de
 # dockerfile of the image is in tools/dockerfile directory
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-kylinv10-aarch64-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
@@ -24,16 +23,14 @@ docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
        -v /usr/local/dcmi:/usr/local/dcmi \
        registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-$(uname -m)-gcc82 /bin/bash
 
-# 3. clone the source code recursively along with Paddle source code
-git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
+# 3. clone the source code
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
-
-# 4. execute the following commands to update submodule
-git submodule sync
-git submodule update --remote --init --recursive
 ```
 
 ## PaddlePaddle Installation and Verification
+
+> Note: PaddlePaddle Python WHL package supports both training and inference, while ONLY PaddleInference Python API is supported. Please refer to next section if PaddleInference C++ API is needed.
 
 ### Source Code Compile
 
@@ -50,10 +47,10 @@ https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp37-cp37m-li
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
 
-# 4. execute compile script
+# 4. execute compile script - submodules will be synced on demand when compile
 bash tools/compile.sh
 
-# 5. install the generated package, which is under build/dist directory
+# 5. install the generated whl package, which is under build/dist directory
 pip install build/dist/paddle_custom_npu*.whl
 ```
 
@@ -69,12 +66,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # expected output
 version: 0.0.0
-commit: 81d4b3f881ec5af334289f826ed866b502a8f89a
+commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 
-# 2. demo for training, evaluation and inference
+# 3. demo for training, evaluation and inference
 python tests/test_LeNet_MNIST.py
-# expected output
+# expected output - training
 Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44
 Epoch [1/2], Iter [02/14], reader_cost: 1.13547 s, batch_cost: 7.23942 s, ips: 565.79091 samples/s, eta: 0:03:15
 ... ...
@@ -85,6 +82,7 @@ Epoch [2/2], Iter [13/14], reader_cost: 0.18521 s, batch_cost: 0.20728 s, ips: 1
 Epoch [2/2], Iter [14/14], reader_cost: 0.17199 s, batch_cost: 0.19436 s, ips: 21074.31905 samples/s, eta: 0:00:00
 Epoch ID: 2, Epoch time: 3.68077 s, reader_cost: 2.40789 s, batch_cost: 2.72104 s, avg ips: 15579.36234 samples/s
 Eval - Epoch ID: 2, Top1 accurary:: 0.86450, Top5 accurary:: 0.99023
+# expected output - inference
 I0418 16:45:47.717545 85550 interpretercore.cc:267] New Executor is Running.
 I0418 16:45:47.788849 85550 analysis_predictor.cc:1414] CustomDevice is enabled
 --- Running analysis [ir_graph_build_pass]
@@ -110,7 +108,7 @@ Output data shape is (1, 10)
 > Note: the official released PaddleInference C++ package do not support custom device, please follow the steps below to source compile PaddleInference C++ package.
 
 ```bash
-# 1. got ot Paddle source code directory
+# 1. got to Paddle source code directory
 cd PaddleCustomDevice/Paddle
 
 # 2. prepare build directory

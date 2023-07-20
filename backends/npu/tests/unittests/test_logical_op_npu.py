@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 from paddle.static import Executor, Program, program_guard
 
-SUPPORTED_DTYPES = [bool]
+SUPPORTED_DTYPES = [bool, np.int32, np.int64, np.float16, np.float32, np.float64]
 
 TEST_META_OP_DATA = [
     {"op_str": "logical_and", "binary_op": True},
@@ -126,78 +126,12 @@ def test(unit_test, use_custom_device=False, test_error=False):
                 unit_test.assertTrue((dygraph_result.numpy() == np_result).all())
 
 
-def test_type_error(unit_test, use_custom_device, type_str_map):
-    def check_type(op_str, x, y, binary_op):
-        op = getattr(paddle, op_str)
-        error_type = ValueError
-        if isinstance(x, np.ndarray):
-            x = paddle.to_tensor(x)
-            y = paddle.to_tensor(y)
-            error_type = BaseException
-        if binary_op:
-            if type_str_map["x"] != type_str_map["y"]:
-                unit_test.assertRaises(error_type, op, x=x, y=y)
-            if not paddle.in_dynamic_mode():
-                error_type = TypeError
-                unit_test.assertRaises(error_type, op, x=x, y=y, out=1)
-        else:
-            if not paddle.in_dynamic_mode():
-                error_type = TypeError
-                unit_test.assertRaises(error_type, op, x=x, out=1)
-
-    place = paddle.CPUPlace()
-    if use_custom_device:
-        place = paddle.CustomPlace("npu", 0)
-    for op_data in TEST_META_OP_DATA:
-        meta_data = dict(op_data)
-        binary_op = meta_data["binary_op"]
-
-        paddle.disable_static(place)
-        x = np.random.choice(a=[0, 1], size=[10]).astype(type_str_map["x"])
-        y = np.random.choice(a=[0, 1], size=[10]).astype(type_str_map["y"])
-        check_type(meta_data["op_str"], x, y, binary_op)
-
-        paddle.enable_static()
-        startup_program = paddle.static.Program()
-        main_program = paddle.static.Program()
-        with paddle.static.program_guard(main_program, startup_program):
-            x = paddle.static.data(name="x", shape=[10], dtype=type_str_map["x"])
-            y = paddle.static.data(name="y", shape=[10], dtype=type_str_map["y"])
-            check_type(meta_data["op_str"], x, y, binary_op)
-
-
-def type_map_factory():
-    return [
-        {"x": x_type, "y": y_type}
-        for x_type in SUPPORTED_DTYPES
-        for y_type in SUPPORTED_DTYPES
-    ]
-
-
-class TestCPU(unittest.TestCase):
-    def test(self):
-        test(self)
-
-    def test_error(self):
-        test(self, False, True)
-
-    def test_type_error(self):
-        type_map_list = type_map_factory()
-        for type_map in type_map_list:
-            test_type_error(self, False, type_map)
-
-
 class TestNPU(unittest.TestCase):
     def test(self):
         test(self, True)
 
     def test_error(self):
         test(self, True, True)
-
-    def test_type_error(self):
-        type_map_list = type_map_factory()
-        for type_map in type_map_list:
-            test_type_error(self, True, type_map)
 
 
 if __name__ == "__main__":

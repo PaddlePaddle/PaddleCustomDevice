@@ -24,8 +24,8 @@ function(py_test_modules TARGET_NAME)
     COMMAND
       ${CMAKE_COMMAND} -E env
       CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
-      PYTHONPATH=${PYTHON_SOURCE_DIR}:$ENV{PYTHONPATH} ${py_test_modules_ENVS}
-      python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
+      PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
+      ${py_test_modules_ENVS} python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
       ${py_test_modules_MODULES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -34,6 +34,13 @@ function(py_test_modules TARGET_NAME)
   endif()
 endfunction()
 
-py_test_modules(test_MNIST_model MODULES test_MNIST_model)
+add_test(
+  NAME test_LeNet_MNIST
+  COMMAND
+    ${CMAKE_COMMAND} -E env
+    CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
+    PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
+    python test_LeNet_MNIST.py
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(unittests)

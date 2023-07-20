@@ -57,8 +57,8 @@ def test(epoch_id, test_loader, model, cost):
         outputs = model(images)
         acc_top1 = paddle.metric.accuracy(input=outputs, label=labels, k=1)
         acc_top5 = paddle.metric.accuracy(input=outputs, label=labels, k=5)
-        avg_acc[0].append(acc_top1.numpy())
-        avg_acc[1].append(acc_top5.numpy())
+        avg_acc[0].append(float(acc_top1))
+        avg_acc[1].append(float(acc_top5))
     model.train()
     print(
         "Eval - Epoch ID: {}, Top1 accurary:: {:.5f}, Top5 accurary:: {:.5f}".format(

@@ -43,6 +43,12 @@ if(WITH_KERNELS)
     RELATIVE ${CMAKE_SOURCE_DIR}
     kernels/*.cc)
   list(APPEND CUSTOM_MLU_SRCS ${CUSTOM_KERNEL_SRCS})
+
+  file(
+    GLOB_RECURSE CUSTOM_PLUGIN_OP_SRCS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    plugin_ops/*.cc)
+  list(APPEND CUSTOM_MLU_SRCS ${CUSTOM_PLUGIN_OP_SRCS})
 endif()
 
 if(WITH_PROFILE)
@@ -63,6 +69,9 @@ target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE ${NEUWARE_LIBS} glog gflags)
 # link paddle shared library
 include(third_party)
 add_dependencies(${CUSTOM_MLU_NAME} third_party)
+# concurrentqueue
+include(external/concurrentqueue)
+add_dependencies(${CUSTOM_MLU_NAME} extern_concurrentqueue)
 if(ON_INFER)
   target_link_libraries(${CUSTOM_MLU_NAME} PRIVATE paddle_inference)
   target_compile_definitions(${CUSTOM_MLU_NAME} PRIVATE PADDLE_ON_INFERENCE)

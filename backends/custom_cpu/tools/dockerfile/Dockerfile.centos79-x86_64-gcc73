@@ -86,12 +86,6 @@ RUN git config --global credential.helper store
 # Fix locales to en_US.UTF-8
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
-# protobuf 3.6.1
-RUN wget -q --no-check-certificate https://paddle-ci.cdn.bcebos.com/protobuf-cpp-3.6.1.tar.gz && \
-    tar xzf protobuf-cpp-3.6.1.tar.gz && cd protobuf-3.6.1 && \
-    ./configure && make -j16 && make install && \
-    cd .. && rm -f protobuf-cpp-3.6.1.tar.gz && rm -rf protobuf-3.6.1
-
 # ccache 3.7.9
 RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
     tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \

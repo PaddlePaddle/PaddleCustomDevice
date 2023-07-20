@@ -57,24 +57,21 @@ void NonZeroKernel(const Context& dev_ctx,
   phi::DenseTensor sumed_true_num;
   sumed_true_num.Resize({1});
   dev_ctx.template Alloc<float>(&sumed_true_num);
-  phi::DenseTensor cond_axes;
-  cond_axes.Resize({dims.size()});
-  dev_ctx.template Alloc<int>(&cond_axes);
+
   std::vector<int> axes_vec;
   for (int i = 0; i < dims.size(); ++i) {
     axes_vec.push_back(i);
   }
-  custom_kernel::TensorFromVector(dev_ctx, axes_vec, dev_ctx, &cond_axes);
-  const auto& sum_runner = NpuOpRunner("ReduceSum",
-                                       {casted_cond, cond_axes},
-                                       {sumed_true_num},
-                                       {{"keep_dims", false}});
+  NpuOpRunner sum_runner;
+  sum_runner.SetType("ReduceSum");
+  sum_runner.AddInput(casted_cond);
+  sum_runner.AddInput(dev_ctx, std::move(axes_vec));
+  sum_runner.AddOutput(sumed_true_num);
+  sum_runner.AddAttr("keep_dims", false);
   sum_runner.Run(stream);
-
   phi::DenseTensor local_true_num;
   TensorCopy(dev_ctx, sumed_true_num, true, &local_true_num, phi::CPUPlace());
   int true_num = static_cast<int32_t>(*local_true_num.data<float>());
-
   out->Resize(phi::make_ddim({true_num, rank}));
   dev_ctx.template Alloc<int64_t>(out);
 

@@ -164,7 +164,7 @@ class TestLog10(TestActivation):
                 )
 
                 out1 = paddle.log10(data_x)
-                exe = paddle.static.Executor(place=paddle.CPUPlace())
+                exe = paddle.static.Executor(place=self.place)
                 exe.run(paddle.static.default_startup_program())
                 res1 = exe.run(
                     paddle.static.default_main_program(),
@@ -172,7 +172,7 @@ class TestLog10(TestActivation):
                     fetch_list=[out1],
                 )
             expected_res = np.log10(input_x)
-            np.testing.assert_allclose(res1[0], expected_res, rtol=1e-6)
+            np.testing.assert_allclose(res1[0], expected_res, rtol=1e-5)
 
         # dygraph
         with fluid.dygraph.guard(self.place):

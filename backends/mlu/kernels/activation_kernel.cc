@@ -904,13 +904,6 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(relu6_raw,
-                          mlu,
-                          ALL_LAYOUT,
-                          custom_kernel::Relu6RawKernel,
-                          float,
-                          phi::dtype::float16) {}
-
 PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
                           mlu,
                           ALL_LAYOUT,

@@ -1,7 +1,7 @@
 if(DEFINED ENV{SUPA_CUSTOM_PATH})
-    set(SUPA_DIR $ENV{SUPA_CUSTOM_PATH})
+  set(SUPA_DIR $ENV{SUPA_CUSTOM_PATH})
 else()
-    set(SUPA_DIR /usr/local/supa)
+  set(SUPA_DIR /usr/local/supa)
 endif()
 
 set(SUPA_CL_DIR ${SUPA_DIR})
@@ -12,4 +12,4 @@ set(SUPA_CL_INC_DIR ${SUPA_CL_DIR}/include/ ${SUPA_CL_DIR}/include/sucl/)
 message(STATUS "SUPA_CL_INC_DIR ${SUPA_CL_INC_DIR}")
 message(STATUS "SUPA_CL_DIR ${SUPA_CL_DIR}")
 
-INCLUDE_DIRECTORIES(${SUPA_CL_INC_DIR})
+include_directories(${SUPA_CL_INC_DIR})

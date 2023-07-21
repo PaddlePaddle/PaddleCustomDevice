@@ -1,5 +1,20 @@
-#ifndef BR_PADDLE_SUPA_H_
-#define BR_PADDLE_SUPA_H_
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Copyright©2020-2023 Shanghai Biren Technology Co., Ltd. All rights reserved.
+
+#pragma once
 
 #include <map>
 #include <sstream>
@@ -18,30 +33,34 @@ using std::shared_ptr;
         throw ::phi::enforce::EnforceNotMet(                                 \
             ::phi::ErrorSummary(::phi::ErrorCode::INVALID_ARGUMENT,          \
                                 string(e.what())),                           \
-            e.File(), e.Line());                                             \
+            e.File(),                                                        \
+            e.Line());                                                       \
       case Status::kBr_SupaKernelError_UnImplemented:                        \
         throw ::phi::enforce::EnforceNotMet(                                 \
             ::phi::ErrorSummary(::phi::ErrorCode::UNIMPLEMENTED,             \
                                 string(e.what())),                           \
-            e.File(), e.Line());                                             \
+            e.File(),                                                        \
+            e.Line());                                                       \
       case Status::kBr_SupaKernelError_LaunchError:                          \
       case Status::kBr_Error:                                                \
         throw ::phi::enforce::EnforceNotMet(                                 \
             ::phi::ErrorSummary(::phi::ErrorCode::FATAL, string(e.what())),  \
-            e.File(), e.Line());                                             \
+            e.File(),                                                        \
+            e.Line());                                                       \
       default:                                                               \
         throw ::phi::enforce::EnforceNotMet(                                 \
             ::phi::ErrorSummary(::phi::ErrorCode::LEGACY, string(e.what())), \
-            e.File(), e.Line());                                             \
+            e.File(),                                                        \
+            e.Line());                                                       \
     }                                                                        \
   }
 
 namespace br_device {
-
 template <typename T, typename Context>
 class SupaOpRunner {
  public:
-  SupaOpRunner(const Context &dev_ctx, const OpParams &op_params,
+  SupaOpRunner(const Context &dev_ctx,
+               const OpParams &op_params,
                const vector<const phi::DenseTensor *> &ins,
                const vector<phi::DenseTensor *> &outs) {
     __INTERNAL_HANDLE_THE_ERROR
@@ -81,7 +100,7 @@ class SupaOpRunner {
       DataType framework_dtype(DataTypeMapping(paddle_dtype));
       Layout layout(LayoutConvert(dtensor->layout()));
 
-      void *data_buf = (void *)dtensor->data();
+      void *data_buf = const_cast<void *>(dtensor->data());
 
       auto btensor = sucl::OpExecutor::CreateBrTensor(
           tensor_type, dims, layout, framework_dtype, data_buf);
@@ -103,7 +122,6 @@ class SupaOpRunner {
         return DataType::kBr_DataType_S64;
       case phi::DataType::INT32:
         return DataType::kBr_DataType_S32;
-      // TODO... add more datatype mapping case.
       default: {
         std::stringstream sstream;
         sstream << dtype;
@@ -120,7 +138,6 @@ class SupaOpRunner {
         return Layout::kBr_Layout_NHWC;
       case phi::DataLayout::NCHW:
         return Layout::kBr_Layout_NCHW;
-      // TODO... add more layout convert case.
       default:
         PADDLE_THROW(::phi::errors::Unimplemented(
             "Unsupported phi::DataLayout: %d", layout));
@@ -130,7 +147,4 @@ class SupaOpRunner {
 
   shared_ptr<sucl::OpExecutor> op_executor_;
 };
-
 }  // namespace br_device
-
-#endif  // BR_PADDLE_SUPA_H_

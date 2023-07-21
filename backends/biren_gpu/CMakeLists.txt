@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(paddle-custom-supa CXX C)
 
-set(PLUGIN_NAME         "paddle-custom-supa")
-set(PLUGIN_VERSION      "1.0.0.0")
+set(PLUGIN_NAME "paddle-custom-supa")
+set(PLUGIN_VERSION "1.0.0.0")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
@@ -22,7 +22,7 @@ message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
                "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "AR tools: ${CMAKE_AR}")
 
-## Compile options
+# Compile options
 set(CMAKE_C_FLAGS_DEBUG "-g")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
@@ -33,7 +33,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
 
-add_compile_options(-Wreturn-type -Werror -Wuninitialized -Wno-deprecated-declarations)
+add_compile_options(-Wreturn-type -Werror -Wuninitialized
+                    -Wno-deprecated-declarations)
 
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
@@ -82,19 +83,24 @@ endif()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 
-add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
+add_custom_command(
+  TARGET ${PLUGIN_NAME}
+  POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-  COMMENT "Creating plugin directories------>>>"
-)
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMENT "Creating plugin directories------>>>")
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${PLUGIN_NAME}
-  COMMENT "Packing whl packages------>>>"
-)
+  COMMENT "Packing whl packages------>>>")
 
-add_custom_target(python_package ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)
-
+add_custom_target(python_package ALL
+                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)

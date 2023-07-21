@@ -1,6 +1,21 @@
-#include "runtime.h"
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include <unordered_map>
+// Copyright©2020-2023 Shanghai Biren Technology Co., Ltd. All rights reserved.
+
+#include "runtime/runtime.h"
+
 #include <vector>
 
 #include "glog/logging.h"
@@ -85,7 +100,9 @@ C_Status get_driver_version(size_t *version) {
   return C_SUCCESS;
 }
 
-C_Status memcpy_h2d(const C_Device device, void *dst, const void *src,
+C_Status memcpy_h2d(const C_Device device,
+                    void *dst,
+                    const void *src,
                     size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst;
   PARAM_CHECK_PTR(device, C_ERROR);
@@ -95,7 +112,9 @@ C_Status memcpy_h2d(const C_Device device, void *dst, const void *src,
   return C_SUCCESS;
 }
 
-C_Status memcpy_d2d(const C_Device device, void *dst, const void *src,
+C_Status memcpy_d2d(const C_Device device,
+                    void *dst,
+                    const void *src,
                     size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst;
   PARAM_CHECK_PTR(device, C_ERROR);
@@ -105,7 +124,9 @@ C_Status memcpy_d2d(const C_Device device, void *dst, const void *src,
   return C_SUCCESS;
 }
 
-C_Status memcpy_d2h(const C_Device device, void *dst, const void *src,
+C_Status memcpy_d2h(const C_Device device,
+                    void *dst,
+                    const void *src,
                     size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst;
   PARAM_CHECK_PTR(device, C_ERROR);
@@ -115,8 +136,11 @@ C_Status memcpy_d2h(const C_Device device, void *dst, const void *src,
   return C_SUCCESS;
 }
 
-C_Status async_memcpy_h2d(const C_Device device, C_Stream stream, void *dst,
-                          const void *src, size_t size) {
+C_Status async_memcpy_h2d(const C_Device device,
+                          C_Stream stream,
+                          void *dst,
+                          const void *src,
+                          size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst
           << ", stream " << stream;
   PARAM_CHECK_PTR(dst, C_ERROR);
@@ -128,8 +152,11 @@ C_Status async_memcpy_h2d(const C_Device device, C_Stream stream, void *dst,
   return C_SUCCESS;
 }
 
-C_Status async_memcpy_d2d(const C_Device device, C_Stream stream, void *dst,
-                          const void *src, size_t size) {
+C_Status async_memcpy_d2d(const C_Device device,
+                          C_Stream stream,
+                          void *dst,
+                          const void *src,
+                          size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst
           << ", stream " << stream;
   PARAM_CHECK_PTR(dst, C_ERROR);
@@ -141,8 +168,11 @@ C_Status async_memcpy_d2d(const C_Device device, C_Stream stream, void *dst,
   return C_SUCCESS;
 }
 
-C_Status async_memcpy_d2h(const C_Device device, C_Stream stream, void *dst,
-                          const void *src, size_t size) {
+C_Status async_memcpy_d2h(const C_Device device,
+                          C_Stream stream,
+                          void *dst,
+                          const void *src,
+                          size_t size) {
   VLOG(4) << "enter " << __FUNCTION__ << ", src " << src << ", dst " << dst
           << ", stream " << stream;
   PARAM_CHECK_PTR(dst, C_ERROR);
@@ -164,7 +194,7 @@ C_Status allocate(const C_Device device, void **ptr, size_t size) {
     PARAM_CHECK_MEM_SIZE(size, gpu_free_size, C_FAILED);
     void *temp = kRuntimes[device->id].Malloc(size);
     PARAM_CHECK_PTR(temp, C_ERROR);
-    *ptr = (void *)temp;
+    *ptr = static_cast<void *>(temp);
   })
 
   return C_SUCCESS;
@@ -275,7 +305,8 @@ C_Status sync_event(const C_Device device, C_Event event) {
   return C_SUCCESS;
 }
 
-C_Status stream_wait_event(const C_Device device, C_Stream stream,
+C_Status stream_wait_event(const C_Device device,
+                           C_Stream stream,
                            C_Event event) {
   VLOG(4) << "enter " << __FUNCTION__ << ", stream " << stream << ", event "
           << event;
@@ -290,7 +321,8 @@ C_Status stream_wait_event(const C_Device device, C_Stream stream,
   return C_SUCCESS;
 }
 
-C_Status memstats(const C_Device device, size_t *total_memory,
+C_Status memstats(const C_Device device,
+                  size_t *total_memory,
                   size_t *free_memory) {
   VLOG(4) << "enter " << __FUNCTION__;
   PARAM_CHECK_PTR(device, C_ERROR);
@@ -332,18 +364,14 @@ C_Status get_max_chunk_size(const C_Device device, size_t *size) {
   return C_SUCCESS;
 }
 
-C_Status init() {
-  return C_SUCCESS;
-}
+C_Status init() { return C_SUCCESS; }
 
-C_Status deinit() {
-  return C_SUCCESS;
-}
+C_Status deinit() { return C_SUCCESS; }
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
-  params->device_type = (char *)"SUPA";
-  params->sub_device_type = (char *)"V1";
+  params->device_type = const_cast<char *>("SUPA");
+  params->sub_device_type = const_cast<char *>("V1");
 
   params->interface->set_device = set_device;
   params->interface->get_device = get_device;

@@ -1,3 +1,19 @@
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Copyright©2020-2023 Shanghai Biren Technology Co., Ltd. All rights reserved.
+
 #pragma once
 
 #include "glog/logging.h"
@@ -6,8 +22,10 @@
 
 namespace br_device {
 template <typename Context>
-inline void TensorCopy(const Context& dev_ctx, const phi::DenseTensor& src,
-                       bool blocking, phi::DenseTensor* dst,
+inline void TensorCopy(const Context& dev_ctx,
+                       const phi::DenseTensor& src,
+                       bool blocking,
+                       phi::DenseTensor* dst,
                        const phi::Place& dst_place = phi::CustomPlace()) {
   auto* src_ptr = src.data();
   const auto& src_place = src.place();
@@ -44,11 +62,13 @@ inline void TensorCopy(const Context& dev_ctx, const phi::DenseTensor& src,
   }
 
   PADDLE_ENFORCE_EQ(
-      dst->place(), dst_place_,
+      dst->place(),
+      dst_place_,
       phi::errors::Unavailable(
           "The Dst Tensor's place and dst_place do not match, Tensor's place "
           "place is %s, dst_place is %s.",
-          dst->place(), dst_place_));
+          dst->place(),
+          dst_place_));
 
   if (src_ptr == dst_ptr && src_place == dst_place_) {
     VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "
@@ -67,14 +87,12 @@ inline void TensorCopy(const Context& dev_ctx, const phi::DenseTensor& src,
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
     async_memcpy_h2d(nullptr, stream, dst_ptr, src_ptr, size);
-    // memcpy_h2d(nullptr, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
     async_memcpy_d2h(nullptr, stream, dst_ptr, src_ptr, size);
-    // memcpy_d2h(nullptr, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
@@ -83,7 +101,6 @@ inline void TensorCopy(const Context& dev_ctx, const phi::DenseTensor& src,
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
         async_memcpy_d2d(nullptr, stream, dst_ptr, src_ptr, size);
-        // memcpy_d2d(nullptr, dst_ptr, src_ptr, size);
         if (blocking) {
           dev_ctx.Wait();
         }
@@ -117,8 +134,8 @@ inline void TensorToVector(const phi::CustomContext& ctx,
   auto src_place = src.place();
 
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
-    async_memcpy_d2h(nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr,
-            src_ptr, size);
+    async_memcpy_d2h(
+        nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
     ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(

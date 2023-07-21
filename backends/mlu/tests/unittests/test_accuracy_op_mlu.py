@@ -43,9 +43,9 @@ class TestAccuracyOp(OpTest):
                     num_correct += 1
                     break
         self.outputs = {
-            "Accuracy": np.array([num_correct / float(n)]).astype(self.dtype),
-            "Correct": np.array([num_correct]).astype("int32"),
-            "Total": np.array([n]).astype("int32"),
+            "Accuracy": np.single(num_correct / float(n)),
+            "Correct": np.int_(num_correct),
+            "Total": np.int_(n),
         }
 
     def init_dtype(self):

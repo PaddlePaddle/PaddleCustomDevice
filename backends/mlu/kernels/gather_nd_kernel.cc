@@ -13,6 +13,7 @@ limitations under the License. */
 
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
+#include "kernels/funcs/reduce_op.h"
 
 namespace custom_kernel {
 
@@ -24,8 +25,27 @@ void GatherNdKernel(const Context &dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   if (x.numel() == 0) return;
-  if (index.numel() == 0) {
-    TensorCopy(dev_ctx, x, false, out);
+  if (index.numel() == 0) {  // empty index, do broadcast and return
+    int diff = out->dims().size() - x.dims().size();
+    if (diff == 0) {
+      TensorCopy(dev_ctx, x, false, out);
+    } else {
+      std::vector<int64_t> new_dims(diff, 1);
+      for (size_t i = 0; i < x.dims().size(); ++i) {
+        new_dims.emplace_back(x.dims()[i]);
+      }
+
+      phi::DenseTensor x_tmp(x);
+      x_tmp.Resize(phi::make_ddim(new_dims));
+      MLUCnnlTensorDesc x_tmp_desc(x_tmp);
+      MLUCnnlTensorDesc out_desc(*out);
+
+      MLUCnnl::BroadcastTo(dev_ctx,
+                           x_tmp_desc.get(),
+                           GetBasePtr(&x_tmp),
+                           out_desc.get(),
+                           GetBasePtr(out));
+    }
     return;
   }
 
@@ -64,7 +84,17 @@ void GatherNdGradKernel(const Context &dev_ctx,
 
   if (dx->numel() == 0) return;
   if (index.numel() == 0) {
-    TensorCopy(dev_ctx, dout, false, dx);
+    int diff = dout.dims().size() - x_dims.size();
+    if (diff == 0) {
+      TensorCopy(dev_ctx, dout, false, dx);
+    } else {
+      std::vector<int64_t> axes;
+      for (size_t i = 0; i < diff; ++i) {
+        axes.push_back(i);
+      }
+
+      MLUReduceOp<T>(dev_ctx, dout, axes, false, false, "reduce_sum", dx);
+    }
     return;
   }
 

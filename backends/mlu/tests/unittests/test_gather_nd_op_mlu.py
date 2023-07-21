@@ -74,7 +74,7 @@ def test_class2(op_type, typename):
             self.op_type = "gather_nd"
             xnp = np.random.random((5, 20)).astype(typename)
             self.inputs = {"X": xnp, "Index": np.array([1]).astype("int32")}
-            self.outputs = {"Out": self.inputs["X"][self.inputs["Index"]]}
+            self.outputs = {"Out": self.inputs["X"][self.inputs["Index"][-1]]}
 
         def set_mlu(self):
             self.__class__.use_custom_device = True

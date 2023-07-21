@@ -109,7 +109,7 @@ class TestAssignApi4(TestAssignApi):
     def setUp(self):
         self.init_dtype()
         self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
-            numpy.bool
+            numpy.bool_
         )
         self.place = paddle.CustomPlace("npu", 0)
 

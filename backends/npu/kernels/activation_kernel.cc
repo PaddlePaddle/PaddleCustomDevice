@@ -1229,14 +1229,6 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           double,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(relu6_raw,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::Relu6RawKernel,
-                          float,
-                          double,
-                          phi::dtype::float16) {}
-
 PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
                           npu,
                           ALL_LAYOUT,
@@ -1411,14 +1403,14 @@ PD_REGISTER_PLUGIN_KERNEL(hardtanh_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidGradKernel,

@@ -114,6 +114,11 @@ class TestStackOpINT64(TestStackOpBase):
         self.dtype = np.int64
 
 
+class TestStackOpFP16(TestStackOpBase):
+    def init_dtype(self):
+        self.dtype = np.float16
+
+
 class TestStackAPIWithLoDTensorArray(unittest.TestCase):
     """
     Test stack api when the input(x) is a LoDTensorArray.

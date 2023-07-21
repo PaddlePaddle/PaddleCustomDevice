@@ -32,16 +32,18 @@ RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \
     mv cmake-3.19.0-Linux-x86_64 cmake-3.19
 ENV PATH=/opt/cmake-3.19/bin:${PATH}
 
-# install python3.7 and pip
-RUN apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && apt-get update -y
-RUN apt-get install -y python3.7 python3.7-dev python3-distutils python3.7-venv
-RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.7
+# Python 3.9.17 - default 3.8
+RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
+    tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+    CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
+    make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
+    cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
 
 # create venv and activate
-RUN /usr/bin/python3.7 -m venv /opt/py37env
+RUN /usr/local/bin/python3.9 -m venv /opt/py39
 # update env
-ENV PATH=/opt/py37env/bin:$PATH
-RUN echo "source /opt/py37env/bin/activate" >> /root/.bashrc
+ENV PATH=/opt/py39/bin:$PATH
+RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
 # upgrade pip and setuptools
 RUN pip install --upgrade pip setuptools wheel
 

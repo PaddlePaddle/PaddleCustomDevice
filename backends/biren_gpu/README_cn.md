@@ -1,18 +1,18 @@
-# PaddlePaddle Custom Device Implementation for Biren GPU
+# 飞桨自定义接入硬件后端(壁仞GPU)
 
-English | [简体中文](./README_cn.md)
+简体中文 | [English](./README.md)
 
-Please refer to the following steps to compile, install and verify the custom device implementation for Biren GPU.
+请参考以下步骤进行编译安装与验证
 
-## Compile and Install
+## 编译安装
 
 ```bash
-# Acquire Biren PaddlePaddle Docker Image
+# 获取壁仞PaddlePaddle Docker镜像
 
-# Clone PaddleCustomDevice source code
+# 克隆PaddleCustomDevice源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
-# Compile Source Code and Install
+# 编译安装
 cd backends/biren_gpu
 mkdir -p build
 pushd build
@@ -21,10 +21,10 @@ ninja
 pip3 install --no-index --find-links=offline dist/paddle_custom_supa-*.whl --force-reinstall
 ```
 
-## Verification
+## 验证
 
 ```bash
-# build with -DWITH_TESTING=ON
+# -DWITH_TESTING=ON
 cmake -G Ninja -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug ..
 
 # ctest

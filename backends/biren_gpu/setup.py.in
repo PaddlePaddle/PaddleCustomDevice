@@ -9,7 +9,7 @@ class BinaryDistribution(Distribution):
 
 setup(
     name = '@CMAKE_PROJECT_NAME@',
-    version='@PLUGIN_VERSION@',
+    version='@PADDLE_VERSION@',
     description='Paddle SUPA plugin',
     long_description='',
     long_description_content_type="text/markdown",

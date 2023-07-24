@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 project(paddle-custom-supa CXX C)
 
 set(PLUGIN_NAME "paddle-custom-supa")
-set(PLUGIN_VERSION "1.0.0.0")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
@@ -64,9 +63,6 @@ include(third_party)
 add_dependencies(${PLUGIN_NAME} third_party)
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
 target_link_libraries(${PLUGIN_NAME} PRIVATE pybind)
-find_package(PythonInterp ${PY_VERSION} REQUIRED)
-find_package(PythonLibs ${PY_VERSION} REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIR})
 
 # testing
 if(WITH_TESTING)

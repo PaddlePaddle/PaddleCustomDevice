@@ -147,7 +147,8 @@ void AdamKernel(const Context& dev_ctx,
   if (multi_precision) {
     // for multi_precision attribute, master_param_out should be float32.
     *master_param_out = master_param.get();
-    t_param_in_out = *master_param_out;
+    dev_ctx.template Alloc<MPDType>(&t_param_in_out);
+    TensorCopy(dev_ctx, *master_param_out, false, &t_param_in_out);
   } else if (param.dtype() != phi::DataType::FLOAT32) {
     // cast param(T) to t_param_in_out(MPDType)
     dev_ctx.template Alloc<MPDType>(&t_param_in_out);
@@ -309,9 +310,11 @@ void AdamWKernel(const Context& dev_ctx,
       reinterpret_cast<MPDType*>(const_cast<void*>(GetBasePtr(&learning_rate))),
       &t_lr);
   if (multi_precision) {
-    t_param_bak = master_param.get();
+    dev_ctx.template Alloc<MPDType>(&t_param_bak);
+    TensorCopy(dev_ctx, master_param.get(), false, &t_param_bak);
   } else {
-    t_param_bak = param;
+    dev_ctx.template Alloc<T>(&t_param_bak);
+    TensorCopy(dev_ctx, param, false, &t_param_bak);
   }
 
   // do adam, then decay

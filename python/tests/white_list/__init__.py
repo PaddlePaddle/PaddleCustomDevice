@@ -14,8 +14,8 @@
 
 # TODO(duanyanhui):
 # Devices differ in accurary, so we need to build different white_list for
-# diffrent device. For example, ascend dose not aupport vell well for int64_t 
-# and double. The cast of data type will bring errors. We need to put that 
+# diffrent device. For example, ascend dose not aupport vell well for int64_t
+# and double. The cast of data type will bring errors. We need to put that
 # kernel in the op_threshlod_white_list.
 
 # Next, we will built white_list for each device and put it on backends.

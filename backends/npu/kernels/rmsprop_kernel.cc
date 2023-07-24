@@ -52,8 +52,7 @@ void RmspropDenseKernel(const Context& dev_ctx,
   if (centered) {
     NPUAttributeMap attr_input = {{"use_locking", false}};
 
-    phi::DenseTensorMeta tmp_meta = {phi::DataType::FLOAT32,
-                                     {1}};
+    phi::DenseTensorMeta tmp_meta = {phi::DataType::FLOAT32, {1}};
 
     phi::DenseTensor rho_tmp;
     rho_tmp.set_meta(tmp_meta);

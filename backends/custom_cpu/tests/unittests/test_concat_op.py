@@ -18,17 +18,13 @@ import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
-from op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
-from paddle.fluid.framework import _test_eager_guard
+from op_test import OpTest
 
 paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -40,9 +36,8 @@ class TestConcatOp(OpTest):
         self.python_api = paddle.concat
         self.dtype = self.get_dtype()
         self.init_test_data()
-        self.inputs = {
-            'X': [('x0', self.x0), ('x1', self.x1), ('x2', self.x2)]}
-        self.attrs = {'axis': self.axis}
+        self.inputs = {"X": [("x0", self.x0), ("x1", self.x1), ("x2", self.x2)]}
+        self.attrs = {"axis": self.axis}
         if self.axis < 0:
             self.actual_axis = self.axis + len(self.x0.shape)
             self.actual_axis = self.actual_axis if self.actual_axis > 0 else 0
@@ -50,9 +45,7 @@ class TestConcatOp(OpTest):
             self.actual_axis = self.axis
 
         self.outputs = {
-            'Out': np.concatenate(
-                (self.x0, self.x1, self.x2), axis=self.actual_axis
-            )
+            "Out": np.concatenate((self.x0, self.x1, self.x2), axis=self.actual_axis)
         }
 
     def get_dtype(self):
@@ -62,9 +55,9 @@ class TestConcatOp(OpTest):
         self.check_output(check_eager=True)
 
     def test_check_grad(self):
-        self.check_grad(['x0'], 'Out', check_eager=True)
-        self.check_grad(['x1'], 'Out', check_eager=True)
-        self.check_grad(['x2'], 'Out', check_eager=True)
+        self.check_grad(["x0"], "Out", check_eager=True)
+        self.check_grad(["x1"], "Out", check_eager=True)
+        self.check_grad(["x2"], "Out", check_eager=True)
 
     def init_test_data(self):
         self.x0 = np.random.random((5, 1, 4, 5)).astype(self.dtype)
@@ -81,5 +74,5 @@ class TestConcatOp2(TestConcatOp):
         self.axis = 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

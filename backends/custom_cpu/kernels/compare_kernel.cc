@@ -15,16 +15,16 @@
 #include <cmath>
 
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
+#include "phi_funcs.h"  //NOLINT
 
 namespace custom_kernel {
 
 template <typename T>
 void NotEqualRawKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    int axis,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -57,10 +57,10 @@ void NotEqualKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void EqualRawKernel(const phi::Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 int axis,
-                 phi::DenseTensor* out) {
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    int axis,
+                    phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -85,18 +85,18 @@ void EqualRawKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void EqualKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
   custom_kernel::EqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
 void LessThanRawKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    int axis,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -123,10 +123,10 @@ void LessThanKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void LessEqualRawKernel(const phi::Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     int axis,
-                     phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        int axis,
+                        phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -145,18 +145,18 @@ void LessEqualRawKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void LessEqualKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     phi::DenseTensor* out) {
   custom_kernel::LessEqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
 template <typename T>
 void GreaterThanRawKernel(const phi::Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       int axis,
-                       phi::DenseTensor* out) {
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& y,
+                          int axis,
+                          phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -175,19 +175,18 @@ void GreaterThanRawKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void GreaterThanKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out) {
   custom_kernel::GreaterThanRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 
-
 template <typename T>
 void GreaterEqualRawKernel(const phi::Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        int axis,
-                        phi::DenseTensor* out) {
+                           const phi::DenseTensor& x,
+                           const phi::DenseTensor& y,
+                           int axis,
+                           phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   auto dst_dims = phi::BroadcastDims(axis, x_dims, y_dims);
@@ -206,9 +205,9 @@ void GreaterEqualRawKernel(const phi::Context& dev_ctx,
 
 template <typename T>
 void GreaterEqualKernel(const phi::Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& y,
-                    phi::DenseTensor* out) {
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out) {
   custom_kernel::GreaterEqualRawKernel<T>(dev_ctx, x, y, -1, out);
 }
 

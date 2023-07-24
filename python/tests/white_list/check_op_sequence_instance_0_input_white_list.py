@@ -23,21 +23,21 @@ import sys
 # For ops in this whitelist, the check of instance size is 0 input will be skipped.
 # Ops in this whitelist need to be fixed later.
 NEED_TO_FIX_OP_LIST = [
-    'sequence_concat',
-    'sequence_conv',
-    'sequence_enumerate',
-    'sequence_erase',
-    'sequence_expand_as',
-    'sequence_expand',
-    'sequence_mask',
-    'sequence_pad',
-    'sequence_reshape',
-    'sequence_reverse',
-    'sequence_scatter',
-    'sequence_slice',
-    'sequence_softmax',
-    'sequence_topk_avg_pooling',
-    'sequence_unpad',
+    "sequence_concat",
+    "sequence_conv",
+    "sequence_enumerate",
+    "sequence_erase",
+    "sequence_expand_as",
+    "sequence_expand",
+    "sequence_mask",
+    "sequence_pad",
+    "sequence_reshape",
+    "sequence_reverse",
+    "sequence_scatter",
+    "sequence_slice",
+    "sequence_softmax",
+    "sequence_topk_avg_pooling",
+    "sequence_unpad",
 ]
 
 op_name = sys.argv[1]

@@ -422,7 +422,7 @@ class TestNearestInterp_attr_tensor_Case3(TestNearestInterpOp_attr_tensor):
         self.input_shape = [3, 2, 32, 16]
         self.out_h = 64
         self.out_w = 32
-        self.scale = []
+        self.scale = 2.0
         self.out_size = None
         self.align_corners = False
         self.scale_by_1Dtensor = True

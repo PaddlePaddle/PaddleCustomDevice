@@ -69,6 +69,12 @@ ENV PADDLE_XCCL_BACKEND=npu
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver
 
+
+# install gcc-10
+RUN wget -O gcc-10-with-glibc233.tar.gz https://bcloud-buildkit.bj.bcebos.com/build_env/gcc/ampere/gcc-10-with-glibc2.33.tar.gz 
+RUN tar xf gcc-10-with-glibc233.tar.gz -C /opt/compiler/
+RUN rm -rf gcc-10-with-glibc233.tar.gz
+
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge

@@ -164,7 +164,8 @@ class TestNearestInterpOp(OpTest):
         self.out_size = None
         self.actual_shape = None
         self.init_test_case()
-        self.data_layout = "NCHW" if len(self.input_shape) == 4 else "NCDHW"
+        if hasattr(self, "data_layout"):
+            self.data_layout = "NCHW" if len(self.input_shape) == 4 else "NCDHW"
         self.op_type = "nearest_interp_v2"
         input_np = np.random.random(self.input_shape).astype("float32")
 
@@ -427,10 +428,10 @@ class TestNearestInterpOp_attr_tensor(OpTest):
         self.__class__.use_custom_device = True
         self.out_size = None
         self.actual_shape = None
-        self.init_test_case()
-        self.op_type = "nearest_interp_v2"
         self.shape_by_1Dtensor = False
         self.scale_by_1Dtensor = False
+        self.init_test_case()
+        self.op_type = "nearest_interp_v2"
         self.attrs = {
             "interp_method": self.interp_method,
             "align_corners": self.align_corners,
@@ -441,6 +442,8 @@ class TestNearestInterpOp_attr_tensor(OpTest):
 
         if self.scale_by_1Dtensor:
             self.inputs["Scale"] = np.array([self.scale]).astype("float32")
+            out_h = int(self.input_shape[2] * self.scale)
+            out_w = int(self.input_shape[3] * self.scale)
         elif self.scale:
             if isinstance(self.scale, float) or isinstance(self.scale, int):
                 if self.scale > 0:

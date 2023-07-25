@@ -398,6 +398,7 @@ class TestDistBase(unittest.TestCase):
             "FLAGS_rpc_disable_reuse_port": "1",
             "http_proxy": "",
             "FLAGS_new_executor_static_build": "1",
+            "CNNL_MIN_LOG_LEVEL": "3",  # cnnl deprecation log will cause invalid key in pickle loads.
         }
 
         if check_error_log:

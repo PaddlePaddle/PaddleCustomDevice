@@ -8,7 +8,7 @@ RUN yum update -y
 RUN yum install -y bzip2 make openssl-devel openssh-server unzip bison diffutils patch \
         blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make bzip2 git libtool \
         automake which file net-tools tree lrzsz zlib-devel libffi-devel pcre-devel vim \
-        xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++
+        xz graphviz wget curl-devel numactl-devel initscripts mesa-libGL gcc gcc-c++ libbz2-dev 
 
 # add bash envs
 COPY root/ /root/

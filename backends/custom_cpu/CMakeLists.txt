@@ -24,6 +24,9 @@ option(ON_INFER "compile with inference c++ lib" OFF)
 set(PLUGIN_NAME "paddle-custom-cpu")
 set(PLUGIN_VERSION "0.0.1")
 
+if(NOT WITH_TESTING)
+  set(NO_PADDLE_SUBMODULE ON)
+endif()
 include(paddle)
 
 include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR}

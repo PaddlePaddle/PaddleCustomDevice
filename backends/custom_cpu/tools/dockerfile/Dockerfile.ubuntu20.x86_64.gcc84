@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && add-apt-repository ppa:ubuntu-toolchain-r/test
 
 # install other requirements
-RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils libssl-dev bzip2 gzip make cmake sudo
+RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils libssl-dev bzip2 gzip make cmake sudo 
 RUN apt-get update && apt-get install -y coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx
 RUN apt-get update && apt-get install -y bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool
 RUN apt-get update && apt-get install -y openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen gdb
-RUN apt-get update && apt-get install -y openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 gcc g++ gfortran
+RUN apt-get update && apt-get install -y openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 gcc g++ gfortran libbz2-dev
 
 # add bash envs
 COPY root/ /root/

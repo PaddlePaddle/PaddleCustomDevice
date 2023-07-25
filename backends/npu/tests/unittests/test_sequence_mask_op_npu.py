@@ -20,7 +20,9 @@ from tests.op_test import OpTest
 import paddle
 import paddle.fluid.core as core
 import paddle.nn.functional as F
+
 paddle.enable_static()
+
 
 def calc_ground_truth_mask(x, maxlen):
     maxlen = np.max(x) if maxlen < 0 else maxlen
@@ -30,9 +32,7 @@ def calc_ground_truth_mask(x, maxlen):
         np.reshape(range(maxlen), newshape=[1] * x.ndim + [-1]),
         shape=shape,
     )
-    x_broadcast = np.broadcast_to(
-        np.reshape(x, newshape=x.shape + (-1,)), shape=shape
-    )
+    x_broadcast = np.broadcast_to(np.reshape(x, newshape=x.shape + (-1,)), shape=shape)
     return (index_broadcast < x_broadcast).astype(np.int64)
 
 
@@ -50,7 +50,7 @@ class TestSequenceMask(OpTest):
         self.set_attrs()
 
         out = calc_ground_truth_mask(self.x, self.maxlen)
-       
+
         self.attrs = {
             "maxlen": self.maxlen,
             "out_dtype": int(core.VarDesc.VarType.INT64),
@@ -89,7 +89,7 @@ class TestSequenceMaskMaxlen(TestSequenceMask):
 
 class TestSequenceMaskMaxlenTensor(TestSequenceMask):
     def set_attrs(self):
-        self.max_len_tensor = np.ones((1), 'int64') * 10
+        self.max_len_tensor = np.ones((1), "int64") * 10
         self.inputs = {"X": self.x, "MaxLenTensor": self.max_len_tensor}
         self.maxlen = int(self.max_len_tensor)
 
@@ -107,9 +107,7 @@ class TestSequenceMaskAPI(unittest.TestCase):
             maxlen = 4
             out = F.sequence_mask(x, maxlen)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(
-                feed={"X": self.x_np, "maxlen": maxlen},
-                fetch_list=[out])
+            res = exe.run(feed={"X": self.x_np, "maxlen": maxlen}, fetch_list=[out])
         out_ref = calc_ground_truth_mask(self.x_np, maxlen)
         for r in res:
             np.testing.assert_allclose(out_ref, r, rtol=1e-05)

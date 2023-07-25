@@ -175,7 +175,7 @@ create_test_int64(TestConcatOp5)
 def create_test_bool(parent):
     class TestConcatBool(parent):
         def init_dtype(self):
-            self.dtype = np.bool
+            self.dtype = np.bool_
 
         def test_check_grad(self):
             pass

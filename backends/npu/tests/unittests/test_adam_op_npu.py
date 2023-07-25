@@ -62,11 +62,11 @@ class TestAdam(OpTest):
         self.set_npu()
         self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "adam"
-        param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
+        param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        moment1 = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         # The second moment is positive
-        moment2 = np.random.random((102, 105)).astype("float32")
+        moment2 = np.random.random((102, 105)).astype(self.dtype)
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -80,9 +80,9 @@ class TestAdam(OpTest):
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
-            "LearningRate": np.array([learning_rate]).astype("float32"),
-            "Beta1Pow": np.array([beta1_pow]).astype("float32"),
-            "Beta2Pow": np.array([beta2_pow]).astype("float32"),
+            "LearningRate": np.array([learning_rate]).astype(self.dtype),
+            "Beta1Pow": np.array([beta1_pow]).astype(self.dtype),
+            "Beta2Pow": np.array([beta2_pow]).astype(self.dtype),
         }
 
         self.attrs = {"epsilon": epsilon, "beta1": beta1, "beta2": beta2}
@@ -112,12 +112,11 @@ class TestAdamWithEpsilonTensor(OpTest):
         self.set_npu()
         self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "adam"
-        param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
+        param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        moment1 = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         # The second moment is positive
-        moment2 = np.random.random((102, 105)).astype("float32")
-
+        moment2 = np.random.random((102, 105)).astype(self.dtype)
         learning_rate = 0.004
         beta1 = 0.78
         beta2 = 0.836
@@ -130,12 +129,12 @@ class TestAdamWithEpsilonTensor(OpTest):
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
-            "LearningRate": np.array([learning_rate]).astype("float32"),
-            "Beta1Pow": np.array([beta1_pow]).astype("float32"),
-            "Beta2Pow": np.array([beta2_pow]).astype("float32"),
-            "Beta1Tensor": np.array([beta1]).astype("float32"),
-            "Beta2Tensor": np.array([beta2]).astype("float32"),
-            "EpsilonTensor": np.array([epsilon]).astype("float32"),
+            "LearningRate": np.array([learning_rate]).astype(self.dtype),
+            "Beta1Pow": np.array([beta1_pow]).astype(self.dtype),
+            "Beta2Pow": np.array([beta2_pow]).astype(self.dtype),
+            "Beta1Tensor": np.array([beta1]).astype(self.dtype),
+            "Beta2Tensor": np.array([beta2]).astype(self.dtype),
+            "EpsilonTensor": np.array([epsilon]).astype(self.dtype),
         }
 
         self.attrs = {"epsilon": epsilon}
@@ -166,11 +165,11 @@ class TestAdamOpWithSkipUpdate(OpTest):
         self.set_npu()
         self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "adam"
-        param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
+        param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        moment1 = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         # The second moment is positive
-        moment2 = np.random.random((102, 105)).astype("float32")
+        moment2 = np.random.random((102, 105)).astype(self.dtype)
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -184,12 +183,12 @@ class TestAdamOpWithSkipUpdate(OpTest):
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
-            "LearningRate": np.array([learning_rate]).astype("float32"),
-            "Beta1Pow": np.array([beta1_pow]).astype("float32"),
-            "Beta2Pow": np.array([beta2_pow]).astype("float32"),
-            "Beta1Tensor": np.array([beta1]).astype("float32"),
-            "Beta2Tensor": np.array([beta2]).astype("float32"),
-            "EpsilonTensor": np.array([epsilon]).astype("float32"),
+            "LearningRate": np.array([learning_rate]).astype(self.dtype),
+            "Beta1Pow": np.array([beta1_pow]).astype(self.dtype),
+            "Beta2Pow": np.array([beta2_pow]).astype(self.dtype),
+            "Beta1Tensor": np.array([beta1]).astype(self.dtype),
+            "Beta2Tensor": np.array([beta2]).astype(self.dtype),
+            "EpsilonTensor": np.array([epsilon]).astype(self.dtype),
             "SkipUpdate": np.array([True]).astype("bool"),
         }
 
@@ -218,11 +217,11 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         self.set_npu()
         self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "adam"
-        param = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        grad = np.random.uniform(-1, 1, (102, 105)).astype("float32")
-        moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
+        param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
+        moment1 = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         # The second moment is positive
-        moment2 = np.random.random((102, 105)).astype("float32")
+        moment2 = np.random.random((102, 105)).astype(self.dtype)
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -236,12 +235,12 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
-            "LearningRate": np.array([learning_rate]).astype("float32"),
-            "Beta1Pow": np.array([beta1_pow]).astype("float32"),
-            "Beta2Pow": np.array([beta2_pow]).astype("float32"),
-            "Beta1Tensor": np.array([beta1]).astype("float32"),
-            "Beta2Tensor": np.array([beta2]).astype("float32"),
-            "EpsilonTensor": np.array([epsilon]).astype("float32"),
+            "LearningRate": np.array([learning_rate]).astype(self.dtype),
+            "Beta1Pow": np.array([beta1_pow]).astype(self.dtype),
+            "Beta2Pow": np.array([beta2_pow]).astype(self.dtype),
+            "Beta1Tensor": np.array([beta1]).astype(self.dtype),
+            "Beta2Tensor": np.array([beta2]).astype(self.dtype),
+            "EpsilonTensor": np.array([epsilon]).astype(self.dtype),
         }
 
         attributes = {"epsilon": epsilon}
@@ -267,6 +266,44 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-5)
+
+
+def create_test_fp64_class(parent):
+    class TestAdamOpFp64Case(parent):
+        def init_dtype(self):
+            self.dtype = np.float64
+
+        def test_check_output(self):
+            self.check_output_with_place(self.place, atol=1e-5, rtol=1e-4)
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Fp64")
+    TestAdamOpFp64Case.__name__ = cls_name
+    globals()[cls_name] = TestAdamOpFp64Case
+
+
+create_test_fp64_class(TestAdam)
+create_test_fp64_class(TestAdamWithEpsilonTensor)
+create_test_fp64_class(TestAdamOpWithSkipUpdate)
+create_test_fp64_class(TestAdamOpWithGlobalBetaPow)
+
+
+def create_test_fp16_class(parent):
+    class TestAdamOpFp16Case(parent):
+        def init_dtype(self):
+            self.dtype = np.float16
+
+        def test_check_output(self):
+            self.check_output_with_place(self.place, atol=1e-5, rtol=1e-4)
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Fp16")
+    TestAdamOpFp16Case.__name__ = cls_name
+    globals()[cls_name] = TestAdamOpFp16Case
+
+
+create_test_fp16_class(TestAdam)
+create_test_fp16_class(TestAdamWithEpsilonTensor)
+create_test_fp16_class(TestAdamOpWithSkipUpdate)
+create_test_fp16_class(TestAdamOpWithGlobalBetaPow)
 
 
 class TestNet(unittest.TestCase):

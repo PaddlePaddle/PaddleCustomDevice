@@ -16,20 +16,15 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import op_test
-from op_test import OpTest, convert_float_to_uint16, get_numeric_gradient
-import paddle.fluid.core as core
+from op_test import OpTest
 
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.framework as framework
-from paddle.fluid.framework import _test_eager_guard
 
 paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -41,7 +36,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False):
     # transpose X and Y appropriately.
     if transpose_X:
         if X.ndim == 1:
-            X = X.reshape((X.size, ))
+            X = X.reshape((X.size,))
         elif X.ndim == 2:
             X = X.T
         else:
@@ -50,7 +45,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False):
             X = np.transpose(X, tuple(dim))
     if transpose_Y:
         if Y.ndim == 1:
-            Y = Y.reshape((Y.size, ))
+            Y = Y.reshape((Y.size,))
         else:
             dim = [i for i in range(len(Y.shape))]
             dim[-1], dim[len(Y.shape) - 2] = dim[len(Y.shape) - 2], dim[-1]
@@ -72,8 +67,8 @@ class TestMatMulOp(OpTest):
     """
 
     def config(self):
-        self.x_shape = (100, )
-        self.y_shape = (100, )
+        self.x_shape = (100,)
+        self.y_shape = (100,)
         self.trans_x = False
         self.trans_y = False
 
@@ -87,30 +82,33 @@ class TestMatMulOp(OpTest):
         x = np.random.random(self.x_shape).astype(self.dtype)
         y = np.random.random(self.y_shape).astype(self.dtype)
         x = np.ones_like(np.random.random(self.x_shape).astype(self.dtype))
-        y = np.array(range(np.product(self.y_shape))).reshape(
-            self.y_shape).astype(self.dtype)
+        y = (
+            np.array(range(np.product(self.y_shape)))
+            .reshape(self.y_shape)
+            .astype(self.dtype)
+        )
         # -0.1 ~ 0.1
         x = -0.1 + 0.2 * x
         y = -0.1 + 0.2 * y
         result = reference_matmul(x, y, self.trans_x, self.trans_y)
         self.inputs = {
-            'X': x,
-            'Y': y,
+            "X": x,
+            "Y": y,
         }
-        self.attrs = {'trans_x': self.trans_x, 'trans_y': self.trans_y}
-        self.outputs = {'Out': result}
+        self.attrs = {"trans_x": self.trans_x, "trans_y": self.trans_y}
+        self.outputs = {"Out": result}
 
     def test_check_output(self):
         self.check_output(check_eager=False)
 
     def test_check_grad(self):
-        self.check_grad(['X', 'Y'], 'Out', check_eager=False)
+        self.check_grad(["X", "Y"], "Out", check_eager=False)
 
 
 class TestMatMul2Dx1D(TestMatMulOp):
     def config(self):
         self.x_shape = (2, 100)
-        self.y_shape = (100)
+        self.y_shape = 100
         self.trans_x = False
         self.trans_y = False
 
@@ -118,14 +116,14 @@ class TestMatMul2Dx1D(TestMatMulOp):
 class TestMatMul2Dx1D_transX(TestMatMulOp):
     def config(self):
         self.x_shape = (100, 2)
-        self.y_shape = (100)
+        self.y_shape = 100
         self.trans_x = True
         self.trans_y = False
 
 
 class TestMatMul1Dx2D(TestMatMulOp):
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.y_shape = (100, 2)
         self.trans_x = False
         self.trans_y = False
@@ -133,7 +131,7 @@ class TestMatMul1Dx2D(TestMatMulOp):
 
 class TestMatMul1Dx2D_transY(TestMatMulOp):
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.y_shape = (2, 100)
         self.trans_x = False
         self.trans_y = True
@@ -142,7 +140,7 @@ class TestMatMul1Dx2D_transY(TestMatMulOp):
 class TestMatMul3Dx1D(TestMatMulOp):
     def config(self):
         self.x_shape = (2, 3, 100)
-        self.y_shape = (100, )
+        self.y_shape = (100,)
         self.trans_x = False
         self.trans_y = False
 
@@ -150,14 +148,14 @@ class TestMatMul3Dx1D(TestMatMulOp):
 class TestMatMul3Dx1D_TransX(TestMatMulOp):
     def config(self):
         self.x_shape = (2, 100, 3)
-        self.y_shape = (100, )
+        self.y_shape = (100,)
         self.trans_x = True
         self.trans_y = False
 
 
 class TestMatMul1Dx3D(TestMatMulOp):
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (2, 100, 3)
         self.trans_x = False
         self.trans_y = False
@@ -165,7 +163,7 @@ class TestMatMul1Dx3D(TestMatMulOp):
 
 class TestMatMul1Dx3D_TransY(TestMatMulOp):
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (2, 3, 100)
         self.trans_x = False
         self.trans_y = True
@@ -251,7 +249,7 @@ class TestMatMul2Dx3D_TransX(TestMatMulOp):
         self.trans_y = False
 
     def test_check_grad(self):
-        self.check_grad(['X', 'Y'], 'Out')
+        self.check_grad(["X", "Y"], "Out")
 
 
 class TestMatMul2Dx3D_TransY(TestMatMulOp):

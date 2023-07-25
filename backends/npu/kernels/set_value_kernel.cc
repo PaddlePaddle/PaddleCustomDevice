@@ -253,6 +253,8 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
                                                 decrease_axes,
                                                 none_axes,
                                                 &tmp_out);
+    out->Resize(tmp_out.dims());
+    dev_ctx.template Alloc<T>(out);
     const auto& runner3 =
         NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
     runner3.Run(stream);
@@ -282,6 +284,8 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
                                                   decrease_axes,
                                                   none_axes,
                                                   &tmp_out);
+    out->Resize(tmp_out.dims());
+    dev_ctx.template Alloc<T>(out);
     const auto& runner3 =
         NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_INT64}});
     runner3.Run(stream);

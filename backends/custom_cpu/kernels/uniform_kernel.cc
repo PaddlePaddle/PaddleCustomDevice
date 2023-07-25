@@ -33,15 +33,15 @@ inline void UniformRealDistribution(T *data,
 
 template <typename T>
 void UniformRawKernel(const phi::Context &dev_ctx,
-                            const phi::IntArray &shape,
-                            phi::DataType dtype,
-                            const phi::Scalar &min,
-                            const phi::Scalar &max,
-                            int seed,
-                            int diag_num,
-                            int diag_step,
-                            float diag_val,
-                            phi::DenseTensor *out) {
+                      const phi::IntArray &shape,
+                      phi::DataType dtype,
+                      const phi::Scalar &min,
+                      const phi::Scalar &max,
+                      int seed,
+                      int diag_num,
+                      int diag_step,
+                      float diag_val,
+                      phi::DenseTensor *out) {
   auto shape_data = shape.GetData();
 
   out->Resize(std::vector<int64_t>(shape_data.begin(), shape_data.end()));
@@ -72,14 +72,13 @@ void UniformRawKernel(const phi::Context &dev_ctx,
 
 template <typename T>
 void UniformKernel(const phi::Context &dev_ctx,
-                         const phi::IntArray &shape,
-                         phi::DataType dtype,
-                         const phi::Scalar &min,
-                         const phi::Scalar &max,
-                         int seed,
-                         phi::DenseTensor *out) {
-  UniformRawKernel<T>(
-      dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
+                   const phi::IntArray &shape,
+                   phi::DataType dtype,
+                   const phi::Scalar &min,
+                   const phi::Scalar &max,
+                   int seed,
+                   phi::DenseTensor *out) {
+  UniformRawKernel<T>(dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }
 
 }  // namespace custom_kernel

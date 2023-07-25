@@ -176,14 +176,22 @@ void MatmulKernel(const Context& dev_ctx,
   // Case 1: [K] x [K] = [1]
   // Equal: [1, K] x [K, 1] = [1, 1] => [1]
   const bool all_one_dim = (x_ndim == 1 && y_ndim == 1);
-  if (all_one_dim) {
-    out->Resize({1, 1});
-  }
 
   // Resize dim 1 to 2
   Tensor x_temp, y_temp;
   x_temp = x;
   y_temp = y;
+  if (all_one_dim) {
+    out->Resize({1, 1});
+    x_dims.insert(x_dims.begin(), 1);
+    y_dims.push_back(1);
+    x_temp.Resize(phi::make_ddim(x_dims));
+    y_temp.Resize(phi::make_ddim(y_dims));
+    MatMul2D<T>(dev_ctx, x_temp, y_temp, out, transpose_x, transpose_y);
+    out->Resize(phi::make_ddim({}));
+    return;
+  }
+
   if (x_ndim == 1) {
     x_dims.insert(x_dims.begin(), 1);
     x_temp.Resize(phi::make_ddim(x_dims));

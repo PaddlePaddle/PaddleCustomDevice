@@ -43,7 +43,6 @@ void MLUReduceOp(const Context& dev_ctx,
     for (size_t i = 0; i < input_dims.size(); i++) {
       reduce_dims.push_back(static_cast<int>(i));
     }
-    out->Resize(phi::make_ddim({1}));
   } else {
     for (size_t i = 0; i < dims.size(); ++i) {
       if (dims[i] < 0) {

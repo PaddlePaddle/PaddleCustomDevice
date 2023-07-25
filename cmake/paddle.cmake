@@ -52,6 +52,10 @@ else()
   message(STATUS "PADDLE_CORE_LIB: ${PADDLE_CORE_LIB}")
 endif()
 
+if(NO_PADDLE_SUBMODULE)
+  return()
+endif()
+
 # submodule Paddle first
 get_filename_component(REPO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../"
                        ABSOLUTE)

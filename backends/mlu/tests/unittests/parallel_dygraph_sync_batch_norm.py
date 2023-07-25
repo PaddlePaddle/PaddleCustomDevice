@@ -70,9 +70,9 @@ class TestLayer(paddle.nn.Layer):
 
 class TestSyncBatchNorm(TestParallelDyGraphRunnerBase):
     def get_model(self):
-        model = TestLayer(3, 64, 7)
+        model = TestLayer(1, 64, 7)
         train_reader = paddle.batch(
-            paddle.dataset.flowers.test(use_xmap=False),
+            paddle.dataset.mnist.test(),
             batch_size=32,
             drop_last=True,
         )
@@ -83,9 +83,7 @@ class TestSyncBatchNorm(TestParallelDyGraphRunnerBase):
 
     def run_one_loop(self, model, opt, data):
         batch_size = len(data)
-        dy_x_data = np.array([x[0].reshape(3, 224, 224) for x in data]).astype(
-            "float32"
-        )
+        dy_x_data = np.array([x[0].reshape(1, 28, 28) for x in data]).astype("float32")
         img = to_variable(dy_x_data)
         img.stop_gradient = False
 

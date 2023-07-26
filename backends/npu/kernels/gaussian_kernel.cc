@@ -52,4 +52,4 @@ void GaussianKernel(const Context& ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    gaussian, npu, ALL_LAYOUT, custom_kernel::GaussianKernel, float) {}
+    gaussian, npu, ALL_LAYOUT, custom_kernel::GaussianKernel, float, double) {}

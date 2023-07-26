@@ -14,7 +14,7 @@ limitations under the License. */
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-
+#include "kernels/funcs/string_helper.h"
 namespace custom_kernel {
 
 template <typename T>
@@ -116,12 +116,33 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(loss);
   dev_ctx.template Alloc<T>(softmax);
   if (use_softmax) {
-    const auto& runner_softmax =
-        NpuOpRunner("SoftmaxV2",
-                    {logits},
-                    {*softmax},
-                    {{"axes", std::vector<int32_t>({axis})}});
-    runner_softmax.Run(stream);
+    if (logits.dtype() == phi::DataType::FLOAT64) {
+      phi::DenseTensor cast_logits, cast_softmax;
+      cast_logits.Resize(logits.dims());
+      dev_ctx.template Alloc<float>(&cast_logits);
+      cast_softmax.Resize(softmax->dims());
+      dev_ctx.template Alloc<float>(&cast_softmax);
+      const auto& runner_cast_logits = NpuOpRunner(
+          "Cast", {logits}, {cast_logits}, {{"dst_type", ACL_FLOAT}});
+      runner_cast_logits.Run(stream);
+      const auto& runner_softmax =
+          NpuOpRunner("SoftmaxV2",
+                      {cast_logits},
+                      {cast_softmax},
+                      {{"axes", std::vector<int32_t>({axis})}});
+      runner_softmax.Run(stream);
+      const auto& runner_cast_softmax = NpuOpRunner(
+          "Cast", {cast_softmax}, {*softmax}, {{"dst_type", ACL_DOUBLE}});
+      runner_cast_softmax.Run(stream);
+    } else {
+      const auto& runner_softmax =
+          NpuOpRunner("SoftmaxV2",
+                      {logits},
+                      {*softmax},
+                      {{"axes", std::vector<int32_t>({axis})}});
+      runner_softmax.Run(stream);
+    }
+
   } else {
     // cause of input is softmax, copy to output softmax, directly
     phi::Copy<Context>(dev_ctx, logits, dev_ctx.GetPlace(), false, softmax);
@@ -594,11 +615,13 @@ PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax,
                           ALL_LAYOUT,
                           custom_kernel::CrossEntropyWithSoftmaxKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::CrossEntropyWithSoftmaxGradKernel,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          double) {}

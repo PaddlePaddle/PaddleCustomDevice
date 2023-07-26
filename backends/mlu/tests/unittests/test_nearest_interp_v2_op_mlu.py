@@ -163,6 +163,7 @@ class TestNearestInterpOp(OpTest):
         self.__class__.use_custom_device = True
         self.out_size = None
         self.actual_shape = None
+        self.data_layout = "NCHW"
         self.init_test_case()
         if hasattr(self, "data_layout"):
             self.data_layout = "NCHW" if len(self.input_shape) == 4 else "NCDHW"

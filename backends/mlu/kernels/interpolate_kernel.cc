@@ -120,10 +120,19 @@ void InterpolateKernel(
       }
 
       PADDLE_ENFORCE_EQ(
-          scale_d > 0 && scale_w > 0 && scale_h > 0,
+          scale_w > 0,
           true,
-          phi::errors::InvalidArgument("scale of Op(interpolate) "
-                                       "should be greater than 0."));
+          phi::errors::InvalidArgument(
+              "The scale_w in input 'Scale' Tensor of Operator(interpolate) "
+              "should be greater than 0, but received value is %d.",
+              scale_w));
+      PADDLE_ENFORCE_EQ(
+          scale_h > 0,
+          true,
+          phi::errors::InvalidArgument(
+              "The scale_h in input 'Scale' Tensor of Operator(interpolate) "
+              "should be greater than 0, but received value is %d.",
+              scale_h));
     } else {
       if (scale.size() > 1 && scale.size() <= 2) {
         scale_h = scale[0];

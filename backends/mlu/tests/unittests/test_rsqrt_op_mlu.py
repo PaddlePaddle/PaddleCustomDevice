@@ -52,7 +52,7 @@ class TestRsqrt(OpTest):
         self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.02)
 
 
-class TestRsqrtDouble(TestRsqrt):
+class TestRsqrtFp16(TestRsqrt):
     def init_dtype(self):
         self.dtype = np.float16
 

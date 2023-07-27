@@ -118,6 +118,30 @@ class TestFillConstantFP16(OpTest):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
+class TestFillConstantFP64(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "fill_constant"
+
+        self.inputs = {}
+        self.attrs = {
+            "shape": [123, 92],
+            "value": 1.0,
+            "dtype": core.VarDesc.VarType.FP64,
+        }
+        self.outputs = {"Out": np.full((123, 92), 1.0).astype(self.dtype)}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.float64
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
 class TestFillConstantBool(OpTest):
     def setUp(self):
         self.set_npu()

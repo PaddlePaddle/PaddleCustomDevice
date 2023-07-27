@@ -72,6 +72,16 @@ class TestNPUTrilTriu(OpTest):
         self.X = np.arange(1, 101, dtype=self.dtype).reshape([10, -1])
 
 
+class TestNPUTrilTriuFP16(TestNPUTrilTriu):
+    def init_dtype(self):
+        self.dtype = np.float16
+
+
+class TestNPUTrilTriuFP64(TestNPUTrilTriu):
+    def init_dtype(self):
+        self.dtype = np.float64
+
+
 def case_generator(op_type, Xshape, diagonal, expected):
     """
     Generate testcases with the params shape of X, diagonal and op_type.

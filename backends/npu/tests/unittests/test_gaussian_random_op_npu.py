@@ -71,5 +71,10 @@ class TestNPUGaussianRandomOp(OpTest):
         )
 
 
+class TestNPUGaussianRandomOpFP64(TestNPUGaussianRandomOp):
+    def init_dtype(self):
+        self.dtype = np.float64
+
+
 if __name__ == "__main__":
     unittest.main()

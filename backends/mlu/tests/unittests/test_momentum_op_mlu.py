@@ -271,17 +271,17 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
         out = linear(inp)
         loss = paddle.mean(out)
         # This can be any optimizer supported by dygraph.
-        momentum = paddle.fluid.contrib.optimizer.Momentum(
+        momentum = paddle.optimizer.Momentum(
             learning_rate=0.01,
             momentum=0.9,
-            parameter_list=linear.parameters(),
-            regularization=regularization,
+            parameters=linear.parameters(),
+            weight_decay=regularization,
         )
         momentum.minimize(loss)
 
     def test_momentum_dygraph_1(self):
         self._test_momentum_dygraph_common(
-            regularization=paddle.fluid.regularizer.L2Decay(regularization_coeff=0.1)
+            regularization=paddle.regularizer.L2Decay(coeff=0.1)
         )
 
     def test_momentum_static(self):
@@ -295,7 +295,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
             cost = paddle.nn.functional.square_error_cost(input=y_predict, label=y)
             avg_cost = paddle.mean(cost)
 
-            momentum_optimizer = paddle.fluid.contrib.optimizer.Momentum(
+            momentum_optimizer = paddle.optimizer.Momentum(
                 learning_rate=0.1, momentum=0.9
             )
             momentum_optimizer.minimize(avg_cost)
@@ -413,7 +413,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             learning_rate=0.01,
             momentum=0.9,
             parameter_list=linear_old.parameters(),
-            regularization=paddle.fluid.regularizer.L2Decay(regularization_coeff=0.1),
+            regularization=paddle.regularizer.L2Decay(coeff=0.1),
         )
         self.__update_params(momentum=momentum_old, linear=linear_old)
 
@@ -423,11 +423,11 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             weight_attr=paddle.nn.initializer.Constant(value=2.0),
             bias_attr=paddle.nn.initializer.Constant(value=2.0),
         )
-        momentum_new = paddle.fluid.contrib.optimizer.Momentum(
+        momentum_new = paddle.optimizer.Momentum(
             learning_rate=0.01,
             momentum=0.9,
-            parameter_list=linear_new.parameters(),
-            regularization=paddle.fluid.regularizer.L2Decay(regularization_coeff=0.1),
+            parameters=linear_new.parameters(),
+            weight_decay=paddle.regularizer.L2Decay(coeff=0.1),
         )
         self.__update_params(momentum=momentum_new, linear=linear_new)
 

@@ -90,37 +90,37 @@ void EmbeddingGradKernel(const Context& dev_ctx,
   } else {
     // directly point to input.
     input_int32 = input;
-    if (out_grad.dtype() == phi::DataType::FLOAT64) {
-      NPUAttributeMap attrs = {{"num_weights", weight_grad->dims()[0]},
-                               {"padding_idx", padding_idx}};
-      auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                        const std::vector<phi::DenseTensor>& outputs,
-                        const NPUAttributeMap& attrs,
-                        const phi::CustomContext& dev_ctx) {
-        NpuOpRunner runner;
-        runner.SetType("EmbeddingDenseGrad")
-            .AddInput(inputs[0])
-            .AddInput(inputs[1])
-            .AddOutput(outputs[0])
-            .AddAttrs(attrs);
-        runner.Run(dev_ctx.stream());
-      };
-      NpuOpRunner::TypeAdapter({out_grad, input_int32},
-                               {*weight_grad},
-                               attrs,
-                               dev_ctx,
-                               op_func,
-                               {phi::DataType::FLOAT32, phi::DataType::INT32},
-                               {phi::DataType::FLOAT32});
-    } else {
-      const auto& runner_scatter =
-          NpuOpRunner("EmbeddingDenseGrad",
-                      {out_grad, input_int32},
-                      {*weight_grad},
-                      {{"num_weights", weight_grad->dims()[0]},
-                       {"padding_idx", padding_idx}});
-      runner_scatter.Run(stream);
-    }
+  }
+  if (weight_grad->dtype() == phi::DataType::FLOAT64) {
+    NPUAttributeMap attrs = {{"num_weights", weight_grad->dims()[0]},
+                             {"padding_idx", padding_idx}};
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx) {
+      NpuOpRunner runner;
+      runner.SetType("EmbeddingDenseGrad")
+          .AddInput(inputs[0])
+          .AddInput(inputs[1])
+          .AddOutput(outputs[0])
+          .AddAttrs(attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NpuOpRunner::TypeAdapter({out_grad, input_int32},
+                             {*weight_grad},
+                             attrs,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32, phi::DataType::INT32},
+                             {phi::DataType::FLOAT32});
+  } else {
+    const auto& runner_scatter =
+        NpuOpRunner("EmbeddingDenseGrad",
+                    {out_grad, input_int32},
+                    {*weight_grad},
+                    {{"num_weights", weight_grad->dims()[0]},
+                     {"padding_idx", padding_idx}});
+    runner_scatter.Run(stream);
   }
 }
 

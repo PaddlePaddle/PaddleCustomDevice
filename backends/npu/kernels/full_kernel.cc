@@ -117,6 +117,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           int,
                           int64_t,
                           float,
+                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,

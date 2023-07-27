@@ -171,6 +171,36 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
         )
 
 
+class TestSoftmaxWithCrossEntropyOpFP64(TestSoftmaxWithCrossEntropyOp):
+    def initParams(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+
+        self.dtype = np.float64
+        self.axis = 1
+        self.ignore_index = -1
+        self.shape = [2, 2, 4, 8]
+        self.use_softmax = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        # # fp32 has low precision, cpu and npu both need to relax the max_relative_error if using fp32
+        self.check_grad_with_place(
+            self.place,
+            ["Logits"],
+            "Loss",
+            numeric_grad_delta=0.001,
+            max_relative_error=0.5,
+        )
+
+
 class TestSoftmaxWithCrossEntropyOpInt32(TestSoftmaxWithCrossEntropyOp):
     def hard_label_dtype(self):
         return "int32"

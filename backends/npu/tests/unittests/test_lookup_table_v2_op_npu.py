@@ -95,6 +95,18 @@ class TestLookupTableV2FP16(TestLookupTableV2):
         self.__class__.no_need_check_grad = True
 
 
+class TestLookupTableV2FP64(TestLookupTableV2):
+    no_need_check_grad = True
+
+    def init_dtype(self):
+        self.dtype = np.float64
+        self.ids_dtype = np.int32
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+
 class TestLookupTableV2Dim32(TestLookupTableV2):
     def init_dims(self):
         self.bsz = 6
@@ -109,6 +121,24 @@ class TestLookupTableV2Dim32FP16(TestLookupTableV2):
 
     def init_dtype(self):
         self.dtype = np.float16
+        self.ids_dtype = np.int64
+
+    def init_dims(self):
+        self.bsz = 6
+        self.seqlen = 8
+        self.vocab = 10
+        self.dim = 64
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+
+class TestLookupTableV2Dim32FP64(TestLookupTableV2):
+    no_need_check_grad = True
+
+    def init_dtype(self):
+        self.dtype = np.float64
         self.ids_dtype = np.int64
 
     def init_dims(self):

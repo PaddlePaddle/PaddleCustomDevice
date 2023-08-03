@@ -35,9 +35,11 @@ cat <<EOF
 ========================================
 Configuring cmake in build ...
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release}
+    -DWITH_KERNELS=${WITH_KERNELS:-ON}
     -DWITH_TESTING=${WITH_TESTING:-ON}
     -DWITH_MKLDNN=${WITH_MKLDNN}
     -DWITH_ARM=${WITH_ARM}
+    -DWITH_ASCEND_TRANSFORMER_ACC=${WITH_ASCEND_TRANSFORMER_ACC:-OFF}
     -DON_INFER=${ON_INFER:-OFF}
 ========================================
 EOF
@@ -45,9 +47,11 @@ EOF
 set +e
 cmake .. \
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release} \
+    -DWITH_KERNELS=${WITH_KERNELS:-ON} \
     -DWITH_TESTING=${WITH_TESTING:-ON} \
     -DWITH_MKLDNN=${WITH_MKLDNN:-ON} \
     -DWITH_ARM=${WITH_ARM:-OFF} \
+    -DWITH_ASCEND_TRANSFORMER_ACC=${WITH_ASCEND_TRANSFORMER_ACC:-OFF} \
     -DON_INFER=${ON_INFER:-OFF} \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON;cmake_error=$?
 

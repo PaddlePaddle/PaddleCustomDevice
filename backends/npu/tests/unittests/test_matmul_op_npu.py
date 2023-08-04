@@ -21,13 +21,13 @@ import paddle
 import os
 
 paddle.enable_static()
-for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
-    if lib.endswith(".so"):
-        paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
-            lib
-        )
+if os.getenv("CUSTOM_DEVICE_ROOT") is not None:
+    for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
+        if lib.endswith(".so"):
+            paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
+                lib
+            )
 from tests.op_test import OpTest
-
 
 SEED = 2021
 

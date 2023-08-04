@@ -40,5 +40,21 @@ docker build --network=host -f Dockerfile.mlu.ubuntu18-$(uname -m)-gcc82 \
        --build-arg https_proxy=${proxy} \
        --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc82 .
-docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc82
+       -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-ubuntu18-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-ubuntu18-$(uname -m)-gcc82
+
+# kylinv10-$(uname -m)-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
+docker build --network=host -f Dockerfile.mlu.kylinv10.$(uname -m).gcc82 \
+  --build-arg CNTOOLKIT_VERSION=${CNTOOLKIT_VERSION} \
+  --build-arg CNNL_VERSION=${CNNL_VERSION} \
+  --build-arg CNCL_VERSION=${CNCL_VERSION} \
+  --build-arg MLUOPS_VERSION=${MLUOPS_VERSION} \
+  --build-arg FTP_USER=${FTP_USER} \
+  --build-arg FTP_PASSWORD=${FTP_PASSWORD} \
+  --build-arg http_proxy=${proxy} \
+  --build-arg https_proxy=${proxy} \
+  --build-arg ftp_proxy=${proxy} \
+  --build-arg no_proxy=bcebos.com \
+  -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-kylinv10-$(uname -m)-gcc82 .
+docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-kylinv10-$(uname -m)-gcc82

@@ -1,0 +1,60 @@
+# Docker Image for PaddlePaddle MLU
+
+FROM registry.baidubce.com/device/paddle-cpu:kylinv10-aarch64-gcc82
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
+
+# version for mlu packages
+ARG CNTOOLKIT_VERSION
+ARG CNNL_VERSION
+ARG CNCL_VERSION
+ARG MLUOPS_VERSION
+
+# user and password for ftp
+ARG FTP_USER
+ARG FTP_PASSWORD
+
+RUN apt update && \
+    apt install -y gdb valgrind
+
+# install cntoolkit
+RUN cd /tmp && \
+    wget -O cntoolkit_install_pkg.rpm ftp://download.cambricon.com:8821/product/MLU370/inference+training/1.13.0/cntoolkit_${CNTOOLKIT_VERSION}.ky10.aarch64.rpm --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -ivh cntoolkit_install_pkg.rpm && \
+    yum install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnstudio cnrtc && \
+    yum clean all && \
+    rm -f cntoolkit_install_pkg.rpm
+
+# install cnnl
+RUN cd /tmp && \
+    wget -O cnnl_install_pkg.rpm ftp://download.cambricon.com:8821/tmp/CTR2.9.0/cnnl_${CNNL_VERSION}.ky10.aarch64.rpm --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -i cnnl_install_pkg.rpm && \
+    rm -f cnnl_install_pkg.rpm
+
+# install cncl
+RUN cd /tmp && \
+    wget -O cncl_install_pkg.rpm ftp://download.cambricon.com:8821/tmp/CTR2.9.0/cncl_${CNCL_VERSION}.ky10.aarch64.rpm --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -i cncl_install_pkg.rpm && \
+    rm -f cncl_install_pkg.rpm
+
+# install mluops
+RUN cd /tmp && \
+    wget -O mluops_install_pkg.rpm ftp://download.cambricon.com:8821/tmp/CTR2.9.0/mluops_${MLUOPS_VERSION}.ky10.aarch64.rpm --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -i mluops_install_pkg.rpm && \
+    rm -f mluops_install_pkg.rpm
+
+# udpate envs
+ENV NEUWARE_HOME=/usr/local/neuware
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NEUWARE_HOME/lib64
+
+# environment for PaddlePaddle
+ENV FLAGS_mlu_storage_format=1
+ENV PADDLE_XCCL_BACKEND=mlu
+
+# Clean
+RUN pip cache purge
+RUN yum clean all && \
+    rm -rf /var/cache/yum && \
+    rm -rf /var/lib/yum/yumdb && \
+    rm -rf /var/lib/yum/history
+
+EXPOSE 22

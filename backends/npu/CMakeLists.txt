@@ -28,6 +28,8 @@ include_directories(${CMAKE_SOURCE_DIR})
 option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ARM "compile with arm support" OFF)
+option(WITH_ASCEND_TRANSFORMER_ACC
+       "compile with ascend transformer acceleration library" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "

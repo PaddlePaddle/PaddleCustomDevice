@@ -73,7 +73,7 @@ std::vector<paddle::Tensor> AddNormOp(const paddle::Tensor& x,
   auto bias_tensor_asd = ConvertDenseTensorToAsdTensor(*bias_tensor);
   auto out_tensor_asd = ConvertDenseTensorToAsdTensor(*out_tensor);
 
-  AclTransformer::AddNormParam opParam = {epsilon, 1.0, true}; /* 不设置scale*/
+  AclTransformer::AddNormParam opParam = {epsilon, 1.0}; /* 不设置scale*/
   AclTransformer::OperationCall opCall("AddNormOperation", opParam);
   AsdOps::SVector<AsdOps::Tensor> inTensors = {
       x_tensor_asd, y_tensor_asd, weight_tensor_asd, bias_tensor_asd};

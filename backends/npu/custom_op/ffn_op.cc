@@ -106,15 +106,15 @@ std::vector<paddle::Tensor> FFNOp(const paddle::Tensor& input,
                            {"transpose_x2", transpose_x2}};
 
   // run
-  const auto& runner1 =
+  const auto& matmulRunner =
       NpuOpRunner("MatMul", {x_temp, *y}, {*matmul_res}, attrs);
-  runner1.Run(stream);
+  matmulRunner.Run(stream);
 
-  const auto& runner2 = NpuOpRunner("Add", {*matmul_res, *b}, {*add_res});
-  runner2.Run(stream);
+  const auto& addRunner = NpuOpRunner("Add", {*matmul_res, *b}, {*add_res});
+  addRunner.Run(stream);
 
-  const auto& runner3 = NpuOpRunner("Gelu", {*add_res}, {*out}, {});
-  runner3.Run(stream);
+  const auto& geluRunner = NpuOpRunner("Gelu", {*add_res}, {*out}, {});
+  geluRunner.Run(stream);
 
   // post
   auto out_dims =

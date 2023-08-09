@@ -108,14 +108,15 @@ std::vector<paddle::Tensor> LinearOp(const paddle::Tensor& input,
   // with_bias}, {"operateType", operate}}; // for MatmulAll
 
   // run
-  // run 1: use MatmulAll
-  const auto& runner =
-      NpuOpRunner("MatmulAll", {x_temp, *y, *b, *b}, {*out}, attrs);
+  // use MatmulAll
+  // const auto& matmulAllRunner =
+  //     NpuOpRunner("MatmulAll", {x_temp, *y, *b, *b}, {*out}, attrs);
   // runner.Run(stream);
 
-  // run 3: use MatMul
-  const auto& runner3 = NpuOpRunner("MatMul", {x_temp, *y, *b}, {*out}, attrs);
-  runner3.Run(stream);
+  // use MatMul
+  const auto& matmulRunner =
+      NpuOpRunner("MatMul", {x_temp, *y, *b}, {*out}, attrs);
+  matmulRunner.Run(stream);
 
   // post
   auto out_dims =

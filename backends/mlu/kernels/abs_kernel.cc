@@ -17,6 +17,8 @@
 
 namespace custom_kernel {
 
+// just test1
+
 template <typename T, typename Context>
 void AbsKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,

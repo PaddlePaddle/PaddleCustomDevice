@@ -16,7 +16,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -331,7 +330,7 @@ class TestNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            adam = fluid.optimizer.Adam(learning_rate=0.01)
+            adam = paddle.optimizer.Adam(learning_rate=0.01)
             adam.minimize(loss)
 
         if run_npu:

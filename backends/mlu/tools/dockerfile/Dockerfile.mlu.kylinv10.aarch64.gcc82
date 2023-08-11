@@ -1,0 +1,50 @@
+# Docker Image for PaddlePaddle MLU
+
+FROM registry.baidubce.com/device/paddle-cpu:kylinv10-aarch64-gcc82
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
+
+# name for mlu packages
+ARG PACKAGE_DIR=sdk1.13.0-kylinv10-aarch64
+ARG CNTOOLKIT_PKG=cntoolkit-3.5.2-1.ky10.aarch64.rpm
+ARG CNNL_PKG=cnnl-1.19.1.ky10.aarch64.rpm
+ARG CNCL_PKG=cncl-1.10.0-1.ky10.aarch64.rpm
+ARG MLUOPS_PKG=mluops-0.7.1.ky10.aarch64.rpm
+
+# user and password for ftp
+ARG FTP_USER
+ARG FTP_PASSWORD
+
+# install cntoolkit
+RUN wget -q ftp://download.cambricon.com:8821/tmp/${PACKAGE_DIR}/${CNTOOLKIT_PKG} --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -ivh ${CNTOOLKIT_PKG} && yum install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnrtc && \
+    rm -rf ${CNTOOLKIT_PKG}
+
+# install cnnl
+RUN wget -q ftp://download.cambricon.com:8821/tmp/${PACKAGE_DIR}/${CNNL_PKG} --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -ivh ${CNNL_PKG} && rm -rf ${CNNL_PKG}
+
+# install cncl
+RUN wget -q ftp://download.cambricon.com:8821/tmp/${PACKAGE_DIR}/${CNCL_PKG} --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -ivh ${CNCL_PKG} && rm -rf ${CNCL_PKG}
+
+# install mluops
+RUN wget -q ftp://download.cambricon.com:8821/tmp/${PACKAGE_DIR}/${MLUOPS_PKG} --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    rpm -ivh ${MLUOPS_PKG} && rm -rf ${MLUOPS_PKG}
+
+# udpate envs
+ENV NEUWARE_HOME=/usr/local/neuware
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NEUWARE_HOME/lib64
+
+# environment for PaddlePaddle
+ENV FLAGS_mlu_storage_format=1
+ENV FLAGS_allocator_strategy=naive_best_fit
+ENV PADDLE_XCCL_BACKEND=mlu
+
+# yum and pip clean
+RUN yum clean all && \
+    rm -rf /var/cache/yum && \
+    rm -rf /var/lib/yum/yumdb && \
+    rm -rf /var/lib/yum/history
+RUN pip cache purge
+
+EXPOSE 22

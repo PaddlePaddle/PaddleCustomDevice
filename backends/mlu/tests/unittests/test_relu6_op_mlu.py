@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from __future__ import print_function
-import paddle.fluid as fluid
 import paddle
 
 from tests.op_test import OpTest
@@ -121,7 +120,7 @@ class TestRelu6Net(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_mlu:

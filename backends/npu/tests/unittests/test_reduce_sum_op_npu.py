@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -135,7 +134,7 @@ class TestReduceSumNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:
@@ -194,7 +193,7 @@ class TestReduceSumNet3(TestReduceSumNet):
 
             z = paddle.add(a, b)
             loss = paddle.sum(z)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:

@@ -169,7 +169,7 @@ class TestGatherGrad(unittest.TestCase):
             b = paddle.gather(a, index)
 
             loss = paddle.mean(b)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:

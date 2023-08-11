@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 from paddle import _legacy_C_ops
 from tests.op_test import OpTest
 
@@ -136,7 +135,7 @@ class TestElementwiseDivNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             loss = paddle.mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:

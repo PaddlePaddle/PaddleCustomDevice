@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -87,7 +86,7 @@ class TestSoftmaxNet(unittest.TestCase):
 
             cost = paddle.nn.functional.cross_entropy(input=prob, label=label)
             loss = paddle.mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_npu:

@@ -16,7 +16,6 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2022
@@ -293,7 +292,7 @@ class TestNet(unittest.TestCase):
             cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
             # loss = fluid.layers.reduce_mean(cost)
             loss = paddle.mean(cost)
-            adam = fluid.optimizer.Adam(learning_rate=0.01)
+            adam = paddle.optimizer.Adam(learning_rate=0.01)
             adam.minimize(loss)
 
         if run_mlu:

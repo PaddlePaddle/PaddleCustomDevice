@@ -204,7 +204,7 @@ class TestSGDOpOptimizeSelectedRows(unittest.TestCase):
 
 #         cost = fluid.layers.square_error_cost(input=out, label=label)
 #         avg_cost = fluid.layers.mean(cost)
-#         sgd_optimizer = fluid.optimizer.SGD(learning_rate=0.001)
+#         sgd_optimizer = paddle.optimizer.SGD(learning_rate=0.001)
 #         sgd_optimizer.minimize(avg_cost)
 
 #         place = fluid.CustomPlace('custom_cpu', 0)

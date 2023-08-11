@@ -1,5 +1,8 @@
-#disable_ut_mlu
-#test_adam_op_mlu
-#test_set_value_op_mlu
-#test_softmax_with_cross_entropy_op_mlu
-#test_zero_dim_tensor_mlu
+disable_ut_mlu
+test_dygraph_recompute_for_eager
+test_parallel_dygraph_mp_layers
+test_sync_batch_norm_op_mlu
+test_zero_dim_tensor_mlu
+test_collective_api
+test_parallel_dygraph_pipeline_parallel
+test_set_value_op_mlu

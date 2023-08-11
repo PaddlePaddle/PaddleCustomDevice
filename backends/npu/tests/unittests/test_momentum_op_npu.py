@@ -301,7 +301,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             learning_rate=0.01,
             momentum=0.9,
             parameters=linear_old.parameters(),
-            regularization=paddle.regularizer.L2Decay(coeff=0.1),
+            weight_decay=paddle.regularizer.L2Decay(coeff=0.1),
         )
         self.__update_params(momentum=momentum_old, linear=linear_old)
 

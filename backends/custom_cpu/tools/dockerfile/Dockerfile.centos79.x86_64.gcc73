@@ -6,7 +6,7 @@ LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 RUN yum install -y epel-release deltarpm openssh-server kernel-headers kernel-devel libsndfile-devel \
         zlib-devel openssl-devel pcre-devel vim tk-devel tkinter libtool xz graphviz wget curl-devel \
         make bzip2 bzip2-devel git patch unzip bison yasm diffutils automake which file gettext-devel \
-        sqlite-devel net-tools numactl-devel chrpath screen initscripts tree libffi-devel swig xz-devel 
+        sqlite-devel net-tools numactl-devel chrpath screen initscripts tree libffi-devel swig xz-devel
 
 # Add bash enhancements
 COPY root/ /root/

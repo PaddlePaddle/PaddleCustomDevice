@@ -172,6 +172,38 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
     #     )
 
 
+class TestSoftmaxWithCrossEntropyOpIngnoreIndex(TestSoftmaxWithCrossEntropyOp):
+    def initParams(self):
+        self.set_mlu()
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+
+        self.dtype = np.float32
+        self.axis = 1
+        self.ignore_index = 0
+        self.shape = [2, 2, 4, 8]
+        self.use_softmax = True
+
+
+class TestSoftmaxWithCrossEntropyOpIngnoreIndex2(TestSoftmaxWithCrossEntropyOp):
+    def initParams(self):
+        self.set_mlu()
+        self.op_type = "softmax_with_cross_entropy"
+        self.python_api = python_api
+        self.python_out_sig = ["Loss", "Softmax"]
+        self.numeric_stable_mode = True
+        self.soft_label = False
+
+        self.dtype = np.float32
+        self.axis = 1
+        self.ignore_index = -100
+        self.shape = [2, 2, 4, 8]
+        self.use_softmax = True
+
+
 class TestSoftmaxWithCrossEntropyOpInt32(TestSoftmaxWithCrossEntropyOp):
     def hard_label_dtype(self):
         return "int32"

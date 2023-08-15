@@ -105,7 +105,6 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     mode = CNNL_SOFTMAX_MODE_LOW_DIMENSION;
     Tensor labels_int32;
     labels_int32.Resize(labels.dims());
-
     if (labels.dtype() == DataType::INT32) {
       labels_int32 = labels;
     } else {
@@ -122,7 +121,6 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                     labels_int32_desc.get(),
                     GetBasePtr(&labels_int32));
     }
-
     // transpose logits, labels, loss and backprop if d3 != 1
     Tensor trans_logits, trans_labels, trans_loss;
     if (d3 == 1) {
@@ -171,28 +169,8 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                    GetBasePtr(&ignore_idx_tensor),
                    mask_desc.get(),
                    GetBasePtr(&mask_tensor));
-    // 2. mask: if mask = True, set 0
-    int fill_value = 0;
-    phi::DenseTensor t_fill_value;
-    phi::DenseTensorMeta fill_value_meta = {phi::DataType::INT32, {1}};
-    t_fill_value.set_meta(fill_value_meta);
-    dev_ctx.template Alloc<int32_t>(&t_fill_value);
-    FillMLUTensorWithHostValue(
-        dev_ctx, static_cast<int>(fill_value), &t_fill_value);
-    MLUCnnlTensorDesc value_desc(t_fill_value);
-    MLUCnnl::Mask(dev_ctx,
-                  CNNL_MASKED_FILL,
-                  trans_labels_desc.get(),
-                  GetBasePtr(&trans_labels),
-                  mask_desc.get(),
-                  GetBasePtr(&mask_tensor),
-                  value_desc.get(),
-                  GetBasePtr(&t_fill_value), /*value*/
-                  nullptr,                   /*scale*/
-                  trans_labels_desc.get(),
-                  GetBasePtr(&trans_labels),
-                  nullptr /*number*/);
 
+    // 2. SparseSoftmaxXentWithLogits
     MLUCnnl::SparseSoftmaxXentWithLogits(dev_ctx,
                                          mode,
                                          trans_logits_desc.get(),
@@ -204,6 +182,29 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                                          trans_logits_desc.get(),
                                          GetBasePtr(&backprop));
 
+    // 3. mask: if mask = True, set 0
+    float fill_value = 0.0f;
+    phi::DenseTensor t_fill_value;
+    phi::DenseTensorMeta fill_value_meta = {trans_loss.dtype(), {1}};
+    t_fill_value.set_meta(fill_value_meta);
+    dev_ctx.template Alloc<T>(&t_fill_value);
+    FillMLUTensorWithHostValue(
+        dev_ctx, static_cast<int>(fill_value), &t_fill_value);
+    MLUCnnlTensorDesc value_desc(t_fill_value);
+    mask_tensor.Resize(trans_loss.dims());
+    MLUCnnlTensorDesc mask_out_desc(mask_tensor);
+    MLUCnnl::Mask(dev_ctx,
+                  CNNL_MASKED_FILL,
+                  trans_loss_desc.get(),
+                  GetBasePtr(&trans_loss),
+                  mask_out_desc.get(),
+                  GetBasePtr(&mask_tensor),
+                  value_desc.get(),
+                  GetBasePtr(&t_fill_value), /*value*/
+                  nullptr,                   /*scale*/
+                  trans_loss_desc.get(),
+                  GetBasePtr(&trans_loss),
+                  nullptr /*number*/);
     if (d3 != 1) {
       VLOG(5) << "[cross_entropy] d3 != 1, transpose loss back."
               << " [d1, d3, 1] -> [d1, 1, d3] -> original shape";
@@ -374,7 +375,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
   VLOG(5) << "[CrossEntropyGrad] rank: " << rank << " use_axis: " << use_axis
           << " axis_dim: " << axis_dim << " n: " << n;
   if ((!soft_label && labels.numel() == n &&
-       (ignore_index == -1 || ignore_index == 255)) ||
+       (ignore_index == -1 || ignore_index == 255 || ignore_index == -100)) ||
       soft_label) {
     phi::DenseTensor last_labels;
     if (!soft_label) {

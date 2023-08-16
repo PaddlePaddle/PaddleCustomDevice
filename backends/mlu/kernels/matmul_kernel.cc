@@ -460,7 +460,43 @@ void MatmulWithFlattenGradKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void BmmKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::DenseTensor& y,
+               phi::DenseTensor* out) {
+  MatMulND<T>(dev_ctx, x, y, out, false, false);
+}
+
+template <typename T, typename Context>
+void BmmGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& y,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx,
+                   phi::DenseTensor* dy) {
+  if (dx) {
+    MatMulND<T>(dev_ctx, dout, y, dx, false, true);
+  }
+  if (dy) {
+    MatMulND<T>(dev_ctx, x, dout, dy, true, false);
+  }
+}
+
 }  // namespace custom_kernel
+PD_REGISTER_PLUGIN_KERNEL(bmm,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::BmmKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(bmm_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::BmmGradKernel,
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul,
                           mlu,

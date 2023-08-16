@@ -50,6 +50,84 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False, scale=1.0):
     return Out
 
 
+class TestBmmOp(OpTest):
+    """
+    case 0
+    """
+
+    def set_mlu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("mlu", 0)
+
+    def config(self):
+        self.x_shape = (10, 2, 5)
+        self.y_shape = (10, 5, 8)
+
+    def init_kernel_type(self):
+        self.dtype = "float32"
+
+    def setUp(self):
+        self.set_mlu()
+        self.init_kernel_type()
+        self.config()
+        self.op_type = "bmm"
+        x = np.random.random(self.x_shape).astype(self.dtype)
+        y = np.random.random(self.y_shape).astype(self.dtype)
+        # -0.1 ~ 0.1
+        x = -0.1 + 0.2 * x
+        y = -0.1 + 0.2 * y
+        result = reference_matmul(x, y)
+        result = result.astype(self.dtype)
+        self.inputs = {
+            "X": x,
+            "Y": y,
+        }
+        self.outputs = {"Out": result}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
+
+
+class TestBmmOp1(TestBmmOp):
+    """
+    case 1
+    """
+
+    def config(self):
+        self.x_shape = (40, 10, 10)
+        self.y_shape = (40, 10, 10)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
+
+
+class TestBmmOp2(TestBmmOp):
+    """
+    case 2
+    """
+
+    def config(self):
+        self.x_shape = (4, 10, 80)
+        self.y_shape = (4, 80, 1)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X", "Y"],
+            "Out",
+            max_relative_error=1e-2,
+        )
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
 class TestMatMulOp(OpTest):
     """
     basic case

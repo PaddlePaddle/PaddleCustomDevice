@@ -98,7 +98,7 @@ void AdamKernel(const Context& dev_ctx,
   }
 
   VLOG(3) << "beta1_pow->numel() : " << beta1_pow->numel()
-          << "beta2_pow->numel() : " << beta2_pow->numel();
+          << " beta2_pow->numel() : " << beta2_pow->numel();
   VLOG(3) << "param.numel(): " << param.numel();
 
   PADDLE_ENFORCE_EQ(beta1_pow_out->numel(),
@@ -142,8 +142,9 @@ void AdamKernel(const Context& dev_ctx,
   FillMLUTensorWithHostValue<MPDType>(dev_ctx, epsilon, &epsilon_tmp);
   epsilon_tensor = &epsilon_tmp;
 
-  Tensor t_param_in_out;
+  Tensor t_param_in_out, t_grad;
   t_param_in_out.Resize(param.dims());
+  t_grad.Resize(grad.dims());
   if (multi_precision) {
     // for multi_precision attribute, master_param_out should be float32.
     *master_param_out = master_param.get();
@@ -167,10 +168,26 @@ void AdamKernel(const Context& dev_ctx,
     t_param_in_out = *param_out;
   }
 
+  if (grad.dtype() == phi::DataType::FLOAT16) {  // cast half grad to float
+    dev_ctx.template Alloc<MPDType>(&t_grad);
+    MLUCnnlTensorDesc grad_desc(grad);
+    MLUCnnlTensorDesc cast_grad_desc(t_grad);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(grad.dtype(), DataType::FLOAT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  grad_desc.get(),
+                  GetBasePtr(&grad),
+                  cast_grad_desc.get(),
+                  GetBasePtr(&t_grad));
+  } else {
+    t_grad = grad;
+  }
+
   MLUCnnlTensorDesc param_desc(t_param_in_out);
   MLUCnnlTensorDesc mom1_desc(moment1);
   MLUCnnlTensorDesc mom2_desc(moment2);
-  MLUCnnlTensorDesc grad_desc(grad);
+  MLUCnnlTensorDesc grad_desc(t_grad);
   MLUCnnl::ApplyAdam(dev_ctx,
                      param_desc.get(),
                      GetBasePtr(&t_param_in_out),
@@ -179,7 +196,7 @@ void AdamKernel(const Context& dev_ctx,
                      mom2_desc.get(),
                      GetBasePtr(moment2_out),
                      grad_desc.get(),
-                     GetBasePtr(&grad),
+                     GetBasePtr(&t_grad),
                      GetBasePtr(&learning_rate),
                      GetBasePtr(beta1_tensor),
                      GetBasePtr(beta2_tensor),
@@ -188,11 +205,8 @@ void AdamKernel(const Context& dev_ctx,
                      GetBasePtr(epsilon_tensor),
                      /*use_nesterov*/ false);
 
-  if (multi_precision) {
-    // copy param_in_out to param_out
-    TensorCopy(dev_ctx, t_param_in_out, false, param_out);
-  } else if (param.dtype() != phi::DataType::FLOAT32) {
-    // cast param_in_out(MPDType) to param_out(T) anyway.
+  if (multi_precision || param.dtype() != phi::DataType::FLOAT32) {
+    // 1. cast param_in_out(MPDType) to param_out(T) anyway.
     phi::DenseTensorMeta meta = {param.dtype(), param.dims()};
     param_out->set_meta(meta);
     dev_ctx.template Alloc<T>(param_out);
@@ -218,12 +232,13 @@ void AdamKernel(const Context& dev_ctx,
           beta2 * beta2_pow->data<MPDType>()[0];
     } else {
       // mlu update
-      dev_ctx.template Alloc<T>(beta1_pow_out);
-      dev_ctx.template Alloc<T>(beta2_pow_out);
+      dev_ctx.template Alloc<MPDType>(beta1_pow_out);
+      dev_ctx.template Alloc<MPDType>(beta2_pow_out);
 
       MLUCnnlTensorDesc beta1_desc(*beta1_tensor);
-      MLUCnnlOpTensorDesc mul_op_desc(
-          CNNL_OP_TENSOR_MUL, ToCnnlDataType<T>(), CNNL_NOT_PROPAGATE_NAN);
+      MLUCnnlOpTensorDesc mul_op_desc(CNNL_OP_TENSOR_MUL,
+                                      ToCnnlDataType<MPDType>(),
+                                      CNNL_NOT_PROPAGATE_NAN);
 
       MLUCnnl::OpTensor(dev_ctx,
                         mul_op_desc.get(),
@@ -233,7 +248,7 @@ void AdamKernel(const Context& dev_ctx,
                         GetBasePtr(beta1_tensor),
                         beta1_desc.get(),
                         GetBasePtr(beta1_pow_out),
-                        ToCnnlDataType<T>());
+                        ToCnnlDataType<MPDType>());
 
       MLUCnnl::OpTensor(dev_ctx,
                         mul_op_desc.get(),
@@ -243,7 +258,7 @@ void AdamKernel(const Context& dev_ctx,
                         GetBasePtr(beta2_tensor),
                         beta1_desc.get(),
                         GetBasePtr(beta2_pow_out),
-                        ToCnnlDataType<T>());
+                        ToCnnlDataType<MPDType>());
     }
   }
 }

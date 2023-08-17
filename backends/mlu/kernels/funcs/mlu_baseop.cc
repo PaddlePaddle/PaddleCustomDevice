@@ -5545,6 +5545,37 @@ MLURNNDesc::~MLURNNDesc() {
       handle, generator, type, state, num, min, max, out));
 }
 
+/* static */ void MLUCnnl::RandGenerateMultinomial(
+    const Context& ctx,
+    const cnnlRandGenerator_t generator,
+    const cnnlTensorDescriptor_t input_desc,
+    const void* input,
+    const bool is_replacement,
+    const bool is_logits,
+    void* state,
+    const cnnlTensorDescriptor_t output_desc,
+    void* out) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetRandGenerateMultinomialWorkspaceSize(
+      handle, input_desc, &workspace_size));
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRandGenerateMultinomial_v2(handle,
+                                                            generator,
+                                                            input_desc,
+                                                            input,
+                                                            is_replacement,
+                                                            is_logits,
+                                                            state,
+                                                            workspace_ptr,
+                                                            workspace_size,
+                                                            output_desc,
+                                                            out));
+}
+
 /* static */ void MLUOP::OpYoloBox(const Context& ctx,
                                    const mluOpTensorDescriptor_t x_desc,
                                    const void* x,

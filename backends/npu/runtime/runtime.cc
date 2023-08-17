@@ -598,15 +598,9 @@ C_Status XcclReduceScatter(void *send_buf,
   return C_SUCCESS;
 }
 
-C_Status XcclGroupStart() {
-  LOG(ERROR) << "xccl_group_start is not supported on ascend npu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupStart() { return C_SUCCESS; }
 
-C_Status XcclGroupEnd() {
-  LOG(ERROR) << "xccl_group_end is not supported on ascend npu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupEnd() { return C_SUCCESS; }
 
 C_Status XcclSend(void *send_buf,
                   size_t count,

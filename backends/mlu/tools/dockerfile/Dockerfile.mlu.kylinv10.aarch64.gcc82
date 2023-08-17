@@ -16,7 +16,7 @@ ARG FTP_PASSWORD
 
 # install cntoolkit
 RUN wget -q ftp://download.cambricon.com:8821/tmp/${PACKAGE_DIR}/${CNTOOLKIT_PKG} --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
-    rpm -ivh ${CNTOOLKIT_PKG} && yum install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnrtc && \
+    rpm -ivh ${CNTOOLKIT_PKG} && yum install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnrtc cnvs && \
     rm -rf ${CNTOOLKIT_PKG}
 
 # install cnnl

@@ -31,7 +31,8 @@ void GaussianKernel(const Context& ctx,
   phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
   cpu_tensor.set_meta(cpu_meta);
   T* cpu_data = ctx.template HostAlloc<T>(&cpu_tensor);
-  std::normal_distribution<T> dist(mean, std);
+  std::normal_distribution<typename phi::dtype::MPTypeTrait<T>::Type> dist(mean,
+                                                                           std);
 
   int64_t size = out->numel();
 
@@ -44,12 +45,17 @@ void GaussianKernel(const Context& ctx,
   }
 
   for (int64_t i = 0; i < size; ++i) {
-    cpu_data[i] = dist(*engine);
+    cpu_data[i] = static_cast<T>(dist(*engine));
   }
   TensorCopy(ctx, cpu_tensor, true, out);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    gaussian, npu, ALL_LAYOUT, custom_kernel::GaussianKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(gaussian,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::GaussianKernel,
+                          phi::dtype::float16,
+                          float,
+                          double) {}

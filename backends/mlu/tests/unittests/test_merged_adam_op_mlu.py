@@ -55,7 +55,7 @@ def run_adam_op(
 
     if not use_merged:
         for i in range(len(param_vars)):
-            _, _, _, _, _, _ = _legacy_C_ops.adam(
+            _, _, _, _, _, _ = _C_ops.adamw_(
                 param_vars[i],
                 grad_vars[i],
                 lr_vars[i],
@@ -64,20 +64,17 @@ def run_adam_op(
                 beta1_pow_vars[i],
                 beta2_pow_vars[i],
                 master_param_vars[i],
-                param_vars[i],
-                moment1_vars[i],
-                moment2_vars[i],
-                beta1_pow_vars[i],
-                beta2_pow_vars[i],
-                master_param_vars[i],
-                "epsilon",
-                epsilon,
-                "beta1",
+                None,
                 beta1,
-                "beta2",
                 beta2,
-                "multi_precision",
-                multi_precision,
+                epsilon,
+                1.0,
+                0.1,
+                False,
+                False,
+                1000,
+                False,
+                False,
             )
     else:
         if in_dygraph_mode():

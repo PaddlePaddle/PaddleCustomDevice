@@ -42,9 +42,10 @@ void ScaleKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&bias_tensor);
 
   MLUCnnlTensorDesc bias_desc(bias_tensor);
+  T new_bias = static_cast<T>(bias);
   MLUCnnl::Fill(dev_ctx,
                 CNNL_POINTER_MODE_HOST,
-                &bias,
+                &new_bias,
                 bias_desc.get(),
                 GetBasePtr(&bias_tensor));
 

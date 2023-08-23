@@ -33,8 +33,11 @@ class TestScaleOp(OpTest):
         self.dtype = np.float32
         self.init_dtype_type()
         self.inputs = {"X": np.random.random((10, 10)).astype(self.dtype)}
-        self.attrs = {"scale": -2.3}
-        self.outputs = {"Out": self.inputs["X"] * self.dtype(self.attrs["scale"])}
+        self.attrs = {"scale": 1.0, "bias": 1}
+        self.outputs = {
+            "Out": self.inputs["X"] * self.dtype(self.attrs["scale"])
+            + self.dtype(self.attrs["bias"])
+        }
 
     def init_dtype_type(self):
         pass
@@ -137,9 +140,6 @@ class TestScaleRaiseError(unittest.TestCase):
 
 
 # Add FP16 test
-@unittest.skipIf(
-    not core.is_compiled_with_custom_device("mlu"), "core is not compiled with MLU"
-)
 class TestScaleFp16Op(TestScaleOp):
     def init_dtype_type(self):
         self.dtype = np.float16

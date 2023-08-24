@@ -6,3 +6,4 @@ test_slice_op_npu
 test_set_value_op_npu
 test_dygraph_sharding_stage_3
 test_zero_dim_tensor_npu
+test_momentum_op_npu

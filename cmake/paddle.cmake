@@ -34,6 +34,10 @@ endif()
 set(PADDLE_INC_DIR "${PADDLE_DIR}/include/")
 set(PADDLE_LIB_DIR "${PADDLE_DIR}/fluid/")
 
+if(NOT EXISTS ${PADDLE_LIB_DIR})
+  set(PADDLE_LIB_DIR "${PADDLE_DIR}/base/")
+endif()
+
 include_directories(${PADDLE_INC_DIR})
 
 if(EXISTS "${PADDLE_LIB_DIR}/libpaddle.so")

@@ -2343,6 +2343,16 @@ class MLUCnnl {
                                   const float max,
                                   void* state,
                                   void* out);
+
+  static void RandGenerateMultinomial(const Context& ctx,
+                                      const cnnlRandGenerator_t generator,
+                                      const cnnlTensorDescriptor_t input_desc,
+                                      const void* input,
+                                      const bool is_replacement,
+                                      const bool is_logits,
+                                      void* state,
+                                      const cnnlTensorDescriptor_t output_desc,
+                                      void* out);
 };
 
 class MLUOP {

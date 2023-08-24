@@ -120,7 +120,7 @@ class TestScaleOpSelectedRows(unittest.TestCase):
         if core.is_compiled_with_custom_device("mlu"):
             places.append(core.CustomPlace("mlu", 0))
         for place in places:
-            self.check_with_place(place, "in", "out")
+            self.check_output_with_place(place, "in", "out")
 
     def test_scale_selected_rows_inplace(self):
         self.set_mlu()
@@ -128,7 +128,7 @@ class TestScaleOpSelectedRows(unittest.TestCase):
         if core.is_compiled_with_custom_device("mlu"):
             places.append(core.CustomPlace("mlu", 0))
         for place in places:
-            self.check_with_place(place, "in", "in")
+            self.check_output_with_place(place, "in", "in")
 
 
 class TestScaleRaiseError(unittest.TestCase):

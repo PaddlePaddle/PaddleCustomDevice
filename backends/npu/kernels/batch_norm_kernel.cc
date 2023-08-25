@@ -352,6 +352,17 @@ void BatchNormGradKernel(
     inv_runner.Run(stream);
   }
 
+  // BN3DTrainingUpdateGrad will throw output size mismatch if output tensor in
+  // NCHW format, we should change output tensor format same with input tensor
+  // format NDCHW or NDHWC
+  phi::DenseTensorMeta meta = {
+      phi::DataType::FLOAT32, d_scale->dims(), x_tensor.layout()};
+
+  if (x_dims.size() == 5) {
+    d_scale->set_meta(meta);
+    d_bias->set_meta(meta);
+  }
+
   NpuOpRunner runner_update;
   runner_update.SetType(update_name)
       .AddInput(dy_tensor)

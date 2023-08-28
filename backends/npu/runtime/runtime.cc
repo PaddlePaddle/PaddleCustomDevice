@@ -394,6 +394,12 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
   return C_SUCCESS;
 }
 
+C_Status QueryEvent(const C_Device device, C_Event event) {
+  aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+  ACL_CHECK(aclrtQueryEventStatus(event, &status));
+  return status == ACL_EVENT_RECORDED_STATUS_COMPLETE ? C_SUCCESS : C_FAILED;
+}
+
 C_Status DestroyEvent(const C_Device device, C_Event event) {
   ACL_CHECK(aclrtDestroyEvent(reinterpret_cast<aclrtEvent>(event)));
   return C_SUCCESS;
@@ -701,6 +707,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->create_event = CreateEvent;
   params->interface->destroy_event = DestroyEvent;
   params->interface->record_event = RecordEvent;
+  params->interface->query_event = QueryEvent;
 
   params->interface->synchronize_device = SyncDevice;
   params->interface->synchronize_stream = SyncStream;

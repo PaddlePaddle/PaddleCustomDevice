@@ -39,6 +39,11 @@ C_Status Init() {
   return C_SUCCESS;
 }
 
+C_Status InitDevice(const C_Device device) {
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  return C_SUCCESS;
+}
+
 C_Status SetDevice(const C_Device device) {
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
   return C_SUCCESS;
@@ -253,6 +258,11 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
   return C_SUCCESS;
 }
 
+C_Status QueryEvent(const C_Device device, C_Event event) {
+  auto ret_status = cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event));
+  return ret_status == cnrtRet_t::cnrtSuccess ? C_SUCCESS : C_FAILED;
+}
+
 C_Status SyncEvent(const C_Device device, C_Event event) {
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
@@ -451,15 +461,9 @@ C_Status XcclReduceScatter(void *send_buf,
   return C_SUCCESS;
 }
 
-C_Status XcclGroupStart() {
-  LOG(ERROR) << "xccl_group_start is not supported on mlu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupStart() { return C_SUCCESS; }
 
-C_Status XcclGroupEnd() {
-  LOG(ERROR) << "xccl_group_end is not supported on mlu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupEnd() { return C_SUCCESS; }
 
 C_Status XcclSend(void *send_buf,
                   size_t count,
@@ -611,6 +615,7 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   // device
   params->interface->initialize = Init;
+  params->interface->init_device = InitDevice;
   params->interface->set_device = SetDevice;
   params->interface->get_device = GetDevice;
   params->interface->synchronize_device = SyncDevice;
@@ -646,6 +651,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_event = DestroyEvent;
   params->interface->record_event = RecordEvent;
   params->interface->synchronize_event = SyncEvent;
+  params->interface->query_event = QueryEvent;
 
   // cl
   params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;

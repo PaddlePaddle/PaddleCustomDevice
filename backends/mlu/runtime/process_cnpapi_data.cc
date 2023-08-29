@@ -221,6 +221,7 @@ CnpapiRuntimeCbidStr::CnpapiRuntimeCbidStr() {
   REGISTER_RUNTIME_CBID_STR(cnCreateNotifier);
   REGISTER_RUNTIME_CBID_STR(cnDestroyNotifier);
   REGISTER_RUNTIME_CBID_STR(cnPlaceNotifier);
+  REGISTER_RUNTIME_CBID_STR(cnQueryNotifier);
   REGISTER_RUNTIME_CBID_STR(cnCtxCreate);
   REGISTER_RUNTIME_CBID_STR(cnCtxDestroy);
   REGISTER_RUNTIME_CBID_STR(cnCtxGetCurrent);

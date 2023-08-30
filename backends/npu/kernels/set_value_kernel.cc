@@ -227,7 +227,38 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
   // StridedSliceAssign only support fp32 and int32.
   // We directly transform fp64/int64 to fp32/int32 before impl function.
   auto stream = dev_ctx.stream();
-  if (x.dtype() == phi::DataType::FLOAT64) {
+  if (x.dtype() == phi::DataType::FLOAT16) {
+    tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
+    tmp_value_meta = {phi::DataType::FLOAT32, value.dims()};
+    tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+    tmp_x.set_meta(tmp_x_meta);
+    tmp_value.set_meta(tmp_value_meta);
+    tmp_out.set_meta(tmp_out_meta);
+    dev_ctx.template Alloc<float>(&tmp_x);
+    dev_ctx.template Alloc<float>(&tmp_value);
+    dev_ctx.template Alloc<float>(&tmp_out);
+    const auto& runner1 =
+        NpuOpRunner("Cast", {x}, {tmp_x}, {{"dst_type", ACL_FLOAT}});
+    runner1.Run(stream);
+    const auto& runner2 =
+        NpuOpRunner("Cast", {value}, {tmp_value}, {{"dst_type", ACL_FLOAT}});
+    runner2.Run(stream);
+    SetTensorValueNPUImplKernel<float, Context>(dev_ctx,
+                                                tmp_x,
+                                                tmp_value,
+                                                starts,
+                                                ends,
+                                                steps,
+                                                axes,
+                                                decrease_axes,
+                                                none_axes,
+                                                &tmp_out);
+    out->Resize(tmp_out.dims());
+    dev_ctx.template Alloc<T>(out);
+    const auto& runner3 =
+        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_FLOAT16}});
+    runner3.Run(stream);
+  } else if (x.dtype() == phi::DataType::FLOAT64) {
     tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
     tmp_value_meta = {phi::DataType::FLOAT32, value.dims()};
     tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
@@ -344,6 +375,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SetValueNPUKernel,
+                          phi::dtype::float16,
                           float,
                           double,
                           int,
@@ -354,6 +386,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SetTensorValueNPUKernel,
+                          phi::dtype::float16,
                           float,
                           double,
                           int,

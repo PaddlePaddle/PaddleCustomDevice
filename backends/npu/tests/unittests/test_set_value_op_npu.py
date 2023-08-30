@@ -762,6 +762,26 @@ create_test_value_tensor_int32(TestSetValueItemSlice3)
 create_test_value_tensor_int32(TestSetValueItemSlice4)
 
 
+def create_test_value_fp16(parent):
+    class TestValueInt(parent):
+        def set_value(self):
+            self.value = 7
+
+        def set_dtype(self):
+            self.dtype = "float16"
+
+    cls_name = "{0}_{1}".format(parent.__name__, "VauleTensorFp16")
+    TestValueInt.__name__ = cls_name
+    globals()[cls_name] = TestValueInt
+
+
+create_test_value_fp16(TestSetValueItemInt)
+create_test_value_fp16(TestSetValueItemSlice)
+create_test_value_fp16(TestSetValueItemSlice2)
+create_test_value_fp16(TestSetValueItemSlice3)
+create_test_value_fp16(TestSetValueItemSlice4)
+
+
 # 3. Test different shape of value
 class TestSetValueValueShape1(TestSetValueApi):
     def set_value(self):

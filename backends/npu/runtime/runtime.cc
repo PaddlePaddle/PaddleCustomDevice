@@ -53,6 +53,8 @@ void SecondaryStream::Create(aclrtStream aicore_stream) {
 
 void SecondaryStream::Destroy(aclrtStream aicore_stream) {
   RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
+  HostCallbackManager::Instance().ReleaseProcessWorker(
+      aicpu_streams[aicore_stream]);
   ACL_CHECK(aclrtDestroyStream(aicpu_streams[aicore_stream]));
   aicpu_streams.erase(aicore_stream);
 }
@@ -244,6 +246,7 @@ C_Status ReleaseDevice(const C_Device device) {
 }
 
 C_Status Finalize() {
+  HostCallbackManager::Instance().ReleaseAllProcessWorkers();
   if (global_allocator_list) {
     delete global_allocator_list;
     global_allocator_list = nullptr;
@@ -378,6 +381,7 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
+  HostCallbackManager::Instance().ReleaseProcessWorker(stream);
   ACL_CHECK(aclrtDestroyStream(reinterpret_cast<aclrtStream>(stream)));
   SecondaryStream::Instance().Destroy(reinterpret_cast<aclrtStream>(stream));
   return C_SUCCESS;

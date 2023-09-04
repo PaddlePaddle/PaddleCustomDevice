@@ -43,7 +43,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
-https://paddle-device.bj.bcebos.com/2.5.0/cpu/paddlepaddle-2.5.0-cp37-cp37m-linux_x86_64.whl
+python -m pip install paddlepaddle==2.5.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF

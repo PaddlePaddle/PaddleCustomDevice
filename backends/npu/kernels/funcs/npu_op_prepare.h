@@ -15,6 +15,7 @@
 #pragma once
 
 #include "kernels/funcs/format_utils.h"
+#include "runtime/flags.h"
 
 /**
  * Custom Device NPU related FLAG

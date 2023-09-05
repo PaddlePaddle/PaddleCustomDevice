@@ -49,6 +49,8 @@
 #ifndef BACKENDS_NPU_RUNTIME_FLAGS_H_
 #define BACKENDS_NPU_RUNTIME_FLAGS_H_
 
+#include "gflags/gflags.h"
+
 #define FLAGS_DEFINE_bool(name, value, meaning) \
   DEFINE_bool(name, EnvToBool("FLAGS_" #name, value), meaning)
 

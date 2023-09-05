@@ -37,6 +37,8 @@ FLAGS_DEFINE_uint64(npu_profiling_metrics,
                     static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION),
                     "AI Core metric to profile");
 
+FLAGS_DEFINE_bool(set_to_1d, true, "set_to_1d");
+
 thread_local int g_current_device_id(-1);
 
 aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {

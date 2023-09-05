@@ -45,24 +45,25 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#include "paddle/phi/core/flags.h"
 
 #ifndef BACKENDS_NPU_RUNTIME_FLAGS_H_
 #define BACKENDS_NPU_RUNTIME_FLAGS_H_
 
 #define FLAGS_DEFINE_bool(name, value, meaning) \
-  DEFINE_bool(name, EnvToBool("FLAGS_" #name, value), meaning)
+  PHI_DEFINE_bool(name, EnvToBool("FLAGS_" #name, value), meaning)
 
 #define FLAGS_DEFINE_int32(name, value, meaning) \
-  DEFINE_int32(name, EnvToInt("FLAGS_" #name, value), meaning)
+  PHI_DEFINE_int32(name, EnvToInt("FLAGS_" #name, value), meaning)
 
 #define FLAGS_DEFINE_uint32(name, value, meaning) \
-  DEFINE_uint32(name, EnvToUInt("FLAGS_" #name, value), meaning)
+  PHI_DEFINE_uint32(name, EnvToUInt("FLAGS_" #name, value), meaning)
 
 #define FLAGS_DEFINE_uint64(name, value, meaning) \
-  DEFINE_uint64(name, EnvToUInt("FLAGS_" #name, value), meaning)
+  PHI_DEFINE_uint64(name, EnvToUInt("FLAGS_" #name, value), meaning)
 
 #define FLAGS_DEFINE_string(name, value, meaning) \
-  DEFINE_string(name, EnvToString("FLAGS_" #name, value), meaning)
+  PHI_DEFINE_string(name, EnvToString("FLAGS_" #name, value), meaning)
 
 #define EnvToString(envname, dflt) (!getenv(envname) ? (dflt) : getenv(envname))
 

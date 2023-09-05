@@ -15,6 +15,7 @@
 #pragma once
 
 #include "kernels/funcs/format_utils.h"
+#include "paddle/phi/core/flags.h"
 
 /**
  * Custom Device NPU related FLAG
@@ -24,7 +25,7 @@
  * Example:
  * Note: Enable NPU Storage Format for Ascend910 performance improvement.
  */
-DECLARE_bool(npu_storage_format);
+PHI_DECLARE_bool(npu_storage_format);
 
 namespace custom_kernel {
 

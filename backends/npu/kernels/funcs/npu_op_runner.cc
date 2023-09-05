@@ -42,10 +42,6 @@ static aclTensorDesc *float_status_desc_ = NULL;
 
 FLAGS_DEFINE_bool(npu_check_nan_inf, false, "check nan/inf of all npu kernels");
 FLAGS_DEFINE_bool(npu_blocking_run, false, "enable sync for all npu kernels");
-FLAGS_DEFINE_bool(
-    npu_storage_format,
-    false,
-    "Enable NPU Storage Format for Ascend910 performance improvement.");
 
 NpuOpRunner::NpuOpRunner() {}
 

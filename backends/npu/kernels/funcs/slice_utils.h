@@ -20,8 +20,9 @@
 #include <vector>
 
 #include "kernels/funcs/npu_enforce.h"
+#include "paddle/phi/core/flags.h"
 
-DECLARE_bool(set_to_1d);
+PHI_DECLARE_bool(set_to_1d);
 
 namespace custom_kernel {
 

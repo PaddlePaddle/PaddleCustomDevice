@@ -259,7 +259,7 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 }
 
 C_Status QueryEvent(const C_Device device, C_Event event) {
-  auto ret_status = cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event));
+  auto ret_status = cnrtQueryNotifier(reinterpret_cast<cnrtNotifier_t>(event));
   return ret_status == cnrtRet_t::cnrtSuccess ? C_SUCCESS : C_FAILED;
 }
 

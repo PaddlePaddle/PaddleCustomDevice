@@ -147,9 +147,9 @@ void AdamKernel(const Context& dev_ctx,
   t_grad.Resize(grad.dims());
   if (multi_precision) {
     // for multi_precision attribute, master_param_out should be float32.
-    *master_param_out = master_param.get();
-    dev_ctx.template Alloc<MPDType>(&t_param_in_out);
-    TensorCopy(dev_ctx, *master_param_out, false, &t_param_in_out);
+    dev_ctx.template Alloc<MPDType>(master_param_out);
+    TensorCopy(dev_ctx, master_param.get(), false, master_param_out);
+    t_param_in_out = *master_param_out;
   } else if (param.dtype() != phi::DataType::FLOAT32) {
     // cast param(T) to t_param_in_out(MPDType)
     dev_ctx.template Alloc<MPDType>(&t_param_in_out);
@@ -205,7 +205,7 @@ void AdamKernel(const Context& dev_ctx,
                      GetBasePtr(epsilon_tensor),
                      /*use_nesterov*/ false);
 
-  if (multi_precision || param.dtype() != phi::DataType::FLOAT32) {
+  if (param.dtype() != phi::DataType::FLOAT32) {
     // 1. cast param_in_out(MPDType) to param_out(T) anyway.
     phi::DenseTensorMeta meta = {param.dtype(), param.dims()};
     param_out->set_meta(meta);

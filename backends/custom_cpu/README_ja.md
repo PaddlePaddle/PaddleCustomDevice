@@ -1,64 +1,64 @@
-# PaddlePaddle Custom Device Implementaion for Custom CPU
+# PaddlePaddle カスタム CPU のためのカスタムデバイス実装
 
-English | [简体中文](./README_cn.md) | [日本語](./README_ja.md)
+[English](./README.md) | [简体中文](./README_cn.md) | 日本語
 
-Please refer to the following steps to compile, install and verify the custom device implementaion for Custom CPU.
+カスタム CPU 用カスタムデバイス実装のコンパイル、インストール、検証については、以下の手順を参照してください。
 
-## Prepare environment and source code
+## 環境とソースコードの準備
 
 ```bash
-# 1. pull PaddlePaddle CPU development docker image
-# dockerfile of the image is in tools/dockerfile directory
+# 1. PaddlePaddle CPU の開発用 Docker イメージをプル
+# イメージの dockerfile は tools/dockerfile ディレクトリにあります
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
 
-# 2. refer to the following commands to start docker container
+# 2. docker コンテナを起動するには、以下のコマンドを参照
 docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
        --network=host --shm-size=128G --workdir=/workspace \
        --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
        registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82 /bin/bash
 
-# 3. clone the source code recursively along with Paddle source code
+# 3. Paddle のソースコードと一緒にソースコードを再帰的にクローン
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# 4. execute the following commands to update submodule
+# 4. 以下のコマンドを実行してサブモジュールを更新
 git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## Compile and Install
+## コンパイルとインストール
 
 ```bash
-# navigate to implementaion for Custom CPU
+# カスタム CPU の実装へナビゲート
 cd backends/custom_cpu
 
-# before compiling, ensure that Paddle is installed, you can run the following command
+# コンパイルする前に、Paddle がインストールされていることを確認してください
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# create the build directory and navigate in
+# ビルドディレクトリを作成し
 mkdir build && cd build
 
 cmake ..
 make -j8
 
-# using pip to install the output
+# pip を使って出力をインストールする
 pip install dist/paddle_custom_cpu*.whl
 ```
 
-## Verification
+## 検証
 
 ```bash
-# list available hardware backends
+# 利用可能なハードウェアバックエンドをリストアップ
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 
-# expected output
+# 期待出力
 ['custom_cpu']
 
-# run a simple model
+# 簡単なモデルを実行する
 python ../tests/test_MNIST_model.py
 
-# expected similar output
+# 期待される同様の出力
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125
@@ -72,12 +72,12 @@ Epoch 0 step 800, Loss = [1.8925955], Accuracy = 0.640625
 Epoch 0 step 900, Loss = [1.8199624], Accuracy = 0.734375
 ```
 
-## Using PaddleInference
+## PaddleInference の使用
 
-Re-compile plugin
+プラグインの再コンパイル
 
 ```bash
-# Compile PaddleInference
+# PaddleInference をコンパイルする
 git clone https://github.com/PaddlePaddle/Paddle.git
 git clone https://github.com/ronny1996/Paddle-Inference-Demo.git
 
@@ -92,29 +92,29 @@ popd
 cp -R Paddle/build/paddle_inference_install_dir Paddle-Inference-Demo/c++/lib/paddle_inference
 export PADDLE_INFERENCE_LIB_DIR=$(realpath Paddle-Inference-Demo/c++/lib/paddle_inference/paddle/lib)
 
-# Compile the plug-in
+# プラグインのコンパイル
 mkdir -p PaddleCustomDevice/backends/custom_cpu/build
 pushd PaddleCustomDevice/backends/custom_cpu/build
 
 cmake .. -DON_INFER=ON -DPADDLE_INFERENCE_LIB_DIR=${PADDLE_INFERENCE_LIB_DIR}
 make -j8
 
-# Specify the plug-in directory
+# プラグインディレクトリの指定
 export CUSTOM_DEVICE_ROOT=$PWD
 popd
 ```
 
-Using PaddleInference
+PaddleInference の使用
 
 ```bash
 pushd Paddle-Inference-Demo/c++/resnet50
 
-# Modify resnet50_test.cc, use config.EnableCustomDevice("custom_cpu", 0) to replace config.EnableUseGpu(100, 0)
+# resnet50_test.cc を修正し、config.EnableUseGpu(100, 0) の代わりに config.EnableCustomDevice("custom_cpu", 0) を使用
 
 bash run.sh
 ```
 
-expected similar output
+期待される同様の出力
 
 ```bash
 I0713 09:02:38.808723 24792 resnet50_test.cc:74] run avg time is 297.75 ms

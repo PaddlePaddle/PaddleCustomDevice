@@ -65,6 +65,11 @@ file(
   custom_op/*.cc)
 list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 
+# ASCEND TRANSFORMER ACCELERATION
+if(WITH_ASCEND_TRANSFORMER_ACC)
+  add_definitions(-DPADDLE_WITH_ASCEND_TRANSFORMER_ACC)
+endif()
+
 if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
 endif()
@@ -77,6 +82,13 @@ add_dependencies(${CUSTOM_NPU_NAME} ascend_cl)
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascend_hccl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
+
+if(WITH_ASCEND_TRANSFORMER_ACC)
+  target_link_libraries(
+    ${CUSTOM_NPU_NAME}
+    PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libacltransformer.so)
+  include_directories($ENV{ACLTRANSFORMER_HOME_PATH}/include)
+endif()
 
 # link third_party
 include(third_party)
@@ -131,6 +143,12 @@ add_custom_command(
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
+  COMMAND ${CMAKE_COMMAND} -E remove -f
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/passes/*
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${CUSTOM_NPU_NAME}
   COMMENT "Packing whl packages------>>>")

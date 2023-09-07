@@ -1,6 +1,6 @@
 # 飞桨自定义接入硬件后端(Custom CPU)
 
-简体中文 | [English](./README.md)
+简体中文 | [English](./README.md) | [日本語](./README_ja.md)
 
 请参考以下步骤进行硬件后端(Custom CPU)的编译安装与验证
 

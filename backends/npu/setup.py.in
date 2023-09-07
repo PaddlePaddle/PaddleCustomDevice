@@ -81,7 +81,8 @@ def main():
         license='Apache Software License',
         packages= [
             'paddle_custom_device',
-            'paddle_custom_device.npu'
+            'paddle_custom_device.npu',
+            'paddle_custom_device.npu.passes'
         ],
         include_package_data=True,
         package_data = {

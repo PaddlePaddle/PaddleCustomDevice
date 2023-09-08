@@ -17,8 +17,8 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -342,7 +342,7 @@ class TestTileOpInt64_t(OpTest):
 class TestTileError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
-            x1 = fluid.create_lod_tensor(np.array([[-1]]), [[1]], fluid.CPUPlace())
+            x1 = base.create_lod_tensor(np.array([[-1]]), [[1]], base.CPUPlace())
             repeat_times = [2, 2]
             self.assertRaises(TypeError, paddle.tile, x1, repeat_times)
             x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="uint8")
@@ -365,7 +365,7 @@ class TestTileAPIStatic(unittest.TestCase):
 # Test python API
 class TestTileAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([12, 14]).astype("float32")
             x = paddle.to_tensor(np_x)
 
@@ -386,7 +386,7 @@ class TestTileAPI(unittest.TestCase):
 
 class TestTileAPIFp16(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([12, 14]).astype("float16")
             x = paddle.to_tensor(np_x)
 

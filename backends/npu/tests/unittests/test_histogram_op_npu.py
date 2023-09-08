@@ -18,18 +18,18 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-from paddle import fluid
+from paddle import base
 
 
 class TestHistogramOpError(unittest.TestCase):
     """Test histogram op error."""
 
     def run_network(self, net_func):
-        main_program = fluid.Program()
-        startup_program = fluid.Program()
-        with fluid.program_guard(main_program, startup_program):
+        main_program = base.Program()
+        startup_program = base.Program()
+        with base.program_guard(main_program, startup_program):
             net_func()
-            exe = fluid.Executor()
+            exe = base.Executor()
             exe.run(main_program)
 
     def test_bins_error(self):

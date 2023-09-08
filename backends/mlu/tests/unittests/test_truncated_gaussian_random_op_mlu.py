@@ -18,9 +18,9 @@ import unittest
 import numpy
 
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid.executor import Executor
+import paddle.base as base
+import paddle.base.core as core
+from paddle.base.executor import Executor
 
 paddle.enable_static()
 
@@ -38,8 +38,8 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
         self.outputs = ["Out"]
 
     def test_cpu(self):
-        self.gaussian_random_test(place=fluid.CPUPlace())
-        self.gaussian_random_test_eager(place=fluid.CPUPlace())
+        self.gaussian_random_test(place=base.CPUPlace())
+        self.gaussian_random_test_eager(place=base.CPUPlace())
 
     def test_mlu(self):
         if core.is_compiled_with_custom_device("mlu"):
@@ -47,7 +47,7 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
 
     def gaussian_random_test(self, place):
 
-        program = fluid.Program()
+        program = base.Program()
         block = program.global_block()
         vout = block.create_var(name="Out")
         op = block.append_op(type=self.op_type, outputs={"Out": vout}, attrs=self.attrs)
@@ -68,8 +68,8 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
     # TruncatedNormal.__call__ has no return value, so here call _C_ops api
     # directly
     def gaussian_random_test_eager(self, place):
-        with fluid.dygraph.guard(place):
-            with fluid.dygraph.base.guard():
+        with base.dygraph.guard(place):
+            with base.dygraph.base.guard():
                 out = paddle._C_ops.truncated_gaussian_random(
                     self.attrs["shape"],
                     self.attrs["mean"],

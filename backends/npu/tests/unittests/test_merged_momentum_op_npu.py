@@ -18,7 +18,7 @@ import numpy as np
 import unittest
 
 import paddle
-from paddle.fluid.layer_helper import LayerHelper
+from paddle.base.layer_helper import LayerHelper
 from collections import OrderedDict
 
 paddle.enable_static()

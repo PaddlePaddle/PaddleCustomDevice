@@ -18,7 +18,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-from paddle import fluid
+from paddle import base
 
 
 class TestInverseOp(OpTest):
@@ -95,15 +95,15 @@ class TestInverseAPI(unittest.TestCase):
 
     def check_static_result(self, place):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input = paddle.static.data(name="input", shape=[4, 4], dtype="float64")
             result = paddle.inverse(x=input)
             input_np = np.random.random([4, 4]).astype("float64")
             result_np = np.linalg.inv(input_np)
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             fetches = exe.run(
-                fluid.default_main_program(),
+                base.default_main_program(),
                 feed={"input": input_np},
                 fetch_list=[result],
             )
@@ -115,9 +115,9 @@ class TestInverseAPI(unittest.TestCase):
 
     def test_dygraph(self):
         for place in self.places:
-            with fluid.dygraph.guard(place):
+            with base.dygraph.guard(place):
                 input_np = np.random.random([4, 4]).astype("float64")
-                input = fluid.dygraph.to_variable(input_np)
+                input = base.dygraph.to_variable(input_np)
                 result = paddle.inverse(input)
                 np.testing.assert_allclose(
                     result.numpy(), np.linalg.inv(input_np), rtol=1e-05

@@ -18,7 +18,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-from paddle import fluid
+from paddle import base
 
 
 class TestSignOp(OpTest):
@@ -60,7 +60,7 @@ class TestSignFP32Op(TestSignOp):
 
 class TestSignAPI(unittest.TestCase):
     def test_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             np_x = np.array([-1.0, 0.0, -0.0, 1.2, 1.5], dtype="float64")
             x = paddle.to_tensor(np_x)
             z = paddle.sign(x)

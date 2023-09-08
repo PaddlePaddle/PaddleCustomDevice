@@ -18,9 +18,9 @@ import unittest
 from tests.op_test import OpTest
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle.tensor as tensor
-from paddle.fluid.framework import Program, program_guard
+from paddle.base.framework import Program, program_guard
 
 paddle.enable_static()
 
@@ -141,9 +141,9 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
                 place = paddle.CustomPlace("mlu", 0)
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 tril_out, triu_out = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"x": data},
                     fetch_list=[tril_out, triu_out],
                 )
@@ -155,14 +155,14 @@ class TestTrilTriuOpAPI(unittest.TestCase):
 
         dtypes = ["float16", "float32", "int32"]
         for dtype in dtypes:
-            with fluid.dygraph.guard():
+            with base.dygraph.guard():
                 data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = fluid.dygraph.to_variable(data)
+                x = base.dygraph.to_variable(data)
                 tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(x).numpy()
                 np.testing.assert_allclose(tril_out, np.tril(data))
                 np.testing.assert_allclose(triu_out, np.triu(data))
 
-    def test_fluid_api(self):
+    def test_base_api(self):
         paddle.enable_static()
 
         dtypes = ["float16", "float32", "int32"]
@@ -175,9 +175,9 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 triu_out = paddle.triu(x)
 
                 place = paddle.CustomPlace("mlu", 0)
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 triu_out = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"x": data},
                     fetch_list=[triu_out],
                 )

@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -121,12 +121,12 @@ class TestCase4(TestGatherOp):
 
 class API_TestGather(unittest.TestCase):
     def test_out1(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             data1 = paddle.static.data("data1", shape=[-1, 2], dtype="float32")
             index = paddle.static.data("index", shape=[-1, 1], dtype="int32")
             out = paddle.gather(data1, index)
             place = paddle.CustomPlace("npu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             input = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
             index_1 = np.array([1, 2]).astype("int32")
             (result,) = exe.run(

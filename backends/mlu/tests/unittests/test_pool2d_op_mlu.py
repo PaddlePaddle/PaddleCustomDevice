@@ -19,9 +19,9 @@ import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 from tests.op_test import OpTest
 
 # from test_pool2d_op import pool2D_forward_naive, avg_pool2D_forward_naive, max_pool2D_forward_naive, adaptive_start_index, adaptive_end_index
@@ -446,7 +446,7 @@ class TestPool2D_Op_Mixin(object):
             self.pool_type,
             self.padding_algorithm,
         ).astype(self.dtype)
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(input)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(input)}
 
         self.attrs = {
             "strides": self.strides,
@@ -1052,10 +1052,10 @@ class TestPool2DAPI(unittest.TestCase):
         )
         assert out_10.shape == (2, 3, -1, -1)
 
-        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("mlu", 0))
 
         [res_1, res_2, res_3, res_4, res_5, res_6, res_7, res_8] = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={
                 "input_NHWC": x_NHWC,
                 "input_NCHW": x_NCHW,
@@ -1247,9 +1247,9 @@ class TestDygraphPool2DAPIError(unittest.TestCase):
 
 class TestDygraphPool2DAPI(unittest.TestCase):
     def test_nhwc(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = fluid.dygraph.to_variable(data)
+            x = base.dygraph.to_variable(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,
@@ -1268,9 +1268,9 @@ class TestDygraphPool2DAPI(unittest.TestCase):
             np.testing.assert_allclose(out1.numpy(), out2)
 
     def test_lower_case(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = fluid.dygraph.to_variable(data)
+            x = base.dygraph.to_variable(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,
@@ -1289,9 +1289,9 @@ class TestDygraphPool2DAPI(unittest.TestCase):
             np.testing.assert_allclose(out1.numpy(), out2)
 
     def test_upper_case(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = fluid.dygraph.to_variable(data)
+            x = base.dygraph.to_variable(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,

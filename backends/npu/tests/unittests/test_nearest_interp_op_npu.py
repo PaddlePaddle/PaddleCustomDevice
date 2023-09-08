@@ -17,8 +17,8 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-import paddle.fluid.core as core
-import paddle.fluid as fluid
+import paddle.base.core as core
+import paddle.base as base
 import paddle
 from paddle.nn.functional import interpolate
 
@@ -450,11 +450,11 @@ class TestNearestInterpOpAPI_dy(unittest.TestCase):
     def test_case(self):
         import paddle
 
-        if "npu" in paddle.fluid.core.get_all_custom_device_type():
+        if "npu" in paddle.base.core.get_all_custom_device_type():
             place = paddle.CustomPlace("npu", 0)
         else:
             place = core.CPUPlace()
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_data = np.random.random((2, 3, 6, 6)).astype("float32")
             scale_np = np.array([2, 2]).astype("int64")
             input_x = paddle.to_tensor(input_data)

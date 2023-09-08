@@ -51,7 +51,7 @@ class TestHardTanh(OpTest):
         t[t < t_min] = t_min
         t[t > t_max] = t_max
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {"t_min": t_min, "t_max": t_max}
         self.outputs = {"Out": t}
 

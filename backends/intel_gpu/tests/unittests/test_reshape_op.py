@@ -19,7 +19,7 @@ import numpy as np
 
 from op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from paddle.static import Program, program_guard
 
 
@@ -208,7 +208,7 @@ class TestReshapeOpBool(TestReshapeOp):
 # Test python API
 class TestReshapeAPI(unittest.TestCase):
     def _set_paddle_api(self):
-        self.fill_constant = paddle.fluid.layers.fill_constant
+        self.fill_constant = paddle.base.layers.fill_constant
         self.data = paddle.static.data
         self.to_tensor = paddle.to_tensor
         self._executed_api()
@@ -216,10 +216,10 @@ class TestReshapeAPI(unittest.TestCase):
     def _executed_api(self):
         self.reshape = paddle.reshape
 
-    def _set_fluid_api(self):
-        self.fill_constant = fluid.layers.fill_constant
+    def _set_base_api(self):
+        self.fill_constant = base.layers.fill_constant
         self.data = paddle.static.data
-        self.reshape = fluid.layers.reshape
+        self.reshape = base.layers.reshape
 
     def _test_api(self):
         paddle.enable_static()
@@ -236,7 +236,7 @@ class TestReshapeAPI(unittest.TestCase):
             out_1 = self.reshape(x, shape)
 
             # situation 2: have shape(list, no tensor), have actual shape(Tensor)
-            out_2 = fluid.layers.reshape(x, shape=shape, actual_shape=actual_shape)
+            out_2 = base.layers.reshape(x, shape=shape, actual_shape=actual_shape)
 
             # Situation 3: have shape(list, have tensor), no actual shape(Tensor)
             out_3 = self.reshape(x, shape=[positive_five, 10])
@@ -260,15 +260,15 @@ class TestReshapeAPI(unittest.TestCase):
         self._set_paddle_api()
         self._test_api()
 
-    def test_fluid_api(self):
-        self._set_fluid_api()
+    def test_base_api(self):
+        self._set_base_api()
         self._test_api()
 
     def test_imperative(self):
         self._set_paddle_api()
         input = np.random.random([2, 25]).astype("float32")
         shape = [2, 5, 5]
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             x = self.to_tensor(input)
             positive_five = self.fill_constant([1], "int32", 5)
 
@@ -292,7 +292,7 @@ class TestStaticReshape_(TestReshapeAPI):
         self._set_paddle_api()
         input = np.random.random([2, 25]).astype("float32")
         shape = [2, 5, 5]
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             x = self.to_tensor(input)
             positive_five = self.fill_constant([1], "int32", 5)
 

@@ -35,7 +35,7 @@ class TestSilu(OpTest):
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
         out = x / (1 + np.exp(-x))
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -64,7 +64,7 @@ class TestSiluFp16(OpTest):
         x = np.random.uniform(1, 2, [13, 14]).astype(self.dtype)
         out = x / (1 + np.exp(-x))
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 

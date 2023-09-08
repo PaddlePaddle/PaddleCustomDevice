@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 from op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -63,12 +63,12 @@ def reference_matmul(X, Y, transpose_x=False, transpose_y=False):
 
 class API_TestMm(unittest.TestCase):
     def test_out(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data(name="x", shape=[2], dtype="float64")
             y = paddle.static.data(name="y", shape=[2], dtype="float64")
             res = paddle.static.data(name="output", shape=[1], dtype="float64")
             result = paddle.mm(x, y)
-            exe = fluid.Executor(fluid.CustomPlace("custom_cpu", 0))
+            exe = base.Executor(base.CustomPlace("custom_cpu", 0))
             data1 = np.random.rand(2)
             data2 = np.random.rand(2)
             np_res = exe.run(feed={"x": data1, "y": data2}, fetch_list=[result])
@@ -83,12 +83,12 @@ class API_TestMm(unittest.TestCase):
         )
 
     def test_out_fp16(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data(name="x", shape=[2], dtype="float16")
             y = paddle.static.data(name="y", shape=[2], dtype="float16")
             res = paddle.static.data(name="output", shape=[1], dtype="float16")
             result = paddle.mm(x, y)
-            exe = fluid.Executor(fluid.CustomPlace("custom_cpu", 0))
+            exe = base.Executor(base.CustomPlace("custom_cpu", 0))
             data1 = np.random.rand(2).astype("float16")
             data2 = np.random.rand(2).astype("float16")
             np_res = exe.run(feed={"x": data1, "y": data2}, fetch_list=[result])
@@ -103,12 +103,12 @@ class API_TestMm(unittest.TestCase):
         )
 
     def test_dygraph_without_out(self):
-        device = fluid.CustomPlace("custom_cpu", 0)
-        with fluid.dygraph.guard(device):
+        device = base.CustomPlace("custom_cpu", 0)
+        with base.dygraph.guard(device):
             input_array1 = np.random.rand(3, 4).astype("float64")
             input_array2 = np.random.rand(4, 3).astype("float64")
-            data1 = fluid.dygraph.to_variable(input_array1)
-            data2 = fluid.dygraph.to_variable(input_array2)
+            data1 = base.dygraph.to_variable(input_array1)
+            data2 = base.dygraph.to_variable(input_array2)
             out = paddle.mm(data1, data2)
             expected_result = np.matmul(input_array1, input_array2)
         self.assertTrue(np.allclose(expected_result, out.numpy()))
@@ -125,12 +125,12 @@ class Test_API_Matmul2DX2D(unittest.TestCase):
     def test_dygraph_without_out(self):
         self.init_shape()
 
-        device = fluid.CustomPlace("custom_cpu", 0)
-        with fluid.dygraph.guard(device):
+        device = base.CustomPlace("custom_cpu", 0)
+        with base.dygraph.guard(device):
             input_array1 = np.random.random(self.shape_x).astype(self.dtype)
             input_array2 = np.random.random(self.shape_y).astype(self.dtype)
-            data1 = fluid.dygraph.to_variable(input_array1)
-            data2 = fluid.dygraph.to_variable(input_array2)
+            data1 = base.dygraph.to_variable(input_array1)
+            data2 = base.dygraph.to_variable(input_array2)
             out = paddle.matmul(
                 data1, data2, transpose_x=self.trans_x, transpose_y=self.trans_y
             )

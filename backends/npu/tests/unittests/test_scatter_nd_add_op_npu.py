@@ -18,8 +18,8 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-from paddle import fluid
-from paddle.fluid.dygraph.base import switch_to_static_graph
+from paddle import base
+from paddle.base.dygraph.base import switch_to_static_graph
 
 
 def numpy_scatter_nd(ref, index, updates, fun):
@@ -216,7 +216,7 @@ class TestScatterNdOpAPI(unittest.TestCase):
         index = np.array([[0, 0, 2], [0, 1, 2]])
         val = np.array([-1, -3])
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             paddle.set_device("npu")
             npu_value = paddle.scatter_nd_add(
                 paddle.to_tensor(x),
@@ -257,11 +257,11 @@ class TestScatterNdOpAPI(unittest.TestCase):
 
 class TestDygraph(unittest.TestCase):
     def test_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x = paddle.rand(shape=[3, 5, 9, 10], dtype="float32")
             updates = paddle.rand(shape=[3, 9, 10], dtype="float32")
             index_data = np.array([[1, 1], [0, 1], [1, 3]]).astype(np.int64)
-            index = fluid.dygraph.to_variable(index_data)
+            index = base.dygraph.to_variable(index_data)
             output = paddle.scatter_nd_add(x, index, updates)
 
 

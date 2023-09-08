@@ -42,7 +42,7 @@ class TestRelu6(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = ref_relu6(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {"threshold": 6.0}
         self.outputs = {"Out": out}
 
@@ -84,7 +84,7 @@ class TestReluNeg(TestRelu6):
         x[np.abs(x) < 0.005] = 0.02
         out = ref_relu6(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {"threshold": 6.0}
         self.outputs = {"Out": out}
 

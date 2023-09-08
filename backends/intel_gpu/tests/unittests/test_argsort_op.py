@@ -17,13 +17,13 @@ from __future__ import print_function
 import unittest
 from op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import numpy as np
 import six
-import paddle.fluid.core as core
+import paddle.base.core as core
 
-from paddle.fluid.framework import Program, grad_var_name
-from paddle.fluid.executor import Executor
+from paddle.base.framework import Program, grad_var_name
+from paddle.base.executor import Executor
 
 paddle.enable_static()
 
@@ -94,18 +94,18 @@ class TestArgsortOpCPU(unittest.TestCase):
             self.input_shape, self.axis, self.descending, self.dtype
         )
 
-        with fluid.program_guard(self.main_program, self.startup_program):
-            x = fluid.layers.data(name="x", shape=self.input_shape, dtype=self.dtype)
+        with base.program_guard(self.main_program, self.startup_program):
+            x = base.layers.data(name="x", shape=self.input_shape, dtype=self.dtype)
             x.stop_gradient = False
-            label = fluid.layers.data(
+            label = base.layers.data(
                 name="label", shape=self.input_shape, dtype=self.dtype
             )
-            self.sorted_x, self.index = fluid.layers.argsort(
+            self.sorted_x, self.index = base.layers.argsort(
                 input=x, axis=self.axis, descending=self.descending
             )
             self.sorted_x.stop_gradient = False
-            loss = fluid.layers.elementwise_mul(self.sorted_x, label)
-            self.loss = fluid.layers.reduce_sum(loss)
+            loss = base.layers.elementwise_mul(self.sorted_x, label)
+            self.loss = base.layers.reduce_sum(loss)
 
     def forward(self):
         self.feed_map = {
@@ -141,7 +141,7 @@ class TestArgsortOpCPU(unittest.TestCase):
     # def test_backward(self, numeric_grad_delta=1e-5, max_relative_error=1e-7):
     #     self.check_forward()
 
-    #     with fluid.program_guard(self.main_program, self.startup_program):
+    #     with base.program_guard(self.main_program, self.startup_program):
     #         append_backward(self.loss)
 
     #     ana_grad = [np.array(x) for x in self.backward()]
@@ -285,14 +285,14 @@ class TestArgsortErrorOnCPU(unittest.TestCase):
         self.place = core.CustomPlace("intel_gpu", 0)
 
     def test_error(self):
-        def test_fluid_var_type():
-            with fluid.program_guard(fluid.Program()):
+        def test_base_var_type():
+            with base.program_guard(base.Program()):
                 x = [1]
-                output = fluid.layers.argsort(input=x)
-            self.assertRaises(TypeError, test_fluid_var_type)
+                output = base.layers.argsort(input=x)
+            self.assertRaises(TypeError, test_base_var_type)
 
         def test_paddle_var_type():
-            with fluid.program_guard(fluid.Program()):
+            with base.program_guard(base.Program()):
                 x = [1]
                 output = paddle.argsort(input=x)
             self.assertRaises(TypeError, test_paddle_var_type)
@@ -312,13 +312,13 @@ class TestArgsort(unittest.TestCase):
 
     def test_api(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
-            input = fluid.data(name="input", shape=self.input_shape, dtype="float32")
+        with base.program_guard(base.Program()):
+            input = base.data(name="input", shape=self.input_shape, dtype="float32")
 
             output = paddle.argsort(input, axis=self.axis)
             output2 = paddle.argsort(input, axis=self.axis, descending=True)
 
-            exe = fluid.Executor(self.place)
+            exe = base.Executor(self.place)
             result, result2 = exe.run(
                 feed={"input": self.data}, fetch_list=[output, output2]
             )  # 始终有一半会被擦掉

@@ -17,8 +17,8 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 import paddle
 
 paddle.enable_static()
@@ -210,7 +210,7 @@ class TestExpandV2OpInt64_t(OpTest):
 class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
             )
             shape = [2, 2]
@@ -233,9 +233,9 @@ class TestExpandAsV2API(unittest.TestCase):
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace("mlu", 0))
+        exe = base.Executor(place=base.CustomPlace("mlu", 0))
         res_1 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x": input1, "target_tensor": input2},
             fetch_list=[out_1],
         )

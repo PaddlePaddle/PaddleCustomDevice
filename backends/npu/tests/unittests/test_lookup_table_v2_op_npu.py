@@ -43,8 +43,8 @@ class TestLookupTableV2(OpTest):
             out[np.squeeze(x == self.padding_idx)] = np.zeros(self.dim)
 
         self.inputs = {
-            "W": OpTest.np_dtype_to_fluid_dtype(w),
-            "Ids": OpTest.np_dtype_to_fluid_dtype(x),
+            "W": OpTest.np_dtype_to_base_dtype(w),
+            "Ids": OpTest.np_dtype_to_base_dtype(x),
         }
         self.attrs = {
             "is_sparse": False,

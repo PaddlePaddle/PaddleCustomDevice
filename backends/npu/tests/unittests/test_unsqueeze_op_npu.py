@@ -30,7 +30,7 @@ class TestUnsqueeze2Op(OpTest):
         self.place = paddle.CustomPlace("npu", 0)
         self.init_test_case()
         self.x = np.random.random(self.ori_shape).astype("float32")
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(self.x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(self.x)}
         self.init_attrs()
         self.outputs = {
             "Out": self.x.reshape(self.new_shape),

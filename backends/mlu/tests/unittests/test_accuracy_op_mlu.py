@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -91,7 +91,7 @@ class TestAccuracyAPI1(unittest.TestCase):
 class TestAccuracyAPI2(unittest.TestCase):
     def test_api(self):
         paddle.set_device("mlu")
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
                 dtype="float32",
@@ -105,7 +105,7 @@ class TestAccuracyAPI2(unittest.TestCase):
 class TestAccuracyAPI(unittest.TestCase):
     def test_api(self):
         paddle.set_device("mlu")
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
                 dtype="float32",

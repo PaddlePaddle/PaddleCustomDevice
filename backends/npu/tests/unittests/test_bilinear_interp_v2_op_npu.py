@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 
 from tests.op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -192,7 +192,7 @@ class TestBilinearInterpOp(OpTest):
         inputs_to_check = ["X"]
         output_names = ["Out"]
         no_grad_set = set()
-        cpu_place = fluid.CPUPlace()
+        cpu_place = base.CPUPlace()
         cpu_grads = self._get_gradient(
             inputs_to_check, cpu_place, output_names, no_grad_set
         )

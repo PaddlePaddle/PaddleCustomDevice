@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -401,17 +401,17 @@ class TestSliceOp_starts_OneTensor_ends_ListTensor(OpTest):
 class TestSliceAPI(unittest.TestCase):
     def test_1(self):
         input = np.random.random([3, 4, 5, 6]).astype("float64")
-        minus_1 = fluid.layers.fill_constant([1], "int32", -1)
-        minus_3 = fluid.layers.fill_constant([1], "int64", -3)
-        starts = fluid.layers.data(name="starts", shape=[1, 3], append_batch_size=False)
-        ends = fluid.layers.data(name="ends", shape=[3], append_batch_size=False)
+        minus_1 = base.layers.fill_constant([1], "int32", -1)
+        minus_3 = base.layers.fill_constant([1], "int64", -3)
+        starts = base.layers.data(name="starts", shape=[1, 3], append_batch_size=False)
+        ends = base.layers.data(name="ends", shape=[3], append_batch_size=False)
 
-        x = fluid.layers.data(
+        x = base.layers.data(
             name="x", shape=[3, 4, 5, 6], append_batch_size=False, dtype="float64"
         )
 
         # value_int64 is greater than 2147483647 which is the max of int32
-        value_int64 = fluid.layers.fill_constant([1], "int64", 2147483648)
+        value_int64 = base.layers.fill_constant([1], "int64", 2147483648)
 
         out_1 = paddle.slice(
             x, axes=[0, 1, 2], starts=[-3, 0, 2], ends=[value_int64, 100, -1]
@@ -428,9 +428,9 @@ class TestSliceAPI(unittest.TestCase):
         out_6 = x[minus_3:3, 0:100, :, 2:-1]
         out_7 = x[minus_1, 0:100, :, 2:minus_1]
 
-        exe = fluid.Executor(place=fluid.CustomPlace("intel_gpu", 0))
+        exe = base.Executor(place=base.CustomPlace("intel_gpu", 0))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={
                 "x": input,
                 "starts": np.array([-3, 0, 2]).astype("int32"),
@@ -450,7 +450,7 @@ class TestSliceAPI(unittest.TestCase):
 
 class TestSliceApiWithTensor(unittest.TestCase):
     def test_starts_ends_is_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with paddle.base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             a = paddle.rand(shape=[4, 5, 6], dtype="float32")
             axes = [0, 1, 2]
             starts = [-3, 0, 2]
@@ -466,7 +466,7 @@ class TestSliceApiWithTensor(unittest.TestCase):
             self.assertTrue(np.array_equal(a_1.numpy(), a_2.numpy()))
 
     def test_bool_tensor(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with paddle.base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             array = (np.arange(60).reshape([3, 4, 5]) % 3).astype("bool")
             tt = paddle.to_tensor(array)
             tt.stop_gradient = False
@@ -487,7 +487,7 @@ class TestSliceApiWithTensor(unittest.TestCase):
 
 class TestSliceApiEager(unittest.TestCase):
     def test_slice_api(self):
-        with paddle.fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with paddle.base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             a = paddle.rand(shape=[4, 5, 6], dtype="float32")
             a.stop_gradient = False
             axes = [0, 1, 2]
@@ -510,12 +510,12 @@ class TestSliceApiEager(unittest.TestCase):
             self.assertTrue(np.allclose(a_1.numpy(), a[-3:3, 0:2, 2:4]))
 
 
-# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but fluid
+# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but base
 # kernels, I think this is paddle bug?
 # UnimplementedError: There are no kernels which are registered in the memcpy_d2h operator.
 # [Hint: Expected kernels_iter != all_op_kernels.end(), but received
 # kernels_iter == all_op_kernels.end().] (at /home/gta/chaofanl/PaddleIntelGPUDevice/
-# Paddle/paddle/fluid/framework/operator.cc:1893)
+# Paddle/paddle/base/framework/operator.cc:1893)
 # [operator < slice > error]
 # class TestSliceApiWithLoDTensorArray(unittest.TestCase):
 #     def setUp(self):
@@ -526,19 +526,19 @@ class TestSliceApiEager(unittest.TestCase):
 #         self.end = 2
 #         self.axis = 1
 
-#         self.place = fluid.CustomPlace(
+#         self.place = base.CustomPlace(
 #             'intel_gpu',
-#             0) if fluid.is_compiled_with_cuda() else fluid.CustomPlace(
+#             0) if base.is_compiled_with_cuda() else base.CustomPlace(
 #                 'intel_gpu', 0)
-#         self.exe = fluid.Executor(self.place)
+#         self.exe = base.Executor(self.place)
 
 #     def set_program_and_run(self, main_program, case_num):
-#         with fluid.program_guard(main_program):
+#         with base.program_guard(main_program):
 #             x = [
-#                 fluid.data(
-#                     name='x0', shape=self.shape, dtype="float32"), fluid.data(
+#                 base.data(
+#                     name='x0', shape=self.shape, dtype="float32"), base.data(
 #                         name='x1', shape=self.shape, dtype="float32"),
-#                 fluid.data(
+#                 base.data(
 #                     name='x2', shape=self.shape, dtype="float32")
 #             ]
 
@@ -554,20 +554,20 @@ class TestSliceApiEager(unittest.TestCase):
 #                 self.sliced_arr = output = arr[0]
 
 #             elif case_num == 2:
-#                 end = fluid.layers.array_length(
+#                 end = base.layers.array_length(
 #                     arr) - 1  # dtype of end is int64
 #                 self.sliced_arr = slice_arr = arr[self.start:end]
-#                 output, _ = fluid.layers.tensor_array_to_tensor(
+#                 output, _ = base.layers.tensor_array_to_tensor(
 #                     slice_arr, axis=self.axis, use_stack=True)
 #             elif case_num == 3:
-#                 value_int64 = fluid.layers.fill_constant([1], "int64",
+#                 value_int64 = base.layers.fill_constant([1], "int64",
 #                                                          2147483648)
 #                 self.sliced_arr = slice_arr = arr[self.start:value_int64]
-#                 output, _ = fluid.layers.tensor_array_to_tensor(
+#                 output, _ = base.layers.tensor_array_to_tensor(
 #                     slice_arr, axis=self.axis, use_stack=True)
 
-#             loss = fluid.layers.reduce_sum(output)
-#             fluid.backward.append_backward(loss)
+#             loss = base.layers.reduce_sum(output)
+#             base.backward.append_backward(loss)
 #             g_vars = list(
 #                 map(main_program.global_block().var,
 #                     [each_x.name + "@GRAD" for each_x in x]))
@@ -579,7 +579,7 @@ class TestSliceApiEager(unittest.TestCase):
 #                              fetch_list=[output] + g_vars)
 
 #     def test_case_1(self):
-#         main_program = fluid.Program()
+#         main_program = base.Program()
 #         self.set_program_and_run(main_program, 1)
 
 #         self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR)
@@ -590,7 +590,7 @@ class TestSliceApiEager(unittest.TestCase):
 #         self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
 
 #     def test_case_2(self):
-#         main_program = fluid.Program()
+#         main_program = base.Program()
 #         self.set_program_and_run(main_program, 2)
 
 #         self.assertTrue(
@@ -605,7 +605,7 @@ class TestSliceApiEager(unittest.TestCase):
 #         self.assertTrue(np.array_equal(self.g_x2, np.zeros_like(self.data)))
 
 #     def test_case_3(self):
-#         main_program = fluid.Program()
+#         main_program = base.Program()
 #         self.set_program_and_run(main_program, 3)
 
 #         self.assertTrue(
@@ -623,9 +623,9 @@ class TestSliceApiEager(unittest.TestCase):
 
 class TestImperativeVarBaseGetItem(unittest.TestCase):
     def test_getitem_with_long(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             data = np.random.random((2, 80, 16128)).astype("float32")
-            var = fluid.dygraph.to_variable(data)
+            var = base.dygraph.to_variable(data)
             sliced = var[:, 10:, : var.shape[1]]  # var.shape[1] is 80L here
             self.assertEqual(sliced.shape, [2, 70, 80])
 
@@ -634,17 +634,17 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 
     def test_getitem_with_float(self):
         def test_float_in_slice_item():
-            with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
                 data = np.random.random((2, 80, 16128)).astype("float32")
-                var = fluid.dygraph.to_variable(data)
+                var = base.dygraph.to_variable(data)
                 sliced = var[:, 1.1:, : var.shape[1]]
 
         self.assertRaises(Exception, test_float_in_slice_item)
 
         def test_float_in_index():
-            with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
                 data = np.random.random((2, 80, 16128)).astype("float32")
-                var = fluid.dygraph.to_variable(data)
+                var = base.dygraph.to_variable(data)
                 sliced = var[1.1]
 
         self.assertRaises(Exception, test_float_in_index)

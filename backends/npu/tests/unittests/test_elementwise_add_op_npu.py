@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
@@ -35,8 +35,8 @@ class TestElementwiseAddOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
         self.outputs = {"Out": self.out}
@@ -216,10 +216,10 @@ class TestAddError(unittest.TestCase):
     def test_errors(self):
         with paddle.static.program_guard(paddle.static.Program()):
             # the input of elementwise_add must be Variable.
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
             )
-            y1 = fluid.create_lod_tensor(
+            y1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
@@ -490,7 +490,7 @@ class TestAddApi(unittest.TestCase):
         return paddle.add(x, y, name)
 
     def test_name(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
             y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
@@ -498,7 +498,7 @@ class TestAddApi(unittest.TestCase):
             self.assertEqual(("add_res" in y_1.name), True)
 
     def test_declarative(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
 
             def gen_data():
                 return {
@@ -511,17 +511,17 @@ class TestAddApi(unittest.TestCase):
             z = self._executed_api(x, y)
 
             place = paddle.CustomPlace("npu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
             z_expected = np.array([3.0, 8.0, 6.0])
             self.assertEqual((z_value == z_expected).all(), True)
 
     def test_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             np_x = np.array([2, 3, 4]).astype("float32")
             np_y = np.array([1, 5, 2]).astype("float32")
-            x = fluid.dygraph.to_variable(np_x)
-            y = fluid.dygraph.to_variable(np_y)
+            x = base.dygraph.to_variable(np_x)
+            y = base.dygraph.to_variable(np_y)
             z = self._executed_api(x, y)
             np_z = z.numpy()
             z_expected = np.array([3.0, 8.0, 6.0])

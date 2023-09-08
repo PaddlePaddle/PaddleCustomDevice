@@ -19,9 +19,9 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -135,7 +135,7 @@ class TestCastOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
             )
             self.assertRaises(TypeError, paddle.cast, x1, "int32")

@@ -17,7 +17,7 @@ import unittest
 from tests.op_test import OpTest
 
 import numpy as np
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -155,7 +155,7 @@ class TestGathertError(unittest.TestCase):
             self.assertRaises(TypeError, test_axis_dtype1)
 
     def test_error2(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             paddle.set_device("mlu")
 
             shape = [8, 9, 6]

@@ -18,8 +18,8 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 from op_test import OpTest, skip_check_grad_ci
 
@@ -45,8 +45,8 @@ class ElementwiseMulOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.outputs = {"Out": self.out}
         self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
@@ -216,23 +216,23 @@ class TestElementwiseMulOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # the input of elementwise_mul must be Variable.
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]),
                 [[1, 1, 1, 1]],
-                fluid.CustomPlace("intel_gpu", 0),
+                base.CustomPlace("intel_gpu", 0),
             )
-            y1 = fluid.create_lod_tensor(
+            y1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]),
                 [[1, 1, 1, 1]],
-                fluid.CustomPlace("intel_gpu", 0),
+                base.CustomPlace("intel_gpu", 0),
             )
-            self.assertRaises(TypeError, fluid.layers.elementwise_mul, x1, y1)
+            self.assertRaises(TypeError, base.layers.elementwise_mul, x1, y1)
 
             # the input dtype of elementwise_mul must be float16 or float32 or float32 or int32 or int64
             # float16 only can be set on GPU place
-            x2 = fluid.layers.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = fluid.layers.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, fluid.layers.elementwise_mul, x2, y2)
+            x2 = base.layers.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
+            y2 = base.layers.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
+            self.assertRaises(TypeError, base.layers.elementwise_mul, x2, y2)
 
 
 if __name__ == "__main__":

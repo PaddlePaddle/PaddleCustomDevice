@@ -36,7 +36,7 @@ class TestPow(OpTest):
         factor = 2
         out = np.power(x, factor)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {"factor": factor}
         self.outputs = {"Out": out}
 
@@ -66,7 +66,7 @@ class TestPowFp16(OpTest):
         factor = 2
         out = np.power(x, factor)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {"factor": factor}
         self.outputs = {"Out": out}
 

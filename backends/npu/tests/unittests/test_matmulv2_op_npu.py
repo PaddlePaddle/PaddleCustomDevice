@@ -18,11 +18,11 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 from tests.op_test import OpTest
 from paddle.framework import set_flags
-from paddle.fluid import Program, program_guard
+from paddle.base import Program, program_guard
 
 
 paddle.enable_static()
@@ -431,7 +431,7 @@ class TestMatMulV2API(unittest.TestCase):
         self.places.append(paddle.CustomPlace("npu", 0))
 
     def check_static_result(self, place):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input_x = paddle.static.data(name="input_x", shape=[4, 3], dtype="float32")
             input_y = paddle.static.data(name="input_y", shape=[3, 4], dtype="float32")
 
@@ -440,9 +440,9 @@ class TestMatMulV2API(unittest.TestCase):
             x_np = np.random.random([4, 3]).astype("float32")
             y_np = np.random.random([3, 4]).astype("float32")
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             fetches = exe.run(
-                fluid.default_main_program(),
+                base.default_main_program(),
                 feed={"input_x": x_np, "input_y": y_np},
                 fetch_list=[result],
             )
@@ -453,7 +453,7 @@ class TestMatMulV2API(unittest.TestCase):
 
     def test_dygraph(self):
         for place in self.places:
-            with fluid.dygraph.guard(place):
+            with base.dygraph.guard(place):
                 input_x = np.random.random([4, 3]).astype("float32")
                 input_y = np.random.random([3, 4]).astype("float32")
                 x = paddle.to_tensor(input_x)
@@ -462,7 +462,7 @@ class TestMatMulV2API(unittest.TestCase):
 
     def test_dygraph_fp16(self):
         place = paddle.CustomPlace("npu", 0)
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_x = np.random.random([4, 3]).astype("float16")
             input_y = np.random.random([3, 4]).astype("float16")
             x = paddle.to_tensor(input_x)
@@ -477,7 +477,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
 
         def compute(x, y, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
-            with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
                 x = paddle.to_tensor(x)
                 y = paddle.to_tensor(y)
                 if npu_storage:
@@ -493,7 +493,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
         np.testing.assert_allclose(z1, z2, rtol=1e-05)
 
     def test_static(self):
-        exe = fluid.Executor(paddle.CustomPlace("npu", 0))
+        exe = base.Executor(paddle.CustomPlace("npu", 0))
         shape = [3, 2]
         paddle.set_default_dtype("float16")
 
@@ -512,7 +512,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
                 )
                 x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 y = linear(x)
-                exe.run(fluid.default_startup_program())
+                exe.run(base.default_startup_program())
                 r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
             return r
 
@@ -533,7 +533,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
                 x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 x = paddle.incubate._npu_identity(x, 29)
                 y = linear(x)
-                exe.run(fluid.default_startup_program())
+                exe.run(base.default_startup_program())
                 r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
             return r
 

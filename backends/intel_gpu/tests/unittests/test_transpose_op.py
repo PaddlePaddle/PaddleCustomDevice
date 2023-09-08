@@ -18,8 +18,8 @@ import unittest
 import numpy as np
 from op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -183,37 +183,37 @@ class TestTransposeOpBool6D(TestTransposeOpBool):
 class TestTransposeOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
-            x = fluid.layers.data(name="x", shape=[10, 5, 3], dtype="float32")
+            x = base.layers.data(name="x", shape=[10, 5, 3], dtype="float32")
 
             def test_x_Variable_check():
                 # the Input(x)'s type must be Variable
-                fluid.layers.transpose("not_variable", perm=[1, 0, 2])
+                base.layers.transpose("not_variable", perm=[1, 0, 2])
 
             self.assertRaises(TypeError, test_x_Variable_check)
 
             def test_x_dtype_check():
                 # the Input(x)'s dtype must be one of [bool, float16, float32, float32, int32, int64]
-                x1 = fluid.layers.data(name="x1", shape=[10, 5, 3], dtype="int8")
-                fluid.layers.transpose(x1, perm=[1, 0, 2])
+                x1 = base.layers.data(name="x1", shape=[10, 5, 3], dtype="int8")
+                base.layers.transpose(x1, perm=[1, 0, 2])
 
             self.assertRaises(TypeError, test_x_dtype_check)
 
             def test_perm_list_check():
                 # Input(perm)'s type must be list
-                fluid.layers.transpose(x, perm="[1, 0, 2]")
+                base.layers.transpose(x, perm="[1, 0, 2]")
 
             self.assertRaises(TypeError, test_perm_list_check)
 
             def test_perm_length_and_x_dim_check():
                 # Input(perm) is the permutation of dimensions of Input(input)
                 # its length should be equal to dimensions of Input(input)
-                fluid.layers.transpose(x, perm=[1, 0, 2, 3, 4])
+                base.layers.transpose(x, perm=[1, 0, 2, 3, 4])
 
             self.assertRaises(ValueError, test_perm_length_and_x_dim_check)
 
             def test_each_elem_value_check():
                 # Each element in Input(perm) should be less than Input(x)'s dimension
-                fluid.layers.transpose(x, perm=[3, 5, 7])
+                base.layers.transpose(x, perm=[3, 5, 7])
 
             self.assertRaises(ValueError, test_each_elem_value_check)
 
@@ -258,63 +258,63 @@ class TestTransposeApi(unittest.TestCase):
 class TestTAPI(unittest.TestCase):
     def test_out(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = base.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace("intel_gpu", 0)
-            exe = fluid.Executor(place)
+            place = base.CustomPlace("intel_gpu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([10]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10, 5], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = base.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace("intel_gpu", 0)
-            exe = fluid.Executor(place)
+            place = base.CustomPlace("intel_gpu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([10, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[1, 5], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = base.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = fluid.CustomPlace("intel_gpu", 0)
-            exe = fluid.Executor(place)
+            place = base.CustomPlace("intel_gpu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([1, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             np_x = np.random.random([10]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             np_x = np.random.random([10, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
             np_x = np.random.random([1, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
     def test_errors(self):
-        with fluid.program_guard(fluid.Program()):
-            x = fluid.data(name="x", shape=[10, 5, 3], dtype="float32")
+        with base.program_guard(base.Program()):
+            x = base.data(name="x", shape=[10, 5, 3], dtype="float32")
 
             def test_x_dimension_check():
                 paddle.t(x)
@@ -327,7 +327,7 @@ class TestMoveAxis(unittest.TestCase):
         x_np = np.random.randn(2, 3, 4, 5, 7).astype("float32")
         expected = np.moveaxis(x_np, [0, 4, 3, 2], [1, 3, 2, 0])
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
+        with paddle.static.program_guard(base.Program()):
             x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype="float32")
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
@@ -347,7 +347,7 @@ class TestMoveAxis(unittest.TestCase):
         x_np = np.random.randn(2, 3, 5).astype("float32")
         expected = np.moveaxis(x_np, -2, -1)
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
+        with paddle.static.program_guard(base.Program()):
             x = paddle.static.data("x", shape=[2, 3, 5], dtype="float32")
             out = x.moveaxis(-2, -1)
 

@@ -209,8 +209,8 @@ class TestConv2DOp(OpTest):
         output = output.astype(self.dtype)
 
         self.inputs = {
-            "Input": OpTest.np_dtype_to_fluid_dtype(input),
-            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
+            "Input": OpTest.np_dtype_to_base_dtype(input),
+            "Filter": OpTest.np_dtype_to_base_dtype(filter),
         }
         self.attrs = {
             "strides": self.stride,
@@ -414,8 +414,8 @@ class TestConv2DOp_v2(OpTest):
         output = output.astype(self.dtype)
 
         self.inputs = {
-            "Input": OpTest.np_dtype_to_fluid_dtype(input),
-            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
+            "Input": OpTest.np_dtype_to_base_dtype(input),
+            "Filter": OpTest.np_dtype_to_base_dtype(filter),
         }
         self.attrs = {
             "strides": self.stride,

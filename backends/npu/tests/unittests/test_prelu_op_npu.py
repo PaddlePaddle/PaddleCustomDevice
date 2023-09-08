@@ -16,7 +16,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle.nn.functional as F
 from tests.op_test import OpTest, skip_check_grad_ci
 
@@ -119,14 +119,14 @@ class TestNNPReluAPI(unittest.TestCase):
         np.testing.assert_allclose(out_ref, out.numpy(), rtol=1e-05)
 
         x = paddle.to_tensor(self.x_np)
-        m = paddle.nn.PReLU(weight_attr=fluid.ParamAttr(name="weight"))
+        m = paddle.nn.PReLU(weight_attr=base.ParamAttr(name="weight"))
         out = m(x)
         out_ref = ref_prelu_nn(self.x_np, 1, 0.25)
         np.testing.assert_allclose(out_ref, out.numpy(), rtol=1e-05)
 
         x = paddle.to_tensor(self.x_np)
         m = paddle.nn.PReLU(
-            weight_attr=fluid.ParamAttr(initializer=paddle.nn.initializer.Constant(0.5))
+            weight_attr=base.ParamAttr(initializer=paddle.nn.initializer.Constant(0.5))
         )
         out = m(x)
         out_ref = ref_prelu_nn(self.x_np, 1, 0.5)

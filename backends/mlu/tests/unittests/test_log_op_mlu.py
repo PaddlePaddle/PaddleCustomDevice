@@ -19,7 +19,7 @@ import unittest
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 SEED = 2021
@@ -37,7 +37,7 @@ class TestActivation(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def test_check_output(self):
@@ -69,7 +69,7 @@ class TestLog(TestActivation):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def test_check_grad(self):
@@ -89,7 +89,7 @@ class TestLog2(TestActivation):
         x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
         out = np.log2(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def test_check_grad_with_place(self):
@@ -98,7 +98,7 @@ class TestLog2(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.fluid.framework._static_guard():
+        with paddle.base.framework._static_guard():
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):
@@ -122,7 +122,7 @@ class TestLog2(TestActivation):
             np.testing.assert_allclose(res1, expected_res, rtol=rtol)
 
         # dygraph
-        with fluid.dygraph.guard(self.place):
+        with base.dygraph.guard(self.place):
             np_x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
             data_x = paddle.to_tensor(np_x)
             z = paddle.log2(data_x)
@@ -145,7 +145,7 @@ class TestLog10(TestActivation):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log10(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def test_check_grad_with_place(self):
@@ -154,7 +154,7 @@ class TestLog10(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.fluid.framework._static_guard():
+        with paddle.base.framework._static_guard():
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):
@@ -175,7 +175,7 @@ class TestLog10(TestActivation):
             np.testing.assert_allclose(res1[0], expected_res, rtol=1e-5)
 
         # dygraph
-        with fluid.dygraph.guard(self.place):
+        with base.dygraph.guard(self.place):
             np_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
             data_x = paddle.to_tensor(np_x)
             z = paddle.log10(data_x)

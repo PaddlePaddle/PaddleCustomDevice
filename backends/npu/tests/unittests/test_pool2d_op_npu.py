@@ -16,7 +16,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid.core as core
+import paddle.base.core as core
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -489,7 +489,7 @@ class TestPool2D_Op(OpTest):
             self.pool_type,
             self.padding_algorithm,
         ).astype(self.dtype)
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(input)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(input)}
 
         self.attrs = {
             "strides": self.strides,

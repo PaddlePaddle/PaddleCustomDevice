@@ -34,7 +34,7 @@ class TestCos(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.cos(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def set_mlu(self):
@@ -59,7 +59,7 @@ class TestCosHalf(OpTest):
         x = np.random.uniform(-1, 1, [11, 17]).astype(self.dtype)
         out = np.cos(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def set_mlu(self):

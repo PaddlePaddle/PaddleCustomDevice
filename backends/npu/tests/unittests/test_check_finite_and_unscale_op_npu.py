@@ -16,8 +16,8 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import program_guard
+import paddle.base as base
+from paddle.base import program_guard
 from paddle.static.amp.amp_nn import check_finite_and_unscale
 
 paddle.enable_static()
@@ -39,8 +39,8 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def run_prog(self, a, b, scale):
         main_program, out, found_inf = self.get_prog()
-        place = fluid.CustomPlace("npu", 0)
-        exe = fluid.Executor(place)
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place)
         out_, founf_inf_ = exe.run(
             main_program,
             feed={"a": a, "b": b, "scale": scale},
@@ -98,8 +98,8 @@ class TestCheckFiniteAndUnscaleClearFloatStatus(unittest.TestCase):
 
     def run_prog(self, a, b, scale):
         main_program, out, found_inf = self.get_prog()
-        place = fluid.CustomPlace("npu", 0)
-        exe = fluid.Executor(place)
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place)
         out_, founf_inf_ = exe.run(
             main_program,
             feed={"a": a, "b": b, "scale": scale},

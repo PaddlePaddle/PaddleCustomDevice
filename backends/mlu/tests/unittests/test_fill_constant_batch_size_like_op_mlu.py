@@ -15,7 +15,7 @@
 from __future__ import print_function
 
 import paddle
-import paddle.fluid.core as core
+import paddle.base.core as core
 import unittest
 import numpy as np
 from tests.op_test import OpTest
@@ -26,7 +26,7 @@ paddle.enable_static()
 def fill_constant_batch_size_like(
     input, shape, value, data_type, input_dim_idx=0, output_dim_idx=0, force_cpu=False
 ):
-    return paddle.fluid.layers.fill_constant_batch_size_like(
+    return paddle.base.layers.fill_constant_batch_size_like(
         input, shape, data_type, value, input_dim_idx, output_dim_idx, force_cpu
     )
 

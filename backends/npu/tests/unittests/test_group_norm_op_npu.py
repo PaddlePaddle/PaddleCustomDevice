@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -45,7 +45,7 @@ def group_norm_naive(x, scale, bias, epsilon, groups, data_layout):
 
 class TestGroupNormOpError(unittest.TestCase):
     def test_errors(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
 
             def test_x_type():
                 input = np.random.random(2, 100, 3, 5).astype("float32")
@@ -94,9 +94,9 @@ class TestGroupNormOp(OpTest):
         )
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(input),
-            "Scale": OpTest.np_dtype_to_fluid_dtype(scale),
-            "Bias": OpTest.np_dtype_to_fluid_dtype(bias),
+            "X": OpTest.np_dtype_to_base_dtype(input),
+            "Scale": OpTest.np_dtype_to_base_dtype(scale),
+            "Bias": OpTest.np_dtype_to_base_dtype(bias),
         }
         self.outputs = {"Y": output, "Mean": mean, "Variance": var}
         self.attrs["data_layout"] = self.data_format

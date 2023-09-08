@@ -26,7 +26,7 @@ from contextlib import closing
 import numpy as np
 
 import paddle
-from paddle import fluid
+from paddle import base
 
 RUN_STEP = 5
 DEFAULT_BATCH_SIZE = 2
@@ -68,9 +68,9 @@ class TestParallelDyGraphRunnerBase:
         device_id = int(os.getenv("FLAGS_selected_mlus", "0"))
         place = paddle.CustomPlace("mlu", device_id)
 
-        with fluid.dygraph.guard(place):
-            fluid.default_startup_program().random_seed = seed
-            fluid.default_main_program().random_seed = seed
+        with base.dygraph.guard(place):
+            base.default_startup_program().random_seed = seed
+            base.default_main_program().random_seed = seed
             np.random.seed(seed)
             import random
 

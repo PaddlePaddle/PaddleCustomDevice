@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 from tests.op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -116,13 +116,13 @@ class TestStackOpHalf(TestStackOpBase):
 
 class API_test(unittest.TestCase):
     def test_out(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             data1 = paddle.static.data("data1", shape=[1, 2], dtype="float32")
             data2 = paddle.static.data("data2", shape=[1, 2], dtype="float32")
             data3 = paddle.static.data("data3", shape=[1, 2], dtype="float32")
             result_stack = paddle.stack([data1, data2, data3], axis=0)
             place = paddle.CustomPlace("mlu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             input1 = np.random.random([1, 2]).astype("float32")
             input2 = np.random.random([1, 2]).astype("float32")
             input3 = np.random.random([1, 2]).astype("float32")
@@ -134,7 +134,7 @@ class API_test(unittest.TestCase):
             np.testing.assert_allclose(expected_result, result)
 
     def test_single_tensor_error(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             x = paddle.rand([2, 3])
             self.assertRaises(TypeError, paddle.stack, x)
 
@@ -144,24 +144,24 @@ class API_DygraphTest(unittest.TestCase):
         data1 = np.array([[1.0, 2.0]]).astype("float32")
         data2 = np.array([[3.0, 4.0]]).astype("float32")
         data3 = np.array([[5.0, 6.0]]).astype("float32")
-        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
-            x1 = fluid.dygraph.to_variable(data1)
-            x2 = fluid.dygraph.to_variable(data2)
-            x3 = fluid.dygraph.to_variable(data3)
+        with base.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
+            x1 = base.dygraph.to_variable(data1)
+            x2 = base.dygraph.to_variable(data2)
+            x3 = base.dygraph.to_variable(data3)
             result = paddle.stack([x1, x2, x3])
             result_np = result.numpy()
         expected_result = np.stack([data1, data2, data3])
         np.testing.assert_allclose(expected_result, result_np)
 
-        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
-            y1 = fluid.dygraph.to_variable(data1)
+        with base.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
+            y1 = base.dygraph.to_variable(data1)
             result = paddle.stack([y1], axis=0)
             result_np_2 = result.numpy()
         expected_result_2 = np.stack([data1], axis=0)
         np.testing.assert_allclose(expected_result_2, result_np_2)
 
     def test_single_tensor_error(self):
-        with fluid.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
+        with base.dygraph.guard(place=paddle.CustomPlace("mlu", 0)):
             x = paddle.to_tensor([1, 2, 3])
             self.assertRaises(Exception, paddle.stack, x)
 

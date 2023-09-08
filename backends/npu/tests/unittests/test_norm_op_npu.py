@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest, skip_check_grad_ci
 
 
@@ -107,7 +107,7 @@ class TestNPUNormOp5(TestNPUNormOp):
 class API_NormTest(unittest.TestCase):
     def test_errors(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
 
             def test_norm_x_type():
                 data = paddle.static.data(name="x", shape=[3, 3], dtype="int64")

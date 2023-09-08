@@ -18,9 +18,9 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+import paddle.base.core as core
+from paddle.base import Program, program_guard
 from paddle.framework import set_flags
 from tests.op_test import _set_use_system_allocator
 
@@ -247,8 +247,8 @@ class TestBatchNormOpInference(unittest.TestCase):
         ground_truth["saved_mean"] = mean
         ground_truth["saved_variance"] = variance
 
-        program = fluid.Program()
-        with fluid.program_guard(program):
+        program = base.Program()
+        with base.program_guard(program):
             block = program.global_block()
             for name in ground_truth:
                 block.create_var(
@@ -283,7 +283,7 @@ class TestBatchNormOpInference(unittest.TestCase):
 
             program._sync_with_cpp()
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             out = exe.run(
                 program,
                 feed={
@@ -483,8 +483,8 @@ class TestBatchNormOpTraining(unittest.TestCase):
             ]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = fluid.Program()
-            with fluid.program_guard(program):
+            program = base.Program()
+            with base.program_guard(program):
                 block = program.global_block()
                 for name in ground_truth:
                     block.create_var(
@@ -541,7 +541,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
 
                 program._sync_with_cpp()
 
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 out = exe.run(
                     program,
                     feed={
@@ -741,7 +741,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
         def compute(x, is_test, trainable_statistics, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
-            with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
                 bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
@@ -764,7 +764,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         np.testing.assert_allclose(y2, y4, rtol=1e-05)
 
     def test_static(self):
-        exe = fluid.Executor(paddle.CustomPlace("npu", 0))
+        exe = base.Executor(paddle.CustomPlace("npu", 0))
         shape = [4, 10, 16, 16]
 
         def compute(x_np, is_test, trainable_statistics):
@@ -776,7 +776,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
                 )
                 x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 y = bn(x)
-                exe.run(fluid.default_startup_program())
+                exe.run(base.default_startup_program())
                 r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
             return r
 
@@ -789,7 +789,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
                 x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
                 x = paddle.incubate._npu_identity(x, 3)  # ACL_FORMAT_NC1HWC0
                 y = bn(x)
-                exe.run(fluid.default_startup_program())
+                exe.run(base.default_startup_program())
                 r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
             return r
 
@@ -810,7 +810,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
         set_flags({"FLAGS_npu_storage_format": False})
 
     def test_1d(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x = paddle.randn([2, 6, 4])
             net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
             net2 = paddle.nn.BatchNorm1D(4)
@@ -823,7 +823,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
             np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07)
 
     def test_2d(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x_np = np.random.randn(2, 6, 6, 4).astype("float32")
             channel_first_x_np = np.transpose(x_np, (0, 3, 1, 2))
             # net1 - NHWC
@@ -843,7 +843,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
             )
 
     def test_3d(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x_np = np.random.randn(2, 6, 6, 6, 4).astype("float32")
             channel_first_x_np = np.transpose(x_np, (0, 4, 1, 2, 3))
             # net1 - NDHWC

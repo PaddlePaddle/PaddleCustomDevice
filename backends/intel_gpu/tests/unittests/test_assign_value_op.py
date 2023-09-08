@@ -19,9 +19,9 @@ import numpy as np
 
 import op_test
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.framework as framework
-import paddle.fluid.layers as layers
+import paddle.base as base
+import paddle.base.framework as framework
+import paddle.base.layers as layers
 from op_test import OpTest
 
 paddle.enable_static()
@@ -80,12 +80,12 @@ class TestAssignApi(unittest.TestCase):
         self.dtype = "float32"
 
     def test_assign(self):
-        main_program = fluid.Program()
-        with fluid.program_guard(main_program):
+        main_program = base.Program()
+        with base.program_guard(main_program):
             x = layers.create_tensor(dtype=self.dtype)
             layers.assign(input=self.value, output=x)
 
-        exe = fluid.Executor(self.place)
+        exe = base.Executor(self.place)
         [fetched_x] = exe.run(main_program, feed={}, fetch_list=[x])
         np.testing.assert_array_equal(fetched_x, self.value)
         self.assertEqual(fetched_x.dtype, self.value.dtype)

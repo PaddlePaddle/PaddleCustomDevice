@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest, skip_check_grad_ci
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -111,10 +111,10 @@ class TestMeshgridOp3(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid(x, y)
         res_1, res_2 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x": input_1, "y": input_2},
             fetch_list=[grid_x, grid_y],
         )
@@ -148,10 +148,10 @@ class TestMeshgridOp4(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid([x, y])
         res_1, res_2 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x": input_1, "y": input_2},
             fetch_list=[grid_x, grid_y],
         )
@@ -185,10 +185,10 @@ class TestMeshgridOp5(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
         grid_x, grid_y = paddle.tensor.meshgrid((x, y))
         res_1, res_2 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x": input_1, "y": input_2},
             fetch_list=[grid_x, grid_y],
         )

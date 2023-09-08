@@ -17,10 +17,10 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
-from paddle.fluid.backward import append_backward
-from paddle.fluid import Program, program_guard
+from paddle.base.backward import append_backward
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -92,9 +92,9 @@ class TestWhereAPI(unittest.TestCase):
     def test_api(self):
         for x_stop_gradient in [False, True]:
             for y_stop_gradient in [False, True]:
-                train_prog = fluid.Program()
-                startup = fluid.Program()
-                with fluid.program_guard(train_prog, startup):
+                train_prog = base.Program()
+                startup = base.Program()
+                with base.program_guard(train_prog, startup):
                     cond = paddle.static.data(
                         name="cond", shape=self.shape, dtype="bool"
                     )
@@ -108,7 +108,7 @@ class TestWhereAPI(unittest.TestCase):
                     result.stop_gradient = False
                     append_backward(paddle.mean(result))
 
-                    exe = fluid.Executor(self.place)
+                    exe = base.Executor(self.place)
                     exe.run(startup)
 
                     fetch_list = [result, result.grad_name]
@@ -132,7 +132,7 @@ class TestWhereAPI(unittest.TestCase):
 
     def test_api_broadcast(self, use_mlu=True):
         main_program = Program()
-        with fluid.program_guard(main_program):
+        with base.program_guard(main_program):
             x = paddle.static.data(name="x", shape=[-1, 4, 1], dtype="float32")
             y = paddle.static.data(name="y", shape=[-1, 4, 2], dtype="float32")
             x_i = np.array([[0.9383, 0.1983, 3.2, 1.2]]).astype("float32")
@@ -141,10 +141,10 @@ class TestWhereAPI(unittest.TestCase):
             )
             result = paddle.where((x > 1), x=x, y=y)
             for use_mlu in [False, True]:
-                place = paddle.CustomPlace("mlu", 0) if use_mlu else fluid.CPUPlace()
-                exe = fluid.Executor(place)
+                place = paddle.CustomPlace("mlu", 0) if use_mlu else base.CPUPlace()
+                exe = base.Executor(place)
                 out = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"x": x_i, "y": y_i},
                     fetch_list=[result],
                 )
@@ -153,7 +153,7 @@ class TestWhereAPI(unittest.TestCase):
     def __test_where_with_broadcast_static(self, cond_shape, x_shape, y_shape):
         paddle.enable_static()
         main_program = Program()
-        with fluid.program_guard(main_program):
+        with base.program_guard(main_program):
             cond = paddle.static.data(name="cond", shape=cond_shape, dtype="bool")
             x = paddle.static.data(name="x", shape=x_shape, dtype="float32")
             y = paddle.static.data(name="y", shape=y_shape, dtype="float32")
@@ -163,10 +163,10 @@ class TestWhereAPI(unittest.TestCase):
             y_data = np.random.random(size=y_shape).astype("float32")
             result = paddle.where(condition=cond, x=x, y=y)
             for use_mlu in [False, True]:
-                place = paddle.CustomPlace("mlu", 0) if use_mlu else fluid.CPUPlace()
-                exe = fluid.Executor(place)
+                place = paddle.CustomPlace("mlu", 0) if use_mlu else base.CPUPlace()
+                exe = base.Executor(place)
                 out = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"cond": cond_data, "x": x_data, "y": y_data},
                     fetch_list=[result],
                 )
@@ -224,18 +224,18 @@ class TestWhereAPI(unittest.TestCase):
 
 class TestWhereDygraphAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             x_i = np.array([0.9383, 0.1983, 3.2, 1.2]).astype("float32")
             y_i = np.array([1.0, 1.0, 1.0, 1.0]).astype("float32")
             cond_i = np.array([False, False, True, True]).astype("bool")
-            x = fluid.dygraph.to_variable(x_i)
-            y = fluid.dygraph.to_variable(y_i)
-            cond = fluid.dygraph.to_variable(cond_i)
+            x = base.dygraph.to_variable(x_i)
+            y = base.dygraph.to_variable(y_i)
+            cond = base.dygraph.to_variable(cond_i)
             out = paddle.where(cond, x, y)
             assert np.array_equal(out.numpy(), np.where(cond_i, x_i, y_i))
 
     def __test_where_with_broadcast_dygraph(self, cond_shape, a_shape, b_shape):
-        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             cond_tmp = paddle.rand(cond_shape)
             cond = cond_tmp < 0.3
             a = paddle.rand(a_shape)
@@ -315,7 +315,7 @@ class TestWhereOpError(unittest.TestCase):
             self.assertRaises(TypeError, test_type)
 
     def test_value_error(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("mlu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             cond_shape = [2, 2, 4]
             cond_tmp = paddle.rand(cond_shape)
             cond = cond_tmp < 0.3

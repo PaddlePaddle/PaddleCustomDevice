@@ -15,7 +15,7 @@ import unittest
 import paddle
 import numpy as np
 from paddle import _C_ops, _legacy_C_ops
-from paddle.fluid.framework import in_dygraph_mode
+from paddle.base.framework import in_dygraph_mode
 
 
 def run_adam_op(
@@ -44,14 +44,14 @@ def run_adam_op(
     paddle.disable_static()
     paddle.set_device("mlu")
 
-    param_vars = [paddle.fluid.dygraph.to_variable(p) for p in params]
-    grad_vars = [paddle.fluid.dygraph.to_variable(g) for g in grads]
-    lr_vars = [paddle.fluid.dygraph.to_variable(l) for l in lrs]
-    moment1_vars = [paddle.fluid.dygraph.to_variable(m) for m in moment1s]
-    moment2_vars = [paddle.fluid.dygraph.to_variable(m) for m in moment2s]
-    beta1_pow_vars = [paddle.fluid.dygraph.to_variable(b) for b in beta1_pows]
-    beta2_pow_vars = [paddle.fluid.dygraph.to_variable(b) for b in beta2_pows]
-    master_param_vars = [paddle.fluid.dygraph.to_variable(m_p) for m_p in master_params]
+    param_vars = [paddle.base.dygraph.to_variable(p) for p in params]
+    grad_vars = [paddle.base.dygraph.to_variable(g) for g in grads]
+    lr_vars = [paddle.base.dygraph.to_variable(l) for l in lrs]
+    moment1_vars = [paddle.base.dygraph.to_variable(m) for m in moment1s]
+    moment2_vars = [paddle.base.dygraph.to_variable(m) for m in moment2s]
+    beta1_pow_vars = [paddle.base.dygraph.to_variable(b) for b in beta1_pows]
+    beta2_pow_vars = [paddle.base.dygraph.to_variable(b) for b in beta2_pows]
+    master_param_vars = [paddle.base.dygraph.to_variable(m_p) for m_p in master_params]
 
     if not use_merged:
         for i in range(len(param_vars)):

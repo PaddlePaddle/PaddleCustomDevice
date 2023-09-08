@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
+import paddle.base.core as core
 
 paddle.enable_static()
 

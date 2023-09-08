@@ -18,10 +18,10 @@ import unittest
 import numpy as np
 from op_test import OpTest, skip_check_grad_ci
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
-from paddle.fluid.framework import convert_np_dtype_to_dtype_
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
+from paddle.base.framework import convert_np_dtype_to_dtype_
 
 
 def get_places(self):
@@ -394,11 +394,11 @@ class TestProd8DOp(OpTest):
 #         with program_guard(Program(), Program()):
 #             # The input type of reduce_all_op must be Variable.
 #             input1 = 12
-#             self.assertRaises(TypeError, fluid.layers.reduce_all, input1)
+#             self.assertRaises(TypeError, base.layers.reduce_all, input1)
 #             # The input dtype of reduce_all_op must be bool.
 #             input2 = paddle.static.data(
 #                 name='input2', shape=[12, 10], dtype="int32")
-#             self.assertRaises(TypeError, fluid.layers.reduce_all, input2)
+#             self.assertRaises(TypeError, base.layers.reduce_all, input2)
 
 # class TestAnyOp(OpTest):
 #     def setUp(self):
@@ -486,11 +486,11 @@ class TestProd8DOp(OpTest):
 #         with program_guard(Program(), Program()):
 #             # The input type of reduce_any_op must be Variable.
 #             input1 = 12
-#             self.assertRaises(TypeError, fluid.layers.reduce_any, input1)
+#             self.assertRaises(TypeError, base.layers.reduce_any, input1)
 #             # The input dtype of reduce_any_op must be bool.
 #             input2 = paddle.static.data(
 #                 name='input2', shape=[12, 10], dtype="int32")
-#             self.assertRaises(TypeError, fluid.layers.reduce_any, input2)
+#             self.assertRaises(TypeError, base.layers.reduce_any, input2)
 
 
 class Test1DReduce(OpTest):
@@ -754,13 +754,13 @@ class TestReduceSumOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of reduce_sum_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace("custom_cpu", 0)
+            x1 = base.create_lod_tensor(
+                np.array([[-1]]), [[1]], base.CustomPlace("custom_cpu", 0)
             )
-            self.assertRaises(TypeError, fluid.layers.reduce_sum, x1)
+            self.assertRaises(TypeError, base.layers.reduce_sum, x1)
             # The input dtype of reduce_sum_op  must be float32 or float64 or int32 or int64.
             x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="uint8")
-            self.assertRaises(TypeError, fluid.layers.reduce_sum, x2)
+            self.assertRaises(TypeError, base.layers.reduce_sum, x2)
 
 
 class API_TestSumOp(unittest.TestCase):
@@ -768,13 +768,13 @@ class API_TestSumOp(unittest.TestCase):
         if np_axis is None:
             np_axis = attr_axis
 
-        places = [fluid.CustomPlace("custom_cpu", 0)]
+        places = [base.CustomPlace("custom_cpu", 0)]
         for place in places:
-            with fluid.program_guard(fluid.Program(), fluid.Program()):
+            with base.program_guard(base.Program(), base.Program()):
                 data = paddle.static.data("data", shape=shape, dtype=x_dtype)
                 result_sum = paddle.sum(x=data, axis=attr_axis, dtype=attr_dtype)
 
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 input_data = np.random.rand(*shape).astype(x_dtype)
                 (res,) = exe.run(feed={"data": input_data}, fetch_list=[result_sum])
 
@@ -815,8 +815,8 @@ class API_TestSumOp(unittest.TestCase):
 
     def test_dygraph(self):
         np_x = np.random.random([2, 3, 4]).astype("int32")
-        with fluid.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
-            x = fluid.dygraph.to_variable(np_x)
+        with base.dygraph.guard(paddle.CustomPlace("custom_cpu", 0)):
+            x = base.dygraph.to_variable(np_x)
             out0 = paddle.sum(x).numpy()
             out1 = paddle.sum(x, axis=0).numpy()
             out2 = paddle.sum(x, axis=(0, 1)).numpy()
@@ -832,19 +832,19 @@ class TestAllAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
         paddle.enable_static()
-        self.places = [fluid.CustomPlace("custom_cpu", 0)]
+        self.places = [base.CustomPlace("custom_cpu", 0)]
         if core.is_compiled_with_cuda():
-            self.places.append(fluid.CustomPlace("custom_cpu", 0))
+            self.places.append(base.CustomPlace("custom_cpu", 0))
 
     def check_static_result(self, place):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input = paddle.static.data(name="input", shape=[4, 4], dtype="bool")
             result = paddle.all(x=input)
             input_np = np.random.randint(0, 2, [4, 4]).astype("bool")
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             fetches = exe.run(
-                fluid.default_main_program(),
+                base.default_main_program(),
                 feed={"input": input_np},
                 fetch_list=[result],
             )
@@ -857,7 +857,7 @@ class TestAllAPI(unittest.TestCase):
     def test_dygraph(self):
         paddle.disable_static()
         for place in self.places:
-            with fluid.dygraph.guard(place):
+            with base.dygraph.guard(place):
                 np_x = np.random.randint(0, 2, (12, 10)).astype(np.bool_)
                 x = paddle.assign(np_x)
                 x = paddle.cast(x, "bool")
@@ -889,19 +889,19 @@ class TestAnyAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
         paddle.enable_static()
-        self.places = [fluid.CustomPlace("custom_cpu", 0)]
+        self.places = [base.CustomPlace("custom_cpu", 0)]
         if core.is_compiled_with_cuda():
-            self.places.append(fluid.CustomPlace("custom_cpu", 0))
+            self.places.append(base.CustomPlace("custom_cpu", 0))
 
     def check_static_result(self, place):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input = paddle.static.data(name="input", shape=[4, 4], dtype="bool")
             result = paddle.any(x=input)
             input_np = np.random.randint(0, 2, [4, 4]).astype("bool")
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             fetches = exe.run(
-                fluid.default_main_program(),
+                base.default_main_program(),
                 feed={"input": input_np},
                 fetch_list=[result],
             )
@@ -914,7 +914,7 @@ class TestAnyAPI(unittest.TestCase):
     def test_dygraph(self):
         paddle.disable_static()
         for place in self.places:
-            with fluid.dygraph.guard(place):
+            with base.dygraph.guard(place):
                 np_x = np.random.randint(0, 2, (12, 10)).astype(np.bool_)
                 x = paddle.assign(np_x)
                 x = paddle.cast(x, "bool")

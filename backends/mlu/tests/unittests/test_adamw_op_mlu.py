@@ -18,7 +18,7 @@ from tests.op_test import OpTest
 import paddle
 import random
 from functools import partial
-from paddle import fluid
+from paddle import base
 
 paddle.enable_static()
 SEED = 2022
@@ -257,11 +257,11 @@ class TestAdamWOp(unittest.TestCase):
     def test_adamw_op(self):
         paddle.enable_static()
         shape = [2, 3, 8, 8]
-        exe = fluid.Executor(self.place)
-        train_prog = fluid.Program()
-        startup = fluid.Program()
-        with fluid.program_guard(train_prog, startup):
-            with fluid.unique_name.guard():
+        exe = base.Executor(self.place)
+        train_prog = base.Program()
+        startup = base.Program()
+        with base.program_guard(train_prog, startup):
+            with base.unique_name.guard():
                 data = paddle.static.data(name="data", shape=shape)
                 conv = paddle.static.nn.conv2d(data, 8, 3)
                 loss = paddle.mean(conv)
@@ -771,10 +771,10 @@ class TestAdamWOpLayerwiseLR(TestAdamWOp):
         weight_decay = 0.01
         epsilon = 1e-8
 
-        train_prog = fluid.Program()
-        startup = fluid.Program()
-        with fluid.program_guard(train_prog, startup):
-            with fluid.unique_name.guard():
+        train_prog = base.Program()
+        startup = base.Program()
+        with base.program_guard(train_prog, startup):
+            with base.unique_name.guard():
                 x = paddle.static.data(name="x", shape=[None, 10], dtype="float32")
                 y = paddle.static.data(name="y", shape=[None, 1], dtype="float32")
 
@@ -861,7 +861,7 @@ class TestAdamWOpLayerwiseLR(TestAdamWOp):
             "linear_1.b_0@GRAD",
         ]
 
-        exe = fluid.Executor(self.place)
+        exe = base.Executor(self.place)
         exe.run(startup)
         test_prog = train_prog.clone(for_test=True)
 

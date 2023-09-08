@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-from paddle.fluid import Program, program_guard
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 

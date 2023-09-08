@@ -18,7 +18,7 @@ import numpy as np
 import unittest
 
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 SEED = 2021
@@ -28,14 +28,14 @@ class TestTruncatedNormal(unittest.TestCase):
     def _test(self, run_npu=True):
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()
-        scope = paddle.fluid.core.Scope()
+        scope = paddle.base.core.Scope()
 
         main_prog.random_seed = SEED
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
         paddle.seed(SEED)
 
-        with fluid.scope_guard(scope):
+        with base.scope_guard(scope):
             with paddle.static.program_guard(main_prog, startup_prog):
                 weight_attr = paddle.framework.ParamAttr(
                     name="linear_weight",

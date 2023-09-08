@@ -16,7 +16,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -600,9 +600,9 @@ class TestStridedSliceAPI(unittest.TestCase):
         out_6 = x[minus_3:3:1, 0:100:2, :, minus_1:2:minus_1]
         out_7 = x[minus_1, 0:100:2, :, -1:2:-1]
 
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={
                 "x": input,
                 "starts": np.array([-3, 0, 2]).astype("int32"),
@@ -641,10 +641,10 @@ class TestStridedSliceAPI(unittest.TestCase):
 #         self.strides = [1]
 #         self.iter_num = 3
 #         self.place = paddle.CustomPlace("npu", 0)
-#         self.exe = fluid.Executor(self.place)
+#         self.exe = base.Executor(self.place)
 
 #     def set_program_and_run(self, main_program, case_num):
-#         with fluid.program_guard(main_program):
+#         with base.program_guard(main_program):
 #             x = [
 #                 paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
 #                 paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
@@ -664,7 +664,7 @@ class TestStridedSliceAPI(unittest.TestCase):
 
 #             array = paddle.concat(output)
 #             loss = paddle.sum(array)
-#             fluid.backward.append_backward(loss)
+#             base.backward.append_backward(loss)
 #             g_vars = list(
 #                 map(
 #                     main_program.global_block().var,
@@ -684,12 +684,12 @@ class TestStridedSliceAPI(unittest.TestCase):
 #             )
 
 #     def test_case(self):
-#         main_program = fluid.Program()
+#         main_program = base.Program()
 #         self.set_program_and_run(main_program, 1)
 
 #         numeric_output = [self.data, self.data]
 #         self.assertTrue(
-#             self.sliced_arr.type == fluid.core.VarDesc.VarType.LOD_TENSOR_ARRAY
+#             self.sliced_arr.type == base.core.VarDesc.VarType.LOD_TENSOR_ARRAY
 #         )
 #         np.testing.assert_array_equal(self.out, numeric_output)
 #         np.testing.assert_array_equal(self.g_x0, np.zeros_like(self.data))

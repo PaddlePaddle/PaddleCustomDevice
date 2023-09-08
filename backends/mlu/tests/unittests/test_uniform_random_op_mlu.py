@@ -18,10 +18,10 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
+import paddle.base.core as core
 import paddle
 from tests.op import Operator
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -48,7 +48,7 @@ class TestUniformRandomOp(OpTest):
     def func_test_check_api(self):
         places = self._get_places()
         for place in places:
-            with fluid.dygraph.base.guard(place=place):
+            with base.dygraph.base.guard(place=place):
                 out = self.python_api(
                     self.attrs["shape"],
                     "float32",

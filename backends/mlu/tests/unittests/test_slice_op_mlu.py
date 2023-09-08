@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 
 from tests.op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -515,7 +515,7 @@ class TestFP16_2(OpTest):
 
 class TestSliceApiWithTensor(unittest.TestCase):
     def test_starts_ends_is_tensor(self):
-        with paddle.fluid.dygraph.guard():
+        with paddle.base.dygraph.guard():
             a = paddle.rand(shape=[4, 5, 6], dtype="float32")
             axes = [0, 1, 2]
             starts = [-3, 0, 2]
@@ -531,7 +531,7 @@ class TestSliceApiWithTensor(unittest.TestCase):
             np.testing.assert_allclose(a_1.numpy(), a_2.numpy())
 
     def test_bool_tensor(self):
-        with paddle.fluid.dygraph.guard():
+        with paddle.base.dygraph.guard():
             array = (np.arange(60).reshape([3, 4, 5]) % 3).astype("bool")
             tt = paddle.to_tensor(array)
             tt.stop_gradient = False
@@ -549,9 +549,9 @@ class TestSliceApiWithTensor(unittest.TestCase):
 
 class TestImperativeVarBaseGetItem(unittest.TestCase):
     def test_getitem_with_long(self):
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             data = np.random.random((2, 80, 16128)).astype("float32")
-            var = fluid.dygraph.to_variable(data)
+            var = base.dygraph.to_variable(data)
             sliced = var[:, 10:, : var.shape[1]]  # var.shape[1] is 80L here
             self.assertEqual(sliced.shape, [2, 70, 80])
 
@@ -560,17 +560,17 @@ class TestImperativeVarBaseGetItem(unittest.TestCase):
 
     def test_getitem_with_float(self):
         def test_float_in_slice_item():
-            with fluid.dygraph.guard():
+            with base.dygraph.guard():
                 data = np.random.random((2, 80, 16128)).astype("float32")
-                var = fluid.dygraph.to_variable(data)
+                var = base.dygraph.to_variable(data)
                 sliced = var[:, 1.1:, : var.shape[1]]
 
         self.assertRaises(Exception, test_float_in_slice_item)
 
         def test_float_in_index():
-            with fluid.dygraph.guard():
+            with base.dygraph.guard():
                 data = np.random.random((2, 80, 16128)).astype("float32")
-                var = fluid.dygraph.to_variable(data)
+                var = base.dygraph.to_variable(data)
                 sliced = var[1.1]
 
         self.assertRaises(Exception, test_float_in_index)

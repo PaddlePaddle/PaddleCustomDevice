@@ -15,7 +15,7 @@
 import unittest
 import paddle
 import numpy as np
-from paddle.fluid.layer_helper import LayerHelper
+from paddle.base.layer_helper import LayerHelper
 from collections import OrderedDict
 
 

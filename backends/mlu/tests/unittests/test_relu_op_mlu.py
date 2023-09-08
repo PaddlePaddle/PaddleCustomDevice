@@ -34,7 +34,7 @@ class TestRelu(OpTest):
         x = np.random.rand(3, 2).astype(self.dtype)
         out = x
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -59,7 +59,7 @@ class TestReluFp16(OpTest):
         x = np.random.rand(3, 2).astype(self.dtype)
         out = x
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -85,7 +85,7 @@ class TestReluNeg(OpTest):
         x = np.array([0.1, -0.1, -1.0]).astype(self.dtype)
         out = np.array([0.1, 0.0, 0.0]).astype(self.dtype)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 

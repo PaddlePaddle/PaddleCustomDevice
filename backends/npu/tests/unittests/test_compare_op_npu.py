@@ -18,8 +18,8 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 from tests.op_test import OpTest
 
 
@@ -47,7 +47,7 @@ def create_test_class(op_type, typename, callback):
                 a = paddle.static.data(name="a", shape=[-1, 2], dtype="float32")
                 b = paddle.static.data(name="b", shape=[-1, 2], dtype="float32")
                 c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
-                d = fluid.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
+                d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
 
                 op = eval("paddle.%s" % self.op_type)
                 self.assertRaises(TypeError, op, x=a, y=b, axis=True)

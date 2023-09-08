@@ -18,7 +18,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 
 paddle.enable_static()
@@ -29,16 +29,16 @@ class TestFlipOp_API(unittest.TestCase):
 
     def test_static_graph(self):
         paddle.enable_static()
-        startup_program = fluid.Program()
-        train_program = fluid.Program()
-        with fluid.program_guard(train_program, startup_program):
+        startup_program = base.Program()
+        train_program = base.Program()
+        with base.program_guard(train_program, startup_program):
             axis = [0]
             input = paddle.static.data(name="input", dtype="float32", shape=[2, 3])
             output = paddle.flip(input, axis)
             output = paddle.flip(output, -1)
             output = output.flip(0)
             place = paddle.CustomPlace("npu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             exe.run(startup_program)
             img = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.float32)
             res = exe.run(train_program, feed={"input": img}, fetch_list=[output])
@@ -52,8 +52,8 @@ class TestFlipOp_API(unittest.TestCase):
     def test_dygraph(self):
         paddle.disable_static(paddle.CustomPlace("npu", 0))
         img = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.float32)
-        with fluid.dygraph.guard():
-            inputs = fluid.dygraph.to_variable(img)
+        with base.dygraph.guard():
+            inputs = base.dygraph.to_variable(img)
             ret = paddle.flip(inputs, [0])
             ret = ret.flip(0)
             ret = paddle.flip(ret, 1)

@@ -34,7 +34,7 @@ class TestExp(OpTest):
         x = np.random.rand(20, 5).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -62,7 +62,7 @@ class TestExpFp16(OpTest):
         x = np.random.rand(20, 5).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -89,7 +89,7 @@ class TestExpNeg(OpTest):
         x -= 1
         out = np.exp(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 

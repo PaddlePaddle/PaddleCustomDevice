@@ -18,9 +18,9 @@ import numpy as np
 import paddle
 
 from operator import mul
-import paddle.fluid.core as core
+import paddle.base.core as core
 import paddle.nn.functional as F
-import paddle.fluid as fluid
+import paddle.base as base
 from functools import reduce
 from tests.op_test import _set_use_system_allocator
 from paddle.static.amp.fp16_utils import (
@@ -168,8 +168,8 @@ class TestLayerNormOp(unittest.TestCase):
                 var_names += ["bias"]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = fluid.Program()
-            with fluid.program_guard(program):
+            program = base.Program()
+            with base.program_guard(program):
                 block = program.global_block()
                 for name in ground_truth:
                     block.create_var(
@@ -218,7 +218,7 @@ class TestLayerNormOp(unittest.TestCase):
                     grad_var.set_dtype(core.VarDesc.VarType.FP32)
 
                 program._sync_with_cpp()
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 out = exe.run(
                     program,
                     feed={

@@ -32,8 +32,8 @@ class TestElementwiseMinOp(OpTest):
         self.init_dtype()
         self.init_input_output()
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.outputs = {"Out": self.out}
         self.attrs = {"axis": self.axis}

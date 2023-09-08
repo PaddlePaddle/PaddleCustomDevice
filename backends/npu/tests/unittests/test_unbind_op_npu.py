@@ -18,7 +18,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-from paddle import fluid, tensor
+from paddle import base, tensor
 
 
 class TestUnbind(unittest.TestCase):
@@ -29,10 +29,10 @@ class TestUnbind(unittest.TestCase):
         [out_0, out_1] = tensor.unbind(input=x_1, axis=0)
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
 
         [res_1, res_2] = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x_1": input_1, "axis": 0},
             fetch_list=[out_0, out_1],
         )
@@ -63,7 +63,7 @@ class TestUnbind(unittest.TestCase):
             assert np.array_equal(res[1], input[1, :])
 
     def test_unbind_dygraph(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             np_x = np.random.random([2, 3]).astype("float32")
             x = paddle.to_tensor(np_x)
             x.stop_gradient = False
@@ -86,10 +86,10 @@ class TestLayersUnbind(unittest.TestCase):
         [out_0, out_1] = paddle.unbind(input=x_1, axis=0)
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
-        exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
 
         [res_1, res_2] = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x_1": input_1, "axis": 0},
             fetch_list=[out_0, out_1],
         )

@@ -18,8 +18,8 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -253,62 +253,62 @@ class TestTransposeApi(unittest.TestCase):
 
 class TestTAPI(unittest.TestCase):
     def test_out(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             data = paddle.static.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("mlu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             data_np = np.random.random([10]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             data = paddle.static.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("mlu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             data_np = np.random.random([10, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             data = paddle.static.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
             place = paddle.CustomPlace("mlu", 0)
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             data_np = np.random.random([1, 5]).astype("float32")
             (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([10]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([10, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([1, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
     def test_errors(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data(name="x", shape=[10, 5, 3], dtype="float32")
 
             def test_x_dimension_check():
@@ -323,7 +323,7 @@ class TestMoveAxis(unittest.TestCase):
         x_np = np.random.randn(2, 3, 4, 5, 7).astype("float32")
         expected = np.moveaxis(x_np, [0, 4, 3, 2], [1, 3, 2, 0])
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
+        with paddle.static.program_guard(base.Program()):
             x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype="float32")
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
@@ -344,7 +344,7 @@ class TestMoveAxis(unittest.TestCase):
         x_np = np.random.randn(2, 3, 5).astype("float32")
         expected = np.moveaxis(x_np, -2, -1)
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
+        with paddle.static.program_guard(base.Program()):
             x = paddle.static.data("x", shape=[2, 3, 5], dtype="float32")
             out = x.moveaxis(-2, -1)
 

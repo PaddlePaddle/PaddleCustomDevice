@@ -19,7 +19,7 @@ import unittest
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle.nn.functional as F
 
 paddle.enable_static()
@@ -160,12 +160,12 @@ class TestHardsigmoidAPI(unittest.TestCase):
             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-6)
         paddle.enable_static()
 
-    def test_fluid_api(self):
+    def test_base_api(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
             out = paddle.nn.functional.hardsigmoid(x, slope=0.2)
-            exe = fluid.Executor(self.place)
+            exe = base.Executor(self.place)
             res = exe.run(feed={"X": self.x_np}, fetch_list=[out])
         out_ref = ref_hardsigmoid(self.x_np, 0.2, 0.5)
         np.testing.assert_allclose(out_ref, res[0])

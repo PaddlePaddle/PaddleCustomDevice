@@ -32,7 +32,7 @@ class TestScale(OpTest):
         self.init_dtype()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(
+            "X": OpTest.np_dtype_to_base_dtype(
                 np.random.random((10, 10)).astype(self.dtype)
             )
         }
@@ -81,7 +81,7 @@ class TestBiasAfterScale(OpTest):
         self.init_dtype()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(
+            "X": OpTest.np_dtype_to_base_dtype(
                 np.random.random((10, 10)).astype(self.dtype)
             )
         }

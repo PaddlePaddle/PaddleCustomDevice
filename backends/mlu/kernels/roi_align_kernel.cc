@@ -56,6 +56,7 @@ void RoiAlignKernel(const Context& dev_ctx,
               rois_num_list.data(),
               boxes_num->data<int>(),
               sizeof(int) * rois_batch_size);
+    dev_ctx.Wait();
 
     int last_idx = 0;
     for (int i = 0; i < rois_batch_size; i++) {
@@ -194,6 +195,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
               rois_num_list.data(),
               boxes_num->data<int>(),
               sizeof(int) * rois_batch_size);
+    dev_ctx.Wait();
 
     int last_idx = 0;
     for (int i = 0; i < rois_batch_size; i++) {

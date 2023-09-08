@@ -14,150 +14,9 @@
 
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
+#include "paddle/phi/kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
-
-template <typename T = int64_t>
-inline void CheckAndUpdateSliceAttrs(const phi::DDim in_dims,
-                                     const std::vector<T>& axes,
-                                     std::vector<T>* starts,
-                                     std::vector<T>* ends,
-                                     std::vector<int64_t>* steps = nullptr,
-                                     std::vector<T>* infer_flags = nullptr) {
-  for (size_t i = 0; i < axes.size(); ++i) {
-    T axis = axes[i];
-    PADDLE_ENFORCE_LT(
-        axis,
-        in_dims.size(),
-        phi::errors::InvalidArgument(
-            "The axis value should be less than the rank of input, "
-            "but received axes[%d] = %d, rank of input is %d.",
-            i,
-            axis,
-            in_dims.size()));
-
-    if (infer_flags != nullptr && (*infer_flags)[i] == -1) {
-      continue;
-    }
-
-    T dim_value = in_dims[axis];
-
-    if (dim_value > 0) {
-      T step = steps == nullptr ? 1 : (*steps)[i];
-      PADDLE_ENFORCE_NE(
-          step,
-          0,
-          phi::errors::InvalidArgument(
-              "Step should not be 0, but received step = %d.", step));
-
-      T start = (*starts)[i] < 0 ? ((*starts)[i] + dim_value) : (*starts)[i];
-      start = std::max(start, static_cast<T>(0));
-
-      T end =
-          0 < step && (*ends)[i] < 0 ? ((*ends)[i] + dim_value) : (*ends)[i];
-      end = std::min(end, dim_value);
-
-      if (step > 0) {
-        start = std::min(start, dim_value);
-        end = std::max(end, static_cast<T>(0));
-        PADDLE_ENFORCE_GE(
-            end,
-            start,
-            phi::errors::InvalidArgument(
-                "When step > 0, end should be greater than start, but "
-                "received end = %d, start = %d.",
-                end,
-                start));
-      } else {
-        // NOTE(liym27): When step < 0, start should less and equal to
-        // dim_value-1
-        // "end is -1" means contain the 0-th element of this axis.
-        start = std::min(start, dim_value - 1);
-        end = std::max(end, static_cast<T>(-1));
-        PADDLE_ENFORCE_GE(
-            start,
-            end,
-            phi::errors::InvalidArgument(
-                "When step < 0, start should be greater than end, but "
-                "received start = %d, end = %d.",
-                start,
-                end));
-      }
-
-      (*starts)[i] = start;
-      (*ends)[i] = end;
-    } else if (dim_value == 0) {
-      (*starts)[i] = 0;
-      (*ends)[i] = 0;
-    }
-  }
-}
-
-template <typename T = int64_t>
-inline phi::DDim GetSliceDims(const phi::DDim in_dims,
-                              const std::vector<T>& axes,
-                              const std::vector<T>& starts,
-                              const std::vector<T>& ends,
-                              std::vector<T>* steps = nullptr,
-                              std::vector<T>* infer_flags = nullptr) {
-  phi::DDim slice_dims(in_dims);
-
-  for (size_t i = 0; i < axes.size(); ++i) {
-    T axis = axes[i];
-    if (infer_flags != nullptr && (*infer_flags)[i] == -1) {
-      slice_dims[axis] = -1;
-      continue;
-    }
-
-    T start = starts[i];
-    T end = ends[i];
-    T step = steps == nullptr ? 1 : (*steps)[i];
-
-    if (step > 0) {
-      slice_dims[axis] = (end - start + step - 1) / step;
-    } else {
-      slice_dims[axis] = (end - start + step + 1) / step;
-    }
-  }
-  return slice_dims;
-}
-
-template <typename T = int64_t>
-inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
-                                  const std::vector<T>& decrease_axes,
-                                  std::vector<T>* infer_flags = nullptr) {
-  phi::DDim decreased_dims(slice_dims);
-  std::vector<uint8_t> decrease_flag(slice_dims.size(), 0);
-  if (decrease_axes.size() > 0) {
-    for (size_t i = 0; i < decrease_axes.size(); ++i) {
-      T axis = decrease_axes[i];
-      decrease_flag[axis] = 1;
-      if (infer_flags && (*infer_flags)[i] != -1) {
-        PADDLE_ENFORCE_EQ(decreased_dims[axis],
-                          1,
-                          phi::errors::InvalidArgument(
-                              "Decrease dim should be 1, but now received %d",
-                              decreased_dims[axis]));
-      }
-    }
-
-    std::vector<T> new_shape;
-    for (int i = 0; i < decreased_dims.size(); ++i) {
-      if (decrease_flag[i] == 0) {
-        new_shape.push_back(decreased_dims[i]);
-      }
-    }
-
-    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
-    // uses [1] instead.
-    if (new_shape.size() == 0) {
-      new_shape.push_back(1);
-    }
-
-    decreased_dims = phi::make_ddim(new_shape);
-  }
-  return decreased_dims;
-}
 
 template <typename T, typename Context>
 void SetValueKernel(const Context& dev_ctx,
@@ -178,12 +37,12 @@ void SetValueKernel(const Context& dev_ctx,
   std::vector<int64_t> steps_local = steps.GetData();
 
   auto in_dims = x.dims();
-  custom_kernel::CheckAndUpdateSliceAttrs(
+  phi::funcs::CheckAndUpdateSliceAttrs(
       in_dims, axes, &starts_local, &ends_local, &steps_local);
-  auto slice_dims = custom_kernel::GetSliceDims(
+  auto slice_dims = phi::funcs::GetSliceDims(
       in_dims, axes, starts_local, ends_local, &steps_local);
   auto decrease_slice_dims =
-      custom_kernel::GetDecreasedDims(slice_dims, decrease_axes);
+      phi::funcs::GetDecreasedDims(slice_dims, decrease_axes);
 
   auto slice_dims_for_assign = decrease_slice_dims;
   if (!none_axes.empty()) {
@@ -342,12 +201,43 @@ void SetTensorValueKernel(const Context& dev_ctx,
   std::vector<int64_t> steps_local = steps.GetData();
 
   auto in_dims = x.dims();
-  custom_kernel::CheckAndUpdateSliceAttrs(
+  phi::funcs::CheckAndUpdateSliceAttrs(
       in_dims, axes, &starts_local, &ends_local, &steps_local);
-  auto slice_dims = custom_kernel::GetSliceDims(
+  auto slice_dims = phi::funcs::GetSliceDims(
       in_dims, axes, starts_local, ends_local, &steps_local);
   auto decrease_slice_dims =
-      custom_kernel::GetDecreasedDims(slice_dims, decrease_axes);
+      phi::funcs::GetDecreasedDims(slice_dims, decrease_axes);
+
+  std::cout << "starts: ";
+  for (int i = 0; i < starts_local.size(); ++i) {
+    std::cout << starts_local[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "ends: ";
+  for (int i = 0; i < ends_local.size(); ++i) {
+    std::cout << ends_local[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "steps: ";
+  for (int i = 0; i < steps_local.size(); ++i) {
+    std::cout << steps_local[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "axes: ";
+  for (int i = 0; i < axes.size(); ++i) {
+    std::cout << axes[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "decrease_axes: ";
+  for (int i = 0; i < decrease_axes.size(); ++i) {
+    std::cout << decrease_axes[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "none_axes: ";
+  for (int i = 0; i < none_axes.size(); ++i) {
+    std::cout << none_axes[i] << " ";
+  }
+  std::cout << std::endl;
 
   auto slice_dims_for_assign = decrease_slice_dims;
   if (!none_axes.empty()) {
@@ -454,6 +344,13 @@ void SetTensorValueKernel(const Context& dev_ctx,
                         GetBasePtr(&index_temp),
                         indices_out_desc.get(),
                         GetBasePtr(&index_out));
+  std::vector<int64_t> h_idx_vec;
+  std::cout << "h_idx_vec: ";
+  TensorToVector(dev_ctx, index_out, dev_ctx, &h_idx_vec);
+  for (int i = 0; i < h_idx_vec.size(); ++i) {
+    std::cout << h_idx_vec[i] << " ";
+  }
+  std::cout << std::endl;
   PADDLE_ENFORCE_EQ(
       static_cast<int64_t>(phi::product(index_out.dims())),
       phi::product(slice_dims_for_assign),
@@ -466,7 +363,8 @@ void SetTensorValueKernel(const Context& dev_ctx,
   Update.Resize(val_temp.dims());
 
   if (in_temp.dtype() != DataType::INT64 &&
-      val_temp.dtype() != DataType::INT64) {
+      val_temp.dtype() != DataType::INT64 &&
+      in_temp.dtype() != DataType::BOOL && val_temp.dtype() != DataType::BOOL) {
     Ref = in_temp;
     Update = val_temp;
   } else {
@@ -476,8 +374,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
     MLUCnnlTensorDesc Ref_desc(Ref);
     MLUCnnlTensorDesc val_temp_desc(val_temp);
     MLUCnnlTensorDesc Update_desc(Update);
-    cnnlCastDataType_t cast_type =
-        GetCastDataType(DataType::INT64, DataType::INT32);
+    cnnlCastDataType_t cast_type = GetCastDataType(x.dtype(), DataType::INT32);
     MLUCnnl::Cast(dev_ctx,
                   cast_type,
                   in_temp_desc.get(),
@@ -508,18 +405,30 @@ void SetTensorValueKernel(const Context& dev_ctx,
                              GetBasePtr(&index_final),
                              mode);
   Ref.Resize(in_dims);
+  std::vector<T> h_ref_vec, h_update_vec;
+  TensorToVector(dev_ctx, Ref, dev_ctx, &h_ref_vec);
+  TensorToVector(dev_ctx, Update, dev_ctx, &h_update_vec);
+  std::cout << "h_ref_vec: ";
+  for (int i = 0; i < h_ref_vec.size(); ++i) {
+    std::cout << h_ref_vec[i] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "h_update_vec: ";
+  for (int i = 0; i < h_update_vec.size(); ++i) {
+    std::cout << h_update_vec[i] << " ";
+  }
+  std::cout << std::endl;
   // When input x and input value's dtype is int64,
   // cast ScatterRef output datatype from int32 to int64
   Tensor in_temp_out;
   in_temp_out.Resize(Ref.dims());
-  if (x.dtype() != DataType::INT64) {
+  if (x.dtype() != DataType::INT64 && x.dtype() != DataType::BOOL) {
     in_temp_out = Ref;
   } else {
-    dev_ctx.template Alloc<int64_t>(&in_temp_out);
+    dev_ctx.template Alloc<T>(&in_temp_out);
     MLUCnnlTensorDesc in_temp_desc(Ref);
     MLUCnnlTensorDesc in_temp_out_desc(in_temp_out);
-    cnnlCastDataType_t cast_type =
-        GetCastDataType(Ref.dtype(), DataType::INT64);
+    cnnlCastDataType_t cast_type = GetCastDataType(Ref.dtype(), x.dtype());
     MLUCnnl::Cast(dev_ctx,
                   cast_type,
                   in_temp_desc.get(),
@@ -528,6 +437,14 @@ void SetTensorValueKernel(const Context& dev_ctx,
                   GetBasePtr(&in_temp_out));
   }
   TensorCopy(dev_ctx, in_temp_out, false, out);
+
+  if (GetBasePtr(&x) != GetBasePtr(out)) {
+    // a workaround method to avoid output incorrection since the op creates a
+    // tensor while not using it in static graph.
+    std::cout << "print out." << std::endl;
+    auto x_rm_const = const_cast<phi::DenseTensor&>(x);
+    TensorCopy(dev_ctx, *out, false, &x_rm_const);
+  }
 }
 
 }  // namespace custom_kernel
@@ -541,4 +458,5 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           custom_kernel::SetTensorValueKernel,
                           float,
                           int,
+                          bool,
                           int64_t) {}

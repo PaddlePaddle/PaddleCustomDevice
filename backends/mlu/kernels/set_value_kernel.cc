@@ -208,37 +208,6 @@ void SetTensorValueKernel(const Context& dev_ctx,
   auto decrease_slice_dims =
       phi::funcs::GetDecreasedDims(slice_dims, decrease_axes);
 
-  std::cout << "starts: ";
-  for (int i = 0; i < starts_local.size(); ++i) {
-    std::cout << starts_local[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "ends: ";
-  for (int i = 0; i < ends_local.size(); ++i) {
-    std::cout << ends_local[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "steps: ";
-  for (int i = 0; i < steps_local.size(); ++i) {
-    std::cout << steps_local[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "axes: ";
-  for (int i = 0; i < axes.size(); ++i) {
-    std::cout << axes[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "decrease_axes: ";
-  for (int i = 0; i < decrease_axes.size(); ++i) {
-    std::cout << decrease_axes[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "none_axes: ";
-  for (int i = 0; i < none_axes.size(); ++i) {
-    std::cout << none_axes[i] << " ";
-  }
-  std::cout << std::endl;
-
   auto slice_dims_for_assign = decrease_slice_dims;
   if (!none_axes.empty()) {
     std::vector<int64_t> slice_dims_with_none;
@@ -344,13 +313,6 @@ void SetTensorValueKernel(const Context& dev_ctx,
                         GetBasePtr(&index_temp),
                         indices_out_desc.get(),
                         GetBasePtr(&index_out));
-  std::vector<int64_t> h_idx_vec;
-  std::cout << "h_idx_vec: ";
-  TensorToVector(dev_ctx, index_out, dev_ctx, &h_idx_vec);
-  for (int i = 0; i < h_idx_vec.size(); ++i) {
-    std::cout << h_idx_vec[i] << " ";
-  }
-  std::cout << std::endl;
   PADDLE_ENFORCE_EQ(
       static_cast<int64_t>(phi::product(index_out.dims())),
       phi::product(slice_dims_for_assign),
@@ -408,16 +370,7 @@ void SetTensorValueKernel(const Context& dev_ctx,
   std::vector<T> h_ref_vec, h_update_vec;
   TensorToVector(dev_ctx, Ref, dev_ctx, &h_ref_vec);
   TensorToVector(dev_ctx, Update, dev_ctx, &h_update_vec);
-  std::cout << "h_ref_vec: ";
-  for (int i = 0; i < h_ref_vec.size(); ++i) {
-    std::cout << h_ref_vec[i] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "h_update_vec: ";
-  for (int i = 0; i < h_update_vec.size(); ++i) {
-    std::cout << h_update_vec[i] << " ";
-  }
-  std::cout << std::endl;
+
   // When input x and input value's dtype is int64,
   // cast ScatterRef output datatype from int32 to int64
   Tensor in_temp_out;
@@ -441,7 +394,6 @@ void SetTensorValueKernel(const Context& dev_ctx,
   if (GetBasePtr(&x) != GetBasePtr(out)) {
     // a workaround method to avoid output incorrection since the op creates a
     // tensor while not using it in static graph.
-    std::cout << "print out." << std::endl;
     auto x_rm_const = const_cast<phi::DenseTensor&>(x);
     TensorCopy(dev_ctx, *out, false, &x_rm_const);
   }

@@ -367,9 +367,6 @@ void SetTensorValueKernel(const Context& dev_ctx,
                              GetBasePtr(&index_final),
                              mode);
   Ref.Resize(in_dims);
-  std::vector<T> h_ref_vec, h_update_vec;
-  TensorToVector(dev_ctx, Ref, dev_ctx, &h_ref_vec);
-  TensorToVector(dev_ctx, Update, dev_ctx, &h_update_vec);
 
   // When input x and input value's dtype is int64,
   // cast ScatterRef output datatype from int32 to int64

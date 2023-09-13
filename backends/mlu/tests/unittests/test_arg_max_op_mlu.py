@@ -356,7 +356,7 @@ class TestArgMaxAPI_3(unittest.TestCase):
             np.random.seed(2022)
             numpy_input = (np.random.random(self.dims)).astype(self.dtype)
             tensor_input = paddle.to_tensor(numpy_input)
-            numpy_output = np.argmax(numpy_input).reshape([1])
+            numpy_output = np.argmax(numpy_input)
             paddle_output = paddle.argmax(tensor_input)
             np.testing.assert_allclose(numpy_output, paddle_output.numpy(), rtol=1e-05)
             self.assertEqual(numpy_output.shape, paddle_output.numpy().shape)

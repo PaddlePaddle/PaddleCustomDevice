@@ -99,7 +99,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   transposePresentKNode.inTensorIds = {INTERMIDATE_PERMUTEDK};
   transposePresentKNode.outTensorIds = {INTERMIDATE_TRANSPOSEDK};
 
-  atb::infer::LinearParam bmmQKNodeParam = {false, true, false};
+  atb::infer::MatmulParam bmmQKNodeParam = {false, !param.transpose};
   CreateOp(bmmQKNodeParam, &bmmQKNode.op);
   bmmQKNode.inTensorIds = {INTERMIDATE_PERMUTEDQ, INTERMIDATE_TRANSPOSEDK};
   bmmQKNode.outTensorIds = {INTERMIDATE_BMMQKOUT};

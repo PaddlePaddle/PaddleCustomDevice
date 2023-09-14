@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #pragma once
-
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
 #include "atb/atb_infer.h"
 #include "atb_layer_base.h"
 #include "paddle/phi/extension.h"
@@ -32,6 +32,7 @@ class PpAtbLlaMaDecoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
   PpAtbLlaMaDecoderLayerParallelOp(const std::string &modelName, int32_t layerNum);
   ~PpAtbLlaMaDecoderLayerParallelOp();
+  phi::DenseTensor layerIdTensor;
 
 private:
   void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
@@ -43,7 +44,6 @@ private:
 
   int32_t layerCount_;
   uint64_t executeCount_ = 0;
-  std::vector<phi::DenseTensor> layerIdTensor;
 };
 
 class PpAtbLlaMaEncoderLayerParallelOp : public PpAscendAtbOpBase {
@@ -58,3 +58,4 @@ private:
   int32_t layerCount_;
   uint64_t executeCount_ = 0;
 };
+#endif

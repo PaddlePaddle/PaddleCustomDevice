@@ -17,18 +17,13 @@
 
 #include <atb/atb_infer.h>
 
-struct LlamaSelfAttentionParam {
-    bool transKey = false;
-    int64_t dk = 0;
+struct llamaPositionEmbedding1DSplitFusionParam {
     int64_t headNum = 0;
-    int64_t layerId = 0;
-    float preScale = 0;
-    float postScale = 0;
-    int64_t numHeadsPerPartition = 0;
-    int64_t hiddenSizePerHead = 0;
-    int64_t numGroupsPerPartition = 0;
-    bool transpose = true;
+    int64_t rmsNormEps = 0;
+    int64_t dk = 0;
     std::string model = "llama7b";
+    int64_t rotaryCoeff = 2;
 };
 
-atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &param, atb::Operation **operation);
+atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositionEmbedding1DSplitFusionParam &param, atb::Operation **operation);
+

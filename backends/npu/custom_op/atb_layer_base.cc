@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
 #include <acl/acl.h>
 #include "atb_layer_base.h"
 #include "kernels/funcs/format_utils.h"
@@ -85,3 +85,4 @@ PpAscendAtbOpBase::PpAscendAtbOpBase(const std::string &opName)
 }
 
 PpAscendAtbOpBase::~PpAscendAtbOpBase() {}
+#endif

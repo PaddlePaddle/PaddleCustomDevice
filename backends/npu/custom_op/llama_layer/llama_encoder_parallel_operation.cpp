@@ -16,7 +16,7 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_operation.h"
 #include "llama_self_attention_operation.h"
-#include "llamalayer_encoder_parallel_operation.h"
+#include "llama_encoder_parallel_operation.h"
 
 enum LLaMALayerEncoderParallelTensorId
 {
@@ -167,8 +167,7 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   selfOutLinearParallelParam.bias = "None";
   selfOutLinearParallelParam.parallelType = "RowParallel";
   selfOutLinearParallelParam.backend = "hccl";
-  selfOutLinearParallelParam.useCommExt = param.useCommExt;
-  selfOutLinearParallelParam.commExt = param.commExt;
+  selfOutLinearParallelParam.hcclComm = param.hcclComm;
   CreateOp(selfOutLinearParallelParam, &selfOutLinearParallelNode.op);
   selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT, IN_SELFOUTLINEARWEIGHT};
   selfOutLinearParallelNode.outTensorIds = {INTERMIDATE_SELFLINEAROUT};
@@ -207,8 +206,7 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   mlpLinearParallelParam.bias = "None";
   mlpLinearParallelParam.parallelType = "RowParallel";
   mlpLinearParallelParam.backend = "hccl";
-  mlpLinearParallelParam.useCommExt = param.useCommExt;
-  mlpLinearParallelParam.commExt = param.commExt;
+  mlpLinearParallelParam.hcclComm = param.hcclComm;
   CreateOp(mlpLinearParallelParam, &mlpLinearParallelNode.op);
   mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT, IN_MLPDOWNWEIGHT};
   mlpLinearParallelNode.outTensorIds = {INTERMIDATE_MLPLINEARPARALLELOUT};

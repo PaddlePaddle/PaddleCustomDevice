@@ -25,8 +25,7 @@ struct LlamaLayerEncoderParallelParam {
   int rank = 0;
   int rankSize = 1;
   std::string model = "llama7b";
-  bool useCommExt = false;
-  void *commExt = nullptr; // only effect when useCommExt is true
+  void *hcclComm = nullptr; // only effect when hcclComm is not null
 };
 
 atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderParallelParam &param,

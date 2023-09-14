@@ -21,7 +21,7 @@ if(DEFINED ENV{PADDLE_CUSTOM_PATH})
 else()
   execute_process(
     COMMAND
-      "${Python_EXECUTABLE}" "-c"
+      "env" "CUSTOM_DEVICE_ROOT=\"\"" "${Python_EXECUTABLE}" "-c"
       "import re, paddle; print(re.compile('/__init__.py.*').sub('',paddle.__file__))"
     OUTPUT_VARIABLE PADDLE_DIR
     OUTPUT_STRIP_TRAILING_WHITESPACE)

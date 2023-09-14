@@ -16,18 +16,16 @@
 #pragma once
 
 #include <atb/atb_infer.h>
+#include <atb/svector.h>
 
-struct LlamaSelfAttentionParam {
-    bool transKey = false;
-    int64_t dk = 0;
-    int64_t headNum = 0;
-    int64_t layerId = 0;
-    float preScale = 0;
-    float postScale = 0;
-    int64_t numHeadsPerPartition = 0;
-    int64_t hiddenSizePerHead = 0;
-    int64_t numGroupsPerPartition = 0;
-    bool transpose = true;
+struct LlamaLayerEncoderParallelParam {
+  float rmsNormEps = 0;
+  int headNum = 0;
+  int dk = 0;
+  int rank = 0;
+  int rankSize = 1;
+  void *hcclComm = nullptr; // only effect when hcclComm is not null
 };
 
-atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &param, atb::Operation **operation);
+atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderParallelParam &param,
+                                                     atb::Operation **operation);

@@ -16,18 +16,13 @@
 #pragma once
 
 #include <atb/atb_infer.h>
-#include <atb/svector.h>
 
-struct LlamaLayerEncoderParallelParam {
-  float rmsNormEps = 0;
-  int headNum = 0;
-  int dk = 0;
-  int rank = 0;
-  int rankSize = 1;
-  std::string model = "llama7b";
-  bool useCommExt = false;
-  void *commExt = nullptr; // only effect when useCommExt is true
+struct llamaPositionEmbedding1DSplitFusionParam {
+    int64_t headNum = 0;
+    int64_t rmsNormEps = 0;
+    int64_t dk = 0;
+    int64_t rotaryCoeff = 2;
 };
 
-atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderParallelParam &param,
-                                                     atb::Operation **operation);
+atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositionEmbedding1DSplitFusionParam &param, atb::Operation **operation);
+

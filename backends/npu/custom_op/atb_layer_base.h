@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #pragma once
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
 #include <acl/acl.h>
 #include "atb/atb_infer.h"
 #include "paddle/extension.h"
@@ -46,3 +47,4 @@ private:
   aclrtStream stream_;
 
 };
+#endif

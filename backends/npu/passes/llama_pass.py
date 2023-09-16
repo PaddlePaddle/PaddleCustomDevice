@@ -342,7 +342,7 @@ def llama_fuse_attention_parallel_layer():
             SinTable=sin, 
             AttentionMask=reshape_v_tmp
         )
-        outs_name = [paddle.fluid.unique_name.generate('llama_encoder_layer_parallel') for i in range(3)] # 3 outputs
+        outs_name = [paddle.base.unique_name.generate('llama_encoder_layer_parallel') for i in range(3)] # 3 outputs
         print(outs_name)
         llama_encoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
         llama_encoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
@@ -426,7 +426,7 @@ def llama_fuse_attention_cached_parallel_layer():
             CacheK=cache_k,
             CacheV=cache_v
         )
-        outs_name = [paddle.fluid.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
+        outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
         print(outs_name)
         llama_decoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
         llama_decoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
@@ -515,6 +515,45 @@ def llama_fuse_attention_dynamic_layer2():
 
     return pattern, replace
 
+# dynamic batch 8mp decoder
+def llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+    llama_decoder_layer_parallel_op = ir.PassDesc.OP.llama_decoder_layer_parallel
+    llama_decoder_layer_parallel_op._outputs = {}
+    llama_decoder_layer_parallel_op(
+            Hidden=lookup,
+            NormWeight=in_scale,
+            QKVMixWeight=qkv_weight,
+            SelfOutLinearWeight=proj_weight,
+            SelfOutNormWeight=ffn_in_scale,
+            MlpGateWeight=ffn1_weight,
+            MlpDownWeight=ffn2_weight,
+            MlpUpWeight=ffn1_weight,
+            PositionIDs=sequence_l,
+            CosTable=rotary_t,
+            SinTable=rotary_t,
+            AttentionMask=mask,
+            SeqLength=sequence_l,
+            CacheK=cache_kvs,
+            CacheV=cache_kvs
+    )
+
+    outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
+    print(outs_name)
+    llama_decoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
+    llama_decoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
+    llama_decoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
+
+    llama_decoder_layer_parallel_op.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
+    # llama_decoder_layer_parallel_op.Attr("headDim").MappedPattern(op="qkv_transpose_split", name="head_size", index=0) # [0, 0, head_num, head_dim]
+    # llama_decoder_layer_parallel_op.Attr("headNum").MappedPattern(op="qkv_transpose_split", name="num_head", index=0) # [0, 0, head_num, head_dim]
+    # llama_encoder_layer_parallel_op.Attr("dk").MappedPattern(op="reshape2", name="shape", index=0)
+
+    block = paddle.static.default_main_program().current_block()
+    results = []
+    for out in outs_name:
+        results.append(block.create_var(name=out))
+    return results[0], results[1], results[2]
+
 @ir.RegisterPass
 def llama_fuse_attention_dynamic_parallel_layer1():
     def pattern(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
@@ -532,21 +571,8 @@ def llama_fuse_attention_dynamic_parallel_layer1():
         return ffn_rms_norm.Output("residual_out")[0], allreduce_sum2, attention_.Output("cache_kv_out")[0]
         
     def replace(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
-        # stub 
-        result = ir.PassDesc.OP.llama_cached_layer(
-            in_scale=in_scale, 
-            rms_norm_residual=lookup, 
-            matmul_=lookup, 
-            qkv_weight=qkv_weight, 
-            cache_kvs=cache_kvs, 
-            rotary_t=rotary_t, 
-            sequence_l=sequence_l, 
-            mask=mask, 
-            proj_weight=proj_weight, 
-            ffn_in_scale=ffn_in_scale, 
-            ffn1_weight=ffn1_weight, 
-            ffn2_weight=ffn2_weight)
-        return result.Output("norm_out")[0], result.Output("norm_residual")[0], result.Output("cached_kv")[0]
+        result = llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+        return result[0], result[1], result[2]
 
     return pattern, replace
 
@@ -567,24 +593,45 @@ def llama_fuse_attention_dynamic_parallel_layer2():
         return ffn_rms_norm.Output("residual_out")[0], allreduce_sum2, attention_.Output("cache_kv_out")[0]
         
     def replace(in_scale, rms_norm_residual, matmul_, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
-        # stub 
-        result = ir.PassDesc.OP.llama_cached_layer(
-            in_scale=in_scale, 
-            rms_norm_residual=rms_norm_residual, 
-            matmul_=matmul_, 
-            qkv_weight=qkv_weight, 
-            cache_kvs=cache_kvs, 
-            rotary_t=rotary_t, 
-            sequence_l=sequence_l, 
-            mask=mask, 
-            proj_weight=proj_weight, 
-            ffn_in_scale=ffn_in_scale, 
-            ffn1_weight=ffn1_weight, 
-            ffn2_weight=ffn2_weight)
-        return result.Output("norm_out")[0], result.Output("norm_residual")[0], result.Output("cached_kv")[0]
+        result = llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+        return result[0], result[1], result[2]
 
     return pattern, replace
 
+# dynamic batch 8mp encoder
+def llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+    llama_encoder_layer_parallel_op = ir.PassDesc.OP.llama_encoder_layer_parallel
+    llama_encoder_layer_parallel_op._outputs = {}
+    llama_encoder_layer_parallel_op(
+            Hidden=x,
+            NormWeight=ln_scale,
+            QKVMixWeight=qkv_weight,
+            SelfOutLinearWeight=out_proj_weight,
+            SelfOutNormWeight=ffn_in_scale,
+            MlpGateWeight=ffn1_weight,
+            MlpDownWeight=ffn2_weight,
+            MlpUpWeight=ffn1_weight,
+            PositionIDs=input_ids,
+            CosTable=rotary_emb,
+            SinTable=rotary_emb,
+            AttentionMask=mask
+    )
+    outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
+    print(outs_name)
+    llama_encoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
+    llama_encoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
+    llama_encoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
+
+    llama_encoder_layer_parallel_op.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
+    llama_encoder_layer_parallel_op.Attr("headDim").MappedPattern(op="qkv_transpose_split", name="head_size", index=0) # [0, 0, head_num, head_dim]
+    llama_encoder_layer_parallel_op.Attr("headNum").MappedPattern(op="qkv_transpose_split", name="num_head", index=0) # [0, 0, head_num, head_dim]
+    # llama_encoder_layer_parallel_op.Attr("dk").MappedPattern(op="reshape2", name="shape", index=0)
+
+    block = paddle.static.default_main_program().current_block()
+    results = []
+    for out in outs_name:
+        results.append(block.create_var(name=out))
+    return results[0], results[1], results[2]
 
 @ir.RegisterPass
 def llama_fuse_attention_dynamic_parallel_layer():
@@ -618,6 +665,16 @@ def llama_fuse_attention_dynamic_parallel_layer():
         return write_cache_kv, q, k, v, hidden, residual_out, rotary_kv_out, rotary_q_out
         
     def replace(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        # llama_layer = llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+
+        # return (llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0])
         llama_layer = ir.PassDesc.OP.llama_layer(
             x=x,
             residual=residual,
@@ -679,6 +736,16 @@ def llama_fuse_attention_dynamic_first_parallel_layer():
         return write_cache_kv, q, k, v, hidden, residual_out, rotary_kv_out, rotary_q_out
         
     def replace(x, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        # llama_layer = llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+
+        # return (llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0],
+        #     llama_layer[0])
         llama_layer = ir.PassDesc.OP.llama_layer(
             x=x,
             residual=x,

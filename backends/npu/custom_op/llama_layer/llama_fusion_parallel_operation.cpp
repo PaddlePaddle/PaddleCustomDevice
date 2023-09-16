@@ -19,10 +19,10 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 16;
+static const uint64_t IN_TENSOR_COUNT = 17;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 12;
-static const uint64_t NODE_COUNT = 10;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 14;
+static const uint64_t NODE_COUNT = 12;
 
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,
                                                         atb::Operation **operation)
@@ -35,9 +35,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     size_t nodeId = 0;
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &mixdQLinearNode = opGraph.nodes.at(nodeId++);
-    atb::Node &mixdKLinearNode = opGraph.nodes.at(nodeId++);
-    atb::Node &mixdVLinearNode = opGraph.nodes.at(nodeId++);
+    atb::Node &mixdQKVLinearNode  = opGraph.nodes.at(nodeId++);
     atb::Node &castCosNode = opGraph.nodes.at(nodeId++);
     atb::Node &castSinNode = opGraph.nodes.at(nodeId++);
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
@@ -56,29 +54,11 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
 
-    atb::infer::LinearParam mixdQLinearParam;
-    mixdQLinearParam.transposeA = false;
-    mixdQLinearParam.transposeB = true;
-    mixdQLinearParam.hasBias = false;
-    CreateOp(mixdQLinearParam, &mixdQLinearNode.op);
-    mixdQLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QMIXDWEIGHT};
-    mixdQLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ};
-
-    atb::infer::LinearParam mixdKLinearParam;
-    mixdKLinearParam.transposeA = false;
-    mixdKLinearParam.transposeB = true;
-    mixdKLinearParam.hasBias = false;
-    CreateOp(mixdKLinearParam, &mixdKLinearNode.op);
-    mixdKLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_KMIXDWEIGHT};
-    mixdKLinearNode.outTensorIds = {INTERMIDATE_MIXEDK};
-
-    atb::infer::LinearParam mixdVLinearParam;
-    mixdVLinearParam.transposeA = false;
-    mixdVLinearParam.transposeB = true;
-    mixdVLinearParam.hasBias = false;
-    CreateOp(mixdVLinearParam, &mixdVLinearNode.op);
-    mixdVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_VMIXDWEIGHT};
-    mixdVLinearNode.outTensorIds = {INTERMIDATE_MIXEDV};
+    MultiLayerLinearParam multiLayerLinearParam;
+    multiLayerLinearParam.transpose = param.transpose;
+    CreateLlamaMultiLayerLinearOperation(multiLayerLinearParam, &mixdQKVLinearNode.op);
+    mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT};
+    mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
     atb::infer::ElewiseParam castCosParam;
     castCosParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;

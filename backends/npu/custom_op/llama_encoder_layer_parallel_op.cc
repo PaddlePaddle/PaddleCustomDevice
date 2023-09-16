@@ -26,9 +26,7 @@ static uint64_t executeCount_ = 0;
 void PerpareLlaMaEncoderLayerInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &q_mix_weight,
-    const paddle::Tensor &k_mix_weight,
-    const paddle::Tensor &v_mix_weight,
+    const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
     const paddle::Tensor &mlp_gate_weight,
@@ -42,9 +40,7 @@ void PerpareLlaMaEncoderLayerInputs(
 
   auto hidden_tensor = static_cast<const phi::DenseTensor *>(hidden.impl().get());
   auto norm_weight_tensor = static_cast<const phi::DenseTensor *>(norm_weight.impl().get());
-  auto q_mix_weight_tensor = static_cast<const phi::DenseTensor *>(q_mix_weight.impl().get());
-  auto k_mix_weight_tensor = static_cast<const phi::DenseTensor *>(k_mix_weight.impl().get());
-  auto v_mix_weight_tensor = static_cast<const phi::DenseTensor *>(v_mix_weight.impl().get());
+  auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
   auto self_out_linear_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_weight.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
   auto mlp_gate_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_gate_weight.impl().get());
@@ -57,9 +53,7 @@ void PerpareLlaMaEncoderLayerInputs(
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
-  inputs.push_back(q_mix_weight_tensor);
-  inputs.push_back(k_mix_weight_tensor);
-  inputs.push_back(v_mix_weight_tensor);
+  inputs.push_back(qkv_mix_weight_tensor);
   inputs.push_back(self_out_linear_weight_tensor);
   inputs.push_back(self_out_norm_weight_tensor);
   inputs.push_back(mlp_gate_weight_tensor);
@@ -81,9 +75,7 @@ PpAtbLlaMaEncoderLayerParallelOp::~PpAtbLlaMaEncoderLayerParallelOp() {}
 std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &q_mix_weight,
-    const paddle::Tensor &k_mix_weight,
-    const paddle::Tensor &v_mix_weight,
+    const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
     const paddle::Tensor &mlp_gate_weight,
@@ -94,12 +86,13 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
     const paddle::Tensor &sin_table,
     const paddle::Tensor &attention_mask,
     float rmsNormEps,
-    std::vector<int32_t> shape) {
+    int headDim,
+    int headNum) {
 
   // int32_t layer_num = 80; /* TODO:65B，写死8卡 */
   int32_t layer_num = 32; /* TODO:7B，写死8卡 */
-  int32_t head_num = shape[2];
-  int32_t head_dim = shape[3];
+  int32_t head_num = headNum;
+  int32_t head_dim = headDim;
 
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(hidden.place()));
@@ -160,9 +153,7 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
   std::vector<const phi::DenseTensor *> inputs;
   PerpareLlaMaEncoderLayerInputs(hidden,
                                  norm_weight,
-                                 q_mix_weight,
-                                 k_mix_weight,
-                                 v_mix_weight,
+                                 qkv_mix_weight,
                                  self_out_linear_weight,
                                  self_out_norm_weight,
                                  mlp_gate_weight,
@@ -189,9 +180,7 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
 std::vector<std::vector<int64_t>> LlaMaEncoderLayerOpInferShape(
     const std::vector<int64_t> &hidden_shape,
     const std::vector<int64_t> &norm_weight_shape,
-    const std::vector<int64_t> &q_mix_weight_shape,
-    const std::vector<int64_t> &k_mix_weight_shape,
-    const std::vector<int64_t> &v_mix_weight_shape,
+    const std::vector<int64_t> &qkv_mix_weight_shape,
     const std::vector<int64_t> &self_out_linear_weight_shape,
     const std::vector<int64_t> &self_out_norm_weight_shape,
     const std::vector<int64_t> &mlp_gate_weight_shape,
@@ -202,10 +191,11 @@ std::vector<std::vector<int64_t>> LlaMaEncoderLayerOpInferShape(
     const std::vector<int64_t> &sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
     float rmsNormEps,
-	  std::vector<int32_t> shape) {
+	  int headDim,
+    int headNum) {
 
-  int32_t head_num = shape[2]; /* TODO:64个，写死8卡 */
-  int32_t head_dim = shape[3];
+  int32_t head_num = headNum; /* TODO:64个，写死8卡 */
+  int32_t head_dim = headDim;
 
   std::vector<int64_t> key_shape; /* [bs, seq_len, hidden_size] */
   std::vector<int64_t> value_shape; /* [bs, seq_len, hidden_size] */
@@ -224,9 +214,7 @@ std::vector<std::vector<int64_t>> LlaMaEncoderLayerOpInferShape(
 PD_BUILD_OP(llama_encoder_layer_parallel)
     .Inputs({"Hidden",
              "NormWeight",
-             "QMixWeight",
-             "KMixWeight",
-             "VMixWeight",
+             "QKVMixWeight",
              "SelfOutLinearWeight",
              "SelfOutNormWeight",
              "MlpGateWeight",
@@ -238,7 +226,8 @@ PD_BUILD_OP(llama_encoder_layer_parallel)
              "AttentionMask"})
     .Outputs({"Out", "PresentKey", "PresentValue"})
     .Attrs({"rmsNormEps: float",
-            "shape: std::vector<int>"})
+            "headDim: int",
+            "headNum: int"})
             // "headnum: float",
             // "shape: std::vector<int>",
             // "scale: float"})

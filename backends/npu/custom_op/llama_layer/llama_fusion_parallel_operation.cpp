@@ -19,9 +19,9 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 17;
+static const uint64_t IN_TENSOR_COUNT = 15;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 14;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 16;
 static const uint64_t NODE_COUNT = 12;
 
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,
@@ -36,9 +36,9 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     size_t nodeId = 0;
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mixdQKVLinearNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &castCosNode = opGraph.nodes.at(nodeId++);
-    atb::Node &castSinNode = opGraph.nodes.at(nodeId++);
+    atb::Node &cosSinSplitNode = opGraph.nodes.at(nodeId++);
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
+    atb::Node &cacheKVSplitNode = opGraph.nodes.at(nodeId++);
     atb::Node &selfAttentionKvCacheNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfOutLinearParallelNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfResidualAddNode  = opGraph.nodes.at(nodeId++);
@@ -60,17 +60,10 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT};
     mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
-    atb::infer::ElewiseParam castCosParam;
-    castCosParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-    CreateOp(castCosParam, &castCosNode.op);
-    castCosNode.inTensorIds = {IN_COSTABLE};
-    castCosNode.outTensorIds = {INTERMIDATE_CASTCOS};
-
-    atb::infer::ElewiseParam castSinParam;
-    castSinParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-    CreateOp(castSinParam, &castSinNode.op);
-    castSinNode.inTensorIds = {IN_SINTABLE};
-    castSinNode.outTensorIds = {INTERMIDATE_CASTSIN};
+    atb::infer::SplitParam splitParam = {0, 2};
+    CreateOp(splitParam, &cosSinSplitNode.op);
+    cosSinSplitNode.inTensorIds = {IN_COS_SIN_TABLE};
+    cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
 
     llamaPositionEmbedding1DSplitFusionParam positionEmbedding1dFusionParam;
     positionEmbedding1dFusionParam.headNum = param.headNum;
@@ -89,6 +82,25 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
     };
+    ropeNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 4; // dimNum: 4
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[3];
+        newShape.dims[3] = oldShape.dims[4];
+    };
+    ropeNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 4; // dimNum: 4
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[3];
+        newShape.dims[3] = oldShape.dims[4];
+    };
+
+    atb::infer::SplitParam splitKVParam = {0, 2};
+    CreateOp(splitKVParam, &cacheKVSplitNode.op);
+    cacheKVSplitNode.inTensorIds = {IN_CACHE_KV};
+    cacheKVSplitNode.outTensorIds = {INTERMIDATE_CACHEK, INTERMIDATE_CACHEV};
 
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
     selfAttentionKvCacheParam.headDim = param.headDim;
@@ -98,8 +110,8 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
                                             INTERMIDATE_POSITIONEMBEDK,
                                             INTERMIDATE_MIXEDV,
-                                            IN_CACHEK,
-                                            IN_CACHEV,
+                                            INTERMIDATE_CACHEK,
+                                            INTERMIDATE_CACHEV,
                                             IN_ATTENTIONMASK,
                                             IN_TOKENOFFSET,
                                             IN_SEQLEN,
@@ -126,6 +138,20 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         newShape.dims[1] = oldShape.dims[1];
         newShape.dims[2] = param.headNum;
         newShape.dims[3] = oldShape.dims[2] / param.headNum;
+    };
+    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 4; // dimNum: 4
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[3];
+        newShape.dims[3] = oldShape.dims[4];
+    };
+    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 4; // dimNum: 4
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[3];
+        newShape.dims[3] = oldShape.dims[4];
     };
 
     atb::infer::LinearParallelParam selfOutLinearParallelParam;

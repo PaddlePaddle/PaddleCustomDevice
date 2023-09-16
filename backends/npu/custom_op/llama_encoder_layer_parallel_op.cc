@@ -33,8 +33,7 @@ void PerpareLlaMaEncoderLayerInputs(
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_table,
-    const paddle::Tensor &sin_table,
+    const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask,
     std::vector<const phi::DenseTensor *> &inputs) {
 
@@ -47,8 +46,7 @@ void PerpareLlaMaEncoderLayerInputs(
   auto mlp_down_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_down_weight.impl().get());
   auto mlp_up_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_up_weight.impl().get());
   auto positionIDs_tensor = static_cast<const phi::DenseTensor *>(positionIDs.impl().get());
-  auto cos_table_tensor = static_cast<const phi::DenseTensor *>(cos_table.impl().get());
-  auto sin_table_tensor = static_cast<const phi::DenseTensor *>(sin_table.impl().get());
+  auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
 
   inputs.push_back(hidden_tensor);
@@ -60,8 +58,7 @@ void PerpareLlaMaEncoderLayerInputs(
   inputs.push_back(mlp_down_weight_tensor);
   inputs.push_back(mlp_up_weight_tensor);
   inputs.push_back(positionIDs_tensor);
-  inputs.push_back(cos_table_tensor);
-  inputs.push_back(sin_table_tensor);
+  inputs.push_back(cos_sin_table_tensor);
   inputs.push_back(attention_mask_tensor);
 }
 
@@ -82,8 +79,7 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_table,
-    const paddle::Tensor &sin_table,
+    const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask,
     float rmsNormEps,
     int headDim,
@@ -160,8 +156,7 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
                                  mlp_down_weight,
                                  mlp_up_weight,
                                  positionIDs,
-                                 cos_table,
-                                 sin_table,
+                                 cos_sin_table,
                                  attention_mask,
                                  inputs);
 
@@ -187,8 +182,7 @@ std::vector<std::vector<int64_t>> LlaMaEncoderLayerOpInferShape(
     const std::vector<int64_t> &mlp_down_weight_shape,
     const std::vector<int64_t> &mlp_up_weight_shape,
     const std::vector<int64_t> &positionIDs_shape,
-    const std::vector<int64_t> &cos_table_shape,
-    const std::vector<int64_t> &sin_table_shape,
+    const std::vector<int64_t> &cos_sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
     float rmsNormEps,
 	  int headDim,
@@ -221,8 +215,7 @@ PD_BUILD_OP(llama_encoder_layer_parallel)
              "MlpDownWeight",
              "MlpUpWeight",
              "PositionIDs",
-             "CosTable",
-             "SinTable",
+             "CosSinTable",
              "AttentionMask"})
     .Outputs({"Out", "PresentKey", "PresentValue"})
     .Attrs({"rmsNormEps: float",

@@ -45,11 +45,9 @@ void PerpareLlaMaDecoderLayerInputs(
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_table,
-    const paddle::Tensor &sin_table,
+    const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask,
-    const paddle::Tensor &past_key,
-    const paddle::Tensor &past_value,
+    const paddle::Tensor &cache_key_value,
     const paddle::Tensor &kv_seq_len,
     phi::DenseTensor &q_seq_len_dense,
     phi::DenseTensor &layer_id_dense,
@@ -64,11 +62,9 @@ void PerpareLlaMaDecoderLayerInputs(
   auto mlp_down_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_down_weight.impl().get());
   auto mlp_up_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_up_weight.impl().get());
   auto positionIDs_tensor = static_cast<const phi::DenseTensor *>(positionIDs.impl().get());
-  auto cos_table_tensor = static_cast<const phi::DenseTensor *>(cos_table.impl().get());
-  auto sin_table_tensor = static_cast<const phi::DenseTensor *>(sin_table.impl().get());
+  auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
-  auto past_key_tensor = static_cast<const phi::DenseTensor *>(past_key.impl().get());
-  auto past_value_tensor = static_cast<const phi::DenseTensor *>(past_value.impl().get());
+  auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto kv_seq_len_tensor = static_cast<const phi::DenseTensor *>(kv_seq_len.impl().get());
 
   inputs.push_back(hidden_tensor);
@@ -80,11 +76,9 @@ void PerpareLlaMaDecoderLayerInputs(
   inputs.push_back(mlp_down_weight_tensor);
   inputs.push_back(mlp_up_weight_tensor);
   inputs.push_back(positionIDs_tensor);
-  inputs.push_back(cos_table_tensor);
-  inputs.push_back(sin_table_tensor);
+  inputs.push_back(cos_sin_table_tensor);
   inputs.push_back(attention_mask_tensor);
-  inputs.push_back(past_key_tensor);
-  inputs.push_back(past_value_tensor);
+  inputs.push_back(cache_key_value_tensor);
   inputs.push_back(kv_seq_len_tensor);
   inputs.push_back(&q_seq_len_dense);
   inputs.push_back(&layer_id_dense);
@@ -141,18 +135,17 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_table,
-    const paddle::Tensor &sin_table,
+    const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask, // TODO:待确认attention mask是否符合加速库
+    const paddle::Tensor &cache_key_value,
     const paddle::Tensor &kv_seq_len,
-    const paddle::Tensor &past_key,
-    const paddle::Tensor &past_value,
+
     float rmsNormEps,
     int headDim,
     int headNum) {
 
-  int32_t batch_size = past_key.shape().at(0);
-  int32_t org_seq_len = past_key.shape().at(1);
+  int32_t batch_size = hidden.shape().at(0);
+
   // int32_t layer_num = 80; /* TODO:65B，写死8卡 */
   // int32_t head_num = 8;
   // int32_t head_dim = 128;
@@ -225,11 +218,9 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                  mlp_down_weight,
                                  mlp_up_weight,
                                  positionIDs,
-                                 cos_table,
-                                 sin_table,
+                                 cos_sin_table,
                                  attention_mask,
-                                 past_key,
-                                 past_value,
+                                 cache_key_value,
                                  kv_seq_len, // token offset即kv_seq_len
                                  g_atbSeqLen.q_seq_len_tensor, // 增量q_seq_len，始终为1
                                  g_llaMaDecoderLayerParallelOp->layerIdTensor,
@@ -242,7 +233,7 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     int ret = aclrtSynchronizeStream(stream);
   }
 
-  return {paddle::Tensor(layerout_tensor), past_key, past_value}; // TODO:待确认past_key返回
+  return {paddle::Tensor(layerout_tensor), cache_key_value}; // TODO:待确认past_key返回
 }
 
 std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
@@ -257,13 +248,12 @@ std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
     const std::vector<int64_t> &mlp_down_weight_shape,
     const std::vector<int64_t> &mlp_up_weight_shape,
     const std::vector<int64_t> &positionIDs_shape,
-    const std::vector<int64_t> &cos_table_shape,
-    const std::vector<int64_t> &sin_table_shape,
+    const std::vector<int64_t> &cos_sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
-    const std::vector<int64_t> &past_key_shape,
-    const std::vector<int64_t> &past_value_shape) {
+    const std::vector<int64_t> &cacheKV_shape,
+    const std::vector<int64_t> &seq_len_shape) {
 
-  return {hidden_shape, past_key_shape, past_value_shape};
+  return {hidden_shape, cacheKV_shape};
 }
 
 PD_BUILD_OP(llama_decoder_layer_parallel)
@@ -276,12 +266,10 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "MlpDownWeight",
              "MlpUpWeight",
              "PositionIDs",
-             "CosTable",
-             "SinTable",
+             "CosSinTable",
              "AttentionMask",
-             "SeqLength",
-             "CacheK",
-             "CacheV"})
+             "Cache_KV",
+             "SeqLength"})
     .Outputs({"Out", "PresentKey", "PresentValue"})
     .Attrs({"rmsNormEps: float",
             "headDim: int",

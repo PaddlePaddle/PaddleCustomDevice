@@ -30,8 +30,7 @@ enum LLaMALayerEncoderParallelTensorId
   IN_MLPDOWNWEIGHT,
   IN_MLPUPWEIGHT,
   IN_POSITIONIDS,
-  IN_COSTABLE,
-  IN_SINTABLE,
+  IN_COS_SIN_TABLE,
   IN_ATTENTIONMASK,
   OUT_LLAMALAYEROUT,
   OUT_PRESENTKEY,
@@ -52,10 +51,10 @@ enum LLaMALayerEncoderParallelTensorId
   INTERMIDATE_MLPLINEARPARALLELOUT,
 };
 
-static const uint64_t IN_TENSOR_COUNT = 12;
+static const uint64_t IN_TENSOR_COUNT = 11;
 static const uint64_t OUT_TENSOR_COUNT = 3;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 14;
-static const uint64_t NODE_COUNT = 13;
+static const uint64_t NODE_COUNT = 12;
 
 atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderParallelParam &param,
                                                      atb::Operation **operation)
@@ -69,8 +68,7 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   size_t nodeId = 0;
   atb::Node &inputNormNode = opGraph.nodes.at(nodeId++);
   atb::Node &mixdQKVLinearNode = opGraph.nodes.at(nodeId++);
-  atb::Node &castCosNode = opGraph.nodes.at(nodeId++);
-  atb::Node &castSinNode = opGraph.nodes.at(nodeId++);
+  atb::Node &cosSinSplitNode = opGraph.nodes.at(nodeId++);
   atb::Node &qPositionEmbeddingNode = opGraph.nodes.at(nodeId++);
   atb::Node &kPositionEmbeddingNode = opGraph.nodes.at(nodeId++);
   atb::Node &selfAttentionNode = opGraph.nodes.at(nodeId++);
@@ -95,17 +93,10 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT};
   mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
-  atb::infer::ElewiseParam castCosParam;
-  castCosParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-  CreateOp(castCosParam, &castCosNode.op);
-  castCosNode.inTensorIds = {IN_COSTABLE};
-  castCosNode.outTensorIds = {INTERMIDATE_CASTCOS};
-
-  atb::infer::ElewiseParam castSinParam;
-  castSinParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-  CreateOp(castSinParam, &castSinNode.op);
-  castSinNode.inTensorIds = {IN_SINTABLE};
-  castSinNode.outTensorIds = {INTERMIDATE_CASTSIN};
+  atb::infer::SplitParam splitParam = {0, 2};
+  CreateOp(splitParam, &cosSinSplitNode.op);
+  cosSinSplitNode.inTensorIds = {IN_COS_SIN_TABLE};
+  cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
 
   // [bs, sq_len, head_num_per_card * head_dim] -> out: [seq_len, bs, head_num_per_card, head_dim]
   LlamaPositionEmbedding1DSplitParam positionEmbedding1dSplitQParam;
@@ -113,12 +104,40 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   CreateLlamaPositionEmbedding1DSplitOperation(positionEmbedding1dSplitQParam, &qPositionEmbeddingNode.op);
   qPositionEmbeddingNode.inTensorIds = {INTERMIDATE_MIXEDQ, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
   qPositionEmbeddingNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ};
+  qPositionEmbeddingNode.inTensorReshapeFuncs.at(2) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+      newShape.dimNum = 4; // dimNum: 4
+      newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+      newShape.dims[1] = oldShape.dims[2];
+      newShape.dims[2] = oldShape.dims[3];
+      newShape.dims[3] = oldShape.dims[4];
+  };
+  qPositionEmbeddingNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+      newShape.dimNum = 4; // dimNum: 4
+      newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+      newShape.dims[1] = oldShape.dims[2];
+      newShape.dims[2] = oldShape.dims[3];
+      newShape.dims[3] = oldShape.dims[4];
+  };
 
   LlamaPositionEmbedding1DSplitParam positionEmbedding1dSplitKParam;
   positionEmbedding1dSplitKParam.headNum = param.headNum;
   CreateLlamaPositionEmbedding1DSplitOperation(positionEmbedding1dSplitKParam, &kPositionEmbeddingNode.op);
   kPositionEmbeddingNode.inTensorIds = {INTERMIDATE_MIXEDK, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
   kPositionEmbeddingNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDK};
+  kPositionEmbeddingNode.inTensorReshapeFuncs.at(2) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+      newShape.dimNum = 4; // dimNum: 4
+      newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+      newShape.dims[1] = oldShape.dims[2];
+      newShape.dims[2] = oldShape.dims[3];
+      newShape.dims[3] = oldShape.dims[4];
+  };
+  kPositionEmbeddingNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+      newShape.dimNum = 4; // dimNum: 4
+      newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+      newShape.dims[1] = oldShape.dims[2];
+      newShape.dims[2] = oldShape.dims[3];
+      newShape.dims[3] = oldShape.dims[4];
+  };
 
   LlamaSelfAttentionParam selfAttentionParam;
   selfAttentionParam.dk = param.dk;

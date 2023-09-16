@@ -148,7 +148,8 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     const paddle::Tensor &past_key,
     const paddle::Tensor &past_value,
     float rmsNormEps,
-    std::vector<int32_t> shape) {
+    int headDim,
+    int headNum) {
 
   int32_t batch_size = past_key.shape().at(0);
   int32_t org_seq_len = past_key.shape().at(1);
@@ -156,10 +157,10 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
   // int32_t head_num = 8;
   // int32_t head_dim = 128;
   int32_t layer_num = 32; /* TODO:7B，写死8卡 */
-  // int32_t head_num = 4;
-  // int32_t head_dim = 128;
-  int32_t head_num = shape[2];
-  int32_t head_dim = shape[3];
+  int32_t head_num = 4;
+  int32_t head_dim = 128;
+  // int32_t head_num = shape[2];
+  // int32_t head_dim = shape[3];
 
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(hidden.place()));
@@ -283,7 +284,8 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "CacheV"})
     .Outputs({"Out", "PresentKey", "PresentValue"})
     .Attrs({"rmsNormEps: float",
-            "shape: std::vector<int>"})
+            "headDim: int",
+            "headNum: int"})
     .SetKernelFn(PD_KERNEL(LlaMaDecoderLayerParallelOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
         LlaMaDecoderLayerOpInferShape)); // neccessary if the op has muti_inputs

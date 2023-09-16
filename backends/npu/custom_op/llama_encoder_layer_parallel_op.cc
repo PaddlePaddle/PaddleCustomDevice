@@ -86,12 +86,13 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
     const paddle::Tensor &sin_table,
     const paddle::Tensor &attention_mask,
     float rmsNormEps,
-    std::vector<int32_t> shape) {
+    int headDim,
+    int headNum) {
 
   // int32_t layer_num = 80; /* TODO:65B，写死8卡 */
   int32_t layer_num = 32; /* TODO:7B，写死8卡 */
-  int32_t head_num = shape[2];
-  int32_t head_dim = shape[3];
+  int32_t head_num = headNum;
+  int32_t head_dim = headDim;
 
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(hidden.place()));
@@ -190,10 +191,11 @@ std::vector<std::vector<int64_t>> LlaMaEncoderLayerOpInferShape(
     const std::vector<int64_t> &sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
     float rmsNormEps,
-	  std::vector<int32_t> shape) {
+	  int headDim,
+    int headNum) {
 
-  int32_t head_num = shape[2]; /* TODO:64个，写死8卡 */
-  int32_t head_dim = shape[3];
+  int32_t head_num = headNum; /* TODO:64个，写死8卡 */
+  int32_t head_dim = headDim;
 
   std::vector<int64_t> key_shape; /* [bs, seq_len, hidden_size] */
   std::vector<int64_t> value_shape; /* [bs, seq_len, hidden_size] */
@@ -224,7 +226,8 @@ PD_BUILD_OP(llama_encoder_layer_parallel)
              "AttentionMask"})
     .Outputs({"Out", "PresentKey", "PresentValue"})
     .Attrs({"rmsNormEps: float",
-            "shape: std::vector<int>"})
+            "headDim: int",
+            "headNum: int"})
             // "headnum: float",
             // "shape: std::vector<int>",
             // "scale: float"})

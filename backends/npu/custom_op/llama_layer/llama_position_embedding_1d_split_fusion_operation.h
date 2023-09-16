@@ -21,7 +21,6 @@ struct llamaPositionEmbedding1DSplitFusionParam {
     int64_t headNum = 0;
     int64_t rmsNormEps = 0;
     int64_t dk = 0;
-    std::string model = "llama7b";
     int64_t rotaryCoeff = 2;
 };
 

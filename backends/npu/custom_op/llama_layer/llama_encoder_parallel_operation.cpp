@@ -142,7 +142,6 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   LlamaSelfAttentionParam selfAttentionParam;
   selfAttentionParam.dk = param.dk;
   selfAttentionParam.headNum = param.headNum;
-  selfAttentionParam.model = "llama";
   CreateLlamaSelfAttentionOperation(selfAttentionParam, &selfAttentionNode.op);
   selfAttentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
                                     INTERMIDATE_POSITIONEMBEDK,

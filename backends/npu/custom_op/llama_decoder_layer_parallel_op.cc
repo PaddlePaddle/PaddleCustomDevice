@@ -211,7 +211,6 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                            head_dim,
                                            0,
                                            0,
-                                           "llama13b",
                                            g_llamadecoderLayerId,
                                            2,
                                            true,

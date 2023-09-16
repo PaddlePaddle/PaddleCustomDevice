@@ -28,7 +28,6 @@ struct LlamaSelfAttentionParam {
     int64_t hiddenSizePerHead = 0;
     int64_t numGroupsPerPartition = 0;
     bool transpose = true;
-    std::string model = "llama7b";
 };
 
 atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &param, atb::Operation **operation);

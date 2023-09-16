@@ -152,7 +152,6 @@ std::vector<paddle::Tensor> LlaMaEncoderLayerParallelOp(
                                            head_dim,
                                            0,
                                            0,
-                                           "llama7b",
                                            comm};
     CreateLlamaLayerEncoderParallelOperation(param, &op);
     g_llaMaEncoderLayerParallelOp->operation_.reset(op);

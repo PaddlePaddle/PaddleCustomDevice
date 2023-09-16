@@ -111,10 +111,9 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     };
 
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
-    selfAttentionKvCacheParam.dk = param.dk;
+    selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
-    selfAttentionKvCacheParam.layerId = param.layerId;
-    selfAttentionKvCacheParam.qScaleFlag = true;
+    selfAttentionKvCacheParam.qScale = param.layerId; // TODO：
     CreateOp(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.op);
     selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
                                             INTERMIDATE_POSITIONEMBEDK,

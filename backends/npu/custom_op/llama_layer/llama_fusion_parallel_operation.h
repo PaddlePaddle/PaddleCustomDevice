@@ -58,10 +58,9 @@ enum LlamaLayerFusionParallelTensorId {
 struct LlamaLayerFusionParallelParam {
     float rmsNormEps = 0;
     int headNum = 0;
-    int dk = 0;
+    int headDim = 0;
     int rank = 0;
     int rankSize = 1;
-    std::string model = "llama13b";
     int layerId = 0;
     int rotaryCoeff = 2;
     bool transpose = true;

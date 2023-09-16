@@ -24,7 +24,6 @@ struct LlamaLayerEncoderParallelParam {
   int dk = 0;
   int rank = 0;
   int rankSize = 1;
-  std::string model = "llama7b";
   void *hcclComm = nullptr; // only effect when hcclComm is not null
 };
 

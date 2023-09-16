@@ -34,16 +34,11 @@ struct PpAtbSeqLen {
 };
 
 static PpAtbSeqLen g_atbSeqLen;
-static atb::Tensor g_llama_cachek;
-static atb::Tensor g_llama_cachev;
-static atb::Tensor g_llama_attenmask;
 
 void PerpareLlaMaDecoderLayerInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &q_mix_weight,
-    const paddle::Tensor &k_mix_weight,
-    const paddle::Tensor &v_mix_weight,
+    const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
     const paddle::Tensor &mlp_gate_weight,
@@ -62,9 +57,7 @@ void PerpareLlaMaDecoderLayerInputs(
 
   auto hidden_tensor = static_cast<const phi::DenseTensor *>(hidden.impl().get());
   auto norm_weight_tensor = static_cast<const phi::DenseTensor *>(norm_weight.impl().get());
-  auto q_mix_weight_tensor = static_cast<const phi::DenseTensor *>(q_mix_weight.impl().get());
-  auto k_mix_weight_tensor = static_cast<const phi::DenseTensor *>(k_mix_weight.impl().get());
-  auto v_mix_weight_tensor = static_cast<const phi::DenseTensor *>(v_mix_weight.impl().get());
+  auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
   auto self_out_linear_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_weight.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
   auto mlp_gate_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_gate_weight.impl().get());
@@ -80,9 +73,7 @@ void PerpareLlaMaDecoderLayerInputs(
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
-  inputs.push_back(q_mix_weight_tensor);
-  inputs.push_back(k_mix_weight_tensor);
-  inputs.push_back(v_mix_weight_tensor);
+  inputs.push_back(qkv_mix_weight_tensor);
   inputs.push_back(self_out_linear_weight_tensor);
   inputs.push_back(self_out_norm_weight_tensor);
   inputs.push_back(mlp_gate_weight_tensor);
@@ -114,17 +105,13 @@ void LlamaLayerFusionParallelOpUpdateParam(atb::VariantPack &variantPack)
 void PpAtbLlaMaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                                                  std::vector<const phi::DenseTensor *> &outTensors)
 {
-  variantPacks_.inTensors.resize(inTensors.size() + 3);
+  variantPacks_.inTensors.resize(inTensors.size());
   for (size_t i = 0; i < inTensors.size(); i++) {
     variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
     if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
       variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
     }
   }
-
-  variantPacks_.inTensors.at(inTensors.size()) = g_llama_attenmask;
-  variantPacks_.inTensors.at(inTensors.size() + 1) = g_llama_cachek;
-  variantPacks_.inTensors.at(inTensors.size() + 2) = g_llama_cachev;
 
   variantPacks_.outTensors.resize(outTensors.size());
   for (size_t i = 0; i < outTensors.size(); i++) {
@@ -147,9 +134,7 @@ PpAtbLlaMaDecoderLayerParallelOp::~PpAtbLlaMaDecoderLayerParallelOp() {}
 std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &q_mix_weight,
-    const paddle::Tensor &k_mix_weight,
-    const paddle::Tensor &v_mix_weight,
+    const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
     const paddle::Tensor &mlp_gate_weight,
@@ -232,9 +217,7 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
   std::vector<const phi::DenseTensor *> inputs;
   PerpareLlaMaDecoderLayerInputs(hidden,
                                  norm_weight,
-                                 q_mix_weight,
-                                 k_mix_weight,
-                                 v_mix_weight,
+                                 qkv_mix_weight,
                                  self_out_linear_weight,
                                  self_out_norm_weight,
                                  mlp_gate_weight,
@@ -264,7 +247,7 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
 std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
     const std::vector<int64_t> &hidden_shape,
     const std::vector<int64_t> &norm_weight_shape,
-    const std::vector<int64_t> &q_mix_weight_shape,
+    const std::vector<int64_t> &qkv_mix_weight_shape,
     const std::vector<int64_t> &k_mix_weight_shape,
     const std::vector<int64_t> &v_mix_weight_shape,
     const std::vector<int64_t> &self_out_linear_weight_shape,
@@ -285,9 +268,7 @@ std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
 PD_BUILD_OP(llama_decoder_layer_parallel)
     .Inputs({"Hidden",
              "NormWeight",
-             "QMixWeight",
-             "KMixWeight",
-             "VMixWeight",
+             "QKVMixWeight",
              "SelfOutLinearWeight",
              "SelfOutNormWeight",
              "MlpGateWeight",

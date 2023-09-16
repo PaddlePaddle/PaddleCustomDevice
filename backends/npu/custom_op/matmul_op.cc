@@ -18,7 +18,8 @@
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/extension.h"
 #include "paddle/phi/core/enforce.h"
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+// #ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+#if 0
 #include "acltransformer/params/matmul.h"
 #include "kernels/funcs/format_utils.h"
 #endif
@@ -105,7 +106,8 @@ std::vector<paddle::Tensor> MatmulOp(const paddle::Tensor& input_x,
 
   auto x = static_cast<const phi::DenseTensor*>(input_x.impl().get());
   auto y = static_cast<const phi::DenseTensor*>(input_y.impl().get());
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+// #ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+#if 0
   std::shared_ptr<phi::DenseTensor> out_tensor =
       std::make_shared<phi::DenseTensor>();
   auto out_shape =

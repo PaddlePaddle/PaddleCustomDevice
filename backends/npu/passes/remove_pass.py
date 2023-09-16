@@ -1,3 +1,6 @@
+import paddle
+from paddle.incubate.passes import ir
+
 @ir.RegisterPass
 def remove_fill_constant1p4():
     def pattern(reshape_v_tmp, slice0_q, slice1_q, slice_v):
@@ -43,7 +46,7 @@ def remove_fill_constant2p3():
 @ir.RegisterPass
 def remove_fused_bias_residual_layernorm():
     def pattern(residual, x):
-        op = ir.PassDesc.OP.remove_fused_bias_residual_layernorm
+        op = ir.PassDesc.OP.fused_bias_residual_layernorm
         op._outputs.pop("mean")
         op._outputs.pop("residual_out")
         op._outputs.pop("variance")
@@ -61,7 +64,7 @@ def remove_fused_bias_residual_layernorm():
 @ir.RegisterPass
 def remove_rebuild_padding():
     def pattern(input_ids, padding_offset, seq_lens, tmp_out):
-        op = ir.PassDesc.OP.remove_rebuild_padding
+        op = ir.PassDesc.OP.rebuild_padding
         result = op(
             input_ids=input_ids,
             padding_offset=padding_offset,
@@ -77,7 +80,7 @@ def remove_rebuild_padding():
 @ir.RegisterPass
 def remove_get_padding_offset():
     def pattern(cum_offsets, input_ids, seq_len, token_num):
-        op = ir.PassDesc.OP.remove_get_padding_offset
+        op = ir.PassDesc.OP.get_padding_offset
         result = op(
             cum_offsets=cum_offsets,
             input_ids=input_ids,
@@ -87,4 +90,23 @@ def remove_get_padding_offset():
 
     def replace(cum_offsets, input_ids, seq_len, token_num):
         return cum_offsets, seq_len, input_ids
+    return pattern, replace
+
+@ir.RegisterPass
+def remove_get_token_penalty_multi_scores():
+    def pattern(pre_ids, logits, penalty_scores, frequency_scores, presence_scores, cur_len, min_len, eos_token_id):
+        op = ir.PassDesc.OP.get_token_penalty_multi_scores
+        result = op(
+            pre_ids=pre_ids,
+            logits=logits,
+            penalty_scores=penalty_scores,
+            frequency_scores=frequency_scores,
+            presence_scores=presence_scores,
+            cur_len=cur_len,
+            min_len=min_len,
+            eos_token_id=eos_token_id)
+        return result
+
+    def replace(pre_ids, logits, penalty_scores, frequency_scores, presence_scores, cur_len, min_len, eos_token_id):
+        return logits
     return pattern, replace

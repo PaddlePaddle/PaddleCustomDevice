@@ -1,3 +1,6 @@
+import paddle
+from paddle.incubate.passes import ir
+
 def transpose_without_axis(x):
     op = ir.PassDesc.OP.transpose2
     op._outputs.pop("XShape")

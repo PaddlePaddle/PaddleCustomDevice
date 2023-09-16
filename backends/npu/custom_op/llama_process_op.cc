@@ -355,3 +355,188 @@ PD_BUILD_OP(transpose_remove_padding)
     .SetKernelFn(PD_KERNEL(TransposeRemovePaddingOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
         TransposeRemovePaddingOpInferShape));  // neccessary if the op has muti_inputs
+
+// llama_layer
+int64_t out_cached_num = 3;
+std::vector<std::vector<int64_t>> LlamaCachedLayerOpInferShape(
+    const std::vector<int64_t>& shape_1,
+    const std::vector<int64_t>& shape_2,
+    const std::vector<int64_t>& shape_3,
+    const std::vector<int64_t>& shape_4,
+    const std::vector<int64_t>& shape_5,
+    const std::vector<int64_t>& shape_6,
+    const std::vector<int64_t>& shape_7,
+    const std::vector<int64_t>& shape_8,
+    const std::vector<int64_t>& shape_9,
+    const std::vector<int64_t>& shape_10,
+    const std::vector<int64_t>& shape_11,
+    const std::vector<int64_t>& shape_12) {
+  std::cout<<">>>>>LlamaLayerOpInferShape"<<std::endl;
+  std::vector<int64_t> out_shape = shape_1;
+  std::vector<std::vector<int64_t>> out_shapes(out_cached_num, out_shape);
+  return out_shapes;
+}
+
+std::vector<paddle::Tensor> LlamaCachedLayerOp(
+    const paddle::Tensor& tensor_1,
+    const paddle::Tensor& tensor_2,
+    const paddle::Tensor& tensor_3,
+    const paddle::Tensor& tensor_4,
+    const paddle::Tensor& tensor_5,
+    const paddle::Tensor& tensor_6,
+    const paddle::Tensor& tensor_7,
+    const paddle::Tensor& tensor_8,
+    const paddle::Tensor& tensor_9,
+    const paddle::Tensor& tensor_10,
+    const paddle::Tensor& tensor_11,
+    const paddle::Tensor& tensor_12) {
+  std::cout<<">>>>>LlamaLayerOp"<<std::endl;
+  std::shared_ptr<phi::DenseTensor> out_tensor =
+      std::make_shared<phi::DenseTensor>();
+  std::vector<paddle::Tensor> out_tensors(out_cached_num, paddle::Tensor(out_tensor));
+  return out_tensors;
+}
+
+PD_BUILD_OP(llama_cached_layer)
+    .Inputs({"in_scale", "rms_norm_residual", "matmul_", "qkv_weight", "cache_kvs", "rotary_t", "sequence_l", "mask", "proj_weight", "ffn_in_scale", "ffn1_weight", "ffn2_weight"})
+    .Outputs({"norm_out", "norm_residual", "cached_kv"})
+    .SetKernelFn(PD_KERNEL(LlamaCachedLayerOp))
+    .SetInferShapeFn(PD_INFER_SHAPE(
+        LlamaCachedLayerOpInferShape));  // neccessary if the op has muti_inputs
+
+bool is_in_end(const int64_t id, const int64_t *end_ids, int length) {
+    bool flag = false;
+    for (int i = 0; i < length; i++) {
+        if (id == end_ids[i]) {
+            return true;
+        }
+    }
+    return flag;
+}
+
+std::vector<paddle::Tensor> RebuildPadding(const paddle::Tensor& tmp_out, 
+                                           const paddle::Tensor& padding_offset, 
+                                           const paddle::Tensor& seq_lens,
+                                           const paddle::Tensor& input_ids) {
+    return {tmp_out};
+}
+
+std::vector<std::vector<int64_t>> RebuildPaddingInferShape(const std::vector<int64_t>& tmp_out_shape,
+                                                           const std::vector<int64_t>& padding_offset_shape,
+                                                           const std::vector<int64_t>& seq_lens_shape,
+                                                           const std::vector<int64_t>& input_ids_shape) {
+    int64_t bsz = seq_lens_shape[0];
+    int64_t dim_embed = tmp_out_shape[1];
+    return {{bsz, dim_embed}};
+}
+
+std::vector<paddle::DataType> RebuildPaddingInferDtype(const paddle::DataType& tmp_out_dtype,
+                                                       const paddle::DataType& padding_offset_dtype,
+                                                       const paddle::DataType& seq_lens_dtype,
+                                                       const paddle::DataType& input_ids_dtype) {
+    return {tmp_out_dtype};
+}
+
+PD_BUILD_OP(rebuild_padding)
+    .Inputs({"tmp_out", "padding_offset", "seq_lens", "input_ids"})
+    .Outputs({"out"})
+    .SetKernelFn(PD_KERNEL(RebuildPadding))
+    .SetInferShapeFn(PD_INFER_SHAPE(RebuildPaddingInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(RebuildPaddingInferDtype));
+
+std::vector<paddle::Tensor> GetPaddingOffset(const paddle::Tensor& input_ids,
+                                             const paddle::Tensor& cum_offsets,
+                                             const paddle::Tensor& token_num,
+                                             const paddle::Tensor& seq_len) {
+
+    return {cum_offsets, seq_len, input_ids};
+}
+
+std::vector<std::vector<int64_t>> GetPaddingOffsetInferShape(const std::vector<int64_t>& input_ids_shape,
+                                                             const std::vector<int64_t>& cum_offsets_shape,
+                                                             const std::vector<int64_t>& token_num_shape,
+                                                             const std::vector<int64_t>& seq_len_shape) {
+    int64_t bsz = input_ids_shape[0];
+    int64_t seq_len = input_ids_shape[1];
+    return {{-1}, {bsz}, {-1}};
+}
+
+std::vector<paddle::DataType> GetPaddingOffsetInferDtype(const paddle::DataType& input_ids_dtype,
+                                                         const paddle::DataType& cum_offsets_dtype,
+                                                         const paddle::DataType& token_num_dtype,
+                                                         const paddle::DataType& seq_len_dtype) {
+    return {input_ids_dtype, seq_len_dtype, seq_len_dtype};
+}
+
+PD_BUILD_OP(get_padding_offset)
+    .Inputs({"input_ids", "cum_offsets", "token_num", "seq_len"})
+    .Outputs({"x_remove_padding", "cum_offsets_out", "padding_offset"})
+    .SetKernelFn(PD_KERNEL(GetPaddingOffset))
+    .SetInferShapeFn(PD_INFER_SHAPE(GetPaddingOffsetInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(GetPaddingOffsetInferDtype));            
+
+std::vector<paddle::Tensor> TokenPenaltyMultiScores(const paddle::Tensor& pre_ids,
+                                                    const paddle::Tensor& logits,
+                                                    const paddle::Tensor& penalty_scores,
+                                                    const paddle::Tensor& frequency_scores,
+                                                    const paddle::Tensor& presence_scores,
+                                                    const paddle::Tensor& cur_len,
+                                                    const paddle::Tensor& min_len,
+                                                    const paddle::Tensor& eos_token_id) {
+    return {logits};
+}
+
+std::vector<std::vector<int64_t>> TokenPenaltyMultiScoresInferShape(const std::vector<int64_t>& pre_ids_shape,
+                                                                    const std::vector<int64_t>& logits_shape,
+                                                                    const std::vector<int64_t>& penalty_scores_shape,
+                                                                    const std::vector<int64_t>& frequency_scores_shape,
+                                                                    const std::vector<int64_t>& presence_scores_shape,
+                                                                    const std::vector<int64_t>& cur_len_shape,
+                                                                    const std::vector<int64_t>& min_len_shape,
+                                                                    const std::vector<int64_t>& eos_token_id_shape) {
+    return {logits_shape};
+}
+
+std::vector<paddle::DataType> TokenPenaltyMultiScoresInferDtype(const paddle::DataType& pre_ids_dtype,
+                                                                const paddle::DataType& logits_dtype,
+                                                                const paddle::DataType& penalty_scores_dtype,
+                                                                const paddle::DataType& frequency_scores_dtype,
+                                                                const paddle::DataType& presence_scores_dtype,
+                                                                const paddle::DataType& cur_len_dtype,
+                                                                const paddle::DataType& min_len_dtype,
+                                                                const paddle::DataType& eos_token_id_dtype) {
+    return {logits_dtype};
+}
+
+
+PD_BUILD_OP(get_token_penalty_multi_scores)
+    .Inputs({"pre_ids", "logits", "penalty_scores", "frequency_scores", "presence_scores", "cur_len", "min_len", "eos_token_id"})
+    .Outputs({"logits_out"})
+    .SetKernelFn(PD_KERNEL(TokenPenaltyMultiScores))
+    .SetInferShapeFn(PD_INFER_SHAPE(TokenPenaltyMultiScoresInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(TokenPenaltyMultiScoresInferDtype));    
+
+// top_p_sampling
+std::vector<std::vector<int64_t>> TopPSamplingOpInferShape(
+    const std::vector<int64_t>& top_p_shape,
+    const std::vector<int64_t>& x_shape) {
+  std::cout<<">>>>>TopPSamplingOp"<<std::endl;
+  std::vector<int64_t> out_shape = top_p_shape;
+  return {out_shape, out_shape};
+}
+
+std::vector<paddle::Tensor> TopPSamplingOp(
+    const paddle::Tensor& top_p,
+    const paddle::Tensor& x) {
+  std::cout<<">>>>>TopPSamplingOp"<<std::endl;
+  std::shared_ptr<phi::DenseTensor> out_tensor =
+      std::make_shared<phi::DenseTensor>();
+  return {paddle::Tensor(out_tensor), paddle::Tensor(out_tensor)};
+}
+PD_BUILD_OP(top_p_sampling)
+    .Inputs({"top_ps", "x"})
+    .Outputs({"topp_ids", "topp_probs"})
+    .SetKernelFn(PD_KERNEL(TopPSamplingOp))
+    .SetInferShapeFn(PD_INFER_SHAPE(
+        TopPSamplingOpInferShape));  // neccessary if the op has muti_inputs
+

@@ -33,7 +33,7 @@ class TestMLUReciprocal(OpTest):
         x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
         out = np.reciprocal(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def test_check_output(self):

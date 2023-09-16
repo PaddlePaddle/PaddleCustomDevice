@@ -112,7 +112,7 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 
 # class TestUpdateLossScalingLayer(unittest.TestCase):
 
-#     def loss_scaling_check(self, use_npu=True, scope=fluid.Scope()):
+#     def loss_scaling_check(self, use_npu=True, scope=base.Scope()):
 #         a = paddle.static.data(name="a", shape=[1024, 1024], dtype='float32')
 #         b = paddle.static.data(name="b", shape=[512, 128], dtype='float32')
 #         x = [a, b]
@@ -150,10 +150,10 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #                                             decr_ratio,
 #                                             name="update_loss_scaling")
 
-#         place = fluid.CustomPlace('npu', 0)
-#         exe = fluid.Executor(place)
-#         with fluid.scope_guard(scope):
-#             exe.run(fluid.default_startup_program())
+#         place = base.CustomPlace('npu', 0)
+#         exe = base.Executor(place)
+#         with base.scope_guard(scope):
+#             exe.run(base.default_startup_program())
 #             result_v = exe.run(feed={
 #                 'a': a_v,
 #                 'b': b_v,
@@ -175,7 +175,7 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #         assert np.array_equal(result_v[6], np.zeros_like(num_good_steps_v))
 #         assert np.array_equal(result_v[7], np.zeros_like(num_bad_steps_v))
 
-#     def loss_scaling_check_inf(self, use_npu=True, scope=fluid.Scope()):
+#     def loss_scaling_check_inf(self, use_npu=True, scope=base.Scope()):
 #         a = paddle.static.data(name="a", shape=[1024, 1024], dtype='float32')
 #         b = paddle.static.data(name="b", shape=[512, 128], dtype='float32')
 #         x = [a, b]
@@ -216,10 +216,10 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #                                             decr_ratio,
 #                                             name="update_loss_scaling")
 
-#         place = fluid.CustomPlace('npu', 0)
-#         exe = fluid.Executor(place)
-#         with fluid.scope_guard(scope):
-#             exe.run(fluid.default_startup_program())
+#         place = base.CustomPlace('npu', 0)
+#         exe = base.Executor(place)
+#         with base.scope_guard(scope):
+#             exe.run(base.default_startup_program())
 #             result_v = exe.run(feed={
 #                 'a': a_v,
 #                 'b': b_v,
@@ -243,18 +243,18 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 
 #     def test_loss_scaling_gpu(self):
 #         paddle.set_device('npu')
-#         main = fluid.Program()
-#         startup = fluid.Program()
-#         with fluid.unique_name.guard():
-#             with fluid.program_guard(main, startup):
+#         main = base.Program()
+#         startup = base.Program()
+#         with base.unique_name.guard():
+#             with base.program_guard(main, startup):
 #                 self.loss_scaling_check(use_npu=True)
 
 #     def test_loss_scaling_gpu_inf(self):
 #         paddle.set_device('npu')
-#         main = fluid.Program()
-#         startup = fluid.Program()
-#         with fluid.unique_name.guard():
-#             with fluid.program_guard(main, startup):
+#         main = base.Program()
+#         startup = base.Program()
+#         with base.unique_name.guard():
+#             with base.program_guard(main, startup):
 #                 self.loss_scaling_check_inf(use_npu=True)
 
 if __name__ == "__main__":

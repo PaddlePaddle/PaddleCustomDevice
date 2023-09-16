@@ -198,7 +198,7 @@ class TestSplitOp_SectionsTensor(NPUOpTest):
         pass
 
 
-# split_with_num op cannot be called by set op type because it has not been registered in fluid OpProto,
+# split_with_num op cannot be called by set op type because it has not been registered in base OpProto,
 # we call paddle.split() in dygraph mode to test it.
 class TestNPUSplitWithNumOp(unittest.TestCase):
     def initTestCase(self):

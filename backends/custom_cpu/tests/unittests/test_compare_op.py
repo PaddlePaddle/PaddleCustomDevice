@@ -20,9 +20,9 @@ import unittest
 import numpy
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+import paddle.base.core as core
+from paddle.base import Program, program_guard
 
 
 def get_places(self):
@@ -54,9 +54,9 @@ def create_test_class(op_type, typename, callback):
                 a = paddle.static.data(name="a", shape=[-1, 2], dtype="int16")
                 if self.op_type == "less_than":
                     self.assertRaises(
-                        TypeError, fluid.layers.less_than, x=x, y=y, force_cpu=1
+                        TypeError, base.layers.less_than, x=x, y=y, force_cpu=1
                     )
-                op = eval("fluid.layers.%s" % self.op_type)
+                op = eval("base.layers.%s" % self.op_type)
                 self.assertRaises(TypeError, op, x=x, y=y, cond=1)
                 self.assertRaises(TypeError, op, x=x, y=a)
                 self.assertRaises(TypeError, op, x=a, y=y)
@@ -85,7 +85,7 @@ def create_paddle_case(op_type, callback):
             self.input_x = np.array([1, 2, 3, 4]).astype(np.int64)
             self.input_y = np.array([1, 3, 2, 4]).astype(np.int64)
             self.real_result = callback(self.input_x, self.input_y)
-            self.place = fluid.CustomPlace("custom_cpu", 0)
+            self.place = base.CustomPlace("custom_cpu", 0)
             if core.is_compiled_with_cuda():
                 self.place = paddle.CustomPlace("custom_cpu", 0)
 
@@ -96,7 +96,7 @@ def create_paddle_case(op_type, callback):
                 y = paddle.static.data(name="y", shape=[4], dtype="int64")
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
-                exe = fluid.Executor(self.place)
+                exe = base.Executor(self.place)
                 (res,) = exe.run(
                     feed={"x": self.input_x, "y": self.input_y}, fetch_list=[out]
                 )
@@ -110,7 +110,7 @@ def create_paddle_case(op_type, callback):
                     y = paddle.static.data(name="y", shape=[1], dtype="int64")
                     op = eval("paddle.%s" % (self.op_type))
                     out = op(x, y)
-                    exe = fluid.Executor(self.place)
+                    exe = base.Executor(self.place)
                     (res,) = exe.run(
                         feed={"x": self.input_x, "y": 1.0}, fetch_list=[out]
                     )
@@ -276,30 +276,30 @@ class TestCompareOpError(unittest.TestCase):
         with program_guard(Program(), Program()):
             # The input x and y of compare_op must be Variable.
             x = paddle.static.data(name="x", shape=[1], dtype="float32")
-            y = fluid.create_lod_tensor(
-                numpy.array([[-1]]), [[1]], fluid.CustomPlace("custom_cpu", 0)
+            y = base.create_lod_tensor(
+                numpy.array([[-1]]), [[1]], base.CustomPlace("custom_cpu", 0)
             )
-            self.assertRaises(TypeError, fluid.layers.greater_equal, x, y)
+            self.assertRaises(TypeError, base.layers.greater_equal, x, y)
 
 
 class API_TestElementwise_Equal(unittest.TestCase):
     def test_api(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             label = paddle.assign(np.array([3, 3], dtype="int32"))
             limit = paddle.assign(np.array([3, 2], dtype="int32"))
             out = paddle.equal(x=label, y=limit)
-            place = fluid.CustomPlace("custom_cpu", 0)
-            exe = fluid.Executor(place)
+            place = base.CustomPlace("custom_cpu", 0)
+            exe = base.Executor(place)
             (res,) = exe.run(fetch_list=[out])
         self.assertEqual((res == np.array([True, False])).all(), True)
 
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             label = paddle.assign(np.array([3, 3], dtype="int32"))
             limit = paddle.assign(np.array([3, 3], dtype="int32"))
             out = paddle.equal(x=label, y=limit)
-            place = fluid.CustomPlace("custom_cpu", 0)
-            exe = fluid.Executor(place)
+            place = base.CustomPlace("custom_cpu", 0)
+            exe = base.Executor(place)
             (res,) = exe.run(fetch_list=[out])
         self.assertEqual((res == np.array([True, True])).all(), True)
 
@@ -312,8 +312,8 @@ class TestCompareOpPlace(unittest.TestCase):
             place = paddle.CustomPlace("custom_cpu", 0)
         label = paddle.assign(np.array([3, 3], dtype="int32"))
         limit = paddle.assign(np.array([3, 2], dtype="int32"))
-        out = fluid.layers.less_than(label, limit, force_cpu=True)
-        exe = fluid.Executor(place)
+        out = base.layers.less_than(label, limit, force_cpu=True)
+        exe = base.Executor(place)
         (res,) = exe.run(fetch_list=[out])
         self.assertEqual((res == np.array([False, False])).all(), True)
 

@@ -95,8 +95,8 @@ class TestElementwiseMaxOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.attrs = {"axis": self.axis}
         self.outputs = {"Out": self.out}

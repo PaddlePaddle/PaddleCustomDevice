@@ -1,0 +1,1 @@
+../../../Paddle/test/white_list/new_ir_python_api_grad_white_list.py

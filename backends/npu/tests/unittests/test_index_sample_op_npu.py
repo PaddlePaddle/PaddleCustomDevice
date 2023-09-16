@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -163,9 +163,9 @@ class TestIndexSampleShape(unittest.TestCase):
         index = paddle.static.data(name="index", shape=[-1, 3], dtype="int32")
         output = paddle.index_sample(x=x, index=index)
 
-        place = fluid.CustomPlace("npu", 0)
-        exe = fluid.Executor(place=place)
-        exe.run(fluid.default_startup_program())
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place=place)
+        exe.run(base.default_startup_program())
 
         feed = {"x": x_np, "index": index_np}
         res = exe.run(feed=feed, fetch_list=[output])
@@ -173,7 +173,7 @@ class TestIndexSampleShape(unittest.TestCase):
 
 class TestIndexSampleDynamic(unittest.TestCase):
     def test_result(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x = paddle.to_tensor(
                 [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]],
                 dtype="float32",

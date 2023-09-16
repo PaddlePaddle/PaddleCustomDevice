@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
+import paddle.base.core as core
 
 paddle.enable_static()
 
@@ -501,7 +501,7 @@ class TestArgMaxAPI_3(unittest.TestCase):
             np.random.seed(2021)
             numpy_input = (np.random.random(self.dims)).astype(self.dtype)
             tensor_input = paddle.to_tensor(numpy_input)
-            numpy_output = np.argmax(numpy_input).reshape([1])
+            numpy_output = np.argmax(numpy_input)
             paddle_output = paddle.argmax(tensor_input)
             self.assertEqual(np.allclose(numpy_output, paddle_output.numpy()), True)
             self.assertEqual(numpy_output.shape, paddle_output.numpy().shape)

@@ -18,9 +18,9 @@ import unittest
 import numpy as np
 from op_test import OpTest, skip_check_grad_ci
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
-from paddle.fluid.framework import convert_np_dtype_to_dtype_
+import paddle.base as base
+from paddle.base import Program, program_guard
+from paddle.base.framework import convert_np_dtype_to_dtype_
 
 
 def get_places(self):
@@ -382,13 +382,13 @@ class TestReduceSumOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of reduce_sum_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace("intel_gpu", 0)
+            x1 = base.create_lod_tensor(
+                np.array([[-1]]), [[1]], base.CustomPlace("intel_gpu", 0)
             )
-            self.assertRaises(TypeError, fluid.layers.reduce_sum, x1)
+            self.assertRaises(TypeError, base.layers.reduce_sum, x1)
             # The input dtype of reduce_sum_op  must be float32 or float64 or int32 or int64.
-            x2 = fluid.layers.data(name="x2", shape=[4], dtype="uint8")
-            self.assertRaises(TypeError, fluid.layers.reduce_sum, x2)
+            x2 = base.layers.data(name="x2", shape=[4], dtype="uint8")
+            self.assertRaises(TypeError, base.layers.reduce_sum, x2)
 
 
 class API_TestSumOp(unittest.TestCase):
@@ -396,13 +396,13 @@ class API_TestSumOp(unittest.TestCase):
         if np_axis is None:
             np_axis = attr_axis
 
-        places = [fluid.CustomPlace("intel_gpu", 0)]
+        places = [base.CustomPlace("intel_gpu", 0)]
         for place in places:
-            with fluid.program_guard(fluid.Program(), fluid.Program()):
-                data = fluid.data("data", shape=shape, dtype=x_dtype)
+            with base.program_guard(base.Program(), base.Program()):
+                data = base.data("data", shape=shape, dtype=x_dtype)
                 result_sum = paddle.sum(x=data, axis=attr_axis, dtype=attr_dtype)
 
-                exe = fluid.Executor(place)
+                exe = base.Executor(place)
                 input_data = np.random.rand(*shape).astype(x_dtype)
                 (res,) = exe.run(feed={"data": input_data}, fetch_list=[result_sum])
 
@@ -422,8 +422,8 @@ class API_TestSumOp(unittest.TestCase):
 
     def test_dygraph(self):
         np_x = np.random.random([2, 3, 4]).astype("float32")
-        with fluid.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
-            x = fluid.dygraph.to_variable(np_x)
+        with base.dygraph.guard(paddle.CustomPlace("intel_gpu", 0)):
+            x = base.dygraph.to_variable(np_x)
             out0 = paddle.sum(x).numpy()
             out1 = paddle.sum(x, axis=0).numpy()
             out2 = paddle.sum(x, axis=(0, 1)).numpy()

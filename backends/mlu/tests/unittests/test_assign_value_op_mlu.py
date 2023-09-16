@@ -18,7 +18,7 @@ import unittest
 import numpy
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.framework as framework
+import paddle.base.framework as framework
 
 paddle.enable_static()
 numpy.random.seed(2022)

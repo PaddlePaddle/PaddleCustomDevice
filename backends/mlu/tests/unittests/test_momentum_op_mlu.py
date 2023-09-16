@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import numpy
 
 paddle.enable_static()
@@ -165,8 +165,8 @@ class TestMomentumV2(unittest.TestCase):
     def test_momentum(self):
         paddle.enable_static()
         place = paddle.CustomPlace("mlu", 0)
-        main = fluid.Program()
-        with fluid.program_guard(main):
+        main = base.Program()
+        with base.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
             y = paddle.static.data(name="y", shape=[-1, 1], dtype="float32")
             y_predict = paddle.static.nn.fc(x, size=1)
@@ -180,9 +180,9 @@ class TestMomentumV2(unittest.TestCase):
             train_reader = paddle.batch(
                 paddle.dataset.uci_housing.train(), batch_size=1
             )
-            feeder = fluid.DataFeeder(place=place, feed_list=[x, y])
-            exe = fluid.Executor(place)
-            exe.run(fluid.default_startup_program())
+            feeder = base.DataFeeder(place=place, feed_list=[x, y])
+            exe = base.Executor(place)
+            exe.run(base.default_startup_program())
             for data in train_reader():
                 exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
 
@@ -287,8 +287,8 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
     def test_momentum_static(self):
         paddle.enable_static()
         place = paddle.CustomPlace("mlu", 0)
-        main = fluid.Program()
-        with fluid.program_guard(main):
+        main = base.Program()
+        with base.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
             y = paddle.static.data(name="y", shape=[-1, 1], dtype="float32")
             y_predict = paddle.static.nn.fc(x, size=1)
@@ -304,9 +304,9 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
             train_reader = paddle.batch(
                 paddle.dataset.uci_housing.train(), batch_size=1
             )
-            feeder = fluid.DataFeeder(place=place, feed_list=[x, y])
-            exe = fluid.Executor(place)
-            exe.run(fluid.default_startup_program())
+            feeder = base.DataFeeder(place=place, feed_list=[x, y])
+            exe = base.Executor(place)
+            exe.run(base.default_startup_program())
             for data in train_reader():
                 exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
 

@@ -15,7 +15,7 @@
 from __future__ import print_function, division
 
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import numpy as np
 import unittest
 from tests.op_test import OpTest
@@ -136,8 +136,8 @@ class TestBCELoss(unittest.TestCase):
     def test_BCELoss(self):
         input_np = np.random.uniform(0.1, 0.8, size=(20, 30)).astype(np.float32)
         label_np = np.random.randint(0, 2, size=(20, 30)).astype(np.float32)
-        places = [fluid.CPUPlace()]
-        if "npu" in paddle.fluid.core.get_all_custom_device_type():
+        places = [base.CPUPlace()]
+        if "npu" in paddle.base.core.get_all_custom_device_type():
             places.append(paddle.CustomPlace("npu", 0))
         reductions = ["sum", "mean", "none"]
         for place in places:
@@ -164,8 +164,8 @@ class TestBCELoss(unittest.TestCase):
         weight_np = np.random.random(size=(3, 4, 10)).astype(np.float32)
         place = (
             paddle.CustomPlace("npu", 0)
-            if ("npu" in paddle.fluid.core.get_all_custom_device_type())
-            else fluid.CPUPlace()
+            if ("npu" in paddle.base.core.get_all_custom_device_type())
+            else base.CPUPlace()
         )
         for reduction in ["sum", "mean", "none"]:
             static_result = test_static_layer(

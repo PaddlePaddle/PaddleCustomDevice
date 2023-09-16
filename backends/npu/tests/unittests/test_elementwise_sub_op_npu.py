@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -37,8 +37,8 @@ class TestElementwiseSubOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
         self.outputs = {"Out": self.out}
@@ -150,10 +150,10 @@ class TestSubtractError(unittest.TestCase):
     def test_errors(self):
         with paddle.static.program_guard(paddle.static.Program()):
             # the input of elementwise_add must be Variable.
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
             )
-            y1 = fluid.create_lod_tensor(
+            y1 = base.create_lod_tensor(
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
             )
             self.assertRaises(TypeError, paddle.subtract, x1, y1)

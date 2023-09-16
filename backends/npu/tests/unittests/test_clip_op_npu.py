@@ -17,8 +17,8 @@ from __future__ import print_function
 import unittest
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 from tests.op_test import OpTest
 
 
@@ -194,10 +194,10 @@ class TestClipAPI(unittest.TestCase):
 
         place = (
             paddle.CustomPlace("npu", 0)
-            if ("npu" in paddle.fluid.core.get_all_custom_device_type())
-            else fluid.CPUPlace()
+            if ("npu" in paddle.base.core.get_all_custom_device_type())
+            else base.CPUPlace()
         )
-        exe = fluid.Executor(place)
+        exe = base.Executor(place)
 
         out_1 = self._executed_api(images, min=min, max=max)
         out_2 = self._executed_api(images, min=0.2, max=0.9)
@@ -209,7 +209,7 @@ class TestClipAPI(unittest.TestCase):
         out_8 = self._executed_api(images)
 
         res1, res2, res3, res4, res5, res6, res7, res8 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={
                 "image": data,
                 "min": np.array([0.2]).astype("float32"),
@@ -232,8 +232,8 @@ class TestClipAPI(unittest.TestCase):
         paddle.disable_static()
         place = (
             paddle.CustomPlace("npu", 0)
-            if ("npu" in paddle.fluid.core.get_all_custom_device_type())
-            else fluid.CPUPlace()
+            if ("npu" in paddle.base.core.get_all_custom_device_type())
+            else base.CPUPlace()
         )
         paddle.disable_static(place)
         data_shape = [1, 9, 9, 4]

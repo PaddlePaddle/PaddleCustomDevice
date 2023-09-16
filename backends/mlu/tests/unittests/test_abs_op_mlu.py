@@ -39,7 +39,7 @@ class TestAbs(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = np.abs(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def set_mlu(self):
@@ -69,7 +69,7 @@ class TestAbsHalf(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = np.abs(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
 
     def set_mlu(self):

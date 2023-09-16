@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
@@ -205,11 +205,11 @@ class TestConcatAPIWithLoDTensorArray(unittest.TestCase):
         self.input_shape = [2, 3]
         self.x = np.random.random(self.input_shape).astype("float32")
 
-    def set_program(self, use_fluid_api):
+    def set_program(self, use_base_api):
         paddle.enable_static()
-        if use_fluid_api:
-            self.program = fluid.Program()
-            with fluid.program_guard(self.program):
+        if use_base_api:
+            self.program = base.Program()
+            with base.program_guard(self.program):
                 input = paddle.assign(self.x)
                 tensor_array = paddle.tensor.create_array(dtype="float32")
                 zero = paddle.tensor.fill_constant(shape=[1], value=0, dtype="int64")
@@ -233,16 +233,16 @@ class TestConcatAPIWithLoDTensorArray(unittest.TestCase):
     def set_npu(self):
         self.__class__.use_custom_device = True
 
-    def test_fluid_api(self):
-        self._run_static_mode(use_fluid_api=True)
+    def test_base_api(self):
+        self._run_static_mode(use_base_api=True)
 
     def test_paddle_api(self):
-        self._run_static_mode(use_fluid_api=False)
+        self._run_static_mode(use_base_api=False)
 
-    def _run_static_mode(self, use_fluid_api):
-        self.set_program(use_fluid_api)
+    def _run_static_mode(self, use_base_api):
+        self.set_program(use_base_api)
         self.assertTrue(self.out_var.shape[self.axis] == -1)
-        exe = fluid.Executor(self.place)
+        exe = base.Executor(self.place)
         res = exe.run(self.program, fetch_list=self.out_var)
         self.assertTrue(
             np.array_equal(

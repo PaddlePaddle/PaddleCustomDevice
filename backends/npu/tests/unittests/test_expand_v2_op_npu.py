@@ -17,8 +17,8 @@ import unittest
 import numpy as np
 
 from tests.op_test import OpTest
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 import paddle
 
 paddle.enable_static()
@@ -264,7 +264,7 @@ class TesstExpandV2OpBool(TestExpandV2OpInteger):
 class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
-            x1 = fluid.create_lod_tensor(
+            x1 = base.create_lod_tensor(
                 np.array([[-1]]), [[1]], paddle.CustomPlace("npu", 0)
             )
             shape = [2, 2]
@@ -279,7 +279,7 @@ class TestExpandV2Error(unittest.TestCase):
 # Test python API
 class TestExpandV2API(unittest.TestCase):
     def test_static(self):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input = np.random.random([12, 14]).astype("float32")
             x = paddle.static.data(name="x", shape=[12, 14], dtype="float32")
 
@@ -292,11 +292,11 @@ class TestExpandV2API(unittest.TestCase):
             out_2 = paddle.expand(x, shape=[positive_2, 14])
             out_3 = paddle.expand(x, shape=expand_shape)
 
-            g0 = fluid.backward.calc_gradient(out_2, x)
+            g0 = base.backward.calc_gradient(out_2, x)
 
-            exe = fluid.Executor(place=paddle.CustomPlace("npu", 0))
+            exe = base.Executor(place=paddle.CustomPlace("npu", 0))
             res_1, res_2, res_3 = exe.run(
-                fluid.default_main_program(),
+                base.default_main_program(),
                 feed={"x": input, "expand_shape": np.array([12, 14]).astype("int32")},
                 fetch_list=[out_1, out_2, out_3],
             )

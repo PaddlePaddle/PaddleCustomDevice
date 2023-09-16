@@ -18,8 +18,8 @@ import numpy as np
 import unittest
 
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 SEED = 2021
 
@@ -82,7 +82,7 @@ class TestMemcpy_API(unittest.TestCase):
             attrs={"dst_place_type": 0},
         )
         place = paddle.CustomPlace("intel_gpu", 0)
-        exe = fluid.Executor(place)
+        exe = base.Executor(place)
         intel_gpu_, cpu_ = exe.run(
             main_program, feed={}, fetch_list=[intel_gpu_var.name, cpu_var.name]
         )
@@ -99,7 +99,7 @@ class TestMemcpy_API(unittest.TestCase):
             attrs={"dst_place_type": 6},
         )
         place = paddle.CustomPlace("intel_gpu", 0)
-        exe = fluid.Executor(place)
+        exe = base.Executor(place)
         intel_gpu_, cpu_ = exe.run(
             main_program, feed={}, fetch_list=[intel_gpu_var.name, cpu_var.name]
         )

@@ -19,7 +19,7 @@ import unittest
 import unittest
 
 import numpy as np
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest, skip_check_grad_ci
 
 import paddle
@@ -302,10 +302,10 @@ _list = [
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
-        self.places = [fluid.CPUPlace(), paddle.CustomPlace("npu", 0)]
+        self.places = [base.CPUPlace(), paddle.CustomPlace("npu", 0)]
 
     def check_static_result(self, place):
-        with fluid.program_guard(fluid.Program(), fluid.Program()):
+        with base.program_guard(base.Program(), base.Program()):
             input = paddle.static.data(name="input", shape=[40, 40], dtype="float32")
             res1 = paddle.nn.functional.dropout(
                 x=input, p=0.0, training=False, mode="upscale_in_train"
@@ -359,7 +359,7 @@ class TestDropoutAPI(unittest.TestCase):
             res_np = in_np
             res_np2 = np.zeros_like(in_np)
 
-            exe = fluid.Executor(place)
+            exe = base.Executor(place)
             res_list = [
                 res1,
                 res2,
@@ -378,13 +378,13 @@ class TestDropoutAPI(unittest.TestCase):
             ]
             for res in res_list:
                 fetches = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"input": in_np},
                     fetch_list=[res],
                 )
                 self.assertTrue(np.allclose(fetches[0], res_np))
             fetches2 = exe.run(
-                fluid.default_main_program(), feed={"input": in_np}, fetch_list=[res6]
+                base.default_main_program(), feed={"input": in_np}, fetch_list=[res6]
             )
             self.assertTrue(np.allclose(fetches2[0], res_np2))
 

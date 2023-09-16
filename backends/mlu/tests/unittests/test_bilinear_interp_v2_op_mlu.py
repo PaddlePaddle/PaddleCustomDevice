@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 from tests.op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 from paddle.nn.functional import interpolate
 import paddle
 
@@ -513,7 +513,7 @@ class TestBilinearInterpOpAPI_dy(unittest.TestCase):
         import paddle
 
         place = paddle.CustomPlace("mlu", 0)
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_data = np.random.random((2, 3, 6, 6)).astype("float32")
             input_x = paddle.to_tensor(input_data)
             expect_res = bilinear_interp_np(
@@ -530,7 +530,7 @@ class TestBilinearInterpOpAPI_dy2(unittest.TestCase):
         import paddle
 
         place = paddle.CustomPlace("mlu", 0)
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_data = np.random.random((2, 3, 6, 6)).astype("float32")
             size_np = np.array([12, 12]).astype("int64")
             input_x = paddle.to_tensor(input_data)
@@ -549,7 +549,7 @@ class TestBilinearInterpOpAPI_dy3(unittest.TestCase):
         import paddle
 
         place = paddle.CustomPlace("mlu", 0)
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_data = np.random.random((2, 3, 6, 6)).astype("float32")
             size_1 = np.array([12]).astype("int64")
             input_x = paddle.to_tensor(input_data)
@@ -568,7 +568,7 @@ class TestBilinearInterpOpAPI_dy4(unittest.TestCase):
         import paddle
 
         place = paddle.CustomPlace("mlu", 0)
-        with fluid.dygraph.guard(place):
+        with base.dygraph.guard(place):
             input_data = np.random.random((2, 3, 6, 6)).astype("float32")
             scale_np = np.array([2, 2]).astype("int64")
             input_x = paddle.to_tensor(input_data)

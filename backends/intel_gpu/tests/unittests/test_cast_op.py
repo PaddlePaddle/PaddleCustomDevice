@@ -18,9 +18,9 @@ import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 from op_test import OpTest, convert_uint16_to_float
 
 paddle.enable_static()
@@ -67,7 +67,7 @@ class TestCastOpFp16ToFp32(OpTest):
         self.check_output(atol=1e-3)
 
 
-# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but fluid kernels
+# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but base kernels
 # class TestCastOpFp32ToFp16(OpTest):
 #     def setUp(self):
 #         ipt = np.random.random(size=[10, 10])
@@ -100,7 +100,7 @@ class TestCastOpBf16ToFp32(OpTest):
         self.check_output()
 
 
-# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but fluid kernels
+# TODO(Zhiwei35): the case's expected dispatch to phi kernels, but base kernels
 # class TestCastOpFp32ToBf16(OpTest):
 #     def setUp(self):
 #         ipt = np.random.random(size=[10, 10]).astype('float32')
@@ -121,10 +121,10 @@ class TestCastOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace("intel_gpu", 0)
+            x1 = base.create_lod_tensor(
+                np.array([[-1]]), [[1]], base.CustomPlace("intel_gpu", 0)
             )
-            self.assertRaises(TypeError, fluid.layers.cast, x1, "int32")
+            self.assertRaises(TypeError, base.layers.cast, x1, "int32")
 
 
 if __name__ == "__main__":

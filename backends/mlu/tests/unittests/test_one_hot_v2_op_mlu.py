@@ -18,9 +18,9 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid.framework import Program, program_guard
+import paddle.base as base
+import paddle.base.core as core
+from paddle.base.framework import Program, program_guard
 
 paddle.enable_static()
 
@@ -156,7 +156,7 @@ class TestOneHotOp_exception(unittest.TestCase):
                 attrs={"depth": self.depth},
                 outputs={"Out": one_hot_out},
             )
-            exe = fluid.Executor(self.place)
+            exe = base.Executor(self.place)
 
             def run():
                 exe.run(
@@ -184,13 +184,13 @@ class TestOneHotOpApi(unittest.TestCase):
         label = np.array([np.random.randint(0, depth - 1) for i in range(6)]).reshape(
             [6, 1]
         )
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             one_hot_label = paddle.nn.functional.one_hot(
-                fluid.dygraph.to_variable(label), depth
+                base.dygraph.to_variable(label), depth
             )
 
             one_hot_label = paddle.nn.functional.one_hot(
-                fluid.dygraph.to_variable(label), depth
+                base.dygraph.to_variable(label), depth
             )
             # with _test_eager_guard():
             #     one_hot_label = paddle.nn.functional.one_hot(
@@ -204,8 +204,8 @@ class TestOneHotOpApi(unittest.TestCase):
             [6, 1]
         )
 
-        exe = fluid.Executor(self.place)
-        exe.run(fluid.default_startup_program())
+        exe = base.Executor(self.place)
+        exe.run(base.default_startup_program())
         ret = exe.run(
             feed={
                 "label": label_data,
@@ -221,7 +221,7 @@ class BadInputTestOnehotV2(unittest.TestCase):
         self.__class__.use_custom_device = True
 
     def test_error(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
 
             def test_bad_x():
                 label = paddle.static.data(name="label", shape=[4], dtype="float32")

@@ -51,7 +51,7 @@ class TestLabelSmoothOp(OpTest):
         x = np.zeros((batch_size, label_dim)).astype(self.dtype)
         nonzero_index = np.random.randint(label_dim, size=(batch_size))
         x[np.arange(batch_size), nonzero_index] = 1
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
 
     def set_attrs(self):
         epsilon = 0.1

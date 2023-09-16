@@ -35,7 +35,7 @@ class TestAtan(OpTest):
         x = np.random.uniform(0, 2, [13, 17]).astype(self.dtype)
         out = np.arctan(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 
@@ -63,7 +63,7 @@ class TestAtanFp16(OpTest):
         x = np.random.uniform(0, 2, [13, 14]).astype(self.dtype)
         out = np.arctan(x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
         self.outputs = {"Out": out}
 

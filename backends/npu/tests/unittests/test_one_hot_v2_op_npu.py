@@ -19,8 +19,8 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
+import paddle.base as base
+import paddle.base.core as core
 
 paddle.enable_static()
 
@@ -212,9 +212,9 @@ class TestOneHotOpApi(unittest.TestCase):
         label = np.array([np.random.randint(0, depth - 1) for i in range(6)]).reshape(
             [6, 1]
         )
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             one_hot_label = paddle.nn.functional.one_hot(
-                fluid.dygraph.to_variable(label), depth
+                base.dygraph.to_variable(label), depth
             )
             one_hot_label = paddle.nn.functional.one_hot(paddle.to_tensor(label), depth)
 
@@ -227,8 +227,8 @@ class TestOneHotOpApi(unittest.TestCase):
             [6, 1]
         )
 
-        exe = fluid.Executor(place)
-        exe.run(fluid.default_startup_program())
+        exe = base.Executor(place)
+        exe.run(base.default_startup_program())
         ret = exe.run(
             feed={
                 "label": label_data,

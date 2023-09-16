@@ -17,16 +17,16 @@ import unittest
 import numpy as np
 
 import paddle
-from paddle import fluid
+from paddle import base
 
 
 def run_static(x_np, dtype, op_str):
     paddle.enable_static()
-    startup_program = fluid.Program()
-    main_program = fluid.Program()
+    startup_program = base.Program()
+    main_program = base.Program()
     place = paddle.CustomPlace("npu", 0)
-    exe = fluid.Executor(place)
-    with fluid.program_guard(main_program, startup_program):
+    exe = base.Executor(place)
+    with base.program_guard(main_program, startup_program):
         x = paddle.static.data(name="x", shape=x_np.shape, dtype=dtype)
         res = getattr(paddle.tensor, op_str)(x)
         exe.run(startup_program)
@@ -43,7 +43,7 @@ def run_dygraph(x_np, op_str):
 
 
 def run_eager(x_np, op_str):
-    with paddle.fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+    with paddle.base.dygraph.guard(paddle.CustomPlace("npu", 0)):
         x = paddle.to_tensor(x_np)
         dygraph_result = getattr(paddle.tensor, op_str)(x)
         return dygraph_result

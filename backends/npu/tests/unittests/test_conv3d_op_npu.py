@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -212,8 +212,8 @@ class TestConv3DOp(OpTest):
         ).astype(self.dtype)
 
         self.inputs = {
-            "Input": OpTest.np_dtype_to_fluid_dtype(input),
-            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
+            "Input": OpTest.np_dtype_to_base_dtype(input),
+            "Filter": OpTest.np_dtype_to_base_dtype(filter),
         }
         self.attrs = {
             "strides": self.stride,
@@ -267,7 +267,7 @@ class TestConv3DOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = fluid.CustomPlace("npu", 0)
+        self.place = base.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -334,8 +334,8 @@ class TestConv3DOp_2(OpTest):
         ).astype(self.dtype)
 
         self.inputs = {
-            "Input": OpTest.np_dtype_to_fluid_dtype(input),
-            "Filter": OpTest.np_dtype_to_fluid_dtype(filter),
+            "Input": OpTest.np_dtype_to_base_dtype(input),
+            "Filter": OpTest.np_dtype_to_base_dtype(filter),
         }
         self.attrs = {
             "strides": self.stride,
@@ -390,7 +390,7 @@ class TestConv3DOp_2(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = fluid.CustomPlace("npu", 0)
+        self.place = base.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32

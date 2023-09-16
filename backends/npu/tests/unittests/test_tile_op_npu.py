@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 np.random.seed(10)
@@ -294,7 +294,7 @@ class TestTileOpFloat16(OpTest):
 # Test python API
 class TestTileAPI(unittest.TestCase):
     def test_api(self):
-        with fluid.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             np_x = np.random.random([12, 14]).astype("float32")
             x = paddle.to_tensor(np_x)
 

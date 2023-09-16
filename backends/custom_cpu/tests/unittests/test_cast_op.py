@@ -18,9 +18,9 @@ import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 from op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
 
 paddle.enable_static()
@@ -119,8 +119,8 @@ class TestCastOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace("custom_cpu", 0)
+            x1 = base.create_lod_tensor(
+                np.array([[-1]]), [[1]], base.CustomPlace("custom_cpu", 0)
             )
             self.assertRaises(TypeError, paddle.cast, x1, "int32")
 

@@ -18,8 +18,8 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
+import paddle.base as base
+import paddle.base.core as core
 from paddle.tensor.manipulation import tensor_array_to_tensor
 
 paddle.enable_static()
@@ -277,7 +277,7 @@ EPOCH = 100
 
 #             prediction = paddle.static.nn.fc(z, size=2, activation="softmax")
 
-#             cost = paddle.fluid.layers.softmax_with_cross_entropy(
+#             cost = paddle.base.layers.softmax_with_cross_entropy(
 #                 logits=prediction, label=label
 #             )
 #             loss = paddle.mean(cost)
@@ -614,10 +614,10 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
 
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
-        self.exe = fluid.Executor(self.place)
+        self.exe = base.Executor(self.place)
 
     def set_program_and_run(self, main_program, case_num):
-        with fluid.program_guard(main_program):
+        with base.program_guard(main_program):
             x = [
                 paddle.static.data(name="x0", shape=self.shape, dtype="float32"),
                 paddle.static.data(name="x1", shape=self.shape, dtype="float32"),
@@ -649,7 +649,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
                 )
 
             loss = paddle.sum(output)
-            fluid.backward.append_backward(loss)
+            base.backward.append_backward(loss)
             g_vars = list(
                 map(
                     main_program.global_block().var,
@@ -663,7 +663,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
             )
 
     def test_case_1(self):
-        main_program = fluid.Program()
+        main_program = base.Program()
         self.set_program_and_run(main_program, 1)
 
         self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR)
@@ -674,7 +674,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
         np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
 
     def test_case_2(self):
-        main_program = fluid.Program()
+        main_program = base.Program()
         self.set_program_and_run(main_program, 2)
 
         self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)
@@ -687,7 +687,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
         np.testing.assert_array_equal(self.g_x2, np.zeros_like(self.data))
 
     def test_case_3(self):
-        main_program = fluid.Program()
+        main_program = base.Program()
         self.set_program_and_run(main_program, 3)
 
         self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.LOD_TENSOR_ARRAY)

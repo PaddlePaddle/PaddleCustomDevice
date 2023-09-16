@@ -69,7 +69,7 @@ class TestSoftmaxOp(OpTest):
         x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
         out = np.apply_along_axis(stable_softmax, self.axis, x)
 
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.outputs = {"Out": out}
         self.attrs = {
             "axis": self.axis,
@@ -142,7 +142,7 @@ class TestSoftmaxAPI(unittest.TestCase):
     def test_static_check(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data("X", self.x_np.shape, "float32")
+            x = paddle.base.data("X", self.x_np.shape, "float32")
             out1 = self.softmax(x)
             m = paddle.nn.Softmax()
             out2 = m(x)

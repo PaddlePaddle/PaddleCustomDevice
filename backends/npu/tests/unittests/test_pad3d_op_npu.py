@@ -19,8 +19,8 @@ from tests.op_test import OpTest
 import paddle
 import paddle.nn as nn
 import paddle.nn.functional as F
-from paddle.fluid import Program, program_guard, Executor, default_main_program
-import paddle.fluid as fluid
+from paddle.base import Program, program_guard, Executor, default_main_program
+import paddle.base as base
 
 
 class TestPad3dNPUOp(OpTest):
@@ -152,9 +152,9 @@ class TestPadAPI(unittest.TestCase):
 
     def test_static(self):
         paddle.enable_static()
-        self.place = fluid.CustomPlace(
+        self.place = base.CustomPlace(
             "npu", 0
-        )  # if fluid.core.is_compiled_with_npu() else fluid.CPUPlace()
+        )  # if base.core.is_compiled_with_npu() else base.CPUPlace()
         with program_guard(Program(), Program()):
             input_shape = (1, 2, 3, 4, 5)
             pad = [1, 2, 1, 1, 3, 4]

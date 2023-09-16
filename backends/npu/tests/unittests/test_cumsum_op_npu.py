@@ -19,8 +19,8 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
+import paddle.base.core as core
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -53,7 +53,7 @@ class TestCumsumOp(unittest.TestCase):
         self.assertTrue(np.array_equal(z, y.numpy()))
 
     def run_static(self, use_custom_device=False):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             data_np = np.random.random((100, 100)).astype(np.float32)
             x = paddle.static.data("X", [100, 100])
             y = paddle.cumsum(x)
@@ -63,11 +63,9 @@ class TestCumsumOp(unittest.TestCase):
             y5 = paddle.cumsum(x, dtype=np.int32)
             y6 = paddle.cumsum(x, axis=-2)
 
-            place = (
-                fluid.CustomPlace("npu", 0) if use_custom_device else fluid.CPUPlace()
-            )
-            exe = fluid.Executor(place)
-            exe.run(fluid.default_startup_program())
+            place = base.CustomPlace("npu", 0) if use_custom_device else base.CPUPlace()
+            exe = base.Executor(place)
+            exe.run(base.default_startup_program())
             out = exe.run(
                 feed={"X": data_np},
                 fetch_list=[y.name, y2.name, y3.name, y4.name, y5.name, y6.name],
@@ -90,7 +88,7 @@ class TestCumsumOp(unittest.TestCase):
         self.run_static(use_custom_device=True)
 
     def test_name(self):
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data("x", [3, 4])
             y = paddle.cumsum(x, name="out")
             self.assertTrue("out" in y.name)

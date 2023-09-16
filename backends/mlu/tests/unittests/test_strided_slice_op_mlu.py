@@ -16,7 +16,7 @@
 from tests.op_test import OpTest
 import numpy as np
 import unittest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -597,9 +597,9 @@ class TestStridedSliceAPI(unittest.TestCase):
         out_6 = x[minus_3:3:1, 0:100:2, :, minus_1:2:minus_1]
         out_7 = x[minus_1, 0:100:2, :, -1:2:-1]
 
-        exe = fluid.Executor(place=paddle.CustomPlace("mlu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("mlu", 0))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={
                 "x": input,
                 "starts": np.array([-3, 0, 2]).astype("int32"),

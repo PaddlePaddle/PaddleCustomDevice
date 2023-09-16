@@ -20,7 +20,7 @@ from op_test import OpTest
 import paddle
 import paddle.static
 import paddle.nn
-from paddle.fluid import Program, program_guard
+from paddle.base import Program, program_guard
 
 np.random.seed(10)
 

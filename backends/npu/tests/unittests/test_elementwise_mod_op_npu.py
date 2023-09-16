@@ -20,7 +20,7 @@ import unittest
 from tests.op_test import OpTest
 
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 import random
 
@@ -39,8 +39,8 @@ class TestElementwiseModOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(self.x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(self.y),
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
         self.outputs = {"Out": self.out}
@@ -142,7 +142,7 @@ class TestElementwiseModOp_broadcast_2(TestElementwiseModOp):
 class TestRemainderOp(unittest.TestCase):
     def test_name(self):
         paddle.set_device("npu:0")
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             x = paddle.static.data(name="x", shape=[2, 3], dtype="int64")
             y = paddle.static.data(name="y", shape=[2, 3], dtype="int64")
             y_1 = paddle.remainder(x, y, name="div_res")
@@ -150,7 +150,7 @@ class TestRemainderOp(unittest.TestCase):
 
     def test_dygraph(self):
         paddle.set_device("npu:0")
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.array([2, 3, 8, 7]).astype("int64")
             np_y = np.array([1, 5, 3, 3]).astype("int64")
             x = paddle.to_tensor(np_x)

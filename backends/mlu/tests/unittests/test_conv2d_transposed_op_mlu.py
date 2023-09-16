@@ -21,7 +21,7 @@ import paddle
 import paddle.nn as nn
 
 paddle.enable_static()
-import paddle.fluid as fluid
+import paddle.base as base
 from tests.op_test import OpTest
 
 
@@ -541,10 +541,10 @@ class TestConv2DTransposeAPI(unittest.TestCase):
         data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
         data2_np = np.random.random((2, 5, 5, 3)).astype("float32")
 
-        exe = fluid.Executor(self.place)
-        exe.run(fluid.default_startup_program())
+        exe = base.Executor(self.place)
+        exe.run(base.default_startup_program())
         results = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"data1": data1_np, "data2": data2_np},
             fetch_list=[out1, out2, out3, out4, out5, out6, out7],
             return_numpy=True,

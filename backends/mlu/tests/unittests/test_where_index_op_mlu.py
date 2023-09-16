@@ -17,10 +17,10 @@ import unittest
 from tests.op_test import OpTest
 
 import numpy as np
-import paddle.fluid.core as core
+import paddle.base.core as core
 from tests.op import Operator
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 import paddle
 
 paddle.enable_static()
@@ -109,10 +109,10 @@ class TestWhereOpError(unittest.TestCase):
             cond = paddle.static.data(name="cond", shape=[-1, 4], dtype="bool")
             result = paddle.nonzero(cond)
 
-            exe = fluid.Executor(paddle.CustomPlace("mlu", 0))
-            exe.run(fluid.default_startup_program())
+            exe = base.Executor(paddle.CustomPlace("mlu", 0))
+            exe.run(base.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
-            out = exe.run(fluid.default_main_program(), feed={"cond": cond_i})
+            out = exe.run(base.default_main_program(), feed={"cond": cond_i})
 
 
 if __name__ == "__main__":

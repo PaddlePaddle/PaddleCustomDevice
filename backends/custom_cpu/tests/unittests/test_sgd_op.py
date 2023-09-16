@@ -16,8 +16,8 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import paddle.fluid.core as core
-from paddle.fluid.op import Operator
+import paddle.base.core as core
+from paddle.base.op import Operator
 from op_test import OpTest
 import paddle
 
@@ -199,19 +199,19 @@ class TestSGDOpOptimizeSelectedRows(unittest.TestCase):
 #         data = paddle.tensor.fill_constant(shape=[1], value=128, dtype='int64')
 #         label = paddle.tensor.fill_constant(
 #             shape=[1, 150], value=0.5, dtype='float32')
-#         emb = fluid.embedding(input=data, size=(10000000, 150), dtype='float32')
-#         out = fluid.layers.l2_normalize(x=emb, axis=-1)
+#         emb = base.embedding(input=data, size=(10000000, 150), dtype='float32')
+#         out = base.layers.l2_normalize(x=emb, axis=-1)
 
-#         cost = fluid.layers.square_error_cost(input=out, label=label)
-#         avg_cost = fluid.layers.mean(cost)
+#         cost = base.layers.square_error_cost(input=out, label=label)
+#         avg_cost = base.layers.mean(cost)
 #         sgd_optimizer = paddle.optimizer.SGD(learning_rate=0.001)
 #         sgd_optimizer.minimize(avg_cost)
 
-#         place = fluid.CustomPlace('custom_cpu', 0)
-#         exe = fluid.Executor(place)
-#         exe.run(fluid.default_startup_program())
-#         compiled_prog = fluid.compiler.CompiledProgram(
-#             fluid.default_main_program())
+#         place = base.CustomPlace('custom_cpu', 0)
+#         exe = base.Executor(place)
+#         exe.run(base.default_startup_program())
+#         compiled_prog = base.compiler.CompiledProgram(
+#             base.default_main_program())
 #         result = exe.run(compiled_prog, fetch_list=[avg_cost])
 
 

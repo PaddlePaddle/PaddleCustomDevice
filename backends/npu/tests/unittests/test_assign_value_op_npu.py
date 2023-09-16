@@ -18,8 +18,8 @@ import unittest
 
 import numpy
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.framework as framework
+import paddle.base as base
+import paddle.base.framework as framework
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -81,12 +81,12 @@ class TestAssignApi(unittest.TestCase):
         self.dtype = "float32"
 
     def test_assign(self):
-        main_program = fluid.Program()
-        with fluid.program_guard(main_program):
+        main_program = base.Program()
+        with base.program_guard(main_program):
             x = paddle.tensor.create_tensor(dtype=self.dtype)
             paddle.assign(self.value, output=x)
 
-        exe = fluid.Executor(self.place)
+        exe = base.Executor(self.place)
         [fetched_x] = exe.run(main_program, feed={}, fetch_list=[x])
         self.assertTrue(
             numpy.array_equal(fetched_x, self.value),

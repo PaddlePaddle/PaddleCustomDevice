@@ -35,8 +35,8 @@ class TestElementwiseDiv(OpTest):
         out = np.divide(x, y)
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(y),
+            "X": OpTest.np_dtype_to_base_dtype(x),
+            "Y": OpTest.np_dtype_to_base_dtype(y),
         }
         self.attrs = {}
         self.outputs = {"Out": out}
@@ -79,8 +79,8 @@ class TestElementwiseDivFp16(OpTest):
         out = np.divide(x, y)
 
         self.inputs = {
-            "X": OpTest.np_dtype_to_fluid_dtype(x),
-            "Y": OpTest.np_dtype_to_fluid_dtype(y),
+            "X": OpTest.np_dtype_to_base_dtype(x),
+            "Y": OpTest.np_dtype_to_base_dtype(y),
         }
         self.attrs = {}
         self.outputs = {"Out": out}

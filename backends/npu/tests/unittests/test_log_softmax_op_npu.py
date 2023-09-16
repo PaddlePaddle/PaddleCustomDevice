@@ -126,7 +126,7 @@ class TestNNLogSoftmaxAPI(unittest.TestCase):
         self.x = np.random.uniform(-1.0, 1.0, self.x_shape).astype(np.float32)
         self.place = (
             paddle.CustomPlace("npu", 0)
-            if ("npu" in paddle.fluid.core.get_all_custom_device_type())
+            if ("npu" in paddle.base.core.get_all_custom_device_type())
             else paddle.CPUPlace()
         )
 
@@ -160,7 +160,7 @@ class TestNNFunctionalLogSoftmaxAPI(unittest.TestCase):
         self.x = np.random.uniform(-1, 1, self.x_shape).astype(np.float32)
         self.place = (
             paddle.CustomPlace("npu", 0)
-            if ("npu" in paddle.fluid.core.get_all_custom_device_type())
+            if ("npu" in paddle.base.core.get_all_custom_device_type())
             else paddle.CPUPlace()
         )
 

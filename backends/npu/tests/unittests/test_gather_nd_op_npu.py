@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 
 from tests.op_test import OpTest
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 
@@ -259,8 +259,8 @@ class TestGatherNdAPI(unittest.TestCase):
         paddle.disable_static()
         input_1 = np.array([[1, 2], [3, 4], [5, 6]])
         index_1 = np.array([[1]])
-        input = fluid.dygraph.to_variable(input_1)
-        index = fluid.dygraph.to_variable(index_1)
+        input = base.dygraph.to_variable(input_1)
+        index = base.dygraph.to_variable(index_1)
         output = paddle.gather(input, index)
         output_np = output.numpy()
         expected_output = np.array([3, 4])

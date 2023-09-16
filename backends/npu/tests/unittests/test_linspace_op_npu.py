@@ -18,8 +18,8 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
+import paddle.base as base
+from paddle.base import core
 
 paddle.enable_static()
 
@@ -138,13 +138,13 @@ class TestLinspaceOpNumOneCase(OpTest):
 class TestLinspaceAPI(unittest.TestCase):
     def test_variable_input1(self):
         paddle.enable_static()
-        with fluid.program_guard(fluid.Program()):
+        with base.program_guard(base.Program()):
             start = paddle.full(shape=[1], fill_value=0, dtype="float32")
             stop = paddle.full(shape=[1], fill_value=10, dtype="float32")
             num = paddle.full(shape=[1], fill_value=5, dtype="int32")
             out = paddle.linspace(start, stop, num, dtype="float32")
-            exe = fluid.Executor(paddle.CustomPlace("npu", 0))
-            res = exe.run(fluid.default_main_program(), fetch_list=[out])
+            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            res = exe.run(base.default_main_program(), fetch_list=[out])
         np_res = np.linspace(0, 10, 5, dtype="float32")
         self.assertEqual((res == np_res).all(), True)
 

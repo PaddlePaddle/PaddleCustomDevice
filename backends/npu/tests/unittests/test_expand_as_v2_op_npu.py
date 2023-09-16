@@ -19,7 +19,7 @@ import unittest
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 np.random.seed(10)
@@ -128,9 +128,9 @@ class TestExpandAsV2API(unittest.TestCase):
 
         out_1 = paddle.expand_as(x, y=y)
 
-        exe = fluid.Executor(place=fluid.CustomPlace("npu", 0))
+        exe = base.Executor(place=base.CustomPlace("npu", 0))
         res_1 = exe.run(
-            fluid.default_main_program(),
+            base.default_main_program(),
             feed={"x": input1, "target_tensor": input2},
             fetch_list=[out_1],
         )

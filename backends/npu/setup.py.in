@@ -5,10 +5,32 @@ from setuptools import setup, Distribution
 packages = []
 package_data = {}
 
+def write_custom_op_api_py(filename='python/paddle_custom_device/npu/ops.py', libname='python/paddle_custom_device/libpaddle-custom-npu.so'):
+    import os
+    os.environ['CUSTOM_DEVICE_ROOT']=''
+    import sys
+    import paddle
+    op_names = paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(libname)
+    api_content = [paddle.utils.cpp_extension.extension_utils._custom_api_content(op_name) for op_name in op_names]
+    with open(filename, 'w') as f:
+        f.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+import paddle
+import os
+for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
+    if lib.endswith(".so"):
+        paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
+            lib
+        )
+''')
+        f.write('\n\n'.join(api_content))
+
 
 def write_version_py(filename='python/paddle_custom_device/npu/__init__.py'):
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
+from .ops import *
+
 full_version  = '@PADDLE_VERSION@'
 cann_version  = '@ASCEND_TOOLKIT_VERSION@'
 git_commit_id = '@GIT_HASH@'
@@ -65,6 +87,7 @@ class BinaryDistribution(Distribution):
 
 
 def main():
+    write_custom_op_api_py()
     write_version_py()
     write_init_py()
 

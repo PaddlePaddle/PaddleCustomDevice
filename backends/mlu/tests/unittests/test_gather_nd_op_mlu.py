@@ -17,7 +17,7 @@ import unittest
 from tests.op_test import OpTest
 
 import numpy as np
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -262,8 +262,8 @@ class TestGatherNdAPI2(unittest.TestCase):
         paddle.set_device("mlu")
         input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
         index_1 = np.array([[1]]).astype("int32")
-        input = fluid.dygraph.to_variable(input_1)
-        index = fluid.dygraph.to_variable(index_1)
+        input = base.dygraph.to_variable(input_1)
+        index = base.dygraph.to_variable(index_1)
         output = paddle.gather(input, index)
         output_np = output.numpy()
         expected_output = np.array([3, 4])

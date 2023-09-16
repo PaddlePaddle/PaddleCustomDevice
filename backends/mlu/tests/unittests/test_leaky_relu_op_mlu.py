@@ -45,7 +45,7 @@ class TestLeadyRelu(OpTest):
 
     def set_inputs(self):
         x = np.random.uniform(-1, 1, [11, 17]).astype(self.dtype)
-        self.inputs = {"X": OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
 
     def set_attrs(self):
         self.attrs = {}

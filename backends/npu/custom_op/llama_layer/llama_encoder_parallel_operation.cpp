@@ -103,6 +103,7 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   CreateLlamaPositionEmbedding1DSplitOperation(positionEmbedding1dSplitQParam, &qPositionEmbeddingNode.operation);
   qPositionEmbeddingNode.inTensorIds = {INTERMIDATE_MIXEDQ, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
   qPositionEmbeddingNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ};
+  qPositionEmbeddingNode.inTensorReshapeFuncs.resize(qPositionEmbeddingNode.inTensorIds.size());
   qPositionEmbeddingNode.inTensorReshapeFuncs.at(2) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
       newShape.dimNum = 4; // dimNum: 4
       newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
@@ -123,6 +124,7 @@ atb::Status CreateLlamaLayerEncoderParallelOperation(const LlamaLayerEncoderPara
   CreateLlamaPositionEmbedding1DSplitOperation(positionEmbedding1dSplitKParam, &kPositionEmbeddingNode.operation);
   kPositionEmbeddingNode.inTensorIds = {INTERMIDATE_MIXEDK, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
   kPositionEmbeddingNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDK};
+  kPositionEmbeddingNode.inTensorReshapeFuncs.resize(kPositionEmbeddingNode.inTensorIds.size());
   kPositionEmbeddingNode.inTensorReshapeFuncs.at(2) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
       newShape.dimNum = 4; // dimNum: 4
       newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];

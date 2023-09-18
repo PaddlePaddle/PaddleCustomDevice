@@ -537,8 +537,8 @@ def llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, 
     outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
     print(outs_name)
     llama_decoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
-    llama_decoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
-    llama_decoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
+    llama_decoder_layer_parallel_op._desc.set_output("PresentKV", [outs_name[1]])
+    # llama_decoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
 
     llama_decoder_layer_parallel_op.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
     # llama_decoder_layer_parallel_op.Attr("headDim").MappedPattern(op="qkv_transpose_split", name="head_size", index=0) # [0, 0, head_num, head_dim]
@@ -569,7 +569,7 @@ def llama_fuse_attention_dynamic_parallel_layer1():
         
     def replace(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
         result = llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
-        return result[0], result[1], result[2]
+        return result[0], result[2], result[1]
 
     return pattern, replace
 
@@ -591,7 +591,7 @@ def llama_fuse_attention_dynamic_parallel_layer2():
         
     def replace(in_scale, rms_norm_residual, matmul_, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
         result = llama_paralle_cached_layer_adaptor(matmul_, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
-        return result[0], result[1], result[2]
+        return result[0], result[2], result[1]
 
     return pattern, replace
 
@@ -609,13 +609,15 @@ def llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_
             MlpDownWeight=ffn2_weight,
             PositionIDs=input_ids,
             CosSinTable=rotary_emb,
-            AttentionMask=mask
+            AttentionMask=mask,
+            Cache_KV=cache_kv,
+            SeqLength=seq_len_encoder,
     )
     outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(8)] # 3 outputs
     print(outs_name)
     llama_encoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
-    llama_encoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
-    llama_encoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
+    llama_encoder_layer_parallel_op._desc.set_output("PresentKV", [outs_name[1]])
+    # llama_encoder_layer_parallel_op._desc.set_output("PresentValue", [outs_name[2]])
 
     llama_encoder_layer_parallel_op.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
     llama_encoder_layer_parallel_op.Attr("headDim").MappedPattern(op="qkv_transpose_split", name="head_size", index=0) # [0, 0, head_num, head_dim]

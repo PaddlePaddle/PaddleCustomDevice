@@ -140,7 +140,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   };
 
   atb::infer::SoftmaxParam softMaxNodeParam;
-  softMaxNodeParam.axes = -1;
+  softMaxNodeParam.axes = {-1};
   atb::CreateOperation(softMaxNodeParam, &softMaxNode.operation);
   softMaxNode.inTensorIds = {INTERMIDATE_ATTENTIONSCORES};
   softMaxNode.outTensorIds = {INTERMIDATE_ATTENTIONPROBS};

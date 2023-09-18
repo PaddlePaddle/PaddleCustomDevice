@@ -50,6 +50,7 @@ class PpAtbLlaMaEncoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
   PpAtbLlaMaEncoderLayerParallelOp(const std::string &modelName, int32_t layerNum);
   ~PpAtbLlaMaEncoderLayerParallelOp();
+  phi::DenseTensor layerIdTensor;
 
 private:
   int32_t layerNum_ = 0;

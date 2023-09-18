@@ -249,7 +249,7 @@ std::vector<std::vector<int64_t>> SetValueByFlagsAndIdxOpInferShape(
 std::vector<paddle::Tensor> SetStopValueMultiEndsOp(const paddle::Tensor& end_ids,
                                                     const paddle::Tensor& stop_flags,
                                                     const paddle::Tensor& topk_ids,
-												                          	int mode) {
+												                          	int64_t mode) {
 
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(end_ids.place()));
@@ -292,7 +292,7 @@ std::vector<std::vector<int64_t>> SetStopValueMultiEndsOpInferShape(
 PD_BUILD_OP(set_stop_value_multi_ends)
     .Inputs({"end_ids", "stop_flags", "topk_ids"})
     .Outputs({"stop_flags_out", "topk_ids_out"})
-	  .Attrs({"mode: int"})
+	  .Attrs({"mode: int64_t"})
     .SetKernelFn(PD_KERNEL(SetStopValueMultiEndsOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
         SetStopValueMultiEndsOpInferShape));  // neccessary if the op has muti_inputs
@@ -540,3 +540,144 @@ PD_BUILD_OP(top_p_sampling)
     .SetInferShapeFn(PD_INFER_SHAPE(
         TopPSamplingOpInferShape));  // neccessary if the op has muti_inputs
 
+template<typename T, int N>
+struct GetPackType {
+  using type = typename std::aligned_storage<N * sizeof(T), N * sizeof(T)>::type;
+};
+
+template<typename T, int N>
+using PackType = typename GetPackType<T, N>::type;
+
+template<typename T, int N>
+union Pack {
+  static_assert(sizeof(PackType<T, N>) == sizeof(T) * N, "");
+  Pack() {
+    // do nothing
+  }
+  PackType<T, N> storage;
+  T elem[N];
+};
+
+void fused_get_rotary_embedding(const int64_t* position_ids, 
+                                const int32_t bsz, 
+                                const int32_t max_seq_length, 
+                                const int32_t max_position_seq_length,
+                                const int32_t head_dim, 
+                                const int32_t prompt_num,
+                                const float inv_head_dim, 
+                                const int32_t elem_cnt, 
+                                float* rope_embedding) {
+    /*
+    In Naive implementation, it will stacks [freqs, freqs]
+    And actually, each threads can process 1 values, and store continuous 2 same values. 
+    So here We construct a Pack to store 2 values. 
+    */
+    constexpr int PackSize = 2; 
+    Pack<float, PackSize> SinStorePack{}; 
+    Pack<float, PackSize> CosStorePack{}; 
+
+    const int half_head_dim = head_dim / PackSize; 
+    const int32_t global_thread_idx = 0; 
+    for(int idx = global_thread_idx; idx < elem_cnt; idx += 1){
+        const int32_t bsz_seq_idx = idx / half_head_dim;
+        const int32_t bsz_idx =  bsz_seq_idx / max_seq_length;
+        const int32_t seq_idx = bsz_seq_idx % max_seq_length;
+        const int64_t position_offset = bsz_idx * max_position_seq_length + seq_idx + prompt_num;
+        const int32_t half_head_idx = (idx % half_head_dim) * PackSize; 
+        const float exponent_factor = -static_cast<float>(half_head_idx) * inv_head_dim; // * inv_head_dim equals to / head_dim. 
+        const float inv_freq_val = powf(10000.0f, exponent_factor); 
+        const float freqs_val = static_cast<float>(position_ids[position_offset]) * inv_freq_val; 
+        const float cos_embedding_val = cos(freqs_val); 
+        const float sin_embedding_val = sin(freqs_val); 
+
+        /*
+        Since After stack, the continuous 2 elements value is same. 
+        So here each threads store 2 computed embedding value. 
+        */
+        #pragma unroll 
+        for(int unroll_idx = 0; unroll_idx < PackSize; unroll_idx++){
+            CosStorePack.elem[unroll_idx] = cos_embedding_val; 
+            SinStorePack.elem[unroll_idx] = sin_embedding_val; 
+        }
+
+        const int32_t cos_offset = bsz_seq_idx * head_dim + half_head_idx; 
+        const int32_t sin_offset = bsz * max_seq_length * head_dim + cos_offset; 
+        *(reinterpret_cast<PackType<float, PackSize>*>(rope_embedding + cos_offset)) = CosStorePack.storage;
+        *(reinterpret_cast<PackType<float, PackSize>*>(rope_embedding + sin_offset)) = SinStorePack.storage;
+    }
+}
+
+std::vector<std::vector<int64_t>> GetRoPEInferShape(const std::vector<int64_t>& input_ids_shape, 
+                                                    const std::vector<int64_t>& position_ids_shape, 
+                                                    const std::vector<int64_t>& head_dim_shape_tensor_shape) {
+    const int64_t batch_size = position_ids_shape[0]; 
+    const int64_t max_seq_length = input_ids_shape[1]; 
+    const int64_t head_dim = head_dim_shape_tensor_shape[0]; 
+    std::vector<int64_t> out_shape = {2, batch_size, 1, max_seq_length, head_dim};                                                          
+    return {out_shape};
+}
+
+std::vector<paddle::DataType> GetRoPEInferDtype(const paddle::DataType& input_ids_dtype, 
+                                                const paddle::DataType& position_ids_dtype, 
+                                                const paddle::DataType& head_dim_shape_tensor_dtype) {
+    // RoPE output dtype is Float. 
+    return {paddle::DataType::FLOAT32};
+}
+
+std::vector<paddle::Tensor> GetRoPE(const paddle::Tensor& head_dim_shape_tensor, 
+                                    const paddle::Tensor& input_ids, 
+                                    const paddle::Tensor& position_ids,
+                                    int prompt_num,
+                                    bool use_neox) {
+	auto dev_ctx = static_cast<const phi::CustomContext*>(
+        paddle::experimental::DeviceContextPool::Instance().Get(head_dim_shape_tensor.place()));
+	
+	const int64_t batch_size = position_ids.shape()[0]; 
+    const int64_t max_seq_length = input_ids.shape()[1]; 
+    const int64_t head_dim = head_dim_shape_tensor.shape()[0]; 
+    std::vector<int64_t> out_shape = {2, batch_size, 1, max_seq_length, head_dim};
+	
+	std::shared_ptr<phi::DenseTensor> rotary_embedding =
+      std::make_shared<phi::DenseTensor>();
+	rotary_embedding->Resize(phi::make_ddim(out_shape));
+    dev_ctx->Alloc(rotary_embedding.get(), paddle::DataType::FLOAT32);
+    
+	return {paddle::Tensor(rotary_embedding)};
+}
+
+PD_BUILD_OP(fused_get_rotary_embedding)
+    .Inputs({"input_ids", "position_ids", "head_dim_shape_tensor"})
+    .Outputs({"rotary_embedding"})
+    .Attrs({"prompt_num: int",
+            "use_neox: bool"})
+    .SetKernelFn(PD_KERNEL(GetRoPE))
+    .SetInferShapeFn(PD_INFER_SHAPE(GetRoPEInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(GetRoPEInferDtype));
+
+    // save_with_output
+std::vector<paddle::Tensor> SaveWithOutputOp(const paddle::Tensor& batch_idx,
+                                             const paddle::Tensor& step_idx,
+                                             const paddle::Tensor& x) {
+  std::cout<<"SaveWithOutputOp"<<std::endl;
+
+  std::shared_ptr<phi::DenseTensor> out_tensor =
+      std::make_shared<phi::DenseTensor>();
+  
+  return {paddle::Tensor(out_tensor)};
+}
+
+std::vector<std::vector<int64_t>> SaveWithOutputOpInferShape(
+    const std::vector<int64_t>& batch_idx_shape,
+    const std::vector<int64_t>& step_idx_shape,
+    const std::vector<int64_t>& x_shape) {
+  return {x_shape};
+}
+
+// PD_BUILD_OP
+PD_BUILD_OP(save_with_output)
+    .Inputs({"batch_idx", "step_idx", "x"})
+    .Outputs({"out"})
+	.Attrs({"file_path: std::string"})
+    .SetKernelFn(PD_KERNEL(SaveWithOutputOp))
+    .SetInferShapeFn(PD_INFER_SHAPE(
+        SaveWithOutputOpInferShape));  // neccessary if the op has muti_inputs

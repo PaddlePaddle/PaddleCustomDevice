@@ -60,7 +60,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
 
   // [bs, seq_len, hidden_size] -> [bs, head_num, seq_len, head_dim]
   atb::infer::TransposeParam inputTransposeNodeParam = { { 0, 2, 1, 3 } };
-  CreateOp(inputTransposeNodeParam, &inputTransposeNode.op);
+  atb::CreateOperation(inputTransposeNodeParam, &inputTransposeNode.operation);
   inputTransposeNode.inTensorIds = {IN_INPUTTENSOR};
   inputTransposeNode.outTensorIds = {INTERMIDATE_INPUT_TRANSPOSED};
   inputTransposeNode.inTensorReshapeFuncs.resize(inputTransposeNode.inTensorIds.size());
@@ -74,7 +74,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
 
   atb::infer::GatherParam embedding0NodeParam;
   embedding0NodeParam.axis = 0;
-  CreateOp(embedding0NodeParam, &embedding0Node.op);
+  atb::CreateOperation(embedding0NodeParam, &embedding0Node.operation);
   embedding0Node.inTensorIds = {IN_COSTABLETENSOR, IN_POSITIONIDSTENSOR};
   embedding0Node.outTensorIds = {INTERMIDATE_COS};
   embedding0Node.inTensorReshapeFuncs.resize(embedding0Node.inTensorIds.size());
@@ -94,7 +94,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
 
   atb::infer::GatherParam embedding1NodeParam;
   embedding1NodeParam.axis = 0;
-  CreateOp(embedding1NodeParam, &embedding1Node.op);
+  atb::CreateOperation(embedding1NodeParam, &embedding1Node.operation);
   embedding1Node.inTensorIds = {IN_SINTABLETENSOR, IN_POSITIONIDSTENSOR};
   embedding1Node.outTensorIds = {INTERMIDATE_SIN};
   embedding1Node.inTensorReshapeFuncs.resize(embedding1Node.inTensorIds.size());
@@ -113,26 +113,26 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
   };
 
   atb::infer::SplitParam splitParam = {3, 2};
-  CreateOp(splitParam, &sliceNode.op);
+  atb::CreateOperation(splitParam, &sliceNode.operation);
   sliceNode.inTensorIds = {INTERMIDATE_INPUT_TRANSPOSED};
   sliceNode.outTensorIds = {INTERMIDATE_INPUT_TRANSPOSED0, INTERMIDATE_INPUT_TRANSPOSED1};
 
   atb::infer::ElewiseParam negNodeParam;
   negNodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_NEG;
-  CreateOp(negNodeParam, &negNode.op);
+  atb::CreateOperation(negNodeParam, &negNode.operation);
   negNode.inTensorIds = {INTERMIDATE_INPUT_TRANSPOSED1};
   negNode.outTensorIds = {INTERMIDATE_INPUT_TRANSPOSED1NEG};
 
   atb::infer::ConcatParam concatParam;
   concatParam.concatDim = 3;
-  CreateOp(concatParam, &cat0Node.op);
+  atb::CreateOperation(concatParam, &cat0Node.operation);
   cat0Node.inTensorIds = {INTERMIDATE_INPUT_TRANSPOSED1NEG, INTERMIDATE_INPUT_TRANSPOSED0};
   cat0Node.outTensorIds = {INTERMIDATE_INPUT_ROTATE};
 
   // [bs, head_num, seq_len, head_dim] * [bs, seq_len, head_dim]
   atb::infer::ElewiseParam mul0NodeParam;
   mul0NodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
-  CreateOp(mul0NodeParam, &mul0Node.op);
+  atb::CreateOperation(mul0NodeParam, &mul0Node.operation);
   mul0Node.inTensorIds = {INTERMIDATE_INPUT_TRANSPOSED, INTERMIDATE_COS};
   mul0Node.outTensorIds = {INTERMIDATE_INPUT_MUL0};
   mul0Node.inTensorReshapeFuncs.resize(mul0Node.inTensorIds.size());
@@ -148,7 +148,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
 
   atb::infer::ElewiseParam mul1NodeParam;
   mul1NodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_NEG;
-  CreateOp(mul1NodeParam, &mul1Node.op);
+  atb::CreateOperation(mul1NodeParam, &mul1Node.operation);
   mul1Node.inTensorIds = {INTERMIDATE_INPUT_ROTATE, INTERMIDATE_SIN};
   mul1Node.outTensorIds = {INTERMIDATE_INPUT_MUL1};
   mul1Node.inTensorReshapeFuncs.resize(mul1Node.inTensorIds.size());
@@ -164,13 +164,13 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
 
   atb::infer::ElewiseParam addNodeParam;
   addNodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-  CreateOp(addNodeParam, &addNode.op);
+  atb::CreateOperation(addNodeParam, &addNode.operation);
   addNode.inTensorIds = {INTERMIDATE_INPUT_MUL0, INTERMIDATE_INPUT_MUL1};
   addNode.outTensorIds = {INTERMIDATE_INPUT_EMBEDDED};
 
   // [bs, head_num, seq_len, head_dim] -> [seq_len, bs, head_num, head_dim]
   atb::infer::TransposeParam permuteNodeParam = { { 2, 0, 1, 3 } };
-  CreateOp(permuteNodeParam, &permuteNode.op);
+  atb::CreateOperation(permuteNodeParam, &permuteNode.operation);
   permuteNode.inTensorIds = {INTERMIDATE_INPUT_EMBEDDED};
   permuteNode.outTensorIds = {OUT_EMBEDDEDPERMUTEDTENSOR};
   permuteNode.inTensorReshapeFuncs.resize(permuteNode.inTensorIds.size());
@@ -191,6 +191,6 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
       return atb::NO_ERROR;
   };
 
-  atb::CreateOp(opGraph, operation);
+  atb::CreateOperation(opGraph, operation);
   return atb::NO_ERROR;
 }

@@ -19,7 +19,7 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 15;
+static const uint64_t IN_TENSOR_COUNT = 14;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 16;
 static const uint64_t NODE_COUNT = 12;
@@ -50,25 +50,25 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::infer::RmsNormParam inputNormParam;
     inputNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     inputNormParam.normParam.epsilon = param.rmsNormEps;
-    CreateOp(inputNormParam, &inputNormNode.op);
+    atb::CreateOperation(inputNormParam, &inputNormNode.operation);
     inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
 
     MultiLayerLinearParam multiLayerLinearParam;
     multiLayerLinearParam.transpose = param.transpose;
-    CreateLlamaMultiLayerLinearOperation(multiLayerLinearParam, &mixdQKVLinearNode.op);
+    CreateLlamaMultiLayerLinearOperation(multiLayerLinearParam, &mixdQKVLinearNode.operation);
     mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT};
     mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
     atb::infer::SplitParam splitParam = {0, 2};
-    CreateOp(splitParam, &cosSinSplitNode.op);
+    atb::CreateOperation(splitParam, &cosSinSplitNode.operation);
     cosSinSplitNode.inTensorIds = {IN_COS_SIN_TABLE};
     cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
 
     llamaPositionEmbedding1DSplitFusionParam positionEmbedding1dFusionParam;
     positionEmbedding1dFusionParam.headNum = param.headNum;
     positionEmbedding1dFusionParam.rotaryCoeff = param.rotaryCoeff;
-    CreateLlamaPositionEmbedding1DSplitFusionOperation(positionEmbedding1dFusionParam, &ropeNode.op);
+    CreateLlamaPositionEmbedding1DSplitFusionOperation(positionEmbedding1dFusionParam, &ropeNode.operation);
     ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN, IN_SEQLEN};
     ropeNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_POSITIONEMBEDK};
     ropeNode.inTensorReshapeFuncs.resize(ropeNode.inTensorIds.size());
@@ -98,7 +98,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     };
 
     atb::infer::SplitParam splitKVParam = {0, 2};
-    CreateOp(splitKVParam, &cacheKVSplitNode.op);
+    atb::CreateOperation(splitKVParam, &cacheKVSplitNode.operation);
     cacheKVSplitNode.inTensorIds = {IN_CACHE_KV};
     cacheKVSplitNode.outTensorIds = {INTERMIDATE_CACHEK, INTERMIDATE_CACHEV};
 
@@ -106,7 +106,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
     selfAttentionKvCacheParam.qScale = param.layerId; // TODO：
-    CreateOp(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.op);
+    atb::CreateOperation(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.operation);
     selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
                                             INTERMIDATE_POSITIONEMBEDK,
                                             INTERMIDATE_MIXEDV,
@@ -163,13 +163,13 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfOutLinearParallelParam.parallelType = "RowParallel";
     selfOutLinearParallelParam.backend = "hccl";
     selfOutLinearParallelParam.hcclComm = param.hcclComm;
-    CreateOp(selfOutLinearParallelParam, &selfOutLinearParallelNode.op);
+    atb::CreateOperation(selfOutLinearParallelParam, &selfOutLinearParallelNode.operation);
     selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT, IN_SELFOUTLINEARWEIGHT};
     selfOutLinearParallelNode.outTensorIds = {INTERMIDATE_SELFLINEAROUT};
 
     atb::infer::ElewiseParam selfResidualAddParam;
     selfResidualAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    CreateOp(selfResidualAddParam, &selfResidualAddNode.op);
+    atb::CreateOperation(selfResidualAddParam, &selfResidualAddNode.operation);
     selfResidualAddNode.inTensorIds = {IN_HIDDENSTATES, INTERMIDATE_SELFLINEAROUT};
     selfResidualAddNode.outTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT};
     selfResidualAddNode.inTensorReshapeFuncs.resize(selfResidualAddNode.inTensorIds.size());
@@ -183,14 +183,14 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::infer::RmsNormParam selfNormParam;
     selfNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     selfNormParam.normParam.epsilon = param.rmsNormEps;
-    CreateOp(selfNormParam, &selfNormNode.op);
+    atb::CreateOperation(selfNormParam, &selfNormNode.operation);
     selfNormNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT, IN_SELFOUTNORMWEIGHT};
     selfNormNode.outTensorIds = {INTERMIDATE_SELFNORMOUT};
 
     LlamaMlpParam llamaMlpParam;
     llamaMlpParam.transpose = param.transpose;
-    CreateLlamaMlpOperation(llamaMlpParam, &mlpNode.op);
-    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_MLPGATEWEIGHT, IN_MLPUPWEIGHT};
+    CreateLlamaMlpOperation(llamaMlpParam, &mlpNode.operation);
+    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_MLPGATEUPWEIGHT};
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT};
 
     atb::infer::LinearParallelParam mlpLinearParallelParam;
@@ -202,13 +202,13 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     mlpLinearParallelParam.parallelType = "RowParallel";
     mlpLinearParallelParam.backend = "hccl";
     mlpLinearParallelParam.hcclComm = param.hcclComm;
-    CreateOp(mlpLinearParallelParam, &mlpLinearParallelNode.op);
+    atb::CreateOperation(mlpLinearParallelParam, &mlpLinearParallelNode.operation);
     mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT, IN_MLPDOWNWEIGHT};
     mlpLinearParallelNode.outTensorIds = {INTERMIDATE_MLPLINEARPARALLELOUT};
 
     atb::infer::ElewiseParam mlpResidualAddParam;
     mlpResidualAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    CreateOp(mlpResidualAddParam, &mlpResidualAddNode.op);
+    atb::CreateOperation(mlpResidualAddParam, &mlpResidualAddNode.operation);
     mlpResidualAddNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT, INTERMIDATE_MLPLINEARPARALLELOUT};
     mlpResidualAddNode.outTensorIds = {OUT_LLAMA13BLAYEROUT};
 
@@ -218,6 +218,6 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         return atb::NO_ERROR;
     };
 
-    atb::CreateOp(opGraph, operation);
+    atb::CreateOperation(opGraph, operation);
     return atb::NO_ERROR;
 }

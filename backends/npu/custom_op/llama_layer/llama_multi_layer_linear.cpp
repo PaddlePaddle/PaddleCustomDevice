@@ -45,7 +45,7 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
     atb::Node &splitNode = opGraph.nodes.at(nodeId++);
 
     atb::infer::MatmulParam linearParam = {false, param.transpose};
-    CreateOp(linearParam, &linearNode.op);
+    atb::CreateOperation(linearParam, &linearNode.operation);
     linearNode.inTensorIds = {IN_INPUTTENSOR, IN_WEIGHTTENSOR};
     linearNode.outTensorIds = {INTERMIDATE_LINEAR_OUT};
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
@@ -56,7 +56,7 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
     };
 
     atb::infer::SplitParam splitParam = {2, 3};
-    CreateOp(splitParam, &splitNode.op);
+    atb::CreateOperation(splitParam, &splitNode.operation);
     splitNode.inTensorIds = {INTERMIDATE_LINEAR_OUT};
     splitNode.outTensorIds = {OUT_MATMULRESULTQTENSOR, OUT_MATMULRESULTKTENSOR, OUT_MATMULRESULTVTENSOR};
     splitNode.inTensorReshapeFuncs.resize(splitNode.inTensorIds.size());
@@ -83,7 +83,7 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
         outTensorDescs.at(2).shape.dimNum = DIM3;
         outTensorDescs.at(2).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
         outTensorDescs.at(2).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
- 
+
         if (param.transpose == true) {
             outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
 
@@ -101,6 +101,6 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
         return atb::NO_ERROR;
     };
 
-    atb::CreateOp(opGraph, operation);
+    atb::CreateOperation(opGraph, operation);
     return atb::NO_ERROR;
 }

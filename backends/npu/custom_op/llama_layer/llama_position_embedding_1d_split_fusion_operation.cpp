@@ -51,7 +51,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositi
 
     atb::infer::GatherParam embedding0NodeParam;
     embedding0NodeParam.axis = 0;
-    CreateOp(embedding0NodeParam, &embedding0Node.op);
+    atb::CreateOperation(embedding0NodeParam, &embedding0Node.operation);
     embedding0Node.inTensorIds = {IN_COSTABLETENSOR, IN_POSITIONIDSTENSOR};
     embedding0Node.outTensorIds = {INTERMIDATE_COS};
     embedding0Node.inTensorReshapeFuncs.resize(embedding0Node.inTensorIds.size());
@@ -68,7 +68,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositi
 
     atb::infer::GatherParam embedding1NodeParam;
     embedding1NodeParam.axis = 0;
-    CreateOp(embedding1NodeParam, &embedding1Node.op);
+    atb::CreateOperation(embedding1NodeParam, &embedding1Node.operation);
     embedding1Node.inTensorIds = {IN_SINTABLETENSOR, IN_POSITIONIDSTENSOR};
     embedding1Node.outTensorIds = {INTERMIDATE_SIN};
     embedding1Node.inTensorReshapeFuncs.resize(embedding1Node.inTensorIds.size());
@@ -85,7 +85,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositi
 
     atb::infer::RopeParam ropeParam;
     ropeParam.rotaryCoeff = 2;
-    CreateOp(ropeParam, &ropeNode.op);
+    atb::CreateOperation(ropeParam, &ropeNode.operation);
     ropeNode.inTensorIds = {IN_QLAYERTENSOR, IN_KLAYERTENSOR, INTERMIDATE_COS, INTERMIDATE_SIN, IN_SEQLENTENSOR};
     ropeNode.outTensorIds = {OUT_QEMBEDDEDTENSOR, OUT_KEMBEDDEDTENSOR};
     ropeNode.inTensorReshapeFuncs.resize(ropeNode.inTensorIds.size());
@@ -117,6 +117,6 @@ atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositi
         return atb::NO_ERROR;
     };
 
-    atb::CreateOp(opGraph, operation);
+    atb::CreateOperation(opGraph, operation);
     return atb::NO_ERROR;
 }

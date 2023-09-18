@@ -147,7 +147,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
   };
 
   atb::infer::ElewiseParam mul1NodeParam;
-  mul1NodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_NEG;
+  mul1NodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
   atb::CreateOperation(mul1NodeParam, &mul1Node.operation);
   mul1Node.inTensorIds = {INTERMIDATE_INPUT_ROTATE, INTERMIDATE_SIN};
   mul1Node.outTensorIds = {INTERMIDATE_INPUT_MUL1};
@@ -175,7 +175,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitOperation(const LlamaPositionEmbe
   permuteNode.outTensorIds = {OUT_EMBEDDEDPERMUTEDTENSOR};
   permuteNode.inTensorReshapeFuncs.resize(permuteNode.inTensorIds.size());
 
-  opGraph.inferShapeFunc = [&](const atb::SVector<atb::TensorDesc> &inTensorDescs,
+  opGraph.inferShapeFunc = [=](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                 atb::SVector<atb::TensorDesc> &outTensorDescs) {
 
       // in : Q,[batch, seq_len, all_head_size]   position_ids,[]  cos_table,[]  sin_table[]

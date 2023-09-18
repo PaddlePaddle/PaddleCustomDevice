@@ -257,6 +257,7 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "SelfOutLinearWeight",
              "SelfOutNormWeight",
              "MlpGateUpWeight",
+             "MlpDownWeight",
              "PositionIDs",
              "CosSinTable",
              "AttentionMask",

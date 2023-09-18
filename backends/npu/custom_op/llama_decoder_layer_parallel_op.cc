@@ -41,9 +41,8 @@ void PerpareLlaMaDecoderLayerInputs(
     const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
-    const paddle::Tensor &mlp_gate_weight,
+    const paddle::Tensor &mlp_gate_up_weight,
     const paddle::Tensor &mlp_down_weight,
-    const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
     const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask,
@@ -58,9 +57,8 @@ void PerpareLlaMaDecoderLayerInputs(
   auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
   auto self_out_linear_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_weight.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
-  auto mlp_gate_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_gate_weight.impl().get());
+  auto mlp_gate_up_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_gate_up_weight.impl().get());
   auto mlp_down_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_down_weight.impl().get());
-  auto mlp_up_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_up_weight.impl().get());
   auto positionIDs_tensor = static_cast<const phi::DenseTensor *>(positionIDs.impl().get());
   auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
@@ -72,9 +70,8 @@ void PerpareLlaMaDecoderLayerInputs(
   inputs.push_back(qkv_mix_weight_tensor);
   inputs.push_back(self_out_linear_weight_tensor);
   inputs.push_back(self_out_norm_weight_tensor);
-  inputs.push_back(mlp_gate_weight_tensor);
+  inputs.push_back(mlp_gate_up_weight_tensor);
   inputs.push_back(mlp_down_weight_tensor);
-  inputs.push_back(mlp_up_weight_tensor);
   inputs.push_back(positionIDs_tensor);
   inputs.push_back(cos_sin_table_tensor);
   inputs.push_back(attention_mask_tensor);
@@ -131,9 +128,8 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     const paddle::Tensor &qkv_mix_weight,
     const paddle::Tensor &self_out_linear_weight,
     const paddle::Tensor &self_out_norm_weight,
-    const paddle::Tensor &mlp_gate_weight,
+    const paddle::Tensor &mlp_gate_up_weight,
     const paddle::Tensor &mlp_down_weight,
-    const paddle::Tensor &mlp_up_weight,
     const paddle::Tensor &positionIDs,
     const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask, // TODO:待确认attention mask是否符合加速库
@@ -214,9 +210,8 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                  qkv_mix_weight,
                                  self_out_linear_weight,
                                  self_out_norm_weight,
-                                 mlp_gate_weight,
+                                 mlp_gate_up_weight,
                                  mlp_down_weight,
-                                 mlp_up_weight,
                                  positionIDs,
                                  cos_sin_table,
                                  attention_mask,
@@ -244,9 +239,8 @@ std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
     const std::vector<int64_t> &v_mix_weight_shape,
     const std::vector<int64_t> &self_out_linear_weight_shape,
     const std::vector<int64_t> &self_out_norm_weight_shape,
-    const std::vector<int64_t> &mlp_gate_weight_shape,
+    const std::vector<int64_t> &mlp_gate_up_weight_shape,
     const std::vector<int64_t> &mlp_down_weight_shape,
-    const std::vector<int64_t> &mlp_up_weight_shape,
     const std::vector<int64_t> &positionIDs_shape,
     const std::vector<int64_t> &cos_sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
@@ -262,9 +256,7 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "QKVMixWeight",
              "SelfOutLinearWeight",
              "SelfOutNormWeight",
-             "MlpGateWeight",
-             "MlpDownWeight",
-             "MlpUpWeight",
+             "MlpGateUpWeight",
              "PositionIDs",
              "CosSinTable",
              "AttentionMask",

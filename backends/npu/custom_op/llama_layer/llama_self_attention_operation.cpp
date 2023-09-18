@@ -66,41 +66,41 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
 
   // [seq_len, bs, head_num, head_dim] -> [bs, head_num, seq_len, head_dim]
   atb::infer::TransposeParam permuteQNodeParam = {{ 1, 2, 0, 3 }};
-  CreateOp(permuteQNodeParam, &permuteQNode.op);
+  atb::CreateOperation(permuteQNodeParam, &permuteQNode.operation);
   permuteQNode.inTensorIds = {IN_MIXEDQUERYTENSOR};
   permuteQNode.outTensorIds = {INTERMIDATE_PERMUTEDQ};
 
   atb::infer::TransposeParam permuteKNodeParam = {{ 1, 2, 0, 3 }};
-  CreateOp(permuteKNodeParam, &permuteKNode.op);
+  atb::CreateOperation(permuteKNodeParam, &permuteKNode.operation);
   permuteKNode.inTensorIds = {IN_MIXEDKEYTENSOR};
   permuteKNode.outTensorIds = {INTERMIDATE_PERMUTEDK};
 
   // [seq_len, bs, head_num, head_dim] -> [bs, head_num, seq_len, head_dim]
   atb::infer::TransposeParam permuteVNodeParam = {{ 1, 2, 0, 3 }};
-  CreateOp(permuteVNodeParam, &permuteVNode.op);
+  atb::CreateOperation(permuteVNodeParam, &permuteVNode.operation);
   permuteVNode.inTensorIds = {IN_MIXEDVALUETENSOR};
   permuteVNode.outTensorIds = {INTERMIDATE_PERMUTEDV};
 
   // [bs, head_num, seq_len, head_dim] -> [seq_len, bs, head_num, head_dim]
   atb::infer::TransposeParam permutePresentKNodeParam = {{ 2, 0, 1, 3 }};
-  CreateOp(permutePresentKNodeParam, &permutePresentKNode.op);
+  atb::CreateOperation(permutePresentKNodeParam, &permutePresentKNode.operation);
   permutePresentKNode.inTensorIds = {INTERMIDATE_PERMUTEDK};
   permutePresentKNode.outTensorIds = {OUT_PRESENTKEYTENSOR};
 
   // [bs, head_num, seq_len, head_dim] -> [seq_len, bs, head_num, head_dim]
   atb::infer::TransposeParam permutePresentVNodeParam = {{ 2, 0, 1, 3 }};
-  CreateOp(permutePresentVNodeParam, &permutePresentVNode.op);
+  atb::CreateOperation(permutePresentVNodeParam, &permutePresentVNode.operation);
   permutePresentVNode.inTensorIds = {INTERMIDATE_PERMUTEDV};
   permutePresentVNode.outTensorIds = {OUT_PRESENTVALUETENSOR};
 
   // [bs, head_num, seq_len, head_dim] -> [bs, head_num, head_dim, seq_len]
   atb::infer::TransposeParam transposePresentKNodeParam = {{ 0, 1, 3, 2 }};
-  CreateOp(transposePresentKNodeParam, &transposePresentKNode.op);
+  atb::CreateOperation(transposePresentKNodeParam, &transposePresentKNode.operation);
   transposePresentKNode.inTensorIds = {INTERMIDATE_PERMUTEDK};
   transposePresentKNode.outTensorIds = {INTERMIDATE_TRANSPOSEDK};
 
   atb::infer::MatmulParam bmmQKNodeParam = {false, !param.transpose};
-  CreateOp(bmmQKNodeParam, &bmmQKNode.op);
+  atb::CreateOperation(bmmQKNodeParam, &bmmQKNode.operation);
   bmmQKNode.inTensorIds = {INTERMIDATE_PERMUTEDQ, INTERMIDATE_TRANSPOSEDK};
   bmmQKNode.outTensorIds = {INTERMIDATE_BMMQKOUT};
   bmmQKNode.inTensorReshapeFuncs.resize(bmmQKNode.inTensorIds.size());
@@ -122,13 +122,13 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   atb::infer::ElewiseParam mulsNodeParam;
   mulsNodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MULS;
   mulsNodeParam.mulsParam.varAttr = (float)(1.0 / sqrt(param.dk));
-  CreateOp(mulsNodeParam, &mulsNode.op);
+  atb::CreateOperation(mulsNodeParam, &mulsNode.operation);
   mulsNode.inTensorIds = {INTERMIDATE_BMMQKOUT};
   mulsNode.outTensorIds = {INTERMIDATE_MULSOUT};
 
   atb::infer::ElewiseParam addMaskNodeParam;
   addMaskNodeParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-  CreateOp(addMaskNodeParam, &addMaskNode.op);
+  atb::CreateOperation(addMaskNodeParam, &addMaskNode.operation);
   addMaskNode.inTensorIds = {IN_ATTENTIONMASKTENSOR, INTERMIDATE_MULSOUT};
   addMaskNode.outTensorIds = {INTERMIDATE_ATTENTIONSCORES};
   addMaskNode.inTensorReshapeFuncs.resize(addMaskNode.inTensorIds.size());
@@ -141,12 +141,12 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
 
   atb::infer::SoftmaxParam softMaxNodeParam;
   softMaxNodeParam.axes = -1;
-  CreateOp(softMaxNodeParam, &softMaxNode.op);
+  atb::CreateOperation(softMaxNodeParam, &softMaxNode.operation);
   softMaxNode.inTensorIds = {INTERMIDATE_ATTENTIONSCORES};
   softMaxNode.outTensorIds = {INTERMIDATE_ATTENTIONPROBS};
 
   atb::infer::LinearParam bmmVNodeParam = {false, true, false};
-  CreateOp(bmmVNodeParam, &bmmVNode.op);
+  atb::CreateOperation(bmmVNodeParam, &bmmVNode.operation);
   bmmVNode.inTensorIds = {INTERMIDATE_ATTENTIONPROBS, INTERMIDATE_PERMUTEDV};
   bmmVNode.outTensorIds = {INTERMIDATE_BMMVOUT};
   bmmVNode.inTensorReshapeFuncs.resize(bmmVNode.inTensorIds.size());
@@ -159,7 +159,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
 
   // [bs, head_num, q_seq_len, head_dim] -> [bs, q_seq_len, head_num, head_dim]
   atb::infer::TransposeParam transposeContext1NodeParam = {{ 0, 2, 1, 3 }};
-  CreateOp(transposeContext1NodeParam, &transposeContext1Node.op);
+  atb::CreateOperation(transposeContext1NodeParam, &transposeContext1Node.operation);
   transposeContext1Node.inTensorIds = {INTERMIDATE_BMMVOUT};
   transposeContext1Node.outTensorIds = {INTERMIDATE_CONTEXTOUT};
   transposeContext1Node.inTensorReshapeFuncs.resize(transposeContext1Node.inTensorIds.size());
@@ -172,7 +172,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   };
 
   atb::infer::TransposeParam transposeContext2NodeParam = {{ 1, 0, 2 }};
-  CreateOp(transposeContext2NodeParam, &transposeContext2Node.op);
+  atb::CreateOperation(transposeContext2NodeParam, &transposeContext2Node.operation);
   transposeContext2Node.inTensorIds = {INTERMIDATE_CONTEXTOUT};
   transposeContext2Node.outTensorIds = {OUT_CONTEXTOUTTENSOR};
   transposeContext2Node.inTensorReshapeFuncs.resize(transposeContext2Node.inTensorIds.size());
@@ -198,6 +198,6 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
     return atb::NO_ERROR;
   };
 
-  atb::CreateOp(opGraph, operation);
+  atb::CreateOperation(opGraph, operation);
   return atb::NO_ERROR;
 }

@@ -528,12 +528,10 @@ def llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, 
             MlpGateUpWeight=ffn1_weight,
             MlpDownWeight=ffn2_weight,
             PositionIDs=sequence_l,
-            CosTable=rotary_t,
-            SinTable=rotary_t,
+            CosSinTable=rotary_t,
             AttentionMask=mask,
             SeqLength=sequence_l,
-            CacheK=cache_kvs,
-            CacheV=cache_kvs
+            Cache_KV=cache_kvs,
     )
 
     outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
@@ -610,11 +608,10 @@ def llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_
             MlpGateUpWeight=ffn1_weight,
             MlpDownWeight=ffn2_weight,
             PositionIDs=input_ids,
-            CosTable=rotary_emb,
-            SinTable=rotary_emb,
+            CosSinTable=rotary_emb,
             AttentionMask=mask
     )
-    outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
+    outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(8)] # 3 outputs
     print(outs_name)
     llama_encoder_layer_parallel_op._desc.set_output("Out", [outs_name[0]])
     llama_encoder_layer_parallel_op._desc.set_output("PresentKey", [outs_name[1]])
@@ -629,7 +626,7 @@ def llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_
     results = []
     for out in outs_name:
         results.append(block.create_var(name=out))
-    return results[0], results[1], results[2]
+    return results[0], results[1], results[2], results[3], results[4], results[5],results[6], results[7]
 
 @ir.RegisterPass
 def llama_fuse_attention_dynamic_parallel_layer():

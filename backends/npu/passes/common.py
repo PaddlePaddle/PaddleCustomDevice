@@ -20,7 +20,7 @@ def register_pass(pass_builder, pass_name):
     paddle.base.core.register_subgraph_pass(pass_name)
 
 def addPasses(pass_builder, model_type):
-    if model_type == "llama_mp8_dynamic_batch":
+    if model_type == "llama7B_mp8_dynamic_batch":
         register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer1")
         register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer2")
         register_pass(pass_builder, "llama_fuse_attention_dynamic_first_parallel_layer")
@@ -30,6 +30,17 @@ def addPasses(pass_builder, model_type):
         register_pass(pass_builder, "remove_get_padding_offset")
         register_pass(pass_builder, "remove_get_token_penalty_multi_scores")
         register_pass(pass_builder, "llama_layer_tail")
-        
+
+    elif model_type == "llama65B_mp8_dynamic_batch":
+        register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer1")
+        register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer2")
+        register_pass(pass_builder, "llama65B_fuse_attention_dynamic_first_parallel_layer")
+        register_pass(pass_builder, "llama65B_fuse_attention_dynamic_parallel_layer")
+        register_pass(pass_builder, "remove_fused_bias_residual_layernorm")
+        register_pass(pass_builder, "remove_rebuild_padding")
+        register_pass(pass_builder, "remove_get_padding_offset")
+        register_pass(pass_builder, "remove_get_token_penalty_multi_scores")
+        register_pass(pass_builder, "llama_layer_tail")
+
     else:
         print("NPU pass not support")

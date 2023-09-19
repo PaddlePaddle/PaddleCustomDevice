@@ -826,3 +826,4 @@ def llama_layer_tail():
     def replace(x, norm_weight):
         norm = ir.PassDesc.OP.llama_lmhead(Hidden=x, NormWeight=norm_weight)
         return norm
+    return pattern, replace

@@ -720,3 +720,14 @@ def llama_fuse_attention_dynamic_first_parallel_layer():
             llama_layer[2])
 
     return pattern, replace
+
+@ir.RegisterPass
+def llama_layer_tail():
+    def pattern(x, norm_weight):
+        rms_norm_ = ir.PassDesc.OP.rms_norm(x=x, norm_weight=norm_weight)
+        return rms_norm_.Output("out")[0]
+
+    def replace(x, norm_weight):
+        norm = ir.PassDesc.OP.llama_lmhead(Hidden=x, NormWeight=norm_weight)
+        return norm
+    return pattern, replace

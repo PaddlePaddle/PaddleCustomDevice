@@ -53,6 +53,7 @@ std::vector<paddle::Tensor> LlaMaLmHeadOp(
 
   std::vector<const phi::DenseTensor *> inputs;
   inputs.push_back(static_cast<const phi::DenseTensor *>(hidden.impl().get()));
+  inputs.push_back(static_cast<const phi::DenseTensor *>(norm_weight.impl().get()));
 
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(layerout_tensor.get());

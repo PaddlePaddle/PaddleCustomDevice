@@ -33,6 +33,7 @@ enum LlamaLayerFusionParallelTensorId {
     IN_TOKENOFFSET,
     IN_SEQLEN,
     IN_LAYERID,
+    IN_BATCH_STATUS,
     OUT_LLAMA13BLAYEROUT,
     INTERMIDATE_INPUTNORMOUT,
     INTERMIDATE_MIXEDQ,
@@ -59,13 +60,11 @@ struct LlamaLayerFusionParallelParam {
     int headDim = 0;
     int rank = 0;
     int rankSize = 1;
-    int layerId = 0;
+    float qkScale = 1.0;
     int rotaryCoeff = 2;
     bool transpose = true;
-    atb::SVector<int32_t> tokenOffset;
-    atb::SVector<int32_t> seqLen;
     void *hcclComm = nullptr; // only effect when hcclComm is not null
-    atb::SVector<int32_t> stop_flags;
+    bool batchRunStatusEnable = false; // enable dynamic batch
 };
 
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,

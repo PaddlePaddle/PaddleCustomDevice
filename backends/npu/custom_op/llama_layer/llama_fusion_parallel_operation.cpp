@@ -132,7 +132,8 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
     selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
-    selfAttentionKvCacheParam.qScale = param.layerId; // TODO：
+    selfAttentionKvCacheParam.qScale = param.qkScale;
+    selfAttentionKvCacheParam.batchRunStatusEnable = param.batchRunStatusEnable;
     atb::CreateOperation(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.operation);
     selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
                                             INTERMIDATE_POSITIONEMBEDK,
@@ -142,7 +143,8 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
                                             IN_ATTENTIONMASK,
                                             IN_TOKENOFFSET,
                                             IN_SEQLEN,
-                                            IN_LAYERID};
+                                            IN_LAYERID,
+                                            IN_BATCH_STATUS};
     selfAttentionKvCacheNode.outTensorIds = {INTERMIDATE_SELFOUT};
     selfAttentionKvCacheNode.inTensorReshapeFuncs.resize(selfAttentionKvCacheNode.inTensorIds.size());
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -200,7 +202,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     // [1, 1, 512] * [512, 4096] -> [1, 1, 4096]
     atb::infer::LinearParallelParam selfOutLinearParallelParam;
-    selfOutLinearParallelParam.transWeight = true;
+    selfOutLinearParallelParam.transWeight = param.transpose;
     selfOutLinearParallelParam.rank = param.rank;
     selfOutLinearParallelParam.rankSize = param.rankSize;
     selfOutLinearParallelParam.rankRoot = 0;
@@ -239,7 +241,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT};
 
     atb::infer::LinearParallelParam mlpLinearParallelParam;
-    mlpLinearParallelParam.transWeight = true;
+    mlpLinearParallelParam.transWeight = param.transpose;
     mlpLinearParallelParam.rank = param.rank;
     mlpLinearParallelParam.rankSize = param.rankSize;
     mlpLinearParallelParam.rankRoot = 0;

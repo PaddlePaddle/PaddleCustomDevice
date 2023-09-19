@@ -20,22 +20,19 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
-std::shared_ptr<PpAtbLlaMaDecoderLayerParallelOp> g_llaMaDecoderLayerParallelOp;
-static int32_t g_llamadecoderLayerId = 0;
-static uint64_t executeCount_ = 0;
+std::shared_ptr<PpAtbLlamaDecoderLayerParallelOp> g_llamaDecoderLayerParallelOp;
+static uint64_t executeCount = 0;
 
 struct PpAtbSeqLen {
-  std::vector<int32_t> kv_seq_len_vec;
   std::vector<int32_t> q_seq_len_vec;
   atb::SVector<int32_t> kv_seq_len_param;
   atb::SVector<int32_t> q_seq_len_param;
-  phi::DenseTensor kv_seq_len_tensor;
   phi::DenseTensor q_seq_len_tensor;
 };
 
 static PpAtbSeqLen g_atbSeqLen;
 
-void PerpareLlaMaDecoderLayerInputs(
+void PerpareLlamaDecoderLayerInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
     const paddle::Tensor &qkv_mix_weight,
@@ -81,28 +78,40 @@ void PerpareLlaMaDecoderLayerInputs(
   inputs.push_back(&layer_id_dense);
 }
 
-void LlamaLayerFusionParallelOpUpdateParam(atb::VariantPack &variantPack)
+atb::Tensor PpAtbLlamaDecoderLayerParallelOp::CreateBatchStatusAtbHostTensor()
 {
-  const uint32_t tokenOffsetTensorId = LlamaLayerFusionParallelTensorId::IN_TOKENOFFSET;
-  const uint32_t seqLenTensorId = LlamaLayerFusionParallelTensorId::IN_SEQLEN;
-  const uint32_t layerIdTensorId = LlamaLayerFusionParallelTensorId::IN_LAYERID;
+  atb::Tensor atbTensor;
+  atbTensor.desc.format = ACL_FORMAT_ND;
 
-  // TODO: 如何更新kv_seq_len, q_seq_len
-  variantPack.inTensors.at(tokenOffsetTensorId).hostData = g_atbSeqLen.kv_seq_len_param.data();
-  variantPack.inTensors.at(seqLenTensorId).hostData = g_atbSeqLen.q_seq_len_param.data();
-  variantPack.inTensors.at(layerIdTensorId).hostData = &g_llamadecoderLayerId;
+  atbTensor.desc.shape.dimNum = 1;
+  atbTensor.desc.shape.dims[0] = curBatchSize_;
+  atbTensor.desc.dtype = ACL_UINT32;
+
+  atbTensor.dataSize = atb::Utils::GetTensorSize(atbTensor);
+  return atbTensor;
 }
 
-void PpAtbLlaMaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
-                                                 std::vector<const phi::DenseTensor *> &outTensors)
-{
-  variantPacks_.inTensors.resize(inTensors.size());
+void PpAtbLlamaDecoderLayerParallelOp::BindHostTensorForUpdateParam(atb::VariantPack &variantPack) {
+  const uint32_t tokenOffsetTensorId = LlamaLayerFusionParallelTensorId::IN_TOKENOFFSET;
+  const uint32_t seqLenTensorId = LlamaLayerFusionParallelTensorId::IN_SEQLEN;
+  const uint32_t batchStatusTensorId = LlamaLayerFusionParallelTensorId::IN_BATCH_STATUS;
+
+  // TODO: 如何更新kv_seq_len, q_seq_len
+  variantPack.inTensors.at(tokenOffsetTensorId).hostData = kv_seq_len_param_.data();
+  variantPack.inTensors.at(seqLenTensorId).hostData = q_seq_len_param_.data();
+  variantPack.inTensors.at(batchStatusTensorId).hostData = batch_status_param_.data();
+}
+
+void PpAtbLlamaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
+                                                 std::vector<const phi::DenseTensor *> &outTensors) {
+  variantPacks_.inTensors.resize(inTensors.size() + 1);
   for (size_t i = 0; i < inTensors.size(); i++) {
     variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
     if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
       variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
     }
   }
+  variantPacks_.inTensors.at(inTensors.size()) = CreateBatchStatusAtbHostTensor();
 
   variantPacks_.outTensors.resize(outTensors.size());
   for (size_t i = 0; i < outTensors.size(); i++) {
@@ -112,17 +121,62 @@ void PpAtbLlaMaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::D
     }
   }
   // param需要更新，依赖这种方式
-  LlamaLayerFusionParallelOpUpdateParam(variantPacks_);
+  BindHostTensorForUpdateParam(variantPacks_);
 }
 
-PpAtbLlaMaDecoderLayerParallelOp::PpAtbLlaMaDecoderLayerParallelOp(
-    const std::string &modelName, int32_t layerNum) : PpAscendAtbOpBase(modelName) {
-    layerNum_ = layerNum;
+bool PpAtbLlamaDecoderLayerParallelOp::BatchSizeChanged(int32_t batchSize) {
+  bool changed = !(curBatchSize_ == batchSize);
+  if (changed) {
+    curBatchSize_ = batchSize;
+  }
+  return changed;
 }
 
-PpAtbLlaMaDecoderLayerParallelOp::~PpAtbLlaMaDecoderLayerParallelOp() {}
+void PpAtbLlamaDecoderLayerParallelOp::UpdateInputTensorAndParam(const paddle::Tensor &seq_len) {
+  auto dev_ctx = static_cast<const phi::CustomContext *>(
+    paddle::experimental::DeviceContextPool::Instance().Get(seq_len.place()));
 
-std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
+  std::vector<int32_t> batch_size = {seq_len.shape()[0]};
+  std::vector<int32_t> seq_len_vec;
+
+  auto seq_len_tensor = const_cast<phi::DenseTensor *>(static_cast<const phi::DenseTensor *>(seq_len.impl().get()));
+  seq_len_tensor->Resize(phi::make_ddim(batch_size));
+  custom_kernel::TensorToVector(*dev_ctx, *seq_len_tensor, *dev_ctx, &seq_len_vec);
+
+  kv_seq_len_param_.clear();
+  for(auto array: seq_len_vec) {
+    int32_t flag = array == 0 ? 0 : 1; // len=0，flag=0
+    kv_seq_len_param_.push_back(array);
+    batch_status_param_.push_back(flag);
+  }
+}
+
+PpAtbLlamaDecoderLayerParallelOp::PpAtbLlamaDecoderLayerParallelOp(
+    const std::string &modelName, int32_t layerNum, int32_t batch_size, const phi::CustomContext &dev_ctx) : PpAscendAtbOpBase(modelName) {
+  layerNum_ = layerNum;
+  curBatchSize_ = batch_size;
+
+  /* qLen增量阶段始终为1 */
+  std::vector<int32_t> q_seq_len_vec;
+  q_seq_len_vec.clear();
+  q_seq_len_vec.resize(batch_size, 1);
+
+  atb::SVector<int32_t> q_seq_len(batch_size, 1);
+  q_seq_len_param_ = q_seq_len;
+
+  custom_kernel::TensorFromVector(dev_ctx, q_seq_len_vec,
+                                  dev_ctx, &q_seq_len_tensor_);
+
+  // 加速库支持layer之间的cache是连续，通过layerid进行偏移。
+  // 当前传入cache都是layer的首地址，则layerid设零即可。
+  std::vector<int32_t> layer_id_vec(1, 0);
+  custom_kernel::TensorFromVector(dev_ctx, layer_id_vec,
+                                  dev_ctx, &(layerIdTensor_));
+}
+
+PpAtbLlamaDecoderLayerParallelOp::~PpAtbLlamaDecoderLayerParallelOp() {}
+
+std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
     const paddle::Tensor &qkv_mix_weight,
@@ -135,7 +189,6 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
     const paddle::Tensor &attention_mask, // TODO:待确认attention mask是否符合加速库
     const paddle::Tensor &cache_key_value,
     const paddle::Tensor &kv_seq_len,
-
     float rmsNormEps,
     int headDim,
     int headNum) {
@@ -154,19 +207,6 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(hidden.place()));
 
-  if (g_llamadecoderLayerId % layer_num == 0) {
-    g_llamadecoderLayerId = 0;
-    if (!g_llaMaDecoderLayerParallelOp) {
-      /* qLen增量阶段始终为1 */
-      g_atbSeqLen.q_seq_len_vec.clear();
-      g_atbSeqLen.q_seq_len_vec.resize(batch_size, 1);
-      atb::SVector<int32_t> q_seq_len(batch_size, 1);
-      g_atbSeqLen.q_seq_len_param = q_seq_len;
-      custom_kernel::TensorFromVector(*dev_ctx, g_atbSeqLen.q_seq_len_vec,
-                                      *dev_ctx, &(g_atbSeqLen.q_seq_len_tensor));
-    }
-  }
-
   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
   auto comm = reinterpret_cast<HcclComm>(phi::detail::GetCCLComm(hidden.place(), 0));
 
@@ -175,10 +215,10 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
   dev_ctx->Alloc(layerout_tensor.get(),
       static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());
 
-  if (!g_llaMaDecoderLayerParallelOp) {
+  if (!g_llamaDecoderLayerParallelOp) {
     std::cout << "Run In DDDDecoder Parallel layernum: " << layer_num << " head_num: " << head_num << "head_dim: " << head_dim << std::endl;
 
-    g_llaMaDecoderLayerParallelOp.reset(new PpAtbLlaMaDecoderLayerParallelOp("LlaMaDecoderLayerParallelOp", layer_num));
+    g_llamaDecoderLayerParallelOp.reset(new PpAtbLlamaDecoderLayerParallelOp("LlamaDecoderLayerParallelOp", layer_num, batch_size, *dev_ctx));
 
     atb::Operation *op = nullptr;
     LlamaLayerFusionParallelParam param = {rmsNormEps,
@@ -186,26 +226,21 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                            head_dim,
                                            0,
                                            0,
-                                           0,
+                                           1.0 / std::sqrt(head_dim), // qkScale
                                            2,
                                            true,
-                                           g_atbSeqLen.kv_seq_len_param,
-                                           g_atbSeqLen.q_seq_len_param,
-                                           comm};
+                                           comm,
+                                           true}; // enable dynamic batch
     LlamaLayerFusionParallelOperation(param, &op);
-    g_llaMaDecoderLayerParallelOp->operation_.reset(op);
-
-    // 加速库支持layer之间的cache是连续，通过layerid进行偏移。
-    // 当前传入cache都是layer的首地址，则layerid设零即可。
-    std::vector<int32_t> layer_id_vec(1, 0);
-    custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
-                                    *dev_ctx, &(g_llaMaDecoderLayerParallelOp->layerIdTensor));
+    g_llamaDecoderLayerParallelOp->operation_.reset(op);
   }
 
-  g_llamadecoderLayerId++;
+  if (executeCount % layer_num == 0) { // 每个token第一次进layer，更新stop flag
+    g_llamaDecoderLayerParallelOp->UpdateInputTensorAndParam(kv_seq_len);
+  }
 
   std::vector<const phi::DenseTensor *> inputs;
-  PerpareLlaMaDecoderLayerInputs(hidden,
+  PerpareLlamaDecoderLayerInputs(hidden,
                                  norm_weight,
                                  qkv_mix_weight,
                                  self_out_linear_weight,
@@ -217,21 +252,21 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                  attention_mask,
                                  cache_key_value,
                                  kv_seq_len, // token offset即kv_seq_len
-                                 g_atbSeqLen.q_seq_len_tensor, // 增量q_seq_len，始终为1
-                                 g_llaMaDecoderLayerParallelOp->layerIdTensor,
+                                 g_llamaDecoderLayerParallelOp->q_seq_len_tensor_, // 增量q_seq_len，始终为1
+                                 g_llamaDecoderLayerParallelOp->layerIdTensor_,
                                  inputs);
   std::vector<const phi::DenseTensor *> outputs = {layerout_tensor.get()};
-  g_llaMaDecoderLayerParallelOp->Execute(stream, inputs, outputs);
+  g_llamaDecoderLayerParallelOp->Execute(stream, inputs, outputs);
 
-  executeCount_++;
-  if ((executeCount_) % layer_num == 0) {
+  executeCount++;
+  if ((executeCount) % layer_num == 0) {
     int ret = aclrtSynchronizeStream(stream);
   }
 
   return {paddle::Tensor(layerout_tensor), cache_key_value}; // TODO:待确认past_key返回
 }
 
-std::vector<std::vector<int64_t>> LlaMaDecoderLayerOpInferShape(
+std::vector<std::vector<int64_t>> LlamaDecoderLayerOpInferShape(
     const std::vector<int64_t> &hidden_shape,
     const std::vector<int64_t> &norm_weight_shape,
     const std::vector<int64_t> &qkv_mix_weight_shape,
@@ -267,7 +302,7 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
     .Attrs({"rmsNormEps: float",
             "headDim: int",
             "headNum: int"})
-    .SetKernelFn(PD_KERNEL(LlaMaDecoderLayerParallelOp))
+    .SetKernelFn(PD_KERNEL(LlamaDecoderLayerParallelOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
-        LlaMaDecoderLayerOpInferShape)); // neccessary if the op has muti_inputs
+        LlamaDecoderLayerOpInferShape)); // neccessary if the op has muti_inputs
 #endif

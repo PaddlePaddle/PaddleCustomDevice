@@ -23,13 +23,13 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
-std::shared_ptr<PpAtbLlaMaLmHeadOp> g_llaMaLmheadOp;
+std::shared_ptr<PpAtbLlamaLmHeadOp> g_llamaLmheadOp;
 
-PpAtbLlaMaLmHeadOp::PpAtbLlaMaLmHeadOp(const std::string &modelName) : PpAscendAtbOpBase(modelName) {}
+PpAtbLlamaLmHeadOp::PpAtbLlamaLmHeadOp(const std::string &modelName) : PpAscendAtbOpBase(modelName) {}
 
-PpAtbLlaMaLmHeadOp::~PpAtbLlaMaLmHeadOp() {}
+PpAtbLlamaLmHeadOp::~PpAtbLlamaLmHeadOp() {}
 
-std::vector<paddle::Tensor> LlaMaLmHeadOp(
+std::vector<paddle::Tensor> LlamaLmHeadOp(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
     // const paddle::Tensor &matmul_weight,
@@ -58,24 +58,24 @@ std::vector<paddle::Tensor> LlaMaLmHeadOp(
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(layerout_tensor.get());
 
-  if (!g_llaMaLmheadOp) {
-    std::cout << "Run In LlaMaLmHeadOp: " << std::endl;
-    g_llaMaLmheadOp.reset(new PpAtbLlaMaLmHeadOp("LlaMaLmHeadOp"));
+  if (!g_llamaLmheadOp) {
+    std::cout << "Run In LlamaLmHeadOp: " << std::endl;
+    g_llamaLmheadOp.reset(new PpAtbLlamaLmHeadOp("LlamaLmHeadOp"));
 
     atb::Operation *op = nullptr;
     atb::infer::RmsNormParam param;
     param.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     param.normParam.epsilon = rmsNormEps;
     atb::CreateOperation(param, &op);
-    g_llaMaLmheadOp->operation_.reset(op);
+    g_llamaLmheadOp->operation_.reset(op);
   }
 
-  g_llaMaLmheadOp->Execute(stream, inputs, outputs);
+  g_llamaLmheadOp->Execute(stream, inputs, outputs);
 
   return {paddle::Tensor(layerout_tensor)};
 }
 
-std::vector<std::vector<int64_t>> LlaMaLmHeadOpInferShape(
+std::vector<std::vector<int64_t>> LlamaLmHeadOpInferShape(
     const std::vector<int64_t> &hidden_shape,
     const std::vector<int64_t> &norm_weight_shape,
     // const std::vector<int64_t> &matmul_weight_shape,
@@ -94,7 +94,7 @@ PD_BUILD_OP(llama_lmhead)
             //  "MatmulWeight"})
     .Outputs({"Out"})
     .Attrs({"rmsNormEps: float"})
-    .SetKernelFn(PD_KERNEL(LlaMaLmHeadOp))
+    .SetKernelFn(PD_KERNEL(LlamaLmHeadOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
-        LlaMaLmHeadOpInferShape)); // neccessary if the op has muti_inputs
+        LlamaLmHeadOpInferShape)); // neccessary if the op has muti_inputs
 #endif

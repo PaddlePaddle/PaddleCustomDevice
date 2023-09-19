@@ -646,7 +646,7 @@ std::vector<paddle::Tensor> GetRoPE(const paddle::Tensor& head_dim_shape_tensor,
 }
 
 PD_BUILD_OP(fused_get_rotary_embedding)
-    .Inputs({"input_ids", "position_ids", "head_dim_shape_tensor"})
+    .Inputs({"head_dim_shape_tensor", "input_ids", "position_ids"})
     .Outputs({"rotary_embedding"})
     .Attrs({"prompt_num: int",
             "use_neox: bool"})

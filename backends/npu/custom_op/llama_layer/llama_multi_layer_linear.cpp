@@ -44,6 +44,7 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
     atb::Node &splitNode = opGraph.nodes.at(nodeId++);
 
+    // [bs, seq_len, hidden_size] * [3 * hidden_size / card_num, hidden_size] -> [bs * seq_len, 3 * hidden_size / card_num]
     atb::infer::MatmulParam linearParam = {false, param.transpose};
     atb::CreateOperation(linearParam, &linearNode.operation);
     linearNode.inTensorIds = {IN_INPUTTENSOR, IN_WEIGHTTENSOR};
@@ -54,51 +55,51 @@ atb::Status CreateLlamaMultiLayerLinearOperation(const MultiLayerLinearParam &pa
       newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
       newShape.dims[1] = oldShape.dims[2];
     };
-
-    atb::infer::SplitParam splitParam = {2, 3};
+    // [bs * seq_len, 3 * hidden_size / card_num] -> [bs * seq_len, hidden_size / card_num]
+    atb::infer::SplitParam splitParam = {1, 3};
     atb::CreateOperation(splitParam, &splitNode.operation);
     splitNode.inTensorIds = {INTERMIDATE_LINEAR_OUT};
     splitNode.outTensorIds = {OUT_MATMULRESULTQTENSOR, OUT_MATMULRESULTKTENSOR, OUT_MATMULRESULTVTENSOR};
-    splitNode.inTensorReshapeFuncs.resize(splitNode.inTensorIds.size());
-    splitNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 3; // dimNum: 3
-        newShape.dims[0] = 1;
-        newShape.dims[1] = oldShape.dims[0];
-        newShape.dims[2] = oldShape.dims[1];
-    };
-
+    // splitNode.inTensorReshapeFuncs.resize(splitNode.inTensorIds.size());
+    // splitNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 3; // dimNum: 3
+    //     newShape.dims[0] = 1;
+    //     newShape.dims[1] = oldShape.dims[0];
+    //     newShape.dims[2] = oldShape.dims[1];
+    // };
+    // 
     opGraph.inferShapeFunc = [=](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
-        outTensorDescs.at(0) = inTensorDescs.at(0);
-        outTensorDescs.at(0).shape.dimNum = DIM3;
-        outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-        outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+      outTensorDescs.at(0) = inTensorDescs.at(0);
+      outTensorDescs.at(0).shape.dimNum = DIM3;
+      outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+      outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
 
-        outTensorDescs.at(1) = inTensorDescs.at(0);
-        outTensorDescs.at(1).shape.dimNum = DIM3;
-        outTensorDescs.at(1).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-        outTensorDescs.at(1).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+      outTensorDescs.at(1) = inTensorDescs.at(0);
+      outTensorDescs.at(1).shape.dimNum = DIM3;
+      outTensorDescs.at(1).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+      outTensorDescs.at(1).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
 
-        outTensorDescs.at(2) = inTensorDescs.at(0);
-        outTensorDescs.at(2).shape.dimNum = DIM3;
-        outTensorDescs.at(2).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-        outTensorDescs.at(2).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+      outTensorDescs.at(2) = inTensorDescs.at(0);
+      outTensorDescs.at(2).shape.dimNum = DIM3;
+      outTensorDescs.at(2).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+      outTensorDescs.at(2).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
 
-        if (param.transpose == true) {
-            outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
+      if (param.transpose == true) {
+          outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
 
-            outTensorDescs.at(1).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
+          outTensorDescs.at(1).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
 
-            outTensorDescs.at(2).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
-        } else {
-            outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
+          outTensorDescs.at(2).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
+      } else {
+          outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
 
-            outTensorDescs.at(1).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
+          outTensorDescs.at(1).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
 
-            outTensorDescs.at(2).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
-        }
+          outTensorDescs.at(2).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / DIM3;
+      }
 
-        return atb::NO_ERROR;
+      return atb::NO_ERROR;
     };
 
     atb::CreateOperation(opGraph, operation);

@@ -140,12 +140,12 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   };
 
   atb::infer::SoftmaxParam softMaxNodeParam;
-  softMaxNodeParam.axes = -1;
+  softMaxNodeParam.axes = {-1};
   atb::CreateOperation(softMaxNodeParam, &softMaxNode.operation);
   softMaxNode.inTensorIds = {INTERMIDATE_ATTENTIONSCORES};
   softMaxNode.outTensorIds = {INTERMIDATE_ATTENTIONPROBS};
 
-  atb::infer::LinearParam bmmVNodeParam = {false, true, false};
+  atb::infer::MatmulParam bmmVNodeParam = {false, true};
   atb::CreateOperation(bmmVNodeParam, &bmmVNode.operation);
   bmmVNode.inTensorIds = {INTERMIDATE_ATTENTIONPROBS, INTERMIDATE_PERMUTEDV};
   bmmVNode.outTensorIds = {INTERMIDATE_BMMVOUT};
@@ -163,7 +163,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   transposeContext1Node.inTensorIds = {INTERMIDATE_BMMVOUT};
   transposeContext1Node.outTensorIds = {INTERMIDATE_CONTEXTOUT};
   transposeContext1Node.inTensorReshapeFuncs.resize(transposeContext1Node.inTensorIds.size());
-  transposeContext1Node.inTensorReshapeFuncs[0] = [&](const atb::Dims &oldShape, atb::Dims &newShape) {
+  transposeContext1Node.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
     newShape.dimNum = 4; // dimNum: 4
     newShape.dims[0] = oldShape.dims[0] / param.headNum;
     newShape.dims[1] = param.headNum;
@@ -176,7 +176,7 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   transposeContext2Node.inTensorIds = {INTERMIDATE_CONTEXTOUT};
   transposeContext2Node.outTensorIds = {OUT_CONTEXTOUTTENSOR};
   transposeContext2Node.inTensorReshapeFuncs.resize(transposeContext2Node.inTensorIds.size());
-  transposeContext2Node.inTensorReshapeFuncs[1] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+  transposeContext2Node.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
     newShape.dimNum = 3; // dimNum: 3
     newShape.dims[0] = oldShape.dims[0];
     newShape.dims[1] = oldShape.dims[1];
@@ -184,14 +184,14 @@ atb::Status CreateLlamaSelfAttentionOperation(const LlamaSelfAttentionParam &par
   };
 
   // out: [q_seq_len, bs, hidden_size]
-  opGraph.inferShapeFunc = [&](const atb::SVector<atb::TensorDesc> &inTensorDescs,
+  opGraph.inferShapeFunc = [](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                 atb::SVector<atb::TensorDesc> &outTensorDescs) {
     outTensorDescs.at(0) = inTensorDescs.at(0);
     outTensorDescs.at(0).shape.dimNum = 3;
     outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
     outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
     outTensorDescs.at(0).shape.dims[2] =
-      inTensorDescs.at(0).shape.dims[2] * inTensorDescs.at(0).shape.dims[3];
+    inTensorDescs.at(0).shape.dims[2] * inTensorDescs.at(0).shape.dims[3];
 
     outTensorDescs.at(1) = inTensorDescs.at(1);
     outTensorDescs.at(2) = inTensorDescs.at(2);

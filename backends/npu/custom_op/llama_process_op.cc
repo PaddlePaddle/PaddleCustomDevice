@@ -613,7 +613,7 @@ std::vector<std::vector<int64_t>> GetRoPEInferShape(const std::vector<int64_t>& 
     const int64_t batch_size = position_ids_shape[0]; 
     const int64_t max_seq_length = input_ids_shape[1]; 
     const int64_t head_dim = head_dim_shape_tensor_shape[0]; 
-    std::vector<int64_t> out_shape = {2, batch_size, 1, max_seq_length, head_dim};                                                          
+    std::vector<int64_t> out_shape = {2, batch_size, 1, max_seq_length, head_dim}; 
     return {out_shape};
 }
 

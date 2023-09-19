@@ -186,7 +186,7 @@ std::vector<paddle::Tensor> LlaMaDecoderLayerParallelOp(
                                            head_dim,
                                            0,
                                            0,
-                                           g_llamadecoderLayerId,
+                                           0,
                                            2,
                                            true,
                                            g_atbSeqLen.kv_seq_len_param,
@@ -263,7 +263,7 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "AttentionMask",
              "Cache_KV",
              "SeqLength"})
-    .Outputs({"Out", "PresentKey", "PresentValue"})
+    .Outputs({"Out", "PresentKV"})
     .Attrs({"rmsNormEps: float",
             "headDim: int",
             "headNum: int"})

@@ -89,7 +89,7 @@ def remove_get_padding_offset():
         return result.Output("x_remove_padding")[0], result.Output("cum_offsets_out")[0], result.Output("padding_offset")[0]
 
     def replace(cum_offsets, input_ids, seq_len, token_num):
-        return cum_offsets, seq_len, input_ids
+        return input_ids, seq_len, cum_offsets
     return pattern, replace
 
 @ir.RegisterPass

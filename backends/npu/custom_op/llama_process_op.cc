@@ -607,9 +607,9 @@ void fused_get_rotary_embedding(const int64_t* position_ids,
     }
 }
 
-std::vector<std::vector<int64_t>> GetRoPEInferShape(const std::vector<int64_t>& input_ids_shape, 
-                                                    const std::vector<int64_t>& position_ids_shape, 
-                                                    const std::vector<int64_t>& head_dim_shape_tensor_shape) {
+std::vector<std::vector<int64_t>> GetRoPEInferShape(const std::vector<int64_t>& head_dim_shape_tensor_shape, 
+                                                    const std::vector<int64_t>& input_ids_shape, 
+                                                    const std::vector<int64_t>& position_ids_shape) {
     const int64_t batch_size = position_ids_shape[0]; 
     const int64_t max_seq_length = input_ids_shape[1]; 
     const int64_t head_dim = head_dim_shape_tensor_shape[0]; 
@@ -617,9 +617,9 @@ std::vector<std::vector<int64_t>> GetRoPEInferShape(const std::vector<int64_t>& 
     return {out_shape};
 }
 
-std::vector<paddle::DataType> GetRoPEInferDtype(const paddle::DataType& input_ids_dtype, 
-                                                const paddle::DataType& position_ids_dtype, 
-                                                const paddle::DataType& head_dim_shape_tensor_dtype) {
+std::vector<paddle::DataType> GetRoPEInferDtype(const paddle::DataType& head_dim_shape_tensor_dtype, 
+                                                const paddle::DataType& input_ids_dtype, 
+                                                const paddle::DataType& position_ids_dtype) {
     // RoPE output dtype is Float. 
     return {paddle::DataType::FLOAT32};
 }

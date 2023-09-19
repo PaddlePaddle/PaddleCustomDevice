@@ -718,3 +718,98 @@ def llama_fuse_attention_dynamic_first_parallel_layer():
             llama_layer[2])
 
     return pattern, replace
+
+@ir.RegisterPass
+def llama65B_fuse_attention_dynamic_parallel_layer():
+    def pattern(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        rms_norm_0 = ir.PassDesc.OP.rms_norm(norm_weight=ln_scale, residual=residual, x=x)
+        qkv = ir.PassDesc.OP.matmul_v2(X=rms_norm_0.Output("out"), Y=qkv_weight)
+        qkv_split = ir.PassDesc.OP.qkv_transpose_split(input_ids=input_ids, padding_offset=padding_offset, qkv=qkv, seq_lens=seq_len_encoder)
+        q = qkv_split.Output("q_out")[0]
+        k = qkv_split.Output("k_out")[0]
+        v = qkv_split.Output("v_out")[0]
+        scale1 = ir.PassDesc.OP.scale(X=seq_len_encoder)
+        write_cache_kv = ir.PassDesc.OP.write_cache_kv(cache_kv=cache_kv, input_k=k, input_v=v, sequence_lengths=scale1)
+        scale2 = ir.PassDesc.OP.scale(X=seq_len_encoder)
+        attention = ir.PassDesc.OP.variable_length_memory_efficient_attention(key=k, kv_seq_lens=scale2, mask=mask, query=q, seq_lens=seq_len_encoder, value=v)
+        
+        transpose_remove_padding = ir.PassDesc.OP.transpose_remove_padding(input=attention, padding_offset=padding_offset, seq_lens=seq_len_encoder)
+        matmul_0 = ir.PassDesc.OP.matmul_v2(X=transpose_remove_padding, Y=out_proj_weight)
+        
+        allreduce = ir.PassDesc.OP.c_allreduce_sum(X=matmul_0)
+        
+        rms_norm_1 = ir.PassDesc.OP.rms_norm(norm_weight=ffn_in_scale, residual=rms_norm_0.Output("residual_out")[0], x=allreduce)
+        matmul_1 = ir.PassDesc.OP.matmul_v2(X=rms_norm_1.Output("out"), Y=ffn1_weight)
+        fused_bias_act = ir.PassDesc.OP.fused_bias_act(x=matmul_1)
+        
+        matmul_2 = ir.PassDesc.OP.matmul_v2(X=fused_bias_act, Y=ffn2_weight)
+        hidden = ir.PassDesc.OP.c_allreduce_sum(X=matmul_2)
+        residual_out = rms_norm_1.Output("residual_out")[0]
+        
+        encode_rotary_qk = ir.PassDesc.OP.encode_rotary_qk(kv=k, q=q, rotary_emb=rotary_emb, seq_lens=seq_len_encoder)
+        rotary_kv_out = encode_rotary_qk.Output("rotary_kv_out")[0]
+        rotary_q_out = encode_rotary_qk.Output("rotary_q_out")[0]
+        
+        return write_cache_kv, q, k, v, hidden, residual_out, rotary_kv_out, rotary_q_out
+        
+    def replace(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        llama_layer = llama_paralle_layer_adaptor(x, residual, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+        
+        return (llama_layer[3],
+            llama_layer[4],
+            llama_layer[5],
+            llama_layer[6],
+            llama_layer[0],
+            llama_layer[7],
+            llama_layer[1],
+            llama_layer[2])
+
+    return pattern, replace
+    
+
+@ir.RegisterPass
+def llama65B_fuse_attention_dynamic_first_parallel_layer():
+    def pattern(x, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        rms_norm_0 = ir.PassDesc.OP.rms_norm(norm_weight=ln_scale, x=x)
+        qkv = ir.PassDesc.OP.matmul_v2(X=rms_norm_0.Output("out"), Y=qkv_weight)
+        qkv_split = ir.PassDesc.OP.qkv_transpose_split(input_ids=input_ids, padding_offset=padding_offset, qkv=qkv, seq_lens=seq_len_encoder)
+        q = qkv_split.Output("q_out")[0]
+        k = qkv_split.Output("k_out")[0]
+        v = qkv_split.Output("v_out")[0]
+        scale1 = ir.PassDesc.OP.scale(X=seq_len_encoder)
+        write_cache_kv = ir.PassDesc.OP.write_cache_kv(cache_kv=cache_kv, input_k=k, input_v=v, sequence_lengths=scale1)
+        scale2 = ir.PassDesc.OP.scale(X=seq_len_encoder)
+        attention = ir.PassDesc.OP.variable_length_memory_efficient_attention(key=k, kv_seq_lens=scale2, mask=mask, query=q, seq_lens=seq_len_encoder, value=v)
+        
+        transpose_remove_padding = ir.PassDesc.OP.transpose_remove_padding(input=attention, padding_offset=padding_offset, seq_lens=seq_len_encoder)
+        matmul_0 = ir.PassDesc.OP.matmul_v2(X=transpose_remove_padding, Y=out_proj_weight)
+        
+        allreduce = ir.PassDesc.OP.c_allreduce_sum(X=matmul_0)
+        
+        rms_norm_1 = ir.PassDesc.OP.rms_norm(norm_weight=ffn_in_scale, residual=x, x=allreduce)
+        matmul_1 = ir.PassDesc.OP.matmul_v2(X=rms_norm_1.Output("out"), Y=ffn1_weight)
+        fused_bias_act = ir.PassDesc.OP.fused_bias_act(x=matmul_1)
+        
+        matmul_2 = ir.PassDesc.OP.matmul_v2(X=fused_bias_act, Y=ffn2_weight)
+        hidden = ir.PassDesc.OP.c_allreduce_sum(X=matmul_2)
+        residual_out = rms_norm_1.Output("residual_out")[0]
+        
+        encode_rotary_qk = ir.PassDesc.OP.encode_rotary_qk(kv=k, q=q, rotary_emb=rotary_emb, seq_lens=seq_len_encoder)
+        rotary_kv_out = encode_rotary_qk.Output("rotary_kv_out")[0]
+        rotary_q_out = encode_rotary_qk.Output("rotary_q_out")[0]
+        
+        return write_cache_kv, q, k, v, hidden, residual_out, rotary_kv_out, rotary_q_out
+        
+    def replace(x, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
+        llama_layer = llama_paralle_layer_adaptor(x, None, input_ids, padding_offset, seq_len_encoder, cache_kv, mask, rotary_emb, ln_scale, qkv_weight, out_proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
+        
+        return (llama_layer[3],
+            llama_layer[4],
+            llama_layer[5],
+            llama_layer[6],
+            llama_layer[0],
+            llama_layer[7],
+            llama_layer[1],
+            llama_layer[2])
+
+    return pattern, replace

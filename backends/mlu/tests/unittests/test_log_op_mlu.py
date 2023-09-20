@@ -18,6 +18,7 @@ import numpy as np
 import unittest
 
 from tests.op_test import OpTest
+from tests.utils import static_guard
 import paddle
 import paddle.base as base
 
@@ -98,7 +99,7 @@ class TestLog2(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):
@@ -154,7 +155,7 @@ class TestLog10(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):

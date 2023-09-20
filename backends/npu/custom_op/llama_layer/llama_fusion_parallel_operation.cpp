@@ -19,7 +19,7 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 14;
+static const uint64_t IN_TENSOR_COUNT = 15;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 17;
 static const uint64_t NODE_COUNT = 13;
@@ -135,16 +135,29 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfAttentionKvCacheParam.qScale = param.qkScale;
     selfAttentionKvCacheParam.batchRunStatusEnable = param.batchRunStatusEnable;
     atb::CreateOperation(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.operation);
-    selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
-                                            INTERMIDATE_POSITIONEMBEDK,
-                                            INTERMIDATE_MIXEDV,
-                                            INTERMIDATE_CACHEK,
-                                            INTERMIDATE_CACHEV,
-                                            IN_ATTENTIONMASK,
-                                            IN_TOKENOFFSET,
-                                            IN_SEQLEN,
-                                            IN_LAYERID,
-                                            IN_BATCH_STATUS};
+    if (param.batchRunStatusEnable) {
+        selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
+                                                INTERMIDATE_POSITIONEMBEDK,
+                                                INTERMIDATE_MIXEDV,
+                                                INTERMIDATE_CACHEK,
+                                                INTERMIDATE_CACHEV,
+                                                IN_ATTENTIONMASK,
+                                                IN_TOKENOFFSET,
+                                                IN_SEQLEN,
+                                                IN_LAYERID,
+                                                IN_BATCH_STATUS};
+    } else {
+        selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,
+                                                INTERMIDATE_POSITIONEMBEDK,
+                                                INTERMIDATE_MIXEDV,
+                                                INTERMIDATE_CACHEK,
+                                                INTERMIDATE_CACHEV,
+                                                IN_ATTENTIONMASK,
+                                                IN_TOKENOFFSET,
+                                                IN_SEQLEN,
+                                                IN_LAYERID};
+    }
+
     selfAttentionKvCacheNode.outTensorIds = {INTERMIDATE_SELFOUT};
     selfAttentionKvCacheNode.inTensorReshapeFuncs.resize(selfAttentionKvCacheNode.inTensorIds.size());
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {

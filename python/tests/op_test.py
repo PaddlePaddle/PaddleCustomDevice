@@ -1,1 +1,1 @@
-../../Paddle/test/legacy_test/eager_op_test.py
+../../Paddle/test/legacy_test/op_test.py

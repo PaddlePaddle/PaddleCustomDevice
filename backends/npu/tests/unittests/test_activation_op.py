@@ -23,6 +23,7 @@ import paddle
 import paddle.base as base
 import paddle.nn.functional as F
 from tests.op_test import OpTest
+from tests.utils import static_guard
 
 paddle.enable_static()
 SEED = 2021
@@ -477,7 +478,7 @@ class TestLog2(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):
@@ -1165,7 +1166,7 @@ class TestSwishAPI(unittest.TestCase):
         self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(paddle.static.Program()):
                 x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
                 out1 = F.swish(x)
@@ -1189,7 +1190,7 @@ class TestSwishAPI(unittest.TestCase):
         paddle.enable_static()
 
     def test_base_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with base.program_guard(base.Program()):
                 x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
                 out = paddle.nn.functional.swish(x)
@@ -1241,7 +1242,7 @@ class TestSiluAPI(unittest.TestCase):
         self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(paddle.static.Program()):
                 x = paddle.static.data("X", [11, 17])
                 out1 = F.silu(x)
@@ -1302,7 +1303,7 @@ class TestMishAPI(unittest.TestCase):
         self.place = paddle.CustomPlace("npu", 0)
 
     def test_static_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with paddle.static.program_guard(paddle.static.Program()):
                 x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
                 out1 = F.mish(x)
@@ -1326,7 +1327,7 @@ class TestMishAPI(unittest.TestCase):
         paddle.enable_static()
 
     def test_base_api(self):
-        with paddle.base.framework._static_guard():
+        with static_guard():
             with base.program_guard(base.Program()):
                 x = paddle.static.data("X", self.x_np.shape, self.x_np.dtype)
                 out = paddle.nn.functional.mish(x)

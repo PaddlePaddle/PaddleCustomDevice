@@ -182,25 +182,28 @@ std::vector<paddle::Tensor> LlamaLayerOp(
 std::vector<paddle::Tensor> SetMaskValueOp(const paddle::Tensor& input_data,
                                            const paddle::Tensor& seq_lens,
                                            const paddle::Tensor& stop_flags) {
+    auto seq_lens_out = seq_lens.copy_to(seq_lens.place(), false);
+    
+    return {seq_lens_out};
 
-  auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(input_data.place()));
-  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+//   auto dev_ctx = static_cast<const phi::CustomContext*>(
+//       paddle::experimental::DeviceContextPool::Instance().Get(input_data.place()));
+//   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
 
-  auto input_data_tensor = static_cast<const phi::DenseTensor*>(input_data.impl().get());
-  auto seq_lens_tensor = static_cast<const phi::DenseTensor*>(seq_lens.impl().get());
-  auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
+//   auto input_data_tensor = static_cast<const phi::DenseTensor*>(input_data.impl().get());
+//   auto seq_lens_tensor = static_cast<const phi::DenseTensor*>(seq_lens.impl().get());
+//   auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
 
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  out_tensor->Resize(seq_lens_tensor->dims());
-  dev_ctx->Alloc(out_tensor.get(), seq_lens_tensor->dtype());
+//   std::shared_ptr<phi::DenseTensor> out_tensor =
+//       std::make_shared<phi::DenseTensor>();
+//   out_tensor->Resize(seq_lens_tensor->dims());
+//   dev_ctx->Alloc(out_tensor.get(), seq_lens_tensor->dtype());
 
-  const auto& runner =
-      NpuOpRunner("SetMaskValue", {*input_data_tensor, *stop_flags_tensor, *seq_lens_tensor}, {*out_tensor}, {});
-  runner.Run(stream);
+//   const auto& runner =
+//       NpuOpRunner("SetMaskValue", {*input_data_tensor, *stop_flags_tensor, *seq_lens_tensor}, {*out_tensor}, {});
+//   runner.Run(stream);
 
-  return {paddle::Tensor(out_tensor)};
+//   return {paddle::Tensor(out_tensor)};
 }
 
 std::vector<std::vector<int64_t>> SetMaskValueOpInferShape(
@@ -215,26 +218,29 @@ std::vector<paddle::Tensor> SetValueByFlagsAndIdxOp(const paddle::Tensor& pre_id
                                                     const paddle::Tensor& pre_ids_now,
                                                     const paddle::Tensor& step_idx,
 											                          		const paddle::Tensor& stop_flags) {
+    auto stop_flags_out = stop_flags.copy_to(stop_flags.place(), false);
+    
+    return {stop_flags_out};                                                                                
 
-  auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(stop_flags.place()));
-  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+//   auto dev_ctx = static_cast<const phi::CustomContext*>(
+//       paddle::experimental::DeviceContextPool::Instance().Get(stop_flags.place()));
+//   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
 
-  auto pre_ids_all_tensor = static_cast<const phi::DenseTensor*>(pre_ids_all.impl().get());
-  auto pre_ids_now_tensor = static_cast<const phi::DenseTensor*>(pre_ids_now.impl().get());
-  auto step_idx_tensor = static_cast<const phi::DenseTensor*>(step_idx.impl().get());
-  auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
+//   auto pre_ids_all_tensor = static_cast<const phi::DenseTensor*>(pre_ids_all.impl().get());
+//   auto pre_ids_now_tensor = static_cast<const phi::DenseTensor*>(pre_ids_now.impl().get());
+//   auto step_idx_tensor = static_cast<const phi::DenseTensor*>(step_idx.impl().get());
+//   auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
 
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  out_tensor->Resize(stop_flags_tensor->dims());
-  dev_ctx->Alloc(out_tensor.get(), stop_flags_tensor->dtype());
+//   std::shared_ptr<phi::DenseTensor> out_tensor =
+//       std::make_shared<phi::DenseTensor>();
+//   out_tensor->Resize(stop_flags_tensor->dims());
+//   dev_ctx->Alloc(out_tensor.get(), stop_flags_tensor->dtype());
 
-  const auto& runner =
-      NpuOpRunner("SetValueByFlagsAndIdx", {*pre_ids_all_tensor, *pre_ids_now_tensor, *step_idx_tensor, *stop_flags_tensor}, {*out_tensor}, {});
-  runner.Run(stream);
+//   const auto& runner =
+//       NpuOpRunner("SetValueByFlagsAndIdx", {*pre_ids_all_tensor, *pre_ids_now_tensor, *step_idx_tensor, *stop_flags_tensor}, {*out_tensor}, {});
+//   runner.Run(stream);
 
-  return {paddle::Tensor(out_tensor)};
+//   return {paddle::Tensor(out_tensor)};
 }
 
 std::vector<std::vector<int64_t>> SetValueByFlagsAndIdxOpInferShape(
@@ -562,29 +568,43 @@ std::vector<std::vector<int64_t>> TopPSamplingOpInferShape(
 std::vector<paddle::Tensor> TopPSamplingOp(
     const paddle::Tensor& top_ps,
     const paddle::Tensor& x) {
+  std::vector<int64_t> shape = x.shape();
+  int bs = shape[0];
+  auto topp_ids = paddle::full({bs, 1}, 1, paddle::DataType::INT64, x.place());
+
   auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));
-  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
-
-  auto top_ps_tensor = static_cast<const phi::DenseTensor*>(top_ps.impl().get());
-  auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
-  
-  
-  std::shared_ptr<phi::DenseTensor> topp_ids =
+        paddle::experimental::DeviceContextPool::Instance().Get(top_p.place()));            
+  std::cout<<">>>>>TopPSamplingOp"<<std::endl;
+  std::shared_ptr<phi::DenseTensor> out_tensor =
       std::make_shared<phi::DenseTensor>();
-  topp_ids->Resize(top_ps_tensor->dims());
-  dev_ctx->Alloc(topp_ids.get(), top_ps_tensor->dtype());
-  
-  std::shared_ptr<phi::DenseTensor> topp_probs =
-      std::make_shared<phi::DenseTensor>();
-  topp_probs->Resize(top_ps_tensor->dims());
-  dev_ctx->Alloc(topp_probs.get(), top_ps_tensor->dtype());
+  out_tensor->Resize(phi::make_ddim({bs, 1}));
+  dev_ctx->Alloc(out_tensor.get(), paddle::DataType::FLOAT32);
+         
+  return {topp_ids, paddle::Tensor(out_tensor)};
 
-  const auto& runner =
-      NpuOpRunner("TopPSampling", {*top_ps_tensor, *x_tensor}, {*topp_ids, *topp_probs});
-  runner.Run(stream);
+//   auto dev_ctx = static_cast<const phi::CustomContext*>(
+//       paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));
+//   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+
+//   auto top_ps_tensor = static_cast<const phi::DenseTensor*>(top_ps.impl().get());
+//   auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
   
-  return {paddle::Tensor(topp_ids), paddle::Tensor(topp_probs)};
+  
+//   std::shared_ptr<phi::DenseTensor> topp_ids =
+//       std::make_shared<phi::DenseTensor>();
+//   topp_ids->Resize(top_ps_tensor->dims());
+//   dev_ctx->Alloc(topp_ids.get(), top_ps_tensor->dtype());
+  
+//   std::shared_ptr<phi::DenseTensor> topp_probs =
+//       std::make_shared<phi::DenseTensor>();
+//   topp_probs->Resize(top_ps_tensor->dims());
+//   dev_ctx->Alloc(topp_probs.get(), top_ps_tensor->dtype());
+
+//   const auto& runner =
+//       NpuOpRunner("TopPSampling", {*top_ps_tensor, *x_tensor}, {*topp_ids, *topp_probs});
+//   runner.Run(stream);
+  
+//   return {paddle::Tensor(topp_ids), paddle::Tensor(topp_probs)};
 }
 
 PD_BUILD_OP(top_p_sampling)

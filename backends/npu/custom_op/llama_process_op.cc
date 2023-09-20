@@ -573,7 +573,7 @@ std::vector<paddle::Tensor> TopPSamplingOp(
   auto topp_ids = paddle::full({bs, 1}, 1, paddle::DataType::INT64, x.place());
 
   auto dev_ctx = static_cast<const phi::CustomContext*>(
-        paddle::experimental::DeviceContextPool::Instance().Get(top_p.place()));            
+        paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));            
   std::cout<<">>>>>TopPSamplingOp"<<std::endl;
   std::shared_ptr<phi::DenseTensor> out_tensor =
       std::make_shared<phi::DenseTensor>();

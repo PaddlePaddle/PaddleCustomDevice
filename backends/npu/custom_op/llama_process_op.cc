@@ -475,64 +475,118 @@ PD_BUILD_OP(get_padding_offset)
     .SetInferShapeFn(PD_INFER_SHAPE(GetPaddingOffsetInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(GetPaddingOffsetInferDtype));            
 
-std::vector<paddle::Tensor> TokenPenaltyMultiScores(const paddle::Tensor& pre_ids,
-                                                    const paddle::Tensor& logits,
-                                                    const paddle::Tensor& penalty_scores,
+// get_token_penalty_multi_scores
+std::vector<paddle::Tensor> TokenPenaltyMultiScores(const paddle::Tensor& cur_len,
+                                                    const paddle::Tensor& eos_token_id,
                                                     const paddle::Tensor& frequency_scores,
-                                                    const paddle::Tensor& presence_scores,
-                                                    const paddle::Tensor& cur_len,
+                                                    const paddle::Tensor& logits,
                                                     const paddle::Tensor& min_len,
-                                                    const paddle::Tensor& eos_token_id) {
-    return {logits};
+                                                    const paddle::Tensor& penalty_scores,
+                                                    const paddle::Tensor& pre_ids,
+                                                    const paddle::Tensor& presence_scores) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(pre_ids.place()));
+  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+
+  auto cur_len_tensor = static_cast<const phi::DenseTensor*>(cur_len.impl().get());
+  auto eos_token_id_tensor = static_cast<const phi::DenseTensor*>(eos_token_id.impl().get());
+  auto frequency_scores_tensor = static_cast<const phi::DenseTensor*>(frequency_scores.impl().get());
+  auto logits_tensor = static_cast<const phi::DenseTensor*>(logits.impl().get());
+  auto min_len_tensor = static_cast<const phi::DenseTensor*>(min_len.impl().get());
+  auto penalty_scores_tensor = static_cast<const phi::DenseTensor*>(penalty_scores.impl().get());
+  auto pre_ids_tensor = static_cast<const phi::DenseTensor*>(pre_ids.impl().get());
+  auto presence_scores_tensor = static_cast<const phi::DenseTensor*>(presence_scores.impl().get());
+  
+  std::shared_ptr<phi::DenseTensor> logits_out =
+      std::make_shared<phi::DenseTensor>();
+  logits_out->Resize(logits_tensor->dims());
+  dev_ctx->Alloc(logits_out.get(), logits_tensor->dtype());
+  
+  std::vector<phi::DenseTensor> inputs = {*cur_len_tensor,
+                                          *eos_token_id_tensor,
+										  *frequency_scores_tensor,
+										  *logits_tensor,
+										  *min_len_tensor,
+										  *penalty_scores_tensor,
+										  *pre_ids_tensor,
+										  *presence_scores_tensor};
+  
+  std::vector<phi::DenseTensor> outputs = {*logits_out};
+  
+  const auto& runner =
+      NpuOpRunner("TokenPenaltyMultiScores", inputs, outputs);
+  runner.Run(stream);
+  
+  return {paddle::Tensor(logits_out)};
 }
 
-std::vector<std::vector<int64_t>> TokenPenaltyMultiScoresInferShape(const std::vector<int64_t>& pre_ids_shape,
-                                                                    const std::vector<int64_t>& logits_shape,
-                                                                    const std::vector<int64_t>& penalty_scores_shape,
+std::vector<std::vector<int64_t>> TokenPenaltyMultiScoresInferShape(const std::vector<int64_t>& cur_len_shape,
+                                                                    const std::vector<int64_t>& eos_token_id_shape,
                                                                     const std::vector<int64_t>& frequency_scores_shape,
-                                                                    const std::vector<int64_t>& presence_scores_shape,
-                                                                    const std::vector<int64_t>& cur_len_shape,
+                                                                    const std::vector<int64_t>& logits_shape,
                                                                     const std::vector<int64_t>& min_len_shape,
-                                                                    const std::vector<int64_t>& eos_token_id_shape) {
+                                                                    const std::vector<int64_t>& penalty_scores_shape,
+                                                                    const std::vector<int64_t>& pre_ids_shape,
+                                                                    const std::vector<int64_t>& presence_scores_shape) {
     return {logits_shape};
 }
 
-std::vector<paddle::DataType> TokenPenaltyMultiScoresInferDtype(const paddle::DataType& pre_ids_dtype,
-                                                                const paddle::DataType& logits_dtype,
-                                                                const paddle::DataType& penalty_scores_dtype,
+std::vector<paddle::DataType> TokenPenaltyMultiScoresInferDtype(const paddle::DataType& cur_len_dtype,
+                                                                const paddle::DataType& eos_token_id_dtype,
                                                                 const paddle::DataType& frequency_scores_dtype,
-                                                                const paddle::DataType& presence_scores_dtype,
-                                                                const paddle::DataType& cur_len_dtype,
+                                                                const paddle::DataType& logits_dtype,
                                                                 const paddle::DataType& min_len_dtype,
-                                                                const paddle::DataType& eos_token_id_dtype) {
+                                                                const paddle::DataType& penalty_scores_dtype,
+                                                                const paddle::DataType& pre_ids_dtype,
+                                                                const paddle::DataType& presence_scores_dtype) {
     return {logits_dtype};
 }
 
 
 PD_BUILD_OP(get_token_penalty_multi_scores)
-    .Inputs({"pre_ids", "logits", "penalty_scores", "frequency_scores", "presence_scores", "cur_len", "min_len", "eos_token_id"})
+    .Inputs({"cur_len", "eos_token_id", "frequency_scores", "logits", "min_len", "penalty_scores", "pre_ids", "presence_scores"})
     .Outputs({"logits_out"})
     .SetKernelFn(PD_KERNEL(TokenPenaltyMultiScores))
     .SetInferShapeFn(PD_INFER_SHAPE(TokenPenaltyMultiScoresInferShape))
-    .SetInferDtypeFn(PD_INFER_DTYPE(TokenPenaltyMultiScoresInferDtype));    
+    .SetInferDtypeFn(PD_INFER_DTYPE(TokenPenaltyMultiScoresInferDtype));  
 
 // top_p_sampling
 std::vector<std::vector<int64_t>> TopPSamplingOpInferShape(
-    const std::vector<int64_t>& top_p_shape,
+    const std::vector<int64_t>& top_ps_shape,
     const std::vector<int64_t>& x_shape) {
   std::cout<<">>>>>TopPSamplingOp"<<std::endl;
-  std::vector<int64_t> out_shape = top_p_shape;
+  std::vector<int64_t> out_shape = top_ps_shape;
   return {out_shape, out_shape};
 }
 
 std::vector<paddle::Tensor> TopPSamplingOp(
-    const paddle::Tensor& top_p,
+    const paddle::Tensor& top_ps,
     const paddle::Tensor& x) {
-  std::cout<<">>>>>TopPSamplingOp"<<std::endl;
-  std::shared_ptr<phi::DenseTensor> out_tensor =
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));
+  auto stream = static_cast<aclrtStream>(dev_ctx->stream());
+
+  auto top_ps_tensor = static_cast<const phi::DenseTensor*>(top_ps.impl().get());
+  auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
+  
+  
+  std::shared_ptr<phi::DenseTensor> topp_ids =
       std::make_shared<phi::DenseTensor>();
-  return {paddle::Tensor(out_tensor), paddle::Tensor(out_tensor)};
+  topp_ids->Resize(top_ps_tensor->dims());
+  dev_ctx->Alloc(topp_ids.get(), top_ps_tensor->dtype());
+  
+  std::shared_ptr<phi::DenseTensor> topp_probs =
+      std::make_shared<phi::DenseTensor>();
+  topp_probs->Resize(top_ps_tensor->dims());
+  dev_ctx->Alloc(topp_probs.get(), top_ps_tensor->dtype());
+
+  const auto& runner =
+      NpuOpRunner("TopPSampling", {*top_ps_tensor, *x_tensor}, {*topp_ids, *topp_probs});
+  runner.Run(stream);
+  
+  return {paddle::Tensor(topp_ids), paddle::Tensor(topp_probs)};
 }
+
 PD_BUILD_OP(top_p_sampling)
     .Inputs({"top_ps", "x"})
     .Outputs({"topp_ids", "topp_probs"})

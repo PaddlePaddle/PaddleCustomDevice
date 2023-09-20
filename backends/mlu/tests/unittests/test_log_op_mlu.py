@@ -17,8 +17,8 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from tests.utils import static_guard
 from tests.op_test import OpTest
+from tests.utils import static_guard
 import paddle
 import paddle.base as base
 

@@ -28,35 +28,51 @@ ccl::CCLComm GetCCLComm(const Place& place, int global_gid);
 
 #define ATB_FLASH_ATTENTION_MAX_SEQ_LEN 1024
 
-class PpAtbLlaMaDecoderLayerParallelOp : public PpAscendAtbOpBase {
+class PpAtbLlamaDecoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
-  PpAtbLlaMaDecoderLayerParallelOp(const std::string &modelName, int32_t layerNum);
-  ~PpAtbLlaMaDecoderLayerParallelOp();
-  phi::DenseTensor layerIdTensor;
+  PpAtbLlamaDecoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t curBatchSize, const phi::CustomContext &dev_ctx);
+  ~PpAtbLlamaDecoderLayerParallelOp();
+  phi::DenseTensor layerIdTensor_;
+  phi::DenseTensor q_seq_len_tensor_;
+
+  void UpdateInputTensorAndParam(const paddle::Tensor &kv_seq_len);
+  bool BatchSizeChanged(int32_t batchSize);
 
 private:
   void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                         std::vector<const phi::DenseTensor *> &outTensors);
+  void BindHostTensorForUpdateParam(atb::VariantPack &variantPack);
+  atb::Tensor CreateBatchStatusAtbHostTensor();
 
 private:
+  atb::SVector<int32_t> kv_seq_len_param_;
+  atb::SVector<int32_t> q_seq_len_param_;
+  atb::SVector<int32_t> batch_status_param_;
+
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;
-
-  int32_t layerCount_;
-  uint64_t executeCount_ = 0;
 };
 
-class PpAtbLlaMaEncoderLayerParallelOp : public PpAscendAtbOpBase {
+class PpAtbLlamaEncoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
-  PpAtbLlaMaEncoderLayerParallelOp(const std::string &modelName, int32_t layerNum);
-  ~PpAtbLlaMaEncoderLayerParallelOp();
+  PpAtbLlamaEncoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t curBatchSize);
+  ~PpAtbLlamaEncoderLayerParallelOp();
   phi::DenseTensor layerIdTensor;
 
+  void UpdateInputTensorAndParam(const paddle::Tensor &kv_seq_len);
+
 private:
+  void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
+                        std::vector<const phi::DenseTensor *> &outTensors);
+  void BindHostTensorForUpdateParam(atb::VariantPack &variantPack);
+  atb::Tensor CreateBatchStatusAtbHostTensor();
+
+private:
+  atb::SVector<int32_t> kv_seq_len_param_;
+  atb::SVector<int32_t> q_seq_len_param_;
+  atb::SVector<int32_t> batch_status_param_;
+
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;
-
-  int32_t layerCount_;
-  uint64_t executeCount_ = 0;
 };
 #endif

@@ -21,10 +21,10 @@
 #include "paddle/utils/variant.h"
 #include "paddle/phi/backends/c_comm_lib.h"
 
-class PpAtbLlaMaLmHeadOp : public PpAscendAtbOpBase {
+class PpAtbLlamaLmHeadOp : public PpAscendAtbOpBase {
 public:
-    PpAtbLlaMaLmHeadOp(const std::string &modelName);
-    ~PpAtbLlaMaLmHeadOp();
+    PpAtbLlamaLmHeadOp(const std::string &modelName);
+    ~PpAtbLlamaLmHeadOp();
 
 private:
   int32_t curBatchSize_ = 0;

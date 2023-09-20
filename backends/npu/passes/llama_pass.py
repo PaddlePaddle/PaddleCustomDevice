@@ -569,7 +569,7 @@ def llama_fuse_attention_dynamic_parallel_layer1():
         
     def replace(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
         result = llama_paralle_cached_layer_adaptor(lookup, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
-        return result[0], result[2], result[1]
+        return result[2], result[0], result[1]
 
     return pattern, replace
 
@@ -591,7 +591,7 @@ def llama_fuse_attention_dynamic_parallel_layer2():
         
     def replace(in_scale, rms_norm_residual, matmul_, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight):
         result = llama_paralle_cached_layer_adaptor(matmul_, in_scale, qkv_weight, cache_kvs, rotary_t, sequence_l, mask, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight)
-        return result[0], result[2], result[1]
+        return result[2], result[0], result[1]
 
     return pattern, replace
 

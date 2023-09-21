@@ -27,6 +27,8 @@ static const uint64_t NODE_COUNT = 13;
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,
                                                         atb::Operation **operation)
 {
+    std::shared_ptr<int64_t> seqLenPtr = std::make_shared<int64_t>(0);
+
     atb::GraphParam opGraph;
     opGraph.inTensorNum = IN_TENSOR_COUNT;
     opGraph.outTensorNum = OUT_TENSOR_COUNT;
@@ -48,24 +50,13 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::Node &mlpLinearParallelNode   = opGraph.nodes.at(nodeId++);
     atb::Node &mlpResidualAddNode   = opGraph.nodes.at(nodeId++);
 
-    // [bs, seq_len, hidden_size]
+    // 全量:[bs, seq_len, hidden_size]  增量:TODO待确认
     atb::infer::RmsNormParam inputNormParam;
     inputNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     inputNormParam.normParam.epsilon = param.rmsNormEps;
     atb::CreateOperation(inputNormParam, &inputNormNode.operation);
     inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
-    inputNormNode.inTensorReshapeFuncs.resize(inputNormNode.inTensorIds.size());
-    inputNormNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        if (oldShape.dimNum == 3) {
-          newShape = oldShape;
-        } else if (oldShape.dimNum == 2) {
-          newShape.dimNum = 3; // 增量阶段
-          newShape.dims[0] = oldShape.dims[0];
-          newShape.dims[1] = 1;
-          newShape.dims[2] = oldShape.dims[1];
-        }
-    };
 
     // [bs, seq_len, hidden_size] * [3 * hidden_size / card_num, hidden_size] -> [bs，seq_len, hidden_size / card_num]
     MultiLayerLinearParam multiLayerLinearParam;
@@ -80,55 +71,91 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     castInNode.inTensorIds = {IN_COS_SIN_TABLE};
     castInNode.outTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
 
-    // [2, head_dim, 1, seq_len, 1] ? [1, head_dim, 1, seq_len, 1]
+    // [2, head_dim, 1, seq_len, 1] -> [1, head_dim, 1, seq_len, 1]
     atb::infer::SplitParam splitParam = {0, 2};
     atb::CreateOperation(splitParam, &cosSinSplitNode.operation);
     cosSinSplitNode.inTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
     cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
+    cosSinSplitNode.inTensorReshapeFuncs.resize(cosSinSplitNode.inTensorIds.size());
+    cosSinSplitNode.inTensorReshapeFuncs.at(0) = [seqLenPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
+        *seqLenPtr = oldShape.dims[3]; // 获取一下seqLen大小，帮助后面infer shape
+    };
 
-    // 全量：
-    llamaPositionEmbedding1DSplitFusionParam positionEmbedding1dFusionParam;
-    positionEmbedding1dFusionParam.headNum = param.headNum;
-    positionEmbedding1dFusionParam.rotaryCoeff = param.rotaryCoeff;
-    CreateLlamaPositionEmbedding1DSplitFusionOperation(positionEmbedding1dFusionParam, &ropeNode.operation);
-    ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN, IN_SEQLEN};
+    // output:[bs * seq_len, head_dim * head_num_pre_card]
+    atb::infer::RopeParam ropeParam;
+    ropeParam.rotaryCoeff = param.rotaryCoeff;
+    atb::CreateOperation(ropeParam, &ropeNode.operation);
+    ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN, IN_SEQLEN};
     ropeNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_POSITIONEMBEDK};
     ropeNode.inTensorReshapeFuncs.resize(ropeNode.inTensorIds.size());
-    ropeNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    ropeNode.inTensorReshapeFuncs.at(0) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 2; // dimNum: 2
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
     };
-    ropeNode.inTensorReshapeFuncs.at(1) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    ropeNode.inTensorReshapeFuncs.at(1) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 2; // dimNum: 2
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
     };
-    ropeNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 4; // dimNum: 4
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
-        newShape.dims[1] = oldShape.dims[2];
-        newShape.dims[2] = oldShape.dims[3];
-        newShape.dims[3] = oldShape.dims[4];
+    ropeNode.inTensorReshapeFuncs.at(2) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 2;
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1] * oldShape.dims[2] * oldShape.dims[3];
+        newShape.dims[1] = oldShape.dims[4];
+    };
+    ropeNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 2;
+        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1] * oldShape.dims[2] * oldShape.dims[3];
+        newShape.dims[1] = oldShape.dims[4];
     };
     ropeNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 4; // dimNum: 4
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
-        newShape.dims[1] = oldShape.dims[2];
-        newShape.dims[2] = oldShape.dims[3];
-        newShape.dims[3] = oldShape.dims[4];
-    };
-    ropeNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 1; // dimNum: 4
+        newShape.dimNum = 1;
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
     };
+    // llamaPositionEmbedding1DSplitFusionParam positionEmbedding1dFusionParam;
+    // positionEmbedding1dFusionParam.headNum = param.headNum;
+    // positionEmbedding1dFusionParam.rotaryCoeff = param.rotaryCoeff;
+    // CreateLlamaPositionEmbedding1DSplitFusionOperation(positionEmbedding1dFusionParam, &ropeNode.operation);
+    // ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, IN_POSITIONIDS, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN, IN_SEQLEN};
+    // ropeNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_POSITIONEMBEDK};
+    // ropeNode.inTensorReshapeFuncs.resize(ropeNode.inTensorIds.size());
+    // ropeNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 2; // dimNum: 2
+    //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+    //     newShape.dims[1] = oldShape.dims[2];
+    // };
+    // ropeNode.inTensorReshapeFuncs.at(1) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 2; // dimNum: 2
+    //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+    //     newShape.dims[1] = oldShape.dims[2];
+    // };
+    // ropeNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 4; // dimNum: 4
+    //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+    //     newShape.dims[1] = oldShape.dims[2];
+    //     newShape.dims[2] = oldShape.dims[3];
+    //     newShape.dims[3] = oldShape.dims[4];
+    // };
+    // ropeNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 4; // dimNum: 4
+    //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+    //     newShape.dims[1] = oldShape.dims[2];
+    //     newShape.dims[2] = oldShape.dims[3];
+    //     newShape.dims[3] = oldShape.dims[4];
+    // };
+    // ropeNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    //     newShape.dimNum = 1; // dimNum: 4
+    //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+    // };
 
     // [2, 1, head_num / card_num, max_length, head_dim]
     atb::infer::SplitParam splitKVParam = {0, 2};
     atb::CreateOperation(splitKVParam, &cacheKVSplitNode.operation);
     cacheKVSplitNode.inTensorIds = {IN_CACHE_KV};
     cacheKVSplitNode.outTensorIds = {INTERMIDATE_CACHEK, INTERMIDATE_CACHEV};
-    //全量 [1, 1, 4, 128] [1, 1, 4, 128] [1, 1, 4, 128] [1, 4, 2048, 128] [1, 4, 2048, 128] [1, 4, 2048, 2048] [1, 1] [1, 1] [1]
+
+    // output: [bs, seqlen, head_dim * head_num_pre_card]
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
     selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
@@ -160,55 +187,85 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     selfAttentionKvCacheNode.outTensorIds = {INTERMIDATE_SELFOUT};
     selfAttentionKvCacheNode.inTensorReshapeFuncs.resize(selfAttentionKvCacheNode.inTensorIds.size());
+    // 当前selfAttentionKvCache输入需要4维
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(0) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 4; // dimNum: 4
-        newShape.dims[0] = 1;
-        newShape.dims[1] = oldShape.dims[0];
+        newShape.dims[0] = oldShape.dims[0] / (*seqLenPtr);
+        newShape.dims[1] = (*seqLenPtr);
         newShape.dims[2] = param.headNum;
         newShape.dims[3] = oldShape.dims[1] / param.headNum;
     };
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(1) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 4; // dimNum: 4
-        newShape.dims[0] = 1;
-        newShape.dims[1] = oldShape.dims[0];
+        newShape.dims[0] = oldShape.dims[0] / (*seqLenPtr);
+        newShape.dims[1] = (*seqLenPtr);
         newShape.dims[2] = param.headNum;
         newShape.dims[3] = oldShape.dims[1] / param.headNum;
     };
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(2) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 4; // dimNum: 4
         newShape.dims[0] = oldShape.dims[0];
-        newShape.dims[1] = oldShape.dims[1]; // TODO: how to get seq_len
+        newShape.dims[1] = oldShape.dims[1];
         newShape.dims[2] = param.headNum;
         newShape.dims[3] = oldShape.dims[2] / param.headNum;
     };
-    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-      // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-      // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应有transpose完成，但读写都为加速库使用，故直接reshape规避
-      newShape.dimNum = 4; // dimNum: 4
-      newShape.dims[0] = 1;
-      newShape.dims[1] = oldShape.dims[1];
-      newShape.dims[2] = oldShape.dims[3];
-      newShape.dims[3] = oldShape.dims[2] * oldShape.dims[4];
-    };
-    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-      // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-      // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应有transpose完成，但读写都为加速库使用，故直接reshape规避
-      newShape.dimNum = 4; // dimNum: 4
-      newShape.dims[0] = 1;
-      newShape.dims[1] = oldShape.dims[1];
-      newShape.dims[2] = oldShape.dims[3];
-      newShape.dims[3] = oldShape.dims[2] * oldShape.dims[4];
-    };
-    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 2; // dimNum: 4
-        newShape.dims[0] = oldShape.dims[2];
-        newShape.dims[1] = oldShape.dims[3];
-    };
-    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(6) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+
+    if (param.batchRunStatusEnable) {
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+            // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
+            // 加速库需要[max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            newShape.dimNum = 3; // dimNum: 4
+            newShape.dims[0] = oldShape.dims[1];
+            newShape.dims[1] = oldShape.dims[3];
+            newShape.dims[2] = oldShape.dims[2] * oldShape.dims[4];
+        };
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+            // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
+            // 加速库需要[max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            newShape.dimNum = 3; // dimNum: 4
+            newShape.dims[0] = oldShape.dims[1];
+            newShape.dims[1] = oldShape.dims[3];
+            newShape.dims[2] = oldShape.dims[2] * oldShape.dims[4];
+        };
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+            newShape.dimNum = 3;
+            newShape.dims[0] = oldShape.dims[0];
+            newShape.dims[1] = oldShape.dims[2];
+            newShape.dims[2] = oldShape.dims[3];
+        };
+    } else {
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+            // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
+            // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            newShape.dimNum = 4; // dimNum: 4
+            newShape.dims[0] = 1;
+            newShape.dims[1] = oldShape.dims[1];
+            newShape.dims[2] = oldShape.dims[3];
+            newShape.dims[3] = oldShape.dims[2] * oldShape.dims[4];
+        };
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+            // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
+            // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            newShape.dimNum = 4; // dimNum: 4
+            newShape.dims[0] = 1;
+            newShape.dims[1] = oldShape.dims[1];
+            newShape.dims[2] = oldShape.dims[3];
+            newShape.dims[3] = oldShape.dims[2] * oldShape.dims[4];
+        };
+        // attention mask: [bs, 1, max_len, max_len]
+        selfAttentionKvCacheNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+            newShape.dimNum = 2; // dimNum: 4
+            newShape.dims[0] = oldShape.dims[2];
+            newShape.dims[1] = oldShape.dims[3];
+        };
+    }
+    // kv_seq_len: [bs, 1]
+    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(6) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1; // dimNum: 1
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
     };
-    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(7) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    // q_seq_len: [bs, 1]
+    selfAttentionKvCacheNode.inTensorReshapeFuncs.at(7) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1; // dimNum: 1
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
     };

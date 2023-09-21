@@ -88,7 +88,7 @@ add_custom_command(
   COMMAND
     install_name_tool -change @loader_path/../libs/ ${PADDLE_CORE_LIB}
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib${PLUGIN_NAME}.dylib
-  COMMENT "Creating plugin dirrectories------>>>")
+  COMMENT "Creating plugin directories------>>>")
 
 find_package(
   Python

@@ -139,7 +139,7 @@ add_custom_command(
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${CUSTOM_NPU_NAME}.so
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-  COMMENT "Creating custom device dirrectories------>>>")
+  COMMENT "Creating custom device directories------>>>")
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp

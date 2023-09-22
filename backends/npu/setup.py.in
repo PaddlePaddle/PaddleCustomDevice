@@ -9,6 +9,9 @@ def write_custom_op_api_py(filename='python/paddle_custom_device/npu/ops.py', li
     import paddle
     op_names = paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(libname)
     api_content = [paddle.utils.cpp_extension.extension_utils._custom_api_content(op_name) for op_name in op_names]
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     with open(filename, 'w') as f:
         f.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
@@ -56,9 +59,6 @@ def version():
     print('commit:', git_commit_id)
     print('cann:', cann_version)
 '''
-    dirname = os.path.dirname(filename)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
 
     with open(filename, 'w') as f:
         f.write(cnt)
@@ -84,9 +84,9 @@ class BinaryDistribution(Distribution):
 
 
 def main():
+    write_custom_op_api_py()
     write_version_py()
     write_init_py()
-    write_custom_op_api_py()
 
     setup(
         name = '@CMAKE_PROJECT_NAME@',

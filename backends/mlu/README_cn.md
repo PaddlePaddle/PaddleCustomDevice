@@ -201,18 +201,9 @@ I0216 03:11:44.346190 17725 resnet50_test.cc:92] 900 : 1.52387e-30
 
 ## 环境变量
 
-### PADDLE_MLU_ALLOW_TF32
-该功能使Conv，MatMul类算子以TF32数据类型进行计算，目前只支持MLU590板卡，TF32是MLU590运行的默认数据类型。
-
-开启TF32数据类型计算。
-```bash
-export PADDLE_MLU_ALLOW_TF32=true
-```
-
-### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
-该功能会关闭CNCL对于多通信域（CLIQUE）管理的内存限制，CNCL为了节省内存会默认限制进程为单通信域，在某些需要管理多通信域的集合通信中会出现CNCL初始化卡死。
-
-关闭多通信域内存限制。
-```bash
-export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
-```
+| 名称 | 类型 | 描述 | 默认值 |
+| ---- | ---- | ---- | ------- |
+| PADDLE_MLU_ALLOW_TF32 | Bool | 是否开启tf32计算 | True |
+| CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE | Int | 是否增大CNCL的内存池 | 1 |
+| CUSTOM_DEVICE_BLACK_LIST | String | 算子黑名单，在黑名单上的算子会强制在CPU上执行 | "" |
+| FLAGS_allocator_strategy | ENUM | [飞桨官方文档](https://www.paddlepaddle.org.cn/documentation/docs/zh/guides/flags/memory_cn.html#flags-allocator-strategy) | auto_growth |

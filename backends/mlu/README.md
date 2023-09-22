@@ -201,18 +201,9 @@ I0216 03:11:44.346190 17725 resnet50_test.cc:92] 900 : 1.52387e-30
 
 ## Environment variables
 
-### PADDLE_MLU_ALLOW_TF32
-This function enables Conv, MatMul operators to be computed with TF32 data type. Currently, only MLU590 are supported, and TF32 is the default data type for MLU590 operation.
-
-Turn on TF32 data type calculation.
-```bash
-export PADDLE_MLU_ALLOW_TF32=true
-```
-
-### CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE
-This function controls whether to enable multiply clique of CNCL. Currently, CNCL will not accept multiply communication clique by default, which will cause process stuck in some multi-clique collective communication senario.
-
-Turn off multi-clique mem restriction.
-```bash
-export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
-```
+| Name | Type | Desc | Default |
+| ---- | ---- | ---- | ------- |
+| PADDLE_MLU_ALLOW_TF32 | Bool | Whether to enable tf32 computation | True |
+| CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE | Int | Whether to enlarge mem-pool of CNCL | 1 |
+| CUSTOM_DEVICE_BLACK_LIST | String | op blacklist, force the operation to run in CPU mode | "" |
+| FLAGS_allocator_strategy | ENUM | [paddlepaddle-doc](https://www.paddlepaddle.org.cn/documentation/docs/zh/guides/flags/memory_cn.html#flags-allocator-strategy) | auto_growth |

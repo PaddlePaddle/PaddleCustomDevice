@@ -1535,6 +1535,54 @@ class MLUCnnl {
                   const cnnlTensorDescriptor_t output_desc,
                   void* output);
 
+  static void FlashAttentionForward(
+      const Context& ctx,
+      const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+      const cnnlTensorDescriptor_t q_desc,  // [total_q, head_num, head_size]
+      const void* q,
+      const cnnlTensorDescriptor_t k_desc,  // [total_k, head_num, head_size]
+      const void* k,
+      const cnnlTensorDescriptor_t v_desc,  // [total_k, head_num, head_size]
+      const void* v,
+      const cnnlTensorDescriptor_t seqlens_q_desc,  // b+1
+      const void* seqlens_q,
+      const cnnlTensorDescriptor_t seqlens_k_desc,  // b+1
+      const void* seqlens_k,
+      const size_t rng_state[],
+      const cnnlTensorDescriptor_t dropout_mask_desc,
+      void* dropout_mask,
+      const cnnlTensorDescriptor_t softmax_lse_desc,  // [total_q, head_num]
+      void* softmax_lse,
+      const cnnlTensorDescriptor_t output_desc,
+      void* output);
+
+  static void FlashAttentionBackward(
+      const Context& ctx,
+      const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+      const cnnlTensorDescriptor_t diff_out_desc,
+      const void* diff_out,
+      const cnnlTensorDescriptor_t q_desc,
+      const void* q,
+      const cnnlTensorDescriptor_t k_desc,
+      const void* k,
+      const cnnlTensorDescriptor_t v_desc,
+      const void* v,
+      const cnnlTensorDescriptor_t fwd_out_desc,
+      const void* out,
+      const cnnlTensorDescriptor_t softmax_lse_desc,
+      const void* softmax_lse,
+      const cnnlTensorDescriptor_t csq_desc,
+      const void* cu_seqlens_q,
+      const cnnlTensorDescriptor_t csk_desc,
+      const void* cu_seqlens_k,
+      const size_t rng_state[],
+      const cnnlTensorDescriptor_t diff_query_desc,
+      void* dq,
+      const cnnlTensorDescriptor_t diff_key_desc,
+      void* dk,
+      const cnnlTensorDescriptor_t diff_value_desc,
+      void* dv);
+
   static void Neg(const Context& ctx,
                   const cnnlTensorDescriptor_t input_desc,
                   const void* input,

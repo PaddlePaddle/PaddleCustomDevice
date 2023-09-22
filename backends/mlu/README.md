@@ -8,10 +8,11 @@ Please refer to the following steps to compile, install and verify the custom de
 
 | Module    | Version  |
 | --------- | -------- |
-| cntoolkit | 3.4.2-1  |
-| cnnl      | 1.17.0-1 |
-| cncl      | 1.9.3-1  |
-| mluops    | 0.6.0-1  |
+| cntoolkit | 3.6.1-1  |
+| cnnl      | 1.20.4-1 |
+| cnnlextra | 1.4.1-1  |
+| cncl      | 1.11.0-1 |
+| mluops    | 0.8.1-1  |
 
 ## Prepare environment and source code
 
@@ -68,11 +69,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # expected output
 version: 0.0.0
-commit: 98ae7a84b51e36fc15a1fef7808a82ed8b792fdf
-cntoolkit: 3.4.2
-cnnl: 1.17.0
-cncl: 1.9.3
-mluops: 0.6.0
+commit: 7a45dfc420caa6176c36e89f325f908632c7a739
+cntoolkit: 3.6.1
+cnnl: 1.20.4
+cnnlextra: 1.4.1
+cncl: 1.11.0
+mluops: 0.8.1
 
 # 3. demo for training, evaluation and inference
 python tests/test_LeNet_MNIST.py

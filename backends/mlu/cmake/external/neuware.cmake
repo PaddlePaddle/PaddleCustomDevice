@@ -25,12 +25,14 @@ set(NEUWARE_LIB_DIR ${NEUWARE_HOME}/lib64)
 include_directories(${NEUWARE_INCLUDE_DIR})
 
 set(CNNL_LIB ${NEUWARE_LIB_DIR}/libcnnl.so)
+set(CNNL_EXTRA_LIB ${NEUWARE_LIB_DIR}/libcnnl_extra.so)
 set(CNRT_LIB ${NEUWARE_LIB_DIR}/libcnrt.so)
 set(CNPAPI_LIB ${NEUWARE_LIB_DIR}/libcnpapi.so)
 set(CNCL_LIB ${NEUWARE_LIB_DIR}/libcncl.so)
 set(MLUOP_LIB ${NEUWARE_LIB_DIR}/libmluops.so)
 
-set(NEUWARE_LIBS ${CNNL_LIB} ${CNRT_LIB} ${CNPAPI_LIB} ${CNCL_LIB} ${MLUOP_LIB})
+set(NEUWARE_LIBS ${CNNL_LIB} ${CNNL_EXTRA_LIB} ${CNRT_LIB} ${CNPAPI_LIB}
+                 ${CNCL_LIB} ${MLUOP_LIB})
 
 function(find_neuware_lib_version LIBNAME OUTPUT)
   execute_process(
@@ -53,6 +55,9 @@ message(STATUS "cntoolkit version is ${CNTOOLKIT_VERSION}")
 
 find_neuware_lib_version(libcnnl CNNL_VERSION)
 message(STATUS "cnnl version is ${CNNL_VERSION}")
+
+find_neuware_lib_version(libcnnl_extra CNNL_EXTRA_VERSION)
+message(STATUS "cnnl_extra version is ${CNNL_EXTRA_VERSION}")
 
 find_neuware_lib_version(libcncl CNCL_VERSION)
 message(STATUS "cncl version is ${CNCL_VERSION}")

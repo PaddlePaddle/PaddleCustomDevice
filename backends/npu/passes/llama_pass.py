@@ -818,12 +818,25 @@ def llama65B_fuse_attention_dynamic_first_parallel_layer():
 
 
 @ir.RegisterPass
-def llama_layer_tail():
-    def pattern(x, norm_weight):
+def llama_lmhead():
+    def pattern(x, norm_weight, matmul_weight):
         rms_norm_ = ir.PassDesc.OP.rms_norm(x=x, norm_weight=norm_weight)
-        return rms_norm_.Output("out")[0]
+        identity_ = ir.PassDesc.OP.c_identity(X=rms_norm_.Output("out"))
+        matmul_ = ir.PassDesc.OP.matmul_v2(X=identity_, Y=matmul_weight)
+        concat_ = ir.PassDesc.OP.c_concat(X=matmul_)
+        return concat_.Output("Out")[0]
 
-    def replace(x, norm_weight):
-        norm = ir.PassDesc.OP.llama_lmhead(Hidden=x, NormWeight=norm_weight)
-        return norm
+    def replace(x, norm_weight, matmul_weight):
+        llama_lmhead = ir.PassDesc.OP.llama_lmhead(
+            Hidden=x,
+            NormWeight=norm_weight,
+            MatmulWeight=matmul_weight,
+        )
+    
+        llama_lmhead.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
+        llama_lmhead.Attr("transpose").MappedPattern(op="matmul_v2", name="trans_y", index=0)
+        llama_lmhead.Attr("nranks").MappedPattern(op="c_concat", name="nranks", index=0)
+
+        return llama_lmhead
+
     return pattern, replace

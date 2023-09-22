@@ -45,9 +45,9 @@ private:
   atb::Tensor CreateBatchStatusAtbHostTensor();
 
 private:
-  atb::SVector<int32_t> kv_seq_len_param_;
-  atb::SVector<int32_t> q_seq_len_param_;
-  atb::SVector<int32_t> batch_status_param_;
+  std::vector<int32_t> kv_seq_len_param_;
+  std::vector<int32_t> q_seq_len_param_;
+  std::vector<int32_t> batch_status_param_;
 
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;
@@ -68,9 +68,9 @@ private:
   atb::Tensor CreateBatchStatusAtbHostTensor();
 
 private:
-  atb::SVector<int32_t> kv_seq_len_param_;
-  atb::SVector<int32_t> q_seq_len_param_;
-  atb::SVector<int32_t> batch_status_param_;
+  std::vector<int32_t> kv_seq_len_param_;
+  std::vector<int32_t> q_seq_len_param_;
+  std::vector<int32_t> batch_status_param_;
 
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;

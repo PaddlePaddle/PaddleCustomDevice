@@ -90,7 +90,7 @@ atb::Status CreateLlamaPositionEmbedding1DSplitFusionOperation(const llamaPositi
     // };
 
     atb::infer::RopeParam ropeParam;
-    ropeParam.rotaryCoeff = 2;
+    ropeParam.rotaryCoeff = param.rotaryCoeff;
     atb::CreateOperation(ropeParam, &ropeNode.operation);
     ropeNode.inTensorIds = {IN_QLAYERTENSOR, IN_KLAYERTENSOR, IN_COSTABLETENSOR, IN_SINTABLETENSOR, IN_SEQLENTENSOR};
     ropeNode.outTensorIds = {OUT_QEMBEDDEDTENSOR, OUT_KEMBEDDEDTENSOR};

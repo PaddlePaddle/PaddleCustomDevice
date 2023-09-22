@@ -37,7 +37,8 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NEUWARE_HOME/lib64
 
 # environment for PaddlePaddle
 ENV FLAGS_mlu_storage_format=1
-ENV FLAGS_allocator_strategy=naive_best_fit
+ENV FLAGS_allocator_strategy=auto_growth
+ENV CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
 ENV PADDLE_XCCL_BACKEND=mlu
 
 # yum and pip clean

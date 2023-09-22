@@ -112,7 +112,7 @@ add_custom_command(
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-  COMMENT "Creating plugin dirrectories------>>>")
+  COMMENT "Creating plugin directories------>>>")
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp

@@ -128,41 +128,45 @@ void PpAtbLlamaDecoderLayerParallelOp::UpdateInputTensorAndParam(const paddle::T
   auto dev_ctx = static_cast<const phi::CustomContext *>(
     paddle::experimental::DeviceContextPool::Instance().Get(seq_len.place()));
 
-  std::vector<int32_t> batch_size = {seq_len.shape()[0]};
+  int32_t batch_size = seq_len.shape().at(0);
   std::vector<int32_t> seq_len_vec;
 
   auto seq_len_tensor = const_cast<phi::DenseTensor *>(static_cast<const phi::DenseTensor *>(seq_len.impl().get()));
-  seq_len_tensor->Resize(phi::make_ddim(batch_size));
   custom_kernel::TensorToVector(*dev_ctx, *seq_len_tensor, *dev_ctx, &seq_len_vec);
 
   kv_seq_len_param_.clear();
   batch_status_param_.clear();
   for(auto array: seq_len_vec) {
-    int32_t flag = array == 0 ? 0 : 1; // len=0，flag=0
+    int32_t status = array == 0 ? 0 : 1; // len=0，flag=0
     kv_seq_len_param_.push_back(array);
-    batch_status_param_.push_back(flag);
+    batch_status_param_.push_back(status);
+  }
+  for (int i = batch_size; i < maxBatchSize_; i++) {
+    batch_status_param_.push_back(0);
+  }
+  if (curBatchSize_ != batch_size) { // 当batchsize改变了，再更新q_seq_len
+    /* qLen增量阶段始终为1 */
+    std::vector<int32_t> q_seq_len_vec;
+    q_seq_len_vec.resize(batch_size, 1);
+    q_seq_len_param_ = q_seq_len_vec;
+    custom_kernel::TensorFromVector(*dev_ctx, q_seq_len_vec,
+                                    *dev_ctx, &q_seq_len_tensor_);
   }
 }
 
 PpAtbLlamaDecoderLayerParallelOp::PpAtbLlamaDecoderLayerParallelOp(
-    const std::string &modelName, int32_t layerNum, int32_t batch_size, const phi::CustomContext &dev_ctx) : PpAscendAtbOpBase(modelName) {
+    const std::string &modelName, int32_t layerNum, int32_t batch_size, int maxBatchSize, const phi::CustomContext &dev_ctx) : PpAscendAtbOpBase(modelName) {
   layerNum_ = layerNum;
   curBatchSize_ = batch_size;
+  maxBatchSize_ = maxBatchSize;
 
   /* qLen增量阶段始终为1 */
   std::vector<int32_t> q_seq_len_vec;
   q_seq_len_vec.resize(batch_size, 1);
-
   q_seq_len_param_ = q_seq_len_vec;
-
   custom_kernel::TensorFromVector(dev_ctx, q_seq_len_vec,
                                   dev_ctx, &q_seq_len_tensor_);
 
-  // 加速库支持layer之间的cache是连续，通过layerid进行偏移。
-  // 当前传入cache都是layer的首地址，则layerid设零即可。
-  std::vector<int32_t> layer_id_vec(1, 0);
-  custom_kernel::TensorFromVector(dev_ctx, layer_id_vec,
-                                  dev_ctx, &layerIdTensor_);
 }
 
 PpAtbLlamaDecoderLayerParallelOp::~PpAtbLlamaDecoderLayerParallelOp() {}
@@ -202,9 +206,10 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
   auto comm = reinterpret_cast<HcclComm>(phi::detail::GetCCLComm(hidden.place(), 0));
 
   if (!g_llamaDecoderLayerParallelOp) {
-    std::cout << "Run In DDDDecoder Parallel layernum: " << layer_num << " head_num: " << head_num << "head_dim: " << head_dim << std::endl;
+    int32_t max_batch_size = attention_mask.shape().at(0);
+    std::cout << "Run In DDDDecoder Parallel layernum: " << layer_num << " head_num: " << head_num << " head_dim: " << head_dim << " max_batchsize: "<< max_batch_size << std::endl;
 
-    g_llamaDecoderLayerParallelOp.reset(new PpAtbLlamaDecoderLayerParallelOp("LlamaDecoderLayerParallelOp", layer_num, batch_size, *dev_ctx));
+    g_llamaDecoderLayerParallelOp.reset(new PpAtbLlamaDecoderLayerParallelOp("LlamaDecoderLayerParallelOp", layer_num, batch_size, max_batch_size, *dev_ctx));
 
     atb::Operation *op = nullptr;
     LlamaLayerFusionParallelParam param = {rmsNormEps,
@@ -220,7 +225,13 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     LlamaLayerFusionParallelOperation(param, &op);
     g_llamaDecoderLayerParallelOp->operation_.reset(op);
 
-    g_attention_mask_tensor = paddle::full({batch_size, 1, cache_key_value.shape().at(3), cache_key_value.shape().at(3)}, 0, paddle::DataType::FLOAT16, hidden.place());
+    // 加速库支持layer之间的cache是连续，通过layerid进行偏移。
+    // 当前传入cache都是layer的首地址，则layerid设零即可。
+    std::vector<int32_t> layer_id_vec(1, 0);
+    custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
+                                    *dev_ctx, &(g_llamaDecoderLayerParallelOp->layerIdTensor_));
+
+    g_attention_mask_tensor = paddle::full({max_batch_size, 1, cache_key_value.shape().at(3), cache_key_value.shape().at(3)}, 0, paddle::DataType::FLOAT16, hidden.place());
   }
 
   if (executeCount % layer_num == 0) { // 每个token第一次进layer，更新stop flag

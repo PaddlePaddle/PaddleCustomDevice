@@ -183,10 +183,11 @@ std::vector<paddle::Tensor> SetMaskValueOp(const paddle::Tensor& input_data,
                                            const paddle::Tensor& seq_lens,
                                            const paddle::Tensor& stop_flags) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
-      paddle::experimental::DeviceContextPool::Instance().Get(input_data.place()));
+      paddle::experimental::DeviceContextPool::Instance().Get(seq_lens.place()));
   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
 
-  auto input_data_tensor = static_cast<const phi::DenseTensor*>(input_data.impl().get());
+  paddle::Tensor input_data_npu = input_data.copy_to<float>(seq_lens.place());
+  auto input_data_tensor = static_cast<const phi::DenseTensor*>(input_data_npu.impl().get());
   auto seq_lens_tensor = static_cast<const phi::DenseTensor*>(seq_lens.impl().get());
   auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
 

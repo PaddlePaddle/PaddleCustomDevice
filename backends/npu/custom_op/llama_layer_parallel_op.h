@@ -30,7 +30,7 @@ ccl::CCLComm GetCCLComm(const Place& place, int global_gid);
 
 class PpAtbLlamaDecoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
-  PpAtbLlamaDecoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t curBatchSize, const phi::CustomContext &dev_ctx);
+  PpAtbLlamaDecoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t batchSize, int maxBatchSize, const phi::CustomContext &dev_ctx);
   ~PpAtbLlamaDecoderLayerParallelOp();
   phi::DenseTensor layerIdTensor_;
   phi::DenseTensor q_seq_len_tensor_;
@@ -51,13 +51,14 @@ private:
 
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;
+  int32_t maxBatchSize_ = 0;
 };
 
 class PpAtbLlamaEncoderLayerParallelOp : public PpAscendAtbOpBase {
 public:
-  PpAtbLlamaEncoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t curBatchSize);
+  PpAtbLlamaEncoderLayerParallelOp(const std::string &modelName, int32_t layerNum, int32_t batchSize, int maxBatchSize);
   ~PpAtbLlamaEncoderLayerParallelOp();
-  phi::DenseTensor layerIdTensor;
+  phi::DenseTensor layerIdTensor_;
 
   void UpdateInputTensorAndParam(const paddle::Tensor &kv_seq_len);
 
@@ -74,5 +75,6 @@ private:
 
   int32_t layerNum_ = 0;
   int32_t curBatchSize_ = 0;
+  int32_t maxBatchSize_ = 0;
 };
 #endif

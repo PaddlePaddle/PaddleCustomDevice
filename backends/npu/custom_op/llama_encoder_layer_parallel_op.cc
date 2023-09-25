@@ -125,29 +125,31 @@ void PpAtbLlamaEncoderLayerParallelOp::UpdateInputTensorAndParam(const paddle::T
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(seq_len.place()));
 
-  std::vector<int32_t> batch_size = {seq_len.shape()[0]};
+  int32_t batch_size = seq_len.shape().at(0);
   std::vector<int32_t> seq_len_vec;
 
   auto seq_len_tensor = const_cast<phi::DenseTensor *>(static_cast<const phi::DenseTensor *>(seq_len.impl().get()));
-  seq_len_tensor->Resize(phi::make_ddim(batch_size));
   custom_kernel::TensorToVector(*dev_ctx, *seq_len_tensor, *dev_ctx, &seq_len_vec);
 
   kv_seq_len_param_.clear();
   q_seq_len_param_.clear();
+  batch_status_param_.clear();
   for(auto array: seq_len_vec) {
+    int32_t status = array == 0 ? 0 : 1;
     kv_seq_len_param_.push_back(array);
     q_seq_len_param_.push_back(array);
+    batch_status_param_.push_back(status);
+  }
+  for (int i = batch_size; i < maxBatchSize_; i++) {
+    batch_status_param_.push_back(0);
   }
 }
 
 PpAtbLlamaEncoderLayerParallelOp::PpAtbLlamaEncoderLayerParallelOp(
-    const std::string &modelName, int32_t layerNum, int32_t curBatchSize) : PpAscendAtbOpBase(modelName) {
+    const std::string &modelName, int32_t layerNum, int32_t batchSize, int maxBatchSize) : PpAscendAtbOpBase(modelName) {
   layerNum_ = layerNum;
-  curBatchSize_ = curBatchSize;
-
-  for (int32_t i = 0; i < curBatchSize; i++) {
-    batch_status_param_.push_back(1); // 当前encoder和decoder用的同一个图，所以也要造一个status。
-  }
+  curBatchSize_ = batchSize;
+  maxBatchSize_ = maxBatchSize;
 }
 
 PpAtbLlamaEncoderLayerParallelOp::~PpAtbLlamaEncoderLayerParallelOp() {}
@@ -181,8 +183,9 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
   auto comm = reinterpret_cast<HcclComm>(phi::detail::GetCCLComm(hidden.place(), 0));
 
   if (!g_llamaEncoderLayerParallelOp) {
-    std::cout << "Run In Encoder Parallel layernum: " << layer_num << " head_num: " << head_num << "head_dim: " << head_dim << std::endl;
-    g_llamaEncoderLayerParallelOp.reset(new PpAtbLlamaEncoderLayerParallelOp("LlamaEncoderLayerParallelOp", layer_num, batch_size));
+    int32_t max_batch_size = attention_mask.shape().at(0);
+    std::cout << "Run In Encoder Parallel layernum: " << layer_num << " head_num: " << head_num << " head_dim: " << head_dim << " max_batchsize: "<< max_batch_size << std::endl;
+    g_llamaEncoderLayerParallelOp.reset(new PpAtbLlamaEncoderLayerParallelOp("LlamaEncoderLayerParallelOp", layer_num, batch_size, max_batch_size));
 
     atb::Operation *op = nullptr; 
     LlamaLayerFusionParallelParam param = {rmsNormEps,
@@ -194,12 +197,12 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
                                            2,
                                            true,
                                            comm,
-                                           false}; // encoder disable dynamic batch
+                                           true}; // encoder also enable dynamic batch
     LlamaLayerFusionParallelOperation(param, &op);
     g_llamaEncoderLayerParallelOp->operation_.reset(op);
     std::vector<int32_t> layer_id_vec(1, 0);
     custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
-                                    *dev_ctx, &(g_llamaEncoderLayerParallelOp->layerIdTensor));
+                                    *dev_ctx, &(g_llamaEncoderLayerParallelOp->layerIdTensor_));
   }
 
   if (executeCount % layer_num == 0) {
@@ -220,7 +223,7 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
                                  cache_key_value,
                                  kv_seq_len, // token offset即kv_seq_len
                                  kv_seq_len, // 全量阶段
-                                 g_llamaEncoderLayerParallelOp->layerIdTensor,
+                                 g_llamaEncoderLayerParallelOp->layerIdTensor_,
                                  inputs);
   auto data_type = static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype();
   std::shared_ptr<phi::DenseTensor> layerout_tensor = std::make_shared<phi::DenseTensor>();

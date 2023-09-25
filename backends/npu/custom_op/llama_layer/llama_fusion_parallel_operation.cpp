@@ -71,7 +71,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     castInNode.inTensorIds = {IN_COS_SIN_TABLE};
     castInNode.outTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
 
-    // [2, head_dim, 1, seq_len, 1] -> [1, head_dim, 1, seq_len, 1]
+     // [2, max_bs, 1, seq_len, head_dim] -> [1, max_bs, 1, seq_len, head_dim]
     atb::infer::SplitParam splitParam = {0, 2};
     atb::CreateOperation(splitParam, &cosSinSplitNode.operation);
     cosSinSplitNode.inTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
@@ -149,13 +149,20 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     //     newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
     // };
 
-    // [2, 1, head_num / card_num, max_length, head_dim]
+    // [2, max_bs, head_num / card_num, max_length, head_dim]
     atb::infer::SplitParam splitKVParam = {0, 2};
     atb::CreateOperation(splitKVParam, &cacheKVSplitNode.operation);
     cacheKVSplitNode.inTensorIds = {IN_CACHE_KV};
     cacheKVSplitNode.outTensorIds = {INTERMIDATE_CACHEK, INTERMIDATE_CACHEV};
 
     // output: [bs, seqlen, head_dim * head_num_pre_card]
+    // Q:[bs * seq_len, head_dim * head_num_pre_car]
+    // K:[bs * seq_len, head_dim * head_num_pre_car]
+    // V:[bs，seq_len, hidden_size / head_num_pre_car]
+    // CacheK:[1, max_bs, head_num / card_num, max_length, head_dim]
+    // CacheV:[1, max_bs, head_num / card_num, max_length, head_dim]
+    // attention_mask: [max_bs, 1, max_len, max_len]
+    // tokenoffset:[bs, 1]
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
     selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
@@ -213,7 +220,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     if (param.batchRunStatusEnable) {
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
             // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-            // 加速库需要[max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            // 加速库需要[max_batch_size, max_len, hidden_size], 理论应由transpose完成，但KVCache读写都为加速库完成，故直接reshape规避
             newShape.dimNum = 3; // dimNum: 4
             newShape.dims[0] = oldShape.dims[1];
             newShape.dims[1] = oldShape.dims[3];
@@ -221,7 +228,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         };
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
             // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-            // 加速库需要[max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            // 加速库需要[max_batch_size, max_len, hidden_size], 理论应由transpose完成，但KVCache读写都为加速库完成，故直接reshape规避
             newShape.dimNum = 3; // dimNum: 4
             newShape.dims[0] = oldShape.dims[1];
             newShape.dims[1] = oldShape.dims[3];
@@ -236,7 +243,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     } else {
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
             // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-            // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            // 加速库需要[layer, max_batch_size, max_len, hidden_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
             newShape.dimNum = 4; // dimNum: 4
             newShape.dims[0] = 1;
             newShape.dims[1] = oldShape.dims[1];
@@ -245,7 +252,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         };
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(4) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
             // 生成的是[1, max_batch_size, head_num, max_len, head_dim]
-            // 加速库需要[layer, max_batch_size, max_len, head_size], 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
+            // 加速库需要[layer, max_batch_size, max_len, hidden_size 理论应由transpose完成，但读写都为加速库使用，故直接reshape规避
             newShape.dimNum = 4; // dimNum: 4
             newShape.dims[0] = 1;
             newShape.dims[1] = oldShape.dims[1];
@@ -254,9 +261,10 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         };
         // attention mask: [bs, 1, max_len, max_len]
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-            newShape.dimNum = 2; // dimNum: 4
-            newShape.dims[0] = oldShape.dims[2];
-            newShape.dims[1] = oldShape.dims[3];
+            newShape.dimNum = 3; // dimNum: 4
+            newShape.dims[0] = oldShape.dims[0];
+            newShape.dims[1] = oldShape.dims[2];
+            newShape.dims[2] = oldShape.dims[3];
         };
     }
     // kv_seq_len: [bs, 1]

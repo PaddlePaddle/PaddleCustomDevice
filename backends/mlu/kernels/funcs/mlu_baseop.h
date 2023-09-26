@@ -53,6 +53,19 @@ const std::map<std::string, cnnlInterpBackwardMode_t> MLUInterpBackwardModeMap =
      {"trilinear", CNNL_INTERP_BACKWARD_TRILINEAR},
      {"bicubic", CNNL_INTERP_BACKWARD_BICUBIC}};
 
+const std::map<std::string, cnnlLogicOp_t> MLULogicOpMap = {
+    {"equal", CNNL_LOGIC_OP_EQ},
+    {"not_equal", CNNL_LOGIC_OP_NE},
+    {"greater_than", CNNL_LOGIC_OP_GT},
+    {"greater_equal", CNNL_LOGIC_OP_GE},
+    {"less_than", CNNL_LOGIC_OP_LT},
+    {"less_equal", CNNL_LOGIC_OP_LE},
+    {"and", CNNL_LOGIC_OP_AND},
+    {"or", CNNL_LOGIC_OP_OR},
+    {"xor", CNNL_LOGIC_OP_XOR},
+    {"not", CNNL_LOGIC_OP_NOT},
+};
+
 inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string& reduce_name) {
   auto iter = MLUReduceOpMap.find(reduce_name);
   if (iter != MLUReduceOpMap.end()) {
@@ -79,6 +92,15 @@ inline cnnlInterpBackwardMode_t GetMLUCnnlInterpBackwardMode(
   }
   PADDLE_THROW(phi::errors::InvalidArgument(
       "Not support interp mode of MLU Device: %s", interp_mode));
+}
+
+inline cnnlLogicOp_t GetMLUCnnlLogicOp(const std::string& logic_name) {
+  auto iter = MLULogicOpMap.find(logic_name);
+  if (iter != MLULogicOpMap.end()) {
+    return iter->second;
+  }
+  PADDLE_THROW(phi::errors::InvalidArgument(
+      "Not support logic op type of MLU Device: %s", logic_name));
 }
 
 inline const void* GetBasePtr(const Tensor* t) { return t->data(); }
@@ -1595,12 +1617,6 @@ class MLUCnnl {
                     const void* input,
                     const cnnlTensorDescriptor_t output_desc,
                     void* output);
-
-  static void LogicalNot(const Context& ctx,
-                         const cnnlTensorDescriptor_t input_desc,
-                         const void* input,
-                         const cnnlTensorDescriptor_t output_desc,
-                         void* output);
 
   static void DynamicStitch(const Context& ctx,
                             const cnnlTensorDescriptor_t* indices_desc,

@@ -12,38 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/mlu_baseop.h"
-#include "kernels/funcs/mlu_funcs.h"
+#include "kernels/funcs/logic_op.h"
 
 namespace custom_kernel {
-template <typename T, typename Context, cnnlLogicOp_t log_method>
-void LogicalBaseMLUKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& y,
-                          phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-
-  MLUCnnlTensorDesc x_desc(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc y_desc(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc out_desc(*out);
-
-  MLUCnnl::Logic(dev_ctx,
-                 log_method,
-                 x_desc.get(),
-                 GetBasePtr(&x),
-                 y_desc.get(),
-                 GetBasePtr(&y),
-                 out_desc.get(),
-                 GetBasePtr(out));
-}
 
 template <typename T, typename Context>
 void LogicalNotMLUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          phi::DenseTensor* out) {
   // LogicalNot only has one input x, set y = x also for cnnl computation
-  custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_NOT>(
-      dev_ctx, x, x, out);
+  MLULogicOp<T>(dev_ctx, x, x, "not", out);
 }
 
 template <typename T, typename Context>
@@ -51,8 +29,7 @@ void LogicalAndMLUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& y,
                          phi::DenseTensor* out) {
-  custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_AND>(
-      dev_ctx, x, y, out);
+  MLULogicOp<T>(dev_ctx, x, y, "and", out);
 }
 
 template <typename T, typename Context>
@@ -60,8 +37,7 @@ void LogicalOrMLUKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
                         phi::DenseTensor* out) {
-  custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_OR>(
-      dev_ctx, x, y, out);
+  MLULogicOp<T>(dev_ctx, x, y, "or", out);
 }
 
 template <typename T, typename Context>
@@ -69,8 +45,7 @@ void LogicalXorMLUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& y,
                          phi::DenseTensor* out) {
-  custom_kernel::LogicalBaseMLUKernel<T, Context, CNNL_LOGIC_OP_XOR>(
-      dev_ctx, x, y, out);
+  MLULogicOp<T>(dev_ctx, x, y, "xor", out);
 }
 }  // namespace custom_kernel
 
@@ -83,6 +58,7 @@ PD_REGISTER_PLUGIN_KERNEL(logical_not,
                           float,
                           phi::dtype::float16,
                           int16_t,
+                          int64_t,
                           int8_t,
                           uint8_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
@@ -97,6 +73,7 @@ PD_REGISTER_PLUGIN_KERNEL(logical_and,
                           float,
                           phi::dtype::float16,
                           int16_t,
+                          int64_t,
                           int8_t,
                           uint8_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
@@ -111,6 +88,7 @@ PD_REGISTER_PLUGIN_KERNEL(logical_or,
                           float,
                           phi::dtype::float16,
                           int16_t,
+                          int64_t,
                           int8_t,
                           uint8_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
@@ -125,6 +103,7 @@ PD_REGISTER_PLUGIN_KERNEL(logical_xor,
                           float,
                           phi::dtype::float16,
                           int16_t,
+                          int64_t,
                           int8_t,
                           uint8_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);

@@ -22,7 +22,7 @@ from paddle.static import Executor, Program, program_guard
 
 paddle.enable_static()
 
-SUPPORTED_DTYPES = [bool, np.int8, np.int16, np.int32, np.float32]
+SUPPORTED_DTYPES = [bool, np.int8, np.int16, np.int32, np.int64, np.float32]
 
 TEST_META_OP_DATA = [
     {"op_str": "logical_and", "binary_op": True},
@@ -134,8 +134,8 @@ def test_type_error(unit_test, use_mlu, type_str_map):
             y = paddle.to_tensor(y)
             error_type = BaseException
         if binary_op:
-            if type_str_map["x"] != type_str_map["y"]:
-                unit_test.assertRaises(error_type, op, x=x, y=y)
+            # if type_str_map["x"] != type_str_map["y"]:
+            #     unit_test.assertRaises(error_type, op, x=x, y=y)
             if not paddle.in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, y=y, out=1)

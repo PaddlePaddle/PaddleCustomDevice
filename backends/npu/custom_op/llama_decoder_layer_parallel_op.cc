@@ -261,10 +261,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
   std::vector<const phi::DenseTensor *> outputs = {layerout_tensor.get()};
   g_llamaDecoderLayerParallelOp->Execute(stream, inputs, outputs);
 
-  executeCount++;
-  if ((executeCount) % layer_num == 0) {
-    aclrtSynchronizeStream(stream);
-  }
+  executeCount++; // Lmhead阶段sync
 
   return {paddle::Tensor(layerout_tensor), cache_key_value}; // TODO:待确认past_key返回
 }

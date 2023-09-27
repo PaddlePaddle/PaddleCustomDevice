@@ -18,19 +18,11 @@
 #include <atb/atb_infer.h>
 #include <atb/svector.h>
 
-enum LlamaLmheadTensorId {
-    IN_HIDDENSTATES = 0,
-    IN_NORMWEIGHT,
-    IN_MATMULWEIGHT,
-	OUT_LMHEADOUT,
-	INTERMIDATE_INPUTNORMOUT,
-	INTERMIDATE_LINEAR_OUT,
-};
-
 struct LlamaLmheadParam {
     float rmsNormEps = 0;
-	bool transpose = true;
-	int nranks = 0;
+    bool transpose = true;
+    int rank = 0;
+    int rankSize = 1;
     void *hcclComm = nullptr;
 };
 

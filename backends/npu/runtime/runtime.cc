@@ -25,6 +25,11 @@
 #include "glog/logging.h"
 #include "runtime/flags.h"
 
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+#include "kernels/funcs/format_utils.h"
+#include "kernels/funcs/npu_enforce.h"
+#endif
+
 FLAGS_DEFINE_string(npu_profiling_dir,
                     "ascend_profiling",
                     "ACL profiling output dir");
@@ -527,6 +532,49 @@ C_Status XcclDestroyComm(C_CCLComm comm) {
   return C_SUCCESS;
 }
 
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+
+void PpAtbCommOp::BuildVariantPack(void *send_buf,
+                                    void *recv_buf,
+                                    size_t count,
+                                    C_DataType data_type)
+{
+  variantPacks_.inTensors.resize(1);
+  variantPacks_.inTensors.at(0) = ConvertCDataToAsdTensor(send_buf, count, data_type);
+
+  variantPacks_.outTensors.resize(1);
+  variantPacks_.outTensors.at(0) = ConvertCDataToAsdTensor(recv_buf, count, data_type);
+}
+
+atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_buf, size_t count, C_DataType data_type)
+{
+  uint64_t workspace_size;
+  stream_ = stream;
+  BuildVariantPack(send_buf, recv_buf, count, data_type);
+
+  atb::Status st = operation_->Setup(variantPacks_, workspace_size);
+  PADDLE_ENFORCE_EQ(st,
+                    0,
+                    phi::errors::External("PpAtbCommOp %s Op Setup failed,"
+                                          "ret message: %d .", opName_, st));
+
+  if (workspace_size > 0) {
+    SetWorkspace(workspace_size);
+  }
+
+  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, stream);
+
+  return st;
+}
+
+PpAtbCommOp::PpAtbCommOp(const std::string &modelName) : PpAscendAtbOpBase(modelName) {}
+
+PpAtbCommOp::~PpAtbCommOp() {}
+
+std::shared_ptr<PpAtbCommOp> g_AllReduceOp;
+
+#endif
+
 C_Status XcclAllReduce(void *send_buf,
                        void *recv_buf,
                        size_t count,
@@ -534,6 +582,26 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+  if (!g_AllReduceOp) {
+    g_AllReduceOp.reset(new PpAtbCommOp("XcclAllReduce"));
+    atb::Operation *op = nullptr;
+    atb::infer::AllReduceParam param = {0,
+                                        0,
+                                        0,
+                                        "sum",
+                                        "hccl",
+                                        comm};
+    atb::CreateOperation(param, &op);
+    g_AllReduceOp->operation_.reset(op);
+  }
+  atb::Status st = g_AllReduceOp->Execute(stream, send_buf, recv_buf, count, data_type);
+  PADDLE_ENFORCE_EQ(st,
+                    0,
+                    phi::errors::External(
+                    "XcclAllReduce Execute failed,"
+                    "ret message: %d.", st));
+#elif
   HCCL_CHECK(HcclAllReduce(send_buf,
                            recv_buf,
                            count,
@@ -541,6 +609,7 @@ C_Status XcclAllReduce(void *send_buf,
                            PDReduceOpToHcclReduceOp(op),
                            reinterpret_cast<HcclComm>(comm),
                            reinterpret_cast<aclrtStream>(stream)));
+#endif
   return C_SUCCESS;
 }
 

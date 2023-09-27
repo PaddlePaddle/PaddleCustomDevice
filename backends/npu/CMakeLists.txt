@@ -85,8 +85,8 @@ target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
 if(WITH_ASCEND_TRANSFORMER_ACC)
   target_link_libraries(
-    ${CUSTOM_NPU_NAME}
-    PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libacltransformer.so)
+    ${CUSTOM_NPU_NAME} PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libatb.so
+                               $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libasdops.so)
   include_directories($ENV{ACLTRANSFORMER_HOME_PATH}/include)
 endif()
 

@@ -17,7 +17,8 @@
 
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/extension.h"
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+// #ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+#if 0
 #include "acltransformer/params/linear.h"
 #include "kernels/funcs/format_utils.h"
 #endif
@@ -49,7 +50,8 @@ std::vector<paddle::Tensor> LinearOp(const paddle::Tensor& input,
   auto x = static_cast<const phi::DenseTensor*>(input.impl().get());
   auto y = static_cast<const phi::DenseTensor*>(weight.impl().get());
   auto b = static_cast<const phi::DenseTensor*>(bias.impl().get());
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+// #ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
+#if 0
   std::shared_ptr<phi::DenseTensor> out_tensor =
       std::make_shared<phi::DenseTensor>();
   auto out_shape =

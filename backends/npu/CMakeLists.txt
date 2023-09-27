@@ -65,6 +65,14 @@ file(
   custom_op/*.cc)
 list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 
+if(WITH_ASCEND_TRANSFORMER_ACC)
+  file(
+    GLOB_RECURSE CUSTOM_ACC_RUNNER_SRCS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    custom_op/llama_layer/*.cpp)
+  list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_ACC_RUNNER_SRCS})
+endif()
+
 # ASCEND TRANSFORMER ACCELERATION
 if(WITH_ASCEND_TRANSFORMER_ACC)
   add_definitions(-DPADDLE_WITH_ASCEND_TRANSFORMER_ACC)
@@ -86,8 +94,12 @@ target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 if(WITH_ASCEND_TRANSFORMER_ACC)
   target_link_libraries(
     ${CUSTOM_NPU_NAME}
-    PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libacltransformer.so)
-  include_directories($ENV{ACLTRANSFORMER_HOME_PATH}/include)
+    PRIVATE $ENV{ATB_HOME_PATH}/lib/libasdops.so)
+  target_link_libraries(
+    ${CUSTOM_NPU_NAME}
+    PRIVATE $ENV{ATB_HOME_PATH}/lib/libatb.so)
+
+  include_directories($ENV{ATB_HOME_PATH}/include)
 endif()
 
 # link third_party

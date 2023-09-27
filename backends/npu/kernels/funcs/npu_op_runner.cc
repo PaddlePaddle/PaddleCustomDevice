@@ -586,6 +586,8 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   return sum >= 1.0;
 }
 
+static bool isAclEnableJit = false;
+
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   PADDLE_ENFORCE_NOT_NULL(
       stream,
@@ -597,6 +599,13 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.
+
+  if (!isAclEnableJit) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    // std::cout << "ACL_OP_JIT_COMPILE:enable" << std::endl;
+    isAclEnableJit = true;
+  }
+
   PY_GIL_RELEASE({
     ret = aclopCompileAndExecute(op_type_.c_str(),
                                  input_descs_.size(),

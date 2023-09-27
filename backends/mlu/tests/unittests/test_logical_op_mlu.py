@@ -134,8 +134,6 @@ def test_type_error(unit_test, use_mlu, type_str_map):
             y = paddle.to_tensor(y)
             error_type = BaseException
         if binary_op:
-            # if type_str_map["x"] != type_str_map["y"]:
-            #     unit_test.assertRaises(error_type, op, x=x, y=y)
             if not paddle.in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, y=y, out=1)

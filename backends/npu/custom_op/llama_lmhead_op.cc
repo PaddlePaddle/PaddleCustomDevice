@@ -42,11 +42,12 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(
   auto comm = reinterpret_cast<HcclComm>(phi::detail::GetCCLComm(hidden.place(), 0));
 
   std::vector<int64_t> hidden_shape = hidden.shape();
+  std::vector<int64_t> matmul_weight_shape = matmul_weight.shape();
   std::vector<int64_t> key_shape;
   std::vector<int64_t> value_shape;
 
   auto data_type = static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype();
-  std::vector<int64_t> layerout_shape = {hidden_shape[0], hidden_shape[1]*nranks};
+  std::vector<int64_t> layerout_shape = {hidden_shape[0], matmul_weight_shape[1]*nranks};
   std::shared_ptr<phi::DenseTensor> layerout_tensor = std::make_shared<phi::DenseTensor>();
   layerout_tensor->Resize(phi::make_ddim(layerout_shape));
   dev_ctx->Alloc(layerout_tensor.get(), data_type);

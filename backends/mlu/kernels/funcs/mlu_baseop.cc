@@ -2940,25 +2940,6 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlLog1p(handle, prefer, input_desc, input, output_desc, output));
 }
 
-/* static */ void MLUCnnl::LogicalNot(const Context& ctx,
-                                      const cnnlTensorDescriptor_t input_desc,
-                                      const void* input,
-                                      const cnnlTensorDescriptor_t output_desc,
-                                      void* output) {
-  cnnlHandle_t handle = GetHandleFromCTX(ctx);
-
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlLogicOp(handle,
-                                         CNNL_LOGIC_OP_NOT,
-                                         input_desc,
-                                         input,
-                                         input_desc,
-                                         input,
-                                         nullptr,
-                                         0,
-                                         output_desc,
-                                         output));
-}
-
 /* static */ void MLUCnnl::DynamicStitch(
     const Context& ctx,
     const cnnlTensorDescriptor_t* indices_desc,

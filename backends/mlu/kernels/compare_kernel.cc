@@ -22,7 +22,7 @@ void EqualRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& y,
                     int axis,
                     phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "equal", out);
+  MLULogicOp(dev_ctx, x, y, "equal", out);
 }
 
 template <typename T, typename Context>
@@ -39,7 +39,7 @@ void NotEqualRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& y,
                        int axis,
                        phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "not_equal", out);
+  MLULogicOp(dev_ctx, x, y, "not_equal", out);
 }
 
 template <typename T, typename Context>
@@ -56,7 +56,7 @@ void LessThanRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& y,
                        int axis,
                        phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "less_than", out);
+  MLULogicOp(dev_ctx, x, y, "less_than", out);
 }
 
 template <typename T, typename Context>
@@ -73,7 +73,7 @@ void LessEqualRawKernel(const Context& dev_ctx,
                         const phi::DenseTensor& y,
                         int axis,
                         phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "less_equal", out);
+  MLULogicOp(dev_ctx, x, y, "less_equal", out);
 }
 
 template <typename T, typename Context>
@@ -90,7 +90,7 @@ void GreaterThanRawKernel(const Context& dev_ctx,
                           const phi::DenseTensor& y,
                           int axis,
                           phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "greater_than", out);
+  MLULogicOp(dev_ctx, x, y, "greater_than", out);
 }
 
 template <typename T, typename Context>
@@ -107,7 +107,7 @@ void GreaterEqualRawKernel(const Context& dev_ctx,
                            const phi::DenseTensor& y,
                            int axis,
                            phi::DenseTensor* out) {
-  MLULogicOp<T>(dev_ctx, x, y, "greater_equal", out);
+  MLULogicOp(dev_ctx, x, y, "greater_equal", out);
 }
 
 template <typename T, typename Context>

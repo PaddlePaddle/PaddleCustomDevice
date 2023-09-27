@@ -6,6 +6,9 @@ packages = []
 package_data = {}
 
 def write_custom_op_api_py(filename='python/paddle_custom_device/npu/ops.py', libname='python/paddle_custom_device/libpaddle-custom-npu.so'):
+    import os
+    os.environ['CUSTOM_DEVICE_ROOT']=''
+    import sys
     import paddle
     op_names = paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(libname)
     api_content = [paddle.utils.cpp_extension.extension_utils._custom_api_content(op_name) for op_name in op_names]
@@ -27,6 +30,9 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
 
 
 def write_version_py(filename='python/paddle_custom_device/npu/__init__.py'):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
 from .ops import *
@@ -65,6 +71,9 @@ def version():
 
 
 def write_init_py(filename='python/paddle_custom_device/__init__.py'):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
 #
 from . import npu # noqa: F401

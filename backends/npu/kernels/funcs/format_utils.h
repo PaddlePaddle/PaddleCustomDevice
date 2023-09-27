@@ -38,16 +38,6 @@
 #include "glog/logging.h"
 #include "paddle/extension.h"
 #include "paddle/phi/extension.h"
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
-#include "acltransformer/operation.h"
-#include "acltransformer/operation_call.h"
-#include "acltransformer/utils/tensor_util.h"
-
-AsdOps::Tensor ConvertDenseTensorToAsdTensor(const phi::DenseTensor& tensor);
-AsdOps::Tensor ConvertCDataToAsdTensor(void* data,
-                                       size_t count,
-                                       C_DataType data_type);
-#endif
 
 aclDataType ConvertToNpuDtype(phi::DataType dtype);
 aclFormat ConvertToNpuFormat(phi::DataLayout layout);

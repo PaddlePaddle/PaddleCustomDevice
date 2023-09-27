@@ -777,6 +777,27 @@ class MLURNNDesc {
   cnnlRNNDescriptor_t rnn_desc_ = nullptr;
 };
 
+class NormalizeDesc {
+ public:
+  NormalizeDesc(const NormalizeDesc& desc) = delete;
+  NormalizeDesc& operator=(const NormalizeDesc& desc) = delete;
+
+  NormalizeDesc(int* axis,
+                int axis_num,
+                cnnlNanPropagation_t nan_propagation,
+                float eps,
+                float pnorm,
+                int channel_shared,
+                int across_spatial);
+
+  const cnnlNormalizeDescriptor_t get() const;
+
+  ~NormalizeDesc();
+
+ private:
+  cnnlNormalizeDescriptor_t normalize_desc_ = nullptr;
+};
+
 class MLUCnnl {
  public:
   static void Active(const Context& ctx,
@@ -1861,6 +1882,17 @@ class MLUCnnl {
                                 void* diff_x,
                                 void* diff_weight,
                                 void* diff_bias);
+
+  static void Normalize(const Context& ctx,
+                        const cnnlNormalizeDescriptor_t normalize_desc,
+                        const cnnlTensorDescriptor_t input_desc,
+                        const void* input,
+                        const cnnlTensorDescriptor_t scale_desc,
+                        const void* scale,
+                        const cnnlTensorDescriptor_t output_desc,
+                        const cnnlTensorDescriptor_t norm_desc,
+                        void* output,
+                        void* norm);
 
   static void Transpose(const Context& ctx,
                         const std::vector<int> perm,

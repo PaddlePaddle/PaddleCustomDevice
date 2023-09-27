@@ -19,7 +19,7 @@
 
 namespace custom_kernel {
 
-template <typename T, typename Context>
+template <typename Context>
 void MLULogicOp(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 const phi::DenseTensor& y,

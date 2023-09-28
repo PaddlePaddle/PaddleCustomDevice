@@ -23,6 +23,7 @@
 #include <thread>
 
 #include "paddle/phi/extension.h"
+#include "custom_op/atb_layer_base.h"
 
 #define RUNTIME_CHECK(func, success)                                          \
   do {                                                                        \
@@ -305,4 +306,17 @@ struct HostCallbackManager {
   std::mutex g_stream_thread_mutex;
   std::unordered_map<aclrtStream, std::thread> g_stream_thread_map;
   std::unordered_map<aclrtStream, bool> g_stream_thread_is_running_map;
+};
+
+class PpAtbCommOp : public PpAscendAtbOpBase {
+  public:
+    PpAtbCommOp(const std::string &modelName);
+    ~PpAtbCommOp();
+    atb::Status Execute(aclrtStream stream, void* send_buf, void* recv_buf, size_t count, C_DataType data_type);
+
+  private:
+    void BuildVariantPack(void *send_buf,
+                          void *recv_buf,
+                          size_t count,
+                          C_DataType data_type);
 };

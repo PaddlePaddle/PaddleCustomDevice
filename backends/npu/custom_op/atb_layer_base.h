@@ -25,26 +25,21 @@ public:
 
   virtual void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                                 std::vector<const phi::DenseTensor *> &outTensors);
-  atb::Status Execute(aclrtStream stream,
-                      std::vector<const phi::DenseTensor *> &inTensors,
-                      std::vector<const phi::DenseTensor *> &outTensors);
+  virtual atb::Status Execute(aclrtStream stream,
+                              std::vector<const phi::DenseTensor *> &inTensors,
+                              std::vector<const phi::DenseTensor *> &outTensors);
 
   std::shared_ptr<atb::Operation> operation_;
 
 protected:
   std::string opName_;
   atb::VariantPack variantPacks_;
-
-private:
+  aclrtStream stream_;
+  void *workspace_ = nullptr;
   void SetWorkspace(uint64_t workspace_size);
 
 private:
   uint64_t workspaceSize_ = 0;
-  void *workspace_ = nullptr;
-
   int32_t currentDevId_ = 0;
-
-  aclrtStream stream_;
-
 };
 #endif

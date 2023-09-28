@@ -235,10 +235,7 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
 
   g_llamaEncoderLayerParallelOp->Execute(stream, inputs, outputs);
 
-  executeCount++;
-  if ((executeCount) % layer_num == 0) {
-    aclrtSynchronizeStream(stream);
-  }
+  executeCount++; // Lmhead阶段sync
 
   return {paddle::Tensor(layerout_tensor), cache_key_value};
 }

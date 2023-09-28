@@ -15,7 +15,6 @@
 #include <acl/acl.h>
 #include <hccl/hccl.h>
 #include <hccl/hccl_types.h>
-#include <atb/atb_infer.h>
 #include "atb_layer_base.h"
 #include "llama_layer/llama_lmhead_operation.h"
 
@@ -26,15 +25,12 @@
 
 std::shared_ptr<PpAscendAtbOpBase> g_llamaLmheadOp;
 
-
-std::vector<paddle::Tensor> LlamaLmHeadOp(
-    const paddle::Tensor &hidden,
-    const paddle::Tensor &norm_weight,
-    const paddle::Tensor &matmul_weight,
-    float rmsNormEps,
-	bool transpose,
-	int nranks) {
-
+std::vector<paddle::Tensor> LlamaLmHeadOp(const paddle::Tensor &hidden,
+                                          const paddle::Tensor &norm_weight,
+                                          const paddle::Tensor &matmul_weight,
+                                          float rmsNormEps,
+                                          bool transpose,
+                                          int nranks) {
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(hidden.place()));
 
@@ -47,7 +43,7 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(
   std::vector<int64_t> value_shape;
 
   auto data_type = static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype();
-  std::vector<int64_t> layerout_shape = {hidden_shape[0], matmul_weight_shape[1]*nranks};
+  std::vector<int64_t> layerout_shape = {hidden_shape[0] * hidden_shape[1], matmul_weight_shape[1] * nranks};
   std::shared_ptr<phi::DenseTensor> layerout_tensor = std::make_shared<phi::DenseTensor>();
   layerout_tensor->Resize(phi::make_ddim(layerout_shape));
   dev_ctx->Alloc(layerout_tensor.get(), data_type);
@@ -64,16 +60,18 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(
     g_llamaLmheadOp.reset(new PpAscendAtbOpBase("LlamaLmHeadOp"));
 
     atb::Operation *op = nullptr;
-	LlamaLmheadParam param = {rmsNormEps,
+    LlamaLmheadParam param = {rmsNormEps,
                               transpose,
+                              0,  // 不使用加速库创建的comm
                               nranks,
                               comm};
-	LlamaLmheadOperation(param, &op);
+    LlamaLmheadOperation(param, &op);
     g_llamaLmheadOp->operation_.reset(op);
   }
-  
+
   g_llamaLmheadOp->Execute(stream, inputs, outputs);
-  
+  PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
+
   return {paddle::Tensor(layerout_tensor)};
 }
 
@@ -86,9 +84,9 @@ std::vector<std::vector<int64_t>> LlamaLmHeadOpInferShape(
 	int nranks) {
   std::vector<int64_t> out_shape;
 
-  out_shape.push_back(hidden_shape.at(0));
+  out_shape.push_back(hidden_shape.at(0) * hidden_shape.at(1));
   out_shape.push_back(matmul_weight_shape.at(1) * nranks);
-  
+
   return {out_shape};
 }
 
@@ -98,8 +96,8 @@ PD_BUILD_OP(llama_lmhead)
              "MatmulWeight"})
     .Outputs({"Out"})
     .Attrs({"rmsNormEps: float",
-	        "transpose: bool",
-			"nranks: int",})
+            "transpose: bool",
+            "nranks: int",})
     .SetKernelFn(PD_KERNEL(LlamaLmHeadOp))
     .SetInferShapeFn(PD_INFER_SHAPE(
         LlamaLmHeadOpInferShape)); // neccessary if the op has muti_inputs

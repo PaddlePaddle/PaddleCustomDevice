@@ -495,20 +495,23 @@ std::vector<paddle::Tensor> TokenPenaltyMultiScores(const paddle::Tensor& cur_le
   auto penalty_scores_tensor = static_cast<const phi::DenseTensor*>(penalty_scores.impl().get());
   auto pre_ids_tensor = static_cast<const phi::DenseTensor*>(pre_ids.impl().get());
   auto presence_scores_tensor = static_cast<const phi::DenseTensor*>(presence_scores.impl().get());
+  auto repeat_times = paddle::full(logits.shape(), 0, paddle::DataType::INT32, pre_ids.place()); 
+  auto repeat_times_tensor = static_cast<const phi::DenseTensor*>(repeat_times.impl().get());
   
   std::shared_ptr<phi::DenseTensor> logits_out =
       std::make_shared<phi::DenseTensor>();
   logits_out->Resize(logits_tensor->dims());
   dev_ctx->Alloc(logits_out.get(), logits_tensor->dtype());
   
-  std::vector<phi::DenseTensor> inputs = {*cur_len_tensor,
-                                          *eos_token_id_tensor,
-										  *frequency_scores_tensor,
-										  *logits_tensor,
-										  *min_len_tensor,
-										  *penalty_scores_tensor,
-										  *pre_ids_tensor,
-										  *presence_scores_tensor};
+  std::vector<phi::DenseTensor> inputs = {*pre_ids_tensor,
+                                          *logits_tensor,
+                                          *repeat_times_tensor,
+                                          *penalty_scores_tensor,
+                                          *frequency_scores_tensor,
+                                          *presence_scores_tensor,
+                                          *cur_len_tensor,
+                                          *min_len_tensor,
+                                          *eos_token_id_tensor};
   
   std::vector<phi::DenseTensor> outputs = {*logits_out};
   

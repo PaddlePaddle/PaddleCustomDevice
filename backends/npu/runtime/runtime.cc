@@ -552,6 +552,11 @@ atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_
   stream_ = stream;
   BuildVariantPack(send_buf, recv_buf, count, data_type);
 
+  if(context_ == nullptr) {
+    atb::CreateContext(&context_);
+    context_->SetExecuteStream(stream);
+  }
+
   atb::Status st = operation_->Setup(variantPacks_, workspace_size);
   PADDLE_ENFORCE_EQ(st,
                     0,
@@ -562,7 +567,7 @@ atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_
     SetWorkspace(workspace_size);
   }
 
-  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, stream);
+  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, context_);
 
   return st;
 }

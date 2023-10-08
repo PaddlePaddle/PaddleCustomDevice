@@ -64,6 +64,11 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
   stream_ = stream;
   BuildVariantPack(inTensors, outTensors);
 
+  if(context_ == nullptr) {
+    atb::CreateContext(&context_);
+    context_->SetExecuteStream(stream);
+  }
+
   atb::Status st = operation_->Setup(variantPacks_, workspace_size);
   PADDLE_ENFORCE_EQ(st,
                     0,
@@ -74,7 +79,7 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
     SetWorkspace(workspace_size);
   }
 
-  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, stream);
+  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, context_);
 
   return st;
 }

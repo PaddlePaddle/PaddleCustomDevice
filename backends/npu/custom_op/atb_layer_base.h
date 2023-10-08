@@ -17,6 +17,7 @@
 #include <acl/acl.h>
 #include "atb/atb_infer.h"
 #include "paddle/extension.h"
+#include "atb/context.h"
 
 class PpAscendAtbOpBase {
 public:
@@ -35,6 +36,7 @@ protected:
   std::string opName_;
   atb::VariantPack variantPacks_;
   aclrtStream stream_;
+  atb::Context *context_ = nullptr;
   void *workspace_ = nullptr;
   void SetWorkspace(uint64_t workspace_size);
 

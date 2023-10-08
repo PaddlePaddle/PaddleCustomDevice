@@ -24,6 +24,7 @@
 
 #include "paddle/phi/extension.h"
 #include "custom_op/atb_layer_base.h"
+#include "atb/context.h"
 
 #define RUNTIME_CHECK(func, success)                                          \
   do {                                                                        \

@@ -35,20 +35,39 @@ void MaskedSelectKernel(const Context& dev_ctx,
                         input_dim,
                         mask_dim));
 
-  Tensor number, masked_select_out;
+  Tensor number, masked_select_out, final_x, masked_select_out_tmp;
+  int sizebyte = sizeof(T);
   number.Resize({1});
   masked_select_out.Resize(mask.dims());
   void* number_ptr = dev_ctx.template Alloc<int32_t>(&number);
-  dev_ctx.template Alloc<T>(&masked_select_out);
-
   MLUCnnlTensorDesc input_desc(x);
   MLUCnnlTensorDesc mask_desc(mask);
 
+  if (x.dtype() != DataType::INT64) {
+    dev_ctx.template Alloc<T>(&masked_select_out);
+    final_x = x;
+  } else {
+    dev_ctx.template Alloc<int32_t>(&masked_select_out);
+    final_x.Resize(x.dims());
+    dev_ctx.template Alloc<int32_t>(&final_x);
+
+    MLUCnnlTensorDesc input_int32_desc(final_x);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::INT64, DataType::INT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  input_desc.get(),
+                  GetBasePtr(&x),
+                  input_int32_desc.get(),
+                  GetBasePtr(&final_x));
+  }
+
+  MLUCnnlTensorDesc final_x_desc(final_x);
   MLUCnnlTensorDesc masked_select_out_desc(masked_select_out);
   MLUCnnl::Mask(dev_ctx,
                 CNNL_MASKED_SELECT,
-                input_desc.get(),
-                GetBasePtr(&x),
+                final_x_desc.get(),
+                GetBasePtr(&final_x),
                 mask_desc.get(),
                 GetBasePtr(&mask),
                 nullptr, /* value_desc */
@@ -68,12 +87,32 @@ void MaskedSelectKernel(const Context& dev_ctx,
   out->Resize({masked_select_num});
   dev_ctx.template Alloc<T>(out);
   MLUCnnlTensorDesc out_desc(*out);
+  if (x.dtype() != DataType::INT64) {
+    masked_select_out_tmp = *out;
+  } else {
+    masked_select_out_tmp.Resize({masked_select_num});
+    dev_ctx.template Alloc<int32_t>(&masked_select_out_tmp);
+    sizebyte = sizeof(int32_t);
+  }
 
   AsyncMemCpyD2D(nullptr,
                  stream,
-                 GetBasePtr(out),
+                 GetBasePtr(&masked_select_out_tmp),
                  GetBasePtr(&masked_select_out),
-                 masked_select_num * sizeof(T));
+                 masked_select_num * sizebyte);
+
+  if (x.dtype() == DataType::INT64) {
+    MLUCnnlTensorDesc masked_out_desc(masked_select_out_tmp);
+
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::INT32, DataType::INT64);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  masked_out_desc.get(),
+                  GetBasePtr(&masked_select_out_tmp),
+                  out_desc.get(),
+                  GetBasePtr(out));
+  }
 }
 
 template <typename T, typename Context>
@@ -202,7 +241,8 @@ PD_REGISTER_PLUGIN_KERNEL(masked_select,
                           custom_kernel::MaskedSelectKernel,
                           phi::dtype::float16,
                           float,
-                          int) {}
+                          int,
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select_grad,
                           mlu,

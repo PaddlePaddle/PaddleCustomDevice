@@ -19,8 +19,8 @@
 
 static const uint64_t IN_TENSOR_COUNT = 3;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 3;
-static const uint64_t NODE_COUNT = 4;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 1;
+static const uint64_t NODE_COUNT = 2;
 
 enum LlamaLmheadTensorId {
     IN_HIDDENSTATES = 0,
@@ -28,8 +28,6 @@ enum LlamaLmheadTensorId {
     IN_MATMULWEIGHT,
     OUT_LMHEADOUT,
     INTERMIDATE_INPUTNORMOUT,
-    INTERMIDATE_LINEAR_OUT,
-    INTERMIDATE_GATHER_OUT
 };
 
 atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
@@ -44,8 +42,6 @@ atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
     size_t nodeId = 0;
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &linearNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &allgatherNode = opGraph.nodes.at(nodeId++);
-    atb::Node &transposeNode = opGraph.nodes.at(nodeId++);
 
     // [bs, seq_len, hidden_size]
     atb::infer::RmsNormParam inputNormParam;
@@ -59,33 +55,25 @@ atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
     atb::infer::MatmulParam linearParam = {false, param.transpose};
     atb::CreateOperation(linearParam, &linearNode.operation);
     linearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_MATMULWEIGHT};
-    linearNode.outTensorIds = {INTERMIDATE_LINEAR_OUT};
+    linearNode.outTensorIds = {OUT_LMHEADOUT};
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
     linearNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
-      newShape.dimNum = 2; // dimNum: 2
+        newShape.dimNum = 2; // dimNum: 2
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
     };
 
-    // [bs * seq_len, vocsize_pre_card_num] -> [card_num, bs * seq_len, vocsize_pre_card_num]
-    atb::infer::AllGatherParam allgatherParam = {param.rank, param.rankSize, 0, "hccl", param.hcclComm};
-    atb::CreateOperation(allgatherParam, &allgatherNode.operation);
-    allgatherNode.inTensorIds = {INTERMIDATE_LINEAR_OUT};
-    allgatherNode.outTensorIds = {INTERMIDATE_GATHER_OUT};
-    
-    // [card_num, bs * seq_len, vocsize_pre_card_num] -> [bs * seq_len, card_num, vocsize_pre_card_num]
-    atb::infer::TransposeParam transposeParam = {{1, 0, 2}};
-    atb::CreateOperation(transposeParam, &transposeNode.operation);
-    transposeNode.inTensorIds = {INTERMIDATE_GATHER_OUT};
-    transposeNode.outTensorIds = {OUT_LMHEADOUT};
-
-    // [bs * seq_len, vocsize]
+    // [bs, seq_len, vocsize_pre_card_num]
     opGraph.inferShapeFunc = [&](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
         outTensorDescs.at(0) = inTensorDescs.at(0);
-        outTensorDescs.at(0).shape.dimNum = 2;
-        outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0] * inTensorDescs.at(0).shape.dims[1];
-        outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(2).shape.dims[1] * param.rankSize;
+        size_t dimNum = outTensorDescs.at(0).shape.dimNum;
+        if (param.transpose) {
+            outTensorDescs.at(0).shape.dims[dimNum - 1] = inTensorDescs.at(2).shape.dims[0];
+        } else {
+            outTensorDescs.at(0).shape.dims[dimNum - 1] = inTensorDescs.at(2).shape.dims[1];
+        }
+
         return atb::NO_ERROR;
     };
 

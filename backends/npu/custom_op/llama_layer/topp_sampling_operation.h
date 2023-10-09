@@ -16,12 +16,10 @@
 #pragma once
 
 #include <atb/atb_infer.h>
-#include <atb/svector.h>
 
-struct LlamaLmheadParam {
-    float rmsNormEps = 0;
-    bool transpose = true;
+struct ToppSamplingParam {
+    float p = 1.0;
 };
 
-atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
-                                 atb::Operation **operation);
+atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
+                                        atb::Operation **operation);

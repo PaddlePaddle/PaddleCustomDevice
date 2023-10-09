@@ -601,7 +601,6 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice,
                           int,
                           int64_t,
                           float,
-                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(strided_slice_grad,
@@ -612,5 +611,4 @@ PD_REGISTER_PLUGIN_KERNEL(strided_slice_grad,
                           int,
                           int64_t,
                           float,
-                          double,
                           phi::dtype::float16) {}

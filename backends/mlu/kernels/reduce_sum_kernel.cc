@@ -26,8 +26,50 @@ void SumRawKernel(const Context& dev_ctx,
                   bool reduce_all,
                   phi::DataType out_dtype,
                   phi::DenseTensor* out) {
-  MLUReduceOp<T>(
-      dev_ctx, x, axes.GetData(), keep_dim, reduce_all, "reduce_sum", out);
+  Tensor in_t, out_t;
+  auto need_cast_for_int64 =
+      x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL
+          ? true
+          : false;
+  if (need_cast_for_int64) {
+    in_t.Resize(x.dims());
+    out_t.Resize(out->dims());
+    dev_ctx.template Alloc<int>(&in_t);
+    dev_ctx.template Alloc<int64_t>(
+        out);  // the output of bool and int64 are int64
+    MLUCnnlTensorDesc in_desc(x);
+    MLUCnnlTensorDesc casted_in_desc(in_t);
+    cnnlCastDataType_t cast_type = GetCastDataType(x.dtype(), DataType::INT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  in_desc.get(),
+                  GetBasePtr(&x),
+                  casted_in_desc.get(),
+                  GetBasePtr(&in_t));
+    MLUReduceOp<int32_t>(dev_ctx,
+                         in_t,
+                         axes.GetData(),
+                         keep_dim,
+                         reduce_all,
+                         "reduce_sum",
+                         &out_t);
+
+    // cast back to int64
+    MLUCnnlTensorDesc out_desc(*out);
+    MLUCnnlTensorDesc casted_out_desc(out_t);
+    cnnlCastDataType_t cast_back_type =
+        GetCastDataType(DataType::INT32, DataType::INT64);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_back_type,
+                  casted_out_desc.get(),
+                  GetBasePtr(&out_t),
+                  out_desc.get(),
+                  GetBasePtr(out));
+  } else {
+    in_t = x;
+    MLUReduceOp<T>(
+        dev_ctx, in_t, axes.GetData(), keep_dim, reduce_all, "reduce_sum", out);
+  }
 }
 
 template <typename T, typename Context>
@@ -82,11 +124,28 @@ void SumGradKernel(const Context& dev_ctx,
   }
 
   Tensor tmp_out;
+  if (x_grad->dtype() == out_grad.dtype()) {
+    tmp_out = out_grad;
+  } else {
+    phi::DenseTensorMeta meta = {x_grad->dtype(), out_grad.dims()};
+    tmp_out.set_meta(meta);
+    dev_ctx.template Alloc<T>(&tmp_out);
+
+    MLUCnnlTensorDesc out_grad_desc(out_grad);
+    MLUCnnlTensorDesc casted_out_grad(*x_grad);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(out_grad.dtype(), x_grad->dtype());
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  out_grad_desc.get(),
+                  GetBasePtr(&out_grad),
+                  casted_out_grad.get(),
+                  GetBasePtr(&tmp_out));
+  }
   auto tmp_output_dims = in_dims;
   for (auto d : reduce_dims) {
     tmp_output_dims[d] = 1;
   }
-  tmp_out = out_grad;
   tmp_out.Resize(phi::make_ddim(tmp_output_dims));
 
   MLUCnnlTensorDesc out_desc(tmp_out);
@@ -116,6 +175,8 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           ALL_LAYOUT,
                           custom_kernel::SumKernel,
                           int32_t,
+                          bool,
+                          int64_t,
                           phi::dtype::float16,
                           float) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
@@ -126,4 +187,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum_grad,
                           ALL_LAYOUT,
                           custom_kernel::SumGradKernel,
                           phi::dtype::float16,
+                          int32_t,
+                          bool,
+                          int64_t,
                           float) {}

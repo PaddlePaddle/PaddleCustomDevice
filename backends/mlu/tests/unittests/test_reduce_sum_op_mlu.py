@@ -32,7 +32,7 @@ class TestMLUReduceSumOp(OpTest):
             "keep_dim": self.keep_dim,
             "reduce_all": self.reduce_all,
         }
-        self.inputs = {"X": np.random.random(self.shape).astype("float32")}
+        self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
         if self.attrs["reduce_all"]:
             self.outputs = {"Out": self.inputs["X"].sum()}
         else:
@@ -61,66 +61,99 @@ class TestMLUReduceSumOp(OpTest):
     def initTestCase(self):
         self.shape = (5, 6, 10)
         self.axis = (0,)
+        self.dtype = "float32"
+
+
+class TestSumOpBool(TestMLUReduceSumOp):
+    def initTestCase(self):
+        self.shape = (5, 6, 10)
+        self.axis = (0,)
+        self.dtype = "bool"
+
+    def test_check_grad(self):
+        # skip check_grad for bool dtype
+        return
+
+
+class TestSumOpInt64(TestMLUReduceSumOp):
+    def initTestCase(self):
+        self.shape = (5, 6, 10)
+        self.axis = (0,)
+        self.dtype = "int64"
+
+    def test_check_grad(self):
+        # skip check_grad for int64 dtype
+        return
 
 
 class TestSumOp5D(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (1, 2, 5, 6, 10)
         self.axis = (0,)
+        self.dtype = "float32"
 
 
 class TestSumOp6D(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (1, 1, 2, 5, 6, 10)
         self.axis = (0,)
+        self.dtype = "float32"
 
 
 class TestSumOp8D(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (1, 3, 1, 2, 1, 4, 3, 10)
         self.axis = (0, 3)
+        self.dtype = "float32"
 
 
 class Test1DReduce(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = 120
         self.axis = (0,)
+        self.dtype = "float32"
 
 
 class Test2DReduce0(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (20, 10)
         self.axis = (0,)
+        self.dtype = "float32"
 
 
 class Test2DReduce1(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (20, 10)
         self.axis = (1,)
+        self.dtype = "float32"
 
 
 class Test3DReduce0(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
         self.axis = (1,)
+        self.dtype = "float32"
 
 
 class Test3DReduce1(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
         self.axis = (2,)
+        self.dtype = "float32"
 
 
 class Test3DReduce2(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
         self.axis = (-2,)
+        self.dtype = "float32"
 
 
 class Test3DReduce3(TestMLUReduceSumOp):
     def initTestCase(self):
         self.shape = (5, 6, 7)
         self.axis = (1, 2)
+        self.dtype = "float32"
 
 
 class TestKeepDimReduce(TestMLUReduceSumOp):
@@ -128,6 +161,7 @@ class TestKeepDimReduce(TestMLUReduceSumOp):
         self.shape = (5, 6, 10)
         self.axis = (1,)
         self.keep_dim = True
+        self.dtype = "float32"
 
 
 class TestKeepDim8DReduce(TestMLUReduceSumOp):
@@ -135,6 +169,7 @@ class TestKeepDim8DReduce(TestMLUReduceSumOp):
         self.shape = (2, 5, 3, 2, 2, 3, 4, 2)
         self.axis = (3, 4, 5)
         self.keep_dim = True
+        self.dtype = "float32"
 
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.03)
@@ -145,6 +180,7 @@ class TestReduceAll(TestMLUReduceSumOp):
         self.shape = (5, 6, 2, 10)
         self.axis = (0,)
         self.reduce_all = True
+        self.dtype = "float32"
 
 
 if __name__ == "__main__":

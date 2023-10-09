@@ -88,6 +88,15 @@ class TestMaskedSelectOpInt32(TestMaskedSelectOp):
         pass
 
 
+@skip_check_grad_ci(reason="get_numeric_gradient not support int64")
+class TestMaskedSelectOpInt64(TestMaskedSelectOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    def test_check_grad(self):
+        pass
+
+
 class TestMaskedSelectAPI(unittest.TestCase):
     def test_imperative_mode(self):
         paddle.disable_static(paddle.CustomPlace("mlu", 0))

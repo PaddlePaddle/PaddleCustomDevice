@@ -25,16 +25,18 @@ void MaxRawKernel(const Context& dev_ctx,
                   bool reduce_all,
                   phi::DenseTensor* out) {
   Tensor in_t, out_t;
-  auto need_cast_for_int64 = x.dtype() == phi::DataType::INT64 ? true : false;
-  if (need_cast_for_int64) {
+  auto need_cast_flag =
+      x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL
+          ? true
+          : false;
+  if (need_cast_flag) {
     in_t.Resize(x.dims());
     out_t.Resize(out->dims());
     dev_ctx.template Alloc<int>(&in_t);
     dev_ctx.template Alloc<T>(out);
     MLUCnnlTensorDesc in_desc(x);
     MLUCnnlTensorDesc casted_in_desc(in_t);
-    cnnlCastDataType_t cast_type =
-        GetCastDataType(DataType::INT64, DataType::INT32);
+    cnnlCastDataType_t cast_type = GetCastDataType(x.dtype(), DataType::INT32);
     MLUCnnl::Cast(dev_ctx,
                   cast_type,
                   in_desc.get(),
@@ -49,11 +51,11 @@ void MaxRawKernel(const Context& dev_ctx,
                          "reduce_max",
                          &out_t);
 
-    // cast back to int64
+    // cast back to int64 or bool
     MLUCnnlTensorDesc out_desc(*out);
     MLUCnnlTensorDesc casted_out_desc(out_t);
     cnnlCastDataType_t cast_back_type =
-        GetCastDataType(DataType::INT32, DataType::INT64);
+        GetCastDataType(DataType::INT32, x.dtype());
     MLUCnnl::Cast(dev_ctx,
                   cast_back_type,
                   casted_out_desc.get(),
@@ -254,6 +256,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
+                          bool,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
@@ -263,6 +266,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
+                          bool,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,

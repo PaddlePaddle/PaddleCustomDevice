@@ -88,6 +88,28 @@ class TestReduceAll(TestMLUReduceMaxOp):
     reason="reduce_max is discontinuous non-derivable function,"
     " its gradient check is not supported by unittest framework."
 )
+class TestReduceMaxOpWithOutDtype_bool(TestMLUReduceMaxOp):
+    """Remove Max with subgradient from gradient check to confirm the success of CI."""
+
+    def setUp(self):
+        self.op_type = "reduce_max"
+        self.set_mlu()
+        self.init_dtype()
+
+        self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
+        self.attrs = {"dim": [-2, -1], "out_dtype": int(core.VarDesc.VarType.BOOL)}
+        self.outputs = {
+            "Out": self.inputs["X"].max(axis=tuple(self.attrs["dim"])).astype(np.bool_)
+        }
+
+    def init_dtype(self):
+        self.dtype = np.bool_
+
+
+@skip_check_grad_ci(
+    reason="reduce_max is discontinuous non-derivable function,"
+    " its gradient check is not supported by unittest framework."
+)
 class TestReduceMaxOpWithOutDtype_int32(TestMLUReduceMaxOp):
     """Remove Min with subgradient from gradient check to confirm the success of CI."""
 

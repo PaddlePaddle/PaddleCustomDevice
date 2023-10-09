@@ -24,8 +24,49 @@ void MaxRawKernel(const Context& dev_ctx,
                   bool keep_dim,
                   bool reduce_all,
                   phi::DenseTensor* out) {
-  MLUReduceOp<T>(
-      dev_ctx, x, axes.GetData(), keep_dim, reduce_all, "reduce_max", out);
+  Tensor in_t, out_t;
+  auto need_cast_flag =
+      x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::BOOL
+          ? true
+          : false;
+  if (need_cast_flag) {
+    in_t.Resize(x.dims());
+    out_t.Resize(out->dims());
+    dev_ctx.template Alloc<int>(&in_t);
+    dev_ctx.template Alloc<T>(out);
+    MLUCnnlTensorDesc in_desc(x);
+    MLUCnnlTensorDesc casted_in_desc(in_t);
+    cnnlCastDataType_t cast_type = GetCastDataType(x.dtype(), DataType::INT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  in_desc.get(),
+                  GetBasePtr(&x),
+                  casted_in_desc.get(),
+                  GetBasePtr(&in_t));
+    MLUReduceOp<int32_t>(dev_ctx,
+                         in_t,
+                         axes.GetData(),
+                         keep_dim,
+                         reduce_all,
+                         "reduce_max",
+                         &out_t);
+
+    // cast back to int64 or bool
+    MLUCnnlTensorDesc out_desc(*out);
+    MLUCnnlTensorDesc casted_out_desc(out_t);
+    cnnlCastDataType_t cast_back_type =
+        GetCastDataType(DataType::INT32, x.dtype());
+    MLUCnnl::Cast(dev_ctx,
+                  cast_back_type,
+                  casted_out_desc.get(),
+                  GetBasePtr(&out_t),
+                  out_desc.get(),
+                  GetBasePtr(out));
+  } else {
+    in_t = x;
+    MLUReduceOp<T>(
+        dev_ctx, in_t, axes.GetData(), keep_dim, reduce_all, "reduce_max", out);
+  }
 }
 
 template <typename T, typename Context>
@@ -51,7 +92,7 @@ void MaxGradKernel(const Context& dev_ctx,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto reduce_dims = reduce_dims_in.GetData();
-  auto stream = dev_ctx.stream();
+  auto need_cast_for_int64 = x.dtype() == phi::DataType::INT64 ? true : false;
   dev_ctx.template Alloc<T>(x_grad);
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, out_grad, true, x_grad);
@@ -66,7 +107,48 @@ void MaxGradKernel(const Context& dev_ctx,
     }
   }
 
-  phi::DenseTensor tmp_out(out), tmp_out_grad(out_grad);
+  Tensor tmp_x, tmp_out, tmp_out_grad, tmp_x_grad;
+  if (need_cast_for_int64) {
+    tmp_x.Resize(x.dims());
+    tmp_out.Resize(out.dims());
+    tmp_out_grad.Resize(out_grad.dims());
+    tmp_x_grad.Resize(x_grad->dims());
+    dev_ctx.template Alloc<int>(&tmp_x);
+    dev_ctx.template Alloc<int>(&tmp_out);
+    dev_ctx.template Alloc<int>(&tmp_out_grad);
+    dev_ctx.template Alloc<int>(&tmp_x_grad);
+    MLUCnnlTensorDesc in_desc(x);
+    MLUCnnlTensorDesc casted_in_desc(tmp_x);
+    MLUCnnlTensorDesc out_desc(out);
+    MLUCnnlTensorDesc casted_out_desc(tmp_out);
+    MLUCnnlTensorDesc out_grad_desc(out_grad);
+    MLUCnnlTensorDesc casted_out_grad_desc(tmp_out_grad);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::INT64, DataType::INT32);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  in_desc.get(),
+                  GetBasePtr(&x),
+                  casted_in_desc.get(),
+                  GetBasePtr(&tmp_x));
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  out_desc.get(),
+                  GetBasePtr(&out),
+                  casted_out_desc.get(),
+                  GetBasePtr(&tmp_out));
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  out_grad_desc.get(),
+                  GetBasePtr(&out_grad),
+                  casted_out_grad_desc.get(),
+                  GetBasePtr(&tmp_out_grad));
+  } else {
+    tmp_x = x;
+    tmp_out = out;
+    tmp_out_grad = out_grad;
+    tmp_x_grad = *x_grad;
+  }
   auto tmp_out_dims_vec = x_dims_vec;
   for (auto d : reduce_dims) {
     if (d < 0) {
@@ -79,9 +161,17 @@ void MaxGradKernel(const Context& dev_ctx,
   tmp_out_grad.Resize(phi::make_ddim(tmp_out_dims_vec));
 
   phi::DenseTensor transformed_out;
-  phi::DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
-  transformed_out.set_meta(meta);
-  dev_ctx.template Alloc<T>(&transformed_out);
+  if (need_cast_for_int64) {
+    phi::DenseTensorMeta meta = {phi::DataType::INT32,
+                                 phi::make_ddim(x_dims_vec)};
+    transformed_out.set_meta(meta);
+    dev_ctx.template Alloc<int>(&transformed_out);
+  } else {
+    phi::DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
+    transformed_out.set_meta(meta);
+    dev_ctx.template Alloc<T>(&transformed_out);
+  }
+
   MLUCnnlTensorDesc tmp_out_desc(tmp_out);
   MLUCnnlTensorDesc transformed_out_desc(transformed_out);
   MLUCnnl::BroadcastTo(dev_ctx,
@@ -91,9 +181,17 @@ void MaxGradKernel(const Context& dev_ctx,
                        GetBasePtr(&transformed_out));
 
   phi::DenseTensor transformed_out_grad;
-  phi::DenseTensorMeta grad_meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
-  transformed_out_grad.set_meta(grad_meta);
-  dev_ctx.template Alloc<T>(&transformed_out_grad);
+  if (need_cast_for_int64) {
+    phi::DenseTensorMeta meta = {phi::DataType::INT32,
+                                 phi::make_ddim(x_dims_vec)};
+    transformed_out_grad.set_meta(meta);
+    dev_ctx.template Alloc<int>(&transformed_out_grad);
+  } else {
+    phi::DenseTensorMeta meta = {x.dtype(), phi::make_ddim(x_dims_vec)};
+    transformed_out_grad.set_meta(meta);
+    dev_ctx.template Alloc<T>(&transformed_out_grad);
+  }
+
   MLUCnnlTensorDesc tmp_out_grad_desc(tmp_out_grad);
   MLUCnnlTensorDesc transformed_out_grad_desc(transformed_out_grad);
   MLUCnnl::BroadcastTo(dev_ctx,
@@ -105,7 +203,7 @@ void MaxGradKernel(const Context& dev_ctx,
   phi::DenseTensor equal_cond;
   equal_cond.Resize(x_grad->dims());
   dev_ctx.template Alloc<bool>(&equal_cond);
-  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc x_desc(tmp_x);
   MLUCnnlTensorDesc equal_cond_desc(equal_cond);
   MLUCnnl::Logic(dev_ctx,
                  CNNL_LOGIC_OP_EQ,
@@ -119,17 +217,16 @@ void MaxGradKernel(const Context& dev_ctx,
   // select
   phi::DenseTensor t_zero;
   t_zero.Resize(x_grad->dims());
-  dev_ctx.template Alloc<T>(&t_zero);
-  MLUCnnlTensorDesc t_zero_desc(t_zero);
-  auto value = static_cast<T>(0);
-  MLUCnnl::Fill(dev_ctx,
-                CNNL_POINTER_MODE_HOST,
-                &value,
-                t_zero_desc.get(),
-                GetBasePtr(&t_zero));
-  t_zero.Resize(x_grad->dims());
+  if (need_cast_for_int64) {
+    dev_ctx.template Alloc<int>(&t_zero);
+    FillMLUTensorWithHostValue(dev_ctx, static_cast<int>(0), &t_zero);
+  } else {
+    dev_ctx.template Alloc<T>(&t_zero);
+    FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0), &t_zero);
+  }
 
-  MLUCnnlTensorDesc x_grad_desc(*x_grad);
+  MLUCnnlTensorDesc t_zero_desc(t_zero);
+  MLUCnnlTensorDesc x_grad_desc(tmp_x_grad);
   MLUCnnl::Select(dev_ctx,
                   equal_cond_desc.get(),
                   GetBasePtr(&equal_cond),
@@ -138,7 +235,19 @@ void MaxGradKernel(const Context& dev_ctx,
                   t_zero_desc.get(),
                   GetBasePtr(&t_zero),
                   x_grad_desc.get(),
+                  GetBasePtr(&tmp_x_grad));
+
+  if (need_cast_for_int64) {
+    MLUCnnlTensorDesc casted_x_grad_desc(*x_grad);
+    cnnlCastDataType_t cast_type =
+        GetCastDataType(DataType::INT32, DataType::INT64);
+    MLUCnnl::Cast(dev_ctx,
+                  cast_type,
+                  x_grad_desc.get(),
+                  GetBasePtr(&tmp_x_grad),
+                  casted_x_grad_desc.get(),
                   GetBasePtr(x_grad));
+  }
 }
 
 }  // namespace custom_kernel
@@ -147,7 +256,9 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
+                          bool,
                           int32_t,
+                          int64_t,
                           phi::dtype::float16,
                           float) {}
 
@@ -155,7 +266,9 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
+                          bool,
                           int32_t,
+                          int64_t,
                           phi::dtype::float16,
                           float) {}
 
@@ -165,5 +278,6 @@ PD_REGISTER_PLUGIN_KERNEL(max_grad,
                           custom_kernel::MaxGradKernel,
                           bool,
                           int32_t,
+                          int64_t,
                           phi::dtype::float16,
                           float) {}

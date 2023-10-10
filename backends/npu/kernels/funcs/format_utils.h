@@ -42,6 +42,8 @@
 #include "atb/atb_infer.h"
 
 atb::Tensor ConvertDenseTensorToAtbTensor(const phi::DenseTensor &tensor);
+atb::Tensor ConvertDenseTensorToAtbTensorK(const phi::DenseTensor &tensor);
+atb::Tensor ConvertDenseTensorToAtbTensorV(const phi::DenseTensor &tensor);
 atb::Tensor ConvertCDataToAsdTensor(void *data, size_t count, C_DataType data_type);
 #endif
 

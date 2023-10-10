@@ -54,6 +54,7 @@ void PerpareLlamaEncoderLayerInputs(
   auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
+  auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto kv_seq_len_tensor = static_cast<const phi::DenseTensor *>(kv_seq_len.impl().get());
   auto q_seq_len_tensor = static_cast<const phi::DenseTensor *>(q_seq_len.impl().get());
 
@@ -68,6 +69,7 @@ void PerpareLlamaEncoderLayerInputs(
   inputs.push_back(cos_sin_table_tensor);
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_value_tensor);
+  inputs.push_back(cache_key_value_tensor2);
   inputs.push_back(kv_seq_len_tensor);
   inputs.push_back(q_seq_len_tensor);
   inputs.push_back(&layer_id_dense);
@@ -102,9 +104,21 @@ void PpAtbLlamaEncoderLayerParallelOp::BuildVariantPack(std::vector<const phi::D
 {
   variantPacks_.inTensors.resize(inTensors.size() + 1); //补充
   for (size_t i = 0; i < inTensors.size(); i++) {
-    variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
-    if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
-      variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
+    if(i == 10) { // CACHE_K
+      variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensorK(*(inTensors.at(i)));
+      if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
+        variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
+      }
+    }else if(i == 11) {// CACHE_V
+      variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensorV(*(inTensors.at(i)));
+      if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
+        variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
+      }    
+    }else{
+      variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
+      if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
+        variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
+      }
     }
   }
   variantPacks_.inTensors.at(inTensors.size()) = CreateBatchStatusAtbHostTensor();

@@ -107,6 +107,63 @@ atb::Tensor ConvertDenseTensorToAtbTensor(const phi::DenseTensor &tensor) {
   return atbTensor;
 }
 
+atb::Tensor ConvertDenseTensorToAtbTensorK(const phi::DenseTensor &tensor) {
+  atb::Tensor atbTensor;
+  atbTensor.desc.format = static_cast<aclFormat>(ConvertToNpuFormat(tensor.layout()));
+
+  atbTensor.deviceData = const_cast<void *>(tensor.data());
+
+  auto origin_dims = phi::vectorize(tensor.dims());
+  atbTensor.desc.shape.dimNum = origin_dims.size() - 1;
+  for (uint64_t i = 0; i < origin_dims.size(); i++) {
+    if(i == 0)continue;
+    atbTensor.desc.shape.dims[i - 1] = origin_dims[i];
+  }
+
+  auto it = DTYPE_2_ACL_DTYPE.find(tensor.dtype());
+  if (it != DTYPE_2_ACL_DTYPE.end()) {
+    atbTensor.desc.dtype = it->second;
+  } else {
+    PADDLE_ENFORCE_NE(
+      it,
+      DTYPE_2_ACL_DTYPE.end(),
+      phi::errors::NotFound(
+          "The data type (%s) can not convert to Asd data type.", tensor.dtype()));
+  }
+
+  atbTensor.dataSize = atb::Utils::GetTensorSize(atbTensor);
+  return atbTensor;
+}
+
+atb::Tensor ConvertDenseTensorToAtbTensorV(const phi::DenseTensor &tensor) {
+  atb::Tensor atbTensor;
+  atbTensor.desc.format = static_cast<aclFormat>(ConvertToNpuFormat(tensor.layout()));
+
+  atbTensor.deviceData = const_cast<void *>(tensor.data() + tensor.numel());
+  // atbTensor.deviceData = const_cast<void *>(tensor.data());
+  
+  auto origin_dims = phi::vectorize(tensor.dims());
+  atbTensor.desc.shape.dimNum = origin_dims.size() - 1;
+  for (uint64_t i = 0; i < origin_dims.size(); i++) {
+    if(i == 0)continue;
+    atbTensor.desc.shape.dims[i - 1] = origin_dims[i];
+  }
+
+  auto it = DTYPE_2_ACL_DTYPE.find(tensor.dtype());
+  if (it != DTYPE_2_ACL_DTYPE.end()) {
+    atbTensor.desc.dtype = it->second;
+  } else {
+    PADDLE_ENFORCE_NE(
+      it,
+      DTYPE_2_ACL_DTYPE.end(),
+      phi::errors::NotFound(
+          "The data type (%s) can not convert to Asd data type.", tensor.dtype()));
+  }
+
+  atbTensor.dataSize = atb::Utils::GetTensorSize(atbTensor);
+  return atbTensor;
+}
+
 static std::map<C_DataType, aclDataType> CDATA_TYPE_2_ASD_DTYPE = {
   {C_DataType::BOOL,    ACL_BOOL},
   {C_DataType::UINT8,   ACL_UINT8},

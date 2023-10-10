@@ -725,6 +725,23 @@ void HardSwishKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SwishKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  ActivationKernel<T, Context>(
+      dev_ctx, x, 1.0 /* ceof */, CNNL_ACTIVATION_SILU, out);
+}
+
+template <typename T, typename Context>
+void SwishGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  ActivationGradKernelV3<T, Context>(
+      dev_ctx, x, dout, CNNL_ACTIVATION_SILU, dx);
+}
+
+template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
@@ -1016,6 +1033,19 @@ PD_REGISTER_PLUGIN_KERNEL(sin_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::SinGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(swish,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(swish_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::SwishGradKernel,
                           float,
                           phi::dtype::float16) {}
 

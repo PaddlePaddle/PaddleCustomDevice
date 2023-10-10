@@ -1024,6 +1024,24 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlFill_v3(handle, pointer_mode, value_ptr, output_desc, output));
 }
 
+/* static */ void MLUCnnl::Flip(const Context& ctx,
+                                const int dimension[],
+                                const int dimension_len,
+                                const cnnlTensorDescriptor_t input_desc,
+                                const void* input,
+                                const cnnlTensorDescriptor_t output_desc,
+                                void* output) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlFlip(handle,
+                                      dimension,
+                                      dimension_len,
+                                      input_desc,
+                                      input,
+                                      output_desc,
+                                      output));
+}
+
 /* static */ void MLUCnnl::QuantifyOffline(
     const Context& ctx,
     cnnlQuantizeMode_t mode,

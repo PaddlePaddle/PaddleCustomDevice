@@ -558,13 +558,8 @@ void CosGradKernel(const Context& dev_ctx,
   sin_out.Resize(x.dims());
   dev_ctx.template Alloc<T>(&sin_out);
 
-  phi::DenseTensor sin_out_temp;
-  sin_out_temp.Resize(x.dims());
-  dev_ctx.template Alloc<T>(&sin_out_temp);
-
   MLUCnnlTensorDesc input_desc(x);
   MLUCnnlTensorDesc sin_out_desc(sin_out);
-  MLUCnnlTensorDesc sin_out_temp_desc(sin_out_temp);
   MLUCnnlTensorDesc dout_desc(dout);
   MLUCnnlTensorDesc dx_desc(*dx);
 
@@ -585,15 +580,10 @@ void CosGradKernel(const Context& dev_ctx,
                     GetBasePtr(&sin_out),
                     dout_desc.get(),
                     GetBasePtr(&dout),
-                    sin_out_temp_desc.get(),
-                    GetBasePtr(&sin_out_temp),
-                    ToCnnlDataType<T>());
-
-  MLUCnnl::Neg(dev_ctx,
-               sin_out_desc.get(),
-               GetBasePtr(&sin_out_temp),
-               dx_desc.get(),
-               GetBasePtr(dx));
+                    dx_desc.get(),
+                    GetBasePtr(dx),
+                    ToCnnlDataType<T>(),
+                    -1 /*alpha -1,for -1*sin(x) */);
 }
 
 // CNNL_LOG_E = 0,

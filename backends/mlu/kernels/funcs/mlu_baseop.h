@@ -847,6 +847,14 @@ class MLUCnnl {
                    const cnnlTensorDescriptor_t output_desc,
                    void* output);
 
+  static void Flip(const Context& ctx,
+                   const int dimension[],
+                   const int dimension_len,
+                   const cnnlTensorDescriptor_t input_desc,
+                   const void* input,
+                   const cnnlTensorDescriptor_t output_desc,
+                   void* output);
+
   static void LRN(const Context& ctx,
                   const int local_size,
                   const double alpha,

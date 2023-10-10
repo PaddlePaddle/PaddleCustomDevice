@@ -102,6 +102,7 @@ PD_REGISTER_PLUGIN_KERNEL(where,
                           ALL_LAYOUT,
                           custom_kernel::WhereKernel,
                           int32_t,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 
@@ -110,5 +111,6 @@ PD_REGISTER_PLUGIN_KERNEL(where_grad,
                           ALL_LAYOUT,
                           custom_kernel::WhereGradKernel,
                           int32_t,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}

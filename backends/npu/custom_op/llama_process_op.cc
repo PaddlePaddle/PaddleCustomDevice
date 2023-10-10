@@ -262,19 +262,18 @@ std::vector<paddle::Tensor> SetStopValueMultiEndsOp(const paddle::Tensor& end_id
       std::make_shared<phi::DenseTensor>();
   stop_flags_out->Resize(stop_flags_tensor->dims());
   dev_ctx->Alloc(stop_flags_out.get(), stop_flags_tensor->dtype());
-  
-  
-  
-  std::shared_ptr<phi::DenseTensor> topk_ids_out =
-      std::make_shared<phi::DenseTensor>();
-  topk_ids_out->Resize(topk_ids_tensor->dims());
-  dev_ctx->Alloc(topk_ids_out.get(), topk_ids_tensor->dtype());
-  
+
+  auto topk_ids_out = topk_ids.copy_to(topk_ids.place(), false);
+  auto topk_ids_out_tensor = static_cast<const phi::DenseTensor*>(topk_ids_out.impl().get());
+
   int32_t attr_mode = mode;
   NPUAttributeMap attr_input = {{"mode", attr_mode}};
   
   const auto& runner =
-      NpuOpRunner("SetStopValueMultiEnds", {*topk_ids_tensor, *stop_flags_tensor, *end_ids_tensor}, {*topk_ids_out, *stop_flags_out}, attr_input);
+      NpuOpRunner("SetStopValueMultiEnds",
+                  {*topk_ids_out_tensor, *stop_flags_tensor, *end_ids_tensor},
+                  {*topk_ids_out_tensor, *stop_flags_out},
+                  attr_input);
   runner.Run(stream);
   
   return {paddle::Tensor(stop_flags_out), paddle::Tensor(topk_ids_out)};

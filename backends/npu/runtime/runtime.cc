@@ -225,8 +225,17 @@ C_Status InitDevice(const C_Device device) {
 }
 
 C_Status SetDevice(const C_Device device) {
+  // NOTE: Fix ctx is null error, all threads use the same aclrtContext.
+  static std::unordered_map<int, aclrtContext> ctx_map;
   if (g_current_device_id != device->id) {
-    ACL_CHECK(aclrtSetDevice(device->id));
+    if (ctx_map.find(device->id) == ctx_map.end()) {
+      ACL_CHECK(aclrtSetDevice(device->id));
+      ACL_CHECK(aclrtGetCurrentContext(&ctx_map[device->id]));
+      RUNTIME_CHECK(ctx_map[device->id] != nullptr, true);
+    } else {
+      RUNTIME_CHECK(ctx_map[device->id] != nullptr, true);
+      ACL_CHECK(aclrtSetCurrentContext(ctx_map[device->id]));
+    }
     g_current_device_id = device->id;
   }
   return C_SUCCESS;

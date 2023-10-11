@@ -54,7 +54,7 @@ void PerpareLlamaEncoderLayerInputs(
   auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
-  auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
+  auto cache_key_value_tensor2 = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto kv_seq_len_tensor = static_cast<const phi::DenseTensor *>(kv_seq_len.impl().get());
   auto q_seq_len_tensor = static_cast<const phi::DenseTensor *>(q_seq_len.impl().get());
 

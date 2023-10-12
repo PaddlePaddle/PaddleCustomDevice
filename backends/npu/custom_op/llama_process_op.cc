@@ -295,7 +295,7 @@ std::vector<paddle::Tensor> GetStopFlagsMulti(const paddle::Tensor& topk_ids,
                   attr_input);
   runner.Run(stream);
   
-  return {paddle::Tensor(stop_flags_out), paddle::Tensor(topk_ids_out)};
+  return {paddle::Tensor(topk_ids_out), paddle::Tensor(stop_flags_out)};
 }
 
 std::vector<std::vector<int64_t>> GetStopFlagsMultiInferShape(const std::vector<int64_t>& topk_ids_shape, 
@@ -589,7 +589,7 @@ std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor& x,
   out_tensor->Resize(phi::make_ddim({bs, 1}));
   dev_ctx->Alloc(out_tensor.get(), paddle::DataType::FLOAT32);
          
-  return {topp_ids, paddle::Tensor(out_tensor)};
+  return {paddle::Tensor(out_tensor), topp_ids};
 
 //   auto dev_ctx = static_cast<const phi::CustomContext*>(
 //       paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));

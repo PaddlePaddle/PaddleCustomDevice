@@ -190,14 +190,16 @@ static AlignnedAllocatorList *global_allocator_list = nullptr;
 
 inline void check_uninitialized_thread(int dev_id) {
   if (g_current_device_id == -1) {
-    g_current_device_id = dev_id;
-    ACL_CHECK(aclrtSetDevice(dev_id));
+    C_Device_st device;
+    device.id = dev_id;
+    SetDevice(&device);
   }
 }
 
 inline size_t get_current_device_id() {
-  check_uninitialized_thread(0);
-  ACL_CHECK(aclrtGetDevice(&g_current_device_id));
+  if (g_current_device_id == -1) {
+    ACL_CHECK(aclrtGetDevice(&g_current_device_id));
+  }
   return g_current_device_id;
 }
 
@@ -217,7 +219,7 @@ C_Status Init() {
 }
 
 C_Status InitDevice(const C_Device device) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   if (global_allocator_list) {
     global_allocator_list->Init(device->id);
   }
@@ -227,14 +229,15 @@ C_Status InitDevice(const C_Device device) {
 C_Status SetDevice(const C_Device device) {
   // NOTE: Fix ctx is null error, all threads use the same aclrtContext.
   static std::unordered_map<int, aclrtContext> ctx_map;
-  if (g_current_device_id != device->id) {
-    if (ctx_map.find(device->id) == ctx_map.end()) {
+  static std::mutex ctx_map_mutex;
+  if (g_current_device_id != device->id) { /* thread local */
+    std::lock_guard<std::mutex> lock(ctx_map_mutex);
+    VLOG(10) << "SetDevice: " << device->id;
+    if (ctx_map.find(static_cast<int>(device->id)) != ctx_map.end()) {
+      ACL_CHECK(aclrtSetCurrentContext(ctx_map[device->id]));
+    } else {
       ACL_CHECK(aclrtSetDevice(device->id));
       ACL_CHECK(aclrtGetCurrentContext(&ctx_map[device->id]));
-      RUNTIME_CHECK(ctx_map[device->id] != nullptr, true);
-    } else {
-      RUNTIME_CHECK(ctx_map[device->id] != nullptr, true);
-      ACL_CHECK(aclrtSetCurrentContext(ctx_map[device->id]));
     }
     g_current_device_id = device->id;
   }
@@ -247,7 +250,7 @@ C_Status GetDevice(const C_Device device) {
 }
 
 C_Status ReleaseDevice(const C_Device device) {
-  ACL_CHECK(aclrtSetDevice(device->id));
+  SetDevice(device);
   if (global_allocator_list) {
     // global_allocator_list->GetAllocator(device->id)->ClearEvent();
     global_allocator_list->Deinit(device->id);
@@ -310,6 +313,9 @@ C_Status AsyncMemCpyH2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  if (device) {
+    check_uninitialized_thread(device->id);
+  }
   auto allocator = global_allocator_list->GetAllocator(get_current_device_id());
   void *tmp = allocator->Alloc(size, 64);
   aclrtEvent event;
@@ -352,7 +358,7 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   SetDevice(device);
   void *data;
-  aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
+  ACL_CHECK(aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST));
   if (data) {
     *ptr = data;
     return C_SUCCESS;
@@ -403,8 +409,13 @@ C_Status CreateEvent(const C_Device device, C_Event *event) {
   return C_SUCCESS;
 }
 
+C_Status DestroyEvent(const C_Device device, C_Event event) {
+  ACL_CHECK(aclrtDestroyEvent(event));
+  return C_SUCCESS;
+}
+
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  ACL_CHECK(aclrtRecordEvent(reinterpret_cast<aclrtEvent *>(event),
+  ACL_CHECK(aclrtRecordEvent(reinterpret_cast<aclrtEvent>(event),
                              reinterpret_cast<aclrtStream>(stream)));
   return C_SUCCESS;
 }
@@ -413,11 +424,6 @@ C_Status QueryEvent(const C_Device device, C_Event event) {
   aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
   ACL_CHECK(aclrtQueryEventStatus(event, &status));
   return status == ACL_EVENT_RECORDED_STATUS_COMPLETE ? C_SUCCESS : C_FAILED;
-}
-
-C_Status DestroyEvent(const C_Device device, C_Event event) {
-  ACL_CHECK(aclrtDestroyEvent(reinterpret_cast<aclrtEvent>(event)));
-  return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {

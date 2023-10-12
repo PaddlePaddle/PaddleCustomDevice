@@ -201,16 +201,20 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
     std::cout << "Run In Encoder Parallel layernum: " << layer_num << " head_num: " << head_num << " head_dim: " << head_dim << " max_batchsize: "<< max_batch_size << std::endl;
     g_llamaEncoderLayerParallelOp.reset(new PpAtbLlamaEncoderLayerParallelOp("LlamaEncoderLayerParallelOp", layer_num, batch_size, max_batch_size));
 
+    std::string device_id_str = getenv("FLAGS_selected_npus");
+    int device_id = stoi(device_id_str);
+    int nranks = 8;
+
     atb::Operation *op = nullptr; 
     LlamaLayerFusionParallelParam param = {rmsNormEps,
                                            head_num,
                                            head_dim,
-                                           0,
-                                           0,
+                                           device_id,
+                                           nranks,
                                            1.0 / std::sqrt(head_dim), // qkScale
                                            2,
                                            true,
-                                           comm,
+                                           nullptr,
                                            true}; // encoder also enable dynamic batch
     LlamaLayerFusionParallelOperation(param, &op);
     g_llamaEncoderLayerParallelOp->operation_.reset(op);
@@ -249,7 +253,7 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
 
   g_llamaEncoderLayerParallelOp->Execute(stream, inputs, outputs);
 
-  executeCount++; // Lmhead阶段sync
+  executeCount++;
 
   return {paddle::Tensor(layerout_tensor), cache_key_value};
 }

@@ -587,26 +587,7 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
-  if (!g_AllReduceOp) {
-    g_AllReduceOp.reset(new PpAtbCommOp("XcclAllReduce"));
-    atb::Operation *op = nullptr;
-    atb::infer::AllReduceParam param = {0,
-                                        0,
-                                        0,
-                                        "sum",
-                                        "hccl",
-                                        comm};
-    atb::CreateOperation(param, &op);
-    g_AllReduceOp->operation_.reset(op);
-  }
-  atb::Status st = g_AllReduceOp->Execute(stream, send_buf, recv_buf, count, data_type);
-  PADDLE_ENFORCE_EQ(st,
-                    0,
-                    phi::errors::External(
-                    "XcclAllReduce Execute failed,"
-                    "ret message: %d.", st));
-#elif
+
   HCCL_CHECK(HcclAllReduce(send_buf,
                            recv_buf,
                            count,
@@ -614,7 +595,7 @@ C_Status XcclAllReduce(void *send_buf,
                            PDReduceOpToHcclReduceOp(op),
                            reinterpret_cast<HcclComm>(comm),
                            reinterpret_cast<aclrtStream>(stream)));
-#endif
+
   return C_SUCCESS;
 }
 

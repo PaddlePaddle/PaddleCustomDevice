@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <memory>
 #include "llama_self_attention_operation.h"
 #include "llama_fusion_parallel_operation.h"
 #include "llama_multi_layer_operation.h"
@@ -67,6 +68,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     atb::infer::ElewiseParam castParam;
     castParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
+    castParam.outTensorType = ACL_FLOAT16;
     atb::CreateOperation(castParam, &castInNode.operation);
     castInNode.inTensorIds = {IN_COS_SIN_TABLE};
     castInNode.outTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};

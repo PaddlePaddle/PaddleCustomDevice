@@ -224,13 +224,15 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     std::cout << "Run In DDDDecoder Parallel layernum: " << layer_num << " head_num: " << head_num << " head_dim: " << head_dim << " max_batchsize: "<< max_batch_size << std::endl;
 
     g_llamaDecoderLayerParallelOp.reset(new PpAtbLlamaDecoderLayerParallelOp("LlamaDecoderLayerParallelOp", layer_num, batch_size, max_batch_size, *dev_ctx));
-
+    std::string device_id_str = getenv("FLAGS_selected_npus");
+    int device_id = stoi(device_id_str);
+    int nranks = 8;
     atb::Operation *op = nullptr;
     LlamaLayerFusionParallelParam param = {rmsNormEps,
                                            head_num,
                                            head_dim,
-                                           0,
-                                           0,
+                                           device_id,
+                                           nranks,
                                            1.0 / std::sqrt(head_dim), // qkScale
                                            2,
                                            true,
@@ -244,8 +246,6 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     std::vector<int32_t> layer_id_vec(1, 0);
     custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
                                     *dev_ctx, &(g_llamaDecoderLayerParallelOp->layerIdTensor_));
-
-    g_attention_mask_tensor = paddle::full({max_batch_size, 1, cache_key_value.shape().at(3), cache_key_value.shape().at(3)}, 0, paddle::DataType::FLOAT16, hidden.place());
   }
 
   if (executeCount % layer_num == 0) { // 每个token第一次进layer，更新stop flag
@@ -262,7 +262,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
                                  mlp_down_weight,
                                  positionIDs,
                                  cos_sin_table,
-                                 g_attention_mask_tensor,
+                                 attention_mask,
                                  cache_key_value,
                                  kv_seq_len, // token offset即kv_seq_len
                                  g_llamaDecoderLayerParallelOp->q_seq_len_tensor_, // 增量q_seq_len，始终为1
@@ -275,7 +275,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
   std::vector<const phi::DenseTensor *> outputs = {layerout_tensor.get()};
   g_llamaDecoderLayerParallelOp->Execute(stream, inputs, outputs);
 
-  executeCount++; // Lmhead阶段sync
+  executeCount++;
 
   return {paddle::Tensor(layerout_tensor), cache_key_value}; // TODO:待确认past_key返回
 }

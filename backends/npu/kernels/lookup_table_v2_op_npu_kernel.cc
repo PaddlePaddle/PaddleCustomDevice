@@ -47,7 +47,8 @@ void EmbeddingKernel(const Context& dev_ctx,
     T update = static_cast<T>(0);
     padding_idx =
         padding_idx < 0 ? padding_idx + weight.dims()[0] : padding_idx;
-    AsyncMemCpyD2D(nullptr,
+    C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+    AsyncMemCpyD2D(&device,
                    reinterpret_cast<C_Stream>(stream),
                    tmp_table_t.data<T>(),
                    weight.data<T>(),

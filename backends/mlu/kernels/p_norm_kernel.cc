@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <limits.h>
-
 #include "kernels/funcs/elementwise_utils.h"
 #include "kernels/funcs/logic_op.h"
 #include "kernels/funcs/mlu_baseop.h"
@@ -30,13 +28,31 @@ void PnormKernel(const Context& dev_ctx,
                  bool keepdim,
                  bool asvector,
                  phi::DenseTensor* out) {
+  VLOG(5) << "[PnormKernel] x dims: " << x.dims()
+          << " out dims: " << out->dims() << " porder: " << porder
+          << " epsilon: " << epsilon << " keepdim: " << keepdim
+          << " asvector: " << asvector;
   dev_ctx.template Alloc<T>(out);
 
   auto xdim = x.dims();
+  for (int i = 0; i < xdim.size(); i++) {
+    PADDLE_ENFORCE_LT(0,
+                      xdim[i],
+                      phi::errors::InvalidArgument(
+                          "The dims of Input(X) should be greater than 0."));
+  }
   axis = axis < 0 ? xdim.size() + axis : axis;
+  std::vector<int> axis_vec;
+  if (asvector) {  // reduce_all
+    for (int i = 0; i < xdim.size(); ++i) {
+      axis_vec.push_back(i);
+    }
+  } else {
+    axis_vec.push_back(axis);
+  }
 
-  NormalizeDesc normalize_desc(&axis,
-                               1, /* axis_num */
+  NormalizeDesc normalize_desc(axis_vec.data(),
+                               static_cast<int>(axis_vec.size()), /* axis_num */
                                CNNL_NOT_PROPAGATE_NAN,
                                epsilon,
                                porder,
@@ -45,7 +61,13 @@ void PnormKernel(const Context& dev_ctx,
   Tensor p_norm_out;
   auto ori_out_dims = out->dims();
   auto out_dims_vec = phi::vectorize(x.dims());
-  out_dims_vec[axis] = 1;
+  if (asvector) {  // reduce_all, make out_dims all 1
+    for (int i = 0; i < xdim.size(); ++i) {
+      out_dims_vec[i] = 1;
+    }
+  } else {  // make dim at axis to 1, others remain same
+    out_dims_vec[axis] = 1;
+  }
   auto norm_dims = phi::make_ddim(out_dims_vec);
   out->Resize(norm_dims);
   p_norm_out.Resize(x.dims());

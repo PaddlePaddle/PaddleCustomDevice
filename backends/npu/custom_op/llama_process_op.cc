@@ -119,42 +119,6 @@ PD_BUILD_OP(transpose_remove_padding)
     .SetInferShapeFn(PD_INFER_SHAPE(ApplyTransposeRemovingPaddingInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(ApplyTransposeRemovingPaddingInferDtype));
 
-// variable_length_memory_efficient_attention
-/*
-std::vector<std::vector<int64_t>> VariablAttOpInferShape(
-    const std::vector<int64_t>& key_shape,
-    const std::vector<int64_t>& kv_seq_lens_shape,
-    const std::vector<int64_t>& mask_shape,
-	  const std::vector<int64_t>& query_shape,
-    const std::vector<int64_t>& seq_lens_shape,
-    const std::vector<int64_t>& value_shape) {
-
-  std::vector<int64_t> out_shape = key_shape;
-  return {out_shape};
-}
-
-std::vector<paddle::Tensor> VariablAttOp(
-    const paddle::Tensor& key,
-    const paddle::Tensor& kv_seq_lens,
-    const paddle::Tensor& mask,
-	  const paddle::Tensor& query,
-    const paddle::Tensor& seq_lens,
-    const paddle::Tensor& value) {
-
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  return {paddle::Tensor(out_tensor)};
-}
-
-PD_BUILD_OP(variable_length_memory_efficient_attention)
-    .Inputs({"key", "kv_seq_lens", "mask", "query", "seq_lens", "value"})
-    .Outputs({"out"})
-	  .Attrs({"causal: bool"})
-    .SetKernelFn(PD_KERNEL(VariablAttOp))
-    .SetInferShapeFn(PD_INFER_SHAPE(
-        VariablAttOpInferShape));  // neccessary if the op has muti_inputs
-*/
-
 // encode_rotary_qk
 void RotaryQK(const paddle::Tensor& q, 
               const paddle::Tensor& kv, 
@@ -173,14 +137,14 @@ PD_BUILD_OP(encode_rotary_qk)
     .SetKernelFn(PD_KERNEL(RotaryQK));
 
 // set_mask_value
-std::vector<paddle::Tensor> SetMaskValue(const paddle::Tensor& input_data, 
-	                                     const paddle::Tensor& stop_flags, 
-	                                     const paddle::Tensor& seq_lens) {
+std::vector<paddle::Tensor> SetMaskValue(const paddle::Tensor& input_data,
+                                         const paddle::Tensor& stop_flags,
+                                         const paddle::Tensor& seq_lens) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(seq_lens.place()));
   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
 
-  paddle::Tensor input_data_npu = input_data.copy_to<float>(seq_lens.place());
+  paddle::Tensor input_data_npu = input_data.copy_to(seq_lens.place(), false);
   auto input_data_tensor = static_cast<const phi::DenseTensor*>(input_data_npu.impl().get());
   auto seq_lens_tensor = static_cast<const phi::DenseTensor*>(seq_lens.impl().get());
   auto stop_flags_tensor = static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
@@ -317,107 +281,6 @@ PD_BUILD_OP(set_stop_value_multi_ends)
     .SetKernelFn(PD_KERNEL(GetStopFlagsMulti))
     .SetInferShapeFn(PD_INFER_SHAPE(GetStopFlagsMultiInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(GetStopFlagsMultiInferDtype));
-
-// llama_layer
-int64_t out_num = 8;
-std::vector<std::vector<int64_t>> LlamaLayerOpInferShape(
-    const std::vector<int64_t>& shape_1,
-    const std::vector<int64_t>& shape_2,
-    const std::vector<int64_t>& shape_3,
-    const std::vector<int64_t>& shape_4,
-    const std::vector<int64_t>& shape_5,
-    const std::vector<int64_t>& shape_6,
-    const std::vector<int64_t>& shape_7,
-    const std::vector<int64_t>& shape_8,
-    const std::vector<int64_t>& shape_9,
-    const std::vector<int64_t>& shape_10,
-    const std::vector<int64_t>& shape_11,
-    const std::vector<int64_t>& shape_12,
-    const std::vector<int64_t>& shape_13,
-    const std::vector<int64_t>& shape_14) {
-
-  std::vector<int64_t> out_shape = shape_1;
-  std::vector<std::vector<int64_t>> out_shapes(out_num, out_shape);
-  return out_shapes;
-}
-
-std::vector<paddle::Tensor> LlamaLayerOp(
-    const paddle::Tensor& tensor_1,
-    const paddle::Tensor& tensor_2,
-    const paddle::Tensor& tensor_3,
-    const paddle::Tensor& tensor_4,
-    const paddle::Tensor& tensor_5,
-    const paddle::Tensor& tensor_6,
-    const paddle::Tensor& tensor_7,
-    const paddle::Tensor& tensor_8,
-    const paddle::Tensor& tensor_9,
-    const paddle::Tensor& tensor_10,
-    const paddle::Tensor& tensor_11,
-    const paddle::Tensor& tensor_12,
-    const paddle::Tensor& tensor_13,
-    const paddle::Tensor& tensor_14) {
-
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  std::vector<paddle::Tensor> out_tensors(out_num, paddle::Tensor(out_tensor));
-  return out_tensors;
-}
-
-PD_BUILD_OP(llama_layer)
-    .Inputs({"x", "residual", "input_ids", "padding_offset", "seq_len_encoder", "cache_kv", "mask", "rotary_emb", "ln_scale", "qkv_weight", "out_proj_weight", "ffn_in_scale", "ffn1_weight", "ffn2_weight"})
-    .Outputs({"write_cache_kv", "q", "k", "v", "hidden", "residual_out", "rotary_kv_out", "rotary_q_out"})
-    .SetKernelFn(PD_KERNEL(LlamaLayerOp))
-    .SetInferShapeFn(PD_INFER_SHAPE(
-        LlamaLayerOpInferShape));  // neccessary if the op has muti_inputs
-
-
-// llama_cached_layer
-int64_t out_cached_num = 3;
-std::vector<std::vector<int64_t>> LlamaCachedLayerOpInferShape(
-    const std::vector<int64_t>& shape_1,
-    const std::vector<int64_t>& shape_2,
-    const std::vector<int64_t>& shape_3,
-    const std::vector<int64_t>& shape_4,
-    const std::vector<int64_t>& shape_5,
-    const std::vector<int64_t>& shape_6,
-    const std::vector<int64_t>& shape_7,
-    const std::vector<int64_t>& shape_8,
-    const std::vector<int64_t>& shape_9,
-    const std::vector<int64_t>& shape_10,
-    const std::vector<int64_t>& shape_11,
-    const std::vector<int64_t>& shape_12) {
-  std::cout<<">>>>>LlamaLayerOpInferShape"<<std::endl;
-  std::vector<int64_t> out_shape = shape_1;
-  std::vector<std::vector<int64_t>> out_shapes(out_cached_num, out_shape);
-  return out_shapes;
-}
-
-std::vector<paddle::Tensor> LlamaCachedLayerOp(
-    const paddle::Tensor& tensor_1,
-    const paddle::Tensor& tensor_2,
-    const paddle::Tensor& tensor_3,
-    const paddle::Tensor& tensor_4,
-    const paddle::Tensor& tensor_5,
-    const paddle::Tensor& tensor_6,
-    const paddle::Tensor& tensor_7,
-    const paddle::Tensor& tensor_8,
-    const paddle::Tensor& tensor_9,
-    const paddle::Tensor& tensor_10,
-    const paddle::Tensor& tensor_11,
-    const paddle::Tensor& tensor_12) {
-  std::cout<<">>>>>LlamaLayerOp"<<std::endl;
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  std::vector<paddle::Tensor> out_tensors(out_cached_num, paddle::Tensor(out_tensor));
-  return out_tensors;
-}
-
-PD_BUILD_OP(llama_cached_layer)
-    .Inputs({"in_scale", "rms_norm_residual", "matmul_", "qkv_weight", "cache_kvs", "rotary_t", "sequence_l", "mask", "proj_weight", "ffn_in_scale", "ffn1_weight", "ffn2_weight"})
-    .Outputs({"norm_out", "norm_residual", "cached_kv"})
-    .SetKernelFn(PD_KERNEL(LlamaCachedLayerOp))
-    .SetInferShapeFn(PD_INFER_SHAPE(
-        LlamaCachedLayerOpInferShape));  // neccessary if the op has muti_inputs
 
 bool is_in_end(const int64_t id, const int64_t *end_ids, int length) {
     bool flag = false;
@@ -588,32 +451,8 @@ std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor& x,
       std::make_shared<phi::DenseTensor>();
   out_tensor->Resize(phi::make_ddim({bs, 1}));
   dev_ctx->Alloc(out_tensor.get(), paddle::DataType::FLOAT32);
-         
+
   return {paddle::Tensor(out_tensor), topp_ids};
-
-//   auto dev_ctx = static_cast<const phi::CustomContext*>(
-//       paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));
-//   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
-
-//   auto top_ps_tensor = static_cast<const phi::DenseTensor*>(top_ps.impl().get());
-//   auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
-  
-  
-//   std::shared_ptr<phi::DenseTensor> topp_ids =
-//       std::make_shared<phi::DenseTensor>();
-//   topp_ids->Resize(top_ps_tensor->dims());
-//   dev_ctx->Alloc(topp_ids.get(), top_ps_tensor->dtype());
-  
-//   std::shared_ptr<phi::DenseTensor> topp_probs =
-//       std::make_shared<phi::DenseTensor>();
-//   topp_probs->Resize(top_ps_tensor->dims());
-//   dev_ctx->Alloc(topp_probs.get(), top_ps_tensor->dtype());
-
-//   const auto& runner =
-//       NpuOpRunner("TopPSampling", {*top_ps_tensor, *x_tensor}, {*topp_ids, *topp_probs});
-//   runner.Run(stream);
-  
-//   return {paddle::Tensor(topp_ids), paddle::Tensor(topp_probs)};
 }
 
 std::vector<std::vector<int64_t>> TopPSamplingInferShape(const std::vector<int64_t>& x_shape,

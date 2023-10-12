@@ -47,6 +47,8 @@
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
 #define RUN_CHECK(func) RUNTIME_CHECK(func, true)
 
+C_Status SetDevice(const C_Device device);
+
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,

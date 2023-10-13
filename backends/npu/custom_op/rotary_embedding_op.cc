@@ -135,7 +135,7 @@ std::vector<paddle::Tensor> GetRoPE(const paddle::Tensor& input_ids,
   const int32_t elem_cnt = batch_size * max_seq_length * head_dim / 2; 
   int32_t grid_size = 1; 
 
-  auto position_ids_cpu = position_ids.copy_to(paddle::CPUPlace(), false);
+  auto position_ids_cpu = position_ids.copy_to(paddle::CPUPlace(), true);
   if (use_neox) {
     fused_get_rotary_embedding_neox(
       position_ids_cpu.data<int64_t>(),

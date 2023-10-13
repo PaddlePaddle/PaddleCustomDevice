@@ -533,14 +533,14 @@ void save_with_output_kernel(const paddle::Tensor& x,
 
   int batch_idx_data = -1, step_idx_data = -1;
 
-  if(batch_idx.is_gpu()) {
-    paddle::Tensor batch_idx_cpu = batch_idx.copy_to(paddle::CPUPlace(), 114514);
+  if(batch_idx.is_custom_device()) {
+    paddle::Tensor batch_idx_cpu = batch_idx.copy_to(paddle::CPUPlace(), true);
     batch_idx_data = batch_idx_cpu.data<int32_t>()[0];
   } else {
     batch_idx_data = batch_idx.data<int32_t>()[0];
   }
-  if(step_idx.is_gpu()) {
-    paddle::Tensor step_idx_cpu = step_idx.copy_to(paddle::CPUPlace(), 114514);
+  if(step_idx.is_custom_device()) {
+    paddle::Tensor step_idx_cpu = step_idx.copy_to(paddle::CPUPlace(), true);
     step_idx_data = step_idx_cpu.data<int64_t>()[0];
   } else {
     step_idx_data = step_idx.data<int64_t>()[0];
@@ -577,7 +577,7 @@ std::vector<paddle::Tensor> SaveWithOutputForward(const paddle::Tensor& x,
                                                   const paddle::Tensor& step_idx,
                                                   std::string file_path,
                                                   int64_t rank_id) {
-    auto out = x.copy_to(paddle::CPUPlace(), false);
+    auto out = x.copy_to(paddle::CPUPlace(), true);
     switch(x.type()) {
       case paddle::DataType::FLOAT32:
          save_with_output_kernel<float>(out, batch_idx, step_idx, file_path, rank_id, '0');

@@ -33,6 +33,8 @@ static uint64_t DIM3 = 3;
 
 atb::Status CreateLlamaMlpOperation(const LlamaMlpParam &param, atb::Operation **operation)
 {
+    std::shared_ptr<int64_t> batchDimPtr = std::make_shared<int64_t>(0);
+
     atb::GraphParam opGraph;
     opGraph.inTensorNum = IN_TENSOR_COUNT;
     opGraph.outTensorNum = OUT_TENSOR_COUNT;
@@ -50,8 +52,9 @@ atb::Status CreateLlamaMlpOperation(const LlamaMlpParam &param, atb::Operation *
     linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR};
     linearNode.outTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
-    linearNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+    linearNode.inTensorReshapeFuncs[0] = [batchDimPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 2; // dimNum: 2
+        *batchDimPtr = oldShape.dims[0];
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
     };
@@ -61,13 +64,12 @@ atb::Status CreateLlamaMlpOperation(const LlamaMlpParam &param, atb::Operation *
     splitNode.inTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
     splitNode.outTensorIds = {INTERMIDATE_MATMUL_GATE_OUT, INTERMIDATE_MATMUL_UP_OUT};
     splitNode.inTensorReshapeFuncs.resize(splitNode.inTensorIds.size());
-    splitNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
+    splitNode.inTensorReshapeFuncs[0] = [batchDimPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 3; // dimNum: 3
-        newShape.dims[0] = 1;
-        newShape.dims[1] = oldShape.dims[0];
+        newShape.dims[0] = (*batchDimPtr);
+        newShape.dims[1] = oldShape.dims[0] / (*batchDimPtr);
         newShape.dims[2] = oldShape.dims[1];
     };
-
 
     atb::infer::ActivationParam activationParam;
     activationParam.activationType = atb::infer::ActivationType::ACTIVATION_SWISH;

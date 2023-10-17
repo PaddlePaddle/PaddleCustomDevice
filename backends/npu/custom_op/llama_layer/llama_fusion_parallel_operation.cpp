@@ -68,7 +68,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     atb::infer::ElewiseParam castParam;
     castParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-    castParam.outTensorType = ACL_FLOAT16;
+    // castParam.outTensorType = ACL_FLOAT16;
     atb::CreateOperation(castParam, &castInNode.operation);
     castInNode.inTensorIds = {IN_COS_SIN_TABLE};
     castInNode.outTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};

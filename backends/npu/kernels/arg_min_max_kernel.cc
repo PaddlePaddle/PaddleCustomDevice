@@ -23,28 +23,24 @@ void ArgMinKernel(const Context& dev_ctx,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
-                  int dtype,
+                  phi::DataType dtype,
                   phi::DenseTensor* out) {
   dev_ctx.Alloc(out, out->dtype());
   auto stream = dev_ctx.stream();
 
-  // NOTE: The dtype of output is decided by param dtype, if param dtype is 2,
-  // output's dtype is int, and if param dtype is 3, output's dtype is int64.
-  // See the detail in
-  // https://github.com/PaddlePaddle/Paddle/blob/f9043c78e55b182e05d1d1efa7da930d8abc28d2/paddle/phi/infermeta/unary.cc#L209
-  if (dtype == 2) {
+  if (dtype == phi::DataType::INT32) {
     NpuOpRunner runner;
     runner.SetType("ArgMin")
         .AddInput(x)
         .AddInput(dev_ctx, std::vector<int64_t>({axis.to<int64_t>()}))
         .AddOutput(*out)
-        .AddAttr("dtype", dtype);
+        .AddAttr("dtype", ConvertToNpuDtype(dtype));
     runner.Run(stream);
-  } else if (dtype == 3) {
+  } else if (dtype == phi::DataType::INT64) {
     // TODO(songkai05): core dump happend when the dtype of CANN op ArgMin's
     // output is int64, so we compute the int32 result and cast it to int64 when
-    // param dtype is 3 temporarily.
-    NPUAttributeMap attrs = {{"dtype", dtype}};
+    // param dtype is INT64 temporarily.
+    NPUAttributeMap attrs = {{"dtype", ConvertToNpuDtype(dtype)}};
 
     auto op_runner = [](const std::vector<phi::DenseTensor>& inputs,
                         const std::vector<phi::DenseTensor>& outputs,
@@ -78,7 +74,7 @@ void ArgMaxKernel(const Context& dev_ctx,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
-                  int dtype,
+                  phi::DataType dtype,
                   phi::DenseTensor* out) {
   dev_ctx.Alloc(out, out->dtype());
   auto stream = dev_ctx.stream();
@@ -104,23 +100,12 @@ void ArgMaxKernel(const Context& dev_ctx,
   std::vector<int64_t> axis_v;
   axis_v.push_back(axis.to<int64_t>());
 
-  // NOTE: The dtype of output is decided by param dtype, if param dtype is 2,
-  // output's dtype is int, and if param dtype is 3, output's dtype is int64.
-  // See the detail in
-  // https://github.com/PaddlePaddle/Paddle/blob/f9043c78e55b182e05d1d1efa7da930d8abc28d2/paddle/phi/infermeta/unary.cc#L209
-  int out_dtype;
-  if (dtype == 2) {
-    out_dtype = static_cast<int>(phi::DataType::INT32);
-  } else if (dtype == 3) {
-    out_dtype = static_cast<int>(phi::DataType::INT64);
-  }
-
   NpuOpRunner runner;
   runner.SetType("ArgMaxV2")
       .AddInput(transformed_x)
       .AddInput(dev_ctx, std::move(axis_v))
       .AddOutput(*out)
-      .AddAttrDataType("dtype", out_dtype)
+      .AddAttrDataType("dtype", static_cast<int>(dtype))
       .Run(stream);
 }
 

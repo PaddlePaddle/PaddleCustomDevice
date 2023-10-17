@@ -54,7 +54,7 @@ class TestArgMaxParamDtypeInt32(BaseTestCase):
         self.initTestCase()
         self.x = (1000 * np.random.random(self.dims)).astype(self.dtype)
         self.inputs = {"X": self.x}
-        self.attrs = {"axis": self.axis, "dtype": 2}
+        self.attrs = {"axis": self.axis, "dtype": int(core.VarDesc.VarType.INT32)}
         self.outputs = {"Out": np.argmax(self.x, axis=self.axis)}
 
 

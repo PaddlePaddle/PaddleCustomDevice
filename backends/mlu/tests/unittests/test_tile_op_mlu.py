@@ -386,7 +386,7 @@ class TestTileAPI(unittest.TestCase):
 
 class TestTileAPIFp16(unittest.TestCase):
     def test_api(self):
-        with base.dygraph.guard():
+        with base.dygraph.guard(paddle.CustomPlace("mlu", 0)):
             np_x = np.random.random([12, 14]).astype("float16")
             x = paddle.to_tensor(np_x)
 

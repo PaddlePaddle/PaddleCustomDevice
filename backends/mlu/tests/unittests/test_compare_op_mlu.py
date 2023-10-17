@@ -71,7 +71,6 @@ def create_test_class(op_type, typename, callback):
             out = op(x, y)
             self.assertEqual((out.numpy() == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_1(self):
             paddle.enable_static()
             paddle.set_device("mlu")
@@ -87,7 +86,6 @@ def create_test_class(op_type, typename, callback):
                 (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_2(self):
             paddle.enable_static()
             paddle.set_device("mlu")
@@ -103,7 +101,6 @@ def create_test_class(op_type, typename, callback):
                 (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_3(self):
             paddle.enable_static()
             paddle.set_device("mlu")
@@ -119,7 +116,6 @@ def create_test_class(op_type, typename, callback):
                 (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_attr_name(self):
             paddle.enable_static()
             paddle.set_device("mlu")
@@ -135,10 +131,7 @@ def create_test_class(op_type, typename, callback):
     globals()[cls_name] = Cls
 
 
-for _type_name in {"float16", "float32", "int32", "bool"}:
-    if _type_name == "int32" or _type_name == "bool":
-        create_test_class("equal", _type_name, lambda _a, _b: _a == _b)
-        continue
+for _type_name in {"float16", "float32", "int32", "bool", "int64"}:
     create_test_class("equal", _type_name, lambda _a, _b: _a == _b)
     create_test_class("not_equal", _type_name, lambda _a, _b: _a != _b)
     create_test_class("less_than", _type_name, lambda _a, _b: _a < _b)

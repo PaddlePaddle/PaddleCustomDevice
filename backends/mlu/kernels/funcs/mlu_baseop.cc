@@ -915,6 +915,34 @@ MLURNNDesc::~MLURNNDesc() {
   }
 }
 
+NormalizeDesc::NormalizeDesc(int* axis,
+                             int axis_num,
+                             cnnlNanPropagation_t nan_propagation,
+                             float eps,
+                             float pnorm,
+                             int channel_shared,
+                             int across_spatial) {
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlCreateNormalizeDescriptor(&normalize_desc_));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlSetNormalizeDescriptor_v2(normalize_desc_,
+                                                           axis,
+                                                           axis_num,
+                                                           nan_propagation,
+                                                           eps,
+                                                           pnorm,
+                                                           channel_shared,
+                                                           across_spatial));
+}
+
+const cnnlNormalizeDescriptor_t NormalizeDesc::get() const {
+  return normalize_desc_;
+}
+
+NormalizeDesc::~NormalizeDesc() {
+  if (normalize_desc_) {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnnlDestroyNormalizeDescriptor(normalize_desc_));
+  }
+}
+
 /* static */ void MLUCnnl::Active(const Context& ctx,
                                   cnnlActivationDescriptor_t active_desc,
                                   const cnnlTensorDescriptor_t input_desc,
@@ -1022,6 +1050,24 @@ MLURNNDesc::~MLURNNDesc() {
 
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnnlFill_v3(handle, pointer_mode, value_ptr, output_desc, output));
+}
+
+/* static */ void MLUCnnl::Flip(const Context& ctx,
+                                const int dimension[],
+                                const int dimension_len,
+                                const cnnlTensorDescriptor_t input_desc,
+                                const void* input,
+                                const cnnlTensorDescriptor_t output_desc,
+                                void* output) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlFlip(handle,
+                                      dimension,
+                                      dimension_len,
+                                      input_desc,
+                                      input,
+                                      output_desc,
+                                      output));
 }
 
 /* static */ void MLUCnnl::QuantifyOffline(
@@ -2940,25 +2986,6 @@ MLURNNDesc::~MLURNNDesc() {
       cnnlLog1p(handle, prefer, input_desc, input, output_desc, output));
 }
 
-/* static */ void MLUCnnl::LogicalNot(const Context& ctx,
-                                      const cnnlTensorDescriptor_t input_desc,
-                                      const void* input,
-                                      const cnnlTensorDescriptor_t output_desc,
-                                      void* output) {
-  cnnlHandle_t handle = GetHandleFromCTX(ctx);
-
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlLogicOp(handle,
-                                         CNNL_LOGIC_OP_NOT,
-                                         input_desc,
-                                         input,
-                                         input_desc,
-                                         input,
-                                         nullptr,
-                                         0,
-                                         output_desc,
-                                         output));
-}
-
 /* static */ void MLUCnnl::DynamicStitch(
     const Context& ctx,
     const cnnlTensorDescriptor_t* indices_desc,
@@ -3585,6 +3612,44 @@ MLURNNDesc::~MLURNNDesc() {
                                                       diff_x,
                                                       diff_weight,
                                                       diff_bias));
+}
+
+/* static */ void MLUCnnl::Normalize(
+    const Context& ctx,
+    const cnnlNormalizeDescriptor_t normalize_desc,
+    const cnnlTensorDescriptor_t input_desc,
+    const void* input,
+    const cnnlTensorDescriptor_t scale_desc,
+    const void* scale,
+    const cnnlTensorDescriptor_t output_desc,
+    const cnnlTensorDescriptor_t norm_desc,
+    void* output,
+    void* norm) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetNormalizeWorkspaceSize(handle,
+                                                           normalize_desc,
+                                                           input_desc,
+                                                           output_desc,
+                                                           norm_desc,
+                                                           &workspace_size));
+
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlNormalize_v3(handle,
+                                              normalize_desc,
+                                              input_desc,
+                                              input,
+                                              scale_desc,
+                                              scale,
+                                              workspace_ptr,
+                                              workspace_size,
+                                              output_desc,
+                                              output,
+                                              norm_desc,
+                                              norm));
 }
 
 /* static */ void MLUCnnl::QuantizeParam(

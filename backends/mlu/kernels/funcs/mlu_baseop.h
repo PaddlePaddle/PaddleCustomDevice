@@ -53,6 +53,19 @@ const std::map<std::string, cnnlInterpBackwardMode_t> MLUInterpBackwardModeMap =
      {"trilinear", CNNL_INTERP_BACKWARD_TRILINEAR},
      {"bicubic", CNNL_INTERP_BACKWARD_BICUBIC}};
 
+const std::map<std::string, cnnlLogicOp_t> MLULogicOpMap = {
+    {"equal", CNNL_LOGIC_OP_EQ},
+    {"not_equal", CNNL_LOGIC_OP_NE},
+    {"greater_than", CNNL_LOGIC_OP_GT},
+    {"greater_equal", CNNL_LOGIC_OP_GE},
+    {"less_than", CNNL_LOGIC_OP_LT},
+    {"less_equal", CNNL_LOGIC_OP_LE},
+    {"and", CNNL_LOGIC_OP_AND},
+    {"or", CNNL_LOGIC_OP_OR},
+    {"xor", CNNL_LOGIC_OP_XOR},
+    {"not", CNNL_LOGIC_OP_NOT},
+};
+
 inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string& reduce_name) {
   auto iter = MLUReduceOpMap.find(reduce_name);
   if (iter != MLUReduceOpMap.end()) {
@@ -79,6 +92,15 @@ inline cnnlInterpBackwardMode_t GetMLUCnnlInterpBackwardMode(
   }
   PADDLE_THROW(phi::errors::InvalidArgument(
       "Not support interp mode of MLU Device: %s", interp_mode));
+}
+
+inline cnnlLogicOp_t GetMLUCnnlLogicOp(const std::string& logic_name) {
+  auto iter = MLULogicOpMap.find(logic_name);
+  if (iter != MLULogicOpMap.end()) {
+    return iter->second;
+  }
+  PADDLE_THROW(phi::errors::InvalidArgument(
+      "Not support logic op type of MLU Device: %s", logic_name));
 }
 
 inline const void* GetBasePtr(const Tensor* t) { return t->data(); }
@@ -755,6 +777,27 @@ class MLURNNDesc {
   cnnlRNNDescriptor_t rnn_desc_ = nullptr;
 };
 
+class NormalizeDesc {
+ public:
+  NormalizeDesc(const NormalizeDesc& desc) = delete;
+  NormalizeDesc& operator=(const NormalizeDesc& desc) = delete;
+
+  NormalizeDesc(int* axis,
+                int axis_num,
+                cnnlNanPropagation_t nan_propagation,
+                float eps,
+                float pnorm,
+                int channel_shared,
+                int across_spatial);
+
+  const cnnlNormalizeDescriptor_t get() const;
+
+  ~NormalizeDesc();
+
+ private:
+  cnnlNormalizeDescriptor_t normalize_desc_ = nullptr;
+};
+
 class MLUCnnl {
  public:
   static void Active(const Context& ctx,
@@ -822,6 +865,14 @@ class MLUCnnl {
   static void Fill(const Context& ctx,
                    const cnnlPointerMode_t pointer_mode,
                    const void* value_ptr,
+                   const cnnlTensorDescriptor_t output_desc,
+                   void* output);
+
+  static void Flip(const Context& ctx,
+                   const int dimension[],
+                   const int dimension_len,
+                   const cnnlTensorDescriptor_t input_desc,
+                   const void* input,
                    const cnnlTensorDescriptor_t output_desc,
                    void* output);
 
@@ -1596,12 +1647,6 @@ class MLUCnnl {
                     const cnnlTensorDescriptor_t output_desc,
                     void* output);
 
-  static void LogicalNot(const Context& ctx,
-                         const cnnlTensorDescriptor_t input_desc,
-                         const void* input,
-                         const cnnlTensorDescriptor_t output_desc,
-                         void* output);
-
   static void DynamicStitch(const Context& ctx,
                             const cnnlTensorDescriptor_t* indices_desc,
                             const int** indices,
@@ -1845,6 +1890,17 @@ class MLUCnnl {
                                 void* diff_x,
                                 void* diff_weight,
                                 void* diff_bias);
+
+  static void Normalize(const Context& ctx,
+                        const cnnlNormalizeDescriptor_t normalize_desc,
+                        const cnnlTensorDescriptor_t input_desc,
+                        const void* input,
+                        const cnnlTensorDescriptor_t scale_desc,
+                        const void* scale,
+                        const cnnlTensorDescriptor_t output_desc,
+                        const cnnlTensorDescriptor_t norm_desc,
+                        void* output,
+                        void* norm);
 
   static void Transpose(const Context& ctx,
                         const std::vector<int> perm,

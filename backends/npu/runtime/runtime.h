@@ -77,6 +77,14 @@ C_Status AsyncMemCpyD2H(const C_Device device,
                         const void *src,
                         size_t size);
 
+C_Status CreateEvent(const C_Device device, C_Event *event);
+
+C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event);
+
+C_Status QueryEvent(const C_Device device, C_Event event);
+
+C_Status DestroyEvent(const C_Device device, C_Event event);
+
 class AscendProfiler {
  public:
   static AscendProfiler &Instance() {

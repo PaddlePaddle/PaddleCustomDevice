@@ -39,7 +39,149 @@ FLAGS_DEFINE_uint64(npu_profiling_metrics,
 
 FLAGS_DEFINE_bool(set_to_1d, true, "set_to_1d");
 
+FLAGS_DEFINE_bool(npu_runtime_debug, false, "runtime debug log");
+
+FLAGS_DEFINE_bool(npu_reuse_event, true, "reuse_event");
+
+DECLARE_bool(npu_blocking_run);
+
 thread_local int g_current_device_id(-1);
+
+class EventResourcePool {
+ public:
+  static EventResourcePool *Instance() {
+    static EventResourcePool inst;
+    return &inst;
+  }
+
+  void Release(int dev_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto &event : wait_event_list_[dev_id]) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+    }
+    for (auto &event : busy_event_list_[dev_id]) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+    }
+    for (auto &event : idle_event_list_[dev_id]) {
+      ACL_CHECK(aclrtDestroyEvent(event));
+    }
+    wait_event_list_[dev_id].clear();
+    busy_event_list_[dev_id].clear();
+    idle_event_list_[dev_id].clear();
+  }
+
+  aclrtEvent CreateEvent(int dev_id) {
+    // idle -- CreateEvent --> busy -- DestroyEvent --> wait --
+    // event_is_completed --> idle
+    std::lock_guard<std::mutex> lock(mutex_);
+    aclrtEvent event;
+    for (auto iter = wait_event_list_[dev_id].begin();
+         iter != wait_event_list_[dev_id].end();) {
+      if (event_has_been_recorded_[dev_id][event]) {
+        if (!event_is_completed(*iter)) {
+          ++iter;
+        } else {
+          idle_event_list_[dev_id].push_back(*iter);
+          iter = wait_event_list_[dev_id].erase(iter);
+          reset_event(recorded_event_stream_map_[*iter], *iter);
+        }
+      } else {
+        idle_event_list_[dev_id].push_back(*iter);
+        iter = wait_event_list_[dev_id].erase(iter);
+      }
+    }
+    if (idle_event_list_[dev_id].empty()) {
+      ACL_CHECK(aclrtCreateEvent(&event));
+    } else {
+      event = idle_event_list_[dev_id].front();
+      idle_event_list_[dev_id].pop_front();
+    }
+    busy_event_list_[dev_id].push_back(event);
+    event_has_been_recorded_[dev_id][event] = false;
+    return event;
+  }
+
+  void DestroyEvent(int dev_id, aclrtEvent event) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    wait_event_list_[dev_id].push_back(event);
+    event_has_been_recorded_[dev_id][event] = false;
+    busy_event_list_[dev_id].erase(std::find(busy_event_list_[dev_id].begin(),
+                                             busy_event_list_[dev_id].end(),
+                                             event));
+  }
+
+  void RecordEvent(int dev_id, aclrtStream stream, aclrtEvent event) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    event_has_been_recorded_[dev_id][event] = true;
+    recorded_event_stream_map_[event] = stream;
+    record_evnt(stream, event);
+  }
+
+  bool QueryEvent(int dev_id, aclrtEvent event) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (event_has_been_recorded_[dev_id][event]) {
+      return event_is_completed(event);
+    }
+    return true;
+  }
+
+  void WaitEvent(int dev_id, aclrtStream stream, aclrtEvent event) {
+    if (!event_has_been_recorded_[dev_id][event]) {
+      LOG_IF(ERROR, FLAGS_npu_runtime_debug)
+          << "[RUNTIME] WaitEvent: the event has not been recorded. event="
+          << event;
+      exit(-1);
+    }
+    ACL_CHECK(aclrtStreamWaitEvent(stream, event));
+    recorded_event_wait_stream_map_[event].push_back(stream);
+  }
+
+ private:
+  bool event_is_completed(aclrtEvent event) {
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(aclrtQueryEventStatus(event, &status));
+    return status == ACL_EVENT_RECORDED_STATUS_COMPLETE;
+  }
+
+  void synchronize_event(aclrtEvent event) {
+    ACL_CHECK(aclrtSynchronizeEvent(event));
+  }
+
+  void reset_event(aclrtStream stream, aclrtEvent event) {
+    if (recorded_event_wait_stream_map_[event].size()) {
+      aclrtEventWaitStatus status = ACL_EVENT_WAIT_STATUS_COMPLETE;
+      ACL_CHECK(aclrtQueryEventWaitStatus(event, &status));
+      if (status != ACL_EVENT_WAIT_STATUS_COMPLETE) {
+        LOG_IF(INFO, FLAGS_npu_runtime_debug)
+            << "[RUNTIME] reset_event: stream has not been completed that wait "
+               "this event. event="
+            << event;
+        // blocking cpu
+        // TODO(wangran16): remove sync
+        for (auto &wait_stream : recorded_event_wait_stream_map_[event]) {
+          ACL_CHECK(aclrtSynchronizeStream(wait_stream));
+        }
+      }
+    }
+    ACL_CHECK(aclrtResetEvent(event, stream));
+    recorded_event_wait_stream_map_[event].clear();
+  }
+
+  void record_evnt(aclrtStream stream, aclrtEvent event) {
+    ACL_CHECK(aclrtRecordEvent(event, stream));
+  }
+
+ private:
+  std::mutex mutex_;
+  std::unordered_map<int, std::list<aclrtEvent>> idle_event_list_;
+  std::unordered_map<int, std::list<aclrtEvent>> busy_event_list_;
+  std::unordered_map<int, std::list<aclrtEvent>> wait_event_list_;
+  std::unordered_map<aclrtEvent, aclrtStream> recorded_event_stream_map_;
+  std::unordered_map<aclrtEvent, std::list<aclrtStream>>
+      recorded_event_wait_stream_map_;
+  std::unordered_map<int, std::unordered_map<aclrtEvent, bool>>
+      event_has_been_recorded_;
+};
 
 aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
   RUN_CHECK(aicpu_streams.find(aicore_stream) != aicpu_streams.cend());
@@ -115,6 +257,7 @@ void SecondaryStream::RecordAfter(aclrtStream aicore_stream) {
 
 class AlignnedAllocator {
  public:
+  explicit AlignnedAllocator(int dev_id) : device({dev_id}) {}
   void *Alloc(size_t size, size_t align) {
     std::lock_guard<std::mutex> lock(mtx_);
     ProcessEvents();
@@ -148,13 +291,12 @@ class AlignnedAllocator {
     for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
       aclrtEvent event = it->second.second;
       if (!event) continue;
-      aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
-      ACL_CHECK(aclrtQueryEventStatus(event, &status));
-      if (status == ACL_EVENT_RECORDED_STATUS_COMPLETE) {
+      auto status = QueryEvent(&device, reinterpret_cast<C_Event>(event));
+      if (status == C_SUCCESS) {
         void *ptr = it->second.first;
         free(ptr);
         it = recorded_events_.erase(it);
-        ACL_CHECK(aclrtDestroyEvent(event));
+        DestroyEvent(&device, reinterpret_cast<C_Event>(event));
       } else {
         ++it;
       }
@@ -164,6 +306,7 @@ class AlignnedAllocator {
  private:
   std::unordered_map<void *, std::pair<void *, aclrtEvent>> recorded_events_;
   std::mutex mtx_;
+  C_Device_st device;
 };
 
 class AlignnedAllocatorList {
@@ -171,7 +314,9 @@ class AlignnedAllocatorList {
   explicit AlignnedAllocatorList(size_t device_count)
       : allocator_list(device_count, nullptr) {}
 
-  void Init(size_t dev_id) { allocator_list[dev_id] = new AlignnedAllocator; }
+  void Init(size_t dev_id) {
+    allocator_list[dev_id] = new AlignnedAllocator(dev_id);
+  }
 
   void Deinit(size_t dev_id) {
     delete allocator_list[dev_id];
@@ -232,7 +377,8 @@ C_Status SetDevice(const C_Device device) {
   static std::mutex ctx_map_mutex;
   if (g_current_device_id != device->id) { /* thread local */
     std::lock_guard<std::mutex> lock(ctx_map_mutex);
-    VLOG(10) << "SetDevice: " << device->id;
+    LOG_IF(INFO, FLAGS_npu_runtime_debug)
+        << "[RUNTIME] SetDevice: " << device->id;
     if (ctx_map.find(static_cast<int>(device->id)) != ctx_map.end()) {
       ACL_CHECK(aclrtSetCurrentContext(ctx_map[device->id]));
     } else {
@@ -251,6 +397,7 @@ C_Status GetDevice(const C_Device device) {
 
 C_Status ReleaseDevice(const C_Device device) {
   SetDevice(device);
+  EventResourcePool::Instance()->Release(device->id);
   if (global_allocator_list) {
     // global_allocator_list->GetAllocator(device->id)->ClearEvent();
     global_allocator_list->Deinit(device->id);
@@ -286,6 +433,10 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] MemCpyH2D: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size;
+
   if (dst == nullptr && size == 0) return C_SUCCESS;
   ACL_CHECK(aclrtMemcpy(dst, size, src, size, ACL_MEMCPY_HOST_TO_DEVICE));
   return C_SUCCESS;
@@ -295,6 +446,10 @@ C_Status MemCpyD2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] MemCpyD2D: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size;
+
   ACL_CHECK(aclrtMemcpy(dst, size, src, size, ACL_MEMCPY_DEVICE_TO_DEVICE));
   return C_SUCCESS;
 }
@@ -303,6 +458,10 @@ C_Status MemCpyD2H(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] MemCpyD2H: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size;
+
   ACL_CHECK(aclrtMemcpy(dst, size, src, size, ACL_MEMCPY_DEVICE_TO_HOST));
   return C_SUCCESS;
 }
@@ -313,17 +472,24 @@ C_Status AsyncMemCpyH2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  PADDLE_ENFORCE(device != nullptr,
+                 phi::errors::InvalidArgument("device is nullptr!!!"));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] AsyncMemCpyH2D: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size << ", stream=" << stream;
+
   if (device) {
     check_uninitialized_thread(device->id);
   }
   auto allocator = global_allocator_list->GetAllocator(get_current_device_id());
   void *tmp = allocator->Alloc(size, 64);
+
   aclrtEvent event;
-  ACL_CHECK(aclrtCreateEvent(&event));
+  CreateEvent(device, reinterpret_cast<C_Event *>(&event));
   memcpy(tmp, src, size);
   ACL_CHECK(aclrtMemcpyAsync(
       dst, size, tmp, size, ACL_MEMCPY_HOST_TO_DEVICE, (aclrtStream)(stream)));
-  ACL_CHECK(aclrtRecordEvent(event, (aclrtStream)(stream)));
+  RecordEvent(device, stream, reinterpret_cast<C_Event>(event));
   allocator->Record(tmp, event);
   return C_SUCCESS;
 }
@@ -333,6 +499,12 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  PADDLE_ENFORCE(device != nullptr,
+                 phi::errors::InvalidArgument("device is nullptr!!!"));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] AsyncMemCpyD2D: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size << ", stream=" << stream;
+
   ACL_CHECK(aclrtMemcpyAsync(dst,
                              size,
                              src,
@@ -347,6 +519,12 @@ C_Status AsyncMemCpyD2H(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  PADDLE_ENFORCE(device != nullptr,
+                 phi::errors::InvalidArgument("device is nullptr!!!"));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] AsyncMemCpyD2H: device=" << device->id << ", dst=" << dst
+      << ", src=" << src << ", size=" << size << ", stream=" << stream;
+
   if (device) {
     check_uninitialized_thread(device->id);
   }
@@ -361,6 +539,9 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   ACL_CHECK(aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST));
   if (data) {
     *ptr = data;
+    LOG_IF(INFO, FLAGS_npu_runtime_debug)
+        << "[RUNTIME] Allocate: device=" << device->id << ", ptr=" << *ptr
+        << ", size=" << size;
     return C_SUCCESS;
   } else {
     *ptr = nullptr;
@@ -381,6 +562,10 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] Deallocate: device=" << device->id << ", ptr=" << ptr
+      << ", size=" << size;
+
   SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
   return C_SUCCESS;
@@ -393,11 +578,19 @@ C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
   ACL_CHECK(aclrtCreateStream(reinterpret_cast<aclrtStream *>(stream)));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] CreateStream: device=" << device->id
+      << ", stream=" << *stream;
+
   SecondaryStream::Instance().Create(*reinterpret_cast<aclrtStream *>(stream));
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] DestroyStream: device=" << device->id
+      << ", stream=" << stream;
+
   HostCallbackManager::Instance().ReleaseProcessWorker(stream);
   ACL_CHECK(aclrtDestroyStream(reinterpret_cast<aclrtStream>(stream)));
   SecondaryStream::Instance().Destroy(reinterpret_cast<aclrtStream>(stream));
@@ -405,38 +598,77 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  ACL_CHECK(aclrtCreateEvent(reinterpret_cast<aclrtEvent *>(event)));
-  return C_SUCCESS;
-}
-
-C_Status DestroyEvent(const C_Device device, C_Event event) {
-  ACL_CHECK(aclrtDestroyEvent(event));
+  aclrtEvent aclrt_event;
+  if (FLAGS_npu_reuse_event) {
+    aclrt_event = EventResourcePool::Instance()->CreateEvent(device->id);
+  } else {
+    ACL_CHECK(aclrtCreateEvent(&aclrt_event));
+  }
+  *event = reinterpret_cast<C_Event>(aclrt_event);
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] CreateEvent: device=" << device->id << ", event=" << *event;
   return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  ACL_CHECK(aclrtRecordEvent(reinterpret_cast<aclrtEvent>(event),
-                             reinterpret_cast<aclrtStream>(stream)));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] RecordEvent: device=" << device->id << ", stream=" << stream
+      << ", event=" << event;
+  if (FLAGS_npu_reuse_event) {
+    EventResourcePool::Instance()->RecordEvent(
+        device->id,
+        reinterpret_cast<aclrtStream>(stream),
+        reinterpret_cast<aclrtEvent>(event));
+  } else {
+    ACL_CHECK(aclrtRecordEvent(reinterpret_cast<aclrtEvent>(event),
+                               reinterpret_cast<aclrtStream>(stream)));
+  }
   return C_SUCCESS;
 }
 
 C_Status QueryEvent(const C_Device device, C_Event event) {
-  aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
-  ACL_CHECK(aclrtQueryEventStatus(event, &status));
-  return status == ACL_EVENT_RECORDED_STATUS_COMPLETE ? C_SUCCESS : C_FAILED;
+  if (FLAGS_npu_reuse_event) {
+    return EventResourcePool::Instance()->QueryEvent(
+               device->id, reinterpret_cast<aclrtEvent>(event))
+               ? C_SUCCESS
+               : C_FAILED;
+  } else {
+    aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
+    ACL_CHECK(
+        aclrtQueryEventStatus(reinterpret_cast<aclrtEvent>(event), &status));
+    return status == ACL_EVENT_RECORDED_STATUS_COMPLETE ? C_SUCCESS : C_FAILED;
+  }
+}
+
+C_Status DestroyEvent(const C_Device device, C_Event event) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] DestroyEvent: device=" << device->id << ", event=" << event;
+  if (FLAGS_npu_reuse_event) {
+    EventResourcePool::Instance()->DestroyEvent(
+        device->id, reinterpret_cast<aclrtEvent>(event));
+  } else {
+    ACL_CHECK(aclrtDestroyEvent(reinterpret_cast<aclrtEvent>(event)));
+  }
+  return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] SyncDevice: device=" << device->id;
   ACL_CHECK(aclrtSynchronizeDevice());
   return C_SUCCESS;
 }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] SyncStream: device=" << device->id << " stream=" << stream;
   ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
   return C_SUCCESS;
 }
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] SyncEvent: device=" << device->id << " event=" << event;
   ACL_CHECK(aclrtSynchronizeEvent(reinterpret_cast<aclrtEvent>(event)));
   return C_SUCCESS;
 }
@@ -444,8 +676,18 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  ACL_CHECK(aclrtStreamWaitEvent(reinterpret_cast<aclrtStream>(stream),
-                                 reinterpret_cast<aclrtEvent>(event)));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] StreamWaitEvent: device=" << device->id
+      << ", stream=" << stream << ", event=" << event;
+  if (FLAGS_npu_reuse_event) {
+    EventResourcePool::Instance()->WaitEvent(
+        device->id,
+        reinterpret_cast<aclrtStream>(stream),
+        reinterpret_cast<aclrtEvent>(event));
+  } else {
+    ACL_CHECK(aclrtStreamWaitEvent(reinterpret_cast<aclrtStream>(stream),
+                                   reinterpret_cast<aclrtEvent>(event)));
+  }
   return C_SUCCESS;
 }
 
@@ -534,6 +776,9 @@ C_Status XcclCommInitRank(size_t nranks,
                            reinterpret_cast<HcclRootInfo *>(unique_id->data),
                            rank,
                            reinterpret_cast<HcclComm *>(comm)));
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] HcclCommInitRootInfo: nranks=" << nranks
+      << ", rank=" << rank << ", comm=" << *comm;
   return C_SUCCESS;
 }
 
@@ -549,6 +794,10 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
+  LOG_IF(INFO, FLAGS_npu_runtime_debug)
+      << "[RUNTIME] HcclAllReduce: send_buf=" << send_buf
+      << ", recv_buf=" << recv_buf << ", count=" << count << ", comm=" << comm
+      << ", stream=" << stream;
   HCCL_CHECK(HcclAllReduce(send_buf,
                            recv_buf,
                            count,

@@ -142,7 +142,8 @@ void DropoutRawKernel(const Context& dev_ctx,
                                                     {1}};
       keep_prob_tensor.set_meta(keep_prob_tensor_meta);
       keep_prob_tensor.Resize(phi::DDim({}));
-      AsyncMemCpyH2D(nullptr,
+      C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+      AsyncMemCpyH2D(&device,
                      static_cast<C_Stream>(dev_ctx.stream()),
                      dev_ctx.template Alloc<float>(&keep_prob_tensor),
                      &keep_prob,
@@ -193,7 +194,9 @@ void DropoutRawKernel(const Context& dev_ctx,
       phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};
       keep_prob_tensor.set_meta(keep_prob_tensor_meta);
       keep_prob_tensor.Resize(phi::DDim({}));
-      AsyncMemCpyH2D(nullptr,
+
+      C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+      AsyncMemCpyH2D(&device,
                      static_cast<C_Stream>(dev_ctx.stream()),
                      dev_ctx.template Alloc<T>(&keep_prob_tensor),
                      &keep_prob,

@@ -93,13 +93,15 @@ inline void TensorCopy(const Context& dev_ctx,
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
-    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{src_place.GetDeviceId()};
+    AsyncMemCpyD2H(&device, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
@@ -107,7 +109,8 @@ inline void TensorCopy(const Context& dev_ctx,
              dst_place_.GetType() == phi::AllocationType::CUSTOM) {
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
-        AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
+        C_Device_st device{src_place.GetDeviceId()};
+        AsyncMemCpyD2D(&device, stream, dst_ptr, src_ptr, size);
         if (blocking) {
           dev_ctx.Wait();
         }
@@ -140,7 +143,8 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
   if (UNLIKELY(size == 0)) return;
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
@@ -172,7 +176,8 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
   if (UNLIKELY(size == 0)) return;
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
@@ -205,8 +210,9 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
             << ", size: " << size;
     std::memcpy(dst_ptr, src_ptr, size);
   } else if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device{dst_place.GetDeviceId()};
     AsyncMemCpyH2D(
-        nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
+        &device, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -236,7 +242,8 @@ void TensorFromArray(const phi::CustomContext& ctx,
   auto size = array_size * sizeof(T);
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
@@ -264,8 +271,9 @@ inline void TensorToVector(const phi::CustomContext& ctx,
   auto src_place = src.place();
 
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device{src_place.GetDeviceId()};
     AsyncMemCpyD2H(
-        nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
+        &device, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
     ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
@@ -290,7 +298,8 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
 
   auto src_place = src.place();
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{src_place.GetDeviceId()};
+    AsyncMemCpyD2H(&device, stream, dst_ptr, src_ptr, size);
     ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(

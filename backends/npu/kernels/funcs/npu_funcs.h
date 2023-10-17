@@ -93,7 +93,7 @@ inline void TensorCopy(const Context& dev_ctx,
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
-    C_Device_st device{dst_place.GetDeviceId()};
+    C_Device_st device{dst_place_.GetDeviceId()};
     AsyncMemCpyH2D(&device, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();

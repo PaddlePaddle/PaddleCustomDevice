@@ -19,6 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
+import paddle.base.core as core
 
 paddle.enable_static()
 
@@ -53,7 +54,7 @@ class TestArgMinParamDtypeInt32(BaseTestCase):
         np.random.seed(2021)
         self.x = (np.random.random(self.dims)).astype(self.dtype)
         self.inputs = {"X": self.x}
-        self.attrs = {"axis": self.axis, "dtype": 2}
+        self.attrs = {"axis": self.axis, "dtype": int(core.VarDesc.VarType.INT32)}
         self.outputs = {"Out": np.argmin(self.x, axis=self.axis)}
 
 

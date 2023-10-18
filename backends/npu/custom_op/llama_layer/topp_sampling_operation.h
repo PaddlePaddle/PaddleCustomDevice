@@ -18,7 +18,8 @@
 #include <atb/atb_infer.h>
 
 struct ToppSamplingParam {
-    float p = 1.0;
+  uint32_t randSeed = 0;
+  uint32_t topk = 100;
 };
 
 atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,

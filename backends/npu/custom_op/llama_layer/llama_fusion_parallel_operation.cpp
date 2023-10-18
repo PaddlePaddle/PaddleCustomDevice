@@ -19,7 +19,6 @@
 #include "llama_multi_layer_operation.h"
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
-#include <memory>
 
 static const uint64_t IN_TENSOR_COUNT = 16;
 static const uint64_t OUT_TENSOR_COUNT = 1;

@@ -58,7 +58,7 @@ atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
     castToppsNode.inTensorIds = {IN_TOPPS};
     castToppsNode.outTensorIds = {INTERMIDATE_TOPPS_CAST};
 
-    atb::infer::ToppParam TopParam;
+    atb::infer::TopkToppSamplingParam TopParam = {param.randSeed, param.topk};
     atb::CreateOperation(TopParam, &topPNode.operation);
     topPNode.inTensorIds = {INTERMIDATE_PROBS_CAST, INTERMIDATE_TOPPS_CAST};
     topPNode.outTensorIds = {OUT_CAST_TOPP_IDS, OUT_CAST_TOPP_PROBS};

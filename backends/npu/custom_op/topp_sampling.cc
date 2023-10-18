@@ -56,7 +56,7 @@ std::vector<paddle::Tensor> AtbTopPSamplingOp(const paddle::Tensor& top_ps,
     g_toppSamplingOp.reset(new PpAscendAtbOpBase("AtbTopPSamplingOp"));
 
     atb::Operation *op = nullptr;
-    ToppSamplingParam param;
+    ToppSamplingParam param = {(uint32_t)random_seed, 50}; // topk 50
     CreateToppSamplingOperation(param, &op);
     g_toppSamplingOp->operation_.reset(op);
   }

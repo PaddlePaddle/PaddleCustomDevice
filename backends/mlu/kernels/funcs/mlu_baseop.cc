@@ -2788,6 +2788,129 @@ NormalizeDesc::~NormalizeDesc() {
       cnnlAbs(handle, input_desc, input, output_desc, output));
 }
 
+/* static */ void MLUCnnl::FlashAttentionForward(
+    const Context& ctx,
+    const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+    const cnnlTensorDescriptor_t q_desc,  // [total_q, head_num, head_size]
+    const void* q,
+    const cnnlTensorDescriptor_t k_desc,  // [total_k, head_num, head_size]
+    const void* k,
+    const cnnlTensorDescriptor_t v_desc,  // [total_k, head_num, head_size]
+    const void* v,
+    const cnnlTensorDescriptor_t seqlens_q_desc,  // b+1
+    const void* seqlens_q,
+    const cnnlTensorDescriptor_t seqlens_k_desc,  // b+1
+    const void* seqlens_k,
+    const size_t rng_state[],
+    const cnnlTensorDescriptor_t dropout_mask_desc,
+    void* dropout_mask,
+    const cnnlTensorDescriptor_t softmax_lse_desc,  // [total_q, head_num]
+    void* softmax_lse,
+    const cnnlTensorDescriptor_t output_desc,
+    void* output) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size = 0;
+  cnnlGetFlashAttentionForwardWorkspaceSize(
+      handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
+
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlFlashAttentionForward(handle,
+                                                       flash_atten_desc,
+                                                       q_desc,
+                                                       q,
+                                                       k_desc,
+                                                       k,
+                                                       v_desc,
+                                                       v,
+                                                       seqlens_q_desc,
+                                                       seqlens_q,
+                                                       seqlens_k_desc,
+                                                       seqlens_k,
+                                                       rng_state,
+                                                       workspace_ptr,
+                                                       workspace_size,
+                                                       dropout_mask_desc,
+                                                       dropout_mask,
+                                                       softmax_lse_desc,
+                                                       softmax_lse,
+                                                       output_desc,
+                                                       output));
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlDestroyFlashAttentionDescriptor(flash_atten_desc));
+}
+
+/* static */ void MLUCnnl::FlashAttentionBackward(
+    const Context& ctx,
+    const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+    const cnnlTensorDescriptor_t diff_out_desc,
+    const void* diff_out,
+    const cnnlTensorDescriptor_t q_desc,
+    const void* q,
+    const cnnlTensorDescriptor_t k_desc,
+    const void* k,
+    const cnnlTensorDescriptor_t v_desc,
+    const void* v,
+    const cnnlTensorDescriptor_t fwd_out_desc,
+    const void* out,
+    const cnnlTensorDescriptor_t softmax_lse_desc,
+    const void* softmax_lse,
+    const cnnlTensorDescriptor_t csq_desc,
+    const void* cu_seqlens_q,
+    const cnnlTensorDescriptor_t csk_desc,
+    const void* cu_seqlens_k,
+    const size_t rng_state[],
+    const cnnlTensorDescriptor_t diff_query_desc,
+    void* dq,
+    const cnnlTensorDescriptor_t diff_key_desc,
+    void* dk,
+    const cnnlTensorDescriptor_t diff_value_desc,
+    void* dv) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size = 0;
+  cnnlGetFlashAttentionBackwardWorkspaceSize(
+      handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlFlashAttentionBackward(handle,
+                                 flash_atten_desc,
+                                 diff_out_desc,
+                                 diff_out,
+                                 q_desc,
+                                 q,
+                                 k_desc,
+                                 k,
+                                 v_desc,
+                                 v,
+                                 fwd_out_desc,
+                                 out,
+                                 softmax_lse_desc,
+                                 softmax_lse,
+                                 csq_desc,
+                                 cu_seqlens_q,
+                                 csk_desc,
+                                 cu_seqlens_k,
+                                 rng_state,
+                                 workspace_ptr,
+                                 workspace_size,
+                                 diff_query_desc,
+                                 dq,
+                                 diff_key_desc,
+                                 dk,
+                                 diff_value_desc,
+                                 dv,
+                                 /*dropout_mask_desc = */ nullptr,
+                                 /*dropout_mask = */ nullptr,
+                                 /*softmax_d_desc = */ nullptr,
+                                 /*softmax_d = */ nullptr));
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlDestroyFlashAttentionDescriptor(flash_atten_desc));
+}
+
 /* static */ void MLUCnnl::Neg(const Context& ctx,
                                const cnnlTensorDescriptor_t input_desc,
                                const void* input,

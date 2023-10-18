@@ -16,6 +16,7 @@
 
 #include <cncl.h>
 #include <cnnl.h>
+#include <cnnl_extra.h>
 #include <cnpapi.h>
 #include <cnrt.h>
 #include <mlu_op.h>

@@ -34,6 +34,7 @@ public:
   ~PpAtbLlamaDecoderLayerParallelOp();
   phi::DenseTensor layerIdTensor_;
   phi::DenseTensor q_seq_len_tensor_;
+  phi::DenseTensor token_offset_tensor_;
 
   void UpdateInputTensorAndParam(const paddle::Tensor &kv_seq_len);
   bool BatchSizeChanged(int32_t batchSize);

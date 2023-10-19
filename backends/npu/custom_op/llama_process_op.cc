@@ -467,13 +467,13 @@ std::vector<paddle::DataType> TopPSamplingInferDtype(const paddle::DataType& x_d
   return {x_dtype, paddle::DataType::INT64};
 }
 
-PD_BUILD_OP(top_p_sampling)
-    .Inputs({"x", "top_ps"})
-    .Outputs({"topp_probs", "topp_ids"})
-    .Attrs({"random_seed: int"})
-    .SetKernelFn(PD_KERNEL(TopPSampling))
-    .SetInferShapeFn(PD_INFER_SHAPE(TopPSamplingInferShape))
-    .SetInferDtypeFn(PD_INFER_DTYPE(TopPSamplingInferDtype));
+// PD_BUILD_OP(top_p_sampling)
+//     .Inputs({"x", "top_ps"})
+//     .Outputs({"topp_probs", "topp_ids"})
+//     .Attrs({"random_seed: int"})
+//     .SetKernelFn(PD_KERNEL(TopPSampling))
+//     .SetInferShapeFn(PD_INFER_SHAPE(TopPSamplingInferShape))
+//     .SetInferDtypeFn(PD_INFER_DTYPE(TopPSamplingInferDtype));
 
 constexpr char kSEP = '/';
 

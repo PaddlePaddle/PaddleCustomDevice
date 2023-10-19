@@ -186,8 +186,8 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
     int headNum) {
 
   int32_t batch_size = hidden.shape().at(0);
-  // int32_t layer_num = 80; /* TODO:65B，写死8卡 */
-  int32_t layer_num = 32; /* TODO:7B，写死8卡 */
+  int32_t layer_num = 80; /* TODO:65B，写死8卡 */
+  // int32_t layer_num = 32; /* TODO:7B，写死8卡 */
   int32_t head_num = headNum;
   int32_t head_dim = headDim;
   auto dev_ctx = static_cast<const phi::CustomContext *>(

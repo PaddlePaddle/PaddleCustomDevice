@@ -112,7 +112,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     };
     ropeNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1;
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[0] = oldShape.dims[0];
     };
     // llamaPositionEmbedding1DSplitFusionParam positionEmbedding1dFusionParam;
     // positionEmbedding1dFusionParam.headNum = param.headNum;
@@ -262,21 +262,20 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         };
         // attention mask: [bs, 1, max_len, max_len]
         selfAttentionKvCacheNode.inTensorReshapeFuncs.at(5) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-            newShape.dimNum = 3; // dimNum: 4
-            newShape.dims[0] = oldShape.dims[0];
-            newShape.dims[1] = oldShape.dims[2];
-            newShape.dims[2] = oldShape.dims[3];
+            newShape.dimNum = 2; // dimNum: 4
+            newShape.dims[0] = oldShape.dims[2];
+            newShape.dims[1] = oldShape.dims[3];
         };
     }
     // kv_seq_len: [bs, 1]
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(6) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1; // dimNum: 1
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[0] = oldShape.dims[0];
     };
     // q_seq_len: [bs, 1]
     selfAttentionKvCacheNode.inTensorReshapeFuncs.at(7) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1; // dimNum: 1
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
+        newShape.dims[0] = oldShape.dims[0];
     };
 
     // [1, 1, 512] * [512, 4096] -> [1, 1, 4096]

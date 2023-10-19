@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if defined (PADDLE_WITH_ASCEND_TRANSFORMER_ACC) && defined (USE_ATB_TOPP)
+#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
 #include <acl/acl.h>
 #include <atb/atb_infer.h>
 #include "llama_layer/topp_sampling_operation.h"

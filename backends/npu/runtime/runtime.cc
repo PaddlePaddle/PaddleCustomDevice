@@ -71,8 +71,6 @@ class EventResourcePool {
   }
 
   aclrtEvent CreateEvent(int dev_id) {
-    // idle -- CreateEvent --> busy -- DestroyEvent --> wait --
-    // event_is_completed --> idle
     std::lock_guard<std::mutex> lock(mutex_);
     aclrtEvent event;
     for (auto iter = wait_event_list_[dev_id].begin();
@@ -105,9 +103,14 @@ class EventResourcePool {
     std::lock_guard<std::mutex> lock(mutex_);
     wait_event_list_[dev_id].push_back(event);
     event_has_been_recorded_[dev_id][event] = false;
-    busy_event_list_[dev_id].erase(std::find(busy_event_list_[dev_id].begin(),
-                                             busy_event_list_[dev_id].end(),
-                                             event));
+    auto it = std::find(busy_event_list_[dev_id].begin(),
+                        busy_event_list_[dev_id].end(),
+                        event);
+    LOG_IF(ERROR, it == busy_event_list_[dev_id].end())
+        << "[RUNTIME] DestroyEvent: the event dose not exist in the "
+           "busy_event_list["
+        << dev_id << "]. event=" << event;
+    busy_event_list_[dev_id].erase(it);
   }
 
   void RecordEvent(int dev_id, aclrtStream stream, aclrtEvent event) {
@@ -127,7 +130,7 @@ class EventResourcePool {
 
   void WaitEvent(int dev_id, aclrtStream stream, aclrtEvent event) {
     if (!event_has_been_recorded_[dev_id][event]) {
-      LOG_IF(ERROR, FLAGS_npu_runtime_debug)
+      LOG(ERROR)
           << "[RUNTIME] WaitEvent: the event has not been recorded. event="
           << event;
       exit(-1);
@@ -157,7 +160,6 @@ class EventResourcePool {
                "this event. event="
             << event;
         // blocking cpu
-        // TODO(wangran16): remove sync
         for (auto &wait_stream : recorded_event_wait_stream_map_[event]) {
           ACL_CHECK(aclrtSynchronizeStream(wait_stream));
         }
@@ -491,6 +493,10 @@ C_Status AsyncMemCpyH2D(const C_Device device,
       dst, size, tmp, size, ACL_MEMCPY_HOST_TO_DEVICE, (aclrtStream)(stream)));
   RecordEvent(device, stream, reinterpret_cast<C_Event>(event));
   allocator->Record(tmp, event);
+
+  if (FLAGS_npu_blocking_run) {
+    ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
+  }
   return C_SUCCESS;
 }
 
@@ -511,6 +517,10 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                              size,
                              ACL_MEMCPY_DEVICE_TO_DEVICE,
                              (aclrtStream)(stream)));
+
+  if (FLAGS_npu_blocking_run) {
+    ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
+  }
   return C_SUCCESS;
 }
 
@@ -530,6 +540,10 @@ C_Status AsyncMemCpyD2H(const C_Device device,
   }
   ACL_CHECK(aclrtMemcpyAsync(
       dst, size, src, size, ACL_MEMCPY_DEVICE_TO_HOST, (aclrtStream)(stream)));
+
+  if (FLAGS_npu_blocking_run) {
+    ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
+  }
   return C_SUCCESS;
 }
 

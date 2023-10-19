@@ -36,7 +36,7 @@ void PerpareLlamaDecoderLayerInputs(
     const paddle::Tensor &cos_sin_table,
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key_value,
-    const paddle::Tensor &kv_seq_len,
+    phi::DenseTensor &token_offset_tensor,
     phi::DenseTensor &q_seq_len_dense,
     phi::DenseTensor &layer_id_dense,
     std::vector<const phi::DenseTensor *> &inputs) {
@@ -53,7 +53,6 @@ void PerpareLlamaDecoderLayerInputs(
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto cache_key_value_tensor2 = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
-  auto kv_seq_len_tensor = static_cast<const phi::DenseTensor *>(kv_seq_len.impl().get());
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
@@ -67,7 +66,7 @@ void PerpareLlamaDecoderLayerInputs(
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_value_tensor);
   inputs.push_back(cache_key_value_tensor2);
-  inputs.push_back(kv_seq_len_tensor);
+  inputs.push_back(&token_offset_tensor);
   inputs.push_back(&q_seq_len_dense);
   inputs.push_back(&layer_id_dense);
 }
@@ -152,12 +151,22 @@ void PpAtbLlamaDecoderLayerParallelOp::UpdateInputTensorAndParam(const paddle::T
   batch_status_param_.clear();
   for(auto array: seq_len_vec) {
     int32_t status = array == 0 ? 0 : 1; // len=0，flag=0
-    kv_seq_len_param_.push_back(array);
+    kv_seq_len_param_.push_back(array + 1);
     batch_status_param_.push_back(status);
   }
   for (int i = batch_size; i < maxBatchSize_; i++) {
     batch_status_param_.push_back(0);
   }
+  
+  std::vector<int32_t> token_offset;
+  token_offset.resize(batch_size, 1);
+  
+  for(int i = 0;i < batch_size;i++) {
+    token_offset[i] += seq_len_vec[i];
+  }
+  custom_kernel::TensorFromVector(*dev_ctx, token_offset,
+                                  *dev_ctx, &token_offset_tensor_);
+
   if (curBatchSize_ != batch_size) { // 当batchsize改变了，再更新q_seq_len
     /* qLen增量阶段始终为1 */
     std::vector<int32_t> q_seq_len_vec;
@@ -264,7 +273,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
                                  cos_sin_table,
                                  attention_mask,
                                  cache_key_value,
-                                 kv_seq_len, // token offset即kv_seq_len
+                                 g_llamaDecoderLayerParallelOp->token_offset_tensor_,
                                  g_llamaDecoderLayerParallelOp->q_seq_len_tensor_, // 增量q_seq_len，始终为1
                                  g_llamaDecoderLayerParallelOp->layerIdTensor_,
                                  inputs);

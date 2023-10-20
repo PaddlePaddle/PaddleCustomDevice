@@ -40,7 +40,7 @@ C_Status Init() {
 }
 
 C_Status InitDevice(const C_Device device) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   return C_SUCCESS;
 }
 
@@ -143,19 +143,19 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtMalloc(ptr, size));
   return C_SUCCESS;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtFree(ptr));
   return C_SUCCESS;
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtHostMalloc(ptr, size));
   return C_SUCCESS;
 }

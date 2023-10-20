@@ -157,6 +157,8 @@ inline cnrtQueue_t GetQueue(void *stream) {
   return reinterpret_cast<mluStream_t>(stream)->queue;
 }
 
+C_Status SetDevice(const C_Device device);
+
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,

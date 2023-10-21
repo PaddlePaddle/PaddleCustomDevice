@@ -587,6 +587,8 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
+  static bool isAclEnableJit = false;
+
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
@@ -594,6 +596,11 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
           << GetOpDescString(input_descs_, "Input")
           << GetOpDescString(output_descs_, "Output");
+
+  if (!isAclEnableJit) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    isAclEnableJit = true;
+  }
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

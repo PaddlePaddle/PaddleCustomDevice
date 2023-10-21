@@ -80,8 +80,8 @@ class EventResourcePool {
           ++iter;
         } else {
           idle_event_list_[dev_id].push_back(*iter);
-          iter = wait_event_list_[dev_id].erase(iter);
           reset_event(recorded_event_stream_map_[*iter], *iter);
+          iter = wait_event_list_[dev_id].erase(iter);
         }
       } else {
         idle_event_list_[dev_id].push_back(*iter);
@@ -115,6 +115,12 @@ class EventResourcePool {
 
   void RecordEvent(int dev_id, aclrtStream stream, aclrtEvent event) {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (event_has_been_recorded_[dev_id][event]) {
+      LOG_IF(WARNING, FLAGS_npu_runtime_debug)
+          << "[RUNTIME] RecordEvent: event has already been recorded. event="
+          << event;
+      reset_event(recorded_event_stream_map_[event], event);
+    }
     event_has_been_recorded_[dev_id][event] = true;
     recorded_event_stream_map_[event] = stream;
     record_evnt(stream, event);
@@ -749,6 +755,7 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_UINT8;
   } else {
     LOG(ERROR) << "Datatype " << dtype << " in hccl is not supported.";
+    exit(-1);
   }
 }
 
@@ -763,6 +770,7 @@ HcclReduceOp PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
     return HCCL_REDUCE_PROD;
   } else {
     LOG(ERROR) << "Reduceop " << op << " in hccl is not supported.";
+    exit(-1);
   }
 }
 

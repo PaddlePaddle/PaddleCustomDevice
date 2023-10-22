@@ -614,3 +614,50 @@ PD_BUILD_OP(save_with_output)
     .SetKernelFn(PD_KERNEL(SaveWithOutputForward))
     .SetInferShapeFn(PD_INFER_SHAPE(SaveWithOutputInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(SaveWithOutputInferDtype));
+
+// save_with_output_delay
+std::vector<paddle::Tensor> SaveWithOutputDelay(const paddle::Tensor& x,
+                                                const paddle::Tensor& batch_idx,
+                                                const paddle::Tensor& step_idx,
+                                                const paddle::Tensor& no_use,
+                                                std::string file_path,
+                                                int64_t rank_id) {
+    auto out = x.copy_to(paddle::CPUPlace(), true);
+    switch(x.type()) {
+      case paddle::DataType::FLOAT32:
+         save_with_output_kernel<float>(out, batch_idx, step_idx, file_path, rank_id, '0');
+         break;
+      case paddle::DataType::INT64:
+        save_with_output_kernel<int64_t>(out, batch_idx, step_idx, file_path, rank_id,'1');
+         break;
+      case paddle::DataType::INT32:
+        save_with_output_kernel<int32_t>(out, batch_idx, step_idx, file_path, rank_id, '2');
+         break;
+      default:
+        PD_THROW("function SaveWithOutputForward is not implemented for data type");
+    }
+   return {x, no_use};
+}
+
+std::vector<std::vector<int64_t>> SaveWithOutputDelayInferShape(const std::vector<int64_t>& x_shape,
+                                                                const std::vector<int64_t>& batch_idx_shape,
+                                                                const std::vector<int64_t>& step_idx_shape,
+                                                                const std::vector<int64_t>& no_use_shape) {
+    return {x_shape, no_use_shape};
+}
+
+std::vector<paddle::DataType> SaveWithOutputDelayInferDtype(const paddle::DataType& x_dtype,
+                                                            const paddle::DataType& batch_idx_dtype,
+                                                            const paddle::DataType& step_idx_dtype,
+                                                            const paddle::DataType& no_use_dtype) {
+    return {x_dtype, no_use_dtype};
+}
+
+PD_BUILD_OP(save_with_output_delay)
+    .Inputs({"x", "batch_idx", "step_idx", "no_use"})
+    .Attrs({"file_path: std::string",
+            "rank_id: int64_t"})
+    .Outputs({"out", "no_use_out"})
+    .SetKernelFn(PD_KERNEL(SaveWithOutputDelay))
+    .SetInferShapeFn(PD_INFER_SHAPE(SaveWithOutputDelayInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(SaveWithOutputDelayInferDtype));

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#if defined (USE_ATB_TOPP)
 #include "topp_sampling_operation.h"
 
 static const uint64_t IN_TENSOR_COUNT = 2;
@@ -78,4 +77,3 @@ atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
 
     return atb::NO_ERROR;
 }
-#endif

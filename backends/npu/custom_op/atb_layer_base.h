@@ -31,7 +31,7 @@ public:
                               std::vector<const phi::DenseTensor *> &outTensors);
 
   std::shared_ptr<atb::Operation> operation_;
-
+  std::shared_ptr<phi::DenseTensor> output_;
 protected:
   std::string opName_;
   atb::VariantPack variantPacks_;

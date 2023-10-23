@@ -221,6 +221,10 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
     std::vector<int32_t> layer_id_vec(1, 0);
     custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
                                     *dev_ctx, &(g_llamaEncoderLayerParallelOp->layerIdTensor_));
+    g_llamaEncoderLayerParallelOp->output_ = std::make_shared<phi::DenseTensor>();
+    g_llamaEncoderLayerParallelOp->output_->Resize(phi::make_ddim(hidden.shape()));
+    dev_ctx->Alloc(g_llamaEncoderLayerParallelOp->output_.get(), 
+        static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());
   }
 
   if (executeCount % layer_num == 0) {
@@ -243,19 +247,13 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
                                  kv_seq_len, // 全量阶段
                                  g_llamaEncoderLayerParallelOp->layerIdTensor_,
                                  inputs);
-  auto data_type = static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype();
-  std::shared_ptr<phi::DenseTensor> layerout_tensor = std::make_shared<phi::DenseTensor>();
-  layerout_tensor->Resize(phi::make_ddim(hidden.shape()));
-  dev_ctx->Alloc(layerout_tensor.get(), data_type);
-
-  std::vector<const phi::DenseTensor *> outputs;
-  outputs.push_back(layerout_tensor.get());
+  std::vector<const phi::DenseTensor *> outputs = {g_llamaEncoderLayerParallelOp->output_.get()};
 
   g_llamaEncoderLayerParallelOp->Execute(stream, inputs, outputs);
 
   executeCount++;
 
-  return {paddle::Tensor(layerout_tensor), cache_key_value};
+  return {paddle::Tensor(g_llamaEncoderLayerParallelOp->output_), cache_key_value};
 }
 
 std::vector<std::vector<int64_t>> LlamaEncoderLayerOpInferShape(

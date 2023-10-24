@@ -22,20 +22,87 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "runtime/CNRTEvent.h"
+#include "runtime/flags.h"
 
-namespace {
+FLAGS_DEFINE_bool(mlu_reuse_event, true, "reuse_event");
+FLAGS_DEFINE_bool(mlu_runtime_debug, false, "runtime debug log");
 
-inline size_t get_devices_count() {
-  uint32_t count = 0;
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDeviceCount(&count));
-  return static_cast<size_t>(count);
-}
+class EventPool {
+ public:
+  using Event = std::unique_ptr<CNRTEvent, std::function<void(CNRTEvent *)>>;
 
-}  // namespace
+  EventPool() : pools_(get_devices_count()) {}
+
+  Event get(int dev_idx) {
+    PADDLE_ENFORCE_EQ(
+        0 <= dev_idx,
+        true,
+        phi::errors::InvalidArgument("dev_idx should be large than 0."));
+    PADDLE_ENFORCE_EQ(dev_idx < pools_.size(),
+                      true,
+                      phi::errors::InvalidArgument(
+                          "dev_idx should be less than pools' size."));
+    auto &pool = pools_[dev_idx];
+    auto destructor = [&pool](CNRTEvent *event) {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      pool.event_pool_.push_back(std::unique_ptr<CNRTEvent>(event));
+    };
+
+    // Try to acquire an event from the per-device pool.
+    {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      if (!pool.event_pool_.empty()) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[EventPool::get] get event from pool.";
+
+        auto *event = pool.event_pool_.back().release();
+        pool.event_pool_.pop_back();
+        return Event(event, destructor);
+      }
+    }
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+        << "[EventPool::get] create new event.";
+
+    // otherwise, allocate a new event that will be returned to the pool on
+    // desctruction.
+    return Event(
+        std::make_unique<CNRTEvent>(CNRT_NOTIFIER_DISABLE_TIMING_ALL, dev_idx)
+            .release(),
+        destructor);
+  }
+
+  void empty_cache() {
+    for (auto &pool : pools_) {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      pool.event_pool_.clear();
+    }
+  }
+
+ private:
+  struct PerDevicePool {
+    alignas(64) std::mutex mutex_;
+    std::vector<std::unique_ptr<CNRTEvent>> event_pool_{};
+  };
+  std::vector<PerDevicePool> pools_{};
+} g_event_pool;
+
+static std::vector<std::vector<EventPool::Event>> hold_event_vecs(
+    get_devices_count());
 
 // Device
 C_Status Init() {
   size_t dev_cnt = get_devices_count();
+  return C_SUCCESS;
+}
+
+C_Status Finalize() {
+  for (auto iter = hold_event_vecs.begin(); iter != hold_event_vecs.end();
+       iter++) {
+    iter->clear();
+  }
+  hold_event_vecs.clear();
+  g_event_pool.empty_cache();
   return C_SUCCESS;
 }
 
@@ -234,39 +301,155 @@ C_Status AddCallback(const C_Device device,
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueWaitNotifier(
-      reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream), 0));
-  return C_SUCCESS;
+  auto use_stream = GetQueue(stream);
+  if (FLAGS_mlu_reuse_event) {
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == reinterpret_cast<cnrtNotifier_t>(event)) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[StreamWaitEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: "
+            << reinterpret_cast<cnrtNotifier_t>(event)
+            << ". Blocking by stream: " << use_stream;
+        (*iter)->block(use_stream);
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueWaitNotifier(
+        reinterpret_cast<cnrtNotifier_t>(event), use_stream, 0));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
 }
 
 // Event
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtNotifierCreate(reinterpret_cast<cnrtNotifier_t *>(event)));
+  if (FLAGS_mlu_reuse_event) {
+    // Get CNRTEvent from event-pool and the ownership will be transfered
+    // to hold_event_vecs (, whose lifecycle is managed by customdevice).
+    // In upper-layer of the framework, we use cnrtNotifier_t that managed by
+    // CNRTEvent.
+    hold_event_vecs[device->id].push_back(
+        std::move(g_event_pool.get(device->id)));
+    *event =
+        reinterpret_cast<C_Event>(hold_event_vecs[device->id].back()->event());
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+        << "[CreateEvent] created event: "
+        << reinterpret_cast<cnrtNotifier_t>(*event)
+        << ". Pushed-back hold_vec size: "
+        << hold_event_vecs[device->id].size();
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtNotifierCreate(reinterpret_cast<cnrtNotifier_t *>(event)));
+  }
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtNotifierDestroy(reinterpret_cast<cnrtNotifier_t>(event)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    // The CNRTEvent will be deleted from hold_event_vecs if whoes
+    // cnrtNotifier_t member matches with that passed in, and the ownership will
+    // be transfered to the event-pool.
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();) {
+      if ((*iter)->isCreated() &&
+          (*iter)->event() == reinterpret_cast<cnrtNotifier_t>(event)) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[DestroyEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: "
+            << reinterpret_cast<cnrtNotifier_t>(event)
+            << ", will be released and moved back.";
+        iter = hold_event_vecs[device->id].erase(iter);
+        return C_SUCCESS;
+      } else {
+        ++iter;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtNotifierDestroy(reinterpret_cast<cnrtNotifier_t>(event)));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtPlaceNotifier(
-      reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug) << "[RecordEvent] hold_vec size: "
+                                          << hold_event_vecs[device->id].size();
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+
+      if ((*iter)->isCreated() && (*iter)->event() == in_event) {
+        (*iter)->record(static_cast<int>(device->id), GetQueue(stream));
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[RecordEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event
+            << ". Recorded on: " << GetQueue(stream);
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtPlaceNotifier(
+        reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream)));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
 }
 
 C_Status QueryEvent(const C_Device device, C_Event event) {
-  auto ret_status = cnrtQueryNotifier(reinterpret_cast<cnrtNotifier_t>(event));
-  return ret_status == cnrtRet_t::cnrtSuccess ? C_SUCCESS : C_FAILED;
+  if (FLAGS_mlu_reuse_event) {
+    bool query_status = false;
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == in_event) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[QueryEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event << ". Queried.";
+        query_status = (*iter)->query();
+      }
+    }
+    return query_status ? C_SUCCESS : C_FAILED;
+  } else {
+    auto ret_status =
+        cnrtQueryNotifier(reinterpret_cast<cnrtNotifier_t>(event));
+    return ret_status == cnrtRet_t::cnrtSuccess ? C_SUCCESS : C_FAILED;
+  }
 }
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == in_event) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[SyncEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event << ". Synchronized.";
+        (*iter)->synchronize();
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
+    return C_SUCCESS;
+  }
+  return C_FAILED;
 }
 
 // CNCL
@@ -615,6 +798,7 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   // device
   params->interface->initialize = Init;
+  params->interface->finalize = Finalize;
   params->interface->init_device = InitDevice;
   params->interface->set_device = SetDevice;
   params->interface->get_device = GetDevice;

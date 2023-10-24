@@ -103,6 +103,12 @@ inline std::string build_mlu_error_msg(cnclResult_t e) {
     }                                                   \
   } while (0)
 
+inline size_t get_devices_count() {
+  uint32_t count = 0;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDeviceCount(&count));
+  return static_cast<size_t>(count);
+}
+
 struct mluStream {
   cnnlHandle_t handle;
   mluOpHandle_t op_handle;

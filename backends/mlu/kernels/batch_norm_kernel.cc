@@ -78,7 +78,7 @@ void BatchNormKernel(const Context& dev_ctx,
   } else {
     new_bias.Resize({C});
     dev_ctx.template Alloc<T>(&new_bias);
-    FillNpuTensorWithConstant<T>(dev_ctx, static_cast<T>(0), &new_bias);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), &new_bias);
   }
 
   // alloc memory
@@ -231,7 +231,7 @@ void BatchNormGradKernel(
   } else {
     new_bias.Resize({C});
     dev_ctx.template Alloc<T>(&new_bias);
-    FillNpuTensorWithConstant<T>(dev_ctx, static_cast<T>(0), &new_bias);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), &new_bias);
   }
 
   Tensor d_x_tmp;

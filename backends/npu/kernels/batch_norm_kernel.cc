@@ -17,32 +17,6 @@
 
 namespace custom_kernel {
 
-inline void ExtractNCWHD(const phi::DDim& dims,
-                         const phi::DataLayout& data_layout,
-                         int* N,
-                         int* C,
-                         int* H,
-                         int* W,
-                         int* D) {
-  *N = dims[0];
-  if (dims.size() == 2) {
-    *C = dims[1];
-    *H = 1;
-    *W = 1;
-    *D = 1;
-  } else {
-    *C =
-        data_layout == phi::DataLayout::kNCHW ? dims[1] : dims[dims.size() - 1];
-    *H = data_layout == phi::DataLayout::kNCHW ? dims[2] : dims[1];
-    *W = dims.size() > 3
-             ? (data_layout == phi::DataLayout::kNCHW ? dims[3] : dims[2])
-             : 1;
-    *D = dims.size() > 4
-             ? (data_layout == phi::DataLayout::kNCHW ? dims[4] : dims[3])
-             : 1;
-  }
-}
-
 template <typename T, typename Context>
 void BatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,

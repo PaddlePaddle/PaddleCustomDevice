@@ -22,8 +22,8 @@ void BatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& running_mean,
                      const phi::DenseTensor& running_var,
-                     const phi::DenseTensor& scale,
-                     const phi::DenseTensor& bias,
+                     const paddle::optional<phi::DenseTensor>& scale,
+                     const paddle::optional<phi::DenseTensor>& bias,
                      bool is_test,
                      float momentum,
                      float epsilon,
@@ -36,6 +36,13 @@ void BatchNormKernel(const Context& dev_ctx,
                      phi::DenseTensor* saved_mean,
                      phi::DenseTensor* saved_variance,
                      phi::DenseTensor* reserve_space) {
+  PADDLE_ENFORCE_EQ(data_layout_str == "NCHW" || data_layout_str == "NHWC",
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The 'data_layout' attribute must be NCHW or NHWC. "
+                        "But recevived 'data_layout' is [%s].",
+                        data_layout_str));
+
   const auto& x_dims = x.dims();
   const bool channel_last = data_layout_str == "NHWC" && x_dims.size() > 2;
 
@@ -49,6 +56,34 @@ void BatchNormKernel(const Context& dev_ctx,
           "FLAGS_npu_storage_format=0' in your environment.",
           data_layout_str,
           FLAGS_npu_storage_format));
+
+  auto* Scale = scale.get_ptr();
+  auto* Bias = bias.get_ptr();
+
+  phi::DenseTensor new_scale, new_bias;
+  const auto data_layout = phi::StringToDataLayout(data_layout_str);
+
+  int C;
+  if (x_dims.size() == 2) {
+    C = x_dims[1];
+  } else {
+    C = data_layout == phi::DataLayout::kNCHW ? x_dims[1]
+                                              : x_dims[x_dims.size() - 1];
+  }
+
+  if (Scale) {
+    new_scale = scale.get();
+  } else {
+    new_scale.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_scale, dev_ctx, static_cast<T>(1));
+  }
+
+  if (Bias) {
+    new_bias = bias.get();
+  } else {
+    new_bias.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_bias, dev_ctx, static_cast<T>(0));
+  }
 
   if (FLAGS_npu_storage_format &&
       x_dims.size() == 4) {  // TODO(qili93): add 3D support
@@ -107,7 +142,7 @@ void BatchNormKernel(const Context& dev_ctx,
   if (!training) {
     const auto& runner_infer =
         NpuOpRunner("BNInfer",
-                    {x_tensor, scale, bias, running_mean, running_var},
+                    {x_tensor, new_scale, new_bias, running_mean, running_var},
                     {y_tensor},
                     {{"epsilon", epsilon}});
     runner_infer.Run(stream);
@@ -179,8 +214,8 @@ void BatchNormKernel(const Context& dev_ctx,
         .AddInput(x_tensor)
         .AddInput(sum)
         .AddInput(square_sum)
-        .AddInput(scale)
-        .AddInput(bias)
+        .AddInput(new_scale)
+        .AddInput(new_bias)
         .AddInput(running_mean)
         .AddInput(running_var)
         .AddOutput(y_tensor)
@@ -238,8 +273,8 @@ template <typename T, typename Context>
 void BatchNormGradKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& x,
-    const phi::DenseTensor& scale,
-    const phi::DenseTensor& bias,
+    const paddle::optional<phi::DenseTensor>& scale,
+    const paddle::optional<phi::DenseTensor>& bias,
     const paddle::optional<phi::DenseTensor>& mean,
     const paddle::optional<phi::DenseTensor>& variance,
     const phi::DenseTensor& saved_mean,
@@ -268,6 +303,34 @@ void BatchNormGradKernel(
           "FLAGS_npu_storage_format=0' in your environment.",
           data_layout_str,
           FLAGS_npu_storage_format));
+
+  auto* Scale = scale.get_ptr();
+  auto* Bias = bias.get_ptr();
+
+  phi::DenseTensor new_scale, new_bias;
+  const auto data_layout = phi::StringToDataLayout(data_layout_str);
+
+  int C;
+  if (x_dims.size() == 2) {
+    C = x_dims[1];
+  } else {
+    C = data_layout == phi::DataLayout::kNCHW ? x_dims[1]
+                                              : x_dims[x_dims.size() - 1];
+  }
+
+  if (Scale) {
+    new_scale = scale.get();
+  } else {
+    new_scale.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_scale, dev_ctx, static_cast<T>(1));
+  }
+
+  if (Bias) {
+    new_bias = bias.get();
+  } else {
+    new_bias.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_bias, dev_ctx, static_cast<T>(0));
+  }
 
   use_global_stats = is_test || use_global_stats;
 
@@ -312,8 +375,8 @@ void BatchNormGradKernel(
   }
 
   phi::DenseTensor scale_grad_tmp, bias_grad_tmp;
-  scale_grad_tmp.Resize(scale.dims());
-  bias_grad_tmp.Resize(bias.dims());
+  scale_grad_tmp.Resize(new_scale.dims());
+  bias_grad_tmp.Resize(new_bias.dims());
   dev_ctx.template Alloc<float>(&scale_grad_tmp);
   dev_ctx.template Alloc<float>(&bias_grad_tmp);
 
@@ -403,7 +466,7 @@ void BatchNormGradKernel(
                                              x_tensor,
                                              *d_scale,
                                              *d_bias,
-                                             scale,
+                                             new_scale,
                                              *running_mean,
                                              *running_vstd},
                                             {dx_tensor},

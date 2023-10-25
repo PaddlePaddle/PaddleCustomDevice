@@ -110,3 +110,53 @@ def remove_get_token_penalty_multi_scores():
     def replace(pre_ids, logits, penalty_scores, frequency_scores, presence_scores, cur_len, min_len, eos_token_id):
         return logits
     return pattern, replace
+
+@ir.RegisterPass
+def save_with_output_delay_pass_1st():
+    def pattern(topk_ids, batch_idx, step_idx):    
+        save_with_output = ir.PassDesc.OP.save_with_output(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx)
+        
+        scale = ir.PassDesc.OP.scale(X=step_idx)
+        
+        return save_with_output, scale
+
+    def replace(topk_ids, batch_idx, step_idx):
+       
+        # save_with_output = ir.PassDesc.OP.save_with_output(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx)
+        save_with_output = ir.PassDesc.OP.save_with_output_delay(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx, no_use=step_idx)
+        save_with_output.Attr("file_path").MappedPattern(op="save_with_output", name="file_path", index=0)
+        save_with_output.Attr("rank_id").MappedPattern(op="save_with_output", name="rank_id", index=0)
+        save_with_output_0 = save_with_output.Output("out")[0]
+        save_with_output_1 = save_with_output.Output("no_use_out")[0]
+        
+        return save_with_output_0, save_with_output_1
+
+    return pattern, replace
+
+@ir.RegisterPass
+def save_with_output_delay_pass_2nd():
+    def pattern(topk_ids, batch_idx, step_idx, less_x, less_y):    
+        save_with_output = ir.PassDesc.OP.save_with_output(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx)
+
+        less_than = ir.PassDesc.OP.less_than(X=less_x, Y=less_y)
+        assign = ir.PassDesc.OP.assign(X=less_than)
+        
+        return save_with_output, assign
+
+    def replace(topk_ids, batch_idx, step_idx, less_x, less_y):
+        less_than = ir.PassDesc.OP.less_than(X=less_x, Y=less_y)
+        less_than.Attr("axis").MappedPattern(op="less_than", name="axis", index=0)
+        less_than.Attr("force_cpu").MappedPattern(op="less_than", name="force_cpu", index=0)
+        
+        assign = ir.PassDesc.OP.assign(X=less_than)
+        
+        # save_with_output = ir.PassDesc.OP.save_with_output(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx)
+        save_with_output = ir.PassDesc.OP.save_with_output_delay(x=topk_ids, batch_idx=batch_idx, step_idx=step_idx, no_use=assign)
+        save_with_output.Attr("file_path").MappedPattern(op="save_with_output", name="file_path", index=0)
+        save_with_output.Attr("rank_id").MappedPattern(op="save_with_output", name="rank_id", index=0)
+        save_with_output_0 = save_with_output.Output("out")[0]
+        save_with_output_1 = save_with_output.Output("no_use_out")[0]
+        
+        return save_with_output_0, save_with_output_1
+
+    return pattern, replace

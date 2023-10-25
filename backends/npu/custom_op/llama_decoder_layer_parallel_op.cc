@@ -255,13 +255,13 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     std::vector<int32_t> layer_id_vec(1, 0);
     custom_kernel::TensorFromVector(*dev_ctx, layer_id_vec,
                                     *dev_ctx, &(g_llamaDecoderLayerParallelOp->layerIdTensor_));
-    g_llamaDecoderLayerParallelOp->output_ = std::make_shared<phi::DenseTensor>();
-    g_llamaDecoderLayerParallelOp->output_->Resize(phi::make_ddim(hidden.shape()));
-    dev_ctx->Alloc(g_llamaDecoderLayerParallelOp->output_.get(),
-        static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());
   }
 
   if (executeCount % layer_num == 0) { // 每个token第一次进layer，更新stop flag
+    g_llamaDecoderLayerParallelOp->output_ = std::make_shared<phi::DenseTensor>();
+    g_llamaDecoderLayerParallelOp->output_->Resize(phi::make_ddim(hidden.shape()));
+    dev_ctx->Alloc(g_llamaDecoderLayerParallelOp->output_.get(),
+        static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());  
     g_llamaDecoderLayerParallelOp->UpdateInputTensorAndParam(kv_seq_len);
   }
 

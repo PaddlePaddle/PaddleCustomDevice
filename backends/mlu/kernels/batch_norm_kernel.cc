@@ -22,8 +22,8 @@ void BatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& running_mean,
                      const phi::DenseTensor& running_var,
-                     const phi::DenseTensor& scale,
-                     const phi::DenseTensor& bias,
+                     const paddle::optional<phi::DenseTensor>& scale,
+                     const paddle::optional<phi::DenseTensor>& bias,
                      bool is_test,
                      float momentum,
                      float epsilon,
@@ -61,6 +61,26 @@ void BatchNormKernel(const Context& dev_ctx,
                                                   : x_dims[x_dims.size() - 1]);
   const int sample_size = x.numel() / N / C;
 
+  auto* Scale = scale.get_ptr();
+  auto* Bias = bias.get_ptr();
+
+  phi::DenseTensor new_scale, new_bias;
+  if (Scale) {
+    new_scale = scale.get();
+  } else {
+    new_scale.Resize({C});
+    dev_ctx.template Alloc<T>(&new_scale);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(1), &new_scale);
+  }
+
+  if (Bias) {
+    new_bias = bias.get();
+  } else {
+    new_bias.Resize({C});
+    dev_ctx.template Alloc<T>(&new_bias);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), &new_bias);
+  }
+
   // alloc memory
   dev_ctx.template Alloc<T>(y);
 
@@ -78,7 +98,7 @@ void BatchNormKernel(const Context& dev_ctx,
                                      transformed_shape,
                                      ToCnnlDataType<T>(),
                                      CNNL_LAYOUT_NHWC);
-  MLUCnnlTensorDesc others_input_desc(scale);
+  MLUCnnlTensorDesc others_input_desc(new_scale);
   // input dimension is 2 and the format is NCHW. The input can be regarded as
   // NHWC format. Don't need to transpose.
   bool need_transpose =
@@ -123,8 +143,8 @@ void BatchNormKernel(const Context& dev_ctx,
                           transformed_desc.get(),
                           GetBasePtr(&transformed_x),
                           others_input_desc.get(),
-                          GetBasePtr(&scale),
-                          GetBasePtr(&bias),
+                          GetBasePtr(&new_scale),
+                          GetBasePtr(&new_bias),
                           GetBasePtr(&running_mean),
                           GetBasePtr(&running_var),
                           epsilon,
@@ -155,8 +175,8 @@ template <typename T, typename Context>
 void BatchNormGradKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& x,
-    const phi::DenseTensor& scale,
-    const phi::DenseTensor& bias,
+    const paddle::optional<phi::DenseTensor>& scale,
+    const paddle::optional<phi::DenseTensor>& bias,
     const paddle::optional<phi::DenseTensor>& mean,
     const paddle::optional<phi::DenseTensor>& variance,
     const phi::DenseTensor& saved_mean,
@@ -172,31 +192,6 @@ void BatchNormGradKernel(
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
-  DataLayout data_layout = StringToDataLayout(data_layout_str);
-
-  Tensor d_x_tmp;
-  if (d_x == nullptr) {
-    d_x = &d_x_tmp;
-    d_x->Resize(x.dims());
-  }
-  Tensor scale_grad_tmp;
-  if (d_scale == nullptr) {
-    d_scale = &scale_grad_tmp;
-    d_scale->Resize(scale.dims());
-  }
-  Tensor bias_grad_tmp;
-  if (d_bias == nullptr) {
-    d_bias = &bias_grad_tmp;
-    d_bias->Resize(bias.dims());
-  }
-
-  dev_ctx.template Alloc<T>(d_x);
-  using MPDType = typename MPTypeTrait<T>::Type;
-  dev_ctx.template Alloc<MPDType>(d_scale);
-  dev_ctx.template Alloc<MPDType>(d_bias);
-
-  use_global_stats = is_test || use_global_stats;
-
   const auto& x_dims = x.dims();
   PADDLE_ENFORCE_GE(
       x_dims.size(),
@@ -212,10 +207,55 @@ void BatchNormGradKernel(
           "The size of input X's dimensions should be less than 6."
           "But received: the size of input X's dimensions is [%d]",
           x_dims.size()));
+
+  DataLayout data_layout = StringToDataLayout(data_layout_str);
   const int N = x_dims[0];
   const int C = (data_layout == DataLayout::kNCHW ? x_dims[1]
                                                   : x_dims[x_dims.size() - 1]);
   const int sample_size = x.numel() / N / C;
+
+  auto* Scale = scale.get_ptr();
+  auto* Bias = bias.get_ptr();
+
+  phi::DenseTensor new_scale, new_bias;
+  if (Scale) {
+    new_scale = scale.get();
+  } else {
+    new_scale.Resize({C});
+    dev_ctx.template Alloc<T>(&new_scale);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(1), &new_scale);
+  }
+
+  if (Bias) {
+    new_bias = bias.get();
+  } else {
+    new_bias.Resize({C});
+    dev_ctx.template Alloc<T>(&new_bias);
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), &new_bias);
+  }
+
+  Tensor d_x_tmp;
+  if (d_x == nullptr) {
+    d_x = &d_x_tmp;
+    d_x->Resize(x.dims());
+  }
+  Tensor scale_grad_tmp;
+  if (d_scale == nullptr) {
+    d_scale = &scale_grad_tmp;
+    d_scale->Resize(new_scale.dims());
+  }
+  Tensor bias_grad_tmp;
+  if (d_bias == nullptr) {
+    d_bias = &bias_grad_tmp;
+    d_bias->Resize(new_bias.dims());
+  }
+
+  dev_ctx.template Alloc<T>(d_x);
+  using MPDType = typename MPTypeTrait<T>::Type;
+  dev_ctx.template Alloc<MPDType>(d_scale);
+  dev_ctx.template Alloc<MPDType>(d_bias);
+
+  use_global_stats = is_test || use_global_stats;
 
   Tensor transformed_d_y;
   Tensor transformed_x;
@@ -227,7 +267,7 @@ void BatchNormGradKernel(
                                      transformed_shape,
                                      ToCnnlDataType<T>(),
                                      CNNL_LAYOUT_NHWC);
-  MLUCnnlTensorDesc others_input_desc(scale);
+  MLUCnnlTensorDesc others_input_desc(new_scale);
 
   bool need_transpose =
       (data_layout == DataLayout::kNCHW && x_dims.size() != 2);
@@ -286,7 +326,7 @@ void BatchNormGradKernel(
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_x),
                                 others_input_desc.get(),
-                                GetBasePtr(&scale),
+                                GetBasePtr(&new_scale),
                                 GetBasePtr(running_mean),
                                 GetBasePtr(running_variance),
                                 epsilon,
@@ -305,7 +345,7 @@ void BatchNormGradKernel(
                                 transformed_desc.get(),
                                 GetBasePtr(&transformed_x),
                                 others_input_desc.get(),
-                                GetBasePtr(&scale),
+                                GetBasePtr(&new_scale),
                                 GetBasePtr(&saved_mean),
                                 GetBasePtr(&saved_inv_variance),
                                 epsilon,

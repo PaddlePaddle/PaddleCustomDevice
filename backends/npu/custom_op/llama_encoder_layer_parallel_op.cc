@@ -46,9 +46,9 @@ void PerpareLlamaEncoderLayerInputs(
   auto hidden_tensor = static_cast<const phi::DenseTensor *>(hidden.impl().get());
   auto norm_weight_tensor = static_cast<const phi::DenseTensor *>(norm_weight.impl().get());
   auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
-  auto self_out_linear_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_weight.impl().get());
+  auto self_out_linear_weight_tensor = static_cast<phi::DenseTensor *>(self_out_linear_weight.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
-  auto mlp_gate_up_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_gate_up_weight.impl().get());
+  auto mlp_down_weight_tensor = static_cast<phi::DenseTensor *>(mlp_down_weight.impl().get());
   auto mlp_down_weight_tensor = static_cast<const phi::DenseTensor *>(mlp_down_weight.impl().get());
   auto positionIDs_tensor = static_cast<const phi::DenseTensor *>(positionIDs.impl().get());
   auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
@@ -57,6 +57,10 @@ void PerpareLlamaEncoderLayerInputs(
   auto cache_key_value_tensor2 = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto kv_seq_len_tensor = static_cast<const phi::DenseTensor *>(kv_seq_len.impl().get());
   auto q_seq_len_tensor = static_cast<const phi::DenseTensor *>(q_seq_len.impl().get());
+
+  self_out_linear_weight_tensor->Resize({self_out_linear_weight_tensor->dims()[1], self_out_linear_weight_tensor->dims()[0]});
+  mlp_gate_up_weight_tensor->Resize({mlp_gate_up_weight_tensor->dims()[1], mlp_gate_up_weight_tensor->dims()[0]});
+  mlp_down_weight_tensor->Resize({mlp_down_weight_tensor->dims()[1], mlp_down_weight_tensor->dims()[0]});
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);

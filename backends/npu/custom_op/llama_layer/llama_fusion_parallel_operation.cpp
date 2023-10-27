@@ -240,7 +240,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
 
     // [1, 1, 512] * [512, 4096] -> [1, 1, 4096]
     atb::infer::LinearParallelParam selfOutLinearParallelParam;
-    selfOutLinearParallelParam.transWeight = param.transpose;
+    selfOutLinearParallelParam.transWeight = false;
     selfOutLinearParallelParam.rank = param.rank;
     selfOutLinearParallelParam.rankSize = param.rankSize;
     selfOutLinearParallelParam.rankRoot = 0;
@@ -273,13 +273,13 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfNormNode.outTensorIds = {INTERMIDATE_SELFNORMOUT};
 
     LlamaMlpParam llamaMlpParam;
-    llamaMlpParam.transpose = false;
+    llamaMlpParam.transpose = true;
     CreateLlamaMlpOperation(llamaMlpParam, &mlpNode.operation);
     mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_MLPGATEUPWEIGHT};
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT};
 
     atb::infer::LinearParallelParam mlpLinearParallelParam;
-    mlpLinearParallelParam.transWeight = param.transpose;
+    mlpLinearParallelParam.transWeight = false;
     mlpLinearParallelParam.rank = param.rank;
     mlpLinearParallelParam.rankSize = param.rankSize;
     mlpLinearParallelParam.rankRoot = 0;

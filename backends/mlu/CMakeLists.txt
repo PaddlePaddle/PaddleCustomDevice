@@ -25,7 +25,7 @@ message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
 message(STATUS "AR tools: ${CMAKE_AR}")
 
 # custom runtime
-set(CUSTOM_MLU_SRCS runtime/runtime.cc)
+set(CUSTOM_MLU_SRCS runtime/runtime.cc runtime/CNRTEvent.h)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 # TODO(qiil93): avoid compile error, to be removed
 add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)

@@ -23,9 +23,9 @@
 
 std::shared_ptr<PpAscendAtbOpBase> g_toppSamplingOp;
 
-std::vector<paddle::Tensor> AtbTopPSamplingOp(const paddle::Tensor& top_ps,
-                                              const paddle::Tensor& x,
-                                              int random_seed) {
+std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor& x,
+                                         const paddle::Tensor& top_ps,
+                                         int random_seed) {
   // TODO:当前版本不支设置参数random_seed，不支持返回probs
   auto dev_ctx = static_cast<const phi::CustomContext *>(
       paddle::experimental::DeviceContextPool::Instance().Get(x.place()));
@@ -63,23 +63,27 @@ std::vector<paddle::Tensor> AtbTopPSamplingOp(const paddle::Tensor& top_ps,
 
   g_toppSamplingOp->Execute(stream, inputs, outputs);
 
-  return {paddle::Tensor(out_ids_tensor), paddle::Tensor(out_probs_tensor)};
+  return {paddle::Tensor(out_probs_tensor), paddle::Tensor(out_ids_tensor)};
 }
 
-std::vector<std::vector<int64_t>> AtbTopPSamplingOpInferShape(
-    const std::vector<int64_t> &top_ps_shape,
-    const std::vector<int64_t> &x_shape) {
-
-    std::vector<int64_t> out_probs_shape = {x_shape[0], 1};
+std::vector<std::vector<int64_t>> TopPSamplingInferShape(const std::vector<int64_t>& x_shape,
+                                                         const std::vector<int64_t>& top_ps_shape) {
+    std::vector<int64_t> out_probs_shape = {x_shape[0], 1};                                                          
     std::vector<int64_t> out_ids_shape = {x_shape[0], 1};
-    return {out_ids_shape, out_probs_shape};
+    return {out_probs_shape, out_ids_shape};
 }
+
+std::vector<paddle::DataType> TopPSamplingInferDtype(const paddle::DataType& x_dtype,
+                                                     const paddle::DataType& top_ps_dtype) {
+    return {x_dtype, paddle::DataType::INT64};
+}
+
 
 PD_BUILD_OP(top_p_sampling)
-    .Inputs({"top_ps", "x"})
-    .Outputs({"topp_ids", "topp_probs"})
+    .Inputs({"x", "top_ps"})
+    .Outputs({"topp_probs", "topp_ids"})
     .Attrs({"random_seed: int"})
-    .SetKernelFn(PD_KERNEL(AtbTopPSamplingOp))
-    .SetInferShapeFn(PD_INFER_SHAPE(
-        AtbTopPSamplingOpInferShape)); // neccessary if the op has muti_inputs
+    .SetKernelFn(PD_KERNEL(TopPSampling))
+    .SetInferShapeFn(PD_INFER_SHAPE(TopPSamplingInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(TopPSamplingInferDtype));
 #endif

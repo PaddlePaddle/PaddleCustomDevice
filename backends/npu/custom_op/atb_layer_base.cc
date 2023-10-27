@@ -42,12 +42,12 @@ void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size)
     return;
   }
 
-  if (workspace_) {
-    aclrtFree(workspace_);
-    workspace_ = nullptr;
+  if (g_workspace) {
+    aclrtFree(g_workspace);
+    g_workspace = nullptr;
     workspaceSize_ = 0;
   }
-  int st = aclrtMalloc((void **)&workspace_, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
+  int st = aclrtMalloc((void **)&g_workspace, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
   PADDLE_ENFORCE_EQ(st,
                     0,
                     phi::errors::External("LayerOperation %s SetWorkspace MemMallocDevice,"
@@ -75,11 +75,11 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                     phi::errors::External("Atb Layer %s Op Setup failed,"
                                           "ret message: %d .", opName_, st));
 
-  if (workspace_size > 0) {
+  if (workspace_size > 0 && g_workspace==nullptr) {
     SetWorkspace(workspace_size);
   }
 
-  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, context_);
+  st = operation_->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
 
   return st;
 }

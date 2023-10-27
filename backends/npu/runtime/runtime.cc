@@ -567,7 +567,7 @@ atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_
     SetWorkspace(workspace_size);
   }
 
-  st = operation_->Execute(variantPacks_, (uint8_t *)workspace_, workspace_size, context_);
+  st = operation_->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
 
   return st;
 }

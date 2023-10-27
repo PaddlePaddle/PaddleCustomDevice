@@ -19,6 +19,8 @@
 #include "paddle/extension.h"
 #include "atb/context.h"
 
+static void* g_workspace = nullptr;
+
 class PpAscendAtbOpBase {
 public:
   PpAscendAtbOpBase(const std::string &opName);
@@ -37,7 +39,6 @@ protected:
   atb::VariantPack variantPacks_;
   aclrtStream stream_;
   atb::Context *context_ = nullptr;
-  void *workspace_ = nullptr;
   void SetWorkspace(uint64_t workspace_size);
 
 private:

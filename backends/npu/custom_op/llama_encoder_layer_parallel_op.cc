@@ -224,7 +224,6 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
   }
 
   if (executeCount % layer_num == 0) {
-    g_llamaEncoderLayerParallelOp->output_ = std::make_shared<phi::DenseTensor>();
     g_llamaEncoderLayerParallelOp->output_->Resize(phi::make_ddim(hidden.shape()));
     dev_ctx->Alloc(g_llamaEncoderLayerParallelOp->output_.get(), 
         static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());    

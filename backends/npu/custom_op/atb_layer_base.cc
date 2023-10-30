@@ -16,6 +16,8 @@
 #include "atb_layer_base.h"
 #include "kernels/funcs/format_utils.h"
 
+std::shared_ptr<phi::DenseTensor> PpAscendAtbOpBase::output_ = std::make_shared<phi::DenseTensor>();
+
 void PpAscendAtbOpBase::BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                                               std::vector<const phi::DenseTensor *> &outTensors)
 {

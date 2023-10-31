@@ -64,10 +64,7 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(const paddle::Tensor &hidden,
                                                                 matmul_weight.shape(),
                                                                 rmsNormEps,
                                                                 transpose).at(0);
-
-  std::shared_ptr<phi::DenseTensor> layerout_tensor = std::make_shared<phi::DenseTensor>();
-  layerout_tensor->Resize(phi::make_ddim(layerout_shape));
-  dev_ctx->Alloc(layerout_tensor.get(), data_type);
+  g_llamaLmheadOp->output_->Resize(phi::make_ddim(layerout_shape));
 
   std::vector<const phi::DenseTensor *> inputs;
   inputs.push_back(static_cast<const phi::DenseTensor *>(hidden.impl().get()));
@@ -75,7 +72,7 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(const paddle::Tensor &hidden,
   inputs.push_back(static_cast<const phi::DenseTensor *>(matmul_weight.impl().get()));
 
   std::vector<const phi::DenseTensor *> outputs;
-  outputs.push_back(layerout_tensor.get());
+  outputs.push_back(g_llamaLmheadOp->output_.get());
 
   if (!g_llamaLmheadOp) {
     g_llamaLmheadOp.reset(new PpAscendAtbOpBase("LlamaLmHeadOp"));
@@ -89,7 +86,7 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(const paddle::Tensor &hidden,
 
   g_llamaLmheadOp->Execute(stream, inputs, outputs);
 
-  return {paddle::Tensor(layerout_tensor)};
+  return {paddle::Tensor(g_llamaLmheadOp->output_)};
 }
 
 PD_BUILD_OP(llama_lmhead)

@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ArangeKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& start_t,
-                  const phi::DenseTensor& end_t,
-                  const phi::DenseTensor& step_t,
-                  phi::DenseTensor* out) {
+void ArangeTensorKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& start_t,
+                        const phi::DenseTensor& end_t,
+                        const phi::DenseTensor& step_t,
+                        phi::DenseTensor* out) {
   phi::DenseTensor n;
   n.Resize(start_t.dims());
   T* n_data = dev_ctx.template HostAlloc<T>(&n);
@@ -53,12 +53,38 @@ void ArangeKernel(const Context& dev_ctx,
   dev_ctx.Wait();
 }
 
+template <typename T, typename Context>
+void ArangeKernel(const Context& dev_ctx,
+                  const phi::Scalar& start,
+                  const phi::Scalar& end,
+                  const phi::Scalar& step,
+                  phi::DenseTensor* out) {
+  T start_value = start.to<T>();
+  T end_value = end.to<T>();
+  T step_value = step.to<T>();
+
+  int64_t size = 0;
+  GetSize(start_value, end_value, step_value, &size);
+
+  out->Resize(phi::make_ddim({size}));
+  dev_ctx.template Alloc<T>(out);
+
+  std::vector<T> odata;
+  T value = start_value;
+  for (int64_t i = 0; i < size; ++i) {
+    odata.push_back(value);
+    value += step_value;
+  }
+
+  TensorFromVector(dev_ctx, odata, dev_ctx, out);
+}
+
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(arange,
+PD_REGISTER_PLUGIN_KERNEL(arange_tensor,
                           mlu,
                           ALL_LAYOUT,
-                          custom_kernel::ArangeKernel,
+                          custom_kernel::ArangeTensorKernel,
                           int,
                           int64_t,
                           float,
@@ -67,3 +93,12 @@ PD_REGISTER_PLUGIN_KERNEL(arange,
   kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
 }
+
+PD_REGISTER_PLUGIN_KERNEL(arange,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::ArangeKernel,
+                          int,
+                          int64_t,
+                          float,
+                          double) {}

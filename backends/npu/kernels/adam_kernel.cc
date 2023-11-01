@@ -114,7 +114,8 @@ void AdamImplKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<MPDType>(master_param_out);
     phi::DenseTensor master_param_t;
     auto tmp_master_param = master_param.get();
-    if (tmp_master_param.dtype() == phi::DataType::FLOAT64) {
+    if (tmp_master_param.dtype() == phi::DataType::FLOAT64 ||
+        tmp_master_param.dtype() == phi::DataType::FLOAT32) {
       phi::DenseTensorMeta master_param_meta = {phi::DataType::FLOAT32,
                                                 tmp_master_param.dims(),
                                                 tmp_master_param.layout()};

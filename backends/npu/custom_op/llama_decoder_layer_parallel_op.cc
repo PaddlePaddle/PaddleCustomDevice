@@ -246,7 +246,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
                                            2,
                                            true,
                                            nullptr,
-                                           false}; // enable dynamic batch
+                                           true}; // enable dynamic batch
     LlamaLayerFusionParallelOperation(param, &op);
     g_llamaDecoderLayerParallelOp->operation_.reset(op);
 

@@ -36,12 +36,13 @@ ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LI
 RUN mv /usr/bin/c++ /usr/bin/c++.bak
 RUN update-alternatives --install /usr/bin/c++ c++ /opt/compiler/gcc-8.2/bin/g++ 90
 
-# cmake 3.19
+# cmake 3.27.7
 WORKDIR /opt
-RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.8-Linux-aarch64.tar.gz && \
-    tar -zxf cmake-3.19.8-Linux-aarch64.tar.gz && rm cmake-3.19.8-Linux-aarch64.tar.gz && \
-    mv cmake-3.19.8-Linux-aarch64 cmake-3.19
-ENV PATH=/opt/cmake-3.19/bin:${PATH}
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
+    chmod +x cmake-3.27.7-linux-aarch64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-aarch64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-aarch64.sh
+ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
 # Python 3.9.17
 RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \

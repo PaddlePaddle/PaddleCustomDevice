@@ -515,15 +515,21 @@ C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
   return C_SUCCESS;
 }
 
+C_CCLComm *g_comm = nullptr;
 C_Status XcclCommInitRank(size_t nranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
-  HCCL_CHECK(
-      HcclCommInitRootInfo(nranks,
-                           reinterpret_cast<HcclRootInfo *>(unique_id->data),
-                           rank,
-                           reinterpret_cast<HcclComm *>(comm)));
+  if (g_comm == nullptr) {
+    HCCL_CHECK(
+        HcclCommInitRootInfo(nranks,
+                            reinterpret_cast<HcclRootInfo *>(unique_id->data),
+                            rank,
+                            reinterpret_cast<HcclComm *>(comm)));
+    g_comm = comm;
+  }else {
+    memcpy(comm, g_comm, sizeof(C_CCLComm));
+  }
   return C_SUCCESS;
 }
 

@@ -64,6 +64,7 @@ struct LlamaLayerFusionParallelParam {
     bool transpose = true;
     void *hcclComm = nullptr; // only effect when hcclComm is not null
     bool batchRunStatusEnable = false; // enable dynamic batch
+    int coderType = 0; // 区分encoder还是decoder
 };
 
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,

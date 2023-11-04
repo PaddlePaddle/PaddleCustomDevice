@@ -128,6 +128,7 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     selfAttentionKvCacheParam.headNum = param.headNum;
     selfAttentionKvCacheParam.qkScale = param.qkScale;
     selfAttentionKvCacheParam.batchRunStatusEnable = param.batchRunStatusEnable;
+    selfAttentionKvCacheParam.coderType = (atb::infer::SelfAttentionParam::CoderType)param.coderType;
     atb::CreateOperation(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.operation);
     if (param.batchRunStatusEnable) {
         selfAttentionKvCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ,

@@ -435,45 +435,6 @@ PD_BUILD_OP(get_token_penalty_multi_scores)
     .SetInferShapeFn(PD_INFER_SHAPE(TokenPenaltyMultiScoresInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(TokenPenaltyMultiScoresInferDtype));
 
-// top_p_sampling
-std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor& x, 
-                                         const paddle::Tensor& top_ps, 
-                                         int random_seed) {
-    std::vector<int64_t> shape = x.shape();
-  int bs = shape[0];
-  auto topp_ids = paddle::full({bs, 1}, 1, paddle::DataType::INT64, x.place());
-
-  auto dev_ctx = static_cast<const phi::CustomContext*>(
-        paddle::experimental::DeviceContextPool::Instance().Get(top_ps.place()));            
-  std::cout<<">>>>>TopPSamplingOp"<<std::endl;
-  std::shared_ptr<phi::DenseTensor> out_tensor =
-      std::make_shared<phi::DenseTensor>();
-  out_tensor->Resize(phi::make_ddim({bs, 1}));
-  dev_ctx->Alloc(out_tensor.get(), paddle::DataType::FLOAT32);
-
-  return {paddle::Tensor(out_tensor), topp_ids};
-}
-
-std::vector<std::vector<int64_t>> TopPSamplingInferShape(const std::vector<int64_t>& x_shape,
-                                                         const std::vector<int64_t>& top_ps_shape) {
-  std::vector<int64_t> out_probs_shape = {x_shape[0], 1};                                                          
-  std::vector<int64_t> out_ids_shape = {x_shape[0], 1};
-  return {out_probs_shape, out_ids_shape};
-}
-
-std::vector<paddle::DataType> TopPSamplingInferDtype(const paddle::DataType& x_dtype,
-                                                     const paddle::DataType& top_ps_dtype) {
-  return {x_dtype, paddle::DataType::INT64};
-}
-
-// PD_BUILD_OP(top_p_sampling)
-//     .Inputs({"x", "top_ps"})
-//     .Outputs({"topp_probs", "topp_ids"})
-//     .Attrs({"random_seed: int"})
-//     .SetKernelFn(PD_KERNEL(TopPSampling))
-//     .SetInferShapeFn(PD_INFER_SHAPE(TopPSamplingInferShape))
-//     .SetInferDtypeFn(PD_INFER_DTYPE(TopPSamplingInferDtype));
-
 constexpr char kSEP = '/';
 
 std::string DirName(const std::string &filepath) {

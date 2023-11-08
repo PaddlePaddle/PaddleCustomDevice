@@ -214,7 +214,7 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
                                            1.0 / std::sqrt(head_dim), // qkScale
                                            2,
                                            true,
-                                           nullptr,
+                                           comm,
                                            false, // encoder also enable dynamic batch
                                            1}; // encoder layer type
     LlamaLayerFusionParallelOperation(param, &op);

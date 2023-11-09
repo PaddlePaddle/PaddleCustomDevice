@@ -9,17 +9,18 @@ RUN yum install -y bzip2-devel make openssl-devel openssh-server elfutils-devel 
         blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make git patch unzip bison hostname yasm \
         automake which file net-tools tree zlib-devel libffi-devel pcre-devel vim tk-devel tkinter rpm-build \
         sqlite-devel xz-devel graphviz wget curl-devel numactl-devel initscripts mesa-libGL libsndfile-devel \
-        gcc gcc-c++ gcc-gfortran
+        gcc gcc-c++ gcc-gfortran ninja-build lrzsz
 
 # add bash envs
 COPY root/ /root/
 
-# cmake 3.19
+# cmake 3.27.7
 WORKDIR /opt
-RUN wget -q https://cmake.org/files/v3.19/cmake-3.19.0-Linux-x86_64.tar.gz && \
-    tar -zxf cmake-3.19.0-Linux-x86_64.tar.gz && rm cmake-3.19.0-Linux-x86_64.tar.gz && \
-    mv cmake-3.19.0-Linux-x86_64 cmake-3.19
-ENV PATH=/opt/cmake-3.19/bin:${PATH}
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
+    chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-x86_64.sh
+ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
 # Python 3.9.17
 RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \

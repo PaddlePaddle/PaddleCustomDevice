@@ -1,49 +1,39 @@
 # Docker Image for PaddlePaddle ubuntu develop base environment
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN apt-get update && apt-get install -y apt-utils
 RUN ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-RUN apt-get update && apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && add-apt-repository ppa:ubuntu-toolchain-r/test
-RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils libssl-dev bzip2 gzip make libgcc-s1 sudo openssh-server \
-            coreutils ntp language-pack-zh-hans python-qt4 libsm6 libxext6 libxrender-dev libgl1-mesa-glx libsqlite3-dev libopenblas-dev \
-            bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool module-init-tools numactl libnuma-dev liblzma-dev \
-            openssl libffi-dev pciutils libblas-dev gfortran libblas3 liblapack-dev liblapack3 default-jre screen tmux gdb lldb gcc g++ libbz2-dev
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && add-apt-repository ppa:ubuntu-toolchain-r/test
+
+# install other requirements
+RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils bzip2 \
+    coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx make \
+    bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool gzip \
+    openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen liblzma-dev \
+    openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 libbz2-dev libssl-dev gdb
 
 # add bash envs
 COPY root/ /root/
 
-# GCC 8.2
-WORKDIR /opt
-RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
-    tar -xvf gcc-8.2.0.tar.xz && cd gcc-8.2.0 && \
-    unset LIBRARY_PATH CPATH C_INCLUDE_PATH PKG_CONFIG_PATH CPLUS_INCLUDE_PATH INCLUDE && \
-    ./contrib/download_prerequisites && \
-    cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
-    ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib && \
-    make -j16 && make install && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
-RUN cd /usr/lib/aarch64-linux-gnu && \
-    mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/aarch64-linux-gnu/libstdc++.so.5 && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/aarch64-linux-gnu/libstdc++.so.6 && \
-    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /usr/lib/aarch64-linux-gnu && \
-    cd /usr/bin && mv gcc gcc.bak && mv g++ g++.bak && \
-    ln -s /opt/compiler/gcc-8.2/bin/gcc /usr/bin/gcc && \
-    ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
-ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
-ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LIBRARY_PATH
+# # install gcc-9
+RUN apt-get install -y gcc-9 g++-9 gfortran-9
+RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-9  90 && \
+    update-alternatives --install /usr/bin/gcc  gcc  /usr/bin/gcc-9  90 && \
+    update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-9  90
 
 # cmake 3.27.7
 WORKDIR /opt
-RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
-    chmod +x cmake-3.27.7-linux-aarch64.sh && mkdir -p /opt/cmake-3.27.7 && \
-    ./cmake-3.27.7-linux-aarch64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
-    rm -rf cmake-3.27.7-linux-aarch64.sh
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
+    chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-x86_64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# Python 3.9.17 - default 3.6
+# Python 3.9.17 - default 3.8
 RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
     tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
@@ -65,7 +55,7 @@ RUN pip install PyGithub distro
 
 # add more libs
 RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libprotoc-dev lsof libgeos-dev \
-    pkg-config libhdf5-100 libhdf5-dev lrzsz libsndfile1 tree ninja-build -y
+    pkg-config libhdf5-103 libhdf5-dev lrzsz libsndfile1 tree ninja-build -y
 
 # install Paddle requirement
 RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
@@ -74,7 +64,7 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/un
     pip install -r requirements.txt && rm -rf requirements.txt
 
 # # Install Go and glide
-# RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
+# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
 #     tar -xz -C /usr/local && \
 #     mkdir /root/gopath && \
 #     mkdir /root/gopath/bin && \
@@ -112,12 +102,5 @@ CMD source ~/.bashrc
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge
-
-# Create /lib64/ld-linux-aarch64.so.1
-RUN umask 0022 && \
-    if [ ! -d "/lib64" ]; \
-    then \
-        mkdir /lib64 && ln -sf /lib/ld-linux-aarch64.so.1 /lib64/ld-linux-aarch64.so.1; \
-    fi
 
 EXPOSE 22

@@ -24,7 +24,7 @@ ENV PATH=/opt/rh/devtoolset-7/root/usr/bin:$PATH
 ENV LD_LIBRARY_PATH=/opt/rh/devtoolset-7/root/usr/lib64:/opt/rh/devtoolset-7/root/usr/lib:$LD_LIBRARY_PATH
 RUN echo "source scl_source enable devtoolset-7" > "/etc/profile.d/devtoolset-7.sh"
 
-# cmake 3.19
+# cmake 3.27.7
 WORKDIR /opt
 RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.sh && \
     chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \

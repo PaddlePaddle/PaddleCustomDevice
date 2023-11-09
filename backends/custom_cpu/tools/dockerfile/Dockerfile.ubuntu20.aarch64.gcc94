@@ -10,27 +10,27 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && add-apt-repository ppa:ubuntu-toolchain-r/test
 
 # install other requirements
-RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils libssl-dev bzip2 gzip make cmake sudo 
-RUN apt-get update && apt-get install -y coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx
-RUN apt-get update && apt-get install -y bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool
-RUN apt-get update && apt-get install -y openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen gdb liblzma-dev
-RUN apt-get update && apt-get install -y openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 gcc g++ gfortran libbz2-dev
+RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils bzip2 \
+    coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx make \
+    bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool gzip \
+    openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen liblzma-dev \
+    openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 libbz2-dev libssl-dev gdb
 
 # add bash envs
 COPY root/ /root/
 
-# # install gcc-8.4.0
-RUN apt-get install -y gcc-8 g++-8 gfortran-8
-RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-8  90 && \
-    update-alternatives --install /usr/bin/gcc  gcc  /usr/bin/gcc-8  90 && \
-    update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-8  90
+# # install gcc-9
+RUN apt-get install -y gcc-9 g++-9 gfortran-9
+RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-9  90 && \
+    update-alternatives --install /usr/bin/gcc  gcc  /usr/bin/gcc-9  90 && \
+    update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-9  90
 
 # cmake 3.27.7
 WORKDIR /opt
-RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
-    chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
-    ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
-    rm -rf cmake-3.27.7-linux-x86_64.sh
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
+    chmod +x cmake-3.27.7-linux-aarch64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-aarch64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-aarch64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
 # Python 3.9.17 - default 3.8
@@ -64,7 +64,7 @@ RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/un
     pip install -r requirements.txt && rm -rf requirements.txt
 
 # # Install Go and glide
-# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
+# RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
 #     tar -xz -C /usr/local && \
 #     mkdir /root/gopath && \
 #     mkdir /root/gopath/bin && \
@@ -102,5 +102,12 @@ CMD source ~/.bashrc
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge
+
+# Create /lib64/ld-linux-aarch64.so.1
+RUN umask 0022 && \
+    if [ ! -d "/lib64" ]; \
+    then \
+        mkdir /lib64 && ln -sf /lib/ld-linux-aarch64.so.1 /lib64/ld-linux-aarch64.so.1; \
+    fi
 
 EXPOSE 22

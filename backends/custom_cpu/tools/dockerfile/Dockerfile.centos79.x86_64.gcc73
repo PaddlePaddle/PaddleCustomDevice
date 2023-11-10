@@ -3,10 +3,10 @@
 FROM centos:7.9.2009
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
-RUN yum install -y epel-release deltarpm openssh-server kernel-headers kernel-devel libsndfile-devel \
-        zlib-devel pcre-devel vim tk-devel tkinter libtool xz graphviz wget curl-devel gettext-devel \
-        make bzip2-devel patch unzip bison yasm diffutils automake which file xz-devel net-tools \
-        sqlite-devel  numactl-devel chrpath lrzsz initscripts tree libffi-devel swig ninja-build
+RUN yum install -y epel-release deltarpm openssh-server kernel-headers kernel-devel xz-devel \
+        zlib-devel pcre-devel vim tk-devel tkinter libtool xz gettext-devel libsndfile-devel \
+        wget make bzip2-devel patch unzip bison yasm diffutils automake which file curl-devel \
+        sqlite-devel numactl-devel chrpath initscripts libffi-devel swig ninja-build net-tools
 
 # Add bash enhancements
 COPY root/ /root/
@@ -26,29 +26,29 @@ RUN echo "source scl_source enable devtoolset-7" > "/etc/profile.d/devtoolset-7.
 
 # cmake 3.27.7
 WORKDIR /opt
-RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.7/cmake-3.27.7-linux-x86_64.sh && \
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
     chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
     ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
     rm -rf cmake-3.27.7-linux-x86_64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# openssl 1.1.1g
-RUN wget -q --no-check-certificate https://www.openssl.org/source/openssl-1.1.1g.tar.gz && \
-    tar -zxf openssl-1.1.1g.tar.gz && cd openssl-1.1.1g && ./config && \
-    make -j16 && make install && ldconfig && \
-    cd .. && rm -rf openssl-1.1.1g && rm -rf openssl-1.1.1g.tar.gz
+# openssl 1.1.1w - https://github.com/openssl/openssl/pull/13218
+RUN wget -q --no-check-certificate https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar zxf openssl-1.1.1w.tar.gz && cd openssl-1.1.1w && ./config  > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && ldconfig && \
+    cd .. && rm -rf openssl-1.1.1w && rm -rf openssl-1.1.1w.tar.gz
 ENV LD_LIBRARY_PATH=/usr/local/lib64:${LD_LIBRARY_PATH}
 
 # git 2.17.1
-RUN wget -q https://paddle-ci.gz.bcebos.com/git-2.17.1.tar.gz && \
-  tar -xvf git-2.17.1.tar.gz && cd git-2.17.1 && \
-  ./configure --with-openssl --prefix=/usr/local && \
-  make -j16 && make install && \
-  cd .. && rm -rf git-2.17.1.tar.gz && rm -rf git-2.17.1
+RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/git-2.17.1.tar.gz && \
+    tar xf git-2.17.1.tar.gz && cd git-2.17.1 && \
+    ./configure --with-openssl --prefix=/usr/local > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd .. && rm -rf git-2.17.1.tar.gz && rm -rf git-2.17.1
 
 # Python 3.9.17
-RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
+    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
     make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
     cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
@@ -69,22 +69,10 @@ RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format=
 RUN pip install PyGithub distro
 
 # install Paddle requirement
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-
-# # Install Go and glide
-# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
-#     tar -xz -C /usr/local && \
-#     mkdir /root/gopath && \
-#     mkdir /root/gopath/bin && \
-#     mkdir /root/gopath/src
-# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
-# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
-# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
-# # install glide
-# RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
 RUN git config --global credential.helper store
@@ -92,19 +80,20 @@ RUN git config --global credential.helper store
 # Fix locales to en_US.UTF-8
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
-# ccache 3.7.9
-RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
-    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 && \
-    make -j8 && make install && \
-    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache && \
-    cd .. && rm -rf ccache-3.7.9.tar.gz && rm -rf ccache-3.7.9
-
-# patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/256
-RUN wget -q https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
+# patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216
+RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
     tar xzf 0.14.5.tar.gz && cd patchelf-0.14.5 && \
-    ./bootstrap.sh && ./configure && make -j16 && make install && \
+    ./bootstrap.sh  > /dev/null && ./configure > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
     cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
+
+# ccache 3.7.9
+RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
+    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
+    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \ 
+    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
+    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
 
 # configure ssh
 RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \

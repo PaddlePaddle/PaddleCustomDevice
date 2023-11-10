@@ -20,7 +20,7 @@ ARG CANN_VERSION
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha005/softwareinstall/instg/atlasdeploy_03_0024.html
-RUN yum install -y unzip zlib-devel libffi-devel openssl-devel pciutils net-tools sqlite-devel lapack-devel gcc-gfortran
+RUN yum install -y unzip zlib-devel libffi-devel pciutils net-tools sqlite-devel lapack-devel gcc-gfortran
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha005/softwareinstall/instg/atlasdeploy_03_0022.html

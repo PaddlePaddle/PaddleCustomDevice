@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y software-properties-common && \
 
 # install other requirements
 RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar xz-utils bzip2 \
-    coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx make \
-    bison graphviz libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool gzip \
-    openssl libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen liblzma-dev \
-    openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 libbz2-dev libssl-dev gdb
+        coreutils ntp language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx  \
+        bison libjpeg-dev zlib1g zlib1g-dev automake locales swig net-tools libtool gzip make \
+        libffi-dev pciutils libblas-dev libblas3 liblapack-dev liblapack3 screen liblzma-dev gdb \
+        openssh-server default-jre libsqlite3-dev libopenblas-dev libgcc-s1 libbz2-dev libssl-dev
 
 # add bash envs
 COPY root/ /root/
@@ -33,9 +33,16 @@ RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
     rm -rf cmake-3.27.7-linux-aarch64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
+# openssl 1.1.1w - https://github.com/openssl/openssl/pull/13218
+RUN wget -q --no-check-certificate https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
+    tar zxf openssl-1.1.1w.tar.gz && cd openssl-1.1.1w && ./config  > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && ldconfig && \
+    cd .. && rm -rf openssl-1.1.1w && rm -rf openssl-1.1.1w.tar.gz
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+
 # Python 3.9.17 - default 3.8
-RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
+    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
     make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
     cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
@@ -58,22 +65,10 @@ RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libproto
     pkg-config libhdf5-103 libhdf5-dev lrzsz libsndfile1 tree ninja-build -y
 
 # install Paddle requirement
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-
-# # Install Go and glide
-# RUN wget -qO- https://golang.org/dl/go1.16.5.linux-arm64.tar.gz | \
-#     tar -xz -C /usr/local && \
-#     mkdir /root/gopath && \
-#     mkdir /root/gopath/bin && \
-#     mkdir /root/gopath/src
-# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
-# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
-# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
-# # install glide
-# RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
 RUN git config --global credential.helper store
@@ -82,15 +77,18 @@ RUN git config --global credential.helper store
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
 # patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216
-RUN wget -O /opt/0.14.5.tar.gz https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
-    cd /opt && tar xzf 0.14.5.tar.gz && cd /opt/patchelf-0.14.5 && ./bootstrap.sh && ./configure && \
-    make && make install && cd /opt && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
+RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
+    tar xzf 0.14.5.tar.gz && cd patchelf-0.14.5 && \
+    ./bootstrap.sh  > /dev/null && ./configure > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
 # ccache 3.7.9
-RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
+RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
     tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 && \
-    make -j8 && make install && cd .. && rm -rf ccache-3.7.9* && \
+    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \ 
+    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
     ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
 
 # Configure OpenSSH server. c.f. https://docs.docker.com/engine/examples/running_ssh_service

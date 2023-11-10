@@ -20,6 +20,7 @@
 #include "atb/context.h"
 
 static void* g_workspace = nullptr;
+static uint64_t g_workspaceSize = 0;
 
 class PpAscendAtbOpBase {
 public:
@@ -42,7 +43,6 @@ protected:
   void SetWorkspace(uint64_t workspace_size);
 
 private:
-  uint64_t workspaceSize_ = 0;
   int32_t currentDevId_ = 0;
 };
 #endif

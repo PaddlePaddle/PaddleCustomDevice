@@ -40,14 +40,14 @@ void PpAscendAtbOpBase::BuildVariantPack(std::vector<const phi::DenseTensor *> &
 
 void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size)
 {
-  if (workspace_size <= workspaceSize_) {
+  if (workspace_size <= g_workspaceSize) {
     return;
   }
 
   if (g_workspace) {
     aclrtFree(g_workspace);
     g_workspace = nullptr;
-    workspaceSize_ = 0;
+    g_workspaceSize = 0;
   }
   int st = aclrtMalloc((void **)&g_workspace, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
   PADDLE_ENFORCE_EQ(st,
@@ -55,7 +55,7 @@ void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size)
                     phi::errors::External("LayerOperation %s SetWorkspace MemMallocDevice,"
                             "fail, ret: %d size %llu.", opName_, st, workspace_size));
 
-  workspaceSize_ = workspace_size;
+  g_workspaceSize = workspace_size;
 }
 
 atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
@@ -77,7 +77,7 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                     phi::errors::External("Atb Layer %s Op Setup failed,"
                                           "ret message: %d .", opName_, st));
 
-  if (workspace_size > 0 && g_workspace==nullptr) {
+  if (workspace_size > 0) {
     SetWorkspace(workspace_size);
   }
 

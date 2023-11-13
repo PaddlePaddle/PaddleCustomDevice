@@ -835,13 +835,7 @@ def llama_lmhead():
         llama_lmhead.Attr("rmsNormEps").MappedPattern(op="rms_norm", name="epsilon", index=0)
         llama_lmhead.Attr("transpose").MappedPattern(op="matmul_v2", name="trans_y", index=0)
 
-        slice_out = ir.PassDesc.OP.slice(Input=llama_lmhead)
-        slice_out.SetAttr("axes", [1])
-        slice_out.SetAttr("starts", [-1])
-        slice_out.SetAttr("ends", [2147483647])
-        slice_out.SetAttr("decrease_axis", [1])
-
-        return slice_out
+        return llama_lmhead
 
     return pattern, replace
 

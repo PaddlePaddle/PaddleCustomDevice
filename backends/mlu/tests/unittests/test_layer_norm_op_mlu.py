@@ -158,6 +158,8 @@ class TestLayerNormOp(unittest.TestCase):
             x_grad, scale_grad, bias_grad = _reference_layer_norm_grad(
                 x, y_grad, scale, bias, mean, variance, begin_norm_axis
             )
+            mean.shape = x_shape[0:begin_norm_axis]
+            variance.shape = x_shape[0:begin_norm_axis]
 
             var_dict = locals()
             var_dict["y@GRAD"] = y_grad

@@ -108,16 +108,17 @@ void SingleOpGcuExecutor::RunGcuOp(const phi::CustomContext* device_context,
             input_nodes_[i].to_str()));
     auto* tensor = inputs[i];
 
-    VLOG(6) << "op_type: " << op_type_ << ", inputs[" << i
-            << "] addr:" << (tensor->initialized() ? tensor->data() : 0)
-            << ", capacity is " << tensor->capacity()
-            << ", type:" << tensor->dtype() << ", place:" << tensor->place()
-            << ", initialized:" << tensor->initialized()
-            << ", ddim:" << tensor->dims().to_str();
-
     if (tensor->initialized()) {
       dev_inputs.emplace_back(tensor->data());
       real_inputs.emplace_back(tensor);
+      VLOG(6) << "op_type: " << op_type_ << ", inputs[" << i
+              << "] addr:" << tensor->data() << ", capacity is "
+              << tensor->capacity() << ", type:" << tensor->dtype()
+              << ", place:" << tensor->place()
+              << ", ddim:" << tensor->dims().to_str();
+    } else {
+      VLOG(6) << "op_type: " << op_type_ << ", inputs[" << i
+              << "] is not initialized.";
     }
   }
 
@@ -168,6 +169,7 @@ void SingleOpGcuExecutor::RunGcuOp(const phi::CustomContext* device_context,
     dispatch_.get()->dispatch(params, compile_options.c_str());
     PADDLE_GCU_TRACE_END(DISPATCH, op_type_);
     custom_kernel::FreeDispatchParam(params);
+    custom_kernel::GcuOpStreamSync(*device_context);
     PADDLE_GCU_TRACE_END(EXEC, exec);
   } else {
     RT_CHECK(topsLaunchExecutable(tops_exec_,

@@ -36,6 +36,8 @@ namespace {
 const char* const kGcuDebugPrint = "GCU_DEBUG_PRINT_EAGER_TENSOR";
 const char* const kRunningModeSerial = "serial";
 const char* const kPlaceHolder = " ";
+
+static std::set<std::string> kUnusedArchetype = {"ReserveSpace"};
 }  // namespace
 
 using GcuOpDesc = backend::GcuOpDesc;
@@ -338,6 +340,9 @@ void GcuOpRunner::CompileExecutable(
 
   std::map<std::string, std::vector<GcuOpPtr>> input_ops;
   for (const auto& e : all_input_names) {
+    if (kUnusedArchetype.count(e.first) > 0) {
+      continue;
+    }
     if (e.second.empty()) {
       continue;
     }
@@ -376,6 +381,9 @@ void GcuOpRunner::CompileExecutable(
     size_t gcu_output_num = op->GetType().GetTupleSize();
     size_t valid_output_counter = 0;
     for (const auto& e : op_desc->Outputs()) {
+      if (kUnusedArchetype.count(e.first) > 0) {
+        continue;
+      }
       if (!e.second.empty()) {
         VLOG(6) << "Out Archetype name:" << e.first;
         for (const auto& p : e.second) {
@@ -398,6 +406,9 @@ void GcuOpRunner::CompileExecutable(
   }
   if (!is_tuple_out) {
     for (const auto& e : op_desc->Outputs()) {
+      if (kUnusedArchetype.count(e.first) > 0) {
+        continue;
+      }
       if (e.second.empty()) {
         continue;
       }
@@ -412,6 +423,13 @@ void GcuOpRunner::CompileExecutable(
         auto paddle_shape = phi::vectorize(tensor->dims());
         if (VLOG_IS_ON(10) && gcu_shape.size() != paddle_shape.size()) {
           builder->Dump();
+        }
+        // normalize scalar shape process, [] -> [1]
+        if (gcu_shape.empty()) {
+          gcu_shape = {1};
+        }
+        if (paddle_shape.empty()) {
+          paddle_shape = {1};
         }
         PADDLE_ENFORCE_EQ(gcu_shape.size(),
                           paddle_shape.size(),
@@ -480,6 +498,9 @@ void GcuOpRunner::CompileExecutable(
       }
     }
     for (const auto& e : op_desc->Outputs()) {
+      if (kUnusedArchetype.count(e.first) > 0) {
+        continue;
+      }
       if (e.second.empty()) continue;
       for (const auto& out_name : e.second) {
         auto tensor = tensor_cache[out_name];
@@ -500,6 +521,13 @@ void GcuOpRunner::CompileExecutable(
         // for shape infer check
         auto gcu_shape = gte->GetType().GetShape();
         auto paddle_shape = phi::vectorize(tensor->dims());
+        // normalize scalar shape process, [] -> [1]
+        if (gcu_shape.empty()) {
+          gcu_shape = {1};
+        }
+        if (paddle_shape.empty()) {
+          paddle_shape = {1};
+        }
         if (TransformUtil::IsDyn(paddle_shape) &&
             !TransformUtil::IsDyn(gcu_shape)) {
           auto gcu_shape_str = TransformUtil::GetShapeStr(gcu_shape);

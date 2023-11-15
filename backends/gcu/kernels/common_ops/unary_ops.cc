@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/unary_kernels.h"
+#include "kernels/common_ops/unary_ops.h"
+
+#include "common/common.h"
+#include "common/utils.h"
+#include "kernels/funcs/gcu_name_list.h"
+#include "paddle/phi/core/dense_tensor.h"
 
 namespace custom_kernel {
 
@@ -47,10 +52,11 @@ namespace custom_kernel {
                            "not find aot func for %s", op_name));          \
       }                                                                    \
       FreeDispatchParam(params);                                           \
+      GcuOpStreamSync(dev_ctx);                                            \
       GCUOPS_TRACE_END(aot_op);                                            \
-      GcuOpStreamSync(params.stream);                                      \
     }                                                                      \
   }                                                                        \
+                                                                           \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx,         \
                                 const phi::DenseTensor& input) {           \
     phi::DenseTensor output = EmptyTensor(dev_ctx, input.meta());          \
@@ -81,8 +87,8 @@ namespace custom_kernel {
                            "not find aot func for %s", op_name));          \
       }                                                                    \
       FreeDispatchParam(params);                                           \
+      GcuOpStreamSync(dev_ctx);                                            \
       GCUOPS_TRACE_END(aot_op);                                            \
-      GcuOpStreamSync(params.stream);                                      \
     }                                                                      \
     return output;                                                         \
   }
@@ -97,4 +103,5 @@ DEFINE_UNARY_OP(sigmoid, kSigmoid, sigmoid)
 DEFINE_UNARY_OP(neg, kNeg, neg)
 
 #undef DEFINE_UNARY_OP
+
 }  // namespace custom_kernel

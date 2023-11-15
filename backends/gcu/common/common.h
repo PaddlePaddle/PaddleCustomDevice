@@ -44,7 +44,7 @@ hlir::Tensor* GetHlirTensorV2(const phi::DenseTensor& tensor,
 
 int GetGCUDataType(const phi::DataType& dtype);
 
-bool GcuOpStreamSync(topsStream_t stream);
+bool GcuOpStreamSync(const phi::DeviceContext& dev_ctx);
 
 void BuildDispatchParam(const std::vector<LoDTensor*>& inputs,
                         const std::vector<LoDTensor*>& outputs,

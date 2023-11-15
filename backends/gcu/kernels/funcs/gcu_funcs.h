@@ -59,6 +59,7 @@ inline void TensorCopy(const Context& dev_ctx,
     return;
   }
 
+  auto dst_dims = dst->dims();
   dst->Resize(src.dims());
   void* dst_ptr = nullptr;
   if (dst_place_.GetType() != phi::AllocationType::CPU) {
@@ -77,12 +78,24 @@ inline void TensorCopy(const Context& dev_ctx,
           dst_place_));
 
   if (src_ptr == dst_ptr && src_place == dst_place_) {
-    VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "
-            << src_place << " to " << dst_ptr << " in " << dst_place_;
-    return;
+    if ((dst_dims == src.dims()) || (src_place == phi::CPUPlace()) ||
+        (!UseScatterMemory())) {
+      VLOG(3) << "Skip copy the same data async from " << src_ptr << " in "
+              << src_place << " to " << dst_ptr << " in " << dst_place_;
+      return;
+    } else {
+      // scatter memory
+      phi::DenseTensor tmp_dst;
+      tmp_dst.set_meta(dst->meta());
+      tmp_dst.Resize(dst_dims);
+      dst_ptr = dev_ctx.Alloc(&tmp_dst, tmp_dst.dtype());
+      *dst = tmp_dst;
+    }
   }
-  VLOG(4) << "src:" << src_ptr << " place: " << src_place << ", dst:" << dst_ptr
-          << " place: " << dst_place_;
+  VLOG(4) << "src:" << src_ptr << " place: " << src_place
+          << " type:" << static_cast<int>(src_place.GetType())
+          << ", dst:" << dst_ptr << " place: " << dst_place_
+          << " type:" << static_cast<int>(dst_place_.GetType());
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
@@ -94,6 +107,7 @@ inline void TensorCopy(const Context& dev_ctx,
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
+    VLOG(6) << "TensorCopy from cpu to cus";
     C_Device_st device;
     device.id = dst_place_.GetDeviceId();
     AsyncMemCpyH2D(&device, stream, dst_ptr, src_ptr, size);
@@ -102,6 +116,7 @@ inline void TensorCopy(const Context& dev_ctx,
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
+    VLOG(6) << "TensorCopy from cus to cpu";
     C_Device_st device;
     device.id = src_place.GetDeviceId();
     AsyncMemCpyD2H(&device, stream, dst_ptr, src_ptr, size);
@@ -110,6 +125,7 @@ inline void TensorCopy(const Context& dev_ctx,
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CUSTOM) {
+    VLOG(6) << "TensorCopy from cus to cus";
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
         C_Device_st device;
@@ -127,8 +143,71 @@ inline void TensorCopy(const Context& dev_ctx,
     }
   } else if (src_place.GetType() == phi::AllocationType::CPU &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
+    VLOG(6) << "TensorCopy from cpu to cpu";
     std::memcpy(dst_ptr, src_ptr, size);
   }
+}
+
+/**
+ * CPU -> GCU
+ */
+template <typename T>
+inline void TensorFromValue(const phi::CustomContext& ctx,
+                            const T& src,
+                            const phi::CustomContext& dev_ctx,
+                            phi::DenseTensor* dst) {
+  auto dst_place = dev_ctx.GetPlace();
+  auto src_ptr = static_cast<const void*>(&src);
+  dst->Resize(phi::make_ddim({}));
+  auto dst_ptr = static_cast<void*>(dev_ctx.template Alloc<T>(dst));
+  auto size = sizeof(T);
+  if (UNLIKELY(size == 0)) return;
+
+  if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device;
+    device.id = dst_place.GetDeviceId();
+    AsyncMemCpyH2D(&device,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   src_ptr,
+                   size);
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorFromValue on %s is not supported.", dst_place));
+  }
+}
+
+template <>
+inline void TensorFromValue<bool>(const phi::CustomContext& ctx,
+                                  const bool& src,
+                                  const phi::CustomContext& dev_ctx,
+                                  phi::DenseTensor* dst) {
+  // vector<bool> has no data() member, use array instead.
+  // See details:
+  // https://stackoverflow.com/questions/46115669/why-does-stdvectorbool-have-no-data/46115714
+
+  auto dst_place = dev_ctx.GetPlace();
+  auto src_ptr = static_cast<const void*>(&src);
+  dst->Resize({});
+  auto dst_ptr = static_cast<void*>(dev_ctx.template Alloc<bool>(dst));
+  auto size = sizeof(bool);
+  if (UNLIKELY(size == 0)) return;
+
+  if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device;
+    device.id = dst_place.GetDeviceId();
+    AsyncMemCpyH2D(&device,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   src_ptr,
+                   size);
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorFromValue on %s is not supported.", dst_place));
+  }
+  // Destruction of temporary variables needs to wait for
+  // the completion of the H2D copy.
+  dev_ctx.Wait();
 }
 
 /**

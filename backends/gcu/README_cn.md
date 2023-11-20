@@ -23,7 +23,7 @@ cd PaddleCustomDevice
 cd backends/gcu
 
 # 2) 编译之前需确保环境下装有飞桨安装包，直接安装飞桨CPU版本即可
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+python -m pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 3) 编译，编译时会按需下载submodule
 mkdir -p build && cd build
@@ -31,7 +31,7 @@ cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 make -j $(nproc)
 
 # 4) 编译产出在build/dist路径下，使用pip安装
-pip install --force-reinstall -U build/dist/paddle_custom_gcu*.whl
+python -m pip install --force-reinstall -U build/dist/paddle_custom_gcu*.whl
 ```
 
 ### 功能验证
@@ -48,4 +48,7 @@ python -c "import paddle_custom_device; paddle_custom_device.gcu.version()"
 version: 0.0.0.ffc0377-2.4.1
 commit: ffc037739c55508532ee67b565517be2b4ae584d
 plugin version: 0.0.1
+
+# 3) 单元测试，带上-DWITH_TESTING=ON编译后在build目录下执行
+ctest
 ```

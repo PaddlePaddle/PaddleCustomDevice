@@ -107,6 +107,7 @@ static const char* const kEmbeddingDenseBackward = "embedding_dense_backward";
 
 // reduce op
 static const char* const kSum = "reduce_sum";
+static const char* const kProd = "reduce_prod";
 static const char* const kMean = "reduce_avg";
 static const char* const kMax = "reduce_max";
 static const char* const kMin = "reduce_min";
@@ -183,9 +184,9 @@ static const char* const kReluGrad = "relu_backward";
 static const char* const kTanhBackward = "tanh_backward";
 
 // pooling op
-static const char* const kMaxPool2d = "reduce_window";
+static const char* const kPooling2d = "pooling2d";
 static const char* const kMaxPool2dWithIndices = "max_pool2d_with_indices";
-static const char* const kMaxPool2dBackward = "select_and_scatter";
+static const char* const kSelectAndScatter = "select_and_scatter";
 
 // vision op
 static const char* const kRoiAlign = "roi_align";

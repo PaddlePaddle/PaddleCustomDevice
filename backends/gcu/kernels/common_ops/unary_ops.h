@@ -19,11 +19,11 @@
 
 #pragma once
 namespace custom_kernel {
-
 #define DECLARE_UNARY_OP(op)                                       \
   void op##_compute(const phi::CustomContext& dev_ctx,             \
                     const phi::DenseTensor& input,                 \
                     phi::DenseTensor* output);                     \
+                                                                   \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx, \
                                 const phi::DenseTensor& input);
 

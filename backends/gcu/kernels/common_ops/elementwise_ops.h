@@ -25,6 +25,7 @@ namespace custom_kernel {
                     const phi::DenseTensor& x,                     \
                     const phi::DenseTensor& y,                     \
                     phi::DenseTensor* output);                     \
+                                                                   \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx, \
                                 const phi::DenseTensor& x,         \
                                 const phi::DenseTensor& y);
@@ -34,13 +35,10 @@ namespace custom_kernel {
                     const phi::DenseTensor& x,                     \
                     const phi::DenseTensor& y,                     \
                     phi::DenseTensor* output);                     \
+                                                                   \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx, \
                                 const phi::DenseTensor& x,         \
                                 const phi::DenseTensor& y);
-
-}  // namespace custom_kernel
-
-namespace custom_kernel {
 
 DECLARE_BINARY_OP(add)
 DECLARE_BINARY_OP(mul)

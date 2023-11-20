@@ -16,14 +16,22 @@
 
 #include <vector>
 
+#include "kernels/common_ops/common_ops.h"
+
 namespace custom_kernel {
 
 #define DEFINE_REDUCTION_OP(op, op_name, aot_op)                              \
   void op##_compute(const phi::CustomContext& dev_ctx,                        \
                     const phi::DenseTensor& data,                             \
                     bool keep_dims,                                           \
-                    const std::vector<int64_t>& axes,                         \
+                    std::vector<int64_t> axes,                                \
                     phi::DenseTensor& output) {                               \
+    auto input_rank = data.dims().size();                                     \
+    for (auto& dim : axes) {                                                  \
+      if (dim < 0) {                                                          \
+        dim += input_rank;                                                    \
+      }                                                                       \
+    }                                                                         \
     if (output.numel() > 0) {                                                 \
       auto data_gcu = GetHlirTensor(data);                                    \
       auto out_gcu = GetHlirTensor(output);                                   \
@@ -51,15 +59,32 @@ namespace custom_kernel {
                            "not find aot func for %s", op_name));             \
       }                                                                       \
       FreeDispatchParam(params);                                              \
+      GcuOpStreamSync(dev_ctx);                                               \
       GCUOPS_TRACE_END(aot_op);                                               \
-      GcuOpStreamSync(params.stream);                                         \
     }                                                                         \
   }                                                                           \
+                                                                              \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx,            \
                                 const phi::DenseTensor& data,                 \
                                 bool keep_dims,                               \
-                                const std::vector<int64_t>& axes) {           \
-    phi::DenseTensor output = EmptyTensor(dev_ctx, data.meta());              \
+                                std::vector<int64_t> axes) {                  \
+    auto input_rank = data.dims().size();                                     \
+    for (auto& dim : axes) {                                                  \
+      if (dim < 0) {                                                          \
+        dim += input_rank;                                                    \
+      }                                                                       \
+    }                                                                         \
+    std::vector<int64_t> data_dims = phi::vectorize(data.dims());             \
+    std::vector<int64_t> out_dims;                                            \
+    for (int64_t i = 0; i < data_dims.size(); ++i) {                          \
+      if (vector_contains(axes, i)) {                                         \
+        if (keep_dims) out_dims.push_back(1);                                 \
+      } else {                                                                \
+        out_dims.push_back(data_dims[i]);                                     \
+      }                                                                       \
+    }                                                                         \
+    phi::DenseTensor output =                                                 \
+        EmptyTensor(dev_ctx, data.dtype(), phi::make_ddim(out_dims));         \
     if (output.numel() > 0) {                                                 \
       auto data_gcu = GetHlirTensor(data);                                    \
       auto out_gcu = GetHlirTensor(output);                                   \
@@ -87,8 +112,8 @@ namespace custom_kernel {
                            "not find aot func for %s", op_name));             \
       }                                                                       \
       FreeDispatchParam(params);                                              \
+      GcuOpStreamSync(dev_ctx);                                               \
       GCUOPS_TRACE_END(aot_op);                                               \
-      GcuOpStreamSync(params.stream);                                         \
     }                                                                         \
     return output;                                                            \
   }
@@ -97,6 +122,7 @@ DEFINE_REDUCTION_OP(reduce_sum, kSum, Sum)
 DEFINE_REDUCTION_OP(reduce_mean, kMean, Mean)
 DEFINE_REDUCTION_OP(reduce_max, kMax, Max)
 DEFINE_REDUCTION_OP(reduce_min, kMin, Min)
+DEFINE_REDUCTION_OP(reduce_prod, kProd, Prod)
 
 #undef DEFINE_REDUCTION_OP
 }  // namespace custom_kernel

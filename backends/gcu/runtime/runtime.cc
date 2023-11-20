@@ -401,6 +401,11 @@ C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
   return C_SUCCESS;
 }
 
+C_Status DeviceMaxChunkSize(const C_Device device, size_t *size) {
+  *size = 0;
+  return C_SUCCESS;
+}
+
 C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
   *size = 32;
   return C_SUCCESS;
@@ -825,6 +830,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
+  params->interface->device_max_chunk_size = DeviceMaxChunkSize;
   params->interface->device_extra_padding_size = ExtraPaddingSize;
 
   // Xccl

@@ -283,9 +283,12 @@ hlir::Tensor* GetHlirTensor(const phi::DenseTensor& tensor) {
   PADDLE_ENFORCE_EQ(
       tensor_dims,
       dims,
-      phi::errors::NotFound("tensor dims is %s, gcu tensor dims is %s",
+      phi::errors::NotFound("tensor dims is %s, gcu tensor dims is %s, tensor "
+                            "ptr: %lu, scatter mem ptr: %lu ",
                             phi::make_ddim(tensor_dims).to_str().c_str(),
-                            phi::make_ddim(dims).to_str().c_str()));
+                            phi::make_ddim(dims).to_str().c_str(),
+                            gcu_memory,
+                            data_ptr));
 
   auto strides = contiguous_strides(dims);
   auto layouts = contiguous_layouts_ex(dims.size());
@@ -346,13 +349,12 @@ hlir::Tensor* GetHlirTensorV2(const phi::DenseTensor& tensor,
                            layouts});
 }
 
-bool GcuOpStreamSync(topsStream_t stream) {
-  // static bool use_sync = false;  // TODO : get from env
-  // if (use_sync) {
-  //   GCU_RT_CHECK(runtime::SyncStream(
-  //       GcuPlugin::GetInstance()->GetGlobalDeviceId(), stream));
-  //   return true;
-  // }
+bool GcuOpStreamSync(const phi::DeviceContext& dev_ctx) {
+  static bool use_sync = true;  // need get from env
+  if (use_sync) {
+    dev_ctx.Wait();
+    return true;
+  }
 
   return false;
 }
@@ -397,25 +399,23 @@ double GetTimeCostMs(int64_t start_time, int64_t end_time) {
 
 ChipType ParseChipType() {
   ChipType type = ChipType::UNKNOW;
-  const auto device_info =
-      dtu::driver::DeviceManager::instance()->device_info();
   if (dtu::driver::DeviceManager::instance()->IsDorado()) {
     type = ChipType::DORADO;
-    if (device_info.clusters_num == 6) {
+    if (dtu::driver::DeviceManager::instance()->device_info().clusters_num ==
+        2) {
       type = ChipType::DORADO_2C;
-    } else if (device_info.clusters_num == 3) {
-      type = ChipType::DORADO_3PG;
+    } else {
+      VLOG(1) << "[WARN] Paddle now only suport dorado_2c in dorado platform!";
     }
   } else if (dtu::driver::DeviceManager::instance()->IsScorpio()) {
     type = ChipType::SCORPIO;
-  } else if (device_info.device_id == DTU_DEVICE_ID_LIBRA_T30 ||
-             device_info.device_id == DTU_DEVICE_ID_LIBRA_T31) {
-    type = ChipType::LIBRA;
-  } else {
-    VLOG(1) << "[WARN]unsupport gcu device type with id = "
-            << device_info.device_id << ". Will use default PAVO";
+  } else if (dtu::driver::DeviceManager::instance()->IsPavo()) {
     type = ChipType::PAVO;
   }
+  PADDLE_ENFORCE_NE(
+      type,
+      ChipType::UNKNOW,
+      phi::errors::Unavailable("unknown chip type is not support!"));
   return type;
 }
 

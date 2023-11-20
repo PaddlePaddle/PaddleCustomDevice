@@ -26,17 +26,19 @@ namespace custom_kernel {
   void op##_compute(const phi::CustomContext& dev_ctx,             \
                     const phi::DenseTensor& data,                  \
                     bool keep_dims,                                \
-                    const std::vector<int64_t>& axes,              \
+                    std::vector<int64_t> axes,                     \
                     phi::DenseTensor& output);                     \
+                                                                   \
   phi::DenseTensor op##_compute(const phi::CustomContext& dev_ctx, \
                                 const phi::DenseTensor& data,      \
                                 bool keep_dims,                    \
-                                const std::vector<int64_t>& axes);
+                                std::vector<int64_t> axes);
 
 DECLARE_REDUCTION_OP(reduce_sum)
 DECLARE_REDUCTION_OP(reduce_mean)
 DECLARE_REDUCTION_OP(reduce_max)
 DECLARE_REDUCTION_OP(reduce_min)
+DECLARE_REDUCTION_OP(reduce_prod)
 
 #undef DECLARE_REDUCTION_OP
 }  // namespace custom_kernel

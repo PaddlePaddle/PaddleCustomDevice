@@ -20,6 +20,7 @@
 #include "backend/utils/utils.h"
 #include "common/common.h"
 #include "kernels/funcs/gcu_funcs.h"
+#include "kernels/funcs/gcu_op_runner.h"
 #include "paddle/phi/kernels/funcs/concat_funcs.h"
 
 namespace custom_kernel {
@@ -94,7 +95,7 @@ void transpose(const phi::CustomContext& dev_ctx,
     }
     FreeDispatchParam(params);
     GCUOPS_TRACE_END(transpose);
-    GcuOpStreamSync(params.stream);
+    GcuOpStreamSync(dev_ctx);
   }
 }
 
@@ -155,7 +156,7 @@ void dot_general_common(const phi::CustomContext& dev_ctx,
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(dot_general);
-  GcuOpStreamSync(params.stream);
+  GcuOpStreamSync(dev_ctx);
 }
 
 phi::DenseTensor dot_general_common(
@@ -245,7 +246,7 @@ void dot_common(const phi::CustomContext& dev_ctx,
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(dot);
-  GcuOpStreamSync(params.stream);
+  GcuOpStreamSync(dev_ctx);
 }
 
 void concat(const phi::CustomContext& dev_ctx,
@@ -266,16 +267,13 @@ void concat(const phi::CustomContext& dev_ctx,
   }
 
   auto input_num = input_tensors.size();
+  std::vector<hlir::Tensor*> tensors_gcu;
+  for (size_t idx = 0; idx < input_num; idx++)
+    tensors_gcu.push_back(GetHlirTensor(input_tensors[idx]));
   auto out_gcu = GetHlirTensor(output);
   hlir::DispatchParam params;
-  std::vector<hlir::Tensor*> tensors_gcu;
-  for (size_t idx = 0; idx < input_num; idx++) {
-    auto cat_tensor = GetHlirTensor(input_tensors[idx]);
-    tensors_gcu.push_back(cat_tensor);
-  }
-  for (size_t idx = 0; idx < input_num; idx++) {
+  for (size_t idx = 0; idx < input_num; idx++)
     params.inputs.push_back(tensors_gcu[idx]);
-  }
   params.metadata.setValue("dimension", axis);
   params.metadata.setValue("kInputTensorNum", int32_t(input_num));
   params.metadata.setValue("kOutputTensorNum", int32_t(1));
@@ -285,10 +283,6 @@ void concat(const phi::CustomContext& dev_ctx,
   GCUOPS_TRACE_START(concat);
   auto func_ptr = GetOpFuncPtr(KConcat, params);
   if (func_ptr) {
-    std::vector<const phi::DenseTensor*> all_inputs;
-    for (auto& tmp : input_tensors) {
-      all_inputs.emplace_back(&tmp);
-    }
     auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
     PADDLE_ENFORCE(
         pass, phi::errors::InvalidArgument("dispatch %s failed!", KConcat));
@@ -299,7 +293,7 @@ void concat(const phi::CustomContext& dev_ctx,
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(concat);
-  GcuOpStreamSync(params.stream);
+  GcuOpStreamSync(dev_ctx);
 }
 
 // no check, please do not use it directly
@@ -322,7 +316,7 @@ phi::DenseTensor concat(const phi::CustomContext& dev_ctx,
     axis = axis + rank;
   }
 
-  // 2. calculate out dims
+  // calculate out dims
   std::vector<phi::DDim> x_dims;
   x_dims.reserve(input_tensors.size());
   for (auto& x_t : input_tensors) {
@@ -397,8 +391,8 @@ phi::DenseTensor& broadcast(const phi::CustomContext& dev_ctx,
           phi::errors::InvalidArgument("not find aot func for %s", kBroadcast));
     }
     FreeDispatchParam(params);
+    GcuOpStreamSync(dev_ctx);
     GCUOPS_TRACE_END(broadcast);
-    GcuOpStreamSync(params.stream);
   } else {
     VLOG(1) << "broadcast(src, dst): src numel = " << src.numel()
             << ", dst numel = " << dst.numel();
@@ -456,8 +450,8 @@ phi::DenseTensor& slice(const phi::CustomContext& dev_ctx,
           phi::errors::InvalidArgument("not find aot func for %s", kSlice));
     }
     FreeDispatchParam(params);
+    GcuOpStreamSync(dev_ctx);
     GCUOPS_TRACE_END(slice);
-    GcuOpStreamSync(params.stream);
   }
 
   return output;
@@ -466,11 +460,7 @@ phi::DenseTensor& slice(const phi::CustomContext& dev_ctx,
 phi::DenseTensor reverse(const phi::CustomContext& dev_ctx,
                          const phi::DenseTensor& input,
                          const std::vector<int64_t>& reverse_dims) {  // NOLINT
-  phi::DenseTensor output;
-  output.set_meta(input.meta());
-  output.Resize(phi::make_ddim(reverse_dims));
-  dev_ctx.Alloc(&output, output.dtype());
-
+  phi::DenseTensor output = EmptyTensor(dev_ctx, input.meta());
   if (input.capacity() > 0 && output.capacity() > 0) {
     auto input_gcu = GetHlirTensor(input);
     auto out_gcu = GetHlirTensor(output);
@@ -493,7 +483,7 @@ phi::DenseTensor reverse(const phi::CustomContext& dev_ctx,
     }
     FreeDispatchParam(params);
     GCUOPS_TRACE_END(reverse);
-    GcuOpStreamSync(params.stream);
+    GcuOpStreamSync(dev_ctx);
   }
 
   return output;
@@ -632,8 +622,8 @@ phi::DenseTensor broadcast_in_dim(const phi::CustomContext& dev_ctx,
                                                   kBroadcastInDim));
     }
     FreeDispatchParam(params);
+    GcuOpStreamSync(dev_ctx);
     GCUOPS_TRACE_END(broadcast_in_dim);
-    GcuOpStreamSync(params.stream);
   } else {
     VLOG(1) << "broadcast(src, dst): src numel = " << src.numel()
             << ", dst numel = " << dst.numel();
@@ -738,10 +728,9 @@ phi::DenseTensor& reshape(const phi::CustomContext& dev_ctx,
           phi::errors::InvalidArgument("not find aot func for %s", kReshape));
     }
     FreeDispatchParam(params);
+    GcuOpStreamSync(dev_ctx);
     GCUOPS_TRACE_END(reshape);
-    GcuOpStreamSync(params.stream);
   }
-
   return dst;
 }
 
@@ -775,37 +764,7 @@ phi::DenseTensor& iota(const phi::CustomContext& dev_ctx,
     }
     FreeDispatchParam(params);
     GCUOPS_TRACE_END(iota);
-    GcuOpStreamSync(params.stream);
-  }
-  return output;
-}
-
-phi::DenseTensor convert(const phi::CustomContext& dev_ctx,
-                         const phi::DenseTensor& src,
-                         const phi::DataType& dst_dtype) {
-  auto output = EmptyTensor(dev_ctx, dst_dtype, src.dims());
-  if (output.capacity() > 0) {
-    auto src_gcu = GetHlirTensor(src);
-    auto out_gcu = GetHlirTensor(output);
-    hlir::DispatchParam params;
-    params.inputs = {src_gcu};
-    params.outputs = {out_gcu};
-    params.stream = static_cast<topsStream_t>(dev_ctx.stream());
-    AOTOPS_DEBUG(kConvert, params);
-    GCUOPS_TRACE_START(convert);
-    auto func_ptr = GetOpFuncPtr(kConvert, params);
-    if (func_ptr) {
-      auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
-      PADDLE_ENFORCE(
-          pass, phi::errors::InvalidArgument("dispatch %s failed!", kConvert));
-    } else {
-      PADDLE_ENFORCE(
-          false,
-          phi::errors::InvalidArgument("not find aot func for %s", kConvert));
-    }
-    FreeDispatchParam(params);
-    GCUOPS_TRACE_END(convert);
-    GcuOpStreamSync(params.stream);
+    GcuOpStreamSync(dev_ctx);
   }
   return output;
 }
@@ -838,7 +797,7 @@ phi::DenseTensor select(const phi::CustomContext& dev_ctx,
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(select);
-  GcuOpStreamSync(params.stream);
+  GcuOpStreamSync(dev_ctx);
 
   return out;
 }
@@ -942,7 +901,7 @@ void softmax_compute(const phi::CustomContext& dev_ctx,
   hlir::DispatchParam params;
   params.inputs = {src_gcu};
   params.outputs = {out_gcu};
-  params.metadata.setValue("axis", axis);
+  params.metadata.setValue("axis", static_cast<int32_t>(axis));
   params.stream = static_cast<topsStream_t>(dev_ctx.stream());
   AOTOPS_DEBUG(kSoftmax, params);
   GCUOPS_TRACE_START(softmax);
@@ -958,7 +917,7 @@ void softmax_compute(const phi::CustomContext& dev_ctx,
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(softmax);
-  GcuOpStreamSync(params.stream);
+  GcuOpStreamSync(dev_ctx);
 }
 
 static std::vector<int64_t> cal_sections(
@@ -1020,10 +979,8 @@ std::vector<phi::DenseTensor> split(const phi::CustomContext& dev_ctx,
   for (auto& section : real_sections) {
     auto split_dims = input_shape;
     split_dims[axis] = section;
-    phi::DenseTensor split_tensor;
-    phi::DenseTensorMeta meta(x.dtype(), phi::make_ddim(split_dims));
-    split_tensor.set_meta(meta);
-    dev_ctx.Alloc(&split_tensor, split_tensor.dtype());
+    phi::DenseTensor split_tensor =
+        EmptyTensor(dev_ctx, x.dtype(), phi::make_ddim(split_dims));
 
     splits.push_back(split_tensor);
     outs.push_back(&(splits.back()));
@@ -1051,23 +1008,113 @@ void split(const phi::CustomContext& dev_ctx,
   if (axis < 0) axis += input_rank;
   auto real_sections = cal_sections(input_shape, axis, num, sections);
 
-  std::vector<builder::Op> outputs;
-  std::vector<int64_t> strides(input_rank, 1);
-  std::vector<int64_t> starts(input_rank, 0);
-  std::vector<int64_t> limits = input_shape;
-  std::vector<int64_t> axes(real_sections.size(), 0);
-
+  int64_t start = 0;
+  int64_t limit = 0;
   for (size_t i = 0; i < real_sections.size(); ++i) {
-    axes[i] = i;
+    start += (i == 0) ? 0 : real_sections[i - 1];
+    limit += real_sections[i];
+
+    *outs[i] = slice(dev_ctx, x, {axis}, {start}, {limit}, {1}, (*outs[i]));
+  }
+}
+
+void cast(const phi::CustomContext& dev_ctx,
+          const phi::DenseTensor& x,
+          phi::DataType dtype,
+          phi::DenseTensor* out) {
+  if (x.dtype() == dtype) {
+    out->set_meta(x.meta());
+    dev_ctx.Alloc(out, out->dtype());
+    TensorCopy(dev_ctx, x, false, out);
+    return;
   }
 
-  limits[axis] = 0;
-  for (size_t i = 0; i < real_sections.size(); ++i) {
-    starts[axis] += (i == 0) ? 0 : real_sections[i - 1];
-    limits[axis] += real_sections[i];
-
-    *outs[i] = slice(dev_ctx, x, axes, starts, limits, strides, (*outs[i]));
+  if (dtype == phi::DataType::FLOAT32) {
+    dev_ctx.Alloc<float>(out);
+  } else if (dtype == phi::DataType::FLOAT64) {
+    dev_ctx.Alloc<double>(out);
+  } else if (dtype == phi::DataType::FLOAT16) {
+    dev_ctx.Alloc<phi::dtype::float16>(out);
+  } else if (dtype == phi::DataType::INT16) {
+    dev_ctx.Alloc<int16_t>(out);
+  } else if (dtype == phi::DataType::INT32) {
+    dev_ctx.Alloc<int32_t>(out);
+  } else if (dtype == phi::DataType::INT64) {
+    dev_ctx.Alloc<int64_t>(out);
+  } else if (dtype == phi::DataType::BOOL) {
+    dev_ctx.Alloc<bool>(out);
+  } else if (dtype == phi::DataType::UINT8) {
+    dev_ctx.Alloc<uint8_t>(out);
+  } else if (dtype == phi::DataType::INT8) {
+    dev_ctx.Alloc<int8_t>(out);
+  } else if (dtype == phi::DataType::COMPLEX64) {
+    dev_ctx.Alloc<phi::dtype::complex<float>>(out);
+  } else if (dtype == phi::DataType::COMPLEX128) {
+    dev_ctx.Alloc<phi::dtype::complex<double>>(out);
+  } else {
+    phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }
+  TensorNameMap input_names;
+  input_names["X"] = {"x"};
+
+  TensorValueMap inputs;
+  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+
+  TensorNameMap output_names;
+  output_names["Out"] = {"out"};
+
+  TensorValueMap outputs;
+  outputs["Out"] = {out};
+
+  GcuAttributeMap attrs;
+  attrs["in_dtype"] = static_cast<int>(x.dtype());
+  attrs["out_dtype"] = static_cast<int>(dtype);
+
+  GcuRunner(input_names, inputs, output_names, outputs, attrs, "cast", dev_ctx);
+  // }
+}
+
+phi::DenseTensor cast(const phi::CustomContext& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DataType dtype) {
+  phi::DenseTensor out;
+  auto meta = x.meta();
+  meta.dtype = dtype;
+  out.set_meta(meta);
+  cast(dev_ctx, x, dtype, &out);
+  return out;
+}
+
+phi::DenseTensor& one_hot(const phi::CustomContext& dev_ctx,
+                          const phi::DenseTensor& x,
+                          int64_t axis,
+                          int64_t depth,
+                          phi::DenseTensor& out) {  // NOLINT
+  std::vector<int64_t> label_dims = phi::vectorize(out.dims());
+  std::vector<int64_t> reshape_dims = label_dims;
+  reshape_dims.at(axis) = 1;
+  auto orders = EmptyTensor(dev_ctx, x.dtype(), phi::make_ddim(label_dims));
+  orders = custom_kernel::iota(dev_ctx, orders, axis);
+  auto x_reshape = reshape(dev_ctx, x, reshape_dims);
+  auto x_boradcast = broadcast_to(dev_ctx, x_reshape, label_dims);
+  auto idx_compare = equal_compute(dev_ctx, x_boradcast, orders);
+  auto ones = ones_like(dev_ctx, orders);
+  auto zeros = zeros_like(dev_ctx, orders);
+  auto label_int32 = select(dev_ctx, idx_compare, ones, zeros);
+  cast(dev_ctx, label_int32, out.dtype(), &out);
+  return out;
+}
+
+phi::DenseTensor one_hot(const phi::CustomContext& dev_ctx,
+                         const phi::DenseTensor& x,
+                         int64_t axis,
+                         int64_t depth) {
+  // calculate out dims
+  std::vector<int64_t> out_dims = phi::vectorize(x.dims());
+  out_dims.insert(out_dims.begin() + axis, depth);
+  auto out =
+      EmptyTensor(dev_ctx, phi::DataType::FLOAT32, phi::make_ddim(out_dims));
+  return one_hot(dev_ctx, x, axis, depth, out);
 }
 
 }  // namespace custom_kernel

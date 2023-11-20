@@ -16,9 +16,9 @@
 
 #include "common/common.h"
 #include "common/utils.h"
-#include "kernels/common_ops/binary_kernels.h"
+#include "kernels/common_ops/elementwise_ops.h"
 #include "kernels/common_ops/reduce_x_ops.h"
-#include "kernels/common_ops/unary_kernels.h"
+#include "kernels/common_ops/unary_ops.h"
 #include "kernels/funcs/gcu_funcs.h"
 #include "kernels/funcs/gcu_name_list.h"
 #include "paddle/phi/core/dense_tensor.h"
@@ -139,10 +139,6 @@ phi::DenseTensor& iota(const phi::CustomContext& dev_ctx,
                        phi::DenseTensor& output,  // NOLINT
                        int64_t dim);
 
-phi::DenseTensor convert(const phi::CustomContext& dev_ctx,
-                         const phi::DenseTensor& src,
-                         const phi::DataType& dst_dtype);
-
 phi::DenseTensor select(const phi::CustomContext& dev_ctx,
                         const phi::DenseTensor& pred,
                         const phi::DenseTensor& on_true,
@@ -191,9 +187,8 @@ phi::DenseTensor CreateScalarTensor(const phi::CustomContext& dev_ctx,
                                     T value) {
   std::vector<T> vec_value(1, value);
   phi::DenseTensor vec_value_tensor;
-  vec_value_tensor.Resize(phi::make_ddim({1}));
-  custom_kernel::TensorFromVector(
-      dev_ctx, vec_value, dev_ctx, &vec_value_tensor);
+  vec_value_tensor.Resize(phi::make_ddim({}));
+  custom_kernel::TensorFromValue(dev_ctx, value, dev_ctx, &vec_value_tensor);
   dev_ctx.Wait();
   return vec_value_tensor;
 }
@@ -202,9 +197,32 @@ template <typename T>
 phi::DenseTensor full_like(const phi::CustomContext& dev_ctx,
                            const phi::DenseTensor& src,
                            T value) {
-  auto dst = EmptyTensor(dev_ctx, src.meta());
+  phi::DenseTensor dst;
+  dst.Resize(src.dims());
+  dev_ctx.Alloc<T>(&dst);
   auto value_tensor = CreateScalarTensor<T>(dev_ctx, value);
 
   return fill(dev_ctx, dst, value_tensor);
 }
+
+void cast(const phi::CustomContext& dev_ctx,
+          const phi::DenseTensor& x,
+          phi::DataType dtype,
+          phi::DenseTensor* out);
+
+phi::DenseTensor cast(const phi::CustomContext& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DataType dtype);
+
+phi::DenseTensor& one_hot(const phi::CustomContext& dev_ctx,
+                          const phi::DenseTensor& x,
+                          int64_t axis,
+                          int64_t depth,
+                          phi::DenseTensor& out);  // NOLINT
+
+phi::DenseTensor one_hot(const phi::CustomContext& dev_ctx,
+                         const phi::DenseTensor& x,
+                         int64_t axis,
+                         int64_t depth);
+
 }  // namespace custom_kernel

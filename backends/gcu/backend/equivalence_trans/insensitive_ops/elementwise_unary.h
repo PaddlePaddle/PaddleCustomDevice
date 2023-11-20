@@ -21,6 +21,10 @@ limitations under the License. */
 namespace backend {
 const char *const kAbs = "abs";
 const char *const kAbsGrad = "abs_grad";
+const char *const kExp = "exp";
+const char *const kExpGrad = "exp_grad";
+const char *const kReciprocal = "reciprocal";
+const char *const kReciprocalGrad = "reciprocal_grad";
 
 IMPLEMT_EQUIVALENCE_TRANS_FUNC(
     gcu_builder, op, map_inputs, running_mode, AbsEquivalenceTrans) {
@@ -41,6 +45,41 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
   return std::make_shared<GcuOp>(builder::Select(pred_positive, zero, temp));
 }
 
+// dy / dx = -(1/x)^2 = -y^2
+IMPLEMT_EQUIVALENCE_TRANS_FUNC(
+    gcu_builder, op, map_inputs, running_mode, ReciprocalGradEquivalenceTrans) {
+  GcuOp out_op = *(map_inputs["Out"].at(0));
+  GcuOp out_grad_op = *(map_inputs["Out@GRAD"].at(0));
+  GcuOp in_grad_op = -out_grad_op * out_op * out_op;
+  return std::make_shared<GcuOp>(in_grad_op);
+}
+
+IMPLEMT_EQUIVALENCE_TRANS_FUNC(
+    gcu_builder, op, map_inputs, running_mode, ExpEquivalenceTrans) {
+  return std::make_shared<GcuOp>(builder::Exp(*(map_inputs["X"].at(0))));
+}
+
+IMPLEMT_EQUIVALENCE_TRANS_FUNC(
+    gcu_builder, op, map_inputs, running_mode, ExpGradEquivalenceTrans) {
+  GcuOp out = *(map_inputs["Out"].at(0));
+  GcuOp out_grad = *(map_inputs["Out@GRAD"].at(0));
+  return std::make_shared<GcuOp>(out * out_grad);
+}
+
+IMPLEMT_EQUIVALENCE_TRANS_FUNC(
+    gcu_builder, op, map_inputs, running_mode, ReciprocalEquivalenceTrans) {
+  return std::make_shared<GcuOp>(builder::Reciprocal(*(map_inputs["X"].at(0))));
+}
+
 EQUIVALENCE_TRANS_FUNC_REG(kAbs, INSENSITIVE, AbsEquivalenceTrans);
 EQUIVALENCE_TRANS_FUNC_REG(kAbsGrad, INSENSITIVE, AbsGradEquivalenceTrans);
+EQUIVALENCE_TRANS_FUNC_REG(kExp, INSENSITIVE, ExpEquivalenceTrans);
+EQUIVALENCE_TRANS_FUNC_REG(kExpGrad, INSENSITIVE, ExpGradEquivalenceTrans);
+EQUIVALENCE_TRANS_FUNC_REG(kReciprocal,
+                           INSENSITIVE,
+                           ReciprocalEquivalenceTrans);
+EQUIVALENCE_TRANS_FUNC_REG(kReciprocalGrad,
+                           INSENSITIVE,
+                           ReciprocalGradEquivalenceTrans);
+
 }  // namespace backend

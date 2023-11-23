@@ -15,6 +15,7 @@ PaddleCustomDevice has supported the following backends:
 - [PaddlePaddle Custom Device Implementaion for Ascend NPU](backends/npu/README.md)
 - [PaddlePaddle Custom Device Implementaion for Cambricon MLU](backends/mlu/README.md)
 - [PaddlePaddle Custom Device Implementaion for Intel GPU](backends/intel_gpu/README.md)
+- [PaddlePaddle Custom Device Implementaion for Enflame GCU](backends/gcu/README.md)
 
 ## Copyright and License
 PaddleCustomDevice is provided under the [Apache-2.0 license](LICENSE).

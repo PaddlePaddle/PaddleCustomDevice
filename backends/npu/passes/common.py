@@ -5,7 +5,7 @@ import numpy as np
 import unittest
 import paddle
 
-from .llama_pass import llama_fuse_attention_dynamic_layer1, llama_fuse_attention_dynamic_layer2, llama_fuse_attention_dynamic_first_parallel_layer, llama_fuse_attention_dynamic_parallel_layer, llama_lmhead, llama_fuse_attention_dynamic_first_parallel_layer_be61d, llama_fuse_attention_dynamic_parallel_layer_be61d
+from .llama_pass import replace_embeding, llama_fuse_attention_dynamic_layer1, llama_fuse_attention_dynamic_layer2, llama_fuse_attention_dynamic_first_parallel_layer, llama_fuse_attention_dynamic_parallel_layer, llama_lmhead, llama_fuse_attention_dynamic_first_parallel_layer_be61d, llama_fuse_attention_dynamic_parallel_layer_be61d
 from .remove_pass import remove_fused_bias_residual_layernorm, remove_rebuild_padding, remove_get_padding_offset, remove_get_token_penalty_multi_scores, save_with_output_delay_pass_1st, save_with_output_delay_pass_2nd
 
 def setUp():
@@ -33,8 +33,7 @@ def addPasses(pass_builder, model_type):
         register_pass(pass_builder, "llama_lmhead")
         register_pass(pass_builder, "save_with_output_delay_pass_2nd")
         register_pass(pass_builder, "save_with_output_delay_pass_1st")
-        
-
+        register_pass(pass_builder, "replace_embeding")
     elif model_type == "llama65B_mp8_dynamic_batch":
         register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer1")
         register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_layer2")
@@ -46,6 +45,6 @@ def addPasses(pass_builder, model_type):
         register_pass(pass_builder, "llama_lmhead")
         register_pass(pass_builder, "save_with_output_delay_pass_2nd")
         register_pass(pass_builder, "save_with_output_delay_pass_1st")
-
+        register_pass(pass_builder, "replace_embeding")
     else:
         print("NPU pass not support")

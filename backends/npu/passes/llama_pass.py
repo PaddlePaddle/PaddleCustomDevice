@@ -931,3 +931,12 @@ def llama_fuse_attention_dynamic_first_parallel_layer_be61d():
             llama_layer[2])
 
     return pattern, replace
+
+@ir.RegisterPass
+def replace_embeding():
+    def pattern(x, y):
+        return ir.PassDesc.OP.lookup_table_v2(Ids=x, W=y)
+
+    def replace(x, y):
+        return ir.PassDesc.OP.atb_embeding(X=x, Y=y)
+    

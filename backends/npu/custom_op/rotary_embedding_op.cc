@@ -58,10 +58,9 @@ void fused_get_rotary_embedding_neox(
     const int32_t half_head_idx = (idx % half_head_dim) * PackSize;
     const float exponent_factor = -static_cast<float>(half_head_idx) * inv_head_dim; // * inv_head_dim equals to / head_dim.
     const float inv_freq_val = powf(10000.0f, exponent_factor);
-    const float xxx = static_cast<float>(position_ids[position_offset]);
     const float freqs_val = static_cast<float>(position_ids[position_offset]) * inv_freq_val;
     const float cos_embedding_val = cos(freqs_val);
-     const float sin_embedding_val = sin(freqs_val);
+    const float sin_embedding_val = sin(freqs_val);
     const int32_t cos_offset = bsz_seq_idx * head_dim + half_head_idx / PackSize;
     rope_embedding[cos_offset] = cos_embedding_val;
     rope_embedding[cos_offset + half_head_dim] = cos_embedding_val;

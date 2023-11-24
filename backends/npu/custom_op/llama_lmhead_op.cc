@@ -34,7 +34,7 @@ std::vector<std::vector<int64_t>> LlamaLmHeadOpInferShape(
   std::vector<int64_t> out_shape;
 
   out_shape.push_back(hidden_shape.at(0));
-  out_shape.push_back(hidden_shape.at(1));
+
   if (transpose) {
     out_shape.push_back(matmul_weight_shape.at(0));
   } else {

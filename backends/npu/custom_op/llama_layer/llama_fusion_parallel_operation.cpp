@@ -57,6 +57,11 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::CreateOperation(inputNormParam, &inputNormNode.operation);
     inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
+    inputNormNode.inTensorReshapeFuncs.resize(inputNormNode.inTensorIds.size());
+    inputNormNode.inTensorReshapeFuncs.at(0) = [seqLenPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
+        *seqLenPtr = oldShape.dims[1]; // 获取一下seqLen大小，帮助后面infer shape
+    };
 
     // [bs, seq_len, hidden_size] * [3 * hidden_size / card_num, hidden_size] -> [bs，seq_len, hidden_size / card_num]
     MultiLayerLinearParam multiLayerLinearParam;
@@ -77,11 +82,6 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     atb::CreateOperation(splitParam, &cosSinSplitNode.operation);
     cosSinSplitNode.inTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
     cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
-    cosSinSplitNode.inTensorReshapeFuncs.resize(cosSinSplitNode.inTensorIds.size());
-    cosSinSplitNode.inTensorReshapeFuncs.at(0) = [seqLenPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape = oldShape;
-        *seqLenPtr = oldShape.dims[3]; // 获取一下seqLen大小，帮助后面infer shape
-    };
 
     // output:[bs * seq_len, head_dim * head_num_pre_card]
     atb::infer::RopeParam ropeParam;

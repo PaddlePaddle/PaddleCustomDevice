@@ -43,7 +43,7 @@ atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &linearNode  = opGraph.nodes.at(nodeId++);
 
-    // [bs, seq_len, hidden_size]
+    // input:encoder [bs, hidden_size] or  decoder [bs, 1, hidden_size]
     atb::infer::RmsNormParam inputNormParam;
     inputNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     inputNormParam.normParam.epsilon = param.rmsNormEps;
@@ -51,7 +51,7 @@ atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
     inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
 
-    // [bs, seq_len, hidden_size] * [hidden_size, vocsize_pre_card_num] -> [bs * seq_len, vocsize_pre_card_num]
+    // [bs, hidden_size] * [hidden_size, vocsize_pre_card_num] -> [bs, vocsize_pre_card_num]
     atb::infer::MatmulParam linearParam = {false, param.transpose};
     atb::CreateOperation(linearParam, &linearNode.operation);
     linearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_MATMULWEIGHT};
@@ -59,19 +59,23 @@ atb::Status LlamaLmheadOperation(const LlamaLmheadParam &param,
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
     linearNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 2; // dimNum: 2
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
-        newShape.dims[1] = oldShape.dims[2];
+        if (oldShape.dimNum == 3) {
+            newShape.dims[0] = oldShape.dims[0];
+            newShape.dims[1] = oldShape.dims[2];
+        } else {
+            newShape = oldShape;
+        }
     };
 
-    // [bs, seq_len, vocsize_pre_card_num]
+    // [bs, vocsize_pre_card_num]
     opGraph.inferShapeFunc = [&](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
         outTensorDescs.at(0) = inTensorDescs.at(0);
-        size_t dimNum = outTensorDescs.at(0).shape.dimNum;
+        outTensorDescs.at(0).shape.dimNum = 2;
         if (param.transpose) {
-            outTensorDescs.at(0).shape.dims[dimNum - 1] = inTensorDescs.at(2).shape.dims[0];
+            outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(2).shape.dims[0];
         } else {
-            outTensorDescs.at(0).shape.dims[dimNum - 1] = inTensorDescs.at(2).shape.dims[1];
+            outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(2).shape.dims[1];
         }
 
         return atb::NO_ERROR;

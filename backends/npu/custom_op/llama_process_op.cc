@@ -440,9 +440,9 @@ void save_with_output_kernel(const paddle::Tensor& x,
   }
   auto x_data = x.data<data_t>();
 
-  if(batch_idx_data >= 0) {
-    file_path += "_batch_" + std::to_string(batch_idx_data);
-  }
+  // if(batch_idx_data >= 0) {
+  //   file_path += "_batch_" + std::to_string(batch_idx_data);
+  // }
   if(step_idx_data >= 0) {
     file_path += "_step_" + std::to_string(step_idx_data);
   }

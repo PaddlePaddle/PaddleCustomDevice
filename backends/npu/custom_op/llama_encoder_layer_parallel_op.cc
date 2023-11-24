@@ -220,7 +220,8 @@ std::vector<paddle::Tensor> LlamaEncoderLayerParallelOp(
                                            true,
                                            comm,
                                            false, // encoder also enable dynamic batch
-                                           1}; // encoder layer type
+                                           1,     // encoder layer type
+                                           1};    // 是否下三角
     LlamaLayerFusionParallelOperation(param, &op);
     g_llamaEncoderLayerParallelOp->operation_.reset(op);
     std::vector<int32_t> layer_id_vec(1, 0);

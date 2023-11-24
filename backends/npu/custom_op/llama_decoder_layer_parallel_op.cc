@@ -56,7 +56,9 @@ void PerpareLlamaDecoderLayerInputs(
 
   self_out_linear_weight_tensor->Resize({self_out_linear_weight_tensor->dims()[1], self_out_linear_weight_tensor->dims()[0]});
   mlp_gate_up_weight_tensor->Resize({mlp_gate_up_weight_tensor->dims()[1], mlp_gate_up_weight_tensor->dims()[0]});
-  mlp_down_weight_tensor->Resize({mlp_down_weight_tensor->dims()[1], mlp_down_weight_tensor->dims()[0]});
+  // mlp_down_weight_tensor->Resize({mlp_down_weight_tensor->dims()[1], mlp_down_weight_tensor->dims()[0]});
+  // NZ格式:
+  mlp_down_weight_tensor->Resize({1, mlp_down_weight_tensor->dims()[0] / 16, mlp_down_weight_tensor->dims()[1], 16});
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
@@ -103,7 +105,12 @@ void PpAtbLlamaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::D
                                                         std::vector<const phi::DenseTensor *> &outTensors) {
   variantPacks_.inTensors.resize(inTensors.size() + 1);
   for (size_t i = 0; i < inTensors.size(); i++) {
-    if(i == 10) { // CACHE_K
+    if(i == 6) { // NZ
+      variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
+      if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
+        variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_FRACTAL_NZ;
+      }
+    }else if(i == 10) { // CACHE_K
       variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensorK(*(inTensors.at(i)));
       if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
         variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;

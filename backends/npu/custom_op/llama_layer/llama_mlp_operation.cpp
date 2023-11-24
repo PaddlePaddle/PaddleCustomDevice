@@ -89,14 +89,26 @@ atb::Status CreateLlamaMlpOperation(const LlamaMlpParam &param, atb::Operation *
         outTensorDescs.at(0) = inTensorDescs.at(0);
         if (param.transpose == true) {
             outTensorDescs.at(0).shape.dimNum = DIM3;
-            outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-            outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
-            outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / 2;
+            if (inTensorDescs.at(1).format == 2) {
+                outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+                outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+                outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / 2;
+            } else if (inTensorDescs.at(1).format == 29) {
+                outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+                outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+                outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[2] / 2;
+            }
         } else {
             outTensorDescs.at(0).shape.dimNum = DIM3;
-            outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-            outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
-            outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / 2;
+            if (inTensorDescs.at(1).format == 2) {
+                outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+                outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+                outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[1] / 2;
+            } else if (inTensorDescs.at(1).format == 29) {
+                outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+                outTensorDescs.at(0).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
+                outTensorDescs.at(0).shape.dims[2] = (inTensorDescs.at(1).shape.dims[1] * inTensorDescs.at(1).shape.dims[3])/ 2;
+            }
         }
 
         return atb::NO_ERROR;

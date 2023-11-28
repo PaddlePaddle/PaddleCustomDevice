@@ -42,6 +42,21 @@ set_property(TARGET ascend_hccl PROPERTY IMPORTED_LOCATION ${ascend_hccl_lib})
 add_library(acl_op_compiler SHARED IMPORTED GLOBAL)
 set_property(TARGET acl_op_compiler PROPERTY IMPORTED_LOCATION
                                              ${acl_op_compiler_lib})
+
+# ascend transorformer boost
+set(ascend_atb_lib ${ASCEND_DIR}/atb/latest/atb/lib/libatb.so)
+set(ascend_ops_lib ${ASCEND_DIR}/atb/latest/atb/lib/libasdops.so)
+set(ATB_INC_DIR ${ASCEND_DIR}/atb/latest/atb/include)
+message(STATUS "ATB_INC_DIR ${ATB_INC_DIR}")
+include_directories(${ATB_INC_DIR})
+
+add_library(ascend_atb SHARED IMPORTED GLOBAL)
+set_property(TARGET ascend_atb PROPERTY IMPORTED_LOCATION ${ascend_atb_lib})
+
+add_library(ascend_ops SHARED IMPORTED GLOBAL)
+set_property(TARGET ascend_ops PROPERTY IMPORTED_LOCATION ${ascend_atb_lib})
+
+# add all dependecies
 add_custom_target(ascend_cl DEPENDS ascendcl acl_op_compiler)
 
 macro(find_ascend_toolkit_version ascend_toolkit_version_info)

@@ -227,7 +227,8 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
   // StridedSliceAssign only support fp32 and int32.
   // We directly transform fp64/int64 to fp32/int32 before impl function.
   auto stream = dev_ctx.stream();
-  if (x.dtype() == phi::DataType::FLOAT64) {
+  if (x.dtype() == phi::DataType::FLOAT64 ||
+      x.dtype() == phi::DataType::FLOAT16) {
     tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
     tmp_value_meta = {phi::DataType::FLOAT32, value.dims()};
     tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
@@ -256,7 +257,10 @@ void SetTensorValueNPUKernel(const Context& dev_ctx,
     out->Resize(tmp_out.dims());
     dev_ctx.template Alloc<T>(out);
     const auto& runner3 =
-        NpuOpRunner("Cast", {tmp_out}, {*out}, {{"dst_type", ACL_DOUBLE}});
+        NpuOpRunner("Cast",
+                    {tmp_out},
+                    {*out},
+                    {{"dst_type", ConvertToNpuDtype(x.dtype())}});
     runner3.Run(stream);
   } else if (x.dtype() == phi::DataType::INT64) {
     tmp_x_meta = {phi::DataType::INT32, x.dims()};
@@ -344,6 +348,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SetValueNPUKernel,
+                          phi::dtype::float16,
                           float,
                           double,
                           int,
@@ -354,6 +359,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SetTensorValueNPUKernel,
+                          phi::dtype::float16,
                           float,
                           double,
                           int,

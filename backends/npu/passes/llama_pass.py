@@ -939,4 +939,5 @@ def replace_embeding():
 
     def replace(x, y):
         return ir.PassDesc.OP.atb_embeding(X=x, Y=y)
+    return pattern, replace
     

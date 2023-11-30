@@ -41,51 +41,8 @@ void FullLikeKernel(const Context& dev_ctx,
                     const phi::Scalar& val,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
-  auto value = val.to<double>();
-  using CommonType = typename std::common_type<
-      float,
-      typename std::conditional<
-          std::is_same<T, phi::dtype::float16>::value ||
-              std::is_same<T, phi::dtype::bfloat16>::value,
-          float,
-          T>::type>::type;
-
-  auto common_type_value = static_cast<CommonType>(value);
-
-  // Check whether the filled value is valid
-  bool is_out_range = true;
-  if (std::isinf(value) || std::isnan(value)) {
-    is_out_range = false;
-  }
-
-  if ((common_type_value >=
-       static_cast<CommonType>(std::numeric_limits<T>::lowest())) &&
-      (common_type_value <=
-       static_cast<CommonType>(std::numeric_limits<T>::max()))) {
-    is_out_range = false;
-  }
-
-  PADDLE_ENFORCE_EQ(
-      is_out_range,
-      false,
-      phi::errors::InvalidArgument(
-          "The filled value is out of range for target type, "
-          "current kernel type is %s, the range should between %f "
-          "and %f, but now value is %f.",
-          typeid(T).name(),
-          static_cast<CommonType>(std::numeric_limits<T>::lowest()),
-          static_cast<CommonType>(std::numeric_limits<T>::max()),
-          static_cast<float>(value)));
-
-  dev_ctx.template Alloc<T>(out);
-  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
-
-  NpuOpRunner runner;
-  runner.SetType("Fills")
-      .AddInput(*out)
-      .AddOutput(*out)
-      .AddAttrs({{"value", val.to<float>()}})
-      .Run(stream);
+  custom_kernel::FullKernel<T, Context>(
+      dev_ctx, phi::vectorize(x.dims()), val, dtype, out);
 }
 
 template <typename T, typename Context>

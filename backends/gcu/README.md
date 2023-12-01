@@ -46,9 +46,9 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) Check currently installed version.
 python -c "import paddle_custom_device; paddle_custom_device.gcu.version()"
 # Expect to get output like this.
-version: 0.0.0.ffc0377-2.4.1
-commit: ffc037739c55508532ee67b565517be2b4ae584d
-plugin version: 0.0.1
+version: 0.0.0.9e03b0a
+commit: 9e03b0a42a530d07fb60e141ee618fc02595bd96
+tops-sdk: 2.5.20231128
 
 # 3) Unit test, compiled with -DWITH_TESTING=ON and executed in the build directory.
 ctest

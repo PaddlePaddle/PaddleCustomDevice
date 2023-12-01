@@ -45,9 +45,9 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) 检查当前安装版本
 python -c "import paddle_custom_device; paddle_custom_device.gcu.version()"
 # 预期得到类似以下的输出结果
-version: 0.0.0.ffc0377-2.4.1
-commit: ffc037739c55508532ee67b565517be2b4ae584d
-plugin version: 0.0.1
+version: 0.0.0.9e03b0a
+commit: 9e03b0a42a530d07fb60e141ee618fc02595bd96
+tops-sdk: 2.5.20231128
 
 # 3) 单元测试，带上-DWITH_TESTING=ON编译后在build目录下执行
 ctest

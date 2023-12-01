@@ -33,7 +33,7 @@ find_library(
 if(NOT TOPS_RT_LIB)
   message(FATAL_ERROR "topsrt not found in system path and /opt/tops/lib")
 endif()
-message("libtopsrt path:" ${TOPS_RT_LIB})
+message(STATUS "libtopsrt path:" ${TOPS_RT_LIB})
 set(GCU_LIBS ${SDK_LIB} ${ECCL_LIB} ${RUNTIME_LIB} ${TOPS_RT_LIB} ${TOPSTX_LIB})
 
 set(VERSION_REGEX "( [0-9]+\.[0-9]+\.(RC)?[0-9]*) ")
@@ -56,6 +56,4 @@ macro(find_gcu_version component)
 endmacro()
 
 find_gcu_version("tops-sdk")
-set(PLUGIN_VERSION "0.0.1")
-message(STATUS "PLUGIN_VERSION is ${PLUGIN_VERSION}")
 message(STATUS "TOPS_VERSION is ${TOPS_VERSION}")

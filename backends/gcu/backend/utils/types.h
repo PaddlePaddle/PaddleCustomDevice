@@ -18,7 +18,7 @@ limitations under the License. */
 #include <unordered_map>
 #include <vector>
 
-#include "dtu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir_builder/hlir_builder.h"
 #include "paddle/phi/common/data_type.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"

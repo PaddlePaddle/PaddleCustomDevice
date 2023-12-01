@@ -51,6 +51,8 @@ void ReduceBaseKernel(const Context& dev_ctx,
       reduce_sum_compute(dev_ctx, tmp_x, keep_dim, axis, tmp_out);
     } else if (op_type == "reduce_prod") {
       reduce_prod_compute(dev_ctx, tmp_x, keep_dim, axis, tmp_out);
+    } else if (op_type == "reduce_mean") {
+      reduce_mean_compute(dev_ctx, tmp_x, keep_dim, axis, tmp_out);
     } else {
       PADDLE_THROW(phi::errors::Unimplemented("Aot unsupport reduce type: %s",
                                               op_type.c_str()));

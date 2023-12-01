@@ -16,9 +16,9 @@
 #include <string>
 #include <vector>
 
-#include "dtu/hlir/dispatch.h"
-#include "dtu/hlir/metadata.h"
-#include "dtu/hlir/types.h"
+#include "gcu/hlir/dispatch.h"
+#include "gcu/hlir/metadata.h"
+#include "gcu/hlir/types.h"
 #include "paddle/phi/common/data_type.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "runtime/gcu_memory.h"
@@ -112,6 +112,24 @@ inline std::vector<T> reorder_vector(const std::vector<T>& src,
   }
 
   return dst;
+}
+
+inline bool IsIntegralType(const phi::DataType& dtype) {
+  switch (dtype) {
+    case phi::DataType::INT8:
+    case phi::DataType::INT16:
+    case phi::DataType::INT32:
+    case phi::DataType::INT64:
+    case phi::DataType::UINT8:
+    case phi::DataType::UINT16:
+    case phi::DataType::UINT32:
+    case phi::DataType::UINT64:
+      return true;
+    default:
+      return false;
+  }
+
+  return false;
 }
 
 }  // namespace custom_kernel

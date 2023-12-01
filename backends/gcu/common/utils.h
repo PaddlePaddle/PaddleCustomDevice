@@ -19,11 +19,11 @@
 #include <utility>
 #include <vector>
 
-#include "dtu/hlir/dispatch.h"
-#include "dtu/hlir/library.h"
-#include "dtu/hlir/library_attributes.h"
-#include "dtu/hlir/metadata.h"
-#include "dtu/hlir/types.h"
+#include "gcu/hlir/dispatch.h"
+#include "gcu/hlir/library.h"
+#include "gcu/hlir/library_attributes.h"
+#include "gcu/hlir/metadata.h"
+#include "gcu/hlir/types.h"
 #include "topstx/topstx.hpp"
 
 namespace custom_kernel {
@@ -50,6 +50,17 @@ inline HlirVector VectorToHlirVector(const std::vector<T>& dims) {
 template <typename T>
 inline HlirShape VectorToHlirShape(const std::vector<T>& dims) {
   return HlirShape(vector_s64(dims), {static_cast<int64_t>(dims.size())});
+}
+
+template <typename T>
+static std::string VectorToString(std::vector<T> vec) {
+  std::ostringstream os;
+  os << "[";
+  for (auto tmp : vec) {
+    os << std::fixed << tmp << "; ";
+  }
+  os << "]";
+  return os.str();
 }
 
 // format in pad_h_top/pad_h_bot or pad_w_left/pad_w_right.

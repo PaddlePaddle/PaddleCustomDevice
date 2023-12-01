@@ -129,11 +129,8 @@ void AddKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     add_compute(static_cast<const phi::CustomContext&>(dev_ctx),
@@ -251,11 +248,8 @@ void DivideKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     div_compute(static_cast<const phi::CustomContext&>(dev_ctx),
@@ -302,11 +296,8 @@ void SubtractKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     sub_compute(static_cast<const phi::CustomContext&>(dev_ctx),
@@ -419,11 +410,8 @@ void MultiplyKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     mul_compute(static_cast<const phi::CustomContext&>(dev_ctx),
@@ -523,11 +511,8 @@ void MinimumKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     minimum_compute(static_cast<const phi::CustomContext&>(dev_ctx),
@@ -572,11 +557,8 @@ void MaximumKernel(const Context& dev_ctx,
     }
     phi::DenseTensor tmp_out = *out;
     if (tmp_out.dtype() == phi::DataType::INT64) {
-      auto meta = tmp_out.meta();
-      meta.dtype = phi::DataType::INT32;
-      phi::DenseTensor tmp;
-      tmp.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&tmp);
+      auto tmp = EmptyTensor(dev_ctx, phi::DataType::INT32, tmp_out.dims());
+      dev_ctx.template Alloc(&tmp, tmp.dtype());
       tmp_out = tmp;
     }
     maximum_compute(static_cast<const phi::CustomContext&>(dev_ctx),

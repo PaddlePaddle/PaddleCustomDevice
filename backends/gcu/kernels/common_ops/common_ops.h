@@ -162,11 +162,13 @@ void stack(const phi::CustomContext& dev_ctx,
 
 phi::DenseTensor softmax_compute(const phi::CustomContext& dev_ctx,
                                  const phi::DenseTensor& input,
-                                 int64_t axis);
+                                 int64_t axis,
+                                 bool with_log);
 
 void softmax_compute(const phi::CustomContext& dev_ctx,
                      const phi::DenseTensor& input,
                      int64_t axis,
+                     bool with_log,
                      phi::DenseTensor& output);  // NOLINT
 
 std::vector<phi::DenseTensor> split(const phi::CustomContext& dev_ctx,
@@ -224,5 +226,18 @@ phi::DenseTensor one_hot(const phi::CustomContext& dev_ctx,
                          const phi::DenseTensor& x,
                          int64_t axis,
                          int64_t depth);
+
+phi::DenseTensor& pad(const phi::CustomContext& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const std::vector<int64_t>& pads,
+                      int64_t mode,
+                      float init_value,
+                      phi::DenseTensor& out);  // NOLINT
+
+phi::DenseTensor pad(const phi::CustomContext& dev_ctx,
+                     const phi::DenseTensor& input,
+                     const std::vector<int64_t>& pads,
+                     int64_t mode,
+                     float init_value);
 
 }  // namespace custom_kernel

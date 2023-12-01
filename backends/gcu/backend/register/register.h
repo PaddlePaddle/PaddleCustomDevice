@@ -25,7 +25,7 @@ limitations under the License. */
 
 #include "backend/utils/gcu_op_desc.h"
 #include "backend/utils/types.h"
-#include "dtu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir_builder/hlir_builder.h"
 
 using GcuOp = ::builder::Op;
 using GcuOpPtr = std::shared_ptr<GcuOp>;

@@ -21,8 +21,8 @@ limitations under the License. */
 #include <vector>
 
 #include "backend/executor/gcu_node.h"
-#include "dtu/hlir/dispatch.h"
-#include "dtu/hlir/types.h"
+#include "gcu/hlir/dispatch.h"
+#include "gcu/hlir/types.h"
 #include "paddle/phi/backends/custom/custom_context.h"
 #include "paddle/phi/core/dense_tensor.h"
 

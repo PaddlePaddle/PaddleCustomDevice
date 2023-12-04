@@ -25,7 +25,7 @@ limitations under the License. */
 #include <vector>
 
 #include "backend/utils/types.h"
-#include "dtu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir_builder/hlir_builder.h"
 #include "gcu/umd/dtu_assembler_def.h"
 #include "paddle/phi/common/data_type.h"
 

@@ -150,16 +150,8 @@ void AdamBaseKernel(const Context& dev_ctx,
   if (!use_global_beta_pow) {
     dev_ctx.template Alloc<T>(beta1_pow_out);
     dev_ctx.template Alloc<T>(beta2_pow_out);
-    TensorCopy(dev_ctx,
-               beta1_pow_out_tmp,
-               false,
-               beta1_pow_out,
-               beta1_pow_out->place());
-    TensorCopy(dev_ctx,
-               beta2_pow_out_tmp,
-               false,
-               beta2_pow_out,
-               beta1_pow_out->place());
+    TensorCopy(dev_ctx, beta1_pow_out_tmp, false, beta1_pow_out);
+    TensorCopy(dev_ctx, beta2_pow_out_tmp, false, beta2_pow_out);
   }
 
   // updates params inplace, so

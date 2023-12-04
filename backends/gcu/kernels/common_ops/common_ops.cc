@@ -886,16 +886,21 @@ void stack(const phi::CustomContext& dev_ctx,
 
 phi::DenseTensor softmax_compute(const phi::CustomContext& dev_ctx,
                                  const phi::DenseTensor& input,
-                                 int64_t axis) {
+                                 int64_t axis,
+                                 bool with_log) {
   auto output = EmptyTensor(dev_ctx, input.meta());
-  softmax_compute(dev_ctx, input, axis, output);
+  softmax_compute(dev_ctx, input, axis, with_log, output);
   return output;
 }
 
 void softmax_compute(const phi::CustomContext& dev_ctx,
                      const phi::DenseTensor& input,
                      int64_t axis,
+                     bool with_log,
                      phi::DenseTensor& output) {  // NOLINT
+  auto softmax_type = kSoftmax;
+  if (with_log) softmax_type = kLogSoftmax;
+
   auto src_gcu = GetHlirTensor(input);
   auto out_gcu = GetHlirTensor(output);
   hlir::DispatchParam params;
@@ -903,17 +908,17 @@ void softmax_compute(const phi::CustomContext& dev_ctx,
   params.outputs = {out_gcu};
   params.metadata.setValue("axis", static_cast<int32_t>(axis));
   params.stream = static_cast<topsStream_t>(dev_ctx.stream());
-  AOTOPS_DEBUG(kSoftmax, params);
+  AOTOPS_DEBUG(softmax_type, params);
   GCUOPS_TRACE_START(softmax);
-  auto func_ptr = GetOpFuncPtr(kSoftmax, params);
+  auto func_ptr = GetOpFuncPtr(softmax_type, params);
   if (func_ptr) {
     auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
     PADDLE_ENFORCE(
-        pass, phi::errors::InvalidArgument("dispatch %s failed!", kSoftmax));
+        pass,
+        phi::errors::InvalidArgument("dispatch %s failed!", softmax_type));
   } else {
-    PADDLE_ENFORCE(
-        false,
-        phi::errors::InvalidArgument("not find aot func for %s", kSoftmax));
+    PADDLE_THROW(
+        phi::errors::InvalidArgument("not find aot func for %s", softmax_type));
   }
   FreeDispatchParam(params);
   GCUOPS_TRACE_END(softmax);
@@ -1018,60 +1023,161 @@ void split(const phi::CustomContext& dev_ctx,
   }
 }
 
+bool cast_support_type(const phi::DataType src_type,
+                       const phi::DataType to_type) {
+  auto from_type =
+      (src_type == phi::DataType::BOOL) ? phi::DataType::UINT8 : src_type;
+  if ((from_type == phi::DataType::INT32 && to_type == phi::DataType::INT64) ||
+      (from_type == phi::DataType::INT8 && to_type == phi::DataType::INT64)) {
+    return true;
+  }
+  if ((from_type == phi::DataType::INT64 && to_type == phi::DataType::INT32) ||
+      (from_type == phi::DataType::UINT64 &&
+       to_type == phi::DataType::UINT32)) {
+    return true;
+  }
+  if (!(from_type == phi::DataType::INT8 || from_type == phi::DataType::UINT8 ||
+        from_type == phi::DataType::INT16 ||
+        from_type == phi::DataType::FLOAT16 ||
+        from_type == phi::DataType::INT32 ||
+        from_type == phi::DataType::FLOAT32)) {
+    return false;
+  }
+  if (!(to_type == phi::DataType::INT8 || to_type == phi::DataType::UINT8 ||
+        to_type == phi::DataType::INT16 || to_type == phi::DataType::FLOAT16 ||
+        to_type == phi::DataType::INT32 || to_type == phi::DataType::FLOAT32)) {
+    return false;
+  }
+  return true;
+}
+
+void tops_cast_(const phi::CustomContext& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out) {
+  auto meta = x.meta();
+  meta.dtype = dtype;
+  out->set_meta(meta);
+  dev_ctx.Alloc(out, out->dtype());
+  if (x.dtype() == dtype) {
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  }
+
+  auto src_gcu = GetHlirTensor(x);
+  auto out_gcu = GetHlirTensor(*out);
+  hlir::DispatchParam params;
+  params.inputs = {src_gcu};
+  params.outputs = {out_gcu};
+  params.metadata.setValue("dtype", out_gcu->element_type);
+  params.stream = static_cast<topsStream_t>(dev_ctx.stream());
+  AOTOPS_DEBUG(kConvert, params);
+  GCUOPS_TRACE_START(cast);
+  auto func_ptr = GetOpFuncPtr(kConvert, params);
+  if (func_ptr) {
+    auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
+    PADDLE_ENFORCE(
+        pass, phi::errors::InvalidArgument("dispatch %s failed!", kConvert));
+  } else {
+    PADDLE_ENFORCE(
+        false,
+        phi::errors::InvalidArgument("not find aot func for %s", kConvert));
+  }
+  FreeDispatchParam(params);
+  GcuOpStreamSync(dev_ctx);
+  GCUOPS_TRACE_END(cast);
+}
+
+phi::DenseTensor tops_cast_(const phi::CustomContext& dev_ctx,
+                            const phi::DenseTensor& x,
+                            phi::DataType dtype) {
+  phi::DenseTensor out;
+  auto meta = x.meta();
+  meta.dtype = dtype;
+  out.set_meta(meta);
+  tops_cast_(dev_ctx, x, dtype, &out);
+  return out;
+}
+
 void cast(const phi::CustomContext& dev_ctx,
           const phi::DenseTensor& x,
           phi::DataType dtype,
           phi::DenseTensor* out) {
   if (x.dtype() == dtype) {
-    out->set_meta(x.meta());
+    auto meta = x.meta();
+    meta.dtype = dtype;
+    out->set_meta(meta);
     dev_ctx.Alloc(out, out->dtype());
     TensorCopy(dev_ctx, x, false, out);
     return;
   }
 
-  if (dtype == phi::DataType::FLOAT32) {
-    dev_ctx.Alloc<float>(out);
-  } else if (dtype == phi::DataType::FLOAT64) {
-    dev_ctx.Alloc<double>(out);
-  } else if (dtype == phi::DataType::FLOAT16) {
-    dev_ctx.Alloc<phi::dtype::float16>(out);
-  } else if (dtype == phi::DataType::INT16) {
-    dev_ctx.Alloc<int16_t>(out);
-  } else if (dtype == phi::DataType::INT32) {
-    dev_ctx.Alloc<int32_t>(out);
-  } else if (dtype == phi::DataType::INT64) {
-    dev_ctx.Alloc<int64_t>(out);
-  } else if (dtype == phi::DataType::BOOL) {
-    dev_ctx.Alloc<bool>(out);
-  } else if (dtype == phi::DataType::UINT8) {
-    dev_ctx.Alloc<uint8_t>(out);
-  } else if (dtype == phi::DataType::INT8) {
-    dev_ctx.Alloc<int8_t>(out);
-  } else if (dtype == phi::DataType::COMPLEX64) {
-    dev_ctx.Alloc<phi::dtype::complex<float>>(out);
-  } else if (dtype == phi::DataType::COMPLEX128) {
-    dev_ctx.Alloc<phi::dtype::complex<double>>(out);
+  if (UseScatterMemory()) {
+    auto meta = x.meta();
+    meta.dtype = dtype;
+    out->set_meta(meta);
+    dev_ctx.Alloc(out, out->dtype());
+    if (cast_support_type(x.dtype(), dtype)) {
+      tops_cast_(dev_ctx, x, dtype, out);
+    } else if (((x.dtype() == phi::DataType::FLOAT32 ||
+                 x.dtype() == phi::DataType::BOOL) &&
+                dtype == phi::DataType::INT64) ||
+               (x.dtype() == phi::DataType::INT64 &&
+                (dtype == phi::DataType::FLOAT32 ||
+                 dtype == phi::DataType::BOOL))) {
+      auto tmp = tops_cast_(dev_ctx, x, phi::DataType::INT32);
+      tops_cast_(dev_ctx, tmp, dtype, out);
+    } else {
+      PADDLE_THROW(
+          phi::errors::InvalidArgument("Unsupported cast dtype %s->%s",
+                                       DataTypeToString(x.dtype()).c_str(),
+                                       DataTypeToString(dtype).c_str()));
+    }
   } else {
-    phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
+    if (dtype == phi::DataType::FLOAT32) {
+      dev_ctx.Alloc<float>(out);
+    } else if (dtype == phi::DataType::FLOAT64) {
+      dev_ctx.Alloc<double>(out);
+    } else if (dtype == phi::DataType::FLOAT16) {
+      dev_ctx.Alloc<phi::dtype::float16>(out);
+    } else if (dtype == phi::DataType::INT16) {
+      dev_ctx.Alloc<int16_t>(out);
+    } else if (dtype == phi::DataType::INT32) {
+      dev_ctx.Alloc<int32_t>(out);
+    } else if (dtype == phi::DataType::INT64) {
+      dev_ctx.Alloc<int64_t>(out);
+    } else if (dtype == phi::DataType::BOOL) {
+      dev_ctx.Alloc<bool>(out);
+    } else if (dtype == phi::DataType::UINT8) {
+      dev_ctx.Alloc<uint8_t>(out);
+    } else if (dtype == phi::DataType::INT8) {
+      dev_ctx.Alloc<int8_t>(out);
+    } else if (dtype == phi::DataType::COMPLEX64) {
+      dev_ctx.Alloc<phi::dtype::complex<float>>(out);
+    } else if (dtype == phi::DataType::COMPLEX128) {
+      dev_ctx.Alloc<phi::dtype::complex<double>>(out);
+    } else {
+      phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
+    }
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
+
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
+
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
+
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
+
+    GcuAttributeMap attrs;
+    attrs["in_dtype"] = static_cast<int>(x.dtype());
+    attrs["out_dtype"] = static_cast<int>(dtype);
+
+    GcuRunner(
+        input_names, inputs, output_names, outputs, attrs, "cast", dev_ctx);
   }
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
-
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
-
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
-
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
-
-  GcuAttributeMap attrs;
-  attrs["in_dtype"] = static_cast<int>(x.dtype());
-  attrs["out_dtype"] = static_cast<int>(dtype);
-
-  GcuRunner(input_names, inputs, output_names, outputs, attrs, "cast", dev_ctx);
-  // }
 }
 
 phi::DenseTensor cast(const phi::CustomContext& dev_ctx,
@@ -1115,6 +1221,78 @@ phi::DenseTensor one_hot(const phi::CustomContext& dev_ctx,
   auto out =
       EmptyTensor(dev_ctx, phi::DataType::FLOAT32, phi::make_ddim(out_dims));
   return one_hot(dev_ctx, x, axis, depth, out);
+}
+
+phi::DenseTensor& pad(const phi::CustomContext& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const std::vector<int64_t>& pads,
+                      int64_t mode,
+                      float init_value,
+                      phi::DenseTensor& out) {  // NOLINT
+  auto input_gcu = GetHlirTensor(input);
+  auto out_gcu = GetHlirTensor(out);
+  hlir::DispatchParam params;
+  params.inputs = {input_gcu};
+  params.outputs = {out_gcu};
+  params.metadata.setValue("mode", mode);
+  params.metadata.setValue("pads", HlirVector(pads));
+  if (IsIntegralType(input.dtype())) {
+    params.metadata.setValue("value", static_cast<int64_t>(init_value));
+  } else {
+    params.metadata.setValue("value", init_value);
+  }
+  params.stream = static_cast<topsStream_t>(dev_ctx.stream());
+  AOTOPS_DEBUG(kPad, params);
+  GCUOPS_TRACE_START(pad);
+  auto func_ptr = GetOpFuncPtr(kPad, params);
+  if (func_ptr) {
+    auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
+    PADDLE_ENFORCE(pass,
+                   phi::errors::InvalidArgument("dispatch %s failed!", kPad));
+  } else {
+    PADDLE_ENFORCE(
+        false, phi::errors::InvalidArgument("not find aot func for %s", kPad));
+  }
+  FreeDispatchParam(params);
+  GCUOPS_TRACE_END(pad);
+  GcuOpStreamSync(dev_ctx);
+
+  return out;
+}
+
+/**
+ * @param pads pads should be a 1D array of shape [2 * rank] or [3 * rank].
+ *             pads format should be:
+ *                [x1_begin, x2_begin, ..., x1_end, x2_end,...]
+ *             or
+ *                [x1_begin, ..., x1_end, ..., x1_mid,...]
+ *             if mode chosen not is `constant`, x1_mid cannot take effect.
+ */
+phi::DenseTensor pad(const phi::CustomContext& dev_ctx,
+                     const phi::DenseTensor& input,
+                     const std::vector<int64_t>& pads,
+                     int64_t mode,
+                     float init_value) {
+  // calculate out dims
+  auto out_dims = input.dims();
+  auto rank = out_dims.size();
+  if (pads.size() == rank * 2) {
+    for (auto i = 0; i < rank; ++i)
+      out_dims[i] = out_dims[i] + pads[i] + pads[rank + i];
+  } else if (pads.size() == rank * 3) {
+    for (auto i = 0; i < rank; ++i)
+      out_dims[i] = out_dims[i] + pads[i] + pads[rank + i] +
+                    (out_dims[i] - 1) * pads[2 * rank + i];
+  } else {
+    PADDLE_THROW(phi::errors::InvalidArgument(
+        "pads should be a 1D array of shape [2 * rank] or [3 * rank], but got "
+        "rank = %lld, pads size = %lld.",
+        rank,
+        pads.size()));
+  }
+
+  auto out = EmptyTensor(dev_ctx, input.dtype(), out_dims, input.layout());
+  return pad(dev_ctx, input, pads, mode, init_value, out);
 }
 
 }  // namespace custom_kernel

@@ -14,7 +14,7 @@
 
 #include "common/common.h"
 
-#include <dtu/driver/device_manager.h>
+#include <gcu/driver/device_manager.h>
 #include <gcu/umd/device_ids.h>
 
 #include <algorithm>
@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "backend/utils/utils.h"
-#include "dtu/hlir/library.h"
-#include "dtu/op_define/type.h"
+#include "gcu/hlir/library.h"
+#include "gcu/op_define/type.h"
 #include "kernels/funcs/gcu_funcs.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/core/ddim.h"

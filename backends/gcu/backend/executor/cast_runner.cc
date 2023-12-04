@@ -29,7 +29,7 @@
 #include "backend/executor/tops_compiler.h"
 #include "backend/utils/gcu_op_desc.h"
 #include "backend/utils/utils.h"
-#include "dtu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir_builder/hlir_builder.h"
 #include "runtime/runtime.h"
 
 namespace backend {

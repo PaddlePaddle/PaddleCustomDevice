@@ -19,8 +19,8 @@ limitations under the License. */
 #include <vector>
 
 #include "common/common.h"
-#include "gcu/gcu_compiler/tops_graph_compiler.h"
-#include "gcu/gcu_compiler/tops_graph_compiler_option.h"
+#include "gcu/tops_graph_compiler/tops_graph_compiler.h"
+#include "gcu/tops_graph_compiler/tops_graph_compiler_option.h"
 
 namespace backend {
 

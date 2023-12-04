@@ -20,7 +20,6 @@ set(CUSTOM_GCU_NAME "paddle-custom-gcu")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_DEBUG CMAKE_MODULE_PATH is: ${CMAKE_MODULE_PATH}")
 
-set(TOPS_RELEASE_VERSION 2.4.1)
 if((NOT DEFINED PACKAGE_VERSION)
    OR ("${PACKAGE_VERSION}" STREQUAL "")
    OR ("${PACKAGE_VERSION}" STREQUAL "123.456"))
@@ -31,14 +30,8 @@ if((NOT DEFINED PACKAGE_VERSION)
     OUTPUT_VARIABLE GIT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   message(STATUS "git hash: ${GIT_HASH}")
-  set(GIT_HASH ".${GIT_HASH}")
-else()
-  set(GIT_HASH "")
-  set(TOPS_RELEASE_VERSION ${PACKAGE_VERSION})
+  set(PACKAGE_VERSION ${GIT_HASH})
 endif()
-set(PACKAGE_VERSION ${GIT_HASH}-${TOPS_RELEASE_VERSION})
-
-message(STATUS "tops release version: ${TOPS_RELEASE_VERSION}")
 message(STATUS "package version: ${PACKAGE_VERSION}")
 
 include(paddle)
@@ -49,7 +42,7 @@ include(external/gcu)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(/opt/tops/include)
 
-set(OUTPUT_PADDLE_PACKAGE_VERSION ${PADDLE_VERSION}${PACKAGE_VERSION})
+set(OUTPUT_PADDLE_PACKAGE_VERSION "${PADDLE_VERSION}.${PACKAGE_VERSION}")
 option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
@@ -61,8 +54,12 @@ message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}, version: "
                "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 message(STATUS "AR tools: ${CMAKE_AR}")
-# Note: _GLIBCXX_USE_CXX11_ABI should be same with libpaddle.so, default is 1
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
+
+if(DEFINED PY_VERSION)
+  message(STATUS "User define PY_VERSION: ${PY_VERSION}")
+  set(Python_EXECUTABLE "python${PY_VERSION}")
+endif()
+message(STATUS "Python_EXECUTABLE: ${Python_EXECUTABLE}")
 
 # custom runtime
 set(CUSTOM_GCU_SRCS runtime/runtime.cc)

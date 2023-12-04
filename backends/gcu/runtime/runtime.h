@@ -66,9 +66,10 @@ void DeAllocScatter(void *ptr);
 
 static bool UseScatterMemory() {
   static bool use_scatter_memory =
-      (std::getenv("GCU_USE_SCATTER_MEMORY") != nullptr &&
+      (std::getenv("ENFLAME_ENABLE_PT_JIT_AOT_MIXED") != nullptr &&
        std::getenv("FLAGS_use_system_allocator") != nullptr)
-          ? (std::string(std::getenv("GCU_USE_SCATTER_MEMORY")) == "true" &&
+          ? (std::string(std::getenv("ENFLAME_ENABLE_PT_JIT_AOT_MIXED")) ==
+                 "true" &&
              std::string(std::getenv("FLAGS_use_system_allocator")) == "true")
           : false;
   return use_scatter_memory;

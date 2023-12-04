@@ -27,7 +27,7 @@
 #include "backend/utils/gcu_op_desc.h"
 #include "backend/utils/utils.h"
 #include "common/common.h"
-#include "dtu/hlir_builder/hlir_builder.h"
+#include "gcu/hlir_builder/hlir_builder.h"
 #include "kernels/funcs/gcu_funcs.h"
 #include "runtime/flags.h"
 

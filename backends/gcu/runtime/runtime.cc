@@ -27,7 +27,7 @@
 #include <vector>
 
 #include "backend/executor/cast_runner.h"
-#include "dtu/hlir/dispatch.h"
+#include "gcu/hlir/dispatch.h"
 #include "glog/logging.h"
 #include "paddle/phi/capi/include/type_utils.h"
 #include "runtime/flags.h"
@@ -38,6 +38,7 @@ const char *const kDeviceType = "gcu";
 const char *const kSubDeviceType = "none";
 
 static std::set<void *> scatter_memorys;
+std::mutex scatter_mem_mutex_;
 
 template <typename T>
 static std::string VectorToString(std::vector<T> vec) {
@@ -64,6 +65,9 @@ inline int get_current_device_id() {
 }  // namespace
 
 thread_local int g_current_device_id(-1);
+static size_t total_alloc = 0;
+static size_t total_using = 0;
+static size_t total_free = 0;
 
 static std::unordered_map<int32_t, topsResource_t> res_bundles_;
 std::mutex mutex_;
@@ -197,29 +201,42 @@ C_Status StreamWaitEvent(const C_Device device,
 // Memory
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   GcuDeviceGuard guard(device->id);
-  void *tmp_ptr;
+  void *tmp_ptr = nullptr;
+  topsError_t ret = topsErrorUnknown;
 
   if (UseScatterMemory()) {
-    auto ret = topsMallocScatter(&tmp_ptr, size);
+    ret = topsMallocScatter(&tmp_ptr, size);
     VLOG(6) << "alloc scatter memory ptr: " << tmp_ptr;
     if (ret == topsSuccess) {
       auto *gcu_mem = new GcuMemory(tmp_ptr, unset_flag_dims, size);
       *ptr = gcu_mem;
-      VLOG(3) << "[AllocFromGCU] Alloc gcu hbm size:" << size
+      VLOG(6) << "[AllocFromGCU] Alloc gcu scatter memory size:" << size
               << " ptr: " << *ptr << " mem_ptr: " << tmp_ptr;
+      std::lock_guard<std::mutex> lock(scatter_mem_mutex_);
       scatter_memorys.insert(*ptr);
-      return C_SUCCESS;
     }
   } else {
-    auto ret = topsMalloc(&tmp_ptr, size);
+    ret = topsMalloc(&tmp_ptr, size);
     if (ret == topsSuccess) {
       *ptr = tmp_ptr;
-      VLOG(3) << "[AllocFromGCU] Alloc gcu hbm size:" << size;
-      return C_SUCCESS;
+      VLOG(6) << "[AllocFromGCU] Alloc gcu hbm size:" << size
+              << ", ptr:" << *ptr;
     }
   }
 
+  if (ret == topsSuccess) {
+    total_alloc += size;
+    total_using = total_alloc - total_free;
+    VLOG(2) << "[AllocFromGCU] Alloc gcu hbm size: " << size
+            << ", total_alloc: "
+            << (total_alloc / static_cast<double>(1024 * 1024))
+            << " MB, total_using: "
+            << (total_using / static_cast<double>(1024 * 1024)) << " MB.";
+    return C_SUCCESS;
+  }
+
   *ptr = nullptr;
+  VLOG(1) << "[AllocFromGCU] Failed to alloc hbm, size: " << size;
   return C_FAILED;
 }
 
@@ -228,6 +245,7 @@ C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
   if (UseScatterMemory()) {
     if (ptr != nullptr) {
       if (UseScatterMemory()) {
+        std::lock_guard<std::mutex> lock(scatter_mem_mutex_);
         scatter_memorys.erase(ptr);
       }
       delete static_cast<GcuMemory *>(ptr);
@@ -237,7 +255,14 @@ C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
     RT_CHECK(topsFree(ptr));
   }
 
-  VLOG(3) << "[FreeToGCU] Free gcu hbm size:" << size;
+  total_free += size;
+  total_using = total_alloc - total_free;
+
+  VLOG(2) << "[FreeToGCU] Free gcu hbm size:" << size << ", total_alloc: "
+          << (total_alloc / static_cast<double>(1024 * 1024))
+          << " MB, total_using: "
+          << (total_using / static_cast<double>(1024 * 1024)) << " MB.";
+
   return C_SUCCESS;
 }
 

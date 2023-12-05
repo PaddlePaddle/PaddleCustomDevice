@@ -20,10 +20,10 @@
 #include "llama_mlp_operation.h"
 #include "llama_position_embedding_1d_split_fusion_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 16;
+static const uint64_t IN_TENSOR_COUNT = 17;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 15;
-static const uint64_t NODE_COUNT = 12;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 12;
+static const uint64_t NODE_COUNT = 10;
 
 atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelParam &param,
                                                         atb::Operation **operation)
@@ -39,8 +39,6 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     size_t nodeId = 0;
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mixdQKVLinearNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &castInNode = opGraph.nodes.at(nodeId++);
-    atb::Node &cosSinSplitNode = opGraph.nodes.at(nodeId++);
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfAttentionKvCacheNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfOutLinearParallelNode  = opGraph.nodes.at(nodeId++);
@@ -70,24 +68,11 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT};
     mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
-    atb::infer::ElewiseParam castParam;
-    castParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
-    castParam.outTensorType = ACL_FLOAT16;
-    atb::CreateOperation(castParam, &castInNode.operation);
-    castInNode.inTensorIds = {IN_COS_SIN_TABLE};
-    castInNode.outTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
-
-     // [2, max_bs, 1, seq_len, head_dim] -> [1, max_bs, 1, seq_len, head_dim]
-    atb::infer::SplitParam splitParam = {0, 2};
-    atb::CreateOperation(splitParam, &cosSinSplitNode.operation);
-    cosSinSplitNode.inTensorIds = {INTERNAL_CAST_COS_SIN_TABLE};
-    cosSinSplitNode.outTensorIds = {INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN};
-
     // output:[bs * seq_len, head_dim * head_num_pre_card]
     atb::infer::RopeParam ropeParam;
     ropeParam.rotaryCoeff = param.rotaryCoeff;
     atb::CreateOperation(ropeParam, &ropeNode.operation);
-    ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_CASTCOS, INTERMIDATE_CASTSIN, IN_SEQLEN};
+    ropeNode.inTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, IN_COS_TABLE, IN_SIN_TABLE, IN_SEQLEN};
     ropeNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_POSITIONEMBEDK};
     ropeNode.inTensorReshapeFuncs.resize(ropeNode.inTensorIds.size());
     ropeNode.inTensorReshapeFuncs.at(0) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -99,16 +84,6 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
         newShape.dimNum = 2; // dimNum: 2
         newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1];
         newShape.dims[1] = oldShape.dims[2];
-    };
-    ropeNode.inTensorReshapeFuncs.at(2) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 2;
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1] * oldShape.dims[2] * oldShape.dims[3];
-        newShape.dims[1] = oldShape.dims[4];
-    };
-    ropeNode.inTensorReshapeFuncs.at(3) = [](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 2;
-        newShape.dims[0] = oldShape.dims[0] * oldShape.dims[1] * oldShape.dims[2] * oldShape.dims[3];
-        newShape.dims[1] = oldShape.dims[4];
     };
     ropeNode.inTensorReshapeFuncs.at(4) = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 1;

@@ -33,7 +33,8 @@ void PerpareLlamaDecoderLayerInputs(
     const paddle::Tensor &mlp_gate_up_weight,
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_sin_table,
+    const paddle::Tensor &cos_table,
+    const paddle::Tensor &sin_table,
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key_value,
     phi::DenseTensor &token_offset_tensor,
@@ -49,7 +50,8 @@ void PerpareLlamaDecoderLayerInputs(
   auto mlp_gate_up_weight_tensor = static_cast<phi::DenseTensor *>(mlp_gate_up_weight.impl().get());
   auto mlp_down_weight_tensor = static_cast<phi::DenseTensor *>(mlp_down_weight.impl().get());
   auto positionIDs_tensor = static_cast<const phi::DenseTensor *>(positionIDs.impl().get());
-  auto cos_sin_table_tensor = static_cast<const phi::DenseTensor *>(cos_sin_table.impl().get());
+  auto cos_table_tensor = static_cast<const phi::DenseTensor *>(cos_table.impl().get());
+  auto sin_table_tensor = static_cast<const phi::DenseTensor *>(sin_table.impl().get());
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_value_tensor = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
   auto cache_key_value_tensor2 = static_cast<const phi::DenseTensor *>(cache_key_value.impl().get());
@@ -68,7 +70,8 @@ void PerpareLlamaDecoderLayerInputs(
   inputs.push_back(mlp_gate_up_weight_tensor);
   inputs.push_back(mlp_down_weight_tensor);
   inputs.push_back(positionIDs_tensor);
-  inputs.push_back(cos_sin_table_tensor);
+  inputs.push_back(cos_table_tensor);
+  inputs.push_back(sin_table_tensor);
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_value_tensor);
   inputs.push_back(cache_key_value_tensor2);
@@ -111,12 +114,12 @@ void PpAtbLlamaDecoderLayerParallelOp::BuildVariantPack(std::vector<const phi::D
     //     variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_FRACTAL_NZ;
     //   }
     // }else 
-    if(i == 10) { // CACHE_K
+    if(i == 11) { // CACHE_K
       variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensorK(*(inTensors.at(i)));
       if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
         variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
       }
-    }else if(i == 11) {// CACHE_V
+    }else if(i == 12) {// CACHE_V
       variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensorV(*(inTensors.at(i)));
       if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
         variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
@@ -215,7 +218,8 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
     const paddle::Tensor &mlp_gate_up_weight,
     const paddle::Tensor &mlp_down_weight,
     const paddle::Tensor &positionIDs,
-    const paddle::Tensor &cos_sin_table,
+    const paddle::Tensor &cos_table,
+    const paddle::Tensor &sin_table,
     const paddle::Tensor &attention_mask, // TODO:待确认attention mask是否符合加速库
     const paddle::Tensor &cache_key_value,
     const paddle::Tensor &kv_seq_len,
@@ -285,7 +289,8 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
                                  mlp_gate_up_weight,
                                  mlp_down_weight,
                                  positionIDs,
-                                 cos_sin_table,
+                                 cos_table,
+                                 sin_table,
                                  attention_mask,
                                  cache_key_value,
                                  g_llamaDecoderLayerParallelOp->token_offset_tensor_,
@@ -310,7 +315,8 @@ std::vector<std::vector<int64_t>> LlamaDecoderLayerOpInferShape(
     const std::vector<int64_t> &mlp_gate_up_weight_shape,
     const std::vector<int64_t> &mlp_down_weight_shape,
     const std::vector<int64_t> &positionIDs_shape,
-    const std::vector<int64_t> &cos_sin_table_shape,
+    const std::vector<int64_t> &cos_table_shape,
+    const std::vector<int64_t> &sin_table_shape,
     const std::vector<int64_t> &attention_mask_shape,
     const std::vector<int64_t> &cacheKV_shape,
     const std::vector<int64_t> &seq_len_shape,
@@ -330,7 +336,8 @@ PD_BUILD_OP(llama_decoder_layer_parallel)
              "MlpGateUpWeight",
              "MlpDownWeight",
              "PositionIDs",
-             "CosSinTable",
+             "CosTable",
+             "SinTable",
              "AttentionMask",
              "Cache_KV",
              "SeqLength"})

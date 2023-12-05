@@ -122,7 +122,8 @@ PD_BUILD_OP(transpose_remove_padding)
 // encode_rotary_qk
 void RotaryQK(const paddle::Tensor& q, 
               const paddle::Tensor& kv, 
-              const paddle::Tensor& rotary_emb, 
+              const paddle::Tensor& cos_table, 
+              const paddle::Tensor& sin_table, 
               const paddle::Tensor& seq_lens,
               const int32_t rotary_emb_dims, 
               bool use_neox) {
@@ -130,11 +131,52 @@ void RotaryQK(const paddle::Tensor& q,
 }
 
 PD_BUILD_OP(encode_rotary_qk)
-    .Inputs({"q", "kv", "rotary_emb", "seq_lens"})
+    .Inputs({"q", "kv", "cos_table", "sin_table", "seq_lens"})
     .Outputs({"rotary_q_out", "rotary_kv_out"})
     .Attrs({"rotary_emb_dims: int", "use_neox: bool"})
 	.SetInplaceMap({{"q", "rotary_q_out"}, {"kv", "rotary_kv_out"}})
     .SetKernelFn(PD_KERNEL(RotaryQK));
+
+// masked_multihead_attention_npu
+std::vector<paddle::Tensor> MaskedMultiheadAttentionNpu(const paddle::Tensor& x, 
+              const paddle::Tensor& cache_kv, 
+              const paddle::Tensor& src_mask,
+              const paddle::Tensor& sequence_lengths,
+              const paddle::Tensor& cos_table,
+              const paddle::Tensor& sin_table,
+              const int32_t rotary_emb_dims, 
+              bool use_neox_rotary_style) {
+  std::cout<<">>>>>MaskedMultiheadAttentionNpu"<<std::endl;
+  std::shared_ptr<phi::DenseTensor> out_tensor =
+      std::make_shared<phi::DenseTensor>();
+  return {paddle::Tensor(out_tensor)};
+}
+
+std::vector<std::vector<int64_t>> MaskedMultiheadAttentionNpuInferShape(const std::vector<int64_t>& x_shape, 
+              const std::vector<int64_t>& cache_kv_shape, 
+              const std::vector<int64_t>& src_mask_shape,
+              const std::vector<int64_t>& sequence_lengths_shape,
+              const std::vector<int64_t>& cos_table_shape,
+              const std::vector<int64_t>& sin_table_shape) {
+  return {{x_shape[0], 1024}};
+}
+
+std::vector<paddle::DataType> MaskedMultiheadAttentionNpuInferDtype(const paddle::DataType& x_dtype, 
+              const paddle::DataType& cache_kv_dtype, 
+              const paddle::DataType& src_mask_dtype,
+              const paddle::DataType& sequence_lengths_dtype,
+              const paddle::DataType& cos_table_dtype,
+              const paddle::DataType& sin_table_dtype) {
+  return {src_mask_dtype};
+}
+
+PD_BUILD_OP(masked_multihead_attention_npu)
+    .Inputs({"x", "cache_kv", "src_mask", "sequence_lengths", "cos_table", "sin_table"})
+    .Outputs({"out"})
+    .Attrs({"rotary_emb_dims: int", "use_neox_rotary_style: bool"})
+    .SetKernelFn(PD_KERNEL(MaskedMultiheadAttentionNpu))
+    .SetInferShapeFn(PD_INFER_SHAPE(MaskedMultiheadAttentionNpuInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(MaskedMultiheadAttentionNpuInferDtype));
 
 // set_mask_value
 std::vector<paddle::Tensor> SetMaskValue(const paddle::Tensor& input_data,

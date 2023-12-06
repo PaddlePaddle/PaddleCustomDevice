@@ -31,6 +31,7 @@ option(WITH_ARM "compile with arm support" OFF)
 option(WITH_ASCEND_TRANSFORMER_ACC
        "compile with ascend transformer acceleration library" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
+option(WITH_ASCEND_C "compile ascend c kernels" OFF)
 
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
@@ -57,6 +58,16 @@ file(
   RELATIVE ${CMAKE_SOURCE_DIR}
   kernels/*.cc)
 list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
+
+if(WITH_ASCEND_C)
+  include(external/ascendc)
+  # ascend c kernels
+  file(
+    GLOB_RECURSE ASCENDC_KERNEL_SRCS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    ascendc/*.cc ascendc/*.cpp ascendc/*.cce)
+  ascendc_library(ascend_c_kernels SRCS ${ASCENDC_KERNEL_SRCS} SHARED)
+endif()
 
 # custom op with kernel
 file(
@@ -88,6 +99,14 @@ if(WITH_ASCEND_TRANSFORMER_ACC)
     ${CUSTOM_NPU_NAME} PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libatb.so
                                $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libasdops.so)
   include_directories($ENV{ACLTRANSFORMER_HOME_PATH}/include)
+endif()
+
+if(WITH_ASCEND_C)
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ascend_c_kernels)
+  # set rpath=$ORIGIN/npu
+  set_target_properties(
+    ${CUSTOM_NPU_NAME} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH
+                                                                "$ORIGIN/npu")
 endif()
 
 # link third_party
@@ -141,14 +160,25 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMENT "Creating custom device directories------>>>")
 
+if(WITH_ASCEND_C)
+  set(COPY_ASCEND_C_KERNELS_COMMAND
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_CURRENT_BINARY_DIR}/libascend_c_kernels.so
+      ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/)
+else()
+  set(COPY_ASCEND_C_KERNELS_COMMAND)
+endif()
+
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
   COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
   COMMAND ${CMAKE_COMMAND} -E remove -f
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/passes/*
-          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/passes/*
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/npu/passes
+    ${COPY_ASCEND_C_KERNELS_COMMAND}
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${CUSTOM_NPU_NAME}
   COMMENT "Packing whl packages------>>>")

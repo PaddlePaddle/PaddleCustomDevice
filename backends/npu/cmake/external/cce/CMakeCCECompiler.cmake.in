@@ -1,0 +1,9 @@
+# used by CMakeDetermine(LANG)Compiler.cmake
+# This file is used to store compiler information and is copied down into try
+# compile directories so that try compiles do not need to re-determine and test the LANG
+
+set(CMAKE_CCE_COMPILER "@CMAKE_CCE_COMPILER@")
+set(CMAKE_CCE_COMPILER_LOADED 1)
+set(CMAKE_CCE_SOURCE_FILE_EXTENSIONS @CMAKE_CCE_SOURCE_FILE_EXTENSIONS@)
+set(CMAKE_CCE_OUTPUT_EXTENSION @CMAKE_CCE_OUTPUT_EXTENSION@)
+set(CMAKE_CCE_COMPILER_ENV_VAR "@CMAKE_CCE_COMPILER_ENV_VAR@")

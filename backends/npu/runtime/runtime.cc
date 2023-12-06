@@ -75,7 +75,7 @@ class EventResourcePool {
     aclrtEvent event;
     for (auto iter = wait_event_list_[dev_id].begin();
          iter != wait_event_list_[dev_id].end();) {
-      if (event_has_been_recorded_[dev_id][event]) {
+      if (event_has_been_recorded_[dev_id][*iter]) {
         if (!event_is_completed(*iter)) {
           ++iter;
         } else {

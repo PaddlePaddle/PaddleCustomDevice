@@ -27,9 +27,8 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
-option(WITH_ARM "compile with arm support" OFF)
-option(WITH_ASCEND_TRANSFORMER_ACC
-       "compile with ascend transformer acceleration library" OFF)
+option(WITH_ATB "compile with ascend transformer boost" ON)
+option(WITH_ARM "compile with armv8 support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
@@ -60,15 +59,11 @@ list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
 
 # custom op with kernel
 file(
-  GLOB_RECURSE CUSTOM_CUSTOM_OP_SRCS
+  GLOB_RECURSE CUSTOM_OPERATOR_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
   custom_op/*.cc)
-list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
-
-# ASCEND TRANSFORMER ACCELERATION
-if(WITH_ASCEND_TRANSFORMER_ACC)
-  add_definitions(-DPADDLE_WITH_ASCEND_TRANSFORMER_ACC)
-endif()
+message(STATUS "CUSTOM_OPERATOR_SRCS=${CUSTOM_OPERATOR_SRCS}")
+list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_OPERATOR_SRCS})
 
 if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
@@ -83,11 +78,11 @@ target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascendcl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascend_hccl_lib})
 target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${acl_op_compiler_lib})
 
-if(WITH_ASCEND_TRANSFORMER_ACC)
-  target_link_libraries(
-    ${CUSTOM_NPU_NAME} PRIVATE $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libatb.so
-                               $ENV{ACLTRANSFORMER_HOME_PATH}/lib/libasdops.so)
-  include_directories($ENV{ACLTRANSFORMER_HOME_PATH}/include)
+# link atb libs
+if(WITH_ATB)
+  add_definitions(-DPADDLE_WITH_ATB)
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascend_atb_lib})
+  target_link_libraries(${CUSTOM_NPU_NAME} PRIVATE ${ascend_ops_lib})
 endif()
 
 # link third_party

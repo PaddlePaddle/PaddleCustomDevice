@@ -1,5 +1,5 @@
 import paddle
-from paddlate.passes import ir
+from paddle.incubate.passes import ir
 
 # TODO wait for Custom_op
 def llama_paralle_cached_layer_adaptor(lookup, in_scale, ln_bias, ffn_ln_bias, qkv_weight, qkv_bias, qkv_out_scale, proj_weight, out_proj_bias, out_scale, ffn_in_scale, ffn1_weight, ffn1_bias, ffn1_out_scale, ffn2_weight, ffn2_bias, ffn2_out_scale, cos_table, sin_table,
@@ -155,7 +155,7 @@ def llama_fuse_attention_dynamic_parallel_others():
 @ir.RegisterPass
 def llama_fuse_attention_dynamic_parallel_end():
     def pattern(in_scale, rms_norm_residual, matmul_, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, ln_bias, block_tables, cu_seqlens_k, cu_seqlens_q, 
-            cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_bias, qkv_out_scale, rope_emb, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
+            cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_bias, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
             value_cache, out_scale, out_proj_bias, ffn_ln_bias, ffn1_bias, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, ffn2_bias, att_mask, cos_table, sin_table):
         rms_norm_ = ir.PassDesc.OP.rms_norm(norm_bias=ln_bias, norm_weight=in_scale, residual=rms_norm_residual, x=matmul_)
         qkv_matmul = ir.PassDesc.OP.matmul_v2(X=rms_norm_.Output("out"), Y=qkv_weight)
@@ -189,13 +189,13 @@ def llama_fuse_attention_dynamic_parallel_end():
         return fused_bias_residual_layernorm_.Output("out")[0]
         
     def replace(in_scale, rms_norm_residual, matmul_, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, ln_bias, block_tables, cu_seqlens_k, cu_seqlens_q, 
-            cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_bias, qkv_out_scale, rope_emb, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
+            cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_bias, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
             value_cache, out_scale, out_proj_bias, ffn_ln_bias, ffn1_bias, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, ffn2_bias, att_mask, cos_table, sin_table):
         result = llama_paralle_cached_layer_adaptor(matmul_, in_scale, ln_bias, ffn_ln_bias, qkv_weight, qkv_bias, qkv_out_scale, proj_weight, out_proj_bias, out_scale, ffn_in_scale, ffn1_weight, ffn1_bias, ffn1_out_scale, ffn2_weight, ffn2_bias, ffn2_out_scale, cos_table, sin_table,
                                                     att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables)
+        return result[0]
         # add1 = ir.PassDesc.OP.my_add_n(X=matmul_, Y=rms_norm_residual, Z=cu_seqlens_q)  
         # return add1
-
     return pattern, replace
 
 @ir.RegisterPass

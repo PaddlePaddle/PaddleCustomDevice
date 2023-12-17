@@ -84,13 +84,13 @@ atb::Status CreateLlamaMultiLayerLinearQuantOperation(const MultiLayerLinearQuan
         outTensorDescs.at(1).shape.dimNum = DIM3;
         outTensorDescs.at(1).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
         outTensorDescs.at(1).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
-        outTensorDescs.at(0).dtype = inTensorDescs.at(2).dtype; // 修改为float16 type
+        outTensorDescs.at(1).dtype = inTensorDescs.at(2).dtype; // 修改为float16 type
 
         outTensorDescs.at(2) = inTensorDescs.at(0);
         outTensorDescs.at(2).shape.dimNum = DIM3;
         outTensorDescs.at(2).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
         outTensorDescs.at(2).shape.dims[1] = inTensorDescs.at(0).shape.dims[1];
-        outTensorDescs.at(0).dtype = inTensorDescs.at(2).dtype; // 修改为float16 type
+        outTensorDescs.at(2).dtype = inTensorDescs.at(2).dtype; // 修改为float16 type
         if (param.transpose == true) {
             outTensorDescs.at(0).shape.dims[2] = inTensorDescs.at(1).shape.dims[0] / DIM3;
  

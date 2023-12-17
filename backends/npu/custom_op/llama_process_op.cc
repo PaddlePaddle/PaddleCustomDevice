@@ -829,7 +829,7 @@ void SaveOutMmsg(const paddle::Tensor& x,
                  const paddle::Tensor& not_need_stop,
                  int64_t rank_id) {
     if (rank_id > 0) return;
-    auto x_cpu = x.copy_to(paddle::CPUPlace(), false);
+    auto x_cpu = x.copy_to(paddle::CPUPlace(), true);
     int64_t *x_data = x_cpu.data<int64_t>();
     static struct msgdata msg_sed;
     static key_t key = ftok("./", 1);

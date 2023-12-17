@@ -78,4 +78,26 @@ private:
   int32_t curBatchSize_ = 0;
   int32_t maxBatchSize_ = 0;
 };
+
+class PpAtbLlamaBlockAttnLayerParallelOp : public PpAscendAtbOpBase {
+public:
+  PpAtbLlamaBlockAttnLayerParallelOp(const std::string &modelName);
+  ~PpAtbLlamaBlockAttnLayerParallelOp();
+    phi::DenseTensor token_offset_tensor_;
+
+  void UpdateInputTensorAndParam(const paddle::Tensor &block_tables, const paddle::Tensor &seq_len, int32_t block_size);
+
+private:
+  void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
+                        std::vector<const phi::DenseTensor *> &outTensors);
+  void BindHostTensorForUpdateParam(atb::VariantPack &variantPack);
+
+private:
+  std::vector<int32_t> seq_len_param_;
+
+  int32_t layerNum_ = 0;
+  int32_t curBatchSize_ = 0;
+  int32_t maxBatchSize_ = 0;
+};
+
 #endif

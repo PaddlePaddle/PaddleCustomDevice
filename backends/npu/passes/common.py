@@ -7,6 +7,7 @@ import paddle
 
 from .llama_pass import replace_embeding, llama_fuse_attention_dynamic_layer1, llama_fuse_attention_dynamic_layer2, llama_fuse_attention_dynamic_first_parallel_layer, llama_fuse_attention_dynamic_parallel_layer, llama_lmhead, llama_fuse_attention_dynamic_first_parallel_layer_be61d, llama_fuse_attention_dynamic_parallel_layer_be61d
 from .remove_pass import remove_fused_bias_residual_layernorm, remove_rebuild_padding, remove_get_padding_offset, remove_get_token_penalty_multi_scores, save_with_output_delay_pass_1st, save_with_output_delay_pass_2nd
+from .paged_attention_quant_pass import llama_fuse_attention_dynamic_parallel_first, llama_fuse_attention_dynamic_parallel_others, remove_fused_bias_residual_layernorm_quant, llama_lmhead_quant, llama_fuse_attention_dynamic_parallel_end
 
 def setUp():
     for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
@@ -42,5 +43,11 @@ def addPasses(pass_builder, model_type):
         register_pass(pass_builder, "save_with_output_delay_pass_2nd")
         register_pass(pass_builder, "save_with_output_delay_pass_1st")
         register_pass(pass_builder, "replace_embeding")
+    elif model_type == "llama13B_mp2":
+        register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_first")
+        register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_end")
+        register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_others")
+        # register_pass(pass_builder, "remove_fused_bias_residual_layernorm_quant")
+        register_pass(pass_builder, "llama_lmhead_quant")
     else:
         print("NPU pass not support")

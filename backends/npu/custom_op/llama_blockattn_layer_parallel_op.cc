@@ -572,7 +572,7 @@ PD_BUILD_OP(llama_blockattn_layer_parallel)
              "MlpDeqBias",
              "MlpDeqScale",
              "MlpDownWeight",
-             "MlpDownDeqScale",
+             "MlpDownDeqBias",
              "MlpDownDeqScale",
              "CosTable",
              "SinTable",

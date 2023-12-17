@@ -563,7 +563,7 @@ atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_
     context_->SetExecuteStream(stream);
   }
 
-  atb::Status st = operation_->Setup(variantPacks_, workspace_size);
+  atb::Status st = operation_->Setup(variantPacks_, workspace_size, context_);
   PADDLE_ENFORCE_EQ(st,
                     0,
                     phi::errors::External("PpAtbCommOp %s Op Setup failed,"

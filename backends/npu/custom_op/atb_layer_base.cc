@@ -71,7 +71,7 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
     context_->SetExecuteStream(stream);
   }
 
-  atb::Status st = operation_->Setup(variantPacks_, workspace_size);
+  atb::Status st = operation_->Setup(variantPacks_, workspace_size, context_);
   PADDLE_ENFORCE_EQ(st,
                     0,
                     phi::errors::External("Atb Layer %s Op Setup failed,"

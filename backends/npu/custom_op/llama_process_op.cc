@@ -612,29 +612,28 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
     std::vector<int64_t> input_ids_shape = input_ids.shape();
     const int bsz = seq_len.shape()[0];
     const int seq_length = input_ids_shape[1];
-    auto cum_offsets_out = cum_offsets.copy_to(cum_offsets.place(), false);
     auto cpu_token_num = token_num.copy_to(paddle::CPUPlace(), true);
 
     const int token_num_data = cpu_token_num.data<int64_t>()[0];
     std::cout << "get_padding_offset_v2  token_num_data:" << token_num_data << std::endl;
     auto x_remove_padding = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT64, input_ids.place());
+    auto cum_offsets_out = paddle::full({bsz, 1}, 0, paddle::DataType::INT32, input_ids.place());
     auto padding_offset = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT32, input_ids.place());
     auto cu_seqlens_q = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
     auto cu_seqlens_k = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
 
 
     auto input_ids_tensor = static_cast<const phi::DenseTensor*>(input_ids.impl().get());
-    auto cum_offsets_tensor = static_cast<const phi::DenseTensor*>(cum_offsets_out.impl().get());
+    auto cum_offsets_tensor = static_cast<const phi::DenseTensor*>(cum_offsets.impl().get());
     auto token_num_tensor = static_cast<phi::DenseTensor*>(token_num.impl().get());
     auto seq_len_tensor = static_cast<const phi::DenseTensor*>(seq_len.impl().get());
+    token_num_tensor->Resize(phi::make_ddim({1, 1}));
 
     auto x_remove_padding_out_tensor = static_cast<phi::DenseTensor*>(x_remove_padding.impl().get());
     auto cum_offsets_out_tensor = static_cast<const phi::DenseTensor*>(cum_offsets_out.impl().get());
     auto padding_offset_tensor = static_cast<phi::DenseTensor*>(padding_offset.impl().get());
     auto cu_seqlens_q_tensor = static_cast<const phi::DenseTensor*>(cu_seqlens_q.impl().get());
     auto cu_seqlens_k_tensor = static_cast<const phi::DenseTensor*>(cu_seqlens_k.impl().get());
-
-    token_num_tensor->Resize(phi::make_ddim({cum_offsets.shape()[0], 1}));
 
     std::vector<phi::DenseTensor> inputs = {*input_ids_tensor,
                                             *cum_offsets_tensor,
@@ -932,6 +931,10 @@ void UpdateInputes(const paddle::Tensor& stop_flags,
                     {*not_need_stop_tensor, *seq_lens_this_time_tensor, *seq_lens_encoder_tensor, *seq_lens_decoder_tensor, *input_ids_tensor},
                     {});
     runner.Run(stream);
+
+    auto not_need_stop_cpu = not_need_stop_npu.copy_to(not_need_stop.place(), true);
+    bool *not_need_stop_data = const_cast<bool*>(not_need_stop.data<bool>());
+    not_need_stop_data[0] = not_need_stop_cpu.data<bool>()[0];
 }
 
 PD_BUILD_OP(update_inputs)

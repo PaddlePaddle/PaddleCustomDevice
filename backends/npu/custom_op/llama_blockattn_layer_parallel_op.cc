@@ -258,7 +258,7 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
   auto block_tables_tensor = const_cast<phi::DenseTensor *>(static_cast<const phi::DenseTensor *>(block_tables.impl().get()));
   custom_kernel::TensorToVector(*dev_ctx, *block_tables_tensor, *dev_ctx, &block_tables_vec);
 
-  std::vector<int32_t> slot_mapping_vec;
+  std::vector<int32_t> slot_mapping_vec; // slot mapping保存的是block table中以0开始偏移的slot id，TODO待优化为模型传入
   int32_t pre_max_block_num = block_tables.shape().at(1);
   int32_t block_offset = 0;
   if (g_isEncoder) {
@@ -296,7 +296,7 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
       int32_t need_block_num = (len + 1 + block_size - 1) / block_size;
       int32_t slot_id = block_tables_vec[block_offset + need_block_num - 1] * block_size + (len % block_size);
 
-      slot_mapping_vec.push_back(block_tables_vec[slot_id]);
+      slot_mapping_vec.push_back(slot_id);
       block_offset += pre_max_block_num;
       token_offset[i] += seq_len_vec[i];
     }

@@ -164,11 +164,11 @@ void Pool2dKernel(const Context& dev_ctx,
     // AdaptiveAvgPool2d only support NCHW
     phi::DenseTensor transformed_input, transformed_output;
     if (pooling_type == "avg" && channel_last) {
-      transformed_input.Resize(phi::make_dim(
+      transformed_input.Resize(common::make_dim(
           in_x_dims[0], in_x_dims[3], in_x_dims[1], in_x_dims[2]));
       dev_ctx.template Alloc<T>(&transformed_input);
       transformed_output.Resize(
-          phi::make_dim(out_dims[0], out_dims[3], out_dims[1], out_dims[2]));
+          common::make_dim(out_dims[0], out_dims[3], out_dims[1], out_dims[2]));
       dev_ctx.template Alloc<T>(&transformed_output);
 
       const auto& trans_runner =

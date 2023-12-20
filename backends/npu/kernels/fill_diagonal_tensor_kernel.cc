@@ -40,7 +40,8 @@ void FillDiagonalTensorKernel(const Context &dev_ctx,
   int64_t new_dims[2], strides[2];
   std::vector<int64_t> matdim;
   matdim.resize(fill_dims[0]);
-  CalMatDims(out_dims, dim1, dim2, &offset, new_dims, strides, matdim.data());
+  phi::CalMatDims(
+      out_dims, dim1, dim2, &offset, new_dims, strides, matdim.data());
   PADDLE_ENFORCE_EQ(
       new_dims[0],
       fill_dims[0],
@@ -125,7 +126,8 @@ void FillDiagonalTensorGradKernel(const Context &dev_ctx,
     int64_t new_dims[2], strides[2];
     std::vector<int64_t> matdim;
     matdim.resize(matrows);
-    CalMatDims(dx_dims, dim1, dim2, &offset, new_dims, strides, matdim.data());
+    phi::CalMatDims(
+        dx_dims, dim1, dim2, &offset, new_dims, strides, matdim.data());
 
     auto size = x_grad->numel();
 

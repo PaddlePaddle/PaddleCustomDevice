@@ -34,7 +34,7 @@ FLAGS_DEFINE_uint64(npu_profiling_dtypes,
                         ACL_PROF_HCCL_TRACE | ACL_PROF_RUNTIME_API,
                     "ACL datatypes to profile");
 FLAGS_DEFINE_uint64(npu_profiling_metrics,
-                    static_cast<uint64_t>(ACL_AICORE_ARITHMETIC_UTILIZATION),
+                    static_cast<uint64_t>(ACL_AICORE_PIPE_UTILIZATION),
                     "AI Core metric to profile");
 
 FLAGS_DEFINE_bool(set_to_1d, true, "set_to_1d");
@@ -199,7 +199,10 @@ aclrtStream SecondaryStream::Get(aclrtStream aicore_stream) {
 void SecondaryStream::Create(aclrtStream aicore_stream) {
   RUN_CHECK(aicpu_streams.find(aicore_stream) == aicpu_streams.cend());
   aclrtStream aicpu_stream;
-  ACL_CHECK(aclrtCreateStream(&aicpu_stream));
+  ACL_CHECK(aclrtCreateStreamWithConfig(
+      reinterpret_cast<aclrtStream *>(&aicpu_stream),
+      0,
+      (ACL_STREAM_FAST_LAUNCH | ACL_STREAM_FAST_SYNC)));
   aicpu_streams[aicore_stream] = aicpu_stream;
 }
 
@@ -597,7 +600,10 @@ C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  ACL_CHECK(aclrtCreateStream(reinterpret_cast<aclrtStream *>(stream)));
+  ACL_CHECK(aclrtCreateStreamWithConfig(
+      reinterpret_cast<aclrtStream *>(stream),
+      0,
+      (ACL_STREAM_FAST_LAUNCH | ACL_STREAM_FAST_SYNC)));
   LOG_IF(INFO, FLAGS_npu_runtime_debug)
       << "[RUNTIME] CreateStream: device=" << device->id
       << ", stream=" << *stream;

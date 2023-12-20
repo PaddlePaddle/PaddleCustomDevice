@@ -1,0 +1,1 @@
+../../Paddle/test/legacy_test/auto_parallel_op_test.py

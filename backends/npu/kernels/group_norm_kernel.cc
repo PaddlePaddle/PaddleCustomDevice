@@ -152,7 +152,8 @@ void GroupNormKernel(const Context& dev_ctx,
                      phi::DenseTensor* mean,
                      phi::DenseTensor* variance) {
   auto x_dims = phi::vectorize(x.dims());
-  const phi::DataLayout data_layout_data = phi::StringToDataLayout(data_layout);
+  const phi::DataLayout data_layout_data =
+      common::StringToDataLayout(data_layout);
 
   if (x_dims.size() > 3) {
     phi::DenseTensor x_tmp(x);

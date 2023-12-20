@@ -61,7 +61,7 @@ void BatchNormKernel(const Context& dev_ctx,
   auto* Bias = bias.get_ptr();
 
   phi::DenseTensor new_scale, new_bias;
-  const auto data_layout = phi::StringToDataLayout(data_layout_str);
+  const auto data_layout = common::StringToDataLayout(data_layout_str);
 
   int C;
   if (x_dims.size() == 2) {
@@ -308,7 +308,7 @@ void BatchNormGradKernel(
   auto* Bias = bias.get_ptr();
 
   phi::DenseTensor new_scale, new_bias;
-  const auto data_layout = phi::StringToDataLayout(data_layout_str);
+  const auto data_layout = common::StringToDataLayout(data_layout_str);
 
   int C;
   if (x_dims.size() == 2) {

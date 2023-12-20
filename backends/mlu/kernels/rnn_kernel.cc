@@ -81,7 +81,7 @@ void RnnKernel(const Context& dev_ctx,
   int in_dim_arr[in_out_dim_num] = {seq_len, batch_size, input_dim};
   int out_dim_arr[in_out_dim_num] = {
       seq_len, batch_size, direction_num * hidden_size};
-  int proj_size = hidden_size;
+  int proj_size = 0;
 
   std::vector<int> seq_len_vec(batch_size, seq_len);
   if (sequence_length.is_initialized()) {  // set seq_len if no padding,
@@ -380,7 +380,7 @@ void RnnGradKernel(const Context& dev_ctx,
   int in_dim_arr[in_out_dim_num] = {seq_len, batch_size, input_dim};
   int out_dim_arr[in_out_dim_num] = {
       seq_len, batch_size, direction_num * hidden_size};
-  int proj_size = hidden_size;
+  int proj_size = 0;
   PADDLE_ENFORCE_EQ(
       num_layers,
       1,

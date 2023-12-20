@@ -173,8 +173,8 @@ std::string GetPDTensorString(const Context& dev_ctx,
 
   log_stream << "  - place: " << print_tensor.place() << std::endl;
   log_stream << "  - shape: " << print_tensor.dims().to_str() << std::endl;
-  log_stream << "  - layout: " << phi::DataLayoutToString(print_tensor.layout())
-             << std::endl;
+  log_stream << "  - layout: "
+             << common::DataLayoutToString(print_tensor.layout()) << std::endl;
 
   auto dtype = print_tensor.dtype();
   log_stream << "  - dtype: " << dtype << std::endl;

@@ -18,7 +18,6 @@
 #                   For Paddle CI
 #=================================================
 
-set -ex
 
 if [ -z ${PADDLE_BRANCH} ]; then
     PADDLE_BRANCH="develop"

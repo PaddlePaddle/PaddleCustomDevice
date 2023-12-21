@@ -341,7 +341,7 @@ void InitAtbLlamaBlockAttnLayerOp(std::shared_ptr<PpAtbLlamaBlockAttnLayerParall
 
     std::string device_id_str = getenv("FLAGS_selected_npus");
     int device_id = stoi(device_id_str);
-    int nranks = 2;
+    int nranks = 8;
 
     atb::Operation *op = nullptr; 
     LlamaBlockAttnParallelParam param = {rmsNormEps,
@@ -399,7 +399,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
     float selfQuantScale,
     float mlpQuantScale) {
 
-  int32_t layer_num = 40; /* TODO:65B，写死8卡 */
+  int32_t layer_num = 80; /* TODO:65B，写死8卡 */
   int32_t batch_size = hidden.shape().at(0);
   int32_t head_num = cache_key.shape().at(1);
   int32_t head_dim = cache_key.shape().at(3);

@@ -21,18 +21,16 @@
 enum LlamaLinearQuantParallelTensorId {
     IN_INPUT = 0,
     IN_WEIGHT,
-    IN_BIAS,
     IN_DEQSCALE,
     IN_BLANK_BIAS,
     OUT_LINEAROUT,
     INTERMIDATE_LINEAROUT,
-    INTERMIDATE_REDUCE_OUT
 };
  
-static const uint64_t IN_TENSOR_COUNT = 5;
+static const uint64_t IN_TENSOR_COUNT = 4;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 2;
-static const uint64_t NODE_COUNT = 3;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 1;
+static const uint64_t NODE_COUNT = 2;
  
 atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParallelParam &param, atb::Operation **operation)
 {
@@ -45,7 +43,7 @@ atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParall
     size_t nodeId = 0;
     atb::Node &linearQuantNode = opGraph.nodes.at(nodeId++);
     atb::Node &allReduceNode = opGraph.nodes.at(nodeId++);
-    atb::Node &dequantAddNode = opGraph.nodes.at(nodeId++);
+    // atb::Node &dequantAddNode = opGraph.nodes.at(nodeId++);
 
     atb::infer::LinearQuantParam linearQuantParam;
     linearQuantParam.transposeA = false;
@@ -59,7 +57,7 @@ atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParall
                                                  param.backend, param.hcclComm };
     CreateOperation(allReduceParam, &allReduceNode.operation);
     allReduceNode.inTensorIds = {INTERMIDATE_LINEAROUT};
-    allReduceNode.outTensorIds = {INTERMIDATE_REDUCE_OUT};
+    allReduceNode.outTensorIds = {OUT_LINEAROUT};
     // allReduceNode.inTensorReshapeFuncs.resize(allReduceNode.inTensorIds.size());
     // allReduceNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {
     //     newShape.dimNum = 2; // dimNum: 2
@@ -67,16 +65,11 @@ atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParall
     //     newShape.dims[1] = oldShape.dims[2];
     // };
  
-    atb::infer::ElewiseParam dequantAddParam;
-    dequantAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(dequantAddParam, &dequantAddNode.operation);
-    dequantAddNode.inTensorIds = {INTERMIDATE_REDUCE_OUT, IN_BIAS};
-    dequantAddNode.outTensorIds = {OUT_LINEAROUT};
     
     opGraph.inferShapeFunc = [=](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
  
-        outTensorDescs.at(0).dtype = inTensorDescs.at(2).dtype;
+        outTensorDescs.at(0).dtype = ACL_FLOAT16;
         outTensorDescs.at(0).format = inTensorDescs.at(0).format;
         outTensorDescs.at(0).shape = inTensorDescs.at(0).shape;
         auto outDimSize = outTensorDescs.at(0).shape.dimNum;

@@ -17,8 +17,8 @@
 
 static const uint64_t IN_TENSOR_COUNT = 2;
 static const uint64_t OUT_TENSOR_COUNT = 2;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 2;
-static const uint64_t NODE_COUNT = 3;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 3;
+static const uint64_t NODE_COUNT = 4;
 
 enum ToppSamplingTensorId {
     IN_PROBS = 0,
@@ -27,6 +27,7 @@ enum ToppSamplingTensorId {
     OUT_CAST_TOPP_PROBS,
     INTERMIDATE_PROBS_CAST,
     INTERMIDATE_TOPPS_CAST,
+    INTERMIDATE_TOPP_IDS,
 };
 
 atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
@@ -42,6 +43,7 @@ atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
     atb::Node &castProbsNode  = opGraph.nodes.at(nodeId++);
     atb::Node &castToppsNode  = opGraph.nodes.at(nodeId++);
     atb::Node &topPNode = opGraph.nodes.at(nodeId++);
+    atb::Node &castToppIdsNode  = opGraph.nodes.at(nodeId++);
 
     atb::infer::ElewiseParam castProbsParam;
     castProbsParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
@@ -60,7 +62,14 @@ atb::Status CreateToppSamplingOperation(const ToppSamplingParam &param,
     atb::infer::TopkToppSamplingParam TopParam = {param.randSeed, param.topk};
     atb::CreateOperation(TopParam, &topPNode.operation);
     topPNode.inTensorIds = {INTERMIDATE_PROBS_CAST, INTERMIDATE_TOPPS_CAST};
-    topPNode.outTensorIds = {OUT_CAST_TOPP_IDS, OUT_CAST_TOPP_PROBS};
+    topPNode.outTensorIds = {INTERMIDATE_TOPP_IDS, OUT_CAST_TOPP_PROBS};
+
+    atb::infer::ElewiseParam castToppIdsParam;
+    castToppIdsParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_CAST;
+    castToppIdsParam.outTensorType = ACL_INT64;
+    atb::CreateOperation(castToppIdsParam, &castToppIdsNode.operation);
+    castToppIdsNode.inTensorIds = {INTERMIDATE_TOPP_IDS};
+    castToppIdsNode.outTensorIds = {OUT_CAST_TOPP_IDS};
 
     opGraph.inferShapeFunc = [&](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {

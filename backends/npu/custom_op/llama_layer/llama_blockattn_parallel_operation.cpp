@@ -19,10 +19,10 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 29;
+static const uint64_t IN_TENSOR_COUNT = 25;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 18;
-static const uint64_t NODE_COUNT = 17;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 14;
+static const uint64_t NODE_COUNT = 13;
 
 void reshapeHeads(const atb::Dims &oldShape, atb::Dims &newShape, int headNum)
 {
@@ -51,8 +51,6 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
 
     size_t nodeId = 0;
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &inputNormQuantAddNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &inputNormQuantNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mixdQKVLinearNode  = opGraph.nodes.at(nodeId++);
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
     atb::Node &reshapeAndCacheNode = opGraph.nodes.at(nodeId++);
@@ -61,8 +59,6 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     atb::Node &selfOutLinearParallelNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfResidualAddNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfNormNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &selfNormQuantAddNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &selfNormQuantNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mlpNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mlpQuantNode = opGraph.nodes.at(nodeId++);
     atb::Node &mlpLinearParallelNode   = opGraph.nodes.at(nodeId++);
@@ -72,8 +68,11 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     atb::infer::RmsNormParam inputNormParam;
     inputNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     inputNormParam.normParam.epsilon = param.rmsNormEps;
+    inputNormParam.normParam.quantInputScale = param.inputNormQuantInputScale;
+    inputNormParam.normParam.quantInputOffset = param.inputNormQuantInputOffset;
+    inputNormParam.normParam.quantType = atb::infer::QUANT_INT8;
     atb::CreateOperation(inputNormParam, &inputNormNode.operation);
-    inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT};
+    inputNormNode.inTensorIds = {IN_HIDDENSTATES, IN_NORMWEIGHT, IN_NORM_BLANK_BIAS};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT};
     inputNormNode.inTensorReshapeFuncs.resize(inputNormNode.inTensorIds.size());
     inputNormNode.inTensorReshapeFuncs.at(0) = [seqLenPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -81,25 +80,11 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         *seqLenPtr = oldShape.dims[1]; // 获取一下seqLen大小，帮助后面infer shape
     };
 
-    atb::infer::ElewiseParam inputRmsNormQuantAddParam;
-    inputRmsNormQuantAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(inputRmsNormQuantAddParam, &inputNormQuantAddNode.operation);
-    inputNormQuantAddNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_INPUTNORM_BETA};
-    inputNormQuantAddNode.outTensorIds = {INTERMIDATE_INPUTNORMQUANTADDOUT};
-
-    atb::infer::ElewiseParam inputRmsNormQuantParam;
-    inputRmsNormQuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_QUANT;
-    inputRmsNormQuantParam.quantParam.inputScale = param.inputNormQuantInputScale;
-    inputRmsNormQuantParam.quantParam.inputOffset = param.inputNormQuantInputOffset;
-    CreateOperation(inputRmsNormQuantParam, &inputNormQuantNode.operation);
-    inputNormQuantNode.inTensorIds = {INTERMIDATE_INPUTNORMQUANTADDOUT};
-    inputNormQuantNode.outTensorIds = {INTERMIDATE_INPUTNORMQUANTOUT};
-
     // [bs, seq_len, hidden_size] * [3 * hidden_size / card_num, hidden_size] -> [bs，seq_len, hidden_size / card_num]
     MultiLayerLinearQuantParam multiLayerLinearQuantParam;
     multiLayerLinearQuantParam.transpose = param.transpose;
     CreateLlamaMultiLayerLinearQuantOperation(multiLayerLinearQuantParam, &mixdQKVLinearNode.operation);
-    mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMQUANTOUT, IN_QKVMIXDWEIGHT, IN_QKVDEQBIAS, IN_QKVDEQSCALE, IN_QKVDEQBLANKBIAS};
+    mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT, IN_QKVDEQBIAS, IN_QKVDEQSCALE, IN_QKVDEQBLANKBIAS};
     mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
     // output:[bs * seq_len, head_dim * head_num_pre_card]
@@ -225,7 +210,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     selfOutLinearParallelParam.backend = "lccl";
     selfOutLinearParallelParam.hcclComm = param.hcclComm;
     CreateLlamaLinearQuantParallelOperation(selfOutLinearParallelParam, &selfOutLinearParallelNode.operation);
-    selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT_QUANT, IN_SELFOUTLINEARWEIGHT, IN_SELFOUTLINEARDEQBIAS, IN_SELFOUTLINEARDEQSCALE, IN_SELFOUTLINEARDEQBLANKBIAS};
+    selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT_QUANT, IN_SELFOUTLINEARWEIGHT, IN_SELFOUTLINEARDEQSCALE, IN_SELFOUTLINEARDEQBLANKBIAS};
     selfOutLinearParallelNode.outTensorIds = {INTERMIDATE_SELFLINEAROUT};
     selfOutLinearParallelNode.inTensorReshapeFuncs.resize(selfOutLinearParallelNode.inTensorIds.size());
     selfOutLinearParallelNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -249,28 +234,17 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     atb::infer::RmsNormParam selfNormParam;
     selfNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     selfNormParam.normParam.epsilon = param.rmsNormEps;
+    selfNormParam.normParam.quantInputScale = param.selfNormQuantInputScale;
+    selfNormParam.normParam.quantInputOffset = param.selfNormQuantInputOffset;
+    selfNormParam.normParam.quantType = atb::infer::QUANT_INT8;
     atb::CreateOperation(selfNormParam, &selfNormNode.operation);
-    selfNormNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT, IN_SELFOUTNORMWEIGHT};
+    selfNormNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT, IN_SELFOUTNORMWEIGHT, IN_SELFOUTNORM_BLANK_BIAS};
     selfNormNode.outTensorIds = {INTERMIDATE_SELFNORMOUT};
-
-    atb::infer::ElewiseParam selfNormQuantAddParam;
-    selfNormQuantAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(selfNormQuantAddParam, &selfNormQuantAddNode.operation);
-    selfNormQuantAddNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_SELFNORM_BETA};
-    selfNormQuantAddNode.outTensorIds = {INTERMIDATE_SELFNORMQUANTADDOUT};
-
-    atb::infer::ElewiseParam selfNormQuantParam;
-    selfNormQuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_QUANT;
-    selfNormQuantParam.quantParam.inputScale = param.selfNormQuantInputScale;
-    selfNormQuantParam.quantParam.inputOffset = param.selfNormQuantInputOffset;
-    CreateOperation(selfNormQuantParam, &selfNormQuantNode.operation);
-    selfNormQuantNode.inTensorIds = {INTERMIDATE_SELFNORMQUANTADDOUT};
-    selfNormQuantNode.outTensorIds = {INTERMIDATE_SELFNORMQUANTOUT};
 
     LlamaMlpDequantParam llamaMlpDequantParam;
     llamaMlpDequantParam.transpose = true;
     CreateLlamaMlpDequantOperation(llamaMlpDequantParam, &mlpNode.operation);
-    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMQUANTOUT, IN_MLPGATEUPWEIGHT, IN_MLPDEQBIAS, IN_MLPDEQSCALE, IN_MLPDEQBLANKBIAS};
+    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMQUANTOUT, IN_MLPGATEUPWEIGHT, IN_MLPDEQSCALE, IN_MLPDEQBLANKBIAS};
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT};
 
     atb::infer::ElewiseParam mlpLinearParallelQuantParam;
@@ -291,7 +265,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     mlpLinearParallelParam.backend = "lccl";
     mlpLinearParallelParam.hcclComm = param.hcclComm;
     CreateLlamaLinearQuantParallelOperation(mlpLinearParallelParam, &mlpLinearParallelNode.operation);
-    mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT_QUANT, IN_MLPDOWNWEIGHT, IN_MLPDOWNDEQBIAS, IN_MLPDOWNDEQSCALE, IN_MLPDOWNDEQBLANKBIAS};
+    mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT_QUANT, IN_MLPDOWNWEIGHT, IN_MLPDOWNDEQSCALE, IN_MLPDOWNDEQBLANKBIAS};
     mlpLinearParallelNode.outTensorIds = {INTERMIDATE_MLPLINEARPARALLELOUT};
 
     atb::infer::ElewiseParam mlpResidualAddParam;

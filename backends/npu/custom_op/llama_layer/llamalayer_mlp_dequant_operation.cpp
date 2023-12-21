@@ -20,7 +20,6 @@
 enum LlamaMlpDequantTensorId {
     IN_HIDDENSTATUS = 0,
     IN_WEIGHTTENSOR,
-    IN_BIAS,
     IN_DEQSCALE,
     IN_BLANK_BIAS,
     OUT_MLPRESULTSTENSOR,
@@ -28,13 +27,12 @@ enum LlamaMlpDequantTensorId {
     INTERMIDATE_MATMUL_GATE_OUT,
     INTERMIDATE_MATMUL_UP_OUT,
     INTERMIDATE_SWISH_OUT,
-    INTERMIDATE_DEQUANT_OUT
 };
  
-static const uint64_t IN_TENSOR_COUNT = 5;
+static const uint64_t IN_TENSOR_COUNT = 4;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 5;
-static const uint64_t NODE_COUNT = 5;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 4;
+static const uint64_t NODE_COUNT = 4;
 static uint64_t DIM3 = 3;
  
 atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, atb::Operation **operation)
@@ -48,7 +46,6 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
  
     size_t nodeId = 0;
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
-    atb::Node &dequantAddNode = opGraph.nodes.at(nodeId++);
     atb::Node &splitNode = opGraph.nodes.at(nodeId++);
     atb::Node &swishNode = opGraph.nodes.at(nodeId++);
     atb::Node &mulNode = opGraph.nodes.at(nodeId++);
@@ -58,15 +55,10 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
     linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR, IN_BLANK_BIAS, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
  
-     atb::infer::ElewiseParam dequantAddParam;
-    dequantAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(dequantAddParam, &dequantAddNode.operation);
-    dequantAddNode.inTensorIds = {INTERMIDATE_MATMUL_ALL_OUT, IN_BIAS};
-    dequantAddNode.outTensorIds = {INTERMIDATE_DEQUANT_OUT};
 
     atb::infer::SplitParam splitParam = {2, 2};
     CreateOperation(splitParam, &splitNode.operation);
-    splitNode.inTensorIds = {INTERMIDATE_DEQUANT_OUT};
+    splitNode.inTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
     splitNode.outTensorIds = {INTERMIDATE_MATMUL_GATE_OUT, INTERMIDATE_MATMUL_UP_OUT};
  
     atb::infer::ActivationParam activationParam;
@@ -85,7 +77,7 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
     opGraph.inferShapeFunc = [=](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
         outTensorDescs.at(0) = inTensorDescs.at(0);
-        outTensorDescs.at(0).dtype = inTensorDescs.at(2).dtype; // 修改为float16 type
+        outTensorDescs.at(0).dtype = ACL_FLOAT16; // 修改为float16 type
         if (param.transpose == true) {
             outTensorDescs.at(0).shape.dimNum = DIM3;
             outTensorDescs.at(0).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];

@@ -31,23 +31,19 @@ static phi::DenseTensor slot_mapping_tensor; // 保存每个token在Cache中存�
 void PerpareLlamaBlockAttnEncoderInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &input_norm_beta,
-    const paddle::Tensor &self_norm_beta,
+    const paddle::Tensor &norm_blank_bias,
     const paddle::Tensor &qkv_mix_weight,
-    const paddle::Tensor &qkv_deq_bias,
     const paddle::Tensor &qkv_deq_scale,
     const paddle::Tensor &qkv_deq_blank_bias,
     const paddle::Tensor &self_out_linear_weight,
-    const paddle::Tensor &self_out_linear_deq_bias,
     const paddle::Tensor &self_out_linear_deq_scale,
     const paddle::Tensor &self_out_linear_deq_blank_bias,
     const paddle::Tensor &self_out_norm_weight,
+    const paddle::Tensor &self_out_norm_blank_bias,
     const paddle::Tensor &mlp_gate_up_weight,
-    const paddle::Tensor &mlp_deq_bias,
     const paddle::Tensor &mlp_deq_scale,
     const paddle::Tensor &mlp_deq_blank_bias,
     const paddle::Tensor &mlp_down_weight,
-    const paddle::Tensor &mlp_down_deq_bias,
     const paddle::Tensor &mlp_down_deq_scale,
     const paddle::Tensor &mlp_down_deq_blank_bias,
     const paddle::Tensor &cos_table,
@@ -62,23 +58,19 @@ void PerpareLlamaBlockAttnEncoderInputs(
 
   auto hidden_tensor = static_cast<const phi::DenseTensor *>(hidden.impl().get());
   auto norm_weight_tensor = static_cast<const phi::DenseTensor *>(norm_weight.impl().get());
-  auto input_norm_beta_tensor = static_cast<const phi::DenseTensor *>(input_norm_beta.impl().get());
-  auto self_norm_beta_tensor = static_cast<const phi::DenseTensor *>(self_norm_beta.impl().get());
+  auto norm_blank_bias_tensor = static_cast<const phi::DenseTensor *>(norm_blank_bias.impl().get());
   auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
-  auto qkv_deq_bias_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_bias.impl().get());
   auto qkv_deq_scale_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_scale.impl().get());
   auto qkv_deq_blank_bias_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_blank_bias.impl().get());
   auto self_out_linear_weight_tensor = static_cast<phi::DenseTensor *>(self_out_linear_weight.impl().get());
-  auto self_out_linear_deq_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_bias.impl().get());
   auto self_out_linear_deq_scale_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_scale.impl().get());
   auto self_out_linear_deq_blank_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_blank_bias.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
+  auto self_out_norm_blank_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_blank_bias.impl().get());
   auto mlp_gate_up_weight_tensor = static_cast<phi::DenseTensor *>(mlp_gate_up_weight.impl().get());
-  auto mlp_deq_bias_tensor = static_cast<phi::DenseTensor *>(mlp_deq_bias.impl().get());
   auto mlp_deq_scale_tensor = static_cast<phi::DenseTensor *>(mlp_deq_scale.impl().get());
   auto mlp_deq_blank_bias_tensor = static_cast<phi::DenseTensor *>(mlp_deq_blank_bias.impl().get());
   auto mlp_down_weight_tensor = static_cast<phi::DenseTensor *>(mlp_down_weight.impl().get());
-  auto mlp_down_deq_bias_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_bias.impl().get());
   auto mlp_down_deq_scale_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_scale.impl().get());
   auto mlp_down_deq_blank_bias_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_blank_bias.impl().get());
   auto cos_table_tensor = static_cast<const phi::DenseTensor *>(cos_table.impl().get());
@@ -88,27 +80,22 @@ void PerpareLlamaBlockAttnEncoderInputs(
   auto cache_value_tensor = static_cast<const phi::DenseTensor *>(cache_value.impl().get());
   auto seq_len_tensor = static_cast<const phi::DenseTensor *>(seq_len.impl().get());
   auto block_tables_tensor = static_cast<const phi::DenseTensor *>(block_tables.impl().get());
-  // auto slot_mapping_tensor = static_cast<const phi::DenseTensor *>(slot_mapping.impl().get());
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
-  inputs.push_back(input_norm_beta_tensor);
-  inputs.push_back(self_norm_beta_tensor);
+  inputs.push_back(norm_blank_bias_tensor);
   inputs.push_back(qkv_mix_weight_tensor);
-  inputs.push_back(qkv_deq_bias_tensor);
   inputs.push_back(qkv_deq_scale_tensor);
   inputs.push_back(qkv_deq_blank_bias_tensor);
   inputs.push_back(self_out_linear_weight_tensor);
-  inputs.push_back(self_out_linear_deq_bias_tensor);
   inputs.push_back(self_out_linear_deq_scale_tensor);
   inputs.push_back(self_out_linear_deq_blank_bias_tensor);
   inputs.push_back(self_out_norm_weight_tensor);
+  inputs.push_back(self_out_norm_blank_bias_tensor);
   inputs.push_back(mlp_gate_up_weight_tensor);
-  inputs.push_back(mlp_deq_bias_tensor);
   inputs.push_back(mlp_deq_scale_tensor);
   inputs.push_back(mlp_deq_blank_bias_tensor);
   inputs.push_back(mlp_down_weight_tensor);
-  inputs.push_back(mlp_down_deq_bias_tensor);
   inputs.push_back(mlp_down_deq_scale_tensor);
   inputs.push_back(mlp_down_deq_blank_bias_tensor);
   inputs.push_back(cos_table_tensor);
@@ -124,23 +111,19 @@ void PerpareLlamaBlockAttnEncoderInputs(
 void PerpareLlamaBlockAttnDecoderInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &input_norm_beta,
-    const paddle::Tensor &self_norm_beta,
+    const paddle::Tensor &norm_blank_bias,
     const paddle::Tensor &qkv_mix_weight,
-    const paddle::Tensor &qkv_deq_bias,
     const paddle::Tensor &qkv_deq_scale,
     const paddle::Tensor &qkv_deq_blank_bias,
     const paddle::Tensor &self_out_linear_weight,
-    const paddle::Tensor &self_out_linear_deq_bias,
     const paddle::Tensor &self_out_linear_deq_scale,
     const paddle::Tensor &self_out_linear_deq_blank_bias,
     const paddle::Tensor &self_out_norm_weight,
+    const paddle::Tensor &self_out_norm_blank_bias,    
     const paddle::Tensor &mlp_gate_up_weight,
-    const paddle::Tensor &mlp_deq_bias,
     const paddle::Tensor &mlp_deq_scale,
     const paddle::Tensor &mlp_deq_blank_bias,
     const paddle::Tensor &mlp_down_weight,
-    const paddle::Tensor &mlp_down_deq_bias,
     const paddle::Tensor &mlp_down_deq_scale,
     const paddle::Tensor &mlp_down_deq_blank_bias,
     const paddle::Tensor &cos_table,
@@ -155,23 +138,19 @@ void PerpareLlamaBlockAttnDecoderInputs(
 
   auto hidden_tensor = static_cast<const phi::DenseTensor *>(hidden.impl().get());
   auto norm_weight_tensor = static_cast<const phi::DenseTensor *>(norm_weight.impl().get());
-  auto input_norm_beta_tensor = static_cast<const phi::DenseTensor *>(input_norm_beta.impl().get());
-  auto self_norm_beta_tensor = static_cast<const phi::DenseTensor *>(self_norm_beta.impl().get());
+  auto norm_blank_bias_tensor = static_cast<const phi::DenseTensor *>(norm_blank_bias.impl().get());
   auto qkv_mix_weight_tensor = static_cast<const phi::DenseTensor *>(qkv_mix_weight.impl().get());
-  auto qkv_deq_bias_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_bias.impl().get());
   auto qkv_deq_scale_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_scale.impl().get());
   auto qkv_deq_blank_bias_tensor = static_cast<const phi::DenseTensor *>(qkv_deq_blank_bias.impl().get());
   auto self_out_linear_weight_tensor = static_cast<phi::DenseTensor *>(self_out_linear_weight.impl().get());
-  auto self_out_linear_deq_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_bias.impl().get());
   auto self_out_linear_deq_scale_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_scale.impl().get());
   auto self_out_linear_deq_blank_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_linear_deq_blank_bias.impl().get());
   auto self_out_norm_weight_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_weight.impl().get());
+  auto self_out_norm_blank_bias_tensor = static_cast<const phi::DenseTensor *>(self_out_norm_blank_bias.impl().get());
   auto mlp_gate_up_weight_tensor = static_cast<phi::DenseTensor *>(mlp_gate_up_weight.impl().get());
-  auto mlp_deq_bias_tensor = static_cast<phi::DenseTensor *>(mlp_deq_bias.impl().get());
   auto mlp_deq_scale_tensor = static_cast<phi::DenseTensor *>(mlp_deq_scale.impl().get());
   auto mlp_deq_blank_bias_tensor = static_cast<phi::DenseTensor *>(mlp_deq_blank_bias.impl().get());
   auto mlp_down_weight_tensor = static_cast<phi::DenseTensor *>(mlp_down_weight.impl().get());
-  auto mlp_down_deq_bias_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_bias.impl().get());
   auto mlp_down_deq_scale_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_scale.impl().get());
   auto mlp_down_deq_blank_bias_tensor = static_cast<phi::DenseTensor *>(mlp_down_deq_blank_bias.impl().get());
   auto cos_table_tensor = static_cast<const phi::DenseTensor *>(cos_table.impl().get());
@@ -184,23 +163,19 @@ void PerpareLlamaBlockAttnDecoderInputs(
 
   inputs.push_back(hidden_tensor);
   inputs.push_back(norm_weight_tensor);
-  inputs.push_back(input_norm_beta_tensor);
-  inputs.push_back(self_norm_beta_tensor);
+  inputs.push_back(norm_blank_bias_tensor);
   inputs.push_back(qkv_mix_weight_tensor);
-  inputs.push_back(qkv_deq_bias_tensor);
   inputs.push_back(qkv_deq_scale_tensor);
   inputs.push_back(qkv_deq_blank_bias_tensor);
   inputs.push_back(self_out_linear_weight_tensor);
-  inputs.push_back(self_out_linear_deq_bias_tensor);
   inputs.push_back(self_out_linear_deq_scale_tensor);
   inputs.push_back(self_out_linear_deq_blank_bias_tensor);
   inputs.push_back(self_out_norm_weight_tensor);
+  inputs.push_back(self_out_norm_blank_bias_tensor);
   inputs.push_back(mlp_gate_up_weight_tensor);
-  inputs.push_back(mlp_deq_bias_tensor);
   inputs.push_back(mlp_deq_scale_tensor);
   inputs.push_back(mlp_deq_blank_bias_tensor);
   inputs.push_back(mlp_down_weight_tensor);
-  inputs.push_back(mlp_down_deq_bias_tensor);
   inputs.push_back(mlp_down_deq_scale_tensor);
   inputs.push_back(mlp_down_deq_blank_bias_tensor);
   inputs.push_back(cos_table_tensor);
@@ -369,20 +344,14 @@ void InitAtbLlamaBlockAttnLayerOp(std::shared_ptr<PpAtbLlamaBlockAttnLayerParall
 std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
-    const paddle::Tensor &input_norm_beta,
-    const paddle::Tensor &self_norm_beta,
     const paddle::Tensor &qkv_mix_weight,
-    const paddle::Tensor &qkv_deq_bias,
     const paddle::Tensor &qkv_deq_scale,
     const paddle::Tensor &self_out_linear_weight,
-    const paddle::Tensor &self_out_linear_deq_bias,
     const paddle::Tensor &self_out_linear_deq_scale,
     const paddle::Tensor &self_out_norm_weight,
     const paddle::Tensor &mlp_gate_up_weight,
-    const paddle::Tensor &mlp_deq_bias,
     const paddle::Tensor &mlp_deq_scale,
     const paddle::Tensor &mlp_down_weight,
-    const paddle::Tensor &mlp_down_deq_bias,
     const paddle::Tensor &mlp_down_deq_scale,
     const paddle::Tensor &cos_table,
     const paddle::Tensor &sin_table,
@@ -415,6 +384,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
     g_isEncoder = isEncoderToken(encoder_seq_len);
   }
 
+  inputRmsNormScale *= 127;
+  selfRmsNormScale *= 127;
+  selfQuantScale *= 127;
+  mlpQuantScale *= 127;
+  
   if (g_isEncoder && !g_llamaBlockAttnEncoderOp) {
     InitAtbLlamaBlockAttnLayerOp(g_llamaBlockAttnEncoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale);
   } else if (!g_isEncoder && !g_llamaBlockAttnDecoderOp) {
@@ -438,38 +412,30 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   std::vector<const phi::DenseTensor *> inputs;
 
   executeCount++;
-  auto qkv_deq_blank_bias = paddle::full(qkv_deq_bias.shape(), 0, paddle::DataType::INT32, qkv_deq_bias.place()); 
-  auto self_out_linear_deq_blank_bias = paddle::full(self_out_linear_deq_bias.shape(), 0, paddle::DataType::INT32, self_out_linear_deq_bias.place()); 
-  auto mlp_deq_blank_bias = paddle::full(mlp_deq_bias.shape(), 0, paddle::DataType::INT32, mlp_deq_bias.place()); 
-  auto mlp_down_deq_blank_bias = paddle::full(mlp_down_deq_bias.shape(), 0, paddle::DataType::INT32, mlp_down_deq_bias.place()); 
-  
-  auto mlp_down_deq_bias_tmp = paddle::full(mlp_down_deq_bias.shape(), 0,  static_cast<const phi::DenseTensor *>(mlp_down_deq_bias.impl().get())->dtype(), mlp_down_deq_bias.place());
-  
-  // 只有最后一层存在ffn2 bias
-  if (executeCount % layer_num == layer_num - 1) {
-    mlp_down_deq_bias_tmp = mlp_down_deq_bias;
-  } 
+  auto qkv_deq_blank_bias = paddle::full({qkv_mix_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+  auto self_out_linear_deq_blank_bias = paddle::full({self_out_linear_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+  auto mlp_deq_blank_bias = paddle::full({mlp_gate_up_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+  auto mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+
+  auto norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+  auto self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
 
   if (g_isEncoder) {
     PerpareLlamaBlockAttnEncoderInputs(hidden,
                                        norm_weight,
-                                       input_norm_beta,
-                                       self_norm_beta,
+                                       norm_blank_bias,
                                        qkv_mix_weight,
-                                       qkv_deq_bias,
                                        qkv_deq_scale,
                                        qkv_deq_blank_bias,
                                        self_out_linear_weight,
-                                       self_out_linear_deq_bias,
                                        self_out_linear_deq_scale,
                                        self_out_linear_deq_blank_bias,
                                        self_out_norm_weight,
+                                       self_out_norm_blank_bias,
                                        mlp_gate_up_weight,
-                                       mlp_deq_bias,
                                        mlp_deq_scale,
                                        mlp_deq_blank_bias,
                                        mlp_down_weight,
-                                       mlp_down_deq_bias_tmp,
                                        mlp_down_deq_scale,
                                        mlp_down_deq_blank_bias,
                                        cos_table,
@@ -487,23 +453,19 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   }
   PerpareLlamaBlockAttnDecoderInputs(hidden,
                                      norm_weight,
-                                     input_norm_beta,
-                                     self_norm_beta,
+                                     norm_blank_bias,
                                      qkv_mix_weight,
-                                     qkv_deq_bias,
                                      qkv_deq_scale,
                                      qkv_deq_blank_bias,
                                      self_out_linear_weight,
-                                     self_out_linear_deq_bias,
                                      self_out_linear_deq_scale,
                                      self_out_linear_deq_blank_bias,
                                      self_out_norm_weight,
+                                     self_out_norm_blank_bias,
                                      mlp_gate_up_weight,
-                                     mlp_deq_bias,
                                      mlp_deq_scale,
                                      mlp_deq_blank_bias,
                                      mlp_down_weight,
-                                     mlp_down_deq_bias,
                                      mlp_down_deq_scale,
                                      mlp_down_deq_blank_bias,
                                      cos_table,
@@ -523,20 +485,14 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
 std::vector<std::vector<int64_t>> LlamaBlockAttnLayerOpInferShape(
     const std::vector<int64_t> &hidden_shape,
     const std::vector<int64_t> &norm_weight_shape,
-    const std::vector<int64_t> &input_norm_beta_shape,
-    const std::vector<int64_t> &self_norm_beta_shape,
     const std::vector<int64_t> &qkv_mix_weight_shape,
-    const std::vector<int64_t> &qkv_deq_bias_shape,
     const std::vector<int64_t> &qkv_deq_Scale_shape,
     const std::vector<int64_t> &self_out_linear_weight_shape,
-    const std::vector<int64_t> &self_out_linear_deq_bias_shape,
     const std::vector<int64_t> &self_out_linear_deq_scale_shape,
     const std::vector<int64_t> &self_out_norm_weight_shape,
     const std::vector<int64_t> &mlp_gate_up_weight_shape,
-    const std::vector<int64_t> &mlp_deq_bias_shape,
     const std::vector<int64_t> &mlp_deq_scale_shape,
     const std::vector<int64_t> &mlp_down_weight_shape,
-    const std::vector<int64_t> &mlp_down_deq_bias_shape,
     const std::vector<int64_t> &mlp_down_deq_scale_shape,
     const std::vector<int64_t> &cos_table_shape,
     const std::vector<int64_t> &sin_table_shape,
@@ -559,20 +515,14 @@ std::vector<std::vector<int64_t>> LlamaBlockAttnLayerOpInferShape(
 PD_BUILD_OP(llama_blockattn_layer_parallel)
     .Inputs({"Hidden",
              "NormWeight",
-             "InputNormBeta",
-             "SelfNormBeta",
              "QKVMixWeight",
-             "QKVDeqBias",
              "QKVDeqScale",
              "SelfOutLinearWeight",
-             "SelfOutLinearDeqBias",
              "SelfOutLinearDeqScale",
              "SelfOutNormWeight",
              "MlpGateUpWeight",
-             "MlpDeqBias",
              "MlpDeqScale",
              "MlpDownWeight",
-             "MlpDownDeqBias",
              "MlpDownDeqScale",
              "CosTable",
              "SinTable",

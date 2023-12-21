@@ -612,12 +612,12 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
     std::vector<int64_t> input_ids_shape = input_ids.shape();
     const int bsz = seq_len.shape()[0];
     const int seq_length = input_ids_shape[1];
+    auto cum_offsets_out = cum_offsets.copy_to(cum_offsets.place(), true);
     auto cpu_token_num = token_num.copy_to(paddle::CPUPlace(), true);
 
     const int token_num_data = cpu_token_num.data<int64_t>()[0];
     std::cout << "get_padding_offset_v2  token_num_data:" << token_num_data << std::endl;
     auto x_remove_padding = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT64, input_ids.place());
-    auto cum_offsets_out = paddle::full({bsz, 1}, 0, paddle::DataType::INT32, input_ids.place());
     auto padding_offset = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT32, input_ids.place());
     auto cu_seqlens_q = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
     auto cu_seqlens_k = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
@@ -1076,14 +1076,17 @@ std::vector<paddle::Tensor> RebuildPaddingV2(const paddle::Tensor& tmp_out, // [
     auto dev_ctx = static_cast<const phi::CustomContext*>(
         paddle::experimental::DeviceContextPool::Instance().Get(tmp_out.place()));
     auto stream = static_cast<aclrtStream>(dev_ctx->stream());
-    ACL_CHECK(aclrtSynchronizeStream(reinterpret_cast<aclrtStream>(stream)));
-    auto tmp_out_tensor = static_cast<const phi::DenseTensor*>(tmp_out.impl().get());
+    auto tmp_out_tensor = static_cast<phi::DenseTensor*>(tmp_out.impl().get());
     auto cum_offsets_tensor = static_cast<const phi::DenseTensor*>(cum_offsets.impl().get());
     auto seq_lens_decoder_tensor = static_cast<const phi::DenseTensor*>(seq_lens_decoder.impl().get()); 
     auto seq_lens_encoder_tensor = static_cast<const phi::DenseTensor*>(seq_lens_encoder.impl().get());
 
     const int dim_embed = tmp_out.shape().back();
     const int bsz = cum_offsets.shape()[0];
+
+    if (tmp_out.shape().size() == 3) { // 需要[token_num, dim_embed]的shape
+        tmp_out_tensor->Resize({tmp_out.shape()[0] * tmp_out.shape()[1], tmp_out.shape()[2]});
+    }
 
     std::shared_ptr<phi::DenseTensor> out = std::make_shared<phi::DenseTensor>();
     out->Resize({bsz, dim_embed});

@@ -5,17 +5,19 @@ LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache
 RUN yum update -y
-RUN yum install -y bzip2-devel make openssl-devel openssh-server elfutils-devel diffutils libtool iproute \
-        blas-devel lapack-devel libjpeg-turbo-devel libpng-devel make git patch unzip bison hostname yasm \
-        automake which file net-tools tree zlib-devel libffi-devel pcre-devel vim tk-devel tkinter rpm-build \
-        sqlite-devel xz-devel graphviz wget curl-devel numactl-devel initscripts mesa-libGL libsndfile-devel \
-        gcc gcc-c++ gcc-gfortran ninja-build lrzsz
+RUN yum install -y bzip2-devel openssh-server elfutils-devel diffutils libtool iproute \
+        blas-devel lapack-devel make git patch unzip bison hostname yasm libsndfile-devel \
+        automake which file net-tools zlib-devel libffi-devel vim tk-devel tkinter rpm-build \
+        sqlite-devel xz-devel wget curl-devel initscripts mesa-libGL numactl-devel pcre-devel \
+        openssl-devel libjpeg-turbo-devel libpng-devel ninja-build gcc gcc-c++ gcc-gfortran
 
 # add bash envs
 COPY root/ /root/
 
-# cmake 3.27.7
+# workdir
 WORKDIR /opt
+
+# cmake 3.27.7
 RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
     chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
     ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
@@ -23,8 +25,8 @@ RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
 # Python 3.9.17
-RUN wget -q https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar -xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
+    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
     make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
     cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
@@ -45,22 +47,10 @@ RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format=
 RUN pip install PyGithub distro
 
 # install Paddle requirement
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-
-# # Install Go and glide
-# RUN wget -qO- https://paddle-ci.cdn.bcebos.com/go1.8.1.linux-amd64.tar.gz | \
-#     tar -xz -C /usr/local && \
-#     mkdir /root/gopath && \
-#     mkdir /root/gopath/bin && \
-#     mkdir /root/gopath/src
-# ENV GOROOT=/usr/local/go GOPATH=/root/gopath
-# # should not be in the same line with GOROOT definition, otherwise docker build could not find GOROOT.
-# ENV PATH=${PATH}:${GOROOT}/bin:${GOPATH}/bin
-# # install glide
-# RUN curl -s -q https://glide.sh/get | sh
 
 # git credential to skip password typing
 RUN git config --global credential.helper store && \
@@ -71,15 +61,18 @@ RUN yum -y install glibc-locale-source glibc-langpack-en
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
 # patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216
-RUN wget -O /opt/0.14.5.tar.gz https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
-    cd /opt && tar xzf 0.14.5.tar.gz && cd /opt/patchelf-0.14.5 && ./bootstrap.sh && ./configure && \
-    make && make install && cd /opt && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
+RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
+    tar xzf 0.14.5.tar.gz && cd patchelf-0.14.5 && \
+    ./bootstrap.sh  > /dev/null && ./configure > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
 # ccache 3.7.9
-RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
+RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
     tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 && \
-    make -j8 && make install && cd .. && rm -rf ccache-3.7.9* && \
+    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \ 
+    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
     ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
 
 # configure ssh

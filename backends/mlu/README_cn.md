@@ -8,24 +8,24 @@
 
 | 模块名称  | 版本     |
 | --------- | -------- |
-| cntoolkit | 3.4.2-1  |
-| cnnl      | 1.17.0-1 |
-| cncl      | 1.9.3-1  |
-| mluops    | 0.6.0-1  |
+| cntoolkit | 3.7.2-1  |
+| cnnl      | 1.22.0-1 |
+| cncl      | 1.13.0-1 |
+| mluops    | 0.10.0-1 |
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.4.2-1-cnnl1.17.0-1-gcc82
+docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
     --shm-size=128G --network=host -w=/workspace \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    registry.baidubce.com/device/paddle-mlu:cntoolkit3.4.2-1-cnnl1.17.0-1-gcc82 /bin/bash
+    registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -67,11 +67,11 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # 预期得到如下输出结果
 version: 2.5.0
-commit: 2e26a091323b8fba4f96dbee91203425c37362bf
-cntoolkit: 3.4.2
-cnnl: 1.17.0
-cncl: 1.9.3
-mluops: 0.6.0
+commit: d96f5d9c91b204f2d1c2d022aa62479f4c49112e
+cntoolkit: 3.7.2
+cnnl: 1.22.0
+cncl: 1.13.0
+mluops: 0.10.0
 
 # 3) 运行简单模型训练、评估和推理任务
 python tests/test_LeNet_MNIST.py

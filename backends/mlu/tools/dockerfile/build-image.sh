@@ -22,10 +22,10 @@ set -ex
 
 FTP_USER=${1} # Please contact Cambricon technicians to obtain username and password
 FTP_PASSWORD=${2}
-CNTOOLKIT_VERSION=${3:-3.4.2-1} # default 3.4.2
-CNNL_VERSION=${4:-1.17.0-1} # default 1.17.0
-CNCL_VERSION=${5:-1.9.3-1} # default 1.9.3
-MLUOPS_VERSION=${6:-0.6.0-1} # default 0.6.0
+CNTOOLKIT_VERSION=${3:-3.7.2-1} # default 3.7.2
+CNNL_VERSION=${4:-1.22.0-1} # default 1.22.0
+CNCL_VERSION=${5:-1.13.0-1} # default 1.13.0
+MLUOPS_VERSION=${6:-0.10.0-1} # default 0.10.0
 
 # ubuntu18-$(uname -m)-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82

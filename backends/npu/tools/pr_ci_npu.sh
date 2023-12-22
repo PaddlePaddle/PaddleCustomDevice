@@ -116,7 +116,6 @@ function main() {
     changed_kernels=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/kernels")
     set +x
     all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
-    set -x
     if [ ${#changed_kernels[*]} -gt 0 ]; then 
         for line in ${changed_kernels[@]} ;
             do

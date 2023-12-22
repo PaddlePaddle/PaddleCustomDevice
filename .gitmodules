@@ -1,4 +1,4 @@
 [submodule "Paddle"]
 	path = Paddle
 	url = https://github.com/PaddlePaddle/Paddle.git
-	branch = release/2.6
+	branch = develop

@@ -34,25 +34,7 @@ docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc82 \
   -t registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82 .
 docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
 
-# ubuntu20-gcc94
-docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc94 \
-  --build-arg http_proxy=${proxy} \
-  --build-arg https_proxy=${proxy} \
-  --build-arg ftp_proxy=${proxy} \
-  --build-arg no_proxy=bcebos.com,baidu.com \
-  -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc94 .
-docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc94
-
 if [ $(uname -i) == 'x86_64' ]; then
-  # centos79.gcc73
-  docker build --network=host -f Dockerfile.centos79.$(uname -m).gcc73 \
-    --build-arg http_proxy=${proxy} \
-    --build-arg https_proxy=${proxy} \
-    --build-arg ftp_proxy=${proxy} \
-    --build-arg no_proxy=bcebos.com,baidu.com \
-    -t registry.baidubce.com/device/paddle-cpu:centos79-$(uname -m)-gcc73 .
-  docker push registry.baidubce.com/device/paddle-cpu:centos79-$(uname -m)-gcc73
-
   # kylinv10.gcc73
   docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc73 \
     --build-arg http_proxy=${proxy} \

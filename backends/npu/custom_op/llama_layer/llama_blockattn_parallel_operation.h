@@ -26,6 +26,8 @@ enum LlamaBlockAttnParallelTensorId {
     IN_QKVDEQSCALE,
     IN_QKVDEQBLANKBIAS,
     IN_SELFOUTLINEARWEIGHT,
+    IN_SELFOUTLINEARSHIFT,
+    IN_SELFOUTLINEARSMOOTH,
     IN_SELFOUTLINEARDEQSCALE,
     IN_SELFOUTLINEARDEQBLANKBIAS,
     IN_SELFOUTNORMWEIGHT,
@@ -34,6 +36,8 @@ enum LlamaBlockAttnParallelTensorId {
     IN_MLPDEQSCALE,
     IN_MLPDEQBLANKBIAS,
     IN_MLPDOWNWEIGHT,
+    IN_MLPDOWNSHIFT,
+    IN_MLPDOWNSMOOTH,
     IN_MLPDOWNDEQSCALE,
     IN_MLPDOWNDEQBLANKBIAS,
     IN_COS_TABLE,
@@ -59,6 +63,10 @@ enum LlamaBlockAttnParallelTensorId {
     INTERMIDATE_MLPOUT,
     INTERMIDATE_MLPOUT_QUANT,
     INTERMIDATE_MLPLINEARPARALLELOUT,
+    IINTERMIDATE_SELFOUTLINEARADDSHIFTOUT,
+    IINTERMIDATE_SELFOUTLINEARMULSMOOTHOUT,
+    IINTERMIDATE_MLPDOWNADDSHIFTOUT,
+    IINTERMIDATE_MLPDOWNMULSMOOTHOUT,
 };
 
 struct LlamaBlockAttnParallelParam {
@@ -75,13 +83,13 @@ struct LlamaBlockAttnParallelParam {
     
     // new params for quantization: 
     float selfNormQuantInputScale = 0;
-    float selfNormQuantInputOffset = 0;
+    int selfNormQuantInputOffset = 0;
     float selfOutLinearParallelQuantScale = 0;
-    float selfOutLinearParallelQuantOffset = 0;
+    int selfOutLinearParallelQuantOffset = 0;
     float inputNormQuantInputScale = 0;
-    float inputNormQuantInputOffset = 0;
+    int inputNormQuantInputOffset = 0;
     float mlpLinearParallelQuantScale = 0;
-    float mlpLinearParallelQuantOffset = 0;
+    int mlpLinearParallelQuantOffset = 0;
 };
 
 atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &param,

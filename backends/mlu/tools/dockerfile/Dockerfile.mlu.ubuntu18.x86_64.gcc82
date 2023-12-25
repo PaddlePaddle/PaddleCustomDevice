@@ -37,7 +37,7 @@ RUN cd /tmp && \
 
 # install cnnl_extra
 RUN cd /tmp && \
-    wget -O cnnlextra_install_pkg.deb ftp://download.cambricon.com:8821/tmp/cnnlextra/cnnlextra_${CNNL_EXTRA_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    wget -O cnnlextra_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/cnnlextra_${CNNL_EXTRA_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
     dpkg -i cnnlextra_install_pkg.deb && \
     rm -f cnnlextra_install_pkg.deb
 

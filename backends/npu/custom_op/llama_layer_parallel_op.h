@@ -83,8 +83,7 @@ class PpAtbLlamaBlockAttnLayerParallelOp : public PpAscendAtbOpBase {
 public:
   PpAtbLlamaBlockAttnLayerParallelOp(const std::string &modelName);
   ~PpAtbLlamaBlockAttnLayerParallelOp();
-    phi::DenseTensor token_offset_tensor_;
-
+  phi::DenseTensor token_offset_tensor_;
   void UpdateInputTensorAndParam(const paddle::Tensor &block_tables, const paddle::Tensor &seq_len, int32_t block_size);
 
 private:

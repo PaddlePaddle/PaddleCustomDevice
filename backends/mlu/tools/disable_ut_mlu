@@ -7,3 +7,4 @@ test_collective_api
 test_parallel_dygraph_pipeline_parallel
 test_set_value_op_mlu
 test_dygraph_sharding_stage_3
+test_compare_op_mlu

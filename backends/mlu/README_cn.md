@@ -28,7 +28,7 @@ docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
     registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice -b release/2.5
 cd PaddleCustomDevice
 ```
 

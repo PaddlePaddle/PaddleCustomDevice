@@ -309,7 +309,8 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
 }
 
 PpAtbLlamaBlockAttnLayerParallelOp::PpAtbLlamaBlockAttnLayerParallelOp(
-    const std::string &modelName) : PpAscendAtbOpBase(modelName) {
+    const std::string &modelName, int layer_num) : PpAscendAtbOpBase(modelName) {
+    operations_.resize(layer_num);
 }
 
 PpAtbLlamaBlockAttnLayerParallelOp::~PpAtbLlamaBlockAttnLayerParallelOp() {}
@@ -333,12 +334,12 @@ bool isEncoderToken(const paddle::Tensor &encoder_seq_len)
 
 void InitAtbLlamaBlockAttnLayerOp(std::shared_ptr<PpAtbLlamaBlockAttnLayerParallelOp> &block_op,
                                   float rmsNormEps, int32_t head_num, int32_t head_dim, HcclComm comm,
-                                  float inputRmsNormScale, float selfRmsNormScale, float selfQuantScale, float mlpQuantScale)
+                                  float inputRmsNormScale, float selfRmsNormScale, float selfQuantScale, float mlpQuantScale, int layerid)
 {
-    std::cout << "Run In Block Attention Parallel isPrefill:" << g_isEncoder <<
-    " head_num: " << head_num << " head_dim: " << head_dim << std::endl;
     if(!block_op){
-      block_op.reset(new PpAtbLlamaBlockAttnLayerParallelOp("LlamaBlockAttnLayerParallelOp"));
+      std::cout << "Run In Block Attention Parallel isPrefill:" << g_isEncoder <<
+      " head_num: " << head_num << " head_dim: " << head_dim << std::endl;
+      block_op.reset(new PpAtbLlamaBlockAttnLayerParallelOp("LlamaBlockAttnLayerParallelOp", layer_num));
     }
 
     std::string device_id_str = getenv("FLAGS_selected_npus");
@@ -365,7 +366,7 @@ void InitAtbLlamaBlockAttnLayerOp(std::shared_ptr<PpAtbLlamaBlockAttnLayerParall
                                          mlpQuantScale,
                                          0}; 
     LlamaBlockAttnParallelOperation(param, &op);
-    block_op->operation_.reset(op);
+    block_op->operations_.at(layerid).reset(op);
 }
 
 std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
@@ -410,7 +411,8 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
   auto comm = reinterpret_cast<HcclComm>(phi::detail::GetCCLComm(hidden.place(), 0));
 
-  if (executeCount % layer_num == 0) {
+  int layer_id = executeCount % layer_num;
+  if (layer_id == 0) {
     g_isEncoder = isEncoderToken(encoder_seq_len);
   }
 
@@ -418,14 +420,13 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   selfRmsNormScale *= 127;
   selfQuantScale *= 127;
   mlpQuantScale *= 127;
-
-  if (g_isEncoder) {
-    InitAtbLlamaBlockAttnLayerOp(g_llamaBlockAttnEncoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale);
-  } else if (!g_isEncoder) {
-    InitAtbLlamaBlockAttnLayerOp(g_llamaBlockAttnDecoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale);
+  if (g_isEncoder && (!g_llamaBlockAttnEncoderOp || !g_llamaBlockAttnEncoderOp->operations_.at(layer_id))) {
+    InitAtbLlamaBlockAttnLayerOp(g_llamaBlockAttnEncoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale, layer_id);
+  } else if (!g_isEncoder && (!g_llamaBlockAttnDecoderOp || !g_llamaBlockAttnDecoderOp->operations_.at(layer_id))) {
+    InitAtbLlamaBlockAttnLayerOp(g_llamaBlockAttnDecoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale, layer_id);
   }
 
-  if (executeCount % layer_num == 0) {
+  if (layer_id == 0) {
     if (g_isEncoder) {
       g_llamaBlockAttnEncoderOp->output_->Resize(phi::make_ddim(hidden.shape()));
       dev_ctx->Alloc(g_llamaBlockAttnEncoderOp->output_.get(), 
@@ -480,7 +481,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                        slot_mapping_tensor,
                                        inputs);
     std::vector<const phi::DenseTensor *> outputs = {g_llamaBlockAttnEncoderOp->output_.get()};
-    g_llamaBlockAttnEncoderOp->Execute(stream, inputs, outputs);
+    g_llamaBlockAttnEncoderOp->Execute(stream, inputs, outputs, layer_id);
     return {paddle::Tensor(g_llamaBlockAttnEncoderOp->output_)};
   }
   PerpareLlamaBlockAttnDecoderInputs(hidden,
@@ -514,7 +515,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                      slot_mapping_tensor,
                                      inputs);
   std::vector<const phi::DenseTensor *> outputs = {g_llamaBlockAttnDecoderOp->output_.get()};
-  g_llamaBlockAttnDecoderOp->Execute(stream, inputs, outputs);
+  g_llamaBlockAttnDecoderOp->Execute(stream, inputs, outputs, layer_id);
   return {paddle::Tensor(g_llamaBlockAttnDecoderOp->output_)};
 }
 

@@ -154,6 +154,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         faEnParam.qkScale = param.qkScale;
         faEnParam.kvHeadNum = param.headNum;
         faEnParam.isEncoder = true; // use encoder when decoder is pagedAttention
+        faEnParam.maskType = atb::infer::SelfAttentionParam::MASK_TYPE_NORM;
         CreateOperation(faEnParam, &attentionNode.operation);
         attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_POSITIONEMBEDK, INTERMIDATE_MIXEDV,
                                      IN_ATTENTIONMASK, IN_SEQLEN};

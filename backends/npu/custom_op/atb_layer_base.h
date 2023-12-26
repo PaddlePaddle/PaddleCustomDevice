@@ -32,8 +32,12 @@ public:
   virtual atb::Status Execute(aclrtStream stream,
                               std::vector<const phi::DenseTensor *> &inTensors,
                               std::vector<const phi::DenseTensor *> &outTensors);
-
+  virtual atb::Status Execute(aclrtStream stream,
+                              std::vector<const phi::DenseTensor *> &inTensors,
+                              std::vector<const phi::DenseTensor *> &outTensors,
+                              int layerid);
   std::shared_ptr<atb::Operation> operation_;
+  std::vector<std::shared_ptr<atb::Operation>> operations_;
   static std::shared_ptr<phi::DenseTensor> output_;
 protected:
   std::string opName_;

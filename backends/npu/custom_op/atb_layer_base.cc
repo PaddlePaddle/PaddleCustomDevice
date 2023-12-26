@@ -86,6 +86,34 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
   return st;
 }
 
+atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
+                                     std::vector<const phi::DenseTensor *> &inTensors,
+                                     std::vector<const phi::DenseTensor *> &outTensors,
+                                     int layerid)
+{
+  uint64_t workspace_size;
+  stream_ = stream;
+  BuildVariantPack(inTensors, outTensors);
+
+  if(context_ == nullptr) {
+    atb::CreateContext(&context_);
+    context_->SetExecuteStream(stream);
+  }
+  atb::Status st = operations_.at(layerid)->Setup(variantPacks_, workspace_size, context_);
+  PADDLE_ENFORCE_EQ(st,
+                    0,
+                    phi::errors::External("Atb Layer %s Op Setup failed,"
+                                          "ret message: %d .", opName_, st));
+
+  if (workspace_size > 0) {
+    SetWorkspace(workspace_size);
+  }
+
+  st = operations_.at(layerid)->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
+
+  return st;
+}
+
 PpAscendAtbOpBase::PpAscendAtbOpBase(const std::string &opName)
 {
   opName_ = opName;

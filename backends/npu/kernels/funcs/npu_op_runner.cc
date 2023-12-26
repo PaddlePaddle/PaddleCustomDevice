@@ -587,6 +587,11 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
+  static bool isAclEnableJit = false;
+  if (!isAclEnableJit) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    isAclEnableJit = true;
+  }
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));

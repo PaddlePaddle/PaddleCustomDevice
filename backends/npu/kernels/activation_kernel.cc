@@ -230,7 +230,10 @@ void SiluGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& out,
                     const phi::DenseTensor& dout,
                     phi::DenseTensor* dx) {
-  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("SwishGrad", {dout, x, out}, {*dx}, {});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>

@@ -19,10 +19,10 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 29;
+static const uint64_t IN_TENSOR_COUNT = 34;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 18;
-static const uint64_t NODE_COUNT = 17;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 22;
+static const uint64_t NODE_COUNT = 21;
 
 void reshapeHeads(const atb::Dims &oldShape, atb::Dims &newShape, int headNum)
 {
@@ -53,7 +53,11 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     atb::Node &inputNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mixdQKVLinearNode  = opGraph.nodes.at(nodeId++);
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
+    atb::Node &kValueQuantNode  = opGraph.nodes.at(nodeId++);
+    atb::Node &vValueQuantNode  = opGraph.nodes.at(nodeId++);
     atb::Node &reshapeAndCacheNode = opGraph.nodes.at(nodeId++);
+    atb::Node &cachekValueDequantNode  = opGraph.nodes.at(nodeId++);
+    atb::Node &cachevValueDequantNode  = opGraph.nodes.at(nodeId++);    
     atb::Node &attentionNode  = opGraph.nodes.at(nodeId++);
     atb::Node &outShiftAddNode  = opGraph.nodes.at(nodeId++);
     atb::Node &outSmoothMulNode  = opGraph.nodes.at(nodeId++);
@@ -113,6 +117,18 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         newShape.dims[0] = oldShape.dims[0];
     };
 
+    atb::infer::ElewiseParam kValueQuantParam;
+    kValueQuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_QUANT_PER_CHANNEL;
+    CreateOperation(kValueQuantParam, &kValueQuantNode.operation);
+    kValueQuantNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDK, IN_K_QUANT_SCALES, IN_EMPTY_OFFSET};
+    kValueQuantNode.outTensorIds = {INTERMIDATE_POSITIONEMBEDK_INT8};
+
+    atb::infer::ElewiseParam vValueQuantParam;
+    vValueQuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_QUANT_PER_CHANNEL;
+    CreateOperation(vValueQuantParam, &vValueQuantNode.operation);
+    vValueQuantNode.inTensorIds = {INTERMIDATE_MIXEDV, IN_V_QUANT_SCALES, IN_EMPTY_OFFSET};
+    vValueQuantNode.outTensorIds = {INTERMIDATE_MIXEDV_INT8};
+
     // output: [bs, seqlen, head_dim * head_num_pre_card]
     // Q:[bs * seq_len, head_dim * head_num_pre_car]
     // K:[bs * seq_len, head_dim * head_num_pre_car]
@@ -123,7 +139,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     // tokenoffset:[bs, 1]
     atb::infer::ReshapeAndCacheParam reshapeCacheParm;
     CreateOperation(reshapeCacheParm, &reshapeAndCacheNode.operation);
-    reshapeAndCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDK, INTERMIDATE_MIXEDV,
+    reshapeAndCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDK_INT8, INTERMIDATE_MIXEDV_INT8,
                                         IN_CACHE_K, IN_CACHE_V, IN_SLOTS};
     reshapeAndCacheNode.outTensorIds = {};
     reshapeAndCacheNode.inTensorReshapeFuncs.resize(reshapeAndCacheNode.inTensorIds.size());
@@ -145,6 +161,46 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         newShape = oldShape;
         newShape.dims[1] = oldShape.dims[2];
         newShape.dims[2] = oldShape.dims[1];
+    };
+
+    atb::infer::ElewiseParam cachekValueDeuantParam;
+    cachekValueDeuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_DEQUANT_PER_CHANNEL;
+    CreateOperation(cachekValueDeuantParam, &cachekValueDequantNode.operation);
+    cachekValueDequantNode.inTensorIds = {IN_CACHE_K, IN_K_DEQUANT_SCALES, IN_EMPTY_OFFSET};
+    cachekValueDequantNode.outTensorIds = {INTERMIDATE_CACHE_K_DEQUANT};
+    cachekValueDequantNode.inTensorReshapeFuncs.resize(cachekValueDequantNode.inTensorIds.size());
+    cachekValueDequantNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 3;
+        newShape.dims[0] = oldShape.dims[0];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[1]*oldShape.dims[3];
+
+    };
+    cachekValueDequantNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
+    };
+    cachekValueDequantNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
+    };
+
+    atb::infer::ElewiseParam chachevValueDeuantParam;
+    chachevValueDeuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_DEQUANT_PER_CHANNEL;
+    CreateOperation(chachevValueDeuantParam, &cachevValueDequantNode.operation);
+    cachevValueDequantNode.inTensorIds = {IN_CACHE_V, IN_V_DEQUANT_SCALES, IN_EMPTY_OFFSET};
+    cachevValueDequantNode.outTensorIds = {INTERMIDATE_CACHE_V_DEQUANT};
+    cachevValueDequantNode.inTensorReshapeFuncs.resize(cachevValueDequantNode.inTensorIds.size());
+    cachevValueDequantNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape.dimNum = 3;
+        newShape.dims[0] = oldShape.dims[0];
+        newShape.dims[1] = oldShape.dims[2];
+        newShape.dims[2] = oldShape.dims[1]*oldShape.dims[3];
+
+    };
+    cachevValueDequantNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
+    };
+    cachevValueDequantNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+        newShape = oldShape;
     };
 
     if (param.isPrefill) {
@@ -174,8 +230,10 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         paDeParam.headNum = param.headNum;
         paDeParam.qkScale = param.qkScale;
         paDeParam.kvHeadNum = param.headNum;
+        paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
+        paDeParam.isSupportAlibi = true;
         CreateOperation(paDeParam, &attentionNode.operation);
-        attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, IN_CACHE_K, IN_CACHE_V,
+        attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_CACHE_K_DEQUANT, INTERMIDATE_CACHE_V_DEQUANT,
                                      IN_BLOCK_TABLES, IN_SEQLEN};
         attentionNode.outTensorIds = {INTERMIDATE_SELFOUT};
         attentionNode.inTensorReshapeFuncs.resize(attentionNode.inTensorIds.size());
@@ -185,15 +243,18 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         // 传过来[max_block_num, head_num, block_size, head_dim]
         // 加速库需要[max_block_num, block_size, head_num, head_dim]
         attentionNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-
-            newShape = oldShape;
-            newShape.dims[1] = oldShape.dims[2];
-            newShape.dims[2] = oldShape.dims[1];
+            newShape.dimNum = 4;
+            newShape.dims[0] = oldShape.dims[0];
+            newShape.dims[1] = oldShape.dims[1];
+            newShape.dims[2] = 8;
+            newShape.dims[3] = oldShape.dims[2] / 8;
         };
         attentionNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-            newShape = oldShape;
-            newShape.dims[1] = oldShape.dims[2];
-            newShape.dims[2] = oldShape.dims[1];
+            newShape.dimNum = 4;
+            newShape.dims[0] = oldShape.dims[0];
+            newShape.dims[1] = oldShape.dims[1];
+            newShape.dims[2] = 8;
+            newShape.dims[3] = oldShape.dims[2] / 8;
         };
     }
 

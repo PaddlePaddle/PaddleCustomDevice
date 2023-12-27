@@ -240,7 +240,7 @@ def llama_lmhead_quant():
     return pattern, replace
 
 def llama_paralle_cached_layer_adaptor_65B(lookup, in_scale, qkv_weight, qkv_out_scale, proj_weight, out_shift, out_smooth, out_scale, ffn_in_scale, ffn1_weight, ffn1_out_scale, ffn2_weight, ffn2_shift, ffn2_smooth, ffn2_out_scale, cos_table, sin_table,
-                                       att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables):
+                                       att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables, cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales):
     llama_decoder_layer_parallel_op = ir.PassDesc.OP.llama_blockattn_layer_parallel
     llama_decoder_layer_parallel_op._outputs = {}
     llama_decoder_layer_parallel_op(
@@ -267,6 +267,10 @@ def llama_paralle_cached_layer_adaptor_65B(lookup, in_scale, qkv_weight, qkv_out
             DecoderSeqLength=seq_lens_decoder,
             EncoderSeqLength=seq_lens_encoder,
             BlockTables=block_tables,
+            CacheKQuantScales=cache_k_quant_scales,
+            CacheKDequantScales=cache_k_dequant_scales,
+            CacheVQuantScales=cache_v_quant_scales,
+            CacheVDequantScales=cache_v_dequant_scales,
     )
 
     outs_name = [paddle.base.unique_name.generate('llama_decoder_layer_parallel') for i in range(3)] # 3 outputs
@@ -296,11 +300,16 @@ def dequant_linear(matmul_input, matmul_weight, dequant_scale):
 def llama_fuse_attention_dynamic_parallel_first_65B():
     def pattern(lookup, in_scale, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, block_tables, cu_seqlens_k, cu_seqlens_q, 
             cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
-            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table):
+            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table,
+            cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales):
         rms_norm_ = ir.PassDesc.OP.rms_norm(norm_weight=in_scale, x=lookup)
         qkv_matmul = ir.PassDesc.OP.matmul_v2(X=rms_norm_.Output("out"), Y=qkv_weight)
         attention_ = ir.PassDesc.OP.block_multihead_attention(
             block_tables=block_tables,
+            cache_k_dequant_scales=cache_k_dequant_scales, 
+            cache_k_quant_scales=cache_k_quant_scales, 
+            cache_v_dequant_scales=cache_v_dequant_scales, 
+            cache_v_quant_scales=cache_v_quant_scales,            
             cu_seqlens_k=cu_seqlens_k,
             cu_seqlens_q=cu_seqlens_q,
             cum_offsets=cum_offsets,
@@ -328,9 +337,10 @@ def llama_fuse_attention_dynamic_parallel_first_65B():
 
     def replace(lookup, in_scale, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, block_tables, cu_seqlens_k, cu_seqlens_q, 
             cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
-            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table):
+            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table,
+            cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales):
         result = llama_paralle_cached_layer_adaptor_65B(lookup, in_scale, qkv_weight, qkv_out_scale, proj_weight, out_shift, out_smooth, out_scale, ffn_in_scale, ffn1_weight, ffn1_out_scale, ffn2_weight, ffn2_shift, ffn2_smooth, ffn2_out_scale, cos_table, sin_table,
-                                                    att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables)
+                                                    att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables, cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales)
 
         return result[2], result[0]
         # add1 = ir.PassDesc.OP.my_add_n(X=lookup, Y=cu_seqlens_k, Z=cu_seqlens_q)
@@ -343,11 +353,16 @@ def llama_fuse_attention_dynamic_parallel_first_65B():
 def llama_fuse_attention_dynamic_parallel_others_65B():
     def pattern(in_scale, rms_norm_residual, matmul_, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, block_tables, cu_seqlens_k, cu_seqlens_q, 
             cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
-            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table):
+            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table, 
+            cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales):
         rms_norm_ = ir.PassDesc.OP.rms_norm(norm_weight=in_scale, residual=rms_norm_residual, x=matmul_)
         qkv_matmul = ir.PassDesc.OP.matmul_v2(X=rms_norm_.Output("out"), Y=qkv_weight)
         attention_ = ir.PassDesc.OP.block_multihead_attention(
             block_tables=block_tables,
+            cache_k_dequant_scales=cache_k_dequant_scales, 
+            cache_k_quant_scales=cache_k_quant_scales, 
+            cache_v_dequant_scales=cache_v_dequant_scales, 
+            cache_v_quant_scales=cache_v_quant_scales,               
             cu_seqlens_k=cu_seqlens_k,
             cu_seqlens_q=cu_seqlens_q,
             cum_offsets=cum_offsets,
@@ -375,9 +390,10 @@ def llama_fuse_attention_dynamic_parallel_others_65B():
 
     def replace(in_scale, rms_norm_residual, matmul_, qkv_weight, proj_weight, ffn_in_scale, ffn1_weight, ffn2_weight, block_tables, cu_seqlens_k, cu_seqlens_q, 
             cum_offsets, key_cache, out_shift, out_smooth, padding_offsets, qkv_out_scale, seq_lens_decoder, seq_lens_encoder, seq_lens_this_time, 
-            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table):
+            value_cache, out_scale, ffn1_out_scale, ffn2_shift, ffn2_smooth, ffn2_out_scale, att_mask, cos_table, sin_table,
+            cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales):
         result = llama_paralle_cached_layer_adaptor_65B(matmul_, in_scale, qkv_weight, qkv_out_scale, proj_weight, out_shift, out_smooth, out_scale, ffn_in_scale, ffn1_weight, ffn1_out_scale, ffn2_weight, ffn2_shift, ffn2_smooth, ffn2_out_scale, cos_table, sin_table,
-                                                    att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables)
+                                                    att_mask, key_cache, value_cache, seq_lens_decoder, seq_lens_encoder, block_tables, cache_k_dequant_scales, cache_k_quant_scales, cache_v_dequant_scales, cache_v_quant_scales)
         return result[2], result[0]
         # add1 = ir.PassDesc.OP.my_add_n(X=matmul_, Y=rms_norm_residual, Z=cu_seqlens_q)
         # add2 = ir.PassDesc.OP.my_add_n(X=matmul_, Y=add1, Z=cu_seqlens_q)        

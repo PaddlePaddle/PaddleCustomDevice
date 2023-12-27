@@ -56,6 +56,11 @@ void PerpareLlamaBlockAttnEncoderInputs(
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key,
     const paddle::Tensor &cache_value,
+    const paddle::Tensor &cache_k_quant_scales,
+    const paddle::Tensor &cache_k_dequant_scales,
+    const paddle::Tensor &cache_v_quant_scales,
+    const paddle::Tensor &cache_v_dequant_scales,
+    const paddle::Tensor &empty_offset,
     const paddle::Tensor &seq_len,
     const paddle::Tensor &block_tables,
     const phi::DenseTensor &slot_mapping_tensor,
@@ -87,6 +92,11 @@ void PerpareLlamaBlockAttnEncoderInputs(
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_tensor = static_cast<const phi::DenseTensor *>(cache_key.impl().get());
   auto cache_value_tensor = static_cast<const phi::DenseTensor *>(cache_value.impl().get());
+  auto cache_k_quant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_k_quant_scales.impl().get());
+  auto cache_k_dequant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_k_dequant_scales.impl().get());
+  auto cache_v_quant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_v_quant_scales.impl().get());
+  auto cache_v_dequant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_v_dequant_scales.impl().get());
+  auto empty_offset_tensor = static_cast<const phi::DenseTensor *>(empty_offset.impl().get());
   auto seq_len_tensor = static_cast<const phi::DenseTensor *>(seq_len.impl().get());
   auto block_tables_tensor = static_cast<const phi::DenseTensor *>(block_tables.impl().get());
 
@@ -116,6 +126,11 @@ void PerpareLlamaBlockAttnEncoderInputs(
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_tensor);
   inputs.push_back(cache_value_tensor);
+  inputs.push_back(cache_k_quant_scales_tensor);
+  inputs.push_back(cache_k_dequant_scales_tensor);
+  inputs.push_back(cache_v_quant_scales_tensor);
+  inputs.push_back(cache_v_dequant_scales_tensor);
+  inputs.push_back(empty_offset_tensor);
   inputs.push_back(seq_len_tensor);
   inputs.push_back(block_tables_tensor);
   inputs.push_back(&slot_mapping_tensor);
@@ -148,6 +163,11 @@ void PerpareLlamaBlockAttnDecoderInputs(
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key,
     const paddle::Tensor &cache_value,
+    const paddle::Tensor &cache_k_quant_scales,
+    const paddle::Tensor &cache_k_dequant_scales,
+    const paddle::Tensor &cache_v_quant_scales,
+    const paddle::Tensor &cache_v_dequant_scales,
+    const paddle::Tensor &empty_offset,
     const phi::DenseTensor &seq_len_tensor,
     const paddle::Tensor &block_tables,
     const phi::DenseTensor &slot_mapping_tensor,
@@ -179,6 +199,11 @@ void PerpareLlamaBlockAttnDecoderInputs(
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_tensor = static_cast<const phi::DenseTensor *>(cache_key.impl().get());
   auto cache_value_tensor = static_cast<const phi::DenseTensor *>(cache_value.impl().get());
+  auto cache_k_quant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_k_quant_scales.impl().get());
+  auto cache_k_dequant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_k_dequant_scales.impl().get());
+  auto cache_v_quant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_v_quant_scales.impl().get());
+  auto cache_v_dequant_scales_tensor = static_cast<const phi::DenseTensor *>(cache_v_dequant_scales.impl().get());  
+  auto empty_offset_tensor = static_cast<const phi::DenseTensor *>(empty_offset.impl().get());
   // auto seq_len_tensor = static_cast<const phi::DenseTensor *>(seq_len.impl().get());
   auto block_tables_tensor = static_cast<const phi::DenseTensor *>(block_tables.impl().get());
 
@@ -208,6 +233,11 @@ void PerpareLlamaBlockAttnDecoderInputs(
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_tensor);
   inputs.push_back(cache_value_tensor);
+  inputs.push_back(cache_k_quant_scales_tensor);
+  inputs.push_back(cache_k_dequant_scales_tensor);
+  inputs.push_back(cache_v_quant_scales_tensor);
+  inputs.push_back(cache_v_dequant_scales_tensor);
+  inputs.push_back(empty_offset_tensor);  
   inputs.push_back(&seq_len_tensor);
   inputs.push_back(block_tables_tensor);
   inputs.push_back(&slot_mapping_tensor);
@@ -229,6 +259,9 @@ void PpAtbLlamaBlockAttnLayerParallelOp::BuildVariantPack(std::vector<const phi:
     variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
     if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
       variantPacks_.inTensors.at(i).desc.format = ACL_FORMAT_ND;
+    }
+    if (i == LlamaBlockAttnParallelTensorId::IN_CACHE_K || i == LlamaBlockAttnParallelTensorId::IN_CACHE_V){
+      variantPacks_.inTensors.at(i).desc.dtype = ACL_INT8;
     }
   }
 
@@ -393,6 +426,10 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
     const paddle::Tensor &decoder_seq_len,
     const paddle::Tensor &encoder_seq_len,
     const paddle::Tensor &block_tables,
+    const paddle::Tensor &cache_k_quant_scales,
+    const paddle::Tensor &cache_k_dequant_scales,
+    const paddle::Tensor &cache_v_quant_scales,
+    const paddle::Tensor &cache_v_dequant_scales,
     int32_t block_size,
     float rmsNormEps,
     float inputRmsNormScale,
@@ -449,6 +486,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   auto norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
   auto self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
 
+  auto empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place()); 
   if (g_isEncoder) {
     PerpareLlamaBlockAttnEncoderInputs(hidden,
                                        norm_weight,
@@ -476,6 +514,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                        attention_mask,
                                        cache_key,
                                        cache_value,
+                                       cache_k_quant_scales,
+                                       cache_k_dequant_scales,
+                                       cache_v_quant_scales,
+                                       cache_v_dequant_scales,
+                                       empty_offset,
                                        encoder_seq_len,
                                        block_tables,
                                        slot_mapping_tensor,
@@ -510,6 +553,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                      attention_mask,
                                      cache_key,
                                      cache_value,
+                                     cache_k_quant_scales,
+                                     cache_k_dequant_scales,
+                                     cache_v_quant_scales,
+                                     cache_v_dequant_scales,
+                                     empty_offset,
                                      g_llamaBlockAttnDecoderOp->token_offset_tensor_,
                                      block_tables,
                                      slot_mapping_tensor,
@@ -543,6 +591,10 @@ std::vector<std::vector<int64_t>> LlamaBlockAttnLayerOpInferShape(
     const std::vector<int64_t> &decoder_seq_len_shape,
     const std::vector<int64_t> &encoder_seq_len_shape,
     const std::vector<int64_t> &block_tables_shape,
+    const std::vector<int64_t> &cache_k_quant_scales_shape,
+    const std::vector<int64_t> &cache_k_dequant_scales_shape,
+    const std::vector<int64_t> &cache_v_quant_scales_shape,
+    const std::vector<int64_t> &cache_v_dequant_scales_shape,
     int32_t block_size,
     float rmsNormEps,
     float inputRmsNormScale,
@@ -576,7 +628,11 @@ PD_BUILD_OP(llama_blockattn_layer_parallel)
              "Cache_V",
              "DecoderSeqLength",
              "EncoderSeqLength",
-             "BlockTables"})
+             "BlockTables",
+             "CacheKQuantScales",
+             "CacheKDequantScales",
+             "CacheVQuantScales",
+             "CacheVDequantScales"})
     .Outputs({"Out"})
     .Attrs({"block_size: int", "rmsNormEps: float", "inputRmsNormScale: float", "selfRmsNormScale: float", "selfQuantScale: float", "mlpQuantScale: float"})
     .SetKernelFn(PD_KERNEL(LlamaBlockAttnLayerParallelOp))

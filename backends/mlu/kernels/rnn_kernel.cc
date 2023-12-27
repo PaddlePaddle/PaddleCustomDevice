@@ -23,6 +23,7 @@ void reset_parameter_vector(
     const int& num_layers,
     const bool& is_bidirec,
     std::vector<std::vector<std::pair<T*, size_t>>>* params_vec) {
+  // add some comments for ci test
   // the parameter raw seuquence is [FWhi, FWhh, BWhi, BWhh] * num_layers
   // + [FBhi, FBhh, BBhi, BBhh] * num_layers, we will reset the parameter to
   // ([FWhi, FWhh, FBhi, FBhh] + [BWhi, BWhh, BBhi, BBhh]) * num_layers

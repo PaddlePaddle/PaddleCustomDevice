@@ -24,6 +24,7 @@ static void CumsumImp(const Tensor& input,
                       Tensor* output,
                       const NPUAttributeMap& attr_input,
                       const Context& dev_ctx) {
+  // add some comments for ci trigger
   auto stream = dev_ctx.stream();
   if (input.dtype() == phi::DataType::INT64) {
     Tensor tmp_input;

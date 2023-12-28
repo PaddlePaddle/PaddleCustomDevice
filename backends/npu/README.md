@@ -40,9 +40,9 @@ cd backends/npu
 
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
-# you may download and install the nightly built cpu whl package with links below
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
+# you may download and install the PaddlePaddle CPU 2.6.0 whl package with links below
+https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_aarch64.whl
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -65,7 +65,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2. check installed custom npu version
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # expected output
-version: 0.0.0
+version: 2.6.0
 commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 

@@ -34,7 +34,7 @@ git submodule update --remote --init --recursive
 cd backends/custom_cpu
 
 # 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 创建编译目录并编译
 mkdir build && cd build

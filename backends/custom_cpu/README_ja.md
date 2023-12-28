@@ -34,7 +34,7 @@ git submodule update --remote --init --recursive
 cd backends/custom_cpu
 
 # コンパイルする前に、Paddle がインストールされていることを確認してください
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # ビルドディレクトリを作成し
 mkdir build && cd build

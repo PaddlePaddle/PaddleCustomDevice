@@ -44,7 +44,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2. before compiling, ensure that PaddlePaddle (CPU version) is installed, you can run the following command
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -68,7 +68,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2. check installed custom mlu version
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # expected output
-version: 0.0.0
+version: 2.6.0
 commit: 55f88ebff9297f2f4b90d61e211d2cf2784f2ad9
 cntoolkit: 3.7.2
 cnnl: 1.22.0

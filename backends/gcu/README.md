@@ -24,7 +24,7 @@ cd backends/gcu
 
 # 2) Before compiling, you need to ensure that the PaddlePaddle installation package is installed in the environment.
 #    Just install the PaddlePaddle CPU version directly.
-python -m pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 3) Start compiling, and submodules will be downloaded on demand during compilation.
 mkdir -p build && cd build

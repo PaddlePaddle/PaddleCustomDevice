@@ -39,9 +39,9 @@ cd PaddleCustomDevice
 cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
-# 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle develop 分支的 nightly build 版本的安装包
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/develop/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
+# 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle CPU 2.6.0 版本的安装包
+https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_aarch64.whl
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -64,7 +64,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) 检查当前安装版本
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
-version: 0.0.0
+version: 2.6.0
 commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
 cann: 6.0.1
 

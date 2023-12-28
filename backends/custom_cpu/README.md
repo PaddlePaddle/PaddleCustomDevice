@@ -34,7 +34,7 @@ git submodule update --remote --init --recursive
 cd backends/custom_cpu
 
 # before compiling, ensure that Paddle is installed, you can run the following command
-pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # create the build directory and navigate in
 mkdir build && cd build

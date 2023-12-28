@@ -36,6 +36,7 @@ paddle::Tensor mlp_deq_blank_bias;
 paddle::Tensor mlp_down_deq_blank_bias;
 paddle::Tensor norm_blank_bias; 
 paddle::Tensor self_out_norm_blank_bias;
+paddle::Tensor empty_offset;
 
 void PerpareLlamaBlockAttnEncoderInputs(
     const paddle::Tensor &hidden,
@@ -487,13 +488,13 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
 
   executeCount++;
   if (first_run) {
-      auto qkv_deq_blank_bias = paddle::full({qkv_mix_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-      auto self_out_linear_deq_blank_bias = paddle::full({self_out_linear_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-      auto mlp_deq_blank_bias = paddle::full({mlp_gate_up_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-      auto mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-      auto norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-      auto self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-      auto empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place());
+      qkv_deq_blank_bias = paddle::full({qkv_mix_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      self_out_linear_deq_blank_bias = paddle::full({self_out_linear_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      mlp_deq_blank_bias = paddle::full({mlp_gate_up_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+      self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+      empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place());
       first_run = false;
   }
 

@@ -29,6 +29,14 @@ static uint64_t executeCount = 0;
 static bool g_isEncoder = true;
 static phi::DenseTensor slot_mapping_tensor; // 保存每个token在Cache中存储偏移，shape为[sum(seq_len_pre_batch)]
 
+static bool first_run = true;
+paddle::Tensor qkv_deq_blank_bias;
+paddle::Tensor self_out_linear_deq_blank_bias; 
+paddle::Tensor mlp_deq_blank_bias; 
+paddle::Tensor mlp_down_deq_blank_bias;
+paddle::Tensor norm_blank_bias; 
+paddle::Tensor self_out_norm_blank_bias;
+
 void PerpareLlamaBlockAttnEncoderInputs(
     const paddle::Tensor &hidden,
     const paddle::Tensor &norm_weight,
@@ -478,15 +486,17 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   std::vector<const phi::DenseTensor *> inputs;
 
   executeCount++;
-  auto qkv_deq_blank_bias = paddle::full({qkv_mix_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-  auto self_out_linear_deq_blank_bias = paddle::full({self_out_linear_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-  auto mlp_deq_blank_bias = paddle::full({mlp_gate_up_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
-  auto mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+  if (first_run) {
+      auto qkv_deq_blank_bias = paddle::full({qkv_mix_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      auto self_out_linear_deq_blank_bias = paddle::full({self_out_linear_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      auto mlp_deq_blank_bias = paddle::full({mlp_gate_up_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      auto mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
+      auto norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+      auto self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+      auto empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place());
+      first_run = false;
+  }
 
-  auto norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-  auto self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-
-  auto empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place()); 
   if (g_isEncoder) {
     PerpareLlamaBlockAttnEncoderInputs(hidden,
                                        norm_weight,

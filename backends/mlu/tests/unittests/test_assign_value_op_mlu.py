@@ -42,7 +42,7 @@ class TestAssignValueMLUOp(OpTest):
 
     def init_data(self):
         self.value = numpy.random.random(size=(2, 5)).astype(numpy.float32)
-        self.attrs["fp32_values"] = [float(v) for v in self.value.flat]
+        self.attrs["values"] = [float(v) for v in self.value.flat]
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -51,13 +51,13 @@ class TestAssignValueMLUOp(OpTest):
 class TestAssignValueMLUOp2(TestAssignValueMLUOp):
     def init_data(self):
         self.value = numpy.random.random(size=(2, 5)).astype(numpy.int32)
-        self.attrs["int32_values"] = [int(v) for v in self.value.flat]
+        self.attrs["values"] = [int(v) for v in self.value.flat]
 
 
 class TestAssignValueMLUOp3(TestAssignValueMLUOp):
     def init_data(self):
         self.value = numpy.random.random(size=(2, 5)).astype(numpy.int64)
-        self.attrs["int64_values"] = [int(v) for v in self.value.flat]
+        self.attrs["values"] = [int(v) for v in self.value.flat]
 
 
 class TestAssignValueMLUOp4(TestAssignValueMLUOp):
@@ -65,7 +65,7 @@ class TestAssignValueMLUOp4(TestAssignValueMLUOp):
         self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
             numpy.bool_
         )
-        self.attrs["bool_values"] = [int(v) for v in self.value.flat]
+        self.attrs["values"] = [int(v) for v in self.value.flat]
 
 
 if __name__ == "__main__":

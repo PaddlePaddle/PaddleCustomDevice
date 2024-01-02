@@ -90,15 +90,15 @@ synStatus createStream(synDeviceId deviceId, C_Stream* stream) {
   synStreamHandle memcpyStreamHostToDev;
   synStreamHandle computeStream;
 
-  synStatus status = synStreamCreate(
-      &memcpyStreamDevToHost, deviceId, STREAM_TYPE_COPY_DEVICE_TO_HOST, 0);
+  synStatus status = synStreamCreateGeneric(
+      &memcpyStreamDevToHost, deviceId, 0);
   if (status != synSuccess) return status;
 
-  status = synStreamCreate(
-      &memcpyStreamHostToDev, deviceId, STREAM_TYPE_COPY_HOST_TO_DEVICE, 0);
+  status = synStreamCreateGeneric(
+      &memcpyStreamHostToDev, deviceId, 0);
   if (status != synSuccess) return status;
 
-  status = synStreamCreate(&computeStream, deviceId, STREAM_TYPE_COMPUTE, 0);
+  status = synStreamCreateGeneric(&computeStream, deviceId, 0);
   if (status != synSuccess) return status;
 
   *stream = new C_Stream_st(

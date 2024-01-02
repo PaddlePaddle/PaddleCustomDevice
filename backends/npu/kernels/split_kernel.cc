@@ -24,7 +24,28 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
   // need to infershape output
-  if (num_or_sections.FromTensor() || axis_scalar.FromTensor()) {
+  auto sections = num_or_sections.GetData();
+  int axis = axis_scalar.to<int>();
+
+  if (!num_or_sections.FromTensor() && !axis_scalar.FromTensor() &&
+      // when the outs.size() does not match to the sections[0],
+      // the ascend op "Split" will fail. So we change this situation
+      // to SplitWithNum to resize outs.
+      sections.size() == 1 && outs.size() == sections[0]) {
+    std::vector<phi::DenseTensor> outputs;
+    for (size_t j = 0; j < outs.size(); ++j) {
+      dev_ctx.template Alloc<T>(outs[j]);
+      outputs.push_back(*outs[j]);
+    }
+    NpuOpRunner runner;
+    runner.SetType("Split")
+        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
+        .AddInput(x)
+        .AddOutputs(outputs)
+        .AddAttrs({{"num_split", static_cast<int32_t>(sections[0])}});
+    auto stream = dev_ctx.stream();
+    runner.Run(stream);
+  } else {
     std::vector<phi::MetaTensor> out_metas;
     out_metas.reserve(outs.size());
     std::vector<phi::MetaTensor*> out_metas_ptr;
@@ -38,31 +59,19 @@ void SplitKernel(const Context& dev_ctx,
     for (size_t i = 0; i < out_metas.size(); ++i) {
       outs[i]->Resize(out_metas[i].dims());
     }
-  }
 
-  int axis = axis_scalar.to<int>();
-
-  std::vector<phi::DenseTensor> outputs;
-  for (size_t j = 0; j < outs.size(); ++j) {
-    dev_ctx.template Alloc<T>(outs[j]);
-    outputs.push_back(*outs[j]);
-  }
-
-  auto sections = num_or_sections.GetData();
-
-  if (sections.size() == 1) {
+    std::vector<phi::DenseTensor> outputs;
+    for (size_t j = 0; j < outs.size(); ++j) {
+      dev_ctx.template Alloc<T>(outs[j]);
+      outputs.push_back(*outs[j]);
+    }
     NpuOpRunner runner;
-    runner.SetType("SplitD").AddInput(x).AddOutputs(outputs).AddAttrs(
-        {{"split_dim", axis},
-         {"num_split", static_cast<int32_t>(sections[0])}});
-    auto stream = dev_ctx.stream();
-    runner.Run(stream);
-  } else {
-    NpuOpRunner runner;
-    runner.SetType("SplitVD").AddInput(x).AddOutputs(outputs).AddAttrs(
-        {{"size_splits", sections},
-         {"split_dim", axis},
-         {"num_split", static_cast<int32_t>(sections.size())}});
+    runner.SetType("SplitV")
+        .AddInput(x)
+        .AddInput(dev_ctx, std::move(sections))
+        .AddInput(dev_ctx, std::vector<int32_t>({axis}))
+        .AddOutputs(outputs)
+        .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
     auto stream = dev_ctx.stream();
     runner.Run(stream);
   }
@@ -88,7 +97,7 @@ void SplitWithNumKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(split,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SplitKernel,
                           float,
@@ -97,10 +106,11 @@ PD_REGISTER_PLUGIN_KERNEL(split,
                           int,
                           bool,
                           uint8_t,
-                          int8_t) {}
+                          int8_t,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(split_with_num,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SplitWithNumKernel,
                           float,
@@ -109,4 +119,5 @@ PD_REGISTER_PLUGIN_KERNEL(split_with_num,
                           int,
                           bool,
                           uint8_t,
-                          int8_t) {}
+                          int8_t,
+                          phi::dtype::float16) {}

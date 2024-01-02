@@ -12,201 +12,143 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/mlu_baseop.h"
-#include "kernels/funcs/mlu_funcs.h"
+#include "kernels/funcs/logic_op.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void EqualRawKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    int axis,
+                    phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "equal", out);
+}
 
 template <typename T, typename Context>
 void EqualKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::DenseTensor& y,
-                 int axis,
                  phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
+  custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
 
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_EQ,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+template <typename T, typename Context>
+void NotEqualRawKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "not_equal", out);
 }
 
 template <typename T, typename Context>
 void NotEqualKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
-                    int axis,
                     phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
+  custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
 
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_NE,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+template <typename T, typename Context>
+void LessThanRawKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "less_than", out);
 }
 
 template <typename T, typename Context>
 void LessThanKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
-                    int axis,
                     phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
+  custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
 
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_LT,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+template <typename T, typename Context>
+void LessEqualRawKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        int axis,
+                        phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "less_equal", out);
 }
 
 template <typename T, typename Context>
 void LessEqualKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& y,
-                     int axis,
                      phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
+  custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
 
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_LE,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+template <typename T, typename Context>
+void GreaterThanRawKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& y,
+                          int axis,
+                          phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "greater_than", out);
 }
 
 template <typename T, typename Context>
 void GreaterThanKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
-                       int axis,
                        phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
+  custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+}
 
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_GT,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+template <typename T, typename Context>
+void GreaterEqualRawKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           const phi::DenseTensor& y,
+                           int axis,
+                           phi::DenseTensor* out) {
+  MLULogicOp(dev_ctx, x, y, "greater_equal", out);
 }
 
 template <typename T, typename Context>
 void GreaterEqualKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
-                        int axis,
                         phi::DenseTensor* out) {
-  dev_ctx.template Alloc<bool>(out);
-
-  MLUCnnlTensorDesc input_x(x, CNNL_LAYOUT_ARRAY, ToCnnlDataType(x.dtype()));
-  MLUCnnlTensorDesc input_y(y, CNNL_LAYOUT_ARRAY, ToCnnlDataType(y.dtype()));
-  MLUCnnlTensorDesc output(
-      *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-  MLUCnnl::Logic(dev_ctx,
-                 CNNL_LOGIC_OP_GE,
-                 input_x.get(),
-                 GetBasePtr(&x),
-                 input_y.get(),
-                 GetBasePtr(&y),
-                 output.get(),
-                 GetBasePtr(out));
+  custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(equal,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::EqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
+#define PD_REGISTER_COMPARE_KERNEL(name, func)              \
+  PD_REGISTER_PLUGIN_KERNEL(name,                           \
+                            mlu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##Kernel,    \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16) {          \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }                                                         \
+  PD_REGISTER_PLUGIN_KERNEL(name##_raw,                     \
+                            mlu,                            \
+                            ALL_LAYOUT,                     \
+                            custom_kernel::func##RawKernel, \
+                            bool,                           \
+                            int16_t,                        \
+                            int,                            \
+                            int64_t,                        \
+                            float,                          \
+                            phi::dtype::float16) {          \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
+  }
 
-PD_REGISTER_PLUGIN_KERNEL(not_equal,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::NotEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_than,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::LessThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(less_equal,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::LessEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_than,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterThanKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
-
-PD_REGISTER_PLUGIN_KERNEL(greater_equal,
-                          CustomMLU,
-                          ALL_LAYOUT,
-                          custom_kernel::GreaterEqualKernel,
-                          bool,
-                          int16_t,
-                          int,
-                          float,
-                          phi::dtype::float16) {}
+PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPARE_KERNEL(equal, Equal)
+PD_REGISTER_COMPARE_KERNEL(not_equal, NotEqual)
+PD_REGISTER_COMPARE_KERNEL(less_than, LessThan)
+PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)

@@ -24,11 +24,8 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  TransposeFromMLUTensor<T>(dev_ctx,
-                         axis,
-                         &x,
-                         out,
-                         false/*need_reshape_or_alloc*/);
+  TransposeFromMLUTensor<T>(
+      dev_ctx, axis, &x, out, false /*need_reshape_or_alloc*/);
 }
 
 template <typename T, typename Context>
@@ -42,17 +39,14 @@ void TransposeGradKernel(const Context& dev_ctx,
   for (size_t i = 0; i < axis.size(); i++) {
     reversed_axis[axis[i]] = i;
   }
-  TransposeFromMLUTensor<T>(dev_ctx,
-                            reversed_axis,
-                            &dout,
-                            dx,
-                            false/*need_reshape_or_alloc*/);
+  TransposeFromMLUTensor<T>(
+      dev_ctx, reversed_axis, &dout, dx, false /*need_reshape_or_alloc*/);
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(transpose,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TransposeKernel,
                           int,
@@ -64,7 +58,7 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::TransposeGradKernel,
                           int,

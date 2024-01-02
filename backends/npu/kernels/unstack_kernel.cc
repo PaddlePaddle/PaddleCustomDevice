@@ -60,10 +60,10 @@ void UnStackGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    unstack, ascend, ALL_LAYOUT, custom_kernel::UnStackKernel, float, double) {}
+    unstack, npu, ALL_LAYOUT, custom_kernel::UnStackKernel, float, double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unstack_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UnStackGradKernel,
                           float,

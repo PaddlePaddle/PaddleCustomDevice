@@ -43,8 +43,13 @@ void DivideGradKernel(const Context& dev_ctx,
                       int axis,
                       phi::DenseTensor* dx,
                       phi::DenseTensor* dy) {
-  const auto& x_dims = x.dims();
-  const auto& y_dims = y.dims();
+  Tensor x_t, y_t;
+  x_t = x;
+  y_t = y;
+  if (x.dims().size() == 0) x_t.Resize(phi::make_ddim({1}));
+  if (y.dims().size() == 0) y_t.Resize(phi::make_ddim({1}));
+  const auto& x_dims = x_t.dims();
+  const auto& y_dims = y_t.dims();
   axis =
       (axis < 0 ? (std::abs(x_dims.size() - y_dims.size()) + axis + 1) : axis);
   int max_dim = std::max(x_dims.size(), y_dims.size());
@@ -74,7 +79,7 @@ void DivideGradKernel(const Context& dev_ctx,
                  dout_desc.get(),
                  GetBasePtr(&dout),
                  y_desc.get(),
-                 GetBasePtr(&y),
+                 GetBasePtr(&y_t),
                  dout_desc.get(),
                  GetBasePtr(&dout_div_y));
 
@@ -168,21 +173,21 @@ void DivideGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(divide_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DivideRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DivideKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DivideGradKernel,
                           float,

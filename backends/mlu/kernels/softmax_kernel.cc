@@ -27,6 +27,13 @@ void SoftmaxKernel(const Context& dev_ctx,
   const int rank = x.dims().size();
   axis = custom_kernel::CanonicalAxis(axis, rank);
 
+  if (rank == 0) {
+    auto out_dim = out->dims();
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(1), out);
+    out->Resize(out_dim);
+    return;
+  }
+
   // cnnl softmax only support 3-dims, regard all shape as [d1, d2, d3]
   const int cnnl_softmax_dims = 3;
   const int d1 = custom_kernel::SizeToAxis(axis, x.dims());
@@ -67,6 +74,13 @@ void SoftmaxGradKernel(const Context& dev_ctx,
   const int rank = out.dims().size();
   axis = custom_kernel::CanonicalAxis(axis, rank);
 
+  if (rank == 0) {
+    auto x_grad_dim = x_grad->dims();
+    FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), x_grad);
+    x_grad->Resize(x_grad_dim);
+    return;
+  }
+
   // cnnl softmax only support 3-dims, regard all shape as [d1, d2, d3]
   const int cnnl_softmax_dims = 3;
   const int d1 = custom_kernel::SizeToAxis(axis, out.dims());
@@ -99,14 +113,14 @@ void SoftmaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(softmax,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SoftmaxKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SoftmaxGradKernel,
                           float,

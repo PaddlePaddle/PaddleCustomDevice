@@ -1,0 +1,117 @@
+#  Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import print_function
+
+import unittest
+
+import numpy as np
+import paddle
+from paddle.base import core
+from tests.op_test import OpTest
+
+paddle.enable_static()
+SEED = 2021
+alignment = 64
+
+
+class TestAllocContinuousSpace(OpTest):
+    def setUp(self):
+        self.__class__.use_custom_device = True
+        self.op_type = "coalesce_tensor"
+        self.dtype, self.base_dtype = self.init_dtype()
+        attrs = self.init_attr()
+        self.copy_data = attrs["copy_data"]
+        self.constant = attrs["constant"]
+        self.set_constant = attrs["set_constant"]
+        self.Inputs = self.init_input()
+        self.Outputs, self.FusedOutput = self.init_output(
+            self.Inputs, self.set_constant, self.constant
+        )
+        self.inputs = {"Input": self.Inputs}
+        self.attrs = attrs
+        self.outputs = {"Output": self.Outputs, "FusedOutput": self.FusedOutput}
+
+    def init_dtype(self):
+        return np.float32, int(core.VarDesc.VarType.FP32)
+
+    def init_input(self):
+        inputs = []
+        inputs.append(("x1", np.zeros([20, 3]).astype(self.dtype)))
+        inputs.append(("x2", np.zeros([20, 3]).astype(self.dtype)))
+        return inputs
+
+    def init_attr(self):
+        return {
+            "copy_data": False,
+            "set_constant": False,
+            "constant": 0.0,
+            "use_align": True,
+            "dtype": self.base_dtype,
+        }
+
+    def init_output(self, input_list, set_constant, constant):
+        inputs = []
+        outputs = input_list
+
+        for input in input_list:
+            length = len(input[1].flatten())
+            length_size = len(input[1].flatten()) * int(np.array((input[1])).itemsize)
+            remaining = length_size % alignment
+            aligned_len = (
+                remaining == 0 and length_size or length_size + (alignment - remaining)
+            )
+            aligned_len = aligned_len / int(np.array((input[1])).itemsize)
+            out = np.zeros(int(aligned_len), dtype=self.dtype)
+            out[0:length] = input[1].flatten()
+            inputs.append(out)
+
+        coalesce_tensor_var = np.concatenate([input for input in inputs])
+        return outputs, coalesce_tensor_var
+
+    def test_check_output(self):
+        self.check_output_with_place(
+            place=paddle.CustomPlace("mlu", 0),
+            atol=1e-5,
+        )
+
+
+class TestNumel1Input(TestAllocContinuousSpace):
+    def init_input(self):
+        inputs = []
+        inputs.append(("x1", np.zeros([1, 1]).astype(self.dtype)))
+        inputs.append(("x2", np.zeros([1, 1]).astype(self.dtype)))
+        return inputs
+
+
+class TestAllocContinuousSpace2(TestAllocContinuousSpace):
+    def init_attr(self):
+        return {
+            "copy_data": True,
+            "set_constant": False,
+            "constant": 0.5,
+            "use_align": True,
+            "dtype": self.base_dtype,
+            "user_defined_size_of_dtype": 2,
+        }
+
+    def test_check_output(self):
+        self.check_output_with_place(
+            place=paddle.CustomPlace("mlu", 0),
+            atol=1e-5,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

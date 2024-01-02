@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/phi_funcs.h"
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
 
 namespace custom_kernel {
 
@@ -68,7 +68,7 @@ void BatchedGEMM(bool trans_x,
                 trans_x ? x[bs * M * K + k * M + m] : x[bs * M * K + m * K + k];
             auto y_bs = bs_flag ? bs * N * K : 0;
             auto y_dat = trans_y ? y[y_bs + n * K + k] : y[y_bs + k * N + n];
-            *out_data += alpha * (x_dat * y_dat);
+            *out_data += static_cast<T>(alpha) * (x_dat * y_dat);
           }
         }
       }
@@ -85,7 +85,7 @@ void BatchedGEMM(bool trans_x,
                 trans_y ? y[bs * K * N + n * K + k] : y[bs * K * N + k * N + n];
             auto x_bs = bs_flag ? bs * M * K : 0;
             auto x_dat = trans_x ? x[x_bs + k * M + m] : x[x_bs + m * K + k];
-            *out_data += alpha * (x_dat * y_dat);
+            *out_data += static_cast<T>(alpha) * (x_dat * y_dat);
           }
         }
       }
@@ -543,6 +543,7 @@ PD_BUILD_PHI_KERNEL(matmul,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::MatmulKernel,
+                    phi::dtype::float16,
                     float,
                     double) {}
 
@@ -550,5 +551,6 @@ PD_BUILD_PHI_KERNEL(matmul_grad,
                     custom_cpu,
                     ALL_LAYOUT,
                     custom_kernel::MatmulGradKernel,
+                    phi::dtype::float16,
                     float,
                     double) {}

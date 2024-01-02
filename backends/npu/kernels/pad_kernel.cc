@@ -28,12 +28,12 @@ void PadKernel(const Context& dev_ctx,
 
   auto pad_value = pad_value_scalar.to<float>();
 
-  PADDLE_ENFORCE_LT(abs(pad_value),
-                    1e-5,
-                    phi::errors::Unimplemented(
-                        "Ascend npu only support pad_value=0 right now,"
-                        "but received pad_value is %f .",
-                        pad_value));
+  PADDLE_ENFORCE_LT(
+      abs(pad_value),
+      1e-5,
+      phi::errors::Unimplemented("npu npu only support pad_value=0 right now,"
+                                 "but received pad_value is %f .",
+                                 pad_value));
 
   NpuOpRunner runner;
   runner.SetType("Pad")
@@ -48,7 +48,7 @@ template <typename T, typename Context>
 void PadGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    const std::vector<int>& paddings,
-                   float pad_value,
+                   const phi::Scalar& pad_value,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
@@ -75,7 +75,7 @@ void PadGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(pad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PadKernel,
                           int,
@@ -84,7 +84,7 @@ PD_REGISTER_PLUGIN_KERNEL(pad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pad_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PadGradKernel,
                           int,

@@ -24,11 +24,29 @@ void AnyKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
-  // set attr
-  NPUAttributeMap attr = {{"keep_dims", keep_dim}, {"axes", dims}};
-
-  const auto& runner = NpuOpRunner("ReduceAnyD", {x}, {*out}, attr);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
+  bool reduce_all = false;
+  if (dims.size() == 0) {
+    reduce_all = true;
+  }
+  // broadcast
+  std::vector<int64_t> dim_vec = dims;
+  auto x_dims_vec = phi::vectorize(x.dims());
+  if (reduce_all) {
+    dim_vec.clear();
+    for (size_t d = 0; d < x_dims_vec.size(); ++d) {
+      dim_vec.push_back(static_cast<int64_t>(d));
+    }
+  }
+  NpuOpRunner runner;
+  runner.SetType("ReduceAny")
+      .AddInput(x)
+      .AddInput(dev_ctx, std::move(dim_vec))
+      .AddOutput(*out)
+      .AddAttr("keep_dims", keep_dim);
   auto stream = dev_ctx.stream();
   runner.Run(stream);
 }
@@ -36,4 +54,4 @@ void AnyKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    any, ascend, ALL_LAYOUT, custom_kernel::AnyKernel, bool) {}
+    any, npu, ALL_LAYOUT, custom_kernel::AnyKernel, bool) {}

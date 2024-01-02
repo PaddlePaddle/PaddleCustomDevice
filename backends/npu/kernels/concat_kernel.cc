@@ -41,6 +41,7 @@ void ConcatKernel(const Context& dev_ctx,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
 
   int axis = axis_scalar.to<int>();
   axis = ComputeAxis(static_cast<int64_t>(axis),
@@ -48,23 +49,76 @@ void ConcatKernel(const Context& dev_ctx,
 
   std::vector<phi::DenseTensor> inputs;
   std::vector<std::string> names;
-  for (size_t i = 0; i < ins.size(); ++i) {
-    if (ins[i] && ins[i]->numel() > 0) {
-      inputs.push_back(*ins[i]);
-      names.push_back("x" + std::to_string(i));
-    } else {
-      continue;
-    }
-  }
+  names.push_back("concat_dim");
 
-  auto stream = dev_ctx.stream();
-  NpuOpRunner runner{
-      "ConcatD",
-      {inputs},
-      {*out},
-      {{"concat_dim", axis}, {"N", static_cast<int>(inputs.size())}}};
-  runner.AddInputNames(names);
-  runner.Run(stream);
+  if (out->dtype() != phi::DataType::FLOAT64) {
+    for (size_t i = 0; i < ins.size(); ++i) {
+      if (ins[i] && ins[i]->numel() > 0) {
+        inputs.push_back(*ins[i]);
+        names.push_back("x" + std::to_string(i));
+      } else {
+        continue;
+      }
+    }
+    if (inputs.size() == 1) {
+      out->ResizeAndAllocate(inputs[0].dims());
+      TensorCopy(dev_ctx, inputs[0], true, out);
+      return;
+    }
+    NpuOpRunner runner;
+    runner.SetType("Concat")
+        .AddInput(dev_ctx, std::move(std::vector<int>(1, axis)))
+        .AddInputs(inputs)
+        .AddOutput(*out)
+        .AddAttr("N", static_cast<int>(inputs.size()));
+    runner.AddInputNames(names);
+    runner.Run(stream);
+
+  } else {
+    // TODO(songkai05): In CANN512, Concat doesn't support dtype double,
+    // so cast double to float32 temporarily until it supports double.
+    for (size_t i = 0; i < ins.size(); ++i) {
+      if (ins[i] && ins[i]->numel() > 0) {
+        phi::DenseTensor tmp;
+        phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, ins[i]->dims()};
+        tmp.set_meta(meta);
+        dev_ctx.template Alloc<float>(&tmp);
+        const auto& cast_runner =
+            NpuOpRunner("Cast", {*ins[i]}, {tmp}, {{"dst_type", ACL_FLOAT}});
+        cast_runner.Run(stream);
+        dev_ctx.Wait();
+        inputs.push_back(tmp);
+        names.push_back("x" + std::to_string(i));
+      } else {
+        continue;
+      }
+    }
+
+    phi::DenseTensor out_fp32;
+    phi::DenseTensorMeta meta_fp32 = {phi::DataType::FLOAT32, out->dims()};
+    out_fp32.set_meta(meta_fp32);
+    dev_ctx.template Alloc<float>(&out_fp32);
+
+    if (inputs.size() == 1) {
+      int index = std::stoi(names[0].substr(1, names[0].size() - 1));
+      out->ResizeAndAllocate(ins[index]->dims());
+      TensorCopy(dev_ctx, *ins[index], true, out);
+      return;
+    }
+
+    NpuOpRunner runner;
+    runner.SetType("Concat")
+        .AddInput(dev_ctx, std::move(std::vector<int>(1, axis)))
+        .AddInputs(inputs)
+        .AddOutput(out_fp32)
+        .AddAttr("N", static_cast<int>(inputs.size()));
+    runner.AddInputNames(names);
+
+    runner.Run(stream);
+    const auto& cast_out =
+        NpuOpRunner("Cast", {out_fp32}, {*out}, {{"dst_type", ACL_DOUBLE}});
+    cast_out.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -112,19 +166,22 @@ void ConcatGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(concat,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatKernel,
+                          bool,
                           int,
                           int64_t,
                           float,
+                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(concat_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatGradKernel,
                           int,
                           int64_t,
                           float,
+                          double,
                           phi::dtype::float16) {}

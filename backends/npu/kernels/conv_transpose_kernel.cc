@@ -25,7 +25,7 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
                            const std::vector<int>& strides,
                            const std::vector<int>& padding,
                            const std::vector<int>& out_padding,
-                           const std::vector<int>& output_size,
+                           const phi::IntArray& output_size,
                            const std::string& padding_algorithm,
                            int groups,
                            const std::vector<int>& dilation,
@@ -85,16 +85,18 @@ void Conv2dTransposeKernel(const Context& dev_ctx,
   auto output_dim_vec = phi::vectorize(output_tensor.dims());
 
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Conv2DTransposeD",
-                                   {input_tensor, filter},
-                                   {output_tensor},
-                                   {{"input_size", output_dim_vec},
-                                    {"strides", strides_vec},
-                                    {"dilations", dilations_vec},
-                                    {"output_padding", output_padding},
-                                    {"groups", groups},
-                                    {"pads", paddings},
-                                    {"data_format", data_format}});
+  NpuOpRunner runner;
+  runner.SetType("Conv2DTranspose")
+      .AddInput(dev_ctx, std::move(output_dim_vec))
+      .AddInput(input_tensor)
+      .AddInput(filter)
+      .AddOutput(output_tensor)
+      .AddAttr("strides", strides_vec)
+      .AddAttr("pads", paddings)
+      .AddAttr("dilations", dilations_vec)
+      .AddAttr("groups", groups)
+      .AddAttr("data_format", data_format)
+      .AddAttr("output_padding", output_padding);
   runner.Run(stream);
 }
 
@@ -106,7 +108,7 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
                                const std::vector<int>& strides,
                                const std::vector<int>& padding,
                                const std::vector<int>& output_padding,
-                               const std::vector<int>& output_size,
+                               const phi::IntArray& output_size,
                                const std::string& padding_algorithm,
                                int groups,
                                const std::vector<int>& dilation,
@@ -117,7 +119,7 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
   auto dilations = dilation;
   if ((!dx) && (!dfilter)) return;
 
-  const phi::DataLayout data_layout = phi::StringToDataLayout(data_format);
+  const phi::DataLayout data_layout = common::StringToDataLayout(data_format);
 
   auto in_dims = x.dims();
   auto filter_dims = filter.dims();
@@ -163,10 +165,19 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   if (dfilter) {
     dev_ctx.template Alloc<T>(dfilter);
+    // Conv2DBackpropFilterD only support fp32 output, so we need cast the
+    // output when the out dtype is fp16.
+    phi::DenseTensor dfilter_tmp;
+    if (dfilter->dtype() == phi::DataType::FLOAT16) {
+      dfilter_tmp.Resize(dfilter->dims());
+      dev_ctx.template Alloc<float>(&dfilter_tmp);
+    } else {
+      dfilter_tmp = *dfilter;
+    }
     const auto& runner =
         NpuOpRunner("Conv2DBackpropFilterD",
                     {output_grad_tensor, input_tensor},
-                    {*dfilter},
+                    {dfilter_tmp},
                     {{"filter_size", phi::vectorize<int>(filter_dims)},
                      {"strides", strides_vec},
                      {"pads", paddings},
@@ -174,6 +185,12 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
                      {"groups", groups},
                      {"data_format", data_format}});
     runner.Run(stream);
+    dev_ctx.Wait();
+    if (dfilter->dtype() == phi::DataType::FLOAT16) {
+      const auto& cast_runner = NpuOpRunner(
+          "Cast", {dfilter_tmp}, {*dfilter}, {{"dst_type", ACL_FLOAT16}});
+      cast_runner.Run(stream);
+    }
   }
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
@@ -198,14 +215,14 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeGradKernel,
                           float,

@@ -19,6 +19,9 @@
 #include <hccl/hccl.h>
 #include <hccl/hccl_types.h>
 
+#include <functional>
+#include <thread>
+
 #include "paddle/phi/extension.h"
 
 #define RUNTIME_CHECK(func, success)                                          \
@@ -42,17 +45,9 @@
 
 #define ACL_CHECK(func) RUNTIME_CHECK(func, ACL_ERROR_NONE)
 #define HCCL_CHECK(func) RUNTIME_CHECK(func, HCCL_SUCCESS)
+#define RUN_CHECK(func) RUNTIME_CHECK(func, true)
 
-#define ENV_Cat(x, y) x##y
-#define ENV_Str(x) #x
-#define ENV_Call(x, y) x(y)
-#define ENV_DEFINE(type, name, value, parser)                        \
-  type FLAGS_##name =                                                \
-      getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))               \
-          ? parser(getenv(ENV_Call(ENV_Str, ENV_Cat(FLAGS_, name)))) \
-          : value
-#define ENV_uint64(x, value) ENV_DEFINE(uint64_t, x, value, std::stoul)
-#define ENV_string(x, value) ENV_DEFINE(std::string, x, value, std::string)
+C_Status SetDevice(const C_Device device);
 
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
@@ -81,6 +76,14 @@ C_Status AsyncMemCpyD2H(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size);
+
+C_Status CreateEvent(const C_Device device, C_Event *event);
+
+C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event);
+
+C_Status QueryEvent(const C_Device device, C_Event event);
+
+C_Status DestroyEvent(const C_Device device, C_Event event);
 
 class AscendProfiler {
  public:
@@ -190,4 +193,126 @@ class AscendProfiler {
   aclrtStream stream_ = nullptr;
 
   bool start_ = false;
+};
+
+struct SecondaryStream {
+  static SecondaryStream &Instance() {
+    static SecondaryStream ins;
+    return ins;
+  }
+
+  aclrtStream Get(aclrtStream aicore_stream);
+
+  void Create(aclrtStream aicore_stream);
+
+  void Destroy(aclrtStream aicore_stream);
+
+  // aicpu  --
+  //           \
+  // aicore ----  aicore
+  void RecordBefore(aclrtStream aicore_stream);
+
+  //          -- aicpu
+  //        /
+  // aicore ---- aicore
+  void RecordAfter(aclrtStream aicore_stream);
+
+ private:
+  SecondaryStream() = default;
+  std::unordered_map<aclrtStream, aclrtStream> aicpu_streams;
+};
+
+struct HostCallbackManager {
+  static HostCallbackManager &Instance() {
+    static HostCallbackManager ins;
+    return ins;
+  }
+
+  void ReleaseProcessWorker(aclrtStream stream) {
+    std::lock_guard<std::mutex> lock(g_stream_thread_mutex);
+    if (g_stream_thread_map.find(stream) != g_stream_thread_map.end()) {
+      std::ostringstream oss;
+      oss << g_stream_thread_map[stream].get_id();
+      uint64_t tid = std::stoull(oss.str());
+      g_stream_thread_is_running_map[stream] = false;
+      g_stream_thread_map[stream].join();
+      ACL_CHECK(aclrtUnSubscribeReport(tid, stream));
+      g_stream_thread_is_running_map.erase(stream);
+      g_stream_thread_map.erase(stream);
+    }
+  }
+
+  void ReleaseAllProcessWorkers() {
+    std::lock_guard<std::mutex> lock(g_stream_thread_mutex);
+    for (auto it = g_stream_thread_map.begin();
+         it != g_stream_thread_map.end();) {
+      std::ostringstream oss;
+      oss << it->second.get_id();
+      uint64_t tid = std::stoull(oss.str());
+      g_stream_thread_is_running_map[it->first] = false;
+      it->second.join();
+      ACL_CHECK(aclrtUnSubscribeReport(tid, it->first));
+      it = g_stream_thread_map.erase(it);
+    }
+    g_stream_thread_map.clear();
+  }
+
+  void Launch(
+      aclrtStream stream,
+      std::function<void()> callback,
+      size_t timeout_time = 100 /* ms */,
+      aclrtCallbackBlockType block_device =
+          ACL_CALLBACK_BLOCK /* 310 dose not support ACL_CALLBACK_NO_BLOCK */) {
+    InitProcessWorker(stream, timeout_time);
+    ACL_CHECK(aclrtLaunchCallback(
+        HostCallbackManager::CallbackWrapper,
+        reinterpret_cast<void *>(
+            new std::function<void()>([callback] { callback(); })),
+        block_device,
+        stream));
+  }
+
+  void LaunchNonBlockingDevice(aclrtStream stream,
+                               std::function<void()> callback,
+                               size_t timeout_time = 100) {
+    Launch(stream, callback, timeout_time, ACL_CALLBACK_NO_BLOCK);
+  }
+
+ private:
+  static void ProcessCallbackWorker(bool *is_running,
+                                    aclrtContext context,
+                                    size_t timeout_time) {
+    ACL_CHECK(aclrtSetCurrentContext(context));
+    while (*is_running) {
+      (void)aclrtProcessReport(timeout_time);
+    }
+  }
+
+  static void CallbackWrapper(void *user_func) {
+    std::unique_ptr<std::function<void()>> callback(
+        reinterpret_cast<std::function<void()> *>(user_func));
+    (*callback)();
+  }
+
+  void InitProcessWorker(aclrtStream stream, size_t timeout_time) {
+    std::lock_guard<std::mutex> lock(g_stream_thread_mutex);
+    if (g_stream_thread_map.find(stream) == g_stream_thread_map.end()) {
+      aclrtContext context;
+      g_stream_thread_is_running_map[stream] = true;
+      ACL_CHECK(aclrtGetCurrentContext(&context));
+      std::thread cb_thread(ProcessCallbackWorker,
+                            &g_stream_thread_is_running_map[stream],
+                            context,
+                            timeout_time);
+      g_stream_thread_map[stream] = std::move(cb_thread);
+      std::ostringstream oss;
+      oss << g_stream_thread_map[stream].get_id();
+      uint64_t tid = std::stoull(oss.str());
+      ACL_CHECK(aclrtSubscribeReport(tid, stream));
+    }
+  }
+
+  std::mutex g_stream_thread_mutex;
+  std::unordered_map<aclrtStream, std::thread> g_stream_thread_map;
+  std::unordered_map<aclrtStream, bool> g_stream_thread_is_running_map;
 };

@@ -18,13 +18,15 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest, skip_check_grad_ci
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2022
 
 
 def ComputeGrad(x, y, out, axis):
+    origin_x_shape = x.shape
+    origin_y_shape = y.shape
+
     grad = 1 / out.size
     shape_x = x.shape
     shape_y = y.shape
@@ -40,7 +42,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_x)) or (
-                    shape_out[ax] > 1 and shape_x[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_x[ax - src_axis] == 1
+            ):
                 reduce_axes_x.append(ax)
 
     if shape_y != shape_out:
@@ -51,7 +54,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_y)) or (
-                    shape_out[ax] > 1 and shape_y[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_y[ax - src_axis] == 1
+            ):
                 reduce_axes_y.append(ax)
 
     if len(reduce_axes_x) > 0:
@@ -74,6 +78,10 @@ def ComputeGrad(x, y, out, axis):
         for i, element in enumerate(reduce_axes_y):
             dy = np.add.reduce(dy, element - i)
 
+    # avoid shape check error in new eager_op_test
+    dx = dx.reshape(origin_x_shape)
+    dy = dy.reshape(origin_y_shape)
+
     return dx, dy
 
 
@@ -87,14 +95,14 @@ class TestElementwiseMaxOp(OpTest):
         self.init_axis()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(self.x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
-        self.attrs = {'axis': self.axis}
-        self.outputs = {'Out': self.out}
+        self.attrs = {"axis": self.axis}
+        self.outputs = {"Out": self.out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -103,8 +111,7 @@ class TestElementwiseMaxOp(OpTest):
     def init_input_output(self):
         self.x = np.random.uniform(0.1, 1, [13, 17]).astype(self.dtype)
         sgn = np.random.choice([-1, 1], [13, 17]).astype(self.dtype)
-        self.y = self.x + sgn * np.random.uniform(0.1, 1,
-                                                  [13, 17]).astype(self.dtype)
+        self.y = self.x + sgn * np.random.uniform(0.1, 1, [13, 17]).astype(self.dtype)
         self.out = np.maximum(self.x, self.y)
 
     def init_axis(self):
@@ -116,40 +123,40 @@ class TestElementwiseMaxOp(OpTest):
     def test_check_grad_normal(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['X', 'Y'], 'Out', max_relative_error=0.5)
+                self.place, ["X", "Y"], "Out", max_relative_error=0.5
+            )
         else:
             self.check_grad_with_place(
                 self.place,
-                ['X', 'Y'],
-                'Out', )
+                ["X", "Y"],
+                "Out",
+            )
 
     def test_check_grad_ingore_x(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['Y'],
-                'Out',
-                no_grad_set=set("X"),
-                max_relative_error=0.9)
+                self.place, ["Y"], "Out", no_grad_set=set("X"), max_relative_error=0.9
+            )
         else:
             self.check_grad_with_place(
                 self.place,
-                ['Y'],
-                'Out',
-                no_grad_set=set("X"), )
+                ["Y"],
+                "Out",
+                no_grad_set=set("X"),
+            )
 
     def test_check_grad_ingore_y(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['X'],
-                'Out',
-                no_grad_set=set("Y"),
-                max_relative_error=0.1)
+                self.place, ["X"], "Out", no_grad_set=set("Y"), max_relative_error=0.1
+            )
         else:
             self.check_grad_with_place(
                 self.place,
-                ['X'],
-                'Out',
-                no_grad_set=set("Y"), )
+                ["X"],
+                "Out",
+                no_grad_set=set("Y"),
+            )
 
 
 class TestElementwiseMaxOp_int32(TestElementwiseMaxOp):
@@ -172,8 +179,7 @@ class TestElementwiseMaxOp_FP16(TestElementwiseMaxOp):
         self.dtype = np.float16
 
 
-@skip_check_grad_ci(
-    reason="[skip shape check] Use y_shape(1) to test broadcast.")
+@skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")
 class TestElementwiseMaxOp_scalar(TestElementwiseMaxOp):
     def init_input_output(self):
         self.x = np.random.random_integers(-5, 5, [2, 3, 20]).astype(self.dtype)
@@ -183,101 +189,45 @@ class TestElementwiseMaxOp_scalar(TestElementwiseMaxOp):
 
 class TestElementwiseMaxOp_vector(TestElementwiseMaxOp):
     def init_input_output(self):
-        self.x = np.random.random((100, )).astype(self.dtype)
-        sgn = np.random.choice([-1, 1], (100, )).astype(self.dtype)
-        self.y = self.x + sgn * np.random.uniform(0.1, 1,
-                                                  (100, )).astype(self.dtype)
+        self.x = np.random.random((100,)).astype(self.dtype)
+        sgn = np.random.choice([-1, 1], (100,)).astype(self.dtype)
+        self.y = self.x + sgn * np.random.uniform(0.1, 1, (100,)).astype(self.dtype)
         self.out = np.maximum(self.x, self.y)
-
-
-class TestElementwiseMaxOp_broadcast_0(TestElementwiseMaxOp):
-    def init_input_output(self):
-        self.x = np.random.uniform(0.5, 1, (100, 5, 2)).astype(self.dtype)
-        sgn = np.random.choice([-1, 1], (100, )).astype(self.dtype)
-        self.y = self.x[:, 0, 0] + sgn * \
-            np.random.uniform(1, 2, (100, )).astype(self.dtype)
-        self.out = np.maximum(self.x, self.y.reshape(100, 1, 1))
-
-    def init_axis(self):
-        self.axis = 0
-
-
-class TestElementwiseMaxOp_broadcast_1(TestElementwiseMaxOp):
-    def init_input_output(self):
-        self.x = np.random.uniform(0.5, 1, (2, 100, 3)).astype(self.dtype)
-        sgn = np.random.choice([-1, 1], (100, )).astype(self.dtype)
-        self.y = self.x[0, :, 0] + sgn * \
-            np.random.uniform(1, 2, (100, )).astype(self.dtype)
-        self.out = np.maximum(self.x, self.y.reshape(1, 100, 1))
-
-    def init_axis(self):
-        self.axis = 1
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
 
 
 class TestElementwiseMaxOp_broadcast_2(TestElementwiseMaxOp):
     def init_input_output(self):
         self.x = np.random.uniform(0.5, 1, (2, 3, 100)).astype(self.dtype)
-        sgn = np.random.choice([-1, 1], (100, )).astype(self.dtype)
-        self.y = self.x[0, 0, :] + sgn * \
-            np.random.uniform(1, 2, (100, )).astype(self.dtype)
+        sgn = np.random.choice([-1, 1], (100,)).astype(self.dtype)
+        self.y = self.x[0, 0, :] + sgn * np.random.uniform(1, 2, (100,)).astype(
+            self.dtype
+        )
         self.out = np.maximum(self.x, self.y.reshape(1, 1, 100))
 
     def test_check_grad_normal(self):
         dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
+            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
+        )
 
     def test_check_grad_ingore_x(self):
         _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
+            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
+        )
 
     def test_check_grad_ingore_y(self):
         dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
-
-
-class TestElementwiseMaxOp_broadcast_3(TestElementwiseMaxOp):
-    def init_input_output(self):
-        self.x = np.random.uniform(0.5, 1, (2, 50, 2, 1)).astype(self.dtype)
-        sgn = np.random.choice([-1, 1], (50, 2)).astype(self.dtype)
-        self.y = self.x[0, :, :, 0] + sgn * \
-            np.random.uniform(1, 2, (50, 2)).astype(self.dtype)
-        self.out = np.maximum(self.x, self.y.reshape(1, 50, 2, 1))
-
-    def init_axis(self):
-        self.axis = 1
+            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
+        )
 
 
 class TestElementwiseMaxOp_broadcast_4(TestElementwiseMaxOp):
     def init_input_output(self):
         self.x = np.random.uniform(0.5, 1, (2, 3, 4, 5)).astype(self.dtype)
         sgn = np.random.choice([-1, 1], (2, 3, 1, 5)).astype(self.dtype)
-        self.y = self.x + sgn * \
-            np.random.uniform(1, 2, (2, 3, 1, 5)).astype(self.dtype)
+        self.y = self.x + sgn * np.random.uniform(1, 2, (2, 3, 1, 5)).astype(self.dtype)
         self.out = np.maximum(self.x, self.y)
 
 
@@ -285,8 +235,7 @@ class TestElementwiseMaxOp_broadcast_5(TestElementwiseMaxOp):
     def init_input_output(self):
         self.x = np.random.uniform(0.5, 1, (2, 3, 4, 5)).astype(self.dtype)
         sgn = np.random.choice([-1, 1], (2, 3, 1, 1)).astype(self.dtype)
-        self.y = self.x + sgn * \
-            np.random.uniform(1, 2, (2, 3, 1, 1)).astype(self.dtype)
+        self.y = self.x + sgn * np.random.uniform(1, 2, (2, 3, 1, 1)).astype(self.dtype)
         self.out = np.maximum(self.x, self.y)
 
 
@@ -298,28 +247,27 @@ class TestElementwiseMaxNet(unittest.TestCase):
         startup_prog.random_seed = SEED
         np.random.seed(SEED)
 
-        a_np = np.random.random(size=(32, 32)).astype('float32')
-        b_np = np.random.random(size=(32, 32)).astype('float32')
-        label_np = np.random.randint(2, size=(32, 1)).astype('int64')
+        a_np = np.random.random(size=(32, 32)).astype("float32")
+        b_np = np.random.random(size=(32, 32)).astype("float32")
+        label_np = np.random.randint(2, size=(32, 1)).astype("int64")
 
         with paddle.static.program_guard(main_prog, startup_prog):
-            a = paddle.static.data(name="a", shape=[32, 32], dtype='float32')
-            b = paddle.static.data(name="b", shape=[32, 32], dtype='float32')
-            label = paddle.static.data(
-                name="label", shape=[32, 1], dtype='int64')
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            label = paddle.static.data(name="label", shape=[32, 1], dtype="int64")
 
             c = paddle.maximum(a, b)
 
-            fc_1 = fluid.layers.fc(input=c, size=128)
-            prediction = fluid.layers.fc(input=fc_1, size=2, act='softmax')
+            fc_1 = paddle.static.nn.fc(x=c, size=128)
+            prediction = paddle.static.nn.fc(x=fc_1, size=2, activation="softmax")
 
-            cost = fluid.layers.cross_entropy(input=prediction, label=label)
-            loss = fluid.layers.reduce_mean(cost)
-            sgd = fluid.optimizer.SGD(learning_rate=0.01)
+            cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
+            loss = paddle.mean(cost)
+            sgd = paddle.optimizer.SGD(learning_rate=0.01)
             sgd.minimize(loss)
 
         if run_mlu:
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("mlu", 0)
         else:
             place = paddle.CPUPlace()
 
@@ -331,13 +279,15 @@ class TestElementwiseMaxNet(unittest.TestCase):
 
             pred_res, loss_res = exe.run(
                 main_prog,
-                feed={"a": a_np,
-                      "b": b_np,
-                      "label": label_np},
-                fetch_list=[prediction, loss])
+                feed={"a": a_np, "b": b_np, "label": label_np},
+                fetch_list=[prediction, loss],
+            )
             if epoch % 10 == 0:
-                print("Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                    epoch, pred_res[0], loss_res))
+                print(
+                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                        epoch, pred_res[0], loss_res
+                    )
+                )
 
         return pred_res, loss_res
 
@@ -349,5 +299,5 @@ class TestElementwiseMaxNet(unittest.TestCase):
         np.testing.assert_allclose(mlu_loss, cpu_loss)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

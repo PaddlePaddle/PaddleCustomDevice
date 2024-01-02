@@ -32,16 +32,16 @@ void AddNKernel(const Context& dev_ctx,
 
   std::vector<phi::DenseTensor> inputs;
   std::vector<std::string> names;
+  int actual_n = 0;
   for (int i = 0; i < n; ++i) {
     if (x[i] && x[i]->numel() > 0) {
       inputs.push_back(*x[i]);
       names.push_back("x" + std::to_string(i));
-    } else {
-      continue;
+      ++actual_n;
     }
   }
 
-  NpuOpRunner runner{"AddN", {inputs}, {*out}, {{"N", n}}};
+  NpuOpRunner runner{"AddN", {inputs}, {*out}, {{"N", actual_n}}};
   runner.AddInputNames(names);
   runner.Run(stream);
 }
@@ -49,7 +49,7 @@ void AddNKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_n,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddNKernel,
                           float,

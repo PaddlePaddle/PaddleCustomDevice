@@ -78,7 +78,7 @@ void ExpandKernel(const Context& dev_ctx,
 
   PADDLE_ENFORCE_GE(
       rank,
-      1,
+      0,
       phi::errors::InvalidArgument(
           "The rank of the input 'x' for expand_v2_npu op must be positive, "
           "but the value received is %d.",
@@ -138,6 +138,14 @@ void ExpandKernel(const Context& dev_ctx,
                              op_func,
                              {phi::DataType::INT32},
                              {phi::DataType::INT32});
+  } else if (x.dtype() == phi::DataType::FLOAT64) {
+    NpuOpRunner::TypeAdapter({x},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32},
+                             {phi::DataType::FLOAT32});
   } else {
     const auto& runner = NpuOpRunner("ExpandD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
@@ -207,17 +215,18 @@ void ExpandGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(expand,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandKernel,
                           bool,
                           int,
                           int64_t,
+                          double,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(expand_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandGradKernel,
                           int,

@@ -12,101 +12,112 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
+import unittest
 
 import numpy as np
-import sys
-import unittest
-from tests.op_test import OpTest
-
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
-from paddle.fluid.contrib.mixed_precision.amp_nn import check_finite_and_unscale
+import paddle.base as base
+from paddle.base import program_guard
+from paddle.static.amp.amp_nn import check_finite_and_unscale
 
 paddle.enable_static()
 
 
-class TestCheckFiniteAndUnscaleOp(OpTest):
-    def setUp(self):
-        self.set_npu()
-        self.op_type = "check_finite_and_unscale"
-        self.init_dtype()
-        x = np.random.random((1024, 1024)).astype(self.dtype)
-        scale = np.random.random((1)).astype(self.dtype)
+class TestCheckFiniteAndUnscale(unittest.TestCase):
+    def get_prog(self):
+        paddle.set_device("npu")
+        paddle.enable_static()
+        main_program = paddle.static.Program()
+        with program_guard(main_program):
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            scale = paddle.static.data(name="scale", shape=[1], dtype="float32")
+            c = paddle.divide(a, b)
+            out, found_inf = check_finite_and_unscale([c], scale)
 
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
-        self.outputs = {
-            'FoundInfinite': np.array([0]),
-            'Out': [('out0', x / scale)],
-        }
+        return main_program, out, found_inf
 
-    def init_dtype(self):
-        self.dtype = np.float32
+    def run_prog(self, a, b, scale):
+        main_program, out, found_inf = self.get_prog()
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place)
+        out_, founf_inf_ = exe.run(
+            main_program,
+            feed={"a": a, "b": b, "scale": scale},
+            fetch_list=[out, found_inf],
+        )
+        return out_, founf_inf_
 
-    def test_check_output(self):
-        self.check_output_with_place(self.place)
+    def test_contains_nan(self):
+        a = np.zeros((32, 32)).astype("float32")
+        b = np.zeros((32, 32)).astype("float32")
+        scale = np.array([2.0]).astype("float32")
 
-    def set_npu(self):
-        self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        out, found_inf = self.run_prog(a, b, scale)
+        print(out, found_inf)
 
+        self.assertTrue(found_inf[0])
 
-class TestCheckFiniteAndUnscaleOpWithNan(OpTest):
-    def setUp(self):
-        self.set_npu()
-        self.op_type = "check_finite_and_unscale"
-        self.init_dtype()
-        x = np.random.random((1024, 1024)).astype(self.dtype)
-        x[128][128] = np.nan
-        scale = np.random.random((1)).astype(self.dtype)
+    def test_contains_inf(self):
+        a = np.ones((32, 32)).astype("float32")
+        b = np.zeros((32, 32)).astype("float32")
+        scale = np.array([2.0]).astype("float32")
 
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
-        self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x)],
-        }
+        out, found_inf = self.run_prog(a, b, scale)
+        print(out, found_inf)
 
-    def set_npu(self):
-        self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.assertTrue(found_inf[0])
 
-    def init_dtype(self):
-        self.dtype = np.float32
+    def test_not_contains_nan_inf(self):
+        a = np.ones((32, 32)).astype("float32")
+        b = np.ones((32, 32)).astype("float32")
+        scale = np.array([2.0]).astype("float32")
 
-    def test_check_output(self):
-        # When input contains nan, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        out, found_inf = self.run_prog(a, b, scale)
+        print(out, found_inf)
 
-
-class TestCheckFiniteAndUnscaleOpWithInf(OpTest):
-    def set_npu(self):
-        self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
-
-    def setUp(self):
-        self.set_npu()
-        self.op_type = "check_finite_and_unscale"
-        self.init_dtype()
-        x = np.random.random((1024, 1024)).astype(self.dtype)
-        x[128][128] = np.inf
-        scale = np.random.random((1)).astype(self.dtype)
-
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
-        self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x)],
-        }
-
-    def init_dtype(self):
-        self.dtype = np.float32
-
-    def test_check_output(self):
-        # When input contains inf, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        np.testing.assert_allclose(out, (a / b) / scale[0])
+        self.assertFalse(found_inf[0])
 
 
-if __name__ == '__main__':
+class TestCheckFiniteAndUnscaleClearFloatStatus(unittest.TestCase):
+    def get_prog(self):
+        paddle.set_device("npu")
+        paddle.enable_static()
+        main_program = paddle.static.Program()
+        with program_guard(main_program):
+            a = paddle.static.data(name="a", shape=[32, 32], dtype="float32")
+            b = paddle.static.data(name="b", shape=[32, 32], dtype="float32")
+            scale = paddle.static.data(name="scale", shape=[1], dtype="float32")
+            c = paddle.divide(a, b)
+            out, found_inf = check_finite_and_unscale([c], scale)
+            d = paddle.add(a, b)
+            out, found_inf = check_finite_and_unscale([d], scale)
+
+        return main_program, out, found_inf
+
+    def run_prog(self, a, b, scale):
+        main_program, out, found_inf = self.get_prog()
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place)
+        out_, founf_inf_ = exe.run(
+            main_program,
+            feed={"a": a, "b": b, "scale": scale},
+            fetch_list=[out, found_inf],
+        )
+        return out_, founf_inf_
+
+    def test_not_contains_nan_inf(self):
+        a = np.ones((32, 32)).astype("float32")
+        b = np.zeros((32, 32)).astype("float32")
+        scale = np.array([2.0]).astype("float32")
+
+        out, found_inf = self.run_prog(a, b, scale)
+        print(out, found_inf)
+
+        np.testing.assert_allclose(out, (a + b) / scale[0])
+        self.assertFalse(found_inf[0])
+
+
+if __name__ == "__main__":
     unittest.main()

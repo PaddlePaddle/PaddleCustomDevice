@@ -1,0 +1,1 @@
+../../Paddle/test/rnn/rnn_numpy.py

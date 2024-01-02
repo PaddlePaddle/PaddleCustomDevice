@@ -24,7 +24,19 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                            std::vector<phi::DenseTensor*> outs,
                            phi::DenseTensor* found_inf) {
   auto stream = dev_ctx.stream();
-  auto scale = &t_scale;
+  phi::DenseTensor scale;
+  if (std::is_same<T, phi::dtype::float16>::value) {
+    scale.Resize(t_scale.dims());
+    dev_ctx.template Alloc<T>(&scale);
+    const auto& cast_runner =
+        NpuOpRunner("Cast",
+                    {t_scale},
+                    {scale},
+                    {{"dst_type", static_cast<int>(ACL_FLOAT16)}});
+    cast_runner.Run(stream);
+  } else {
+    scale = t_scale;
+  }
 
   dev_ctx.template Alloc<bool>(found_inf);
 
@@ -35,71 +47,17 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(&const_tensor, dev_ctx, static_cast<T>(1.0));
 
   // Inverse(1.0/scale)
-  phi::DenseTensor* tmp_inverse_out = const_cast<phi::DenseTensor*>(scale);
+  phi::DenseTensor* tmp_inverse_out = const_cast<phi::DenseTensor*>(&scale);
   phi::DenseTensor inverse_out;
-  inverse_out.Resize(scale->dims());
+  inverse_out.Resize(scale.dims());
   dev_ctx.template Alloc<T>(&inverse_out);
   const auto& runner_inverse =
-      NpuOpRunner("Div", {const_tensor, *scale}, {inverse_out}, {});
+      NpuOpRunner("Div", {const_tensor, scale}, {inverse_out}, {});
   runner_inverse.Run(stream);
   tmp_inverse_out = &inverse_out;
 
-  phi::DenseTensor sum;
-  sum.Resize({1});
-  dev_ctx.template Alloc<T>(&sum);
-  FillNpuTensorWithConstant<T>(&sum, dev_ctx, static_cast<T>(0.0));
-
-  phi::DenseTensor tmp;
-  tmp.Resize({1});
-  dev_ctx.template Alloc<T>(&tmp);
-
-  for (const auto& xs_item : xs) {
-    std::vector<int> axes;
-    phi::DenseTensor xs_is_finite, xs_is_finite_f, xs_is_inf, xs_is_nan;
-    xs_is_finite.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_finite);
-    xs_is_inf.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_inf);
-    xs_is_nan.Resize(xs_item->dims());
-    dev_ctx.template Alloc<bool>(&xs_is_nan);
-    xs_is_finite_f.Resize(xs_item->dims());
-    dev_ctx.template Alloc<T>(&xs_is_finite_f);
-
-    for (auto i = 0; i < xs_item->dims().size(); ++i) {
-      axes.push_back(i);
-    }
-    const auto& runner_check_inf =
-        NpuOpRunner("IsInf", {*xs_item}, {xs_is_inf}, {});
-    runner_check_inf.Run(stream);
-    const auto& runner_check_nan =
-        NpuOpRunner("IsNan", {*xs_item}, {xs_is_nan}, {});
-    runner_check_nan.Run(stream);
-
-    const auto& runner_logical_or =
-        NpuOpRunner("LogicalOr", {xs_is_inf, xs_is_nan}, {xs_is_finite}, {});
-    runner_logical_or.Run(stream);
-
-    const auto& runner_cast = NpuOpRunner(
-        "Cast",
-        {xs_is_finite},
-        {xs_is_finite_f},
-        {{"dst_type", static_cast<int>(cpp_type_to_acl_dtype<T>::value())}});
-    runner_cast.Run(stream);
-
-    const auto& runner_reduce_sum =
-        NpuOpRunner("ReduceSumD",
-                    {xs_is_finite_f},
-                    {tmp},
-                    {{"axes", axes}, {"keep_dims", false}});
-    runner_reduce_sum.Run(stream);
-
-    const auto& runner_add = NpuOpRunner("Add", {tmp, sum}, {sum}, {});
-    runner_add.Run(stream);
-  }
-
-  const auto& runner_greater =
-      NpuOpRunner("GreaterEqual", {sum, const_tensor}, {*found_inf}, {});
-  runner_greater.Run(stream);
+  bool found_inf_cpu = NpuOpRunner::GetFloatStatus(stream);
+  FillNpuTensorWithConstant<bool>(found_inf, dev_ctx, found_inf_cpu);
 
   // NOTE(zhiqiu): The normal logic is :
   // out = in, if found_inf = true
@@ -112,17 +70,19 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
     const auto* x = xs[i];
     auto* out = outs[i];
     dev_ctx.template Alloc<T>(out);
-    const auto& runner_mul =
-        NpuOpRunner("Mul", {*x, *tmp_inverse_out}, {*out}, {});
+    const auto& runner_mul = NpuOpRunner("Mul", {*x, inverse_out}, {*out}, {});
     runner_mul.Run(stream);
   }
+
+  NpuOpRunner::ClearFloatStatus(stream);
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(check_finite_and_unscale,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CheckFiniteAndUnscale,
                           float,
+                          phi::dtype::float16,
                           double) {}

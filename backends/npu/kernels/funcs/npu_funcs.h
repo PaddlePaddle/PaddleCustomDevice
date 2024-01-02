@@ -85,17 +85,23 @@ inline void TensorCopy(const Context& dev_ctx,
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
-  auto size = src.numel() * paddle::experimental::SizeOf(src.dtype());
+  auto size =
+      (src.dims().size() != 0 ? src.numel() : 1) * phi::SizeOf(src.dtype());
+  if (UNLIKELY(size) == 0) {
+    return;
+  }
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{dst_place_.GetDeviceId()};
+    AsyncMemCpyH2D(&device, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
   } else if (src_place.GetType() == phi::AllocationType::CUSTOM &&
              dst_place_.GetType() == phi::AllocationType::CPU) {
-    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{src_place.GetDeviceId()};
+    AsyncMemCpyD2H(&device, stream, dst_ptr, src_ptr, size);
     if (blocking) {
       dev_ctx.Wait();
     }
@@ -103,15 +109,21 @@ inline void TensorCopy(const Context& dev_ctx,
              dst_place_.GetType() == phi::AllocationType::CUSTOM) {
     if (src_place.GetDeviceType() == dst_place_.GetDeviceType()) {
       if (src_place.GetDeviceId() == dst_place_.GetDeviceId()) {
-        AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
+        C_Device_st device{src_place.GetDeviceId()};
+        AsyncMemCpyD2D(&device, stream, dst_ptr, src_ptr, size);
         if (blocking) {
           dev_ctx.Wait();
         }
       } else {
+        PADDLE_THROW(
+            phi::errors::Unimplemented("TensorCopy is not supported."));
       }
     } else {
+      PADDLE_THROW(phi::errors::Unimplemented("TensorCopy is not supported."));
     }
-  } else {
+  } else if (src_place.GetType() == phi::AllocationType::CPU &&
+             dst_place_.GetType() == phi::AllocationType::CPU) {
+    std::memcpy(dst_ptr, src_ptr, size);
   }
 }
 
@@ -131,12 +143,12 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
   if (UNLIKELY(size == 0)) return;
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
                    size);
-    dev_ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -164,12 +176,12 @@ inline void TensorFromVector<bool>(const phi::CustomContext& ctx,
   if (UNLIKELY(size == 0)) return;
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
                    size);
-    dev_ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -198,9 +210,9 @@ inline void TensorFromVector(const phi::CustomContext& ctx,
             << ", size: " << size;
     std::memcpy(dst_ptr, src_ptr, size);
   } else if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device{dst_place.GetDeviceId()};
     AsyncMemCpyH2D(
-        nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
-    ctx.Wait();
+        &device, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromVector on %s is not supported.", dst_place));
@@ -230,13 +242,12 @@ void TensorFromArray(const phi::CustomContext& ctx,
   auto size = array_size * sizeof(T);
 
   if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyH2D(nullptr,
+    C_Device_st device{dst_place.GetDeviceId()};
+    AsyncMemCpyH2D(&device,
                    static_cast<C_Stream>(dev_ctx.stream()),
                    dst_ptr,
                    src_ptr,
                    size);
-
-    dev_ctx.Wait();
   } else {  // NOLINT
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorFromArray on %s is not supported.", dst_place));
@@ -260,8 +271,9 @@ inline void TensorToVector(const phi::CustomContext& ctx,
   auto src_place = src.place();
 
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
+    C_Device_st device{src_place.GetDeviceId()};
     AsyncMemCpyD2H(
-        nullptr, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
+        &device, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
     ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
@@ -286,7 +298,8 @@ inline void TensorToVector<bool>(const phi::CustomContext& ctx,
 
   auto src_place = src.place();
   if (src_place.GetType() == phi::AllocationType::CUSTOM) {
-    AsyncMemCpyD2H(nullptr, stream, dst_ptr, src_ptr, size);
+    C_Device_st device{src_place.GetDeviceId()};
+    AsyncMemCpyD2H(&device, stream, dst_ptr, src_ptr, size);
     ctx.Wait();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
@@ -349,11 +362,12 @@ inline void NpuBroadcast(const Context& dev_ctx,
     auto tmp_tensor_dims = phi::slice_ddim(dst_dims, 0, axis + src_dims.size());
     tmp_tensor.Resize(tmp_tensor_dims);
     dev_ctx.template Alloc<T>(&tmp_tensor);
-    const auto& runner =
-        NpuOpRunner("ExpandD",
-                    {tmp_src},
-                    {tmp_tensor},
-                    {{"shape", phi::vectorize<int64_t>(tmp_tensor_dims)}});
+    NpuOpRunner runner;
+    runner.SetType("Expand")
+        .AddInput(tmp_src)
+        .AddInput(dev_ctx, phi::vectorize<int64_t>(tmp_tensor_dims))
+        .AddOutput(tmp_tensor);
+    auto stream = dev_ctx.stream();
     runner.Run(stream);
     tmp_src = tmp_tensor;
     tmp_src.Resize(tmp_tensor_dims);
@@ -414,12 +428,13 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
       phi::errors::InvalidArgument(
           "Axis should be great than or equal to 0, but received axis is %d.",
           axis));
-  PADDLE_ENFORCE_LT(axis,
-                    max_dim,
-                    phi::errors::InvalidArgument(
-                        "Axis should be less than %d, but received axis is %d.",
-                        max_dim,
-                        axis));
+  PADDLE_ENFORCE_LE(
+      axis,
+      max_dim,
+      phi::errors::InvalidArgument(
+          "Axis should be less than or equal to %d, but received axis is %d.",
+          max_dim,
+          axis));
 
   for (int i = 0; i < x_dims.size(); ++i) {
     dst_dims_vec[i + x_axis] =
@@ -496,16 +511,14 @@ inline std::vector<T> get_new_data_from_tensor(
     const phi::CustomContext& dev_ctx,
     const phi::DenseTensor* new_data_tensor) {
   std::vector<T> vec_new_data;
-  auto place = new_data_tensor->place();
+  auto* new_data = new_data_tensor->data<T>();
   phi::DenseTensor cpu_starts_tensor;
-  cpu_starts_tensor.Resize(new_data_tensor->dims());
-  T* new_data = dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
-  if (place.GetType() == phi::AllocationType::CUSTOM) {
+  if (new_data_tensor->place().GetType() == phi::AllocationType::CUSTOM) {
     TensorCopy(
         dev_ctx, *new_data_tensor, true, &cpu_starts_tensor, phi::CPUPlace());
     new_data = cpu_starts_tensor.data<T>();
   }
-  vec_new_data = std::vector<T>(new_data, new_data + cpu_starts_tensor.numel());
+  vec_new_data = std::vector<T>(new_data, new_data + new_data_tensor->numel());
   return vec_new_data;
 }
 

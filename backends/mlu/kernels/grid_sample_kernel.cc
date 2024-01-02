@@ -82,7 +82,7 @@ void GridSampleKernel(const Context &dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(grid_sample,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::GridSampleKernel,
                           float,

@@ -18,7 +18,6 @@ import unittest
 from tests.op_test import OpTest
 
 import numpy as np
-import paddle.fluid as fluid
 import paddle
 
 paddle.enable_static()
@@ -35,27 +34,28 @@ class TestLookupTableV2(OpTest):
         self.init_padding_idx()
         np.random.seed(SEED)
         w = np.random.random([self.vocab, self.dim]).astype(self.dtype)
-        x = np.random.randint(
-            0, self.vocab, size=(self.bsz, self.seqlen)).astype(self.ids_dtype)
+        x = np.random.randint(0, self.vocab, size=(self.bsz, self.seqlen)).astype(
+            self.ids_dtype
+        )
         out = w[x]
         if self.padding_idx != -1:
             out[np.squeeze(x == self.padding_idx)] = np.zeros(self.dim)
 
         self.inputs = {
-            'W': OpTest.np_dtype_to_fluid_dtype(w),
-            'Ids': OpTest.np_dtype_to_fluid_dtype(x)
+            "W": OpTest.np_dtype_to_base_dtype(w),
+            "Ids": OpTest.np_dtype_to_base_dtype(x),
         }
         self.attrs = {
-            'is_sparse': False,
-            'is_distributed': False,
-            'remote_prefetch': False,
-            'padding_idx': self.padding_idx
+            "is_sparse": False,
+            "is_distributed": False,
+            "remote_prefetch": False,
+            "padding_idx": self.padding_idx,
         }
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -77,9 +77,10 @@ class TestLookupTableV2(OpTest):
     def test_check_grad(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['W'], 'Out', max_relative_error=0.01)
+                self.place, ["W"], "Out", max_relative_error=0.01
+            )
         else:
-            self.check_grad_with_place(self.place, ['W'], 'Out')
+            self.check_grad_with_place(self.place, ["W"], "Out")
 
 
 class TestLookupTableV2FP16(TestLookupTableV2):
@@ -91,7 +92,7 @@ class TestLookupTableV2FP16(TestLookupTableV2):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
 
 class TestLookupTableV2Dim32(TestLookupTableV2):
@@ -118,7 +119,7 @@ class TestLookupTableV2Dim32FP16(TestLookupTableV2):
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
 
 class TestLookupTableV2WithPadding(TestLookupTableV2):
@@ -135,5 +136,5 @@ class TestLookupTableV2WithPadding1(TestLookupTableV2):
         self.ids_dtype = np.int64
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

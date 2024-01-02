@@ -22,20 +22,92 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "runtime/CNRTEvent.h"
+#include "runtime/flags.h"
 
-namespace {
+FLAGS_DEFINE_bool(mlu_reuse_event, true, "reuse_event");
+FLAGS_DEFINE_bool(mlu_runtime_debug, false, "runtime debug log");
 
-inline size_t get_devices_count() {
-  uint32_t count = 0;
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDeviceCount(&count));
-  return static_cast<size_t>(count);
-}
+class EventPool {
+ public:
+  using Event = std::unique_ptr<CNRTEvent, std::function<void(CNRTEvent *)>>;
 
-}  // namespace
+  EventPool() : pools_(get_devices_count()) {}
+
+  Event get(int dev_idx) {
+    PADDLE_ENFORCE_EQ(
+        0 <= dev_idx,
+        true,
+        phi::errors::InvalidArgument("dev_idx should be large than 0."));
+    PADDLE_ENFORCE_EQ(dev_idx < pools_.size(),
+                      true,
+                      phi::errors::InvalidArgument(
+                          "dev_idx should be less than pools' size."));
+    auto &pool = pools_[dev_idx];
+    auto destructor = [&pool](CNRTEvent *event) {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      pool.event_pool_.push_back(std::unique_ptr<CNRTEvent>(event));
+    };
+
+    // Try to acquire an event from the per-device pool.
+    {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      if (!pool.event_pool_.empty()) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[EventPool::get] get event from pool.";
+
+        auto *event = pool.event_pool_.back().release();
+        pool.event_pool_.pop_back();
+        return Event(event, destructor);
+      }
+    }
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+        << "[EventPool::get] create new event.";
+
+    // otherwise, allocate a new event that will be returned to the pool on
+    // desctruction.
+    return Event(
+        std::make_unique<CNRTEvent>(CNRT_NOTIFIER_DISABLE_TIMING_ALL, dev_idx)
+            .release(),
+        destructor);
+  }
+
+  void empty_cache() {
+    for (auto &pool : pools_) {
+      std::lock_guard<std::mutex> g(pool.mutex_);
+      pool.event_pool_.clear();
+    }
+  }
+
+ private:
+  struct PerDevicePool {
+    alignas(64) std::mutex mutex_;
+    std::vector<std::unique_ptr<CNRTEvent>> event_pool_{};
+  };
+  std::vector<PerDevicePool> pools_{};
+} g_event_pool;
+
+static std::vector<std::vector<EventPool::Event>> hold_event_vecs(
+    get_devices_count());
 
 // Device
 C_Status Init() {
   size_t dev_cnt = get_devices_count();
+  return C_SUCCESS;
+}
+
+C_Status Finalize() {
+  for (auto iter = hold_event_vecs.begin(); iter != hold_event_vecs.end();
+       iter++) {
+    iter->clear();
+  }
+  hold_event_vecs.clear();
+  g_event_pool.empty_cache();
+  return C_SUCCESS;
+}
+
+C_Status InitDevice(const C_Device device) {
+  SetDevice(device);
   return C_SUCCESS;
 }
 
@@ -114,6 +186,8 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  VLOG(3) << "AsyncMemCpyD2D: from " << src << " to " << dst << " size " << size
+          << " stream " << stream;
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
                                              const_cast<void *>(src),
                                              size,
@@ -136,19 +210,19 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 }
 
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtMalloc(ptr, size));
   return C_SUCCESS;
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtFree(ptr));
   return C_SUCCESS;
 }
 
 C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+  SetDevice(device);
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtHostMalloc(ptr, size));
   return C_SUCCESS;
 }
@@ -177,7 +251,7 @@ C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
 
 // Stream
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  mluStream_t mlu_stream = new CustomMLUStream();
+  mluStream_t mlu_stream = new mluStream();
 
   cnrtQueue_t queue;
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueCreate(&queue));
@@ -204,8 +278,6 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
   PADDLE_ENFORCE_MLU_SUCCESS(mluOpDestroy(GetOpHandle(stream)));
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueDestroy(GetQueue(stream)));
 
-  
-
   mluStream_t mlu_stream = reinterpret_cast<mluStream_t>(stream);
   delete[] mlu_stream;
 
@@ -229,34 +301,155 @@ C_Status AddCallback(const C_Device device,
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueWaitNotifier(
-      reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream), 0));
-  return C_SUCCESS;
+  auto use_stream = GetQueue(stream);
+  if (FLAGS_mlu_reuse_event) {
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == reinterpret_cast<cnrtNotifier_t>(event)) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[StreamWaitEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: "
+            << reinterpret_cast<cnrtNotifier_t>(event)
+            << ". Blocking by stream: " << use_stream;
+        (*iter)->block(use_stream);
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueWaitNotifier(
+        reinterpret_cast<cnrtNotifier_t>(event), use_stream, 0));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
 }
 
 // Event
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtNotifierCreate(reinterpret_cast<cnrtNotifier_t *>(event)));
+  if (FLAGS_mlu_reuse_event) {
+    // Get CNRTEvent from event-pool and the ownership will be transfered
+    // to hold_event_vecs (, whose lifecycle is managed by customdevice).
+    // In upper-layer of the framework, we use cnrtNotifier_t that managed by
+    // CNRTEvent.
+    hold_event_vecs[device->id].push_back(
+        std::move(g_event_pool.get(device->id)));
+    *event =
+        reinterpret_cast<C_Event>(hold_event_vecs[device->id].back()->event());
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+        << "[CreateEvent] created event: "
+        << reinterpret_cast<cnrtNotifier_t>(*event)
+        << ". Pushed-back hold_vec size: "
+        << hold_event_vecs[device->id].size();
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtNotifierCreate(reinterpret_cast<cnrtNotifier_t *>(event)));
+  }
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtNotifierDestroy(reinterpret_cast<cnrtNotifier_t>(event)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    // The CNRTEvent will be deleted from hold_event_vecs if whoes
+    // cnrtNotifier_t member matches with that passed in, and the ownership will
+    // be transfered to the event-pool.
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();) {
+      if ((*iter)->isCreated() &&
+          (*iter)->event() == reinterpret_cast<cnrtNotifier_t>(event)) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[DestroyEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: "
+            << reinterpret_cast<cnrtNotifier_t>(event)
+            << ", will be released and moved back.";
+        iter = hold_event_vecs[device->id].erase(iter);
+        return C_SUCCESS;
+      } else {
+        ++iter;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtNotifierDestroy(reinterpret_cast<cnrtNotifier_t>(event)));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtPlaceNotifier(
-      reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug) << "[RecordEvent] hold_vec size: "
+                                          << hold_event_vecs[device->id].size();
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+
+      if ((*iter)->isCreated() && (*iter)->event() == in_event) {
+        (*iter)->record(static_cast<int>(device->id), GetQueue(stream));
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[RecordEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event
+            << ". Recorded on: " << GetQueue(stream);
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtPlaceNotifier(
+        reinterpret_cast<cnrtNotifier_t>(event), GetQueue(stream)));
+    return C_SUCCESS;
+  }
+
+  return C_FAILED;
+}
+
+C_Status QueryEvent(const C_Device device, C_Event event) {
+  if (FLAGS_mlu_reuse_event) {
+    bool query_status = false;
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == in_event) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[QueryEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event << ". Queried.";
+        query_status = (*iter)->query();
+      }
+    }
+    return query_status ? C_SUCCESS : C_FAILED;
+  } else {
+    auto ret_status =
+        cnrtQueryNotifier(reinterpret_cast<cnrtNotifier_t>(event));
+    return ret_status == cnrtRet_t::cnrtSuccess ? C_SUCCESS : C_FAILED;
+  }
 }
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
-  return C_SUCCESS;
+  if (FLAGS_mlu_reuse_event) {
+    for (auto iter = hold_event_vecs[device->id].begin();
+         iter != hold_event_vecs[device->id].end();
+         iter++) {
+      auto in_event = reinterpret_cast<cnrtNotifier_t>(event);
+      if ((*iter)->isCreated() && (*iter)->wasRecorded() &&
+          (*iter)->event() == in_event) {
+        LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+            << "[SyncEvent] hold_event: " << (*iter)->event()
+            << " matches with in_event: " << in_event << ". Synchronized.";
+        (*iter)->synchronize();
+        return C_SUCCESS;
+      }
+    }
+  } else {
+    PADDLE_ENFORCE_MLU_SUCCESS(
+        cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
+    return C_SUCCESS;
+  }
+  return C_FAILED;
 }
 
 // CNCL
@@ -275,6 +468,8 @@ inline cnclDataType_t PDDataTypeToCnclDataType(C_DataType type) {
     return cnclInt8;
   } else if (type == C_DataType::UINT8) {
     return cnclUint8;
+  } else if (type == C_DataType::INT64) {
+    return cnclInt32;
   } else {
     LOG(ERROR) << "Datatype " << type << " in cncl is not supported.";
   }
@@ -306,8 +501,11 @@ C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
     LOG(ERROR) << "unique_id->sz must be equal sizeof(cnclCliqueId)";
     return C_FAILED;
   }
+  VLOG(4) << "[CNCL] create clique.";
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclGetCliqueId(reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] clique created: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   return C_SUCCESS;
 }
 
@@ -319,6 +517,8 @@ C_Status XcclCommInitRank(size_t nranks,
   PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&dev_id));
   int dev_list[] = {dev_id};
   int rank_list[] = {rank};
+  VLOG(4) << "[CNCL] create comm with rank: " << rank << " clique: "
+          << reinterpret_cast<cnclCliqueId *>(unique_id->data)->hash;
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclInitComms(reinterpret_cast<cnclComm_t *>(comm),
                     1,
@@ -326,6 +526,7 @@ C_Status XcclCommInitRank(size_t nranks,
                     rank_list,
                     nranks,
                     reinterpret_cast<cnclCliqueId *>(unique_id->data)));
+  VLOG(4) << "[CNCL] comm inited: " << reinterpret_cast<cnclComm_t>(*comm);
   return C_SUCCESS;
 }
 
@@ -341,13 +542,18 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
+  PADDLE_ENFORCE_NE(data_type,
+                    C_DataType::INT64,
+                    phi::errors::InvalidArgument(
+                        "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllReduce(send_buf,
                                            recv_buf,
                                            count,
                                            PDDataTypeToCnclDataType(data_type),
                                            PDReduceOpToCnclReduceOp(op),
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -357,13 +563,19 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
+  if (data_type == C_DataType::INT64) {
+    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
+    // THE count.
+    count = count * 2;
+  }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclBroadcast(buf,
                                            buf,
                                            count,
                                            PDDataTypeToCnclDataType(data_type),
                                            root,
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -375,7 +587,8 @@ C_Status XcclReduce(void *send_buf,
                     size_t root,
                     C_CCLComm comm,
                     C_Stream stream) {
-  LOG(ERROR) << "xccl_reduce is not supported  on ascend device.";
+  VLOG(4) << "[CNCL] reduce.";
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclReduce(send_buf,
                                         recv_buf,
                                         count,
@@ -383,8 +596,8 @@ C_Status XcclReduce(void *send_buf,
                                         PDReduceOpToCnclReduceOp(op),
                                         root,
                                         reinterpret_cast<cnclComm_t>(comm),
-                                        GetQueue(stream)));
-  return C_ERROR;
+                                        lastCommStream::Instance().get()));
+  return C_SUCCESS;
 }
 
 C_Status XcclAllGather(void *send_buf,
@@ -393,12 +606,18 @@ C_Status XcclAllGather(void *send_buf,
                        C_DataType data_type,
                        C_CCLComm comm,
                        C_Stream stream) {
+  if (data_type == C_DataType::INT64) {
+    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
+    // THE count.
+    count = count * 2;
+  }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllGather(send_buf,
                                            recv_buf,
                                            count,
                                            PDDataTypeToCnclDataType(data_type),
                                            reinterpret_cast<cnclComm_t>(comm),
-                                           GetQueue(stream)));
+                                           lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -409,6 +628,11 @@ C_Status XcclReduceScatter(void *send_buf,
                            C_CCLReduceOp op,
                            C_CCLComm comm,
                            C_Stream stream) {
+  PADDLE_ENFORCE_NE(data_type,
+                    C_DataType::INT64,
+                    phi::errors::InvalidArgument(
+                        "The dtype of cncl reduce shouldn't be int64."));
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclReduceScatter(send_buf,
                         recv_buf,
@@ -416,19 +640,13 @@ C_Status XcclReduceScatter(void *send_buf,
                         PDDataTypeToCnclDataType(data_type),
                         PDReduceOpToCnclReduceOp(op),
                         reinterpret_cast<cnclComm_t>(comm),
-                        GetQueue(stream)));
+                        lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
-C_Status XcclGroupStart() {
-  LOG(ERROR) << "xccl_group_start is not supported on mlu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupStart() { return C_SUCCESS; }
 
-C_Status XcclGroupEnd() {
-  LOG(ERROR) << "xccl_group_end is not supported on mlu device.";
-  return C_ERROR;
-}
+C_Status XcclGroupEnd() { return C_SUCCESS; }
 
 C_Status XcclSend(void *send_buf,
                   size_t count,
@@ -436,12 +654,18 @@ C_Status XcclSend(void *send_buf,
                   size_t dest_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
+  if (data_type == C_DataType::INT64) {
+    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
+    // THE count.
+    count = count * 2;
+  }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclSend(send_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),
                                       dest_rank,
                                       reinterpret_cast<cnclComm_t>(comm),
-                                      GetQueue(stream)));
+                                      lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
 
@@ -451,19 +675,121 @@ C_Status XcclRecv(void *recv_buf,
                   size_t src_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
+  if (data_type == C_DataType::INT64) {
+    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
+    // THE count.
+    count = count * 2;
+  }
+  lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclRecv(recv_buf,
                                       count,
                                       PDDataTypeToCnclDataType(data_type),
                                       src_rank,
                                       reinterpret_cast<cnclComm_t>(comm),
-                                      GetQueue(stream)));
+                                      lastCommStream::Instance().get()));
   return C_SUCCESS;
 }
+
+#ifdef WITH_PROFILE
+void BufferRequestedCallback(uint64_t **buffer,
+                             size_t *size,
+                             size_t *max_num_records) {
+  Tracer::Instance().AllocateBuffer(buffer, size);
+  *max_num_records = 0;
+}
+
+void BufferCompletedCallback(uint64_t *buffer, size_t size, size_t valid_size) {
+  Tracer::Instance().ProduceBuffer(buffer, valid_size);
+}
+
+std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
+  std::unordered_map<uint32_t, uint64_t> mapping;
+  std::unordered_map<uint64_t, phi::ThreadId> ids = phi::GetAllThreadIds();
+  for (const auto &id : ids) {
+    mapping[id.second.cupti_tid] = id.second.sys_tid;
+  }
+  return mapping;
+}
+
+int ProcessCnpapiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+  int record_cnt = 0;
+  CNPAPI_CALL(cnpapiActivityFlushAll());
+  auto mapping = CreateThreadIdMapping();
+  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+  for (auto &buffer : buffers) {
+    if (buffer.addr == nullptr || buffer.valid_size == 0) {
+      continue;
+    }
+
+    cnpapiActivity *record = nullptr;
+    while (true) {
+      cnpapiResult status =
+          cnpapiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
+      if (status == CNPAPI_SUCCESS) {
+        ProcessCnpapiActivityRecord(record, tracing_start_ns_, mapping, prof);
+        ++record_cnt;
+      } else if (status == CNPAPI_ERROR_MAX_LIMIT_REACHED) {
+        break;
+      } else {
+        CNPAPI_CALL(status);
+      }
+    }
+
+    Tracer::Instance().ReleaseBuffer(buffer.addr);
+  }
+  return record_cnt;
+}
+
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiRelease());
+  return C_SUCCESS;
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiInit());
+  CNPAPI_CALL(cnpapiActivityRegisterCallbacks(BufferRequestedCallback,
+                                              BufferCompletedCallback));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_KERNEL));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMCPY));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMCPY_PTOP));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_MEMSET));
+  CNPAPI_CALL(cnpapiActivityEnable(CNPAPI_ACTIVITY_TYPE_CNDRV_API));
+  VLOG(3) << "enable cnpapi activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  Tracer::Instance().ConsumeBuffers();
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  CNPAPI_CALL(cnpapiActivityFlushAll());
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_KERNEL));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMCPY));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMCPY_PTOP));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_MEMSET));
+  CNPAPI_CALL(cnpapiActivityDisable(CNPAPI_ACTIVITY_TYPE_CNDRV_API));
+  VLOG(3) << "disable cnpapi activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t tracing_start_ns_,
+                             void *user_data) {
+  ProcessCnpapiActivity(prof, tracing_start_ns_);
+  return C_SUCCESS;
+}
+#endif
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
 
-  params->device_type = "CustomMLU";
+  params->device_type = "mlu";
   params->sub_device_type = "none";
 
   memset(reinterpret_cast<void *>(params->interface),
@@ -472,6 +798,8 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   // device
   params->interface->initialize = Init;
+  params->interface->finalize = Finalize;
+  params->interface->init_device = InitDevice;
   params->interface->set_device = SetDevice;
   params->interface->get_device = GetDevice;
   params->interface->synchronize_device = SyncDevice;
@@ -507,6 +835,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_event = DestroyEvent;
   params->interface->record_event = RecordEvent;
   params->interface->synchronize_event = SyncEvent;
+  params->interface->query_event = QueryEvent;
 
   // cl
   params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
@@ -522,4 +851,14 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_group_end = XcclGroupEnd;
   params->interface->xccl_send = XcclSend;
   params->interface->xccl_recv = XcclRecv;
+
+  // profiler
+#ifdef WITH_PROFILE
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
+#endif
 }

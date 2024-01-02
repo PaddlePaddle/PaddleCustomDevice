@@ -125,7 +125,7 @@ void SubtractGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractRawKernel,
                           int,
@@ -133,7 +133,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractKernel,
                           int,
@@ -141,7 +141,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::SubtractGradKernel,
                           int,

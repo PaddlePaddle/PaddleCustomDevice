@@ -19,8 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -28,15 +27,15 @@ paddle.enable_static()
 class TestAccuracyOp(OpTest):
     def setUp(self):
         self.op_type = "accuracy"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.dtype = np.float32
         self.init_dtype()
         n = 8192
         infer = np.random.random((n, 1)).astype(self.dtype)
-        indices = np.random.randint(0, 2, (n, 1)).astype('int32')
-        label = np.random.randint(0, 2, (n, 1)).astype('int32')
-        self.inputs = {'Out': infer, 'Indices': indices, "Label": label}
+        indices = np.random.randint(0, 2, (n, 1)).astype("int32")
+        label = np.random.randint(0, 2, (n, 1)).astype("int32")
+        self.inputs = {"Out": infer, "Indices": indices, "Label": label}
         num_correct = 0
         for rowid in range(n):
             for ele in indices[rowid]:
@@ -44,9 +43,9 @@ class TestAccuracyOp(OpTest):
                     num_correct += 1
                     break
         self.outputs = {
-            'Accuracy': np.array([num_correct / float(n)]).astype(self.dtype),
-            'Correct': np.array([num_correct]).astype("int32"),
-            'Total': np.array([n]).astype("int32")
+            "Accuracy": np.single(num_correct / float(n)),
+            "Correct": np.int_(num_correct),
+            "Total": np.int_(n),
         }
 
     def init_dtype(self):
@@ -64,76 +63,59 @@ class TestAccuracyOpFp16(TestAccuracyOp):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
-class TestAccuracyOpError(unittest.TestCase):
-    def test_errors(self):
-        with program_guard(Program(), Program()):
-            # The input type of accuracy_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace('CustomMLU', 0))
-            label = fluid.layers.data(
-                name='label', shape=[-1, 1], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.accuracy, x1, label)
-            self.assertRaises(TypeError, paddle.metric.accuracy, x1, label)
-            # The input dtype of accuracy_op must be float32 or float64.
-            x2 = fluid.layers.data(name='x2', shape=[4], dtype="int32")
-            self.assertRaises(TypeError, fluid.layers.accuracy, x2, label)
-            self.assertRaises(TypeError, paddle.metric.accuracy, x2, label)
-            x3 = fluid.layers.data(name='input', shape=[-1, 2], dtype="float16")
-            fluid.layers.accuracy(input=x3, label=label)
-            paddle.metric.accuracy(input=x3, label=label)
-
-
 class TestAccuracyAPI1(unittest.TestCase):
     def setUp(self):
         self.predictions = paddle.static.data(
-            shape=[2, 5], name="predictions", dtype="float32")
-        self.label = paddle.static.data(
-            shape=[2, 1], name="labels", dtype="int32")
+            shape=[2, 5], name="predictions", dtype="float32"
+        )
+        self.label = paddle.static.data(shape=[2, 1], name="labels", dtype="int32")
         self.result = paddle.static.accuracy(
-            input=self.predictions, label=self.label, k=1)
+            input=self.predictions, label=self.label, k=1
+        )
         self.input_predictions = np.array(
-            [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
-            dtype="float32")
+            [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]], dtype="float32"
+        )
         self.input_labels = np.array([[2], [0]], dtype="int32")
-        self.expect_value = np.array([0.5], dtype='float32')
+        self.expect_value = np.array([0.5], dtype="float32")
 
     def test_api(self):
-        paddle.set_device('CustomMLU')
+        paddle.set_device("mlu")
         exe = paddle.static.Executor()
-        result, = exe.run(feed={
-            "predictions": self.input_predictions,
-            'labels': self.input_labels
-        },
-                          fetch_list=[self.result.name])
+        (result,) = exe.run(
+            feed={"predictions": self.input_predictions, "labels": self.input_labels},
+            fetch_list=[self.result.name],
+        )
         self.assertEqual((result == self.expect_value).all(), True)
 
 
 class TestAccuracyAPI2(unittest.TestCase):
     def test_api(self):
-        paddle.set_device('CustomMLU')
-        with fluid.dygraph.guard():
+        paddle.set_device("mlu")
+        with base.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
-                dtype='float32')
+                dtype="float32",
+            )
             label = paddle.to_tensor([[2], [0]], dtype="int32")
             result = paddle.static.accuracy(input=predictions, label=label, k=1)
-            expect_value = np.array([0.5], dtype='float32')
+            expect_value = np.array([0.5], dtype="float32")
             self.assertEqual((result.numpy() == expect_value).all(), True)
 
 
 class TestAccuracyAPI(unittest.TestCase):
     def test_api(self):
-        paddle.set_device('CustomMLU')
-        with fluid.dygraph.guard():
+        paddle.set_device("mlu")
+        with base.dygraph.guard():
             predictions = paddle.to_tensor(
                 [[0.2, 0.1, 0.4, 0.1, 0.1], [0.2, 0.3, 0.1, 0.15, 0.25]],
-                dtype='float32')
+                dtype="float32",
+            )
             label = paddle.to_tensor([[2], [0]], dtype="int32")
             result = paddle.metric.accuracy(input=predictions, label=label, k=1)
-            expect_value = np.array([0.5], dtype='float32')
+            expect_value = np.array([0.5], dtype="float32")
 
             self.assertEqual((result.numpy() == expect_value).all(), True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

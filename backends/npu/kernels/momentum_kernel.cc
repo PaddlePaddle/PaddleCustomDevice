@@ -71,7 +71,7 @@ void MomentumKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(momentum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MomentumKernel,
                           phi::dtype::float16,

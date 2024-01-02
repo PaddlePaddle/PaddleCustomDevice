@@ -27,8 +27,10 @@ void IsEmptyKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(is_empty,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::IsEmptyKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}

@@ -1,0 +1,1 @@
+../../Paddle/test/legacy_test/config.py

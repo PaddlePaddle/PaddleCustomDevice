@@ -113,9 +113,6 @@ void LogLossGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    log_loss, ascend, ALL_LAYOUT, custom_kernel::LogLossKernel, float) {}
-PD_REGISTER_PLUGIN_KERNEL(log_loss_grad,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::LogLossGradKernel,
-                          float) {}
+    log_loss, npu, ALL_LAYOUT, custom_kernel::LogLossKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    log_loss_grad, npu, ALL_LAYOUT, custom_kernel::LogLossGradKernel, float) {}

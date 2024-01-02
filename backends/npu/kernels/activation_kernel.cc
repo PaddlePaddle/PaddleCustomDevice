@@ -23,7 +23,6 @@ void CosKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Cos", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -64,7 +63,6 @@ void AtanKernel(const Context& dev_ctx,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Atan", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -87,7 +85,6 @@ void ExpKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Exp", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -99,8 +96,51 @@ void ExpGradKernel(const Context& dev_ctx,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Mul", {dout, out}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Floor", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RsqrtKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Rsqrt", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RsqrtGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("RsqrtGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
 }
 
@@ -110,7 +150,6 @@ void SinKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
   const auto& runner = NpuOpRunner("Sin", {x}, {*out}, {});
   runner.Run(stream);
 }
@@ -119,28 +158,20 @@ void SinKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void SwishKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
-                 float beta,
                  phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
-  const auto& muls_runner = NpuOpRunner("Muls", {x}, {*out}, {{"value", beta}});
-  muls_runner.Run(stream);
-
-  const auto& sigmoid_runner = NpuOpRunner("Sigmoid", {*out}, {*out}, {});
-  sigmoid_runner.Run(stream);
-
-  const auto& mul_runner = NpuOpRunner("Mul", {x, *out}, {*out});
-  mul_runner.Run(stream);
+  const auto& runner =
+      NpuOpRunner("Swish", {x}, {*out}, {{"scale", static_cast<float>(1.0)}});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
 void SwishGradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& dout,
-                     float beta,
-                     phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
   phi::DenseTensor beta_x, sigmoid_out, swish_out;
@@ -152,7 +183,7 @@ void SwishGradKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&swish_out);
 
   const auto& muls_runner =
-      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", beta}});
+      NpuOpRunner("Muls", {x}, {beta_x}, {{"value", static_cast<float>(1.0)}});
   muls_runner.Run(stream);
 
   const auto& sigmoid_runner =
@@ -163,22 +194,43 @@ void SwishGradKernel(const Context& dev_ctx,
       NpuOpRunner("Mul", {sigmoid_out, x}, {swish_out}, {});
   mul_runner.Run(stream);
 
-  const auto& muls_runner2 =
-      NpuOpRunner("Muls", {swish_out}, {swish_out}, {{"value", beta}});
+  const auto& muls_runner2 = NpuOpRunner(
+      "Muls", {swish_out}, {swish_out}, {{"value", static_cast<float>(1.0)}});
   muls_runner2.Run(stream);
 
   const auto& mul_runner1 =
-      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*out}, {});
+      NpuOpRunner("Mul", {sigmoid_out, swish_out}, {*dx}, {});
   mul_runner1.Run(stream);
 
-  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *out}, {*out}, {});
+  const auto& sub_runner = NpuOpRunner("Sub", {swish_out, *dx}, {*dx}, {});
   sub_runner.Run(stream);
 
-  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *out}, {*out}, {});
+  const auto& add_runner = NpuOpRunner("Add", {sigmoid_out, *dx}, {*dx}, {});
   add_runner.Run(stream);
 
-  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *out}, {*out}, {});
+  const auto& mul_runner2 = NpuOpRunner("Mul", {dout, *dx}, {*dx}, {});
   mul_runner2.Run(stream);
+}
+
+// Silu = x * sigmoid(x)
+template <typename T, typename Context>
+void SiluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("Swish", {x}, {*out}, {{"scale", static_cast<float>(1.0)}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SiluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
 }
 
 template <typename T, typename Context>
@@ -204,22 +256,27 @@ void ReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void Relu6Kernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float attr,
-                 phi::DenseTensor* out) {
+void Relu6RawKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    float threshold,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu6", {x}, {*out}, {});
-
   auto stream = dev_ctx.stream();
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Relu6Kernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  custom_kernel::Relu6RawKernel<T, Context>(dev_ctx, x, 6.0, out);
 }
 
 template <typename T, typename Context>
 void Relu6GradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& out,
                      const phi::DenseTensor& dout,
-                     float attr,
                      phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(dx);
@@ -334,6 +391,114 @@ void SigmoidGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void EluKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               float alpha,
+               phi::DenseTensor* out) {
+  float scaleValue = 1.0f;
+  float inputScaleValue = 1.0f;
+  NPUAttributeMap attr_input = {{"alpha", alpha},
+                                {"scale", scaleValue},
+                                {"input_scale", inputScaleValue}};
+  dev_ctx.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("Elu", {x}, {*out}, attr_input);
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void EluGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,  // output
+                   const phi::DenseTensor& out,
+                   const phi::DenseTensor& dout,
+                   float alpha,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("EluGradV2", {dout, out}, {*dx}, {{"alpha", alpha}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void CeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float alpha,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("CeluV2", {x}, {*out}, {{"alpha", alpha}});
+  auto stream = dev_ctx.stream();
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void CeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  auto stream = dev_ctx.stream();
+  phi::DenseTensor tmp_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  tmp_out.set_meta(meta);
+
+  float times = alpha != 0.0 ? (1 / alpha) : 0.0;
+  dev_ctx.template Alloc<T>(&tmp_out);
+
+  const auto& runner =
+      NpuOpRunner("CeluV2", {x}, {tmp_out}, {{"alpha", alpha}});
+  runner.Run(stream);
+
+  const auto& runner_mul =
+      NpuOpRunner("Muls", {tmp_out}, {tmp_out}, {{"value", times}});
+  runner_mul.Run(stream);
+
+  dev_ctx.template Alloc<T>(dx);
+  const auto& runner_1 = NpuOpRunner(
+      "EluGradV2", {dout, tmp_out}, {*dx}, {{"alpha", times * alpha}});
+  runner_1.Run(stream);
+}
+
+template <typename T, typename Context>
+void SeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float scale,
+                float alpha,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  runner.SetType("Selu")
+      .AddInput(x)
+      .AddOutput(*out)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    float scale,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  // NOTE(songkai05): SeluGrad do not support double dtype
+  runner.SetType("SeluGrad")
+      .AddInput(dout)
+      .AddInput(out)
+      .AddOutput(*dx)
+      .AddAttr("scale", scale)
+      .AddAttr("alpha", alpha);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void SqrtKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DenseTensor* out) {
@@ -394,6 +559,42 @@ void LogGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void Log2Kernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Log",
+                                   {x},
+                                   {*out},
+                                   {{"base", static_cast<float>(2.0)},
+                                    {"scale", static_cast<float>(1.0)},
+                                    {"shift", static_cast<float>(0.0)}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void Log2GradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor x_log2;
+  x_log2.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_log2);
+
+  const auto& runner_mul = NpuOpRunner(
+      "Muls", {x}, {x_log2}, {{"value", static_cast<float>(log(2))}});
+  runner_mul.Run(stream);
+
+  const auto& runner_div = NpuOpRunner("DivNoNan", {dout, x_log2}, {*dx}, {});
+  runner_div.Run(stream);
+}
+
+template <typename T, typename Context>
 void PowKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::Scalar& factor_scalar,
@@ -449,14 +650,25 @@ void PowGradKernel(const Context& dev_ctx,
   // 2.2 Get the factor which has the shape with x and the same value with
   // factor.
   phi::DenseTensor factor_bc_tensor;
-  phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
-  factor_bc_tensor.set_meta(factor_bc_tensor_meta);
-  dev_ctx.template Alloc<T>(&factor_bc_tensor);
-  const auto& runner_bc = NpuOpRunner("FillD",
-                                      {factor_tensor},
-                                      {factor_bc_tensor},
-                                      {{"dims", phi::vectorize(x_dims)}});
-  runner_bc.Run(stream);
+  if (x_dims.size() > 0) {
+    phi::DenseTensorMeta factor_bc_tensor_meta = {x.dtype(), x_dims};
+    factor_bc_tensor.set_meta(factor_bc_tensor_meta);
+    dev_ctx.template Alloc<T>(&factor_bc_tensor);
+    if (factor_bc_tensor.numel() > 1) {
+      const auto& runner_bc = NpuOpRunner("FillD",
+                                          {factor_tensor},
+                                          {factor_bc_tensor},
+                                          {{"dims", phi::vectorize(x_dims)}});
+      runner_bc.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &factor_bc_tensor, dev_ctx, static_cast<T>(factor));
+    }
+  } else {
+    factor_bc_tensor = factor_tensor;
+    factor_bc_tensor.Resize(x_dims);
+  }
 
   // Step 3: Compute x_power_mul_factor = factor * x.pow(factor-1)
   phi::DenseTensor x_power_mul_factor;
@@ -512,6 +724,46 @@ void SquareGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void HardTanhKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    float t_min,
+                    float t_max,
+                    phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  // t_min and t_max
+  phi::DenseTensor min_tensor, max_tensor;
+  phi::DenseTensorMeta meta1 = {x.dtype(), {1}};
+  min_tensor.set_meta(meta1);
+  max_tensor.set_meta(meta1);
+  dev_ctx.template Alloc<T>(&min_tensor);
+  dev_ctx.template Alloc<T>(&max_tensor);
+
+  FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, static_cast<T>(t_min));
+  FillNpuTensorWithConstant<T>(&max_tensor, dev_ctx, static_cast<T>(t_max));
+
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("ClipByValue", {x, min_tensor, max_tensor}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardTanhGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& out,
+                        const phi::DenseTensor& dout,
+                        float t_min,
+                        float t_max,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+
+  NPUAttributeMap attr_input = {{"min_val", t_min}, {"max_val", t_max}};
+  auto stream = dev_ctx.stream();
+  const auto& runner_dx =
+      NpuOpRunner("HardtanhGrad", {out, dout}, {*dx}, attr_input);
+  runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
 void HardSigmoidKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        float slope,
@@ -544,13 +796,12 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void HardSwishKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
-                     float threshold,
-                     float scale,
-                     float offset,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
   phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
   phi::DenseTensor tensor_offset;
@@ -591,13 +842,25 @@ void HardSwishKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_scale_tmp, dev_ctx, static_cast<T>(scale));
   phi::DenseTensor tensor_scale;
-  tensor_scale.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_scale);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_scale_tmp},
-                                        {tensor_scale},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_scale.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_scale);
+    if (tensor_scale.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_scale_tmp},
+                      {tensor_scale},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_scale, dev_ctx, static_cast<T>(scale));
+    }
+  } else {
+    tensor_scale = tensor_scale_tmp;
+    tensor_scale.Resize(x.dims());
+  }
 
   phi::DenseTensor div_val;
   div_val.set_meta(meta_x);
@@ -614,13 +877,12 @@ template <typename T, typename Context>
 void HardSwishGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& dout,
-                         float threshold,
-                         float scale,
-                         float offset,
                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
-
+  float threshold = 6;
+  float scale = 6;
+  float offset = 3;
   phi::DenseTensorMeta meta_1 = {x.dtype(), {1}};
   phi::DenseTensorMeta meta_x = {x.dtype(), x.dims()};
   phi::DenseTensor tensor_offset;
@@ -665,13 +927,25 @@ void HardSwishGradKernel(const Context& dev_ctx,
   FillNpuTensorWithConstant<T>(
       &tensor_threshold_tmp, dev_ctx, static_cast<T>(threshold));
   phi::DenseTensor tensor_threshold;
-  tensor_threshold.set_meta(meta_x);
-  dev_ctx.template Alloc<T>(&tensor_threshold);
-  const auto& runner_fill = NpuOpRunner("FillD",
-                                        {tensor_threshold_tmp},
-                                        {tensor_threshold},
-                                        {{"dims", phi::vectorize(x.dims())}});
-  runner_fill.Run(stream);
+  if (x.dims().size() > 0) {
+    tensor_threshold.set_meta(meta_x);
+    dev_ctx.template Alloc<T>(&tensor_threshold);
+    if (tensor_threshold.numel() > 1) {
+      const auto& runner_fill =
+          NpuOpRunner("FillD",
+                      {tensor_threshold_tmp},
+                      {tensor_threshold},
+                      {{"dims", phi::vectorize(x.dims())}});
+      runner_fill.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &tensor_threshold, dev_ctx, static_cast<T>(threshold));
+    }
+  } else {
+    tensor_threshold = tensor_threshold_tmp;
+    tensor_threshold.Resize(x.dims());
+  }
 
   phi::DenseTensor tmp_bool;
   phi::DenseTensorMeta meta_tmp = {phi::DataType::BOOL, x.dims()};
@@ -699,6 +973,86 @@ void HardSwishGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SoftplusKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const float beta,
+                    const float threshold,
+                    phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner(
+      "SoftplusV2", {x}, {*out}, {{"beta", beta}, {"threshold", threshold}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftplusGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& a,
+                        const phi::DenseTensor& dout,
+                        const float beta,
+                        const float threshold,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("SoftplusV2Grad",
+                                   {dout, a},
+                                   {*dx},
+                                   {{"beta", beta}, {"threshold", threshold}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftshrinkKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const float lambd,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  PD_CHECK(lambd > 0, "lambd should be greater than 0");
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("SoftShrink", {x}, {*out}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SoftshrinkGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& a,
+                          const phi::DenseTensor& dout,
+                          const float lambd,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("SoftShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardshrinkKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const float lambd,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("HardShrink", {x}, {*out}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardshrinkGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& a,
+                          const phi::DenseTensor& dout,
+                          const float lambd,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner =
+      NpuOpRunner("HardShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void ReciprocalKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       phi::DenseTensor* out) {
@@ -718,10 +1072,57 @@ void ReciprocalGradKernel(const Context& dev_ctx,
   const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
 }
+
+template <typename T, typename Context>
+void MishKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float threshold,
+                phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(out);
+
+  const auto& runner = NpuOpRunner("Mish", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void MishGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    float threshold,
+                    phi::DenseTensor* dx) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(dx);
+
+  const auto& runner = NpuOpRunner("MishGrad", {dout, x}, {*dx}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RoundKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(out);
+
+  const auto& runner = NpuOpRunner("Round", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RoundGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  auto dx_dims = dx->dims();
+  dev_ctx.template Alloc<T>(dx);
+  FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+  dx->Resize(dx_dims);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CosKernel,
                           float,
@@ -729,7 +1130,7 @@ PD_REGISTER_PLUGIN_KERNEL(cos,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cos_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CosGradKernel,
                           float,
@@ -737,7 +1138,7 @@ PD_REGISTER_PLUGIN_KERNEL(cos_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AtanKernel,
                           float,
@@ -745,22 +1146,31 @@ PD_REGISTER_PLUGIN_KERNEL(atan,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AtanGradKernel,
                           float,
                           double,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    exp, ascend, ALL_LAYOUT, custom_kernel::ExpKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(exp,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::ExpKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    exp_grad, ascend, ALL_LAYOUT, custom_kernel::ExpGradKernel, float, double) {
-}
+PD_REGISTER_PLUGIN_KERNEL(exp_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::ExpGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sin,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SinKernel,
                           float,
@@ -768,21 +1178,35 @@ PD_REGISTER_PLUGIN_KERNEL(sin,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SwishGradKernel,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(silu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(silu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(relu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReluKernel,
                           float,
@@ -790,7 +1214,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReluGradKernel,
                           float,
@@ -798,7 +1222,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu6,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6Kernel,
                           float,
@@ -806,7 +1230,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu6,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::Relu6GradKernel,
                           float,
@@ -814,7 +1238,7 @@ PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(leaky_relu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LeakyReluKernel,
                           float,
@@ -822,7 +1246,7 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LeakyReluGradKernel,
                           float,
@@ -830,63 +1254,95 @@ PD_REGISTER_PLUGIN_KERNEL(leaky_relu_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PowKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::PowGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogKernel,
+                          double,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
+                          double,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2Kernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2GradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(floor,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::FloorKernel,
+                          double,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(floor_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::FloorGradKernel,
+                          double,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GeluKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::GeluGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TanhKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TanhGradKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidKernel,
                           float,
@@ -894,7 +1350,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidGradKernel,
                           float,
@@ -902,7 +1358,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SqrtKernel,
                           float,
@@ -910,7 +1366,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SqrtGradKernel,
                           float,
@@ -918,7 +1374,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquareKernel,
                           float,
@@ -926,43 +1382,99 @@ PD_REGISTER_PLUGIN_KERNEL(square,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SquareGradKernel,
                           float,
                           phi::dtype::float16,
                           double) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(hardtanh,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardTanhKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hardtanh_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardTanhGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_sigmoid_grad,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSigmoidGradKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(hardswish,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishKernel,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hard_swish_grad,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(hardswish_grad,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::HardSwishGradKernel,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(softplus,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftplusKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softplus_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftplusGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softshrink,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftshrinkKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(softshrink_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftshrinkGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_shrink,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardshrinkKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hard_shrink_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::HardshrinkGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(reciprocal,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReciprocalKernel,
                           float,
@@ -970,9 +1482,91 @@ PD_REGISTER_PLUGIN_KERNEL(reciprocal,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(reciprocal_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ReciprocalGradKernel,
                           float,
                           double,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(selu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(
+    rsqrt, npu, ALL_LAYOUT, custom_kernel::RsqrtKernel, float, double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtGradKernel,
+                          float,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::EluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::EluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(celu,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::CeluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(celu_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::CeluGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(mish,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(mish_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          double) {}

@@ -1,11 +1,11 @@
 # Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,10 +16,8 @@ from __future__ import print_function, division
 
 import numpy as np
 import unittest
-import sys
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 
@@ -39,13 +37,13 @@ class TestNPUAbs(OpTest):
         x[np.abs(x) < 0.005] = 0.02
         out = np.abs(x)
 
-        self.inputs = {'X': x}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -54,7 +52,16 @@ class TestNPUAbs(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+
+class TestNPUAbsInt64(TestNPUAbs):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    # get_numeric_gradient not support int64
+    def test_check_grad(self):
+        pass
 
 
 # To-do(qili93): numeric_place will use CPUPlace in op_test.py and abs do not have CPUKernel for float16, to be uncommented after numeric_place fixed
@@ -63,5 +70,5 @@ class TestNPUAbs(OpTest):
 #     def init_dtype(self):
 #         self.dtype = np.float16
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -23,7 +23,6 @@ void LayerNormKernel(const Context& dev_ctx,
                      const paddle::optional<phi::DenseTensor>& bias_opt,
                      float epsilon,
                      int begin_norm_axis,
-                     bool is_test,
                      phi::DenseTensor* out,
                      phi::DenseTensor* mean,
                      phi::DenseTensor* variance) {
@@ -151,7 +150,6 @@ void LayerNormGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& out_grad,
                          float epsilon,
                          int begin_norm_axis,
-                         bool is_test,
                          phi::DenseTensor* x_grad,
                          phi::DenseTensor* scale_grad,
                          phi::DenseTensor* bias_grad) {
@@ -269,14 +267,14 @@ void LayerNormGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradKernel,
                           float,

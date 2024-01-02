@@ -74,7 +74,7 @@ void ExpandKernel(const Context& dev_ctx,
   auto rank = x.dims().size();
   PADDLE_ENFORCE_GE(
       rank,
-      1,
+      0,
       phi::errors::InvalidArgument(
           "The rank of the input 'x' for expand_v2_mlu op must be positive, "
           "but the value received is %d.",
@@ -110,7 +110,7 @@ void ExpandKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(expand,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ExpandKernel,
                           bool,
@@ -120,7 +120,7 @@ PD_REGISTER_PLUGIN_KERNEL(expand,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(expand_grad,
-//                           CustomMLU,
+//                           mlu,
 //                           ALL_LAYOUT,
 //                           custom_kernel::ExpandGradKernel,
 //                           int,

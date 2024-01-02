@@ -74,10 +74,10 @@ void SumRawKernel(const Context& dev_ctx,
                   const phi::IntArray& axes,
                   bool keep_dim,
                   bool reduce_all,
-                  phi::DenseTensorMeta::DataType out_dtype,
+                  phi::DataType out_dtype,
                   phi::DenseTensor* out) {
   auto dims = axes.GetData();
-  dev_ctx.template Alloc<T>(out);
+  dev_ctx.Alloc(out, out->dtype());
 
   // special case
   if (x.dims().size() == 1 && keep_dim == false) {
@@ -86,23 +86,53 @@ void SumRawKernel(const Context& dev_ctx,
 
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
+  if (x.dims().size() == 0) {
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {x},
+        {*out},
+        {{"dst_tytpe", static_cast<int>(ConvertToNpuDtype(out->dtype()))}});
+    cast_runner.Run(stream);
+    return;
+  }
+
   phi::DenseTensor cast_x;
   phi::DenseTensor cast_out;
-  // NOTE: ReduceSumD only supports fp32 and fp16
-  if (x.dtype() != phi::DataType::FLOAT32 &&
-      x.dtype() != phi::DataType::FLOAT16) {
-    cast_x.Resize(x.dims());
-    dev_ctx.template Alloc<float>(&cast_x);
+
+  if (out->dtype() == phi::DataType::BOOL) {
+    if (x.dtype() == phi::DataType::FLOAT32) {
+      cast_x = x;
+    } else {
+      cast_x.Resize(x.dims());
+      dev_ctx.template Alloc<float>(&cast_x);
+
+      const auto& cast_runner =
+          NpuOpRunner("Cast", {x}, {cast_x}, {{"dst_tytpe", ACL_FLOAT}});
+      cast_runner.Run(stream);
+    }
+
     cast_out.Resize(out->dims());
     dev_ctx.template Alloc<float>(&cast_out);
-
-    const auto& runner_cast = NpuOpRunner(
-        "Cast", {x}, {cast_x}, {{"dst_type", static_cast<int>(ACL_FLOAT)}});
-    runner_cast.Run(stream);
-  } else {
+  } else if (out->dtype() == x.dtype()) {
     cast_x = x;
     cast_out = *out;
+  } else {
+    phi::DenseTensorMeta meta = {out->dtype(), x.dims()};
+    cast_x.set_meta(meta);
+    dev_ctx.Alloc(&cast_x, cast_x.dtype());
+
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {x},
+        {cast_x},
+        {{"dst_tytpe", static_cast<int>(ConvertToNpuDtype(out->dtype()))}});
+    cast_runner.Run(stream);
+
+    cast_out = *out;
   }
+
+  reduce_all = (reduce_all || axes.size() == 0 || x.dims().size() == 0 ||
+                static_cast<int>(axes.size()) == x.dims().size());
 
   if (reduce_all) {
     std::vector<int> dim_vec;
@@ -110,23 +140,24 @@ void SumRawKernel(const Context& dev_ctx,
       dim_vec.push_back(i);
     }
 
-    const auto& runner =
-        NpuOpRunner("ReduceSumD",
-                    {cast_x},
-                    {cast_out},
-                    {{"axes", dim_vec}, {"keep_dims", keep_dim}});
+    NpuOpRunner runner;
+    runner.SetType("ReduceSum")
+        .AddInput(cast_x)
+        .AddInput(dev_ctx, std::move(dim_vec))
+        .AddOutput(cast_out)
+        .AddAttr("keep_dims", keep_dim);
     runner.Run(stream);
-
   } else {
-    const auto& runner = NpuOpRunner("ReduceSumD",
-                                     {cast_x},
-                                     {cast_out},
-                                     {{"axes", dims}, {"keep_dims", keep_dim}});
+    NpuOpRunner runner;
+    runner.SetType("ReduceSum")
+        .AddInput(cast_x)
+        .AddInput(dev_ctx, std::move(dims))
+        .AddOutput(cast_out)
+        .AddAttr("keep_dims", keep_dim);
     runner.Run(stream);
   }
 
-  if (x.dtype() != phi::DataType::FLOAT32 &&
-      x.dtype() != phi::DataType::FLOAT16) {
+  if (out->dtype() == phi::DataType::BOOL) {
     auto dst_dtype = ConvertToNpuDtype(out->dtype());
     const auto& runner_cast =
         NpuOpRunner("Cast",
@@ -141,11 +172,12 @@ template <typename T, typename Context>
 void SumKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::IntArray& dims,
-               phi::DenseTensorMeta::DataType out_dtype,
+               phi::DataType out_dtype,
                bool keep_dim,
                phi::DenseTensor* out) {
   bool reduce_all = false;
-  if (dims.size() == 0) {
+  if (dims.size() == 0 || x.dims().size() == 0 ||
+      static_cast<int>(dims.size()) == x.dims().size()) {
     reduce_all = true;
   }
   custom_kernel::SumRawKernel<T>(
@@ -160,6 +192,30 @@ void SumGradKernel(const Context& dev_ctx,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
+  dev_ctx.Alloc(x_grad, x_grad->dtype());
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor out_grad_tmp;
+  if (x_grad->dtype() == out_grad.dtype()) {
+    out_grad_tmp = out_grad;
+  } else {
+    phi::DenseTensorMeta meta = {x_grad->dtype(), out_grad.dims()};
+    out_grad_tmp.set_meta(meta);
+    dev_ctx.Alloc(&out_grad_tmp, out_grad_tmp.dtype());
+
+    const auto& cast_runner = NpuOpRunner(
+        "Cast",
+        {out_grad},
+        {out_grad_tmp},
+        {{"dst_type", static_cast<int>(ConvertToNpuDtype(x_grad->dtype()))}});
+    cast_runner.Run(stream);
+  }
+
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad_tmp, true, x_grad);
+    return;
+  }
+
   auto keep_dims = keep_dim;
 
   auto dims = dims_array.GetData();
@@ -174,32 +230,26 @@ void SumGradKernel(const Context& dev_ctx,
       break;
     }
   }
-  reduce_all = (reduce_all || full_dim);
-
-  dev_ctx.template Alloc<T>(x_grad);
-  auto stream = dev_ctx.stream();
+  reduce_all = (reduce_all || full_dim || dims.size() == 0);
 
   if (keep_dims || reduce_all) {
-    const auto& runner = NpuOpRunner("BroadcastToD",
-                                     {out_grad},
-                                     {*x_grad},
-                                     {{"shape", phi::vectorize(x.dims())}});
+    NpuOpRunner runner;
+    runner.SetType("BroadcastTo")
+        .AddInput(out_grad_tmp)
+        .AddInput(dev_ctx, phi::vectorize(x.dims()))
+        .AddOutput(*x_grad);
     runner.Run(stream);
   } else {
     phi::DDim out_dims;
     out_dims = GetOutputShape(dims, out_grad.dims());
 
-    phi::DenseTensor out_grad_tmp;
-    phi::DenseTensorMeta out_grad_tmp_meta = {out_grad.dtype(), out_dims};
-    out_grad_tmp.set_meta(out_grad_tmp_meta);
-    dev_ctx.template Alloc<T>(&out_grad_tmp);
-    TensorCopy(dev_ctx, out_grad, false, &out_grad_tmp);
     out_grad_tmp.Resize(out_dims);
 
-    const auto& runner = NpuOpRunner("BroadcastToD",
-                                     {out_grad_tmp},
-                                     {*x_grad},
-                                     {{"shape", phi::vectorize(x.dims())}});
+    NpuOpRunner runner;
+    runner.SetType("BroadcastTo")
+        .AddInput(out_grad_tmp)
+        .AddInput(dev_ctx, phi::vectorize(x.dims()))
+        .AddOutput(*x_grad);
     runner.Run(stream);
   }
 }
@@ -207,32 +257,39 @@ void SumGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sum_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SumRawKernel,
+                          bool,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
-                          float) {
-  kernel->OutputAt(0).SetDataType(paddle::experimental::DataType::UNDEFINED);
+                          float,
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SumKernel,
+                          bool,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
-                          float) {
-  kernel->OutputAt(0).SetDataType(paddle::experimental::DataType::UNDEFINED);
+                          float,
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(sum_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SumGradKernel,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
-                          float) {}
+                          float,
+                          double) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

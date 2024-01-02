@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
 
@@ -46,151 +48,6 @@ void UpdateAttr(const phi::DDim& in_dims,
     (*offsets)[i] = start;
     (*size)[i] = end - start;
   }
-}
-
-template <typename T = int64_t>
-inline void CheckAndUpdateSliceAttrs(const phi::DDim in_dims,
-                                     const std::vector<T>& axes,
-                                     std::vector<T>* starts,
-                                     std::vector<T>* ends,
-                                     std::vector<int64_t>* steps = nullptr,
-                                     std::vector<T>* infer_flags = nullptr) {
-  for (size_t i = 0; i < axes.size(); ++i) {
-    T axis = axes[i];
-    PADDLE_ENFORCE_LT(
-        axis,
-        in_dims.size(),
-        phi::errors::InvalidArgument(
-            "The axis value should be less than the rank of input, "
-            "but received axes[%d] = %d, rank of input is %d.",
-            i,
-            axis,
-            in_dims.size()));
-
-    if (infer_flags != nullptr && (*infer_flags)[i] == -1) {
-      continue;
-    }
-
-    T dim_value = in_dims[axis];
-
-    if (dim_value > 0) {
-      T step = steps == nullptr ? 1 : (*steps)[i];
-      PADDLE_ENFORCE_NE(
-          step,
-          0,
-          phi::errors::InvalidArgument(
-              "Step should not be 0, but received step = %d.", step));
-
-      T start = (*starts)[i] < 0 ? ((*starts)[i] + dim_value) : (*starts)[i];
-      start = std::max(start, static_cast<T>(0));
-
-      T end =
-          0 < step && (*ends)[i] < 0 ? ((*ends)[i] + dim_value) : (*ends)[i];
-      end = std::min(end, dim_value);
-
-      if (step > 0) {
-        start = std::min(start, dim_value);
-        end = std::max(end, static_cast<T>(0));
-        PADDLE_ENFORCE_GE(
-            end,
-            start,
-            phi::errors::InvalidArgument(
-                "When step > 0, end should be greater than start, but "
-                "received end = %d, start = %d.",
-                end,
-                start));
-      } else {
-        // NOTE(liym27): When step < 0, start should less and equal to
-        // dim_value-1
-        // "end is -1" means contain the 0-th element of this axis.
-        start = std::min(start, dim_value - 1);
-        if (end < -1) {
-          end += dim_value;
-        }
-        end = std::max(end, static_cast<T>(-1));
-        PADDLE_ENFORCE_GE(
-            start,
-            end,
-            phi::errors::InvalidArgument(
-                "When step < 0, start should be greater than end, but "
-                "received start = %d, end = %d.",
-                start,
-                end));
-      }
-
-      (*starts)[i] = start;
-      (*ends)[i] = end;
-    } else if (dim_value == 0) {
-      (*starts)[i] = 0;
-      (*ends)[i] = 0;
-    }
-  }
-}
-
-template <typename T = int64_t>
-inline phi::DDim GetSliceDims(const phi::DDim in_dims,
-                              const std::vector<T>& axes,
-                              const std::vector<T>& starts,
-                              const std::vector<T>& ends,
-                              std::vector<T>* steps = nullptr,
-                              std::vector<T>* infer_flags = nullptr) {
-  phi::DDim slice_dims(in_dims);
-
-  for (size_t i = 0; i < axes.size(); ++i) {
-    T axis = axes[i];
-    if (infer_flags != nullptr && (*infer_flags)[i] == -1) {
-      slice_dims[axis] = -1;
-      continue;
-    }
-
-    T start = starts[i];
-    T end = ends[i];
-    T step = steps == nullptr ? 1 : (*steps)[i];
-
-    if (step > 0) {
-      slice_dims[axis] = (end - start + step - 1) / step;
-    } else {
-      slice_dims[axis] = (end - start + step + 1) / step;
-    }
-  }
-  return slice_dims;
-}
-
-template <typename T = int64_t>
-inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
-                                  const std::vector<T>& decrease_axes,
-                                  std::vector<T>* infer_flags = nullptr) {
-  phi::DDim decreased_dims(slice_dims);
-  std::vector<uint8_t> decrease_flag(slice_dims.size(), 0);
-  if (decrease_axes.size() > 0) {
-    for (size_t i = 0; i < decrease_axes.size(); ++i) {
-      T axis = decrease_axes[i];
-      decrease_flag[axis] = 1;
-      if (infer_flags && (*infer_flags)[i] != -1) {
-        PADDLE_ENFORCE_EQ(decreased_dims[axis],
-                          1,
-                          phi::errors::InvalidArgument(
-                              "Decrease dim should be 1, but now received %d",
-                              decreased_dims[axis]));
-      }
-    }
-
-    std::vector<T> new_shape;
-    for (int i = 0; i < decreased_dims.size(); ++i) {
-      if (decrease_flag[i] == 0) {
-        new_shape.push_back(decreased_dims[i]);
-      }
-    }
-
-    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
-    // uses [1] instead.
-    if (new_shape.size() == 0) {
-      new_shape.push_back(1);
-    }
-
-    decreased_dims = phi::make_ddim(new_shape);
-  }
-  return decreased_dims;
 }
 
 template <typename T, typename Context>
@@ -316,10 +173,126 @@ void SliceGradRawKernel(const Context& dev_ctx,
       NpuOpRunner("PadD", {tmp_dout}, {*x_grad}, {{"paddings", paddings}});
   runner.Run(stream);
 }
+
+template <typename T, typename Context>
+void SliceArrayKernel(const Context& dev_ctx,
+                      const phi::TensorArray& input,
+                      const phi::IntArray& starts,
+                      const phi::IntArray& ends,
+                      phi::TensorArray* out) {
+  int64_t in_size = input.size();
+  int64_t start = starts[0] < 0 ? (starts[0] + in_size) : starts[0];
+  int64_t end = ends[0] < 0 ? (ends[0] + in_size) : ends[0];
+
+  start = std::max(start, static_cast<int64_t>(0));
+  end = std::max(end, static_cast<int64_t>(0));
+  end = std::min(end, in_size);
+
+  if (starts[0] == -1 && end == 0) {
+    end = start + 1;
+  }
+
+  PADDLE_ENFORCE_GT(end,
+                    start,
+                    phi::errors::InvalidArgument(
+                        "Attr(ends) should be greater than attr(starts) in "
+                        "slice op. But received end = %d, start = %d.",
+                        ends[0],
+                        starts[0]));
+  int64_t out_size = end - start;
+
+  out->resize(out_size);
+  for (int i = 0; i < out_size; ++i) {
+    auto* out_tensor = &out->at(i);
+    const auto& in_tensor = input.at(i + start);
+    out_tensor->Resize(in_tensor.dims());
+    if (in_tensor.initialized() && in_tensor.numel() > 0) {
+      phi::Copy<Context>(
+          dev_ctx, in_tensor, dev_ctx.GetPlace(), false, out_tensor);
+    } else {
+      VLOG(10) << "WARNING: The input tensor 'x_tensor' holds no memory, so "
+                  "nothing has been written to output array["
+               << i << "].";
+    }
+  }
+}
+
+template <typename T, typename Context>
+void SliceArrayDenseKernel(const Context& dev_ctx,
+                           const phi::TensorArray& input,
+                           const phi::IntArray& starts,
+                           phi::DenseTensor* out) {
+  int64_t in_size = input.size();
+  int64_t start = starts[0] < 0 ? (starts[0] + in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  out->Resize(input[start].dims());
+  phi::Copy<Context>(dev_ctx, input[start], dev_ctx.GetPlace(), false, out);
+}
+
+template <typename T, typename Context>
+void SliceArrayGradKernel(const Context& dev_ctx,
+                          const phi::TensorArray& input,
+                          const phi::TensorArray& out_grad,
+                          const phi::IntArray& starts,
+                          const phi::IntArray& ends,
+                          phi::TensorArray* input_grad) {
+  int64_t d_in_size = input.size();
+  input_grad->resize(d_in_size);
+  // If the input is TensorArray, the rank of input is 1.
+  // So only use the 0th element of starts.
+  int64_t start = starts[0] < 0 ? (starts[0] + d_in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  // set zero
+  for (int i = 0; i < d_in_size; ++i) {
+    const auto& dim = input.at(i).dims();
+    auto* in_grad_tensor = &input_grad->at(i);
+    in_grad_tensor->Resize(dim);
+    dev_ctx.template Alloc<T>(in_grad_tensor);
+    FillNpuTensorWithConstant<T>(in_grad_tensor, dev_ctx, static_cast<T>(0));
+    in_grad_tensor->Resize(dim);
+  }
+
+  int d_out_size = out_grad.size();
+  for (int i = 0; i < d_out_size; ++i) {
+    input_grad->at(start + i).Resize(out_grad[i].dims());
+    phi::Copy<Context>(dev_ctx,
+                       out_grad[i],
+                       dev_ctx.GetPlace(),
+                       false,
+                       &input_grad->at(start + i));
+  }
+}
+
+template <typename T, typename Context>
+void SliceArrayDenseGradKernel(const Context& dev_ctx,
+                               const phi::TensorArray& input,
+                               const phi::DenseTensor& out_grad,
+                               const phi::IntArray& starts,
+                               phi::TensorArray* input_grad) {
+  int64_t d_in_size = input.size();
+  input_grad->resize(d_in_size);
+  // If the input is TensorArray, the rank of input is 1.
+  // So only use the 0th element of starts.
+  int64_t start = starts[0] < 0 ? (starts[0] + d_in_size) : starts[0];
+  start = std::max(start, static_cast<int64_t>(0));
+  // set zero
+  for (int i = 0; i < d_in_size; ++i) {
+    const auto& dim = input.at(i).dims();
+    auto* in_grad_tensor = &input_grad->at(i);
+    in_grad_tensor->Resize(dim);
+    dev_ctx.template Alloc<T>(in_grad_tensor);
+    FillNpuTensorWithConstant<T>(in_grad_tensor, dev_ctx, static_cast<T>(0));
+    in_grad_tensor->Resize(dim);
+  }
+
+  phi::Copy<Context>(
+      dev_ctx, out_grad, dev_ctx.GetPlace(), false, &input_grad->at(start));
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SliceRawKernel,
                           phi::dtype::float16,
@@ -329,10 +302,59 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           int32_t,
                           int64_t,
                           bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_dense,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayDenseKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SliceGradRawKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayGradKernel,
+                          phi::dtype::float16,
+                          float,
+                          double,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_array_dense_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::SliceArrayDenseGradKernel,
                           phi::dtype::float16,
                           float,
                           double,

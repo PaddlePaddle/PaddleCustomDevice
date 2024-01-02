@@ -52,7 +52,6 @@ void LayerNormNPUKernel(const Context& dev_ctx,
                         const paddle::optional<phi::DenseTensor>& bias_opt,
                         float epsilon,
                         int begin_norm_axis,
-                        bool is_test,
                         phi::DenseTensor* out,
                         phi::DenseTensor* mean,
                         phi::DenseTensor* variance) {
@@ -65,7 +64,7 @@ void LayerNormNPUKernel(const Context& dev_ctx,
   int right = static_cast<int>(matrix_dim[1]);
 
   // The shape of scale and bias should be equal to x.shape[begin_norm_axis:],
-  // required by Ascend.
+  // required by npu.
   for (auto i = begin_norm_axis; i < x_dims.size(); ++i) {
     axes.push_back(x_dims[i]);
   }
@@ -78,19 +77,25 @@ void LayerNormNPUKernel(const Context& dev_ctx,
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<T>(&default_scale);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_scale.numel() > 1) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_scale);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_scale);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &default_scale, dev_ctx, static_cast<T>(1.0));
+    }
     scale = &default_scale;
   } else {
     const_cast<Tensor*>(scale)->Resize(phi::make_ddim(axes));
@@ -102,19 +107,24 @@ void LayerNormNPUKernel(const Context& dev_ctx,
     default_bias.set_meta(default_bias_meta);
     dev_ctx.template Alloc<T>(&default_bias);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_bias.numel() > 1) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_bias);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_bias);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(&default_bias, dev_ctx, static_cast<T>(0));
+    }
     bias = &default_bias;
   } else {
     const_cast<Tensor*>(bias)->Resize(phi::make_ddim(axes));
@@ -234,7 +244,6 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
                             const phi::DenseTensor& out_grad,
                             float epsilon,
                             int begin_norm_axis,
-                            bool is_test,
                             phi::DenseTensor* x_grad,
                             phi::DenseTensor* scale_grad,
                             phi::DenseTensor* bias_grad) {
@@ -257,7 +266,7 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
     return;
   }
 
-  // The rank of mean should be equal to x, required by Ascend.
+  // The rank of mean should be equal to x, required by npu.
   std::vector<int> new_shape;
   for (auto i = 0; i < begin_norm_axis; ++i) {
     new_shape.push_back(x_dims[i]);
@@ -276,19 +285,25 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
     default_scale.set_meta(default_scale_meta);
     dev_ctx.template Alloc<T>(&default_scale);
 
-    Tensor value;
-    phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
-    value.set_meta(value_meta);
-    dev_ctx.template Alloc<T>(&value);
+    if (default_scale.numel() > 0) {
+      Tensor value;
+      phi::DenseTensorMeta value_meta = {x.dtype(), phi::make_ddim({1})};
+      value.set_meta(value_meta);
+      dev_ctx.template Alloc<T>(&value);
 
-    FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
+      FillNpuTensorWithConstant<T>(&value, dev_ctx, static_cast<T>(1.0));
 
-    NpuOpRunner runner;
-    runner.SetType("Fill")
-        .AddInput(dev_ctx, std::move(axes))
-        .AddInput(value)
-        .AddOutput(default_scale);
-    runner.Run(stream);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, std::move(axes))
+          .AddInput(value)
+          .AddOutput(default_scale);
+      runner.Run(stream);
+    } else {
+      // CANN op Fill/FillD would raise error when output's numel is 1.
+      FillNpuTensorWithConstant<T>(
+          &default_scale, dev_ctx, static_cast<T>(1.0));
+    }
     scale = &default_scale;
   } else {
     const_cast<Tensor*>(scale)->Resize(phi::make_ddim(axes));
@@ -424,14 +439,14 @@ void LayerNormGradNPUKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormNPUKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradNPUKernel,
                           float,

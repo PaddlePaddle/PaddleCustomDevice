@@ -1,0 +1,70 @@
+# Docker Image for PaddlePaddle MLU
+
+FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
+LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
+
+# version for mlu packages
+ARG CNTOOLKIT_VERSION
+ARG CNNL_VERSION
+ARG CNNL_EXTRA_VERSION
+ARG CNCL_VERSION
+ARG MLUOPS_VERSION
+
+# user and password for ftp
+ARG FTP_USER
+ARG FTP_PASSWORD
+
+RUN apt update && \
+    apt install -y gdb valgrind
+
+# install cntoolkit
+RUN cd /tmp && \
+    wget -O cntoolkit_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/cntoolkit_${CNTOOLKIT_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    dpkg -i cntoolkit_install_pkg.deb && \
+    apt update && \
+    apt-get install -y cnrt cnperf cnpapi cnlicense cngdb cndrv cndev cncodec cncc cnas cnbin cnstudio cnrtc cnvs && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cntoolkit-* && \
+    rm -f /etc/apt/sources.list.d/cntoolkit-*.list && \
+    rm -f cntoolkit_install_pkg.deb
+
+# install cnnl
+RUN cd /tmp && \
+    wget -O cnnl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/cnnl_${CNNL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    dpkg -i cnnl_install_pkg.deb && \
+    rm -f cnnl_install_pkg.deb
+
+# install cnnl_extra
+RUN cd /tmp && \
+    wget -O cnnlextra_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/cnnlextra_${CNNL_EXTRA_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    dpkg -i cnnlextra_install_pkg.deb && \
+    rm -f cnnlextra_install_pkg.deb
+
+# install cncl
+RUN cd /tmp && \
+    wget -O cncl_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/cncl_${CNCL_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    dpkg -i cncl_install_pkg.deb && \
+    rm -f cncl_install_pkg.deb
+
+# install mluops
+RUN cd /tmp && \
+    wget -O mluops_install_pkg.deb ftp://download.cambricon.com:8821/tmp/CTR2.12.1/mluops_${MLUOPS_VERSION}.ubuntu18.04_amd64.deb --ftp-user=${FTP_USER} --ftp-password=${FTP_PASSWORD} && \
+    dpkg -i mluops_install_pkg.deb && \
+    rm -f mluops_install_pkg.deb
+
+# udpate envs
+ENV NEUWARE_HOME=/usr/local/neuware
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NEUWARE_HOME/lib64
+
+# environment for PaddlePaddle
+ENV FLAGS_mlu_storage_format=1
+ENV FLAGS_allocator_strategy=auto_growth
+ENV CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
+ENV PADDLE_XCCL_BACKEND=mlu
+
+# Clean
+RUN apt-get clean -y
+RUN pip cache purge
+
+EXPOSE 22

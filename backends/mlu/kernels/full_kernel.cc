@@ -40,21 +40,33 @@ void FullLikeKernel(const Context& dev_ctx,
                     const phi::Scalar& val,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
+  auto value = val.to<double>();
   using CommonType = typename std::common_type<
       float,
-      typename std::conditional<std::is_same<T, phi::dtype::float16>::value,
-                                float,
-                                T>::type>::type;
-  dev_ctx.template Alloc<T>(out);
-  auto value = val.to<float>();
+      typename std::conditional<
+          std::is_same<T, phi::dtype::float16>::value ||
+              std::is_same<T, phi::dtype::bfloat16>::value,
+          float,
+          T>::type>::type;
 
   auto common_type_value = static_cast<CommonType>(value);
-  PADDLE_ENFORCE_EQ(
-      (common_type_value >=
+
+  // Check whether the filled value is valid
+  bool is_out_range = true;
+  if (std::isinf(value) || std::isnan(value)) {
+    is_out_range = false;
+  }
+
+  if ((common_type_value >=
        static_cast<CommonType>(std::numeric_limits<T>::lowest())) &&
-          (common_type_value <=
-           static_cast<CommonType>(std::numeric_limits<T>::max())),
-      true,
+      (common_type_value <=
+       static_cast<CommonType>(std::numeric_limits<T>::max()))) {
+    is_out_range = false;
+  }
+
+  PADDLE_ENFORCE_EQ(
+      is_out_range,
+      false,
       phi::errors::InvalidArgument(
           "The filled value is out of range for target type, "
           "current kernel type is %s, the range should between %f "
@@ -62,12 +74,9 @@ void FullLikeKernel(const Context& dev_ctx,
           typeid(T).name(),
           static_cast<CommonType>(std::numeric_limits<T>::lowest()),
           static_cast<CommonType>(std::numeric_limits<T>::max()),
-          value));
+          static_cast<float>(value)));
 
-  PADDLE_ENFORCE_EQ(std::isnan(value),
-                    false,
-                    phi::errors::InvalidArgument("The filled value is NaN."));
-
+  dev_ctx.template Alloc<T>(out);
   auto value_t = static_cast<T>(value);
   MLUCnnlTensorDesc out_desc(*out, CNNL_LAYOUT_ARRAY, ToCnnlDataType<T>());
 
@@ -100,7 +109,7 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
                           bool,
@@ -112,7 +121,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           int,
@@ -123,7 +132,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::FullBatchSizeLikeKernel,
                           int,

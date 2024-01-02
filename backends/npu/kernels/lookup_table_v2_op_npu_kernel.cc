@@ -44,31 +44,21 @@ void EmbeddingKernel(const Context& dev_ctx,
     tmp_table_t.set_meta(table_meta);
     dev_ctx.template Alloc<T>(&tmp_table_t);
 
-    phi::DenseTensor index;
-    phi::DenseTensorMeta index_meta = {phi::DataType::FLOAT32, {1, 1}};
-    index.set_meta(index_meta);
-    dev_ctx.template Alloc<T>(&index);
-
-    FillNpuTensorWithConstant<int32_t>(
-        &index, dev_ctx, static_cast<int32_t>(padding_idx));
-    index.Resize({1, 1});
-
-    auto updata_dim = phi::make_ddim({1, weight.dims()[1]});
-    phi::DenseTensor update;
-    update.Resize(updata_dim);
-    dev_ctx.template Alloc<T>(&update);
-
-    FillNpuTensorWithConstant<T>(&update, dev_ctx, static_cast<T>(0));
-    update.Resize(updata_dim);
-
-    NpuOpRunner update_runner;
-    update_runner.SetType("TensorScatterUpdate")
-        .AddInput(weight)
-        .AddInput(index)
-        .AddInput(update)
-        .AddOutput(tmp_table_t);
-    update_runner.Run(stream);
-
+    T update = static_cast<T>(0);
+    padding_idx =
+        padding_idx < 0 ? padding_idx + weight.dims()[0] : padding_idx;
+    C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+    AsyncMemCpyD2D(&device,
+                   reinterpret_cast<C_Stream>(stream),
+                   tmp_table_t.data<T>(),
+                   weight.data<T>(),
+                   weight.numel() * sizeof(T));
+    ACL_CHECK(
+        aclrtMemsetAsync(&tmp_table_t.data<T>()[padding_idx * weight.dims()[1]],
+                         weight.dims()[1] * sizeof(T),
+                         0,
+                         weight.dims()[1] * sizeof(T),
+                         stream));
     NpuOpRunner runner;
     runner.SetType("GatherV2")
         .AddInput(tmp_table_t)
@@ -91,56 +81,65 @@ void EmbeddingGradKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
 
-  const auto& runner_zeros =
-      NpuOpRunner("ZerosLike", {*weight_grad}, {*weight_grad});
-  runner_zeros.Run(stream);
-
-  if (padding_idx == kNoPadding) {
-    // NOTE(zhiqiu): It seems in cann 20.1, the first input and output
-    // can be different tensor, but in cann 20.2+, it does inplace operation.
-    // Thus, the first input and output should be same tensor.
-    const auto& runner_scatter = NpuOpRunner("ScatterAdd",
-                                             {*weight_grad, input, out_grad},
-                                             {*weight_grad},
-                                             {{"use_locking", true}});
-    runner_scatter.Run(stream);
+  phi::DenseTensor input_int32;
+  if (input.dtype() == phi::DataType::INT64) {
+    input_int32.Resize(input.dims());
+    dev_ctx.template Alloc<int32_t>(&input_int32);
+    const auto& cast_runner =
+        NpuOpRunner("Cast", {input}, {input_int32}, {{"dst_type", ACL_INT32}});
+    cast_runner.Run(stream);
   } else {
-    phi::DenseTensor casted_inputx;
-    if (input.dtype() != phi::DataType::INT32) {
-      phi::DenseTensorMeta meta = {phi::DataType::INT32, input.dims()};
-      casted_inputx.set_meta(meta);
-      dev_ctx.template Alloc<int32_t>(&casted_inputx);
-      const auto& cast_runner = NpuOpRunner(
-          "Cast", {input}, {casted_inputx}, {{"dst_type", ACL_INT32}});
-      cast_runner.Run(stream);
-    } else {
-      casted_inputx = input;
-    }
-    auto table_grad_dims = weight_grad->dims();
-
-    NpuOpRunner runner;
-    runner.SetType("UnsortedSegmentSum")
-        .AddInput(out_grad)
-        .AddInput(casted_inputx)
-        .AddInput(dev_ctx, std::vector<int64_t>{table_grad_dims[0]})
-        .AddOutput(*weight_grad);
-    runner.Run(stream);
+    // directly point to input.
+    input_int32 = input;
+  }
+  if (weight_grad->dtype() == phi::DataType::FLOAT64) {
+    NPUAttributeMap attrs = {{"num_weights", weight_grad->dims()[0]},
+                             {"padding_idx", padding_idx}};
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx) {
+      NpuOpRunner runner;
+      runner.SetType("EmbeddingDenseGrad")
+          .AddInput(inputs[0])
+          .AddInput(inputs[1])
+          .AddOutput(outputs[0])
+          .AddAttrs(attrs);
+      runner.Run(dev_ctx.stream());
+    };
+    NpuOpRunner::TypeAdapter({out_grad, input_int32},
+                             {*weight_grad},
+                             attrs,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32, phi::DataType::INT32},
+                             {phi::DataType::FLOAT32});
+  } else {
+    const auto& runner_scatter =
+        NpuOpRunner("EmbeddingDenseGrad",
+                    {out_grad, input_int32},
+                    {*weight_grad},
+                    {{"num_weights", weight_grad->dims()[0]},
+                     {"padding_idx", padding_idx}});
+    runner_scatter.Run(stream);
   }
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(embedding,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingKernel,
                           float,
                           int,
+                          double,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(embedding_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingGradKernel,
                           float,
                           int,
+                          double,
                           phi::dtype::float16) {}

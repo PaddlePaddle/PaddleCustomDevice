@@ -16,11 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2021
@@ -30,17 +28,19 @@ class TestScale(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.init_dtype()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(
-                np.random.random((10, 10)).astype(self.dtype))
+            "X": OpTest.np_dtype_to_base_dtype(
+                np.random.random((10, 10)).astype(self.dtype)
+            )
         }
-        self.attrs = {'scale': -2.3, 'bias': 0, 'bias_after_scale': True}
+        self.attrs = {"scale": -2.3, "bias": 0, "bias_after_scale": True}
         self.outputs = {
-            'Out': (self.inputs['X'] *
-                    self.dtype(self.attrs['scale'])).astype(self.dtype)
+            "Out": (self.inputs["X"] * self.dtype(self.attrs["scale"])).astype(
+                self.dtype
+            )
         }
 
     def set_npu(self):
@@ -68,21 +68,25 @@ class TestScaleInt64(TestScale):
         self.dtype = np.int64
 
 
+class TestScaleDouble(TestScale):
+    def init_dtype(self):
+        self.dtype = np.double
+
+
 class TestBiasAfterScale(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scale"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.init_dtype()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(
-                np.random.random((10, 10)).astype(self.dtype))
+            "X": OpTest.np_dtype_to_base_dtype(
+                np.random.random((10, 10)).astype(self.dtype)
+            )
         }
-        self.attrs = {'scale': -2.3, 'bias': 0, 'bias_after_scale': False}
-        self.outputs = {
-            'Out': self.inputs['X'] * self.dtype(self.attrs['scale'])
-        }
+        self.attrs = {"scale": -2.3, "bias": 0, "bias_after_scale": False}
+        self.outputs = {"Out": self.inputs["X"] * self.dtype(self.attrs["scale"])}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -94,5 +98,5 @@ class TestBiasAfterScale(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

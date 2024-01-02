@@ -70,19 +70,21 @@ void WhereGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(where,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::WhereKernel,
                           int32_t,
                           int64_t,
                           double,
-                          float) {}
+                          float,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(where_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::WhereGradKernel,
                           int32_t,
                           int64_t,
                           double,
-                          float) {}
+                          float,
+                          phi::dtype::float16) {}

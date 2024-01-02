@@ -24,7 +24,7 @@ paddle.enable_static()
 
 class TestClipOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.max_relative_error = 0.006
         self.python_api = paddle.clip
@@ -34,37 +34,37 @@ class TestClipOp(OpTest):
 
         self.op_type = "clip"
         self.attrs = {}
-        self.attrs['min'] = self.min
-        self.attrs['max'] = self.max
-        if 'Min' in self.inputs:
-            min_v = self.inputs['Min']
+        self.attrs["min"] = self.min
+        self.attrs["max"] = self.max
+        if "Min" in self.inputs:
+            min_v = self.inputs["Min"]
         else:
-            min_v = self.attrs['min']
+            min_v = self.attrs["min"]
 
-        if 'Max' in self.inputs:
-            max_v = self.inputs['Max']
+        if "Max" in self.inputs:
+            max_v = self.inputs["Max"]
         else:
-            max_v = self.attrs['max']
+            max_v = self.attrs["max"]
 
         input = np.random.random(self.shape).astype(self.dtype)
         input[np.abs(input - min_v) < self.max_relative_error] = 0.5
         input[np.abs(input - max_v) < self.max_relative_error] = 0.5
-        self.inputs['X'] = input
-        self.outputs = {'Out': np.clip(self.inputs['X'], min_v, max_v)}
+        self.inputs["X"] = input
+        self.outputs = {"Out": np.clip(self.inputs["X"], min_v, max_v)}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad_normal(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def initTestCase(self):
         self.dtype = np.float32
         self.shape = (4, 10, 10)
         self.max = 0.8
         self.min = 0.3
-        self.inputs['Max'] = np.array([0.8]).astype(self.dtype)
-        self.inputs['Min'] = np.array([0.1]).astype(self.dtype)
+        self.inputs["Max"] = np.array([0.8]).astype(self.dtype)
+        self.inputs["Min"] = np.array([0.1]).astype(self.dtype)
 
 
 class TestCase1(TestClipOp):
@@ -97,8 +97,8 @@ class TestCase4(TestClipOp):
         self.shape = (4, 8, 8)
         self.max = 0.7
         self.min = 0.2
-        self.inputs['Max'] = np.array([0.8]).astype(self.dtype)
-        self.inputs['Min'] = np.array([0.3]).astype(self.dtype)
+        self.inputs["Max"] = np.array([0.8]).astype(self.dtype)
+        self.inputs["Min"] = np.array([0.3]).astype(self.dtype)
 
 
 class TestCase5(TestClipOp):
@@ -115,9 +115,9 @@ class TestCase6(TestClipOp):
         self.shape = (4, 8, 8)
         self.max = 0.7
         self.min = 0.2
-        self.inputs['Max'] = np.array([0.8]).astype(self.dtype)
-        self.inputs['Min'] = np.array([0.3]).astype(self.dtype)
+        self.inputs["Max"] = np.array([0.8]).astype(self.dtype)
+        self.inputs["Min"] = np.array([0.3]).astype(self.dtype)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

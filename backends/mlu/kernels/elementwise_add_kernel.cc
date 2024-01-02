@@ -73,7 +73,7 @@ void AddGradKernel(const Context& dev_ctx,
                       dx_desc.get(),
                       GetBasePtr(dx));
     } else {
-      TensorCopy(dev_ctx, dout, false, dx);
+      *dx = dout;
     }
   }
   if (dy) {
@@ -104,7 +104,7 @@ void AddGradKernel(const Context& dev_ctx,
                       dy_desc.get(),
                       GetBasePtr(dy));
     } else {
-      TensorCopy(dev_ctx, dout, false, dy);
+      *dy = dout;
     }
   }
 }
@@ -112,21 +112,21 @@ void AddGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddGradKernel,
                           float,

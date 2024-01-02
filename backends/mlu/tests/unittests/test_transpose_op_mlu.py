@@ -16,26 +16,24 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from tests.op_test import OpTest, convert_float_to_uint16
+from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import Program, program_guard
-import paddle.fluid.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
 
 class TestTransposeOp(OpTest):
-
     def setUp(self):
         self.init_op_type()
         self.initKernelType()
         self.initTestCase()
-        self.inputs = {'X': np.random.random(self.shape).astype("float32")}
+        self.inputs = {"X": np.random.random(self.shape).astype("float32")}
         self.attrs = {
-            'axis': list(self.axis),
+            "axis": list(self.axis),
         }
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
     def init_op_type(self):
         self.op_type = "transpose2"
@@ -44,7 +42,7 @@ class TestTransposeOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def initTestCase(self):
         self.shape = (3, 40)
@@ -52,203 +50,183 @@ class TestTransposeOp(OpTest):
 
     def initKernelType(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
 
 class TestCase0(TestTransposeOp):
-
     def initTestCase(self):
-        self.shape = (100, )
-        self.axis = (0, )
+        self.shape = (100,)
+        self.axis = (0,)
 
 
 class TestCase1(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (3, 4, 10)
         self.axis = (0, 2, 1)
 
 
 class TestCase2(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5)
         self.axis = (0, 2, 3, 1)
 
 
 class TestCase3(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5, 6)
         self.axis = (4, 2, 3, 1, 0)
 
 
 class TestCase4(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5, 6, 1)
         self.axis = (4, 2, 3, 1, 0, 5)
 
 
 class TestCase5(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 16, 96)
         self.axis = (0, 2, 1)
 
 
 class TestCase6(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 10, 12, 16)
         self.axis = (3, 1, 2, 0)
 
 
 class TestCase7(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 10, 2, 16)
         self.axis = (0, 1, 3, 2)
 
 
 class TestCase8(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 3, 2, 3, 2, 4, 3, 3)
         self.axis = (0, 1, 3, 2, 4, 5, 6, 7)
 
 
 class TestCase9(TestTransposeOp):
-
     def initTestCase(self):
         self.shape = (2, 3, 2, 3, 2, 4, 3, 3)
         self.axis = (6, 1, 3, 5, 0, 2, 4, 7)
 
 
 class TestTransposeOpBool(TestTransposeOp):
-
     def test_check_grad(self):
         pass
 
 
 class TestTransposeOpBool1D(TestTransposeOpBool):
-
     def initTestCase(self):
-        self.shape = (100, )
-        self.axis = (0, )
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.shape = (100,)
+        self.axis = (0,)
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool2D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (3, 40)
         self.axis = (1, 0)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool3D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (3, 4, 10)
         self.axis = (0, 2, 1)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool4D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5)
         self.axis = (0, 2, 3, 1)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool5D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5, 6)
         self.axis = (4, 2, 3, 1, 0)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool6D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (2, 3, 4, 5, 6, 1)
         self.axis = (4, 2, 3, 1, 0, 5)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool7D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (2, 3, 2, 3, 2, 4, 3)
         self.axis = (0, 1, 3, 2, 4, 5, 6)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpBool8D(TestTransposeOpBool):
-
     def initTestCase(self):
         self.shape = (2, 3, 2, 3, 2, 4, 3, 3)
         self.axis = (6, 1, 3, 5, 0, 2, 4, 7)
-        self.inputs = {'X': np.random.random(self.shape).astype("bool")}
-        self.outputs = {'Out': self.inputs['X'].transpose(self.axis)}
+        self.inputs = {"X": np.random.random(self.shape).astype("bool")}
+        self.outputs = {"Out": self.inputs["X"].transpose(self.axis)}
 
 
 class TestTransposeOpError(unittest.TestCase):
-
     def test_errors(self):
         paddle.enable_static()
         with program_guard(Program(), Program()):
-            x = fluid.layers.data(name='x', shape=[10, 5, 3], dtype='float32')
+            x = paddle.static.data(name="x", shape=[-1, 10, 5, 3], dtype="float32")
 
             def test_x_Variable_check():
                 # the Input(x)'s type must be Variable
-                fluid.layers.transpose("not_variable", perm=[1, 0, 2])
+                paddle.transpose("not_variable", perm=[1, 0, 2])
 
             self.assertRaises(TypeError, test_x_Variable_check)
 
             def test_perm_list_check():
                 # Input(perm)'s type must be list
-                fluid.layers.transpose(x, perm="[1, 0, 2]")
+                paddle.transpose(x, perm="[1, 0, 2]")
 
             self.assertRaises(TypeError, test_perm_list_check)
 
             def test_perm_length_and_x_dim_check():
                 # Input(perm) is the permutation of dimensions of Input(input)
                 # its length should be equal to dimensions of Input(input)
-                fluid.layers.transpose(x, perm=[1, 0, 2, 3, 4])
+                paddle.transpose(x, perm=[1, 0, 2, 3, 4])
 
             self.assertRaises(ValueError, test_perm_length_and_x_dim_check)
 
             def test_each_elem_value_check():
                 # Each element in Input(perm) should be less than Input(x)'s dimension
-                fluid.layers.transpose(x, perm=[3, 5, 7])
+                paddle.transpose(x, perm=[3, 5, 7])
 
             self.assertRaises(ValueError, test_each_elem_value_check)
 
 
 class TestTransposeApi(unittest.TestCase):
-
     def test_static_out(self):
         paddle.enable_static()
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data(name='x', shape=[2, 3, 4], dtype='float32')
+            x = paddle.static.data(name="x", shape=[2, 3, 4], dtype="float32")
             x_trans1 = paddle.transpose(x, perm=[1, 0, 2])
             x_trans2 = paddle.transpose(x, perm=(2, 1, 0))
-            place = paddle.CustomPlace('CustomMLU', 0)
+            place = paddle.CustomPlace("mlu", 0)
             exe = paddle.static.Executor(place)
             x_np = np.random.random([2, 3, 4]).astype("float32")
-            result1, result2 = exe.run(feed={"x": x_np},
-                                       fetch_list=[x_trans1, x_trans2])
+            result1, result2 = exe.run(
+                feed={"x": x_np}, fetch_list=[x_trans1, x_trans2]
+            )
             expected_result1 = np.transpose(x_np, [1, 0, 2])
             expected_result2 = np.transpose(x_np, (2, 1, 0))
 
@@ -274,65 +252,64 @@ class TestTransposeApi(unittest.TestCase):
 
 
 class TestTAPI(unittest.TestCase):
-
     def test_out(self):
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = paddle.static.data(shape=[10], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace('CustomMLU', 0)
-            exe = fluid.Executor(place)
+            place = paddle.CustomPlace("mlu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([10]).astype("float32")
-            result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
+            (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[10, 5], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = paddle.static.data(shape=[10, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace('CustomMLU', 0)
-            exe = fluid.Executor(place)
+            place = paddle.CustomPlace("mlu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([10, 5]).astype("float32")
-            result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
+            (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.program_guard(fluid.Program()):
-            data = fluid.data(shape=[1, 5], dtype="float32", name="data")
+        with base.program_guard(base.Program()):
+            data = paddle.static.data(shape=[1, 5], dtype="float32", name="data")
             data_t = paddle.t(data)
-            place = paddle.CustomPlace('CustomMLU', 0)
-            exe = fluid.Executor(place)
+            place = paddle.CustomPlace("mlu", 0)
+            exe = base.Executor(place)
             data_np = np.random.random([1, 5]).astype("float32")
-            result, = exe.run(feed={"data": data_np}, fetch_list=[data_t])
+            (result,) = exe.run(feed={"data": data_np}, fetch_list=[data_t])
             expected_result = np.transpose(data_np)
         self.assertEqual((result == expected_result).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([10]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([10, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
-        with fluid.dygraph.guard():
+        with base.dygraph.guard():
             np_x = np.random.random([1, 5]).astype("float32")
-            data = fluid.dygraph.to_variable(np_x)
+            data = base.dygraph.to_variable(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
         self.assertEqual((np_z == z_expected).all(), True)
 
     def test_errors(self):
-        with fluid.program_guard(fluid.Program()):
-            x = fluid.data(name='x', shape=[10, 5, 3], dtype='float32')
+        with base.program_guard(base.Program()):
+            x = paddle.static.data(name="x", shape=[10, 5, 3], dtype="float32")
 
             def test_x_dimension_check():
                 paddle.t(x)
@@ -341,14 +318,13 @@ class TestTAPI(unittest.TestCase):
 
 
 class TestMoveAxis(unittest.TestCase):
-
     def test_moveaxis1(self):
-        paddle.set_device('CustomMLU')
-        x_np = np.random.randn(2, 3, 4, 5, 7).astype('float32')
+        paddle.set_device("mlu")
+        x_np = np.random.randn(2, 3, 4, 5, 7).astype("float32")
         expected = np.moveaxis(x_np, [0, 4, 3, 2], [1, 3, 2, 0])
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
-            x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype='float32')
+        with paddle.static.program_guard(base.Program()):
+            x = paddle.static.data("x", shape=[2, 3, 4, 5, 7], dtype="float32")
             out = paddle.moveaxis(x, [0, 4, 3, 2], [1, 3, 2, 0])
 
             exe = paddle.static.Executor()
@@ -364,12 +340,12 @@ class TestMoveAxis(unittest.TestCase):
         paddle.enable_static()
 
     def test_moveaxis2(self):
-        paddle.set_device('CustomMLU')
-        x_np = np.random.randn(2, 3, 5).astype('float32')
+        paddle.set_device("mlu")
+        x_np = np.random.randn(2, 3, 5).astype("float32")
         expected = np.moveaxis(x_np, -2, -1)
         paddle.enable_static()
-        with paddle.static.program_guard(fluid.Program()):
-            x = paddle.static.data("x", shape=[2, 3, 5], dtype='float32')
+        with paddle.static.program_guard(base.Program()):
+            x = paddle.static.data("x", shape=[2, 3, 5], dtype="float32")
             out = x.moveaxis(-2, -1)
 
             exe = paddle.static.Executor()
@@ -385,7 +361,7 @@ class TestMoveAxis(unittest.TestCase):
         paddle.enable_static()
 
     def test_error(self):
-        paddle.set_device('CustomMLU')
+        paddle.set_device("mlu")
         x = paddle.randn([2, 3, 4, 5])
         # src must have the same number with dst
         with self.assertRaises(AssertionError):
@@ -416,5 +392,5 @@ class TestMoveAxis(unittest.TestCase):
             paddle.moveaxis(x, [2, 1], [10, 3])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

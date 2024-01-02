@@ -17,6 +17,25 @@
 
 namespace custom_kernel {
 
+void GetSeed(const phi::DeviceContext& dev_ctx,
+             const paddle::optional<phi::DenseTensor>& seed_tensor,
+             int seed,
+             bool fix_seed,
+             int* seed1,
+             int* seed2) {
+  if (seed_tensor) {
+    MemCpyD2H(nullptr, seed1, seed_tensor->data(), sizeof(int));
+  } else if (!fix_seed) {
+    // use cpu engine to generate a seed for npu.
+    auto offset = 0;
+    auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
+    *seed1 = static_cast<int>(engine());
+  } else {
+    *seed1 = seed;
+  }
+  *seed2 = 0;
+}
+
 template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
@@ -28,110 +47,180 @@ void DropoutRawKernel(const Context& dev_ctx,
                       bool fix_seed,
                       phi::DenseTensor* out,
                       phi::DenseTensor* mask) {
+  if (x.dims().size() == 0) {
+    phi::DenseTensor tmp_x(x);
+    tmp_x.Resize(phi::make_ddim({1}));
+    out->Resize(phi::make_ddim({1}));
+    ::custom_kernel::DropoutRawKernel<T, Context>(dev_ctx,
+                                                  tmp_x,
+                                                  seed_tensor,
+                                                  p,
+                                                  is_test,
+                                                  mode,
+                                                  seed,
+                                                  fix_seed,
+                                                  out,
+                                                  mask);
+    out->Resize(phi::make_ddim({}));
+    return;
+  }
+  const bool is_upscale = (mode == "upscale_in_train");
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
+  if (!is_test) {
+    // mask used in `DropOutGenMask` NPU OP is different from
+    // the output `Mask`.
+    uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
+    mask->Resize({length / 8});
+    dev_ctx.template Alloc<uint8_t>(mask);
+  }
+
   if (dropout_prob == 1.) {
     const auto& runner_zeros_out = NpuOpRunner("ZerosLike", {*out}, {*out});
     runner_zeros_out.Run(stream);
-    dev_ctx.template Alloc<uint8_t>(mask);
-    const auto& runner_zeros_mask = NpuOpRunner("ZerosLike", {*mask}, {*mask});
-    runner_zeros_mask.Run(stream);
+    ACL_CHECK(aclrtMemsetAsync(mask->data(),
+                               mask->numel() * sizeof(uint8_t),
+                               0,
+                               mask->numel() * sizeof(uint8_t),
+                               stream));
     return;
   }
 
   // only achieve the default `upscale_in_train` method
   if (!is_test) {
-    //   Tensor tmp_x(x->dtype());
-    //   Tensor tmp_out(out->dtype());
-    //   tmp_x.ShareDataWith(*x);
-    //   tmp_out.ShareDataWith(*out);
-    phi::DenseTensor tmp_x(x);
-    phi::DenseTensor tmp_out(*out);
-
-    if (x.dims().size() == 1) {
-      // DropOutDoMask will get error result when input
-      // is 1-D. Make it become 2-D.
-      std::vector<int> vec_dim = phi::vectorize<int>(x.dims());
-      tmp_x.Resize(phi::make_ddim({vec_dim[0], 1}));
-      tmp_out.Resize(phi::make_ddim({vec_dim[0], 1}));
-    }
-
-    int seed = 0;
+    int seed1 = 0;
     int seed2 = 0;
-    float keep_prob = 1. - dropout_prob;
-    if (seed_tensor) {
-      std::vector<int> seed_data;
-      TensorToVector(dev_ctx, seed_tensor.get(), dev_ctx, &seed_data);
-      seed = seed_data[0];
+    GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed1, &seed2);
+    phi::DenseTensor seed1_tensor, seed2_tensor;
+    custom_kernel::TensorFromVector<int32_t>(
+        dev_ctx, {seed1}, dev_ctx, &seed1_tensor);
+    custom_kernel::TensorFromVector<int32_t>(
+        dev_ctx, {seed2}, dev_ctx, &seed2_tensor);
+
+    if (x.dtype() == phi::DataType::FLOAT64) {
+      float keep_prob = static_cast<float>(1. - dropout_prob);
+
+      // transform x
+      phi::DenseTensor tmp_x;
+      phi::DenseTensorMeta tmp_x_meta = {phi::DataType::FLOAT32, x.dims()};
+      tmp_x.set_meta(tmp_x_meta);
+      dev_ctx.template Alloc<float>(&tmp_x);
+      NpuOpRunner runner;
+      runner.SetType("Cast")
+          .AddInput(x)
+          .AddOutput(tmp_x)
+          .AddAttr("dst_type", ACL_FLOAT)
+          .Run(stream);
+      phi::DenseTensor tmp_out;
+      phi::DenseTensorMeta tmp_out_meta = {phi::DataType::FLOAT32, out->dims()};
+      tmp_out.set_meta(tmp_out_meta);
+      dev_ctx.template Alloc<float>(&tmp_out);
+
+      if (x.dims().size() == 1) {
+        // DropOutDoMask will get error result when input
+        // is 1-D. Make it become 2-D.
+        std::vector<int> vec_dim = phi::vectorize<int>(x.dims());
+        tmp_x.Resize(phi::make_ddim({vec_dim[0], 1}));
+        tmp_out.Resize(phi::make_ddim({vec_dim[0], 1}));
+      }
+
+      NpuOpRunner runner_gen_mask;
+      runner_gen_mask.SetType("StatelessDropOutGenMask")
+          .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
+          .AddInput(dev_ctx, std::vector<float>({keep_prob}))
+          .AddInput(seed1_tensor)
+          .AddInput(seed2_tensor)
+          .AddOutput(*mask);
+      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
+      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
+
+      phi::DenseTensor keep_prob_tensor;
+      phi::DenseTensorMeta keep_prob_tensor_meta = {phi::DataType::FLOAT32,
+                                                    {1}};
+      keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+      keep_prob_tensor.Resize(phi::DDim({}));
+      C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+      AsyncMemCpyH2D(&device,
+                     static_cast<C_Stream>(dev_ctx.stream()),
+                     dev_ctx.template Alloc<float>(&keep_prob_tensor),
+                     &keep_prob,
+                     sizeof(float));
+      NpuOpRunner runner_dropout;
+      runner_dropout.SetType("DropOutDoMask")
+          .AddInput(tmp_x)
+          .AddInput(*mask)
+          .AddInput(keep_prob_tensor)
+          .AddOutput(tmp_out);
+      runner_dropout.Run(stream);
+
+      NpuOpRunner runner_cast;
+      runner_cast.SetType("Cast")
+          .AddInput(tmp_out)
+          .AddOutput(*out)
+          .AddAttr("dst_type", ACL_DOUBLE)
+          .Run(stream);
     } else {
-      seed = fix_seed ? seed : 0;
+      T keep_prob = static_cast<T>(1. - dropout_prob);
+
+      phi::DenseTensor tmp_x(x);
+      phi::DenseTensor tmp_out(*out);
+
+      if (x.dims().size() == 1) {
+        // DropOutDoMask will get error result when input
+        // is 1-D. Make it become 2-D.
+        std::vector<int> vec_dim = phi::vectorize<int>(x.dims());
+        tmp_x.Resize(phi::make_ddim({vec_dim[0], 1}));
+        tmp_out.Resize(phi::make_ddim({vec_dim[0], 1}));
+      }
+
+      // TODO(pangyoki): `keep_prob` used in `DropOutGenMask` NPU
+      // OP must be a scalar with shape[0]. At present, the shape
+      // of the `prob` Tensor of this OP is forced to be set to 0
+      // in `npu_op_runner.cc`, which needs to be optimized later.
+      NpuOpRunner runner_gen_mask;
+      runner_gen_mask.SetType("StatelessDropOutGenMask")
+          .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
+          .AddInput(dev_ctx, std::vector<float>({keep_prob}))
+          .AddInput(seed1_tensor)
+          .AddInput(seed2_tensor)
+          .AddOutput(*mask);
+      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
+      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
+
+      phi::DenseTensor keep_prob_tensor;
+      phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};
+      keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+      keep_prob_tensor.Resize(phi::DDim({}));
+
+      C_Device_st device{dev_ctx.GetPlace().GetDeviceId()};
+      AsyncMemCpyH2D(&device,
+                     static_cast<C_Stream>(dev_ctx.stream()),
+                     dev_ctx.template Alloc<T>(&keep_prob_tensor),
+                     &keep_prob,
+                     sizeof(T));
+      if (!is_upscale) {
+        const auto& muls_runner =
+            NpuOpRunner("OnesLike", {keep_prob_tensor}, {keep_prob_tensor});
+        muls_runner.Run(stream);
+      }
+      NpuOpRunner runner_dropout;
+      runner_dropout.SetType("DropOutDoMask")
+          .AddInput(tmp_x)
+          .AddInput(*mask)
+          .AddInput(keep_prob_tensor)
+          .AddOutput(tmp_out);
+      runner_dropout.Run(stream);
     }
-
-    phi::DenseTensor keep_prob_tensor;
-    phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};
-    keep_prob_tensor.set_meta(keep_prob_tensor_meta);
-    FillNpuTensorWithConstant<T>(
-        &keep_prob_tensor, dev_ctx, static_cast<T>(keep_prob));
-
-    dev_ctx.template Alloc<uint8_t>(mask);
-
-    // mask used in `DropOutGenMask` NPU OP is different from
-    // the output `Mask`.
-    uint32_t length = (x.numel() + 128 - 1) / 128 * 128;
-    phi::DenseTensor npu_mask;
-    phi::DenseTensorMeta npu_mask_meta = {paddle::experimental::DataType::UINT8,
-                                          phi::make_ddim({length / 8})};
-    npu_mask.set_meta(npu_mask_meta);
-    dev_ctx.template Alloc<uint8_t>(&npu_mask);
-
-    // TODO(pangyoki): `keep_prob` used in `DropOutGenMask` NPU
-    // OP must be a scalar with shape[0]. At present, the shape
-    // of the `prob` Tensor of this OP is forced to be set to 0
-    // in `npu_op_runner.cc`, which needs to be optimized later.
-    NpuOpRunner runner_gen_mask;
-    runner_gen_mask.SetType("DropOutGenMask")
-        .AddInput(dev_ctx, phi::vectorize(tmp_out.dims()))
-        .AddInput(keep_prob_tensor)
-        .AddOutput(npu_mask)
-        .AddAttr("seed", seed)
-        .AddAttr("seed2", seed2);
-    runner_gen_mask.Run(stream);
-
-    NpuOpRunner runner_dropout;
-    runner_dropout.SetType("DropOutDoMask")
-        .AddInput(tmp_x)
-        .AddInput(npu_mask)
-        .AddInput(keep_prob_tensor)
-        .AddOutput(tmp_out);
-    runner_dropout.Run(stream);
-
-    // cast `out` from float/float16 to bool
-    phi::DenseTensor cast_mask;
-    phi::DenseTensorMeta cast_mask_meta = {paddle::experimental::DataType::BOOL,
-                                           mask->dims()};
-    cast_mask.set_meta(cast_mask_meta);
-    dev_ctx.template Alloc<bool>(&cast_mask);
-
-    auto dst_dtype_bool = ConvertToNpuDtype(cast_mask.dtype());
-    const auto& runner_cast_mask_bool =
-        NpuOpRunner("Cast",
-                    {*out},
-                    {cast_mask},
-                    {{"dst_type", static_cast<int>(dst_dtype_bool)}});
-    runner_cast_mask_bool.Run(stream);
-
-    // cast cast_mask from bool to uint8
-    auto dst_dtype_uint8 = ConvertToNpuDtype(mask->dtype());
-    const auto& runner_cast_mask_uint8 =
-        NpuOpRunner("Cast",
-                    {cast_mask},
-                    {*mask},
-                    {{"dst_type", static_cast<int>(dst_dtype_uint8)}});
-    runner_cast_mask_uint8.Run(stream);
   } else {
+    if (!is_upscale) {
+      const auto& muls_runner =
+          NpuOpRunner("Muls", {x}, {*out}, {{"value", 1 - dropout_prob}});
+      muls_runner.Run(stream);
+      return;
+    }
     TensorCopy(dev_ctx, x, false, out);
   }
 }
@@ -144,6 +233,17 @@ void DropoutGradRawKernel(const Context& dev_ctx,
                           bool is_test,
                           const std::string& mode,
                           phi::DenseTensor* dx) {
+  if (dout.dims().size() == 0) {
+    phi::DenseTensor tmp_dout(dout);
+    tmp_dout.Resize(phi::make_ddim({1}));
+    dx->Resize(phi::make_ddim({1}));
+    ::custom_kernel::DropoutGradRawKernel<T, Context>(
+        dev_ctx, mask, tmp_dout, p, is_test, mode, dx);
+    dx->Resize(phi::make_ddim({}));
+    return;
+  }
+
+  const bool is_upscale = (mode == "upscale_in_train");
   auto dropout_prob = p.to<float>();
 
   dev_ctx.template Alloc<T>(dx);
@@ -155,37 +255,74 @@ void DropoutGradRawKernel(const Context& dev_ctx,
     return;
   }
 
-  // cast mask from uint8 to float32/float16
-  phi::DenseTensor cast_mask;
-  phi::DenseTensorMeta cast_mask_meta = {dx->dtype(), mask.dims()};
-  cast_mask.set_meta(cast_mask_meta);
-  dev_ctx.template Alloc<T>(&cast_mask);
+  dropout_prob = is_upscale ? dropout_prob : 0.0f;
+  if (dx->dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensor keep_prob_tensor;
+    phi::DenseTensorMeta keep_prob_tensor_meta = {phi::DataType::FLOAT32, {1}};
+    keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+    FillNpuTensorWithConstant<float>(
+        &keep_prob_tensor, dev_ctx, static_cast<float>(1 - dropout_prob));
+    // transform dx
+    phi::DenseTensor tmp_dx;
+    phi::DenseTensorMeta tmp_dx_meta = {phi::DataType::FLOAT32, dx->dims()};
+    tmp_dx.set_meta(tmp_dx_meta);
+    dev_ctx.template Alloc<float>(&tmp_dx);
+    // transform dout
+    phi::DenseTensor tmp_dout;
+    phi::DenseTensorMeta tmp_dout_meta = {phi::DataType::FLOAT32, dout.dims()};
+    tmp_dout.set_meta(tmp_dout_meta);
+    dev_ctx.template Alloc<float>(&tmp_dout);
+    NpuOpRunner runner1;
+    runner1.SetType("Cast")
+        .AddInput(dout)
+        .AddOutput(tmp_dout)
+        .AddAttr("dst_type", ACL_FLOAT)
+        .Run(stream);
+    NpuOpRunner runner_dropout;
+    runner_dropout.SetType("DropOutDoMask")
+        .AddInput(tmp_dout)
+        .AddInput(mask)
+        .AddInput(keep_prob_tensor)
+        .AddOutput(tmp_dx)
+        .Run(stream);
+    NpuOpRunner runner2;
+    runner2.SetType("Cast")
+        .AddInput(tmp_dx)
+        .AddOutput(*dx)
+        .AddAttr("dst_type", ACL_DOUBLE)
+        .Run(stream);
+  } else {
+    phi::DenseTensor keep_prob_tensor;
+    phi::DenseTensorMeta keep_prob_tensor_meta = {dx->dtype(), {1}};
+    keep_prob_tensor.set_meta(keep_prob_tensor_meta);
+    FillNpuTensorWithConstant<T>(
+        &keep_prob_tensor, dev_ctx, static_cast<T>(1 - dropout_prob));
 
-  auto dst_dtype = ConvertToNpuDtype(dx->dtype());
-  const auto& runner_cast_mask = NpuOpRunner(
-      "Cast", {mask}, {cast_mask}, {{"dst_type", static_cast<int>(dst_dtype)}});
-  runner_cast_mask.Run(stream);
-
-  const auto& runner =
-      NpuOpRunner("MaskedScale",
-                  {dout, cast_mask},
-                  {*dx},
-                  {{"value", static_cast<float>(1. / (1 - dropout_prob))}});
-  runner.Run(stream);
+    NpuOpRunner runner_dropout;
+    runner_dropout.SetType("DropOutDoMask")
+        .AddInput(dout)
+        .AddInput(mask)
+        .AddInput(keep_prob_tensor)
+        .AddOutput(*dx);
+    runner_dropout.Run(stream);
+  }
+  return;
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(dropout,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutRawKernel,
                           float,
                           phi::dtype::float16,
-                          double) {}
+                          double) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(dropout_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutGradRawKernel,
                           float,

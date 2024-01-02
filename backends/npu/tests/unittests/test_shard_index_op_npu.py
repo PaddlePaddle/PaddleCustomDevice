@@ -16,12 +16,7 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-import math
 from tests.op_test import OpTest
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-import paddle.fluid.framework as framework
-from paddle.fluid.framework import Program, program_guard
 import paddle
 
 paddle.enable_static()
@@ -32,28 +27,28 @@ def common_setup(self, index_num, nshards, shard_id, ignore_value):
     self.__class__.use_custom_device = True
     self.__class__.op_type = "shard_index"
 
-    self.op_type = 'shard_index'
+    self.op_type = "shard_index"
     x_lod = [[i for i in range(10)]]
     N = sum(x_lod[0])
     x = [np.random.randint(0, index_num - 1) for i in range(N)]
-    x = np.array(x).astype('int32').reshape([N, 1])
+    x = np.array(x).astype("int32").reshape([N, 1])
 
     shard_size = (index_num + nshards - 1) // nshards
-    out = np.zeros(shape=x.shape).astype('int32')
+    out = np.zeros(shape=x.shape).astype("int32")
     for i in range(N):
         if x[i] // shard_size == shard_id:
             out[i] = x[i] % shard_size
         else:
             out[i] = ignore_value
 
-    self.inputs = {'X': (x, x_lod)}
+    self.inputs = {"X": (x, x_lod)}
     self.attrs = {
-        'index_num': index_num,
-        'nshards': nshards,
-        'shard_id': shard_id,
-        'ignore_value': ignore_value
+        "index_num": index_num,
+        "nshards": nshards,
+        "shard_id": shard_id,
+        "ignore_value": ignore_value,
     }
-    self.outputs = {'Out': (out, x_lod)}
+    self.outputs = {"Out": (out, x_lod)}
 
 
 class TestShardIndexShardId0Op(OpTest):
@@ -61,8 +56,7 @@ class TestShardIndexShardId0Op(OpTest):
         common_setup(self, 20, 2, 0, -1)
 
     def test_check_output(self):
-        return self.check_output_with_place(place=paddle.CustomPlace('ascend',
-                                                                     0))
+        return self.check_output_with_place(place=paddle.CustomPlace("npu", 0))
 
 
 class TestShardIndexShardId1Op(TestShardIndexShardId0Op):
@@ -80,5 +74,5 @@ class TestShardIndexNotEvenlyDividedOp(TestShardIndexShardId0Op):
         common_setup(self, 15, 2, 1, -1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

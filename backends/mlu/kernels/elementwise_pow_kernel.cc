@@ -39,9 +39,9 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
                               const phi::DenseTensor& x,
                               const phi::DenseTensor& y,
                               const phi::DenseTensor& dout,
-                              int axis,
                               phi::DenseTensor* dx,
                               phi::DenseTensor* dy) {
+  int axis = -1;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   axis = (axis < 0 ? std::abs(x_dims.size() - y_dims.size()) + axis + 1 : axis);
@@ -208,21 +208,21 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowRawKernel,
                           float,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowGradKernel,
                           float,

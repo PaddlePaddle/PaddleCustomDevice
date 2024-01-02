@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
@@ -27,22 +26,23 @@ paddle.enable_static()
 # Correct: General.
 class TestUnsqueezeOp(OpTest):
     def setUp(self):
-        self.init_test_case()
         self.set_mlu()
-        self.op_type = "unsqueeze"
-        self.inputs = {"X": np.random.random(self.ori_shape).astype("float32")}
+        self.op_type = "unsqueeze2"
+        self.dtype = "float32"
+        self.init_test_case()
+        self.inputs = {"X": np.random.random(self.ori_shape).astype(self.dtype)}
         self.init_attrs()
         self.outputs = {"Out": self.inputs["X"].reshape(self.new_shape)}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def init_test_case(self):
         self.ori_shape = (3, 40)
@@ -57,7 +57,7 @@ class TestUnsqueezeOp(OpTest):
 class TestUnsqueezeOp1(TestUnsqueezeOp):
     def init_test_case(self):
         self.ori_shape = (20, 5)
-        self.axes = (-1, )
+        self.axes = (-1,)
         self.new_shape = (20, 5, 1)
 
 
@@ -80,6 +80,15 @@ class TestUnsqueezeOp3(TestUnsqueezeOp):
 # Correct: Reversed axes.
 class TestUnsqueezeOp4(TestUnsqueezeOp):
     def init_test_case(self):
+        self.ori_shape = (10, 2, 5)
+        self.axes = (3, 1, 1)
+        self.new_shape = (10, 1, 1, 2, 5, 1)
+
+
+# test float16
+class TestUnsqueezeOp5(TestUnsqueezeOp):
+    def init_test_case(self):
+        self.dtype = "float16"
         self.ori_shape = (10, 2, 5)
         self.axes = (3, 1, 1)
         self.new_shape = (10, 1, 1, 2, 5, 1)

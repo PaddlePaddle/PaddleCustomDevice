@@ -17,7 +17,7 @@
 
 namespace custom_kernel {
 
-inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
+inline phi::DDim GetUnsqueezeShape(const std::vector<int64_t> unsqz_dims,
                                    const phi::DDim& in_dims) {
   int output_size = in_dims.size() + static_cast<int>(unsqz_dims.size());
   int cur_output_size = in_dims.size();
@@ -67,20 +67,16 @@ inline phi::DDim GetUnsqueezeShape(const std::vector<int> unsqz_dims,
 }
 
 template <typename T, typename Context>
-void UnsqueezeNPUKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::IntArray& axes,
-                        phi::DenseTensor* out) {
+void UnsqueezeInferKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::IntArray& axes,
+                          phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
-  std::vector<int32_t> tmp;
-  tmp.reserve(axes.GetData().size());
-  std::for_each(axes.GetData().begin(),
-                axes.GetData().end(),
-                [&tmp](const int64_t& t) { tmp.push_back(t); });
-  out_dims = GetUnsqueezeShape(tmp, x_dims);
-
+  if (axes.FromTensor()) {
+    out_dims = GetUnsqueezeShape(axes.GetData(), x_dims);
+  }
   out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
   custom_kernel::TensorCopy(dev_ctx, x, false, out);
@@ -88,12 +84,12 @@ void UnsqueezeNPUKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void UnsqueezeWithXShapeNPUKernel(const Context& dev_ctx,
-                                  const phi::DenseTensor& x,
-                                  const phi::IntArray& axes,
-                                  phi::DenseTensor* out,
-                                  phi::DenseTensor* xshape) {
-  custom_kernel::UnsqueezeNPUKernel<T, Context>(dev_ctx, x, axes, out);
+void UnsqueezeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& axes,
+                     phi::DenseTensor* out,
+                     phi::DenseTensor* xshape) {
+  custom_kernel::UnsqueezeInferKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
 template <typename T, typename Context>
@@ -111,10 +107,10 @@ void UnsqueezeGradNPUKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze_infer,
+                          npu,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeNPUKernel,
+                          custom_kernel::UnsqueezeInferKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,
@@ -127,10 +123,10 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
-                          ascend,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
+                          npu,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeWithXShapeNPUKernel,
+                          custom_kernel::UnsqueezeKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,
@@ -141,10 +137,11 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
                           int8_t,
                           int64_t,
                           phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<double>,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UnsqueezeGradNPUKernel,
                           phi::dtype::bfloat16,
@@ -157,4 +154,5 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_grad,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16) {}

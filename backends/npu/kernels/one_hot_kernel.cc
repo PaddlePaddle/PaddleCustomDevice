@@ -78,15 +78,13 @@ void OneHotKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(one_hot_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::OneHotRawKernel,
                           int32_t,
                           int64_t) {}
 
-PD_REGISTER_PLUGIN_KERNEL(one_hot,
-                          ascend,
-                          ALL_LAYOUT,
-                          custom_kernel::OneHotKernel,
-                          int32_t,
-                          int64_t) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    one_hot, npu, ALL_LAYOUT, custom_kernel::OneHotKernel, int32_t, int64_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+}

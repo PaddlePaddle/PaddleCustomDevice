@@ -38,7 +38,7 @@ void MaxRawKernel(const Context& dev_ctx,
     attr_input = {{"axes", dim_vec}, {"keep_dims", keep_dim}};
   }
 
-  if (x.dtype() == phi::DenseTensorMeta::DataType::INT64) {
+  if (x.dtype() == phi::DataType::INT64) {
     auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                       const std::vector<phi::DenseTensor>& outputs,
                       const NPUAttributeMap& attrs,
@@ -53,8 +53,8 @@ void MaxRawKernel(const Context& dev_ctx,
                              attr_input,
                              dev_ctx,
                              op_func,
-                             {phi::DenseTensorMeta::DataType::INT32},
-                             {phi::DenseTensorMeta::DataType::INT32});
+                             {phi::DataType::INT32},
+                             {phi::DataType::INT32});
   } else {
     const auto& runner = NpuOpRunner("ReduceMaxD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
@@ -84,9 +84,12 @@ void MaxGradKernel(const Context& dev_ctx,
                    bool reduce_all,
                    phi::DenseTensor* x_grad) {
   auto reduce_dims = reduce_dims_in.GetData();
-  dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();
-
+  dev_ctx.template Alloc<T>(x_grad);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    return;
+  }
   // broadcast
   auto x_dims_vec = phi::vectorize(x.dims());
   if (reduce_all) {
@@ -132,7 +135,7 @@ void MaxGradKernel(const Context& dev_ctx,
   // compare
   phi::DenseTensor equal_cond;
   equal_cond.Resize(x_grad->dims());
-  dev_ctx.template Alloc<T>(&equal_cond);
+  dev_ctx.template Alloc<bool>(&equal_cond);
   const auto& r_equal =
       NpuOpRunner("Equal", {x, transformed_out}, {equal_cond}, {});
   r_equal.Run(stream);
@@ -152,7 +155,7 @@ void MaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(max_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxRawKernel,
                           bool,
@@ -162,7 +165,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxKernel,
                           bool,
@@ -172,7 +175,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaxGradKernel,
                           bool,

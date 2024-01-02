@@ -64,9 +64,9 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
                               const phi::DenseTensor& x,
                               const phi::DenseTensor& y,
                               const phi::DenseTensor& dout,
-                              int axis,
                               phi::DenseTensor* dx,
                               phi::DenseTensor* dy) {
+  int axis = -1;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   axis = (axis < 0 ? std::abs(x_dims.size() - y_dims.size()) + axis + 1 : axis);
@@ -234,28 +234,31 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowRawKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ElementwisePowGradKernel,
                           int,
+                          int64_t,
                           float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

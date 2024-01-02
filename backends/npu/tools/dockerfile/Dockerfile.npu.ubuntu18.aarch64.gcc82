@@ -14,19 +14,19 @@ COPY ascend_install.info /etc/ascend_install.info
 RUN mkdir -p /usr/local/Ascend/driver
 COPY version.info /usr/local/Ascend/driver/version.info
 
-# Download packages from https://www.hiascend.com/software/cann/community and copy them to current dir first
+# Download packages from https://www.hiascend.com/software/cann/community
 WORKDIR /usr/local/Ascend
 ARG CANN_VERSION
 
 # install CANN requirement
-# https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha002/softwareinstall/instg/atlasdeploy_03_0022.html
-RUN apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev unzip pciutils \
-            net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev 
+# https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html
+RUN apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev libbz2-dev libxslt1-dev unzip \
+    pciutils net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev
 
 # install CANN requirement
-# https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/600alpha002/softwareinstall/instg/atlasdeploy_03_0022.html
+# https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install 'numpy>=1.14.3' 'decorator>=4.4.0' 'sympy>=1.4' 'cffi>=1.12.3' 'protobuf>=3.11.3'
+RUN pip install 'numpy>=1.19.2' 'decorator>=4.4.0' 'sympy>=1.5.1' 'cffi>=1.12.3' 'protobuf>=3.13.0'
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil absl-py
 
 # update envs for driver
@@ -40,17 +40,30 @@ RUN chmod +x Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run && \
     ./Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run --install --quiet && \
     rm -rf Ascend-cann-toolkit_${CANN_VERSION}_linux-aarch64.run
 # udpate envs for toolkit
-ENV PATH=/usr/local/Ascend/ascend-toolkit/latest/bin::$PATH
-ENV PATH=/usr/local/Ascend/ascend-toolkit/latest/compiler/ccec_compiler/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64:$LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:$LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:$LD_LIBRARY_PATH
-ENV PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/python/site-packages:$PYTHONPATH
-ENV PYTHONPATH=/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
-ENV ASCEND_AICPU_PATH=/usr/local/Ascend/ascend-toolkit/latest
-ENV ASCEND_OPP_PATH=/usr/local/Ascend/ascend-toolkit/latest/opp
-ENV TOOLCHAIN_HOME=/usr/local/Ascend/ascend-toolkit/latest/toolkit
-ENV ASCEND_HOME_PATH=/usr/local/Ascend/ascend-toolkit/latest
+RUN echo "source /usr/local/Ascend/ascend-toolkit/set_env.sh" >> /root/.bashrc
+
+# Install Ascend Kernels
+ARG ASCEND_KLS=Ascend-cann-kernels-910*_${CANN_VERSION}_linux.run
+COPY ${ASCEND_KLS} /usr/local/Ascend/
+RUN chmod +x ${ASCEND_KLS} && ./${ASCEND_KLS} --install --quiet && rm -rf ${ASCEND_KLS}
+
+# Install Ascend Transformer Boost
+ARG ASCEND_ATB=Ascend-cann-atb_${CANN_VERSION}*.run
+COPY ${ASCEND_ATB} /usr/local/Ascend/
+RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
+    chmod +x ${ASCEND_ATB} && ./${ASCEND_ATB} --install --quiet && rm -rf ${ASCEND_ATB}
+# update env for atb
+RUN echo "source /usr/local/Ascend/atb/set_env.sh" >> /root/.bashrc
+
+# install post process ops
+COPY post-process-v5.2 /usr/local/Ascend/post-process-v5.2/
+RUN ls -l /usr/local/Ascend/post-process-v5.2/
+RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
+    cd post-process-v5.2/build && bash build_ops.sh > /dev/null && \
+    chmod +x aie_ops.run && ./aie_ops.run --extract=/usr/local/Ascend/ && \
+    rm -rf /usr/local/Ascend/post-process-v5.2
+# update env for ascendc
+ENV ASCEND_CUSTOM_OPP_PATH=/usr/local/Ascend/vendors/aie_ascendc
 
 # DEV image should open error level log
 # 0 debug; 1 info; 2 warning; 3 error; 4 null

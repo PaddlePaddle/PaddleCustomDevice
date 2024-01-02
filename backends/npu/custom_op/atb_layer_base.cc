@@ -106,6 +106,9 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                                           "ret message: %d .", opName_, st));
 
   if (workspace_size > 0) {
+    if (workspace_size < 209715200) { // 最低200M，防止频繁申请释放内存
+        workspace_size = 209715200;
+    }
     SetWorkspace(workspace_size);
   }
 

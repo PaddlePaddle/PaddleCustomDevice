@@ -1,17 +1,28 @@
 # PaddlePaddle Custom Device Implementaion for Custom CPU
 
-English | [简体中文](./README_cn.md)
+English | [简体中文](./README_cn.md) | [日本語](./README_ja.md)
 
 Please refer to the following steps to compile, install and verify the custom device implementaion for Custom CPU.
 
-## Get Sources
+## Prepare environment and source code
 
 ```bash
-# clone source 
+# 1. pull PaddlePaddle CPU development docker image
+# dockerfile of the image is in tools/dockerfile directory
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
+
+# 2. refer to the following commands to start docker container
+docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
+       --network=host --shm-size=128G --workdir=/workspace \
+       --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+       registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82 /bin/bash
+
+# 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# get the latest submodule source code
+# 4. execute the following commands to update submodule
 git submodule sync
 git submodule update --remote --init --recursive
 ```
@@ -47,7 +58,7 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # run a simple model
 python ../tests/test_MNIST_model.py
 
-# expected similar output 
+# expected similar output
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125
@@ -99,11 +110,11 @@ Using PaddleInference
 pushd Paddle-Inference-Demo/c++/resnet50
 
 # Modify resnet50_test.cc, use config.EnableCustomDevice("custom_cpu", 0) to replace config.EnableUseGpu(100, 0)
-  
+
 bash run.sh
 ```
 
-expected similar output 
+expected similar output
 
 ```bash
 I0713 09:02:38.808723 24792 resnet50_test.cc:74] run avg time is 297.75 ms

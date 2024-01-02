@@ -1,11 +1,11 @@
 # Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,7 +14,6 @@
 
 import numpy as np
 import paddle
-from paddle.nn import Conv2D, MaxPool2D, ReLU
 from paddle.optimizer import Adam
 
 BATCH_SIZE = 64
@@ -29,17 +28,19 @@ class MnistDataset(paddle.vision.datasets.MNIST):
         img = np.reshape(self.images[idx], [1, 28, 28])
         img = img / 255.0 * 2.0 - 1.0
         if self.return_label:
-            return img, np.array(self.labels[idx]).astype('int')
-        return img,
+            return img, np.array(self.labels[idx]).astype("int")
+        return (img,)
 
     def __len__(self):
         return len(self.images)
 
 
 train_reader = paddle.io.DataLoader(
-    MnistDataset(mode='train'), batch_size=BATCH_SIZE, drop_last=True)
+    MnistDataset(mode="train"), batch_size=BATCH_SIZE, drop_last=True
+)
 test_reader = paddle.io.DataLoader(
-    MnistDataset(mode='test'), batch_size=BATCH_SIZE, drop_last=True)
+    MnistDataset(mode="test"), batch_size=BATCH_SIZE, drop_last=True
+)
 
 
 class MNIST(paddle.nn.Layer):
@@ -61,7 +62,7 @@ class MNIST(paddle.nn.Layer):
             return x
 
 
-paddle.set_device('CustomMLU')
+paddle.set_device("mlu")
 mnist = MNIST()
 adam = Adam(learning_rate=0.001, parameters=mnist.parameters())
 
@@ -78,7 +79,10 @@ for epoch in range(epoch_num):
         adam.clear_grad()
 
         if batch_id % 100 == 0:
-            print("Epoch {} step {}, Loss = {:}, Accuracy = {:}".format(
-                epoch, batch_id, avg_loss.numpy(), acc.numpy()))
+            print(
+                "Epoch {} step {}, Loss = {:}, Accuracy = {:}".format(
+                    epoch, batch_id, avg_loss.numpy(), acc.numpy()
+                )
+            )
 model_dict = mnist.state_dict()
 paddle.save(model_dict, "mnist.pdparams")

@@ -35,15 +35,15 @@ class TestCheckFiniteAndUnscaleOp(OpTest):
         x = np.random.random((129, 129)).astype(self.dtype)
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([0]),
-            'Out': [('out0', x / scale)],
+            "FoundInfinite": np.array([0]),
+            "Out": [("out0", x / scale)],
         }
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -58,16 +58,16 @@ class TestCheckFiniteAndUnscaleOpWithNan(TestCheckFiniteAndUnscaleOp):
         x[128][128] = np.nan
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x)],
+            "FoundInfinite": np.array([1]),
+            "Out": [("out0", x)],
         }
 
     def test_check_output(self):
         # When input contains nan, do not check the output,
         # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(self.place, no_check_set=["Out"])
 
 
 class TestCheckFiniteAndUnscaleOpWithInf(TestCheckFiniteAndUnscaleOp):
@@ -76,16 +76,16 @@ class TestCheckFiniteAndUnscaleOpWithInf(TestCheckFiniteAndUnscaleOp):
         x[128][128] = np.inf
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x)],
+            "FoundInfinite": np.array([1]),
+            "Out": [("out0", x)],
         }
 
     def test_check_output(self):
         # When input contains inf, do not check the output,
         # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(self.place, no_check_set=["Out"])
 
 
 class TestCheckFiniteAndUnscaleOpMultiInput(TestCheckFiniteAndUnscaleOp):
@@ -94,10 +94,10 @@ class TestCheckFiniteAndUnscaleOpMultiInput(TestCheckFiniteAndUnscaleOp):
         x1 = np.random.random((129, 129)).astype(self.dtype)
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x0), ('x1', x1)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x0), ("x1", x1)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([0]),
-            'Out': [('out0', x0 / scale), ('out1', x1 / scale)],
+            "FoundInfinite": np.array([0]),
+            "Out": [("out0", x0 / scale), ("out1", x1 / scale)],
         }
 
 
@@ -108,16 +108,16 @@ class TestCheckFiniteAndUnscaleOpMultiInputWithNan(TestCheckFiniteAndUnscaleOp):
         x1 = np.random.random((129, 129)).astype(self.dtype)
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x0), ('x1', x1)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x0), ("x1", x1)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x0 / scale), ('out1', x1 / scale)],
+            "FoundInfinite": np.array([1]),
+            "Out": [("out0", x0 / scale), ("out1", x1 / scale)],
         }
 
     def test_check_output(self):
         # When input contains inf, do not check the output,
         # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(self.place, no_check_set=["Out"])
 
 
 class TestCheckFiniteAndUnscaleOpMultiInputWithInf(TestCheckFiniteAndUnscaleOp):
@@ -128,17 +128,17 @@ class TestCheckFiniteAndUnscaleOpMultiInputWithInf(TestCheckFiniteAndUnscaleOp):
         x1[128][128] = np.inf
         scale = np.random.random((1)).astype(self.dtype)
 
-        self.inputs = {'X': [('x0', x0), ('x1', x1)], 'Scale': scale}
+        self.inputs = {"X": [("x0", x0), ("x1", x1)], "Scale": scale}
         self.outputs = {
-            'FoundInfinite': np.array([1]),
-            'Out': [('out0', x0 / scale), ('out1', x1 / scale)],
+            "FoundInfinite": np.array([1]),
+            "Out": [("out0", x0 / scale), ("out1", x1 / scale)],
         }
 
     def test_check_output(self):
         # When input contains inf, do not check the output,
         # since the output may be nondeterministic and will be discarded.
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(self.place, no_check_set=["Out"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

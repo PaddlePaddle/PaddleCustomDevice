@@ -17,36 +17,65 @@
 
 namespace custom_kernel {
 
+inline phi::DDim GetDimsWithAxis(const phi::DDim& x_dims,
+                                 const phi::DDim& y_dims,
+                                 const int axis) {
+  std::vector<int64_t> y_shape(x_dims.size(), 1);
+  for (int i = 0; i < axis; ++i) {
+    y_shape[i] = 1;
+  }
+  for (int i = 0; i < y_dims.size(); ++i) {
+    bool is_common_boardcast = x_dims[i + axis] == y_dims[i]
+                                   ? true
+                                   : (y_dims[i] == 1 || x_dims[i + axis] == 1);
+    PADDLE_ENFORCE_EQ(is_common_boardcast,
+                      true,
+                      phi::errors::InvalidArgument(
+                          "Broadcast dimension mismatch. Operands "
+                          "could not be broadcast together with the shape of "
+                          "X = [%s] and the shape of Y = [%s]. Received [%d] "
+                          "in X is not equal to [%d] in Y.",
+                          x_dims,
+                          y_dims,
+                          x_dims[i + axis],
+                          y_dims[i]));
+    y_shape[i + axis] = y_dims[i];
+  }
+  for (int i = axis + y_dims.size(); i < x_dims.size(); ++i) {
+    y_shape[i] = 1;
+  }
+  return phi::make_ddim(y_shape);
+}
+
 template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::DenseTensor& y,
                   int axis,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  if (x.storage_properties_initialized()) {
+    auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    AllocNPUTensor<T>(dev_ctx, aclFormat(storage_format), out);
+  } else {
+    dev_ctx.template Alloc<T>(out);
+  }
+
   auto stream = dev_ctx.stream();
 
   bool direct_compute = false;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
-  if (x_dims.size() >= y_dims.size()) {
-    direct_compute = x_dims.size() == (y_dims.size() + axis);
-  } else {
-    direct_compute = y_dims.size() == (x_dims.size() + axis);
-  }
 
-  if (direct_compute) {
-    const auto& runner = NpuOpRunner("Add", {x, y}, {*out}, {});
-    runner.Run(stream);
+  phi::DenseTensor x_tensor(x), y_tensor(y);
+  if (x_dims.size() >= y_dims.size()) {
+    y_tensor.Resize(GetDimsWithAxis(x_dims, y_dims, axis));
   } else {
-    phi::DenseTensor transformed_x, transformed_y;
-    NpuElementWiseOpBroadcast<T>(
-        dev_ctx, &x, &y, axis, &transformed_x, &transformed_y);
-    const auto& runner =
-        NpuOpRunner("Add", {transformed_x, transformed_y}, {*out}, {});
-    runner.Run(stream);
+    x_tensor.Resize(GetDimsWithAxis(y_dims, x_dims, axis));
   }
+  const auto& runner = NpuOpRunner("Add", {x_tensor, y_tensor}, {*out}, {});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -71,7 +100,15 @@ void AddGradKernel(const Context& dev_ctx,
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
 
   if (dx) {
-    dev_ctx.template Alloc<T>(dx);
+    if (dout.storage_properties_initialized()) {
+      auto npu_properties =
+          dout.storage_properties<phi::NPUStorageProperties>();
+      int64_t storage_format = npu_properties.storage_format;
+      AllocNPUTensor<T>(dev_ctx, aclFormat(storage_format), dx);
+    } else {
+      dev_ctx.template Alloc<T>(dx);
+    }
+
     if (dx->dims() != dout.dims()) {
       std::vector<int> dst_dims_vec;
       std::vector<int> reduce_axes;
@@ -102,7 +139,15 @@ void AddGradKernel(const Context& dev_ctx,
     }
   }
   if (dy) {
-    dev_ctx.template Alloc<T>(dy);
+    if (dout.storage_properties_initialized()) {
+      auto npu_properties =
+          dout.storage_properties<phi::NPUStorageProperties>();
+      int64_t storage_format = npu_properties.storage_format;
+      AllocNPUTensor<T>(dev_ctx, aclFormat(storage_format), dy);
+    } else {
+      dev_ctx.template Alloc<T>(dy);
+    }
+
     if (dy->dims() != dout.dims()) {
       std::vector<int> dst_dims_vec;
       std::vector<int> reduce_axes;
@@ -121,11 +166,12 @@ void AddGradKernel(const Context& dev_ctx,
       if (!reduce_axes.empty()) {
         phi::DenseTensor tmp(*dy);
         tmp.Resize(phi::make_ddim(dst_dims_vec));
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {dout},
-                        {tmp},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
+        NpuOpRunner runner;
+        runner.SetType("ReduceSum");
+        runner.AddInput(dout);
+        runner.AddInput(dev_ctx, std::move(reduce_axes));
+        runner.AddOutput(tmp);
+        runner.AddAttr("keep_dims", false);
         runner.Run(stream);
       }
     } else {
@@ -137,24 +183,31 @@ void AddGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(add_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
+                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
+                          int,
                           int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AddGradKernel,
+                          int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          double) {}

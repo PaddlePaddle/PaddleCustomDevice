@@ -18,7 +18,6 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest, skip_check_grad_ci
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2021
@@ -28,12 +27,12 @@ class TestConcatOp(OpTest):
     def setUp(self):
         self.set_mlu()
         self.op_type = "concat"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.init_dtype()
         self.init_test_data()
 
-        self.inputs = {'X': [('x0', self.x0), ('x1', self.x1), ('x2', self.x2)]}
-        self.attrs = {'axis': self.axis}
+        self.inputs = {"X": [("x0", self.x0), ("x1", self.x1), ("x2", self.x2)]}
+        self.attrs = {"axis": self.axis}
         if self.axis < 0:
             self.actual_axis = self.axis + len(self.x0.shape)
             self.actual_axis = self.actual_axis if self.actual_axis > 0 else 0
@@ -41,8 +40,7 @@ class TestConcatOp(OpTest):
             self.actual_axis = self.axis
 
         self.outputs = {
-            'Out': np.concatenate(
-                (self.x0, self.x1, self.x2), axis=self.actual_axis)
+            "Out": np.concatenate((self.x0, self.x1, self.x2), axis=self.actual_axis)
         }
 
     def set_mlu(self):
@@ -55,9 +53,9 @@ class TestConcatOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['x0', 'x2'], 'Out')
-        self.check_grad_with_place(self.place, ['x1'], 'Out')
-        self.check_grad_with_place(self.place, ['x2'], 'Out')
+        self.check_grad_with_place(self.place, ["x0", "x2"], "Out")
+        self.check_grad_with_place(self.place, ["x1"], "Out")
+        self.check_grad_with_place(self.place, ["x2"], "Out")
 
     def init_test_data(self):
         self.x0 = np.random.random((1, 4, 50)).astype(self.dtype)
@@ -74,8 +72,7 @@ class TestConcatOp2(TestConcatOp):
         self.axis = 1
 
 
-@skip_check_grad_ci(
-    reason="The function 'check_grad' for large inputs is too slow.")
+@skip_check_grad_ci(reason="The function 'check_grad' for large inputs is too slow.")
 class TestConcatOp3(TestConcatOp):
     def init_test_data(self):
         self.x0 = np.random.random((1, 256, 170, 256)).astype(self.dtype)
@@ -109,7 +106,7 @@ class TestConcatOp5(TestConcatOp):
         self.axis = -3
 
 
-#----------------Concat Fp16----------------
+# ----------------Concat Fp16----------------
 def create_test_fp16(parent):
     class TestConcatFp16(parent):
         def init_dtype(self):
@@ -127,7 +124,7 @@ create_test_fp16(TestConcatOp4)
 create_test_fp16(TestConcatOp5)
 
 
-#----------------Concat Int64----------------
+# ----------------Concat Int64----------------
 def create_test_int64(parent):
     class TestConcatInt64(parent):
         def init_dtype(self):
@@ -148,7 +145,7 @@ create_test_int64(TestConcatOp4)
 create_test_int64(TestConcatOp5)
 
 
-#----------------Concat Int32----------------
+# ----------------Concat Int32----------------
 def create_test_int32(parent):
     class TestConcatInt32(parent):
         def init_dtype(self):
@@ -168,5 +165,5 @@ create_test_int32(TestConcatOp3)
 create_test_int32(TestConcatOp4)
 create_test_int32(TestConcatOp5)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

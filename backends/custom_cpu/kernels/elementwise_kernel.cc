@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/capi/all.h"
-#include "phi_funcs.h"
+#include "phi_funcs.h"  //NOLINT
 
 namespace custom_kernel {
 
@@ -111,7 +111,6 @@ void MaxKernel(const phi::Context& dev_ctx,
   int axis = -1;
   custom_kernel::MaxRawKernel<T>(dev_ctx, x, y, axis, out);
 }
-
 
 }  // namespace custom_kernel
 

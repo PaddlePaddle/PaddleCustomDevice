@@ -22,12 +22,12 @@ void ArgMaxKernel(const Context& dev_ctx,
                   const phi::Scalar& axis,
                   bool keepdims,
                   bool flatten,
-                  int dtype,
+                  phi::DataType dtype,
                   phi::DenseTensor* out) {
   auto arg_max_axis = axis.to<int>();
   if (x.numel() == 0) return;
   PADDLE_ENFORCE_EQ(
-      (dtype == 2 || dtype == 3),
+      (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT64),
       true,
       phi::errors::InvalidArgument(
           "The attribute of dtype in argmax op must be [%s] or [%s], "
@@ -71,7 +71,7 @@ void ArgMaxKernel(const Context& dev_ctx,
                                    CNNL_REDUCE_ONLY_INDICES,
                                    CNNL_32BIT_INDICES);
 
-  if (dtype == 2) {
+  if (dtype == phi::DataType::INT32) {
     dev_ctx.template Alloc<int32_t>(out);
     MLUCnnl::Reduce(dev_ctx,
                     true /*need_workspace*/,
@@ -117,9 +117,11 @@ void ArgMaxKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(arg_max,
-                          CustomMLU,
+PD_REGISTER_PLUGIN_KERNEL(argmax,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::ArgMaxKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

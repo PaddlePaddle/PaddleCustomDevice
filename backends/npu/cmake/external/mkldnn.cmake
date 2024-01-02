@@ -1,1 +1,1 @@
-../../../../Paddle/cmake/external/mkldnn.cmake
+../../../../cmake/external/mkldnn.cmake

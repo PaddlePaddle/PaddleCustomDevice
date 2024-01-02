@@ -16,11 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2021
@@ -30,30 +28,31 @@ class TestLookupTableV2(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "lookup_table_v2"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         self.init_dtype()
         self.init_dims()
         self.init_padding_idx()
         np.random.seed(SEED)
         w = np.random.random([self.vocab, self.dim]).astype(self.dtype)
-        x = np.random.randint(
-            0, self.vocab, size=(self.bsz, self.seqlen)).astype(self.ids_dtype)
+        x = np.random.randint(0, self.vocab, size=(self.bsz, self.seqlen)).astype(
+            self.ids_dtype
+        )
         out = w[x]
         if self.padding_idx != -1:
             out[np.squeeze(x == self.padding_idx)] = np.zeros(self.dim)
 
         self.inputs = {
-            'W': OpTest.np_dtype_to_fluid_dtype(w),
-            'Ids': OpTest.np_dtype_to_fluid_dtype(x)
+            "W": OpTest.np_dtype_to_base_dtype(w),
+            "Ids": OpTest.np_dtype_to_base_dtype(x),
         }
         self.attrs = {
-            'is_sparse': False,
-            'is_distributed': False,
-            'remote_prefetch': False,
-            'padding_idx': self.padding_idx
+            "is_sparse": False,
+            "is_distributed": False,
+            "remote_prefetch": False,
+            "padding_idx": self.padding_idx,
         }
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -78,9 +77,10 @@ class TestLookupTableV2(OpTest):
     def test_check_grad(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(
-                self.place, ['W'], 'Out', max_relative_error=0.01)
+                self.place, ["W"], "Out", max_relative_error=0.01
+            )
         else:
-            self.check_grad_with_place(self.place, ['W'], 'Out')
+            self.check_grad_with_place(self.place, ["W"], "Out")
 
 
 class TestLookupTableV2FP16(TestLookupTableV2):
@@ -88,6 +88,18 @@ class TestLookupTableV2FP16(TestLookupTableV2):
 
     def init_dtype(self):
         self.dtype = np.float16
+        self.ids_dtype = np.int32
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+
+class TestLookupTableV2FP64(TestLookupTableV2):
+    no_need_check_grad = True
+
+    def init_dtype(self):
+        self.dtype = np.float64
         self.ids_dtype = np.int32
 
     def set_npu(self):
@@ -122,6 +134,24 @@ class TestLookupTableV2Dim32FP16(TestLookupTableV2):
         self.__class__.no_need_check_grad = True
 
 
+class TestLookupTableV2Dim32FP64(TestLookupTableV2):
+    no_need_check_grad = True
+
+    def init_dtype(self):
+        self.dtype = np.float64
+        self.ids_dtype = np.int64
+
+    def init_dims(self):
+        self.bsz = 6
+        self.seqlen = 8
+        self.vocab = 10
+        self.dim = 64
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+
 class TestLookupTableV2WithPadding(TestLookupTableV2):
     def init_padding_idx(self):
         self.padding_idx = np.random.randint(0, self.vocab)
@@ -136,5 +166,5 @@ class TestLookupTableV2WithPadding1(TestLookupTableV2):
         self.ids_dtype = np.int64
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

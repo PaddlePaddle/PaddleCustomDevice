@@ -1,17 +1,28 @@
 # 飞桨自定义接入硬件后端(Custom CPU)
 
-简体中文 | [English](./README.md)
+简体中文 | [English](./README.md) | [日本語](./README_ja.md)
 
 请参考以下步骤进行硬件后端(Custom CPU)的编译安装与验证
 
-## 一、源码同步
+## 一、环境准备与源码同步
 
 ```bash
-# 克隆代码
+# 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
+#    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
+
+# 2) 参考如下命令启动容器
+docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
+       --network=host --shm-size=128G --workdir=/workspace \
+       --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+       registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82 /bin/bash
+
+# 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# 请执行以下命令，以保证checkout最新的Paddle源码
+# 4) 请执行以下命令，以保证 checkout 最新的 PaddlePaddle 主框架源码
 git submodule sync
 git submodule update --remote --init --recursive
 ```
@@ -97,7 +108,7 @@ popd
 pushd Paddle-Inference-Demo/c++/resnet50
 
 # 修改 resnet50_test.cc，使用 config.EnableCustomDevice("custom_cpu", 0) 接口替换 config.EnableUseGpu(100, 0)
-  
+
 bash run.sh
 ```
 

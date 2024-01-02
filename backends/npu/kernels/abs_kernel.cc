@@ -14,13 +14,14 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
 void AbsKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -30,11 +31,11 @@ void AbsKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-  
+
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
   runner.Run(stream);
@@ -43,11 +44,16 @@ void AbsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
-    abs, ascend, ALL_LAYOUT, custom_kernel::AbsKernel, float, double) {}
+    abs, npu, ALL_LAYOUT, custom_kernel::AbsKernel, float, double, int64_t) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}
 
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::AbsGradKernel,
                           float,
-                          double) {}
+                          double,
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}

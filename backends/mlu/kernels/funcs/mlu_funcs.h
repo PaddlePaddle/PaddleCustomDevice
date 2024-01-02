@@ -56,7 +56,7 @@ inline void TensorCopy(const Context& dev_ctx,
 
   C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
 
-  auto size = src.numel() * paddle::experimental::SizeOf(src.dtype());
+  auto size = src.numel() * phi::SizeOf(src.dtype());
 
   if (src_place.GetType() == phi::AllocationType::CPU &&
       dst_place_.GetType() == phi::AllocationType::CUSTOM) {
@@ -82,10 +82,14 @@ inline void TensorCopy(const Context& dev_ctx,
           AsyncMemCpyD2D(nullptr, stream, dst_ptr, src_ptr, size);
         }
       } else {
+        PADDLE_THROW(
+            phi::errors::Unimplemented("TensorCopy is not supported."));
       }
     } else {
+      PADDLE_THROW(phi::errors::Unimplemented("TensorCopy is not supported."));
     }
   } else {
+    std::memcpy(dst_ptr, src_ptr, size);
   }
 }
 
@@ -269,6 +273,14 @@ static inline int CanonicalAxis(const int axis, const int rank) {
   return axis;
 }
 
+static inline int SizeFromAxis(const int axis, phi::DDim dims) {
+  int size = 1;
+  for (int i = axis; i < dims.size(); i++) {
+    size *= dims[i];
+  }
+  return size;
+}
+
 static inline int SizeToAxis(const int axis, phi::DDim dims) {
   int size = 1;
   for (int i = 0; i < axis; i++) {
@@ -341,19 +353,25 @@ inline std::vector<T> get_new_data_from_tensor(
   std::vector<T> vec_new_data;
   auto place = new_data_tensor->place();
   phi::DenseTensor cpu_starts_tensor;
-  cpu_starts_tensor.Resize(new_data_tensor->dims());
-  T* new_data = dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
   if (place.GetType() == phi::AllocationType::CUSTOM) {
+    // if tensor on CUSTOM place, do memcpy to host
+    cpu_starts_tensor.Resize(new_data_tensor->dims());
+    dev_ctx.template HostAlloc<T>(&cpu_starts_tensor);
     TensorCopy(
         dev_ctx, *new_data_tensor, true, &cpu_starts_tensor, phi::CPUPlace());
-    new_data = cpu_starts_tensor.data<T>();
+  } else {
+    // if tensor on CPU place, return ptr
+    cpu_starts_tensor = *new_data_tensor;
   }
-  vec_new_data = std::vector<T>(new_data, new_data + cpu_starts_tensor.numel());
+  auto new_data_ptr = reinterpret_cast<T*>(cpu_starts_tensor.data<T>());
+  vec_new_data =
+      std::vector<T>(new_data_ptr, new_data_ptr + cpu_starts_tensor.numel());
   return vec_new_data;
 }
 
+template <typename T>
 inline phi::DenseTensor ReshapeToMatrix(const phi::DenseTensor& src,
-                                        int num_col_dims) {
+                                        T num_col_dims) {
   int rank = src.dims().size();
   PADDLE_ENFORCE_GE(
       rank,
@@ -390,5 +408,55 @@ class MPTypeTrait<phi::dtype::bfloat16> {
  public:
   using Type = float;
 };
+
+template <typename T>
+void GetSize(T start, T end, T step, int64_t* size) {
+  PADDLE_ENFORCE_NE(
+      step,
+      0,
+      phi::errors::InvalidArgument("The step of range op should not be 0."));
+
+  if (start < end) {
+    PADDLE_ENFORCE_GT(
+        step,
+        0,
+        phi::errors::InvalidArgument(
+            "The step should be greater than 0 while start < end."));
+  }
+
+  if (start > end) {
+    PADDLE_ENFORCE_LT(step,
+                      0,
+                      phi::errors::InvalidArgument(
+                          "The step should be less than 0 while start > end."));
+  }
+
+  *size = std::is_integral<T>::value
+              ? ((std::abs(end - start) + std::abs(step) - 1) / std::abs(step))
+              : std::ceil(std::abs((end - start) / step));
+}
+
+template <typename T, typename Context>
+void ArangeNullKernel(const Context& dev_ctx,
+                      const T start_value,
+                      const T end_value,
+                      const T step_value,
+                      phi::DenseTensor* out) {
+  int64_t size = 0;
+  GetSize(start_value, end_value, step_value, &size);
+  out->Resize(phi::make_ddim({size}));
+
+  dev_ctx.template Alloc<T>(out);
+
+  std::vector<T> odata;
+  T value = start_value;
+  for (int64_t i = 0; i < size; ++i) {
+    odata.push_back(value);
+    value += step_value;
+  }
+
+  TensorFromVector(dev_ctx, odata, dev_ctx, out);
+  dev_ctx.Wait();
+}
 
 }  // namespace custom_kernel

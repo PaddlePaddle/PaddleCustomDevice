@@ -68,6 +68,16 @@ void ArgsortKernel(const Context& dev_ctx,
                    phi::DenseTensor* indices) {
   // TODO(Aganlengzi): Sort may change the input data !
   // Here we make a deepcopy to workaround before it is fixed.
+  if (in.dims().size() == 0) {
+    dev_ctx.template Alloc<T>(output);
+    TensorCopy(dev_ctx, in, false, output);
+    dev_ctx.template Alloc<int64_t>(indices);
+    FillNpuTensorWithConstant<int64_t>(
+        indices, dev_ctx, static_cast<int64_t>(0));
+    indices->Resize(phi::make_ddim({}));
+    return;
+  }
+
   phi::DenseTensor input;
   TensorCopy(dev_ctx, in, false, &input);
 
@@ -209,9 +219,11 @@ void ArgsortKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(argsort,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ArgsortKernel,
                           float,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+}

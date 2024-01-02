@@ -24,14 +24,6 @@ struct InterpolateFunction {
   explicit InterpolateFunction(const Context& dev_ctx) : dev_ctx(dev_ctx) {
     place = dev_ctx.GetPlace();
     stream = dev_ctx.stream();
-    t0.Resize({1});
-    t1.Resize({1});
-    tn.Resize({1});
-    dev_ctx.template Alloc<float>(&t0);
-    dev_ctx.template Alloc<float>(&t1);
-    dev_ctx.template Alloc<float>(&tn);
-    FillNpuTensorWithConstant<float>(&t0, dev_ctx, static_cast<float>(0));
-    FillNpuTensorWithConstant<float>(&t1, dev_ctx, static_cast<float>(1));
   }
   void Arange(int n, phi::DenseTensor* x) {
     if (x->dtype() == phi::DataType::FLOAT16) {
@@ -39,13 +31,38 @@ struct InterpolateFunction {
       phi::DenseTensorMeta x_fp32_meta = {phi::DataType::FLOAT32, x->dims()};
       x_fp32.set_meta(x_fp32_meta);
       dev_ctx.template Alloc<float>(&x_fp32);
-      FillNpuTensorWithConstant<float>(&tn, dev_ctx, static_cast<float>(n));
-      const auto& runner = NpuOpRunner("Range", {t0, tn, t1}, {x_fp32}, {});
+
+      NpuOpRunner runner;
+      // Fix refer to
+      // https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue
+      runner.SetType("Range")
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(0)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(n)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(1)}),
+                    false)
+          .AddOutput(x_fp32);
       runner.Run(stream);
       Cast(&x_fp32, x);
     } else {
-      FillNpuTensorWithConstant<float>(&tn, dev_ctx, static_cast<float>(n));
-      const auto& runner = NpuOpRunner("Range", {t0, tn, t1}, {*x}, {});
+      NpuOpRunner runner;
+      // Fix refer to
+      // https://gitee.com/ascend/modelzoo/issues/I6K3HN?from=project-issue
+      runner.SetType("Range")
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(0)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(n)}),
+                    false)
+          .AddInput(dev_ctx,
+                    std::move(std::vector<float>{static_cast<float>(1)}),
+                    false)
+          .AddOutput(*x);
       runner.Run(stream);
     }
   }
@@ -89,8 +106,12 @@ struct InterpolateFunction {
               const phi::DenseTensor* indices,
               const int axis,
               phi::DenseTensor* y) {
-    const auto& runner =
-        NpuOpRunner("GatherV2D", {*x, *indices}, {*y}, {{"axis", axis}});
+    NpuOpRunner runner;
+    runner.SetType("GatherV2")
+        .AddInput(*x)
+        .AddInput(*indices)
+        .AddInput(dev_ctx, std::vector<int32_t>{axis})
+        .AddOutput(*y);
     runner.Run(stream);
   }
   void GatherGrad(const phi::DenseTensor* gy,
@@ -169,9 +190,6 @@ struct InterpolateFunction {
   phi::Place place;
   aclrtStream stream;
   const Context& dev_ctx;
-  phi::DenseTensor t0;
-  phi::DenseTensor t1;
-  phi::DenseTensor tn;
 };
 
 void InterpolateParamCompute(const float scale_h,
@@ -544,30 +562,18 @@ void InterpolateKernel(
   int n, c, in_d, in_h, in_w;
   ExtractNCDWH(input_dims, data_layout, &n, &c, &in_d, &in_h, &in_w);
 
-  // To-do(qili93): need to support align_corners = true case, try ReSizeD
-  PADDLE_ENFORCE_EQ(
-      align_corners,
-      false,
-      phi::errors::InvalidArgument(
-          "NPU Interpolate Kernel has diff when align_corners is true."));
-
   float scale_h = -1;
   float scale_w = -1;
 
   // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
     auto list_new_shape_tensor = size_tensor.get();
-    std::vector<int32_t> output_h(1);
-    std::vector<int32_t> output_w(1);
-    TensorToVector(dev_ctx, *(list_new_shape_tensor[0]), dev_ctx, &output_h);
-    TensorToVector(dev_ctx, *(list_new_shape_tensor[1]), dev_ctx, &output_w);
+    auto output_h =
+        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
+    auto output_w =
+        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
     out_h = output_h[0];
     out_w = output_w[0];
-  } else if (out_size) {
-    auto out_size_data =
-        get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
-    out_h = out_size_data[0];
-    out_w = out_size_data[1];
   } else {
     if (scale_tensor) {
       auto scale_data =
@@ -617,6 +623,15 @@ void InterpolateKernel(
     if (scale_h > 0. && scale_w > 0.) {
       out_h = static_cast<int>(in_h * scale_h);
       out_w = static_cast<int>(in_w * scale_w);
+    }
+    if (out_size) {
+      auto size_data =
+          get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
+      // phi::DenseTensor sizes;
+      // TensorCopy(dev_ctx, *out_size, true, &sizes, phi::CPUPlace());
+      // auto size_data = sizes.data<int>();
+      out_h = size_data[0];
+      out_w = size_data[1];
     }
   }
   PADDLE_ENFORCE_GT(out_h,
@@ -694,13 +709,6 @@ void InterpolateGradKernel(
   phi::DataLayout data_layout = StringToDataLayout(data_layout_str);
   int n, c, in_d, in_h, in_w;
   ExtractNCDWH(input.dims(), data_layout, &n, &c, &in_d, &in_h, &in_w);
-
-  // To-do(qili93): need to support align_corners = true case, try ReSizeD
-  PADDLE_ENFORCE_EQ(
-      align_corners,
-      false,
-      phi::errors::InvalidArgument(
-          "NPU Interpolate Kernel has diff when align_corners is true."));
 
   float scale_h = -1;
   float scale_w = -1;
@@ -943,29 +951,43 @@ void NearestInterpGradKernel(
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(nearest_interp_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(bilinear_interp_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(2).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(3).SetBackend(phi::Backend::ALL_BACKEND);
+}

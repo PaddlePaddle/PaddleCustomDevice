@@ -25,16 +25,14 @@ void FullKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   auto shape_vec = shape.GetData();
-  out->ResizeAndAllocate(phi::make_ddim(shape_vec));
+  auto out_dim = phi::make_ddim(shape_vec);
+  out->ResizeAndAllocate(out_dim);
   dev_ctx.template Alloc<T>(out);
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
-  NpuOpRunner runner;
-  runner.SetType("Fills")
-      .AddInput(*out)
-      .AddOutput(*out)
-      .AddAttrs({{"value", val.to<float>()}})
-      .Run(stream);
+  FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(val.to<T>()));
+
+  out->Resize(out_dim);
 }
 
 template <typename T, typename Context>
@@ -112,17 +110,18 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
                           bool,
                           int,
                           int64_t,
                           float,
+                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FullLikeKernel,
                           bool,
@@ -134,7 +133,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
 }
 
 PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::FullBatchSizeLikeKernel,
                           int,

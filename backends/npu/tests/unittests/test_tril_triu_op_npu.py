@@ -14,41 +14,51 @@
 from __future__ import print_function
 
 import unittest
-import numpy as np
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 import paddle.tensor as tensor
-from paddle.fluid.framework import Program, program_guard
+from paddle.base.framework import Program, program_guard
+from tests.op_test import OpTest
 
 paddle.enable_static()
 
 
 class TestNPUTrilTriu(OpTest):
-    """ the base class of other op testcases
-    """
+    """the base class of other op testcases"""
 
     def setUp(self):
         self.op_type = "tril_triu"
         self.set_npu()
         self.init_dtype()
         self.initTestCase()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.real_np_op = getattr(np, self.real_op_type)
 
-        self.inputs = {'X': self.X}
+        self.inputs = {"X": self.X}
         self.attrs = {
-            'diagonal': self.diagonal,
-            'lower': True if self.real_op_type == 'tril' else False,
+            "diagonal": self.diagonal,
+            "lower": True if self.real_op_type == "tril" else False,
         }
         self.outputs = {
-            'Out': self.real_np_op(self.X, self.diagonal)
-            if self.diagonal else self.real_np_op(self.X)
+            "Out": self.real_np_op(self.X, self.diagonal)
+            if self.diagonal
+            else self.real_np_op(self.X)
         }
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            check_dygraph=False,
+            max_relative_error=0.009,
+            numeric_place=paddle.CPUPlace(),
+        )
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -57,9 +67,19 @@ class TestNPUTrilTriu(OpTest):
         self.dtype = np.float32
 
     def initTestCase(self):
-        self.real_op_type = np.random.choice(['triu', 'tril'])
+        self.real_op_type = np.random.choice(["triu", "tril"])
         self.diagonal = None
         self.X = np.arange(1, 101, dtype=self.dtype).reshape([10, -1])
+
+
+class TestNPUTrilTriuFP16(TestNPUTrilTriu):
+    def init_dtype(self):
+        self.dtype = np.float16
+
+
+class TestNPUTrilTriuFP64(TestNPUTrilTriu):
+    def init_dtype(self):
+        self.dtype = np.float64
 
 
 def case_generator(op_type, Xshape, diagonal, expected):
@@ -68,22 +88,20 @@ def case_generator(op_type, Xshape, diagonal, expected):
     If arg `expercted` is 'success', it will register an Optest case and expect to pass.
     Otherwise, it will register an API case and check the expect failure.
     """
-    cls_name = "{0}_{1}_shape_{2}_diag_{3}".format(expected, op_type, Xshape,
-                                                   diagonal)
+    cls_name = "{0}_{1}_shape_{2}_diag_{3}".format(expected, op_type, Xshape, diagonal)
     errmsg = {
-        "diagonal: TypeError":
-        "diagonal in {} must be a python Int".format(op_type),
-        "input: ValueError":
-        "x shape in {} must be at least 2-D".format(op_type),
+        "diagonal: TypeError": "diagonal in {} must be a python Int".format(op_type),
+        "input: ValueError": "x shape in {} must be at least 2-D".format(op_type),
     }
 
     class FailureCase(unittest.TestCase):
         def test_failure(self):
             paddle.enable_static()
 
-            data = fluid.data(shape=Xshape, dtype='float32', name=cls_name)
+            data = paddle.static.data(shape=Xshape, dtype="float32", name=cls_name)
             with self.assertRaisesRegexp(
-                    eval(expected.split(':')[-1]), errmsg[expected]):
+                eval(expected.split(":")[-1]), errmsg[expected]
+            ):
                 getattr(tensor, op_type)(x=data, diagonal=diagonal)
 
     class SuccessCase(TestNPUTrilTriu):
@@ -94,111 +112,127 @@ def case_generator(op_type, Xshape, diagonal, expected):
             self.diagonal = diagonal
             self.X = np.random.random(Xshape).astype("float32")
 
-    CLASS = locals()['SuccessCase' if expected == "success" else 'FailureCase']
+    CLASS = locals()["SuccessCase" if expected == "success" else "FailureCase"]
     CLASS.__name__ = cls_name
     globals()[cls_name] = CLASS
 
 
-### NOTE: meaningful diagonal is [1 - min(H, W), max(H, W) -1]
-### test the diagonal just at the border, upper/lower the border,
-###     negative/positive integer within range and a zero
+# NOTE: meaningful diagonal is [1 - min(H, W), max(H, W) -1]
+# test the diagonal just at the border, upper/lower the border,
+#     negative/positive integer within range and a zero
 cases = {
-    'success': {
+    "success": {
         (2, 2, 3, 4, 5): [-100, -3, -1, 0, 2, 4, 100],  # normal shape
         (10, 10, 1, 1): [-100, -1, 0, 1, 100],  # small size of matrix
     },
-    'diagonal: TypeError': {
+    "diagonal: TypeError": {
         (20, 20): [
-            '2020',
+            "2020",
             [20],
-            {
-                20: 20
-            },
+            {20: 20},
             (20, 20),
             20.20,
         ],  # str, list, dict, tuple, float
     },
-    'input: ValueError': {
-        (2020, ): [None],
+    "input: ValueError": {
+        (2020,): [None],
     },
 }
-for _op_type in ['tril', 'triu']:
+for _op_type in ["tril", "triu"]:
     for _expected, _params in cases.items():
         for _Xshape, _diaglist in _params.items():
             list(
-                map(lambda _diagonal: case_generator(_op_type, _Xshape, _diagonal, _expected),
-                    _diaglist))
+                map(
+                    lambda _diagonal: case_generator(
+                        _op_type, _Xshape, _diagonal, _expected
+                    ),
+                    _diaglist,
+                )
+            )
 
 
 class TestTrilTriuOpAPI(unittest.TestCase):
-    """ test case by using API and has -1 dimension 
-    """
+    """test case by using API and has -1 dimension"""
 
     def test_api(self):
         paddle.enable_static()
 
-        dtypes = ['float16', 'float32']
+        dtypes = ["float16", "float32"]
         for dtype in dtypes:
             prog = Program()
             startup_prog = Program()
             with program_guard(prog, startup_prog):
                 data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = fluid.data(shape=[1, 9, -1, 4], dtype=dtype, name='x')
+                x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
-                place = paddle.CustomPlace('ascend', 0)
-                exe = fluid.Executor(place)
+                place = paddle.CustomPlace("npu", 0)
+                exe = base.Executor(place)
                 tril_out, triu_out = exe.run(
-                    fluid.default_main_program(),
+                    base.default_main_program(),
                     feed={"x": data},
-                    fetch_list=[tril_out, triu_out], )
+                    fetch_list=[tril_out, triu_out],
+                )
                 np.testing.assert_allclose(tril_out, np.tril(data))
                 np.testing.assert_allclose(triu_out, np.triu(data))
 
     def test_api_with_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace("npu", 0))
 
-        dtypes = ['float16', 'float32']
+        dtypes = ["float16", "float32"]
         for dtype in dtypes:
-            with fluid.dygraph.guard():
+            with base.dygraph.guard():
                 data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = fluid.dygraph.to_variable(data)
-                tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(
-                    x).numpy()
+                x = base.dygraph.to_variable(data)
+                tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(x).numpy()
                 np.testing.assert_allclose(tril_out, np.tril(data))
                 np.testing.assert_allclose(triu_out, np.triu(data))
 
-    def test_fluid_api(self):
+    def test_base_api(self):
         paddle.enable_static()
 
-        dtypes = ['float16', 'float32']
+        dtypes = ["float16", "float32"]
         for dtype in dtypes:
             prog = Program()
             startup_prog = Program()
             with program_guard(prog, startup_prog):
                 data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = fluid.data(shape=[1, 9, -1, 4], dtype=dtype, name='x')
-                triu_out = fluid.layers.triu(x)
+                x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
+                triu_out = paddle.triu(x)
 
-                place = paddle.CustomPlace('ascend', 0)
-                exe = fluid.Executor(place)
-                triu_out = exe.run(fluid.default_main_program(),
-                                   feed={"x": data},
-                                   fetch_list=[triu_out])
+                place = paddle.CustomPlace("npu", 0)
+                exe = base.Executor(place)
+                triu_out = exe.run(
+                    base.default_main_program(),
+                    feed={"x": data},
+                    fetch_list=[triu_out],
+                )
 
 
 class TestNPUTrilTriu_bool(TestNPUTrilTriu):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        pass
+
     def init_dtype(self):
         self.dtype = np.bool_
 
     def initTestCase(self):
-        self.real_op_type = np.random.choice(['triu', 'tril'])
+        self.real_op_type = np.random.choice(["triu", "tril"])
         self.diagonal = None
         self.X = np.random.choice([False, True], size=(100)).reshape([10, -1])
 
 
-if __name__ == '__main__':
+class TestNPUTrilTriuInt64(TestNPUTrilTriu):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    # int64 is not supported
+    def test_check_grad(self):
+        pass
+
+
+if __name__ == "__main__":
     unittest.main()

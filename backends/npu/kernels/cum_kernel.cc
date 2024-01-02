@@ -95,7 +95,7 @@ void CumsumKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cumsum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::CumsumKernel,
                           int,

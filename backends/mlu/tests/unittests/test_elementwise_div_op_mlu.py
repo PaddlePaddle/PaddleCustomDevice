@@ -35,15 +35,15 @@ class TestElementwiseDiv(OpTest):
         out = np.divide(x, y)
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(y)
+            "X": OpTest.np_dtype_to_base_dtype(x),
+            "Y": OpTest.np_dtype_to_base_dtype(y),
         }
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -53,21 +53,18 @@ class TestElementwiseDiv(OpTest):
 
     def test_check_grad_normal(self):
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', max_relative_error=0.05)
+            self.place, ["X", "Y"], "Out", max_relative_error=0.05
+        )
 
     def test_check_grad_ingore_x(self):
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            max_relative_error=0.05,
-            no_grad_set=set("X"))
+            self.place, ["Y"], "Out", max_relative_error=0.05, no_grad_set=set("X")
+        )
 
     def test_check_grad_ingore_y(self):
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            max_relative_error=0.05,
-            no_grad_set=set("Y"))
+            self.place, ["X"], "Out", max_relative_error=0.05, no_grad_set=set("Y")
+        )
 
 
 class TestElementwiseDivFp16(OpTest):
@@ -82,16 +79,16 @@ class TestElementwiseDivFp16(OpTest):
         out = np.divide(x, y)
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(y)
+            "X": OpTest.np_dtype_to_base_dtype(x),
+            "Y": OpTest.np_dtype_to_base_dtype(y),
         }
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float16
@@ -100,17 +97,16 @@ class TestElementwiseDivFp16(OpTest):
         self.check_output_with_place(self.place, atol=1e-5)
 
 
-@skip_check_grad_ci(
-    reason="[skip shape check] Use y_shape(1) to test broadcast.")
+@skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")
 class TestTestElementwiseDiv_scalar(TestElementwiseDiv):
     def setUp(self):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [20, 3, 4]).astype(np.float32),
-            'Y': np.random.uniform(0.1, 1, [1]).astype(np.float32)
+            "X": np.random.uniform(0.1, 1, [20, 3, 4]).astype(np.float32),
+            "Y": np.random.uniform(0.1, 1, [1]).astype(np.float32),
         }
-        self.outputs = {'Out': self.inputs['X'] / self.inputs['Y']}
+        self.outputs = {"Out": self.inputs["X"] / self.inputs["Y"]}
 
 
 class TestTestElementwiseDiv_Vector(TestElementwiseDiv):
@@ -118,10 +114,10 @@ class TestTestElementwiseDiv_Vector(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [100]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [100]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [100]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [100]).astype("float32"),
         }
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
 class TestTestElementwiseDiv_broadcast_0(TestElementwiseDiv):
@@ -129,14 +125,13 @@ class TestTestElementwiseDiv_broadcast_0(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [100, 3, 4]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [100]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [100, 3, 4]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [100]).astype("float32"),
         }
 
-        self.attrs = {'axis': 0}
+        self.attrs = {"axis": 0}
         self.outputs = {
-            'Out': np.divide(self.inputs['X'],
-                             self.inputs['Y'].reshape(100, 1, 1))
+            "Out": np.divide(self.inputs["X"], self.inputs["Y"].reshape(100, 1, 1))
         }
 
 
@@ -145,14 +140,13 @@ class TestTestElementwiseDiv_broadcast_1(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 100, 4]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [100]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [2, 100, 4]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [100]).astype("float32"),
         }
 
-        self.attrs = {'axis': 1}
+        self.attrs = {"axis": 1}
         self.outputs = {
-            'Out': np.divide(self.inputs['X'],
-                             self.inputs['Y'].reshape(1, 100, 1))
+            "Out": np.divide(self.inputs["X"], self.inputs["Y"].reshape(1, 100, 1))
         }
 
 
@@ -161,13 +155,12 @@ class TestTestElementwiseDiv_broadcast_2(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 3, 100]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [100]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [2, 3, 100]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [100]).astype("float32"),
         }
 
         self.outputs = {
-            'Out': np.divide(self.inputs['X'],
-                             self.inputs['Y'].reshape(1, 1, 100))
+            "Out": np.divide(self.inputs["X"], self.inputs["Y"].reshape(1, 1, 100))
         }
 
 
@@ -176,14 +169,13 @@ class TestTestElementwiseDiv_broadcast_3(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 10, 12, 5]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [10, 12]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [2, 10, 12, 5]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [10, 12]).astype("float32"),
         }
 
-        self.attrs = {'axis': 1}
+        self.attrs = {"axis": 1}
         self.outputs = {
-            'Out':
-            np.divide(self.inputs['X'], self.inputs['Y'].reshape(1, 10, 12, 1))
+            "Out": np.divide(self.inputs["X"], self.inputs["Y"].reshape(1, 10, 12, 1))
         }
 
 
@@ -192,10 +184,10 @@ class TestTestElementwiseDiv_broadcast_4(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 3, 50]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [2, 1, 50]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [2, 3, 50]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [2, 1, 50]).astype("float32"),
         }
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
 class TestTestElementwiseDiv_broadcast_5(TestElementwiseDiv):
@@ -203,10 +195,10 @@ class TestTestElementwiseDiv_broadcast_5(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 3, 4, 20]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [2, 3, 1, 20]).astype("float32")
+            "X": np.random.uniform(0.1, 1, [2, 3, 4, 20]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [2, 3, 1, 20]).astype("float32"),
         }
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
 class TestTestElementwiseDiv_commonuse_1(TestElementwiseDiv):
@@ -214,10 +206,10 @@ class TestTestElementwiseDiv_commonuse_1(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [2, 3, 100]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [1, 1, 100]).astype("float32"),
+            "X": np.random.uniform(0.1, 1, [2, 3, 100]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [1, 1, 100]).astype("float32"),
         }
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
 class TestTestElementwiseDiv_commonuse_2(TestElementwiseDiv):
@@ -225,10 +217,10 @@ class TestTestElementwiseDiv_commonuse_2(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [30, 3, 1, 5]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [30, 1, 4, 1]).astype("float32"),
+            "X": np.random.uniform(0.1, 1, [30, 3, 1, 5]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [30, 1, 4, 1]).astype("float32"),
         }
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
 class TestTestElementwiseDiv_xsize_lessthan_ysize(TestElementwiseDiv):
@@ -236,14 +228,14 @@ class TestTestElementwiseDiv_xsize_lessthan_ysize(TestElementwiseDiv):
         self.set_mlu()
         self.op_type = "elementwise_div"
         self.inputs = {
-            'X': np.random.uniform(0.1, 1, [10, 12]).astype("float32"),
-            'Y': np.random.uniform(0.1, 1, [2, 3, 10, 12]).astype("float32"),
+            "X": np.random.uniform(0.1, 1, [10, 12]).astype("float32"),
+            "Y": np.random.uniform(0.1, 1, [2, 3, 10, 12]).astype("float32"),
         }
 
-        self.attrs = {'axis': 2}
+        self.attrs = {"axis": 2}
 
-        self.outputs = {'Out': np.divide(self.inputs['X'], self.inputs['Y'])}
+        self.outputs = {"Out": np.divide(self.inputs["X"], self.inputs["Y"])}
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

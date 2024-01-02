@@ -69,28 +69,26 @@ class TestPnormOp(OpTest):
         self.init_test_case()
         x = (np.random.random(self.shape) + 0.5).astype(self.dtype)
         norm = p_norm(x, self.axis, self.porder, self.keepdim)
-        self.inputs = {'X': x}
+        self.inputs = {"X": x}
         self.attrs = {
-            'epsilon': self.epsilon,
-            'axis': self.axis,
-            'keepdim': self.keepdim,
-            'porder': float(self.porder)
+            "epsilon": self.epsilon,
+            "axis": self.axis,
+            "keepdim": self.keepdim,
+            "porder": float(self.porder),
         }
-        self.outputs = {'Out': norm}
+        self.outputs = {"Out": norm}
         self.gradient = self.calc_gradient()
 
     def test_check_output(self):
         if self.dtype == "float16":
-            self.check_output_with_place(
-                paddle.CustomPlace('ascend', 0), atol=5e-3)
+            self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=5e-3)
         else:
-            self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+            self.check_output_with_place(paddle.CustomPlace("npu", 0))
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            paddle.CustomPlace('ascend', 0), ['X'],
-            'Out',
-            user_defined_grads=self.gradient)
+            paddle.CustomPlace("npu", 0), ["X"], "Out", user_defined_grads=self.gradient
+        )
 
     def init_test_case(self):
         self.shape = [2, 3, 4, 5]
@@ -105,10 +103,10 @@ class TestPnormOp(OpTest):
 
     def calc_gradient(self):
         self.attrs = {
-            'epsilon': self.epsilon,
-            'axis': self.axis,
-            'keepdim': self.keepdim,
-            'porder': float(self.porder)
+            "epsilon": self.epsilon,
+            "axis": self.axis,
+            "keepdim": self.keepdim,
+            "porder": float(self.porder),
         }
         x = self.inputs["X"]
         porder = self.attrs["porder"]
@@ -122,8 +120,11 @@ class TestPnormOp(OpTest):
             grad[x_abs != norm] = 0.0
         else:
             norm = p_norm(x, axis=axis, porder=porder, keepdims=True)
-            grad = np.power(norm, 1 - porder) * np.power(
-                np.abs(x), porder - 1) * np.sign(x)
+            grad = (
+                np.power(norm, 1 - porder)
+                * np.power(np.abs(x), porder - 1)
+                * np.sign(x)
+            )
 
         numel = 1
         for s in x.shape:

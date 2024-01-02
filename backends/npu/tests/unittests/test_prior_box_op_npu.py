@@ -24,14 +24,6 @@ from tests.op_test import OpTest
 paddle.enable_static()
 
 
-def _set_use_system_allocator(value=None):
-    USE_SYSTEM_ALLOCATOR_FLAG = "FLAGS_use_system_allocator"
-    old_value = core.globals()[USE_SYSTEM_ALLOCATOR_FLAG]
-    value = old_value if value is None else value
-    core.globals()[USE_SYSTEM_ALLOCATOR_FLAG] = value
-    return old_value
-
-
 class TestNPUPriorBox(OpTest):
     def setUp(self):
         self.op_type = "prior_box"
@@ -44,7 +36,7 @@ class TestNPUPriorBox(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -53,27 +45,27 @@ class TestNPUPriorBox(OpTest):
         self.init_test_params()
         self.init_test_input()
         self.init_test_output()
-        self.inputs = {'Input': self.input, 'Image': self.image}
+        self.inputs = {"Input": self.input, "Image": self.image}
 
         self.attrs = {
-            'min_sizes': self.min_sizes,
-            'aspect_ratios': self.aspect_ratios,
-            'variances': self.variances,
-            'flip': self.flip,
-            'clip': self.clip,
-            'min_max_aspect_ratios_order': self.min_max_aspect_ratios_order,
-            'step_w': self.step_w,
-            'step_h': self.step_h,
-            'offset': self.offset
+            "min_sizes": self.min_sizes,
+            "aspect_ratios": self.aspect_ratios,
+            "variances": self.variances,
+            "flip": self.flip,
+            "clip": self.clip,
+            "min_max_aspect_ratios_order": self.min_max_aspect_ratios_order,
+            "step_w": self.step_w,
+            "step_h": self.step_h,
+            "offset": self.offset,
         }
         if len(self.max_sizes) > 0:
-            self.attrs['max_sizes'] = self.max_sizes
+            self.attrs["max_sizes"] = self.max_sizes
 
-        self.outputs = {'Boxes': self.out_boxes, 'Variances': self.out_var}
+        self.outputs = {"Boxes": self.out_boxes, "Variances": self.out_var}
 
     def set_max_sizes(self):
         max_sizes = [5, 10]
-        self.max_sizes = np.array(max_sizes).astype('float32').tolist()
+        self.max_sizes = np.array(max_sizes).astype("float32").tolist()
 
     def set_min_max_aspect_ratios_order(self):
         self.min_max_aspect_ratios_order = True
@@ -94,14 +86,13 @@ class TestNPUPriorBox(OpTest):
         self.batch_size = 10
 
         self.min_sizes = [2, 4]
-        self.min_sizes = np.array(self.min_sizes).astype('float32').tolist()
+        self.min_sizes = np.array(self.min_sizes).astype("float32").tolist()
         self.set_max_sizes()
         self.aspect_ratios = [2.0, 3.0]
         self.flip = True
         self.set_min_max_aspect_ratios_order()
         self.real_aspect_ratios = [1, 2.0, 1.0 / 2.0, 3.0, 1.0 / 3.0]
-        self.aspect_ratios = np.array(
-            self.aspect_ratios, dtype=np.float64).flatten()
+        self.aspect_ratios = np.array(self.aspect_ratios, dtype=np.float64).flatten()
         self.variances = [0.1, 0.1, 0.2, 0.2]
         self.variances = np.array(self.variances, dtype=np.float64).flatten()
 
@@ -113,17 +104,17 @@ class TestNPUPriorBox(OpTest):
 
     def init_test_input(self):
         self.image = np.random.random(
-            (self.batch_size, self.image_channels, self.image_w,
-             self.image_h)).astype('float32')
+            (self.batch_size, self.image_channels, self.image_w, self.image_h)
+        ).astype("float32")
 
         self.input = np.random.random(
-            (self.batch_size, self.input_channels, self.layer_w,
-             self.layer_h)).astype('float32')
+            (self.batch_size, self.input_channels, self.layer_w, self.layer_h)
+        ).astype("float32")
 
     def init_test_output(self):
         out_dim = (self.layer_h, self.layer_w, self.num_priors, 4)
-        out_boxes = np.zeros(out_dim).astype('float32')
-        out_var = np.zeros(out_dim).astype('float32')
+        out_boxes = np.zeros(out_dim).astype("float32")
+        out_var = np.zeros(out_dim).astype("float32")
 
         idx = 0
         for h in range(self.layer_h):
@@ -140,9 +131,10 @@ class TestNPUPriorBox(OpTest):
                             c_w = min_size * math.sqrt(ar) / 2
                             c_h = (min_size / math.sqrt(ar)) / 2
                             out_boxes[h, w, idx, :] = [
-                                (c_x - c_w) / self.image_w, (c_y - c_h) /
-                                self.image_h, (c_x + c_w) / self.image_w,
-                                (c_y + c_h) / self.image_h
+                                (c_x - c_w) / self.image_w,
+                                (c_y - c_h) / self.image_h,
+                                (c_x + c_w) / self.image_w,
+                                (c_y + c_h) / self.image_h,
                             ]
                             idx += 1
 
@@ -151,40 +143,45 @@ class TestNPUPriorBox(OpTest):
                             # second prior: aspect_ratio = 1,
                             c_w = c_h = math.sqrt(min_size * max_size) / 2
                             out_boxes[h, w, idx, :] = [
-                                (c_x - c_w) / self.image_w, (c_y - c_h) /
-                                self.image_h, (c_x + c_w) / self.image_w,
-                                (c_y + c_h) / self.image_h
+                                (c_x - c_w) / self.image_w,
+                                (c_y - c_h) / self.image_h,
+                                (c_x + c_w) / self.image_w,
+                                (c_y + c_h) / self.image_h,
                             ]
                             idx += 1
                     else:
-                        c_w = c_h = min_size / 2.
-                        out_boxes[h, w, idx, :] = [(c_x - c_w) / self.image_w,
-                                                   (c_y - c_h) / self.image_h,
-                                                   (c_x + c_w) / self.image_w,
-                                                   (c_y + c_h) / self.image_h]
+                        c_w = c_h = min_size / 2.0
+                        out_boxes[h, w, idx, :] = [
+                            (c_x - c_w) / self.image_w,
+                            (c_y - c_h) / self.image_h,
+                            (c_x + c_w) / self.image_w,
+                            (c_y + c_h) / self.image_h,
+                        ]
                         idx += 1
                         if len(self.max_sizes) > 0:
                             max_size = self.max_sizes[s]
                             # second prior: aspect_ratio = 1,
                             c_w = c_h = math.sqrt(min_size * max_size) / 2
                             out_boxes[h, w, idx, :] = [
-                                (c_x - c_w) / self.image_w, (c_y - c_h) /
-                                self.image_h, (c_x + c_w) / self.image_w,
-                                (c_y + c_h) / self.image_h
+                                (c_x - c_w) / self.image_w,
+                                (c_y - c_h) / self.image_h,
+                                (c_x + c_w) / self.image_w,
+                                (c_y + c_h) / self.image_h,
                             ]
                             idx += 1
 
                         # rest of priors
                         for r in range(len(self.real_aspect_ratios)):
                             ar = self.real_aspect_ratios[r]
-                            if abs(ar - 1.) < 1e-6:
+                            if abs(ar - 1.0) < 1e-6:
                                 continue
                             c_w = min_size * math.sqrt(ar) / 2
                             c_h = (min_size / math.sqrt(ar)) / 2
                             out_boxes[h, w, idx, :] = [
-                                (c_x - c_w) / self.image_w, (c_y - c_h) /
-                                self.image_h, (c_x + c_w) / self.image_w,
-                                (c_y + c_h) / self.image_h
+                                (c_x - c_w) / self.image_w,
+                                (c_y - c_h) / self.image_h,
+                                (c_x + c_w) / self.image_w,
+                                (c_y + c_h) / self.image_h,
                             ]
                             idx += 1
 
@@ -192,10 +189,11 @@ class TestNPUPriorBox(OpTest):
         if self.clip:
             out_boxes = np.clip(out_boxes, 0.0, 1.0)
         # set the variance.
-        out_var = np.tile(self.variances,
-                          (self.layer_h, self.layer_w, self.num_priors, 1))
-        self.out_boxes = out_boxes.astype('float32')
-        self.out_var = out_var.astype('float32')
+        out_var = np.tile(
+            self.variances, (self.layer_h, self.layer_w, self.num_priors, 1)
+        )
+        self.out_boxes = out_boxes.astype("float32")
+        self.out_var = out_var.astype("float32")
 
 
 class TestNPUPriorBoxWithoutMaxSize(TestNPUPriorBox):
@@ -209,5 +207,5 @@ class TestNPUPriorBoxWithoutSpecifiedOutOrder(TestNPUPriorBox):
         self.atol = 1e-1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

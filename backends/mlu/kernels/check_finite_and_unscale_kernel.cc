@@ -26,7 +26,9 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
   using MPDType = typename MPTypeTrait<T>::Type;
   dev_ctx.template Alloc<bool>(found_inf);
 
-  MLUCnnlTensorDesc scale_desc(t_scale);
+  Tensor scale_1d(t_scale);
+  scale_1d.Resize(phi::make_ddim({1}));
+  MLUCnnlTensorDesc scale_desc(scale_1d);
   MLUCnnlTensorDesc found_inf_desc(
       *found_inf, CNNL_LAYOUT_ARRAY, ToCnnlDataType<bool>());
 
@@ -93,7 +95,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                    float_x_desc.get(),
                    GetBasePtr(&float_x),
                    scale_desc.get(),
-                   GetBasePtr(&t_scale),
+                   GetBasePtr(&scale_1d),
                    float_out_desc.get(),
                    GetBasePtr(&float_out));
 
@@ -111,7 +113,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
                    x_desc.get(),
                    GetBasePtr(x),
                    scale_desc.get(),
-                   GetBasePtr(&t_scale),
+                   GetBasePtr(&scale_1d),
                    out_desc.get(),
                    GetBasePtr(out));
     }
@@ -120,7 +122,7 @@ void CheckFiniteAndUnscale(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(check_finite_and_unscale,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::CheckFiniteAndUnscale,
                           float,

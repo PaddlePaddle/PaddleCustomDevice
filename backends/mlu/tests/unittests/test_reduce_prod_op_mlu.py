@@ -18,7 +18,6 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 
@@ -30,64 +29,57 @@ def raw_reduce_prod(x, dim=[0], keep_dim=False):
 class TestProdOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_prod"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = raw_reduce_prod
         self.init_data_type()
-        self.inputs = {'X': np.random.random((5, 6, 10)).astype(self.data_type)}
-        self.outputs = {'Out': self.inputs['X'].prod(axis=0)}
+        self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.data_type)}
+        self.outputs = {"Out": self.inputs["X"].prod(axis=0)}
 
     def init_data_type(self):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
 class TestProd6DOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_prod"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = raw_reduce_prod
         self.init_data_type()
-        self.inputs = {
-            'X': np.random.random((5, 6, 2, 3, 4, 2)).astype(self.data_type)
-        }
-        self.attrs = {'dim': [2, 3, 4]}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(axis=tuple(self.attrs['dim']))
-        }
+        self.inputs = {"X": np.random.random((5, 6, 2, 3, 4, 2)).astype(self.data_type)}
+        self.attrs = {"dim": [2, 3, 4]}
+        self.outputs = {"Out": self.inputs["X"].prod(axis=tuple(self.attrs["dim"]))}
 
     def init_data_type(self):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
 class TestProd8DOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_prod"
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.python_api = raw_reduce_prod
         self.init_data_type()
         self.inputs = {
-            'X': np.random.random(
-                (2, 5, 3, 2, 2, 3, 4, 2)).astype(self.data_type)
+            "X": np.random.random((2, 5, 3, 2, 2, 3, 4, 2)).astype(self.data_type)
         }
-        self.attrs = {'dim': [2, 3, 4]}
-        self.outputs = {
-            'Out': self.inputs['X'].prod(axis=tuple(self.attrs['dim']))
-        }
+        self.attrs = {"dim": [2, 3, 4]}
+        self.outputs = {"Out": self.inputs["X"].prod(axis=tuple(self.attrs["dim"]))}
 
     def init_data_type(self):
         self.data_type = "float32"
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, check_eager=False)
+        self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

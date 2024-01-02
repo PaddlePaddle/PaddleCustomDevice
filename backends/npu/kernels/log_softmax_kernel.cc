@@ -28,6 +28,13 @@ void LogSoftmaxKernel(const Context& dev_ctx,
   const int rank = x.dims().size();
   axis = CanonicalAxis(axis, rank);
 
+  if (rank == 0) {
+    auto out_dim = out->dims();
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(0));
+    out->Resize(out_dim);
+    return;
+  }
+
   if (x.numel() != 0) {
     const auto& runner = NpuOpRunner(
         "LogSoftmaxV2", {x}, {*out}, {{"axes", std::vector<int>{axis}}});
@@ -47,6 +54,13 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
   const int rank = dout.dims().size();
   axis = CanonicalAxis(axis, rank);
 
+  if (rank == 0) {
+    auto dx_dim = dx->dims();
+    FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+    dx->Resize(dx_dim);
+    return;
+  }
+
   if (dout.numel() != 0) {
     const auto& runner = NpuOpRunner("LogSoftmaxGrad",
                                      {dout, out},
@@ -59,7 +73,7 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(log_softmax,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogSoftmaxKernel,
                           float,
@@ -67,7 +81,7 @@ PD_REGISTER_PLUGIN_KERNEL(log_softmax,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log_softmax_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::LogSoftmaxGradKernel,
                           float,

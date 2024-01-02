@@ -39,16 +39,16 @@ void MinimumGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        const phi::DenseTensor& dout,
-                       int axis,
                        phi::DenseTensor* dx,
                        phi::DenseTensor* dy) {
+  int axis = -1;
   MLUMinMaxGradHelper<MINIMUM_GRAD, T>(dev_ctx, x, y, dout, axis, dx, dy);
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_raw,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumRawKernel,
                           int,
@@ -56,7 +56,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum_raw,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumKernel,
                           int,
@@ -64,7 +64,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumGradKernel,
                           int,

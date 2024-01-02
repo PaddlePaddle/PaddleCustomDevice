@@ -18,17 +18,16 @@ import unittest
 import numpy as np
 
 import paddle
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
+import paddle.base.core as core
+import paddle.base as base
+from paddle.base import Program, program_guard
 from op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
-from paddle.fluid.framework import _test_eager_guard
 
 paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -37,31 +36,31 @@ OpTest._get_places = get_places
 class TestCastOpFp32ToFp64(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float64')}
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": ipt.astype("float64")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP64)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.FP64),
         }
-        self.op_type = 'cast'
+        self.op_type = "cast"
 
     def test_check_output(self):
         self.check_output()
 
     def test_grad(self):
-        self.check_grad(['X'], ['Out'])
+        self.check_grad(["X"], ["Out"])
 
 
 class TestCastOpFp16ToFp32(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float16')}
-        self.outputs = {'Out': ipt.astype('float32')}
+        self.inputs = {"X": ipt.astype("float16")}
+        self.outputs = {"Out": ipt.astype("float32")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
+            "in_dtype": int(core.VarDesc.VarType.FP16),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
         }
-        self.op_type = 'cast'
+        self.op_type = "cast"
         self.__class__.no_need_check_grad = True
 
     def test_check_output(self):
@@ -71,13 +70,13 @@ class TestCastOpFp16ToFp32(OpTest):
 class TestCastOpFp32ToFp16(OpTest):
     def setUp(self):
         ipt = np.random.random(size=[10, 10])
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float16')}
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": ipt.astype("float16")}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP16)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.FP16),
         }
-        self.op_type = 'cast'
+        self.op_type = "cast"
         self.__class__.no_need_check_grad = True
 
     def test_check_output(self):
@@ -86,14 +85,14 @@ class TestCastOpFp32ToFp16(OpTest):
 
 class TestCastOpBf16ToFp32(OpTest):
     def setUp(self):
-        ipt = np.array(np.random.randint(10, size=[10, 10])).astype('uint16')
-        self.inputs = {'X': ipt}
-        self.outputs = {'Out': convert_uint16_to_float(ipt)}
+        ipt = np.array(np.random.randint(10, size=[10, 10])).astype("uint16")
+        self.inputs = {"X": ipt}
+        self.outputs = {"Out": convert_uint16_to_float(ipt)}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.BF16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
+            "in_dtype": int(core.VarDesc.VarType.BF16),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
         }
-        self.op_type = 'cast'
+        self.op_type = "cast"
         self.__class__.no_need_check_grad = True
 
     def test_check_output(self):
@@ -102,14 +101,14 @@ class TestCastOpBf16ToFp32(OpTest):
 
 class TestCastOpFp32ToBf16(OpTest):
     def setUp(self):
-        ipt = np.random.random(size=[10, 10]).astype('float32')
-        self.inputs = {'X': ipt}
-        self.outputs = {'Out': convert_float_to_uint16(ipt)}
+        ipt = np.random.random(size=[10, 10]).astype("float32")
+        self.inputs = {"X": ipt}
+        self.outputs = {"Out": convert_float_to_uint16(ipt)}
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.BF16)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.BF16),
         }
-        self.op_type = 'cast'
+        self.op_type = "cast"
         self.__class__.no_need_check_grad = True
 
     def test_check_output(self):
@@ -120,11 +119,12 @@ class TestCastOpError(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             # The input type of cast_op must be Variable.
-            x1 = fluid.create_lod_tensor(
-                np.array([[-1]]), [[1]], fluid.CustomPlace('custom_cpu', 0))
-            self.assertRaises(TypeError, fluid.layers.cast, x1, 'int32')
+            x1 = base.create_lod_tensor(
+                np.array([[-1]]), [[1]], base.CustomPlace("custom_cpu", 0)
+            )
+            self.assertRaises(TypeError, paddle.cast, x1, "int32")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     paddle.enable_static()
     unittest.main()

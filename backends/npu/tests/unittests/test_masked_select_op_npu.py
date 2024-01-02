@@ -14,12 +14,11 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
 
-from tests.op_test import OpTest, skip_check_grad_ci
+import numpy as np
 import paddle
-import paddle.fluid as fluid
+from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 
@@ -40,19 +39,19 @@ class TestMaskedSelectOp(OpTest):
         self.set_npu()
         self.init()
         self.init_dtype()
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
         self.op_type = "masked_select"
         x = np.random.random(self.shape).astype(self.dtype)
         mask = np.array(np.random.randint(2, size=self.shape, dtype=bool))
         out = np_masked_select(x, mask)
-        self.inputs = {'X': x, 'Mask': mask}
-        self.outputs = {'Y': out}
+        self.inputs = {"X": x, "Mask": mask}
+        self.outputs = {"Y": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Y')
+        self.check_grad_with_place(self.place, ["X"], "Y")
 
     def init(self):
         self.shape = (50, 3)
@@ -68,7 +67,7 @@ class TestMaskedSelectOp1(TestMaskedSelectOp):
 
 class TestMaskedSelectOp2(TestMaskedSelectOp):
     def init(self):
-        self.shape = (168, )
+        self.shape = (168,)
 
 
 class TestMaskedSelectOpFp16(TestMaskedSelectOp):
@@ -76,10 +75,9 @@ class TestMaskedSelectOpFp16(TestMaskedSelectOp):
         self.dtype = np.float16
 
     def test_check_grad(self):
-        x_grad = self.inputs['Mask'].astype(self.dtype)
+        x_grad = self.inputs["Mask"].astype(self.dtype)
         x_grad = x_grad * (1 / x_grad.sum())
-        self.check_grad_with_place(
-            self.place, ['X'], 'Y', user_defined_grads=[x_grad])
+        self.check_grad_with_place(self.place, ["X"], "Y", user_defined_grads=[x_grad])
 
 
 @skip_check_grad_ci(reason="get_numeric_gradient not support int32")
@@ -102,9 +100,9 @@ class TestMaskedSelectOpInt64(TestMaskedSelectOp):
 
 class TestMaskedSelectAPI(unittest.TestCase):
     def test_imperative_mode(self):
-        paddle.disable_static(paddle.CustomPlace('ascend', 0))
+        paddle.disable_static(paddle.CustomPlace("npu", 0))
         shape = (88, 6, 8)
-        np_x = np.random.random(shape).astype('float32')
+        np_x = np.random.random(shape).astype("float32")
         np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
         x = paddle.to_tensor(np_x)
         mask = paddle.to_tensor(np_mask)
@@ -114,35 +112,40 @@ class TestMaskedSelectAPI(unittest.TestCase):
         paddle.enable_static()
 
     def test_static_mode(self):
+        paddle.enable_static()
         shape = [8, 9, 6]
-        x = paddle.fluid.data(shape=shape, dtype='float32', name='x')
-        mask = paddle.fluid.data(shape=shape, dtype='bool', name='mask')
-        np_x = np.random.random(shape).astype('float32')
+        x = paddle.static.data(shape=shape, dtype="float32", name="x")
+        mask = paddle.static.data(shape=shape, dtype="bool", name="mask")
+        np_x = np.random.random(shape).astype("float32")
         np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
 
         out = paddle.masked_select(x, mask)
         np_out = np_masked_select(np_x, np_mask)
 
-        exe = paddle.static.Executor(place=paddle.CustomPlace('ascend', 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace("npu", 0))
 
-        res = exe.run(paddle.static.default_main_program(),
-                      feed={"x": np_x,
-                            "mask": np_mask},
-                      fetch_list=[out])
+        res = exe.run(
+            paddle.static.default_main_program(),
+            feed={"x": np_x, "mask": np_mask},
+            fetch_list=[out],
+        )
         self.assertEqual(np.allclose(res, np_out), True)
 
 
 class TestMaskedSelectError(unittest.TestCase):
     def test_error(self):
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
+        paddle.enable_static()
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
 
             shape = [8, 9, 6]
-            x = paddle.fluid.data(shape=shape, dtype='float32', name='x')
-            mask = paddle.fluid.data(shape=shape, dtype='bool', name='mask')
-            mask_float = paddle.fluid.data(
-                shape=shape, dtype='float32', name='mask_float')
-            np_x = np.random.random(shape).astype('float32')
+            x = paddle.static.data(shape=shape, dtype="float32", name="x")
+            mask = paddle.static.data(shape=shape, dtype="bool", name="mask")
+            mask_float = paddle.static.data(
+                shape=shape, dtype="float32", name="mask_float"
+            )
+            np_x = np.random.random(shape).astype("float32")
             np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
 
             def test_x_type():
@@ -161,5 +164,5 @@ class TestMaskedSelectError(unittest.TestCase):
             self.assertRaises(TypeError, test_mask_dtype)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "paddle/phi/common/data_type.h"
 #include "runtime/runtime.h"
 
 namespace custom_kernel {
@@ -52,6 +53,19 @@ const std::map<std::string, cnnlInterpBackwardMode_t> MLUInterpBackwardModeMap =
      {"trilinear", CNNL_INTERP_BACKWARD_TRILINEAR},
      {"bicubic", CNNL_INTERP_BACKWARD_BICUBIC}};
 
+const std::map<std::string, cnnlLogicOp_t> MLULogicOpMap = {
+    {"equal", CNNL_LOGIC_OP_EQ},
+    {"not_equal", CNNL_LOGIC_OP_NE},
+    {"greater_than", CNNL_LOGIC_OP_GT},
+    {"greater_equal", CNNL_LOGIC_OP_GE},
+    {"less_than", CNNL_LOGIC_OP_LT},
+    {"less_equal", CNNL_LOGIC_OP_LE},
+    {"and", CNNL_LOGIC_OP_AND},
+    {"or", CNNL_LOGIC_OP_OR},
+    {"xor", CNNL_LOGIC_OP_XOR},
+    {"not", CNNL_LOGIC_OP_NOT},
+};
+
 inline cnnlReduceOp_t GetMLUCnnlReduceOp(const std::string& reduce_name) {
   auto iter = MLUReduceOpMap.find(reduce_name);
   if (iter != MLUReduceOpMap.end()) {
@@ -78,6 +92,15 @@ inline cnnlInterpBackwardMode_t GetMLUCnnlInterpBackwardMode(
   }
   PADDLE_THROW(phi::errors::InvalidArgument(
       "Not support interp mode of MLU Device: %s", interp_mode));
+}
+
+inline cnnlLogicOp_t GetMLUCnnlLogicOp(const std::string& logic_name) {
+  auto iter = MLULogicOpMap.find(logic_name);
+  if (iter != MLULogicOpMap.end()) {
+    return iter->second;
+  }
+  PADDLE_THROW(phi::errors::InvalidArgument(
+      "Not support logic op type of MLU Device: %s", logic_name));
 }
 
 inline const void* GetBasePtr(const Tensor* t) { return t->data(); }
@@ -156,15 +179,45 @@ inline mluOpDataType_t ToMluOpDataType(const DataType& dtype) {
   return type;
 }
 
+inline cnclDataType_t ToCnclDataType(const DataType& dtype) {
+  cnclDataType_t type = cnclFloat32;
+  switch (dtype) {
+    case DataType::FLOAT16:
+      type = cnclFloat16;
+      break;
+    case DataType::FLOAT32:
+      type = cnclFloat32;
+      break;
+    case DataType::INT8:
+      type = cnclInt8;
+      break;
+    case DataType::INT16:
+      type = cnclInt16;
+      break;
+    case DataType::INT32:
+      type = cnclInt32;
+      break;
+    case DataType::BOOL:
+      type = cnclUint8;
+      break;
+    case DataType::UINT8:
+      type = cnclUint8;
+      break;
+    default:
+      break;
+  }
+  return type;
+}
+
 template <typename T>
 inline cnnlDataType_t ToCnnlDataType() {
-  auto type = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto type = phi::CppTypeToDataType<T>::Type();
   return ToCnnlDataType(type);
 }
 
 template <typename T>
 inline mluOpDataType_t ToMluOpDataType() {
-  auto type = paddle::experimental::CppTypeToDataType<T>::Type();
+  auto type = phi::CppTypeToDataType<T>::Type();
   return ToMluOpDataType(type);
 }
 
@@ -412,7 +465,9 @@ class MLUCnnlActivationDesc {
  public:
   MLUCnnlActivationDesc(const MLUCnnlActivationDesc& desc) = delete;
   MLUCnnlActivationDesc& operator=(const MLUCnnlActivationDesc& desc) = delete;
-  MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode, const float ceof);
+  MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode,
+                        const float ceof,
+                        const int sliced_dim = 1);
   MLUCnnlActivationDesc(const cnnlActivationMode_t act_mode,
                         const float ceof,
                         const float sliced_dim,
@@ -595,7 +650,9 @@ class MLUCnnlBatchSpaceDesc {
 class MLUCnnlTrigonDesc {
  public:
   explicit MLUCnnlTrigonDesc(
-      const cnnlTrigonFunctionMode_t trigon_function_mode);
+      const cnnlTrigonFunctionMode_t trigon_function_mode,
+      const cnnlComputationPreference_t prefer =
+          CNNL_COMPUTATION_HIGH_PRECISION);
 
   const cnnlTrigonDescriptor_t get() const;
 
@@ -720,6 +777,27 @@ class MLURNNDesc {
   cnnlRNNDescriptor_t rnn_desc_ = nullptr;
 };
 
+class NormalizeDesc {
+ public:
+  NormalizeDesc(const NormalizeDesc& desc) = delete;
+  NormalizeDesc& operator=(const NormalizeDesc& desc) = delete;
+
+  NormalizeDesc(int* axis,
+                int axis_num,
+                cnnlNanPropagation_t nan_propagation,
+                float eps,
+                float pnorm,
+                int channel_shared,
+                int across_spatial);
+
+  const cnnlNormalizeDescriptor_t get() const;
+
+  ~NormalizeDesc();
+
+ private:
+  cnnlNormalizeDescriptor_t normalize_desc_ = nullptr;
+};
+
 class MLUCnnl {
  public:
   static void Active(const Context& ctx,
@@ -762,6 +840,7 @@ class MLUCnnl {
                    const void* input,
                    const void* min,
                    const void* max,
+                   const cnnlTensorDescriptor_t y_desc,
                    void* y);
 
   static void HardtanhBackward(const Context& ctx,
@@ -786,6 +865,14 @@ class MLUCnnl {
   static void Fill(const Context& ctx,
                    const cnnlPointerMode_t pointer_mode,
                    const void* value_ptr,
+                   const cnnlTensorDescriptor_t output_desc,
+                   void* output);
+
+  static void Flip(const Context& ctx,
+                   const int dimension[],
+                   const int dimension_len,
+                   const cnnlTensorDescriptor_t input_desc,
+                   const void* input,
                    const cnnlTensorDescriptor_t output_desc,
                    void* output);
 
@@ -1193,6 +1280,7 @@ class MLUCnnl {
   static void BatchMatmul(const Context& ctx,
                           const bool transpose_a,
                           const bool transpose_b,
+                          const cnnlDataType_t data_type,
                           const cnnlTensorDescriptor_t in0_desc,
                           const void* in0,
                           const cnnlTensorDescriptor_t in1_desc,
@@ -1447,6 +1535,54 @@ class MLUCnnl {
                   const cnnlTensorDescriptor_t output_desc,
                   void* output);
 
+  static void FlashAttentionForward(
+      const Context& ctx,
+      const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+      const cnnlTensorDescriptor_t q_desc,  // [total_q, head_num, head_size]
+      const void* q,
+      const cnnlTensorDescriptor_t k_desc,  // [total_k, head_num, head_size]
+      const void* k,
+      const cnnlTensorDescriptor_t v_desc,  // [total_k, head_num, head_size]
+      const void* v,
+      const cnnlTensorDescriptor_t seqlens_q_desc,  // b+1
+      const void* seqlens_q,
+      const cnnlTensorDescriptor_t seqlens_k_desc,  // b+1
+      const void* seqlens_k,
+      const size_t rng_state[],
+      const cnnlTensorDescriptor_t dropout_mask_desc,
+      void* dropout_mask,
+      const cnnlTensorDescriptor_t softmax_lse_desc,  // [total_q, head_num]
+      void* softmax_lse,
+      const cnnlTensorDescriptor_t output_desc,
+      void* output);
+
+  static void FlashAttentionBackward(
+      const Context& ctx,
+      const cnnlFlashAttentionDescriptor_t flash_atten_desc,
+      const cnnlTensorDescriptor_t diff_out_desc,
+      const void* diff_out,
+      const cnnlTensorDescriptor_t q_desc,
+      const void* q,
+      const cnnlTensorDescriptor_t k_desc,
+      const void* k,
+      const cnnlTensorDescriptor_t v_desc,
+      const void* v,
+      const cnnlTensorDescriptor_t fwd_out_desc,
+      const void* out,
+      const cnnlTensorDescriptor_t softmax_lse_desc,
+      const void* softmax_lse,
+      const cnnlTensorDescriptor_t csq_desc,
+      const void* cu_seqlens_q,
+      const cnnlTensorDescriptor_t csk_desc,
+      const void* cu_seqlens_k,
+      const size_t rng_state[],
+      const cnnlTensorDescriptor_t diff_query_desc,
+      void* dq,
+      const cnnlTensorDescriptor_t diff_key_desc,
+      void* dk,
+      const cnnlTensorDescriptor_t diff_value_desc,
+      void* dv);
+
   static void Neg(const Context& ctx,
                   const cnnlTensorDescriptor_t input_desc,
                   const void* input,
@@ -1558,12 +1694,6 @@ class MLUCnnl {
                     const void* input,
                     const cnnlTensorDescriptor_t output_desc,
                     void* output);
-
-  static void LogicalNot(const Context& ctx,
-                         const cnnlTensorDescriptor_t input_desc,
-                         const void* input,
-                         const cnnlTensorDescriptor_t output_desc,
-                         void* output);
 
   static void DynamicStitch(const Context& ctx,
                             const cnnlTensorDescriptor_t* indices_desc,
@@ -1740,6 +1870,9 @@ class MLUCnnl {
 
   static void FusedBatchNorm(const Context& ctx,
                              const bool is_training,
+                             const cnnlActivationDescriptor_t activation_desc,
+                             const cnnlBatchNormMode_t mode,
+                             const cnnlBatchNormOps_t bnOps,
                              const cnnlTensorDescriptor_t x_desc,
                              const void* x,
                              const cnnlTensorDescriptor_t scale_desc,
@@ -1756,21 +1889,25 @@ class MLUCnnl {
                              void* saved_mean,
                              void* saved_var);
 
-  static void FusedBatchNormGrad(const Context& ctx,
-                                 const bool is_training,
-                                 const cnnlTensorDescriptor_t y_backprop_desc,
-                                 const void* y_backprop,
-                                 const cnnlTensorDescriptor_t x_desc,
-                                 const void* x,
-                                 const cnnlTensorDescriptor_t scale_desc,
-                                 const void* scale,
-                                 const void* saved_mean,
-                                 const void* saved_var,
-                                 float epsilon,
-                                 const cnnlTensorDescriptor_t x_backprop_desc,
-                                 void* x_backprop,
-                                 void* scale_backprop,
-                                 void* offset_backprop);
+  static void FusedBatchNormGrad(
+      const Context& ctx,
+      const bool is_training,
+      const cnnlActivationDescriptor_t activation_desc,
+      const cnnlBatchNormMode_t mode,
+      const cnnlBatchNormOps_t bnOps,
+      const cnnlTensorDescriptor_t y_backprop_desc,
+      const void* y_backprop,
+      const cnnlTensorDescriptor_t x_desc,
+      const void* x,
+      const cnnlTensorDescriptor_t scale_desc,
+      const void* scale,
+      const void* saved_mean,
+      const void* saved_var,
+      float epsilon,
+      const cnnlTensorDescriptor_t x_backprop_desc,
+      void* x_backprop,
+      void* scale_backprop,
+      void* offset_backprop);
 
   static void LayerNormForward(const Context& ctx,
                                int axis,
@@ -1801,6 +1938,17 @@ class MLUCnnl {
                                 void* diff_x,
                                 void* diff_weight,
                                 void* diff_bias);
+
+  static void Normalize(const Context& ctx,
+                        const cnnlNormalizeDescriptor_t normalize_desc,
+                        const cnnlTensorDescriptor_t input_desc,
+                        const void* input,
+                        const cnnlTensorDescriptor_t scale_desc,
+                        const void* scale,
+                        const cnnlTensorDescriptor_t output_desc,
+                        const cnnlTensorDescriptor_t norm_desc,
+                        void* output,
+                        void* norm);
 
   static void Transpose(const Context& ctx,
                         const std::vector<int> perm,
@@ -2281,6 +2429,34 @@ class MLUCnnl {
       const void* count,
       const cnnlTensorDescriptor_t diff_x_desc,
       void* diff_x);
+
+  static void RandGenerateNormal(const Context& ctx,
+                                 const cnnlRandGenerator_t generator,
+                                 const cnnlDataType_t type,
+                                 const size_t num,
+                                 const float mean,
+                                 const float stddev,
+                                 void* state, /*inout*/
+                                 void* out);
+
+  static void RandGenerateUniform(const Context& ctx,
+                                  const cnnlRandGenerator_t generator,
+                                  const cnnlDataType_t type,
+                                  const size_t num,
+                                  const float min,
+                                  const float max,
+                                  void* state,
+                                  void* out);
+
+  static void RandGenerateMultinomial(const Context& ctx,
+                                      const cnnlRandGenerator_t generator,
+                                      const cnnlTensorDescriptor_t input_desc,
+                                      const void* input,
+                                      const bool is_replacement,
+                                      const bool is_logits,
+                                      void* state,
+                                      const cnnlTensorDescriptor_t output_desc,
+                                      void* out);
 };
 
 class MLUOP {
@@ -2420,6 +2596,12 @@ inline void TransposeFromMLUTensor(const Context& ctx,
                                    Tensor* transformed_output,
                                    bool need_reshape_or_alloc) {
   const int dim_size = perm.size();
+
+  // if (perm.size() == 0) {
+  //   TensorCopy(dev_ctx, *transformed_input, false, transformed_output);
+  //   return;
+  // }
+
   if (need_reshape_or_alloc) {
     std::vector<int> output_shape;
     auto input_dims = transformed_input->dims();
@@ -2450,6 +2632,15 @@ inline void FillMLUTensorWithHostValue(const Context& ctx,
   MLUCnnlTensorDesc out_desc(*out);
   MLUCnnl::Fill(
       ctx, CNNL_POINTER_MODE_HOST, &value, out_desc.get(), GetBasePtr(out));
+}
+
+template <typename T>
+inline void FillMLUTensorWithDeviceValue(const Context& ctx,
+                                         T* value,
+                                         Tensor* out) {
+  MLUCnnlTensorDesc out_desc(*out);
+  MLUCnnl::Fill(
+      ctx, CNNL_POINTER_MODE_DEVICE, value, out_desc.get(), GetBasePtr(out));
 }
 
 }  // namespace custom_kernel

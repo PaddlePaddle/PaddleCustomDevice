@@ -18,7 +18,6 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
 
 paddle.enable_static()
 SEED = 2022
@@ -30,7 +29,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False, scale=1.0):
     # transpose X and Y appropriately.
     if transpose_X:
         if X.ndim == 1:
-            X = X.reshape((X.size, ))
+            X = X.reshape((X.size,))
         elif X.ndim == 2:
             X = X.T
         else:
@@ -39,22 +38,94 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False, scale=1.0):
             X = np.transpose(X, tuple(dim))
     if transpose_Y:
         if Y.ndim == 1:
-            Y = Y.reshape((Y.size, ))
+            Y = Y.reshape((Y.size,))
         else:
             dim = [i for i in range(len(Y.shape))]
             dim[-1], dim[len(Y.shape) - 2] = dim[len(Y.shape) - 2], dim[-1]
             Y = np.transpose(Y, tuple(dim))
 
     Out = np.matmul(X, Y)
-    if not Out.shape:
-        # We do not support 0-dimensional Tensors (scalars). So where
-        # np.matmul outputs a scalar, we must convert to a Tensor of
-        # shape (1, ) instead.
-        # Everywhere else, we are compatible with np.matmul.
-        Out = np.array([Out], dtype="float64")
     if abs(scale - 1.0) > 1e-09:
         Out = Out * scale
     return Out
+
+
+class TestBmmOp(OpTest):
+    """
+    case 0
+    """
+
+    def set_mlu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("mlu", 0)
+
+    def config(self):
+        self.x_shape = (10, 2, 5)
+        self.y_shape = (10, 5, 8)
+
+    def init_kernel_type(self):
+        self.dtype = "float32"
+
+    def setUp(self):
+        self.set_mlu()
+        self.init_kernel_type()
+        self.config()
+        self.op_type = "bmm"
+        x = np.random.random(self.x_shape).astype(self.dtype)
+        y = np.random.random(self.y_shape).astype(self.dtype)
+        # -0.1 ~ 0.1
+        x = -0.1 + 0.2 * x
+        y = -0.1 + 0.2 * y
+        result = reference_matmul(x, y)
+        result = result.astype(self.dtype)
+        self.inputs = {
+            "X": x,
+            "Y": y,
+        }
+        self.outputs = {"Out": result}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
+
+
+class TestBmmOp1(TestBmmOp):
+    """
+    case 1
+    """
+
+    def config(self):
+        self.x_shape = (40, 10, 10)
+        self.y_shape = (40, 10, 10)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
+
+
+class TestBmmOp2(TestBmmOp):
+    """
+    case 2
+    """
+
+    def config(self):
+        self.x_shape = (4, 10, 80)
+        self.y_shape = (4, 80, 1)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X", "Y"],
+            "Out",
+            max_relative_error=1e-2,
+        )
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
 
 
 class TestMatMulOp(OpTest):
@@ -74,24 +145,23 @@ class TestMatMulOp(OpTest):
         # -0.1 ~ 0.1
         X = -0.1 + 0.2 * X
         Y = -0.1 + 0.2 * Y
-        Out = reference_matmul(X, Y, self.transpose_X, self.transpose_Y,
-                               self.alpha)
+        Out = reference_matmul(X, Y, self.transpose_X, self.transpose_Y, self.alpha)
         Out = Out.astype(self.dtype)
-        self.inputs = {'X': X, 'Y': Y}
+        self.inputs = {"X": X, "Y": Y}
         self.attrs = {
-            'trans_x': self.transpose_X,
-            'trans_y': self.transpose_Y,
-            'alpha': self.alpha
+            "trans_x": self.transpose_X,
+            "trans_y": self.transpose_Y,
+            "alpha": self.alpha,
         }
-        self.outputs = {'Out': Out}
+        self.outputs = {"Out": Out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def config(self):
-        self.x_shape = (100, )
-        self.y_shape = (100, )
+        self.x_shape = (100,)
+        self.y_shape = (100,)
         self.transpose_X = False
         self.transpose_Y = False
 
@@ -105,7 +175,7 @@ class TestMatMulOp(OpTest):
         self.check_output_with_place(self.place, atol=1e-7)
 
     def test_check_grad_normal(self):
-        self.check_grad_with_place(self.place, ['X', 'Y'], 'Out')
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
 
 
 class TestMatMulOp1(TestMatMulOp):
@@ -114,7 +184,7 @@ class TestMatMulOp1(TestMatMulOp):
     """
 
     def config(self):
-        self.x_shape = (100, )
+        self.x_shape = (100,)
         self.y_shape = (1, 3, 2, 100)
         self.transpose_X = False
         self.transpose_Y = True
@@ -127,7 +197,7 @@ class TestMatMulOp2(TestMatMulOp):
 
     def config(self):
         self.x_shape = (1, 2, 100, 1)
-        self.y_shape = (100, )
+        self.y_shape = (100,)
         self.transpose_X = True
         self.transpose_Y = False
 
@@ -246,7 +316,7 @@ class TestMatMulOp12(TestMatMulOp):
     """
 
     def config(self):
-        self.x_shape = (100)
+        self.x_shape = 100
         self.y_shape = (1, 2, 2, 100, 2)
         self.transpose_X = False
         self.transpose_Y = False
@@ -259,13 +329,13 @@ class TestMatMulOp13(TestMatMulOp):
 
     def config(self):
         self.x_shape = (2, 1, 100)
-        self.y_shape = (100)
+        self.y_shape = 100
         self.transpose_X = False
         self.transpose_Y = False
 
 
 # TODO(mlu): alpha will be supported in next version
-#--------------------test matmul alpha--------------------
+# --------------------test matmul alpha--------------------
 # def create_test_alpha_class(parent):
 #     class TestMatMulOpAlphaCase(parent):
 #         def init_alpha(self):
@@ -289,11 +359,9 @@ class TestMatMulOp13(TestMatMulOp):
 # create_test_alpha_class(TestMatMulOp13)
 
 
-#--------------------test matmul fp16--------------------
+# --------------------test matmul fp16--------------------
 def create_test_fp16_class(parent, atol=0.001, max_relative_error=2.5):
-
     class TestMatMulOpFp16Case(parent):
-
         def init_kernel_type(self):
             self.dtype = np.float16
 
@@ -301,9 +369,9 @@ def create_test_fp16_class(parent, atol=0.001, max_relative_error=2.5):
             self.check_output_with_place(self.place, atol=atol)
 
         def test_check_grad(self):
-            self.check_grad_with_place(self.place, ['X', 'Y'],
-                                       'Out',
-                                       max_relative_error=max_relative_error)
+            self.check_grad_with_place(
+                self.place, ["X", "Y"], "Out", max_relative_error=max_relative_error
+            )
 
     cls_name = "{0}_{1}".format(parent.__name__, "Fp16")
     TestMatMulOpFp16Case.__name__ = cls_name

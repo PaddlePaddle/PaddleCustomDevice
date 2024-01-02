@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
 
@@ -30,7 +31,6 @@ void AbsKernel(const Context& dev_ctx,
                output_desc.get(),
                GetBasePtr(out));
 }
-
 
 template <typename T, typename Context>
 void AbsGradKernel(const Context& dev_ctx,
@@ -66,15 +66,19 @@ void AbsGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(abs,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AbsKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}
 
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::AbsGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->InputAt(1).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}

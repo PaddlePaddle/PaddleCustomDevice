@@ -14,13 +14,12 @@
 
 from __future__ import print_function
 
-import numpy as np
 import unittest
 
-from tests.op_test import OpTest
+import numpy as np
 import paddle
-import paddle.fluid as fluid
-from paddle.fluid import core
+from paddle.base import core
+from tests.op_test import OpTest
 
 paddle.enable_static()
 SEED = 2021
@@ -31,17 +30,18 @@ class TestAllocContinuousSpace(OpTest):
     def setUp(self):
         self.__class__.use_custom_device = True
         self.op_type = "coalesce_tensor"
-        self.dtype, self.fluid_dtype = self.init_dtype()
+        self.dtype, self.base_dtype = self.init_dtype()
         attrs = self.init_attr()
         self.copy_data = attrs["copy_data"]
         self.constant = attrs["constant"]
         self.set_constant = attrs["set_constant"]
         self.Inputs = self.init_input()
         self.Outputs, self.FusedOutput = self.init_output(
-            self.Inputs, self.set_constant, self.constant)
-        self.inputs = {'Input': self.Inputs}
+            self.Inputs, self.set_constant, self.constant
+        )
+        self.inputs = {"Input": self.Inputs}
         self.attrs = attrs
-        self.outputs = {'Output': self.Outputs, 'FusedOutput': self.FusedOutput}
+        self.outputs = {"Output": self.Outputs, "FusedOutput": self.FusedOutput}
 
     def init_dtype(self):
         return np.float32, int(core.VarDesc.VarType.FP32)
@@ -58,7 +58,7 @@ class TestAllocContinuousSpace(OpTest):
             "set_constant": False,
             "constant": 0.0,
             "use_align": True,
-            "dtype": self.fluid_dtype
+            "dtype": self.base_dtype,
         }
 
     def init_output(self, input_list, set_constant, constant):
@@ -77,9 +77,18 @@ class TestAllocContinuousSpace(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=paddle.CustomPlace('ascend', 0),
+            place=paddle.CustomPlace("npu", 0),
             no_check_set=["FusedOutput"],
-            atol=1e-5, )
+            atol=1e-5,
+        )
+
+
+class TestNumel1Input(TestAllocContinuousSpace):
+    def init_input(self):
+        inputs = []
+        inputs.append(("x1", np.zeros([1, 1]).astype(self.dtype)))
+        inputs.append(("x2", np.zeros([1, 1]).astype(self.dtype)))
+        return inputs
 
 
 class TestAllocContinuousSpace2(TestAllocContinuousSpace):
@@ -89,16 +98,17 @@ class TestAllocContinuousSpace2(TestAllocContinuousSpace):
             "set_constant": False,
             "constant": 0.5,
             "use_align": True,
-            "dtype": self.fluid_dtype,
-            "user_defined_size_of_dtype": 2
+            "dtype": self.base_dtype,
+            "user_defined_size_of_dtype": 2,
         }
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=paddle.CustomPlace('ascend', 0),
+            place=paddle.CustomPlace("npu", 0),
             no_check_set=["FusedOutput"],
-            atol=1e-5, )
+            atol=1e-5,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

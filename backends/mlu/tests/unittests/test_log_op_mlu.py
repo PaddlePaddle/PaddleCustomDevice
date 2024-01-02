@@ -18,8 +18,9 @@ import numpy as np
 import unittest
 
 from tests.op_test import OpTest
+from tests.utils import static_guard
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 SEED = 2021
@@ -37,8 +38,8 @@ class TestActivation(OpTest):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -49,8 +50,11 @@ class TestActivation(OpTest):
     def init_kernel_type(self):
         pass
 
+    def init_shape(self):
+        self.shape = [11, 17]
+
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -66,17 +70,13 @@ class TestLog(TestActivation):
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
+        self.outputs = {"Out": out}
 
-    def test_error(self):
-        in1 = fluid.layers.data(
-            name="in1", shape=[11, 17], append_batch_size=False, dtype="int32")
-        in2 = fluid.layers.data(
-            name="in2", shape=[11, 17], append_batch_size=False, dtype="int64")
-
-        self.assertRaises(TypeError, fluid.layers.log, in1)
-        self.assertRaises(TypeError, fluid.layers.log, in2)
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
 
 class TestLog2(TestActivation):
@@ -85,46 +85,54 @@ class TestLog2(TestActivation):
         self.op_type = "log2"
         self.python_api = paddle.log2
         self.init_dtype()
+        self.init_shape()
 
-        x = np.random.uniform(1, 10, [11, 17]).astype(self.dtype)
+        x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
         out = np.log2(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
+        self.outputs = {"Out": out}
 
-    def test_error(self):
-        in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
-        in2 = paddle.static.data(name="in2", shape=[11, 17], dtype="int64")
-
-        self.assertRaises(TypeError, paddle.log2, in1)
-        self.assertRaises(TypeError, paddle.log2, in2)
+    def test_check_grad_with_place(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
-            input_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
-            data_x = paddle.static.data(
-                name="data_x", shape=[11, 17], dtype="float32")
+        with static_guard():
+            with paddle.static.program_guard(
+                paddle.static.Program(), paddle.static.Program()
+            ):
+                input_x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
+                data_x = paddle.static.data(
+                    name="data_x", shape=[11, 17], dtype=self.dtype
+                )
 
-            out1 = paddle.log2(data_x)
-            exe = paddle.static.Executor(place=fluid.CPUPlace())
-            exe.run(paddle.static.default_startup_program())
-            res1 = exe.run(paddle.static.default_main_program(),
-                           feed={"data_x": input_x},
-                           fetch_list=[out1])
-        expected_res = np.log2(input_x)
-        np.testing.assert_allclose(res1[0], expected_res, rtol=1e-6)
+                out1 = paddle.log2(data_x)
+                exe = paddle.static.Executor(place=self.place)
+                exe.run(paddle.static.default_startup_program())
+                (res1,) = exe.run(
+                    paddle.static.default_main_program(),
+                    feed={"data_x": input_x},
+                    fetch_list=[out1],
+                )
+            expected_res = np.log2(input_x)
+            rtol = 1e-5
+            if self.dtype == np.float16:
+                rtol = 1e-3
+            np.testing.assert_allclose(res1, expected_res, rtol=rtol)
 
         # dygraph
-        with fluid.dygraph.guard():
-            np_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
+        with base.dygraph.guard(self.place):
+            np_x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
             data_x = paddle.to_tensor(np_x)
             z = paddle.log2(data_x)
             np_z = z.numpy()
             z_expected = np.array(np.log2(np_x))
-            np.savetxt("np_z.txt", np_z.flatten(), fmt="%.4f")
-            np.savetxt("z_expected.txt", z_expected.flatten(), fmt="%.4f")
-        np.testing.assert_allclose(np_z, z_expected, atol=1e-6)
+        rtol = 1e-4
+        if self.dtype == np.float16:
+            rtol = 1e-3
+        np.testing.assert_allclose(np_z, z_expected, rtol=rtol)
 
 
 class TestLog10(TestActivation):
@@ -133,44 +141,51 @@ class TestLog10(TestActivation):
         self.op_type = "log10"
         self.python_api = paddle.log10
         self.init_dtype()
+        self.init_shape()
 
         x = np.random.uniform(0.1, 1, [11, 17]).astype(self.dtype)
         out = np.log10(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
+        self.outputs = {"Out": out}
 
-    def test_error(self):
-        in1 = paddle.static.data(name="in1", shape=[11, 17], dtype="int32")
-        in2 = paddle.static.data(name="in2", shape=[11, 17], dtype="int64")
-
-        self.assertRaises(TypeError, paddle.log10, in1)
-        self.assertRaises(TypeError, paddle.log10, in2)
+    def test_check_grad_with_place(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
     def test_api(self):
-        with paddle.static.program_guard(paddle.static.Program(),
-                                         paddle.static.Program()):
-            input_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
-            data_x = paddle.static.data(
-                name="data_x", shape=[11, 17], dtype="float32")
+        with static_guard():
+            with paddle.static.program_guard(
+                paddle.static.Program(), paddle.static.Program()
+            ):
+                input_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
+                data_x = paddle.static.data(
+                    name="data_x", shape=[11, 17], dtype="float32"
+                )
 
-            out1 = paddle.log10(data_x)
-            exe = paddle.static.Executor(place=paddle.CPUPlace())
-            exe.run(paddle.static.default_startup_program())
-            res1 = exe.run(paddle.static.default_main_program(),
-                           feed={"data_x": input_x},
-                           fetch_list=[out1])
-        expected_res = np.log10(input_x)
-        np.testing.assert_allclose(res1[0], expected_res, rtol=1e-6)
+                out1 = paddle.log10(data_x)
+                exe = paddle.static.Executor(place=self.place)
+                exe.run(paddle.static.default_startup_program())
+                res1 = exe.run(
+                    paddle.static.default_main_program(),
+                    feed={"data_x": input_x},
+                    fetch_list=[out1],
+                )
+            expected_res = np.log10(input_x)
+            np.testing.assert_allclose(res1[0], expected_res, rtol=1e-5)
 
         # dygraph
-        with fluid.dygraph.guard():
+        with base.dygraph.guard(self.place):
             np_x = np.random.uniform(0.1, 1, [11, 17]).astype("float32")
             data_x = paddle.to_tensor(np_x)
             z = paddle.log10(data_x)
             np_z = z.numpy()
             z_expected = np.array(np.log10(np_x))
-        np.testing.assert_allclose(np_z, z_expected, rtol=1e-4)
+        rtol = 1e-4
+        if self.dtype == np.float16:
+            rtol = 1e-3
+        np.testing.assert_allclose(np_z, z_expected, rtol=rtol)
 
 
 class TestLogHalf(TestLog):
@@ -197,5 +212,5 @@ class TestLog10Half(TestLog10):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

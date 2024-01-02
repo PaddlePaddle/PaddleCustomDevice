@@ -25,16 +25,35 @@ void ModuloRawKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto y_dims = y.dims();
+  if (x_dims.size() == 0) {
+    phi::DenseTensor tmp_x(x);
+    tmp_x.Resize(phi::make_ddim({1}));
+    if (y_dims.size() == 0) {
+      out->Resize(phi::make_ddim({1}));
+    }
+    ModuloRawKernel<T, Context>(dev_ctx, tmp_x, y, axis, out);
+    if (y_dims.size() == 0) {
+      out->Resize(phi::make_ddim({}));
+    }
+    return;
+  }
+  if (y_dims.size() == 0) {
+    phi::DenseTensor tmp_y(y);
+    tmp_y.Resize(phi::make_ddim({1}));
+    ModuloRawKernel<T, Context>(dev_ctx, x, tmp_y, axis, out);
+    return;
+  }
 
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
 
   bool direct_compute = false;
-  if (x_dims.size() >= y_dims.size()) {
+  if (y_dims.size() == 0 || x_dims.size() == 0) {
+    direct_compute = false;
+  } else if (x_dims.size() >= y_dims.size()) {
     direct_compute = y_dims == phi::slice_ddim(x_dims, axis, x_dims.size());
   } else {
     direct_compute = x_dims == phi::slice_ddim(y_dims, axis, y_dims.size());
   }
-
   phi::DenseTensor transformed_x, transformed_y;
   if (direct_compute) {
     transformed_x = x;
@@ -52,7 +71,7 @@ void ModuloRawKernel(const Context& dev_ctx,
     runner.Run(stream);
   } else {
     // TODO(songkai05): In CANN512, npu op FloorMod returns false results in
-    // dtype FLOAT16, so cast inputs to FLOAT32 temporarily until Ascend fix
+    // dtype FLOAT16, so cast inputs to FLOAT32 temporarily until npu fix
     // this problem.
     phi::DenseTensor x_float32, y_float32, out_float32;
     phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, transformed_x.dims()};
@@ -93,7 +112,7 @@ void ModuloKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(remainder,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ModuloKernel,
                           int,
@@ -102,7 +121,7 @@ PD_REGISTER_PLUGIN_KERNEL(remainder,
                           double,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(remainder_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::ModuloRawKernel,
                           int,

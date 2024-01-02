@@ -20,7 +20,7 @@ namespace custom_kernel {
 const int kIgnoreIndex = -100;
 
 void CheckAttrs(bool normalize, int ignore_index) {
-  // Add this check is is due to Ascend SigmoidCrossEntropyWithLogits
+  // Add this check is is due to npu SigmoidCrossEntropyWithLogits
   // and SigmoidCrossEntropyWithLogitsGrad does't supoort
   // attr normalize and ignore_index
   PADDLE_ENFORCE_EQ(normalize,
@@ -36,44 +36,60 @@ void CheckAttrs(bool normalize, int ignore_index) {
 }
 
 template <typename T, typename Context>
-void SigmoidCrossEntropyWithLogitsKernel(const Context& dev_ctx,
-                                         const phi::DenseTensor& x,
-                                         const phi::DenseTensor& label,
-                                         bool normalize,
-                                         int ignore_index,
-                                         phi::DenseTensor* out) {
+void SigmoidCrossEntropyWithLogitsKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& x,
+    const phi::DenseTensor& label,
+    const paddle::optional<phi::DenseTensor>& pos_weight,
+    bool normalize,
+    int ignore_index,
+    phi::DenseTensor* out) {
   CheckAttrs(normalize, ignore_index);
+  if (pos_weight.get_ptr() == nullptr) {
+    dev_ctx.template Alloc<T>(out);
+    auto stream = dev_ctx.stream();
 
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-
-  const auto& runner =
-      NpuOpRunner("SigmoidCrossEntropyWithLogits", {x, label}, {*out}, {});
-  runner.Run(stream);
+    const auto& runner =
+        NpuOpRunner("SigmoidCrossEntropyWithLogits", {x, label}, {*out}, {});
+    runner.Run(stream);
+  } else {
+    // TODO(duanyanhui): add support for pos_weight with
+    // SigmoidCrossEntropyWithLogitsV2. Manually fill weight tensor with 1 will
+    // get the output filled with 0. Skip the case when pos_weight not equal to
+    // nullptr currently.
+    PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
+  }
 }
 
 template <typename T, typename Context>
-void SigmoidCrossEntropyWithLogitsGradKernel(const Context& dev_ctx,
-                                             const phi::DenseTensor& x,
-                                             const phi::DenseTensor& label,
-                                             const phi::DenseTensor& dout,
-                                             bool normalize,
-                                             int ignore_index,
-                                             phi::DenseTensor* dx) {
+void SigmoidCrossEntropyWithLogitsGradKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& x,
+    const phi::DenseTensor& label,
+    const paddle::optional<phi::DenseTensor>& pos_weight,
+    const phi::DenseTensor& dout,
+    bool normalize,
+    int ignore_index,
+    phi::DenseTensor* dx) {
   CheckAttrs(normalize, ignore_index);
+  if (pos_weight.get_ptr() == nullptr) {
+    dev_ctx.template Alloc<T>(dx);
+    auto stream = dev_ctx.stream();
 
-  dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-
-  const auto& runner_dx = NpuOpRunner(
-      "SigmoidCrossEntropyWithLogitsGrad", {x, label, dout}, {*dx}, {});
-  runner_dx.Run(stream);
+    const auto& runner_dx = NpuOpRunner(
+        "SigmoidCrossEntropyWithLogitsGrad", {x, label, dout}, {*dx}, {});
+    runner_dx.Run(stream);
+  } else {
+    // TODO(duanyanhui): add support for pos_weight with
+    // SigmoidCrossEntropyWithLogitsGradV2.
+    PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
+  }
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidCrossEntropyWithLogitsKernel,
                           float,
@@ -81,7 +97,7 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid_cross_entropy_with_logits,
 
 PD_REGISTER_PLUGIN_KERNEL(
     sigmoid_cross_entropy_with_logits_grad,
-    ascend,
+    npu,
     ALL_LAYOUT,
     custom_kernel::SigmoidCrossEntropyWithLogitsGradKernel,
     float,

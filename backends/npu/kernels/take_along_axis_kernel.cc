@@ -25,9 +25,27 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
                          phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("GatherElements", {x, index}, {*out}, {{"dim", axis}});
-  runner.Run(stream);
+  NPUAttributeMap attr_input = {{"dim", axis}};
+  auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                    const std::vector<phi::DenseTensor>& outputs,
+                    const NPUAttributeMap& attrs,
+                    const Context& dev_ctx) {
+    const auto& runner = NpuOpRunner("GatherElements", inputs, outputs, attrs);
+    runner.Run(dev_ctx.stream());
+  };
+  if (x.dtype() == phi::DataType::FLOAT64) {
+    NpuOpRunner::TypeAdapter({x, index},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32, phi::DataType::INT64},
+                             {phi::DataType::FLOAT32});
+  } else {
+    const auto& runner =
+        NpuOpRunner("GatherElements", {x, index}, {*out}, attr_input);
+    runner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>
@@ -38,18 +56,47 @@ void TakeAlongAxisGradKernel(const Context& dev_ctx,
                              int axis,
                              phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
+  FillNpuTensorWithConstant<T>(x_grad, dev_ctx, static_cast<T>(0));
+  x_grad->Resize(x.dims());
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("ScatterAddWithAxis",
-                                   {*x_grad, index, out_grad},
-                                   {*x_grad},
-                                   {{"axis", axis}});
-  runner.Run(stream);
+  NPUAttributeMap attr_input = {{"axis", axis}};
+  if (x_grad->dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensor tmp_x_grad;
+    tmp_x_grad.Resize(x_grad->dims());
+    dev_ctx.template Alloc<float>(&tmp_x_grad);
+    const auto& cast_runner1 =
+        NpuOpRunner("Cast", {*x_grad}, {tmp_x_grad}, {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(dev_ctx.stream());
+    phi::DenseTensor tmp_out_grad;
+    tmp_out_grad.Resize(out_grad.dims());
+    dev_ctx.template Alloc<float>(&tmp_out_grad);
+    const auto& cast_runner2 = NpuOpRunner(
+        "Cast", {out_grad}, {tmp_out_grad}, {{"dst_type", ACL_FLOAT}});
+    cast_runner2.Run(dev_ctx.stream());
+    const auto& runner = NpuOpRunner("ScatterAddWithAxis",
+                                     {tmp_x_grad, index, tmp_out_grad},
+                                     {tmp_x_grad},
+                                     attr_input);
+    runner.Run(stream);
+    const auto& cast_runner3 = NpuOpRunner(
+        "Cast", {tmp_x_grad}, {*x_grad}, {{"dst_type", ACL_DOUBLE}});
+    cast_runner3.Run(dev_ctx.stream());
+    const auto& cast_runner4 = NpuOpRunner(
+        "Cast", {tmp_out_grad}, {out_grad}, {{"dst_type", ACL_DOUBLE}});
+    cast_runner4.Run(dev_ctx.stream());
+  } else {
+    const auto& runner = NpuOpRunner("ScatterAddWithAxis",
+                                     {*x_grad, index, out_grad},
+                                     {*x_grad},
+                                     {{"axis", axis}});
+    runner.Run(stream);
+  }
 }
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TakeAlongAxisKernel,
                           int,
@@ -58,7 +105,7 @@ PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(take_along_axis_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::TakeAlongAxisGradKernel,
                           int,

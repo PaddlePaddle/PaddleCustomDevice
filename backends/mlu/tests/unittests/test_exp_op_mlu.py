@@ -34,12 +34,12 @@ class TestExp(OpTest):
         x = np.random.rand(20, 5).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -49,7 +49,7 @@ class TestExp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ['X'], 'Out')
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestExpFp16(OpTest):
@@ -62,12 +62,12 @@ class TestExpFp16(OpTest):
         x = np.random.rand(20, 5).astype(self.dtype)
         out = np.exp(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
@@ -89,12 +89,12 @@ class TestExpNeg(OpTest):
         x -= 1
         out = np.exp(x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
         self.attrs = {}
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def set_mlu(self):
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
         self.__class__.use_custom_device = True
 
     def init_dtype(self):
@@ -104,5 +104,5 @@ class TestExpNeg(OpTest):
         self.check_output_with_place(self.place)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

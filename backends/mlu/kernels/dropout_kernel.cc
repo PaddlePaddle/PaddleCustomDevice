@@ -12,9 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/elementwise_utils.h"
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
+
+void GetSeed(const phi::DeviceContext& dev_ctx,
+             const paddle::optional<phi::DenseTensor>& seed_tensor,
+             int seed,
+             bool fix_seed,
+             int* seed_out) {
+  if (seed_tensor) {
+    MemCpyD2H(nullptr, seed_out, seed_tensor->data(), sizeof(int));
+  } else if (!fix_seed) {
+    // use global generator seed for mlu.
+    *seed_out = static_cast<int>(dev_ctx.GetGenerator()->Random64());
+  } else {
+    *seed_out = seed;
+  }
+}
 
 template <typename T, typename Context>
 void DropoutRawKernel(const Context& dev_ctx,
@@ -34,16 +50,16 @@ void DropoutRawKernel(const Context& dev_ctx,
 
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*out);
-  if (!is_test) {
-    // exec dropout op for training only.
+  if (is_test && is_upscale) {
+    // dropout op for inference: out = input.
+    VLOG(4) << "[Dropout] upscale_in_train test mode, copy out.";
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  } else if (!is_test) {
+    // dropout op for training: out = input * mask / ( 1.0 - dropout_prob ) or
+    // out = input * mask, downscale_in_infer mode
     int seed_data = 0;
-    if (seed_tensor) {
-      std::vector<int> seed_vec;
-      TensorToVector(dev_ctx, seed_tensor.get(), dev_ctx, &seed_vec);
-      seed_data = seed_vec[0];
-    } else {
-      seed_data = fix_seed ? seed : 0;
-    }
+    GetSeed(dev_ctx, seed_tensor, seed, fix_seed, &seed_data);
 
     dev_ctx.template Alloc<uint8_t>(mask);
     MLUCnnlTensorDesc mask_desc(*mask);
@@ -63,51 +79,49 @@ void DropoutRawKernel(const Context& dev_ctx,
       return;
     }
 
-    // create mlu random generator
-    const int device_id = dev_ctx.GetPlace().GetDeviceId();
-    auto mlu_gen_random = GetMLURandomGenerator(dev_ctx, device_id, seed_data);
+    // Note, no api to set seed on device, so we
+    // use random seed generated from cpu instread of device one.
+    auto mlu_gen_random = MLUCnnlRandomGeneratorDesc(dev_ctx, seed_data);
 
-    const float prob = is_upscale ? dropout_prob : 0.0f;
+    // compute out = input * mask / ( 1.0 - dropout_prob )
     MLUCnnl::FusedDropout(dev_ctx,
-                          mlu_gen_random->get(),
+                          mlu_gen_random.get(),
                           x_desc.get(),
                           GetBasePtr(&x),
-                          prob,
-                          GetBasePtr(&(mlu_gen_random->get_state())),
+                          dropout_prob,
+                          GetBasePtr(&(mlu_gen_random.get_state())),
                           mask_desc.get(),
                           GetBasePtr(mask),
                           out_desc.get(),
                           GetBasePtr(out));
-  } else {
-    // exec dropout op for inference only.
     if (is_upscale) {
-      TensorCopy(dev_ctx, x, false, out);
-    } else {
-      auto scale = static_cast<T>(1.0f - dropout_prob);
-      Tensor scale_tensor;
-      scale_tensor.Resize({1});
-      dev_ctx.template Alloc<T>(&scale_tensor);
-      MLUCnnlTensorDesc scale_desc(scale_tensor);
-      MLUCnnl::Fill(dev_ctx,
-                    CNNL_POINTER_MODE_HOST,
-                    &scale,
-                    scale_desc.get(),
-                    GetBasePtr(&scale_tensor));
-
-      auto data_type = ToCnnlDataType<T>();
-      MLUCnnlOpTensorDesc op_tensor_desc(
-          CNNL_OP_TENSOR_MUL, data_type, CNNL_NOT_PROPAGATE_NAN);
-      MLUCnnl::OpTensor(dev_ctx,
-                        op_tensor_desc.get(),
-                        x_desc.get(),
-                        GetBasePtr(&x),
-                        scale_desc.get(),
-                        GetBasePtr(&scale_tensor),
-                        out_desc.get(),
-                        GetBasePtr(out),
-                        data_type);
+      VLOG(4) << "[Dropout] train, upscale_in_train. out = in * mask * (1-p)";
+      return;
     }
   }
+
+  // downscale mode, scale (1-p)
+  Tensor t_scale, t_bias;
+  t_scale.Resize(phi::make_ddim({1}));
+  t_bias.Resize(phi::make_ddim({1}));
+  dev_ctx.template Alloc<T>(&t_scale);
+  dev_ctx.template Alloc<T>(&t_bias);
+  MLUCnnlTensorDesc scale_desc(t_scale);
+  MLUCnnlTensorDesc bias_desc(t_bias);
+  FillMLUTensorWithHostValue(
+      dev_ctx, static_cast<T>(1.0f - dropout_prob), &t_scale);
+  FillMLUTensorWithHostValue(dev_ctx, static_cast<T>(0.0f), &t_bias);
+
+  MLUCnnl::Scale(dev_ctx,
+                 0,
+                 is_test ? x_desc.get() : out_desc.get(),
+                 is_test ? GetBasePtr(&x) : GetBasePtr(out),
+                 scale_desc.get(),
+                 GetBasePtr(&t_scale),
+                 bias_desc.get(),
+                 GetBasePtr(&t_bias),
+                 out_desc.get(),
+                 GetBasePtr(out));
 }
 
 template <typename T, typename Context>
@@ -172,14 +186,16 @@ void DropoutGradRawKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(dropout,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutRawKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(dropout_grad,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::DropoutGradRawKernel,
                           float,

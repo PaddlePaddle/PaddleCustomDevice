@@ -16,10 +16,8 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from op_test import OpTest, convert_float_to_uint16
-import paddle.fluid.core as core
-import paddle.fluid as fluid
-from paddle.fluid import compiler, Program, program_guard
+from op_test import OpTest
+import paddle.base.core as core
 import paddle
 import paddle.nn.functional as F
 
@@ -29,7 +27,7 @@ paddle.enable_static()
 
 
 def get_places(self):
-    return [paddle.CustomPlace('custom_cpu', 0)]
+    return [paddle.CustomPlace("custom_cpu", 0)]
 
 
 OpTest._get_places = get_places
@@ -39,7 +37,7 @@ def stable_softmax(x):
     """Compute the softmax of vector x in a numerically stable way."""
     # clip to shiftx, otherwise, when calc loss with
     # log(exp(shiftx)), may get log(0)=INF
-    shiftx = (x - np.max(x)).clip(-64.)
+    shiftx = (x - np.max(x)).clip(-64.0)
     exps = np.exp(shiftx)
     return exps / np.sum(exps)
 
@@ -74,26 +72,27 @@ class TestSoftmaxOp(OpTest):
         x = np.random.uniform(0.1, 1, self.shape).astype(self.dtype)
         out = np.apply_along_axis(stable_softmax, self.axis, x)
 
-        self.inputs = {'X': OpTest.np_dtype_to_fluid_dtype(x)}
-        self.outputs = {'Out': out}
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(x)}
+        self.outputs = {"Out": out}
         self.attrs = {
-            'axis': self.axis,
-            'use_cudnn': self.use_cudnn,
-            'use_mkldnn': self.use_mkldnn
+            "axis": self.axis,
+            "use_cudnn": self.use_cudnn,
+            "use_mkldnn": self.use_mkldnn,
         }
 
     def init_kernel_type(self):
         pass
 
     def test_check_output(self):
-        self.check_output(check_dygraph=(self.use_mkldnn == False))
+        self.check_output(check_dygraph=(self.use_mkldnn is False))
 
     def test_check_grad(self):
         self.check_grad(
             ["X"],
             "Out",
             max_relative_error=0.01,
-            check_dygraph=(self.use_mkldnn == False))
+            check_dygraph=(self.use_mkldnn is False),
+        )
 
 
 class TestSoftmaxOp2(TestSoftmaxOp):
@@ -135,8 +134,8 @@ class TestSoftmaxOp6(TestSoftmaxOp):
 
 class TestSoftmaxAPI(unittest.TestCase):
     def setUp(self):
-        self.place = paddle.CustomPlace('custom_cpu', 0)
-        self.x_np = np.random.uniform(-1., 1., [2, 3, 4, 5]).astype('float32')
+        self.place = paddle.CustomPlace("custom_cpu", 0)
+        self.x_np = np.random.uniform(-1.0, 1.0, [2, 3, 4, 5]).astype("float32")
         self.out_ref = np.apply_along_axis(stable_softmax, -1, self.x_np)
         self.executed_api()
 
@@ -145,12 +144,12 @@ class TestSoftmaxAPI(unittest.TestCase):
 
     def test_static_check(self):
         with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.fluid.data('X', self.x_np.shape, 'float32')
+            x = paddle.static.data("X", self.x_np.shape, "float32")
             out1 = self.softmax(x)
             m = paddle.nn.Softmax()
             out2 = m(x)
             exe = paddle.static.Executor(self.place)
-            res = exe.run(feed={'X': self.x_np}, fetch_list=[out1, out2])
+            res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = ref_softmax(self.x_np, axis=-1, dtype=None)
         for r in res:
             self.assertEqual(np.allclose(out_ref, r), True)

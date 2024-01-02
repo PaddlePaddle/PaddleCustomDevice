@@ -26,7 +26,10 @@ void MeanRawKernel(const Context& dev_ctx,
                    phi::DenseTensor* out) {
   auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
-
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
 
   auto input_dims = x.dims();
@@ -66,12 +69,16 @@ void MeanGradKernel(const Context& dev_ctx,
   aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
   auto reduce_dims = axes.GetData();
   dev_ctx.template Alloc<T>(x_grad);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, true, x_grad);
+    return;
+  }
 
   int reduce_numel = 1;
 
   auto input_dims = x.dims();
 
-  if (reduce_all) {
+  if (reduce_all || reduce_dims.size() == 0) {
     reduce_dims.clear();
     for (int d = 0; d < input_dims.size(); ++d) {
       reduce_dims.push_back(static_cast<int>(d));
@@ -84,21 +91,29 @@ void MeanGradKernel(const Context& dev_ctx,
     reduce_numel *= input_dims[d];
   }
 
-  phi::DenseTensor tensor_value;
-  phi::DenseTensorMeta value_meta = {x_grad->dtype(), {1}};
-  tensor_value.set_meta(value_meta);
-  dev_ctx.template Alloc<T>(&tensor_value);
-  FillNpuTensorWithConstant<T>(
-      &tensor_value,
-      dev_ctx,
-      static_cast<T>(1.0f / static_cast<T>(reduce_numel)));
+  if (x_grad->numel() > 1) {
+    phi::DenseTensor tensor_value;
+    phi::DenseTensorMeta value_meta = {x_grad->dtype(), {1}};
+    tensor_value.set_meta(value_meta);
+    dev_ctx.template Alloc<T>(&tensor_value);
+    FillNpuTensorWithConstant<T>(
+        &tensor_value,
+        dev_ctx,
+        static_cast<T>(static_cast<T>(1.0f) / static_cast<T>(reduce_numel)));
 
-  NpuOpRunner runner;
-  runner.SetType("Fill")
-      .AddInput(dev_ctx, phi::vectorize(input_dims))
-      .AddInput(tensor_value)
-      .AddOutput(*x_grad)
-      .Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("Fill")
+        .AddInput(dev_ctx, phi::vectorize(input_dims))
+        .AddInput(tensor_value)
+        .AddOutput(*x_grad)
+        .Run(stream);
+  } else {
+    // CANN op Fill/FillD would raise error when output's numel is 1.
+    FillNpuTensorWithConstant<T>(
+        x_grad,
+        dev_ctx,
+        static_cast<T>(static_cast<T>(1.0f) / static_cast<T>(reduce_numel)));
+  }
 
   phi::DenseTensor transformed_x_grad, transformed_out_grad;
   phi::DenseTensor tmp_out_grad;
@@ -107,7 +122,7 @@ void MeanGradKernel(const Context& dev_ctx,
     tmp_output_dims[d] = 1;
   }
   tmp_out_grad = out_grad;
-  tmp_out_grad.Resize(tmp_output_dims);
+  tmp_out_grad.ResizeAndAllocate(tmp_output_dims);
   NpuElementWiseOpBroadcast<T>(dev_ctx,
                                x_grad,
                                &tmp_out_grad,
@@ -121,11 +136,23 @@ void MeanGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean_raw, ascend, ALL_LAYOUT, custom_kernel::MeanRawKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean_raw,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanRawKernel,
+                          float,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean, ascend, ALL_LAYOUT, custom_kernel::MeanKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanKernel,
+                          float,
+                          phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    mean_grad, ascend, ALL_LAYOUT, custom_kernel::MeanGradKernel, float) {}
+PD_REGISTER_PLUGIN_KERNEL(mean_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::MeanGradKernel,
+                          float,
+                          phi::dtype::float16) {}

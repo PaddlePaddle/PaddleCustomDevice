@@ -16,12 +16,10 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
 from tests.op_test import OpTest, skip_check_grad_ci
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
+import paddle.base.core as core
 
 paddle.enable_static()
 SEED = 2021
@@ -32,15 +30,15 @@ class TestCast1(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "cast"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         ipt = np.random.random(size=[10, 10]) + 1
-        self.inputs = {'X': ipt.astype('float32')}
-        self.outputs = {'Out': ipt.astype('float16')}
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": ipt.astype("float16")}
 
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP32),
-            'out_dtype': int(core.VarDesc.VarType.FP16)
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.FP16),
         }
 
     def set_npu(self):
@@ -55,15 +53,15 @@ class TestCast2(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "cast"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         ipt = np.random.random(size=[10, 10]) + 1
-        self.inputs = {'X': ipt.astype('float16')}
-        self.outputs = {'Out': ipt.astype('float32')}
+        self.inputs = {"X": ipt.astype("float16")}
+        self.outputs = {"Out": ipt.astype("float32")}
 
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.FP16),
-            'out_dtype': int(core.VarDesc.VarType.FP32)
+            "in_dtype": int(core.VarDesc.VarType.FP16),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
         }
 
     def set_npu(self):
@@ -78,15 +76,15 @@ class TestCast3(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "cast"
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
         ipt = np.random.random(size=[10, 10]) + 1
-        self.inputs = {'X': ipt.astype('int32')}
-        self.outputs = {'Out': ipt.astype('int32')}
+        self.inputs = {"X": ipt.astype("int32")}
+        self.outputs = {"Out": ipt.astype("int32")}
 
         self.attrs = {
-            'in_dtype': int(core.VarDesc.VarType.INT32),
-            'out_dtype': int(core.VarDesc.VarType.INT32)
+            "in_dtype": int(core.VarDesc.VarType.INT32),
+            "out_dtype": int(core.VarDesc.VarType.INT32),
         }
 
     def set_npu(self):
@@ -96,5 +94,5 @@ class TestCast3(OpTest):
         self.check_output_with_place(self.place, atol=1e-3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -39,7 +39,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_x)) or (
-                    shape_out[ax] > 1 and shape_x[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_x[ax - src_axis] == 1
+            ):
                 reduce_axes_x.append(ax)
 
     if shape_y != shape_out:
@@ -50,7 +51,8 @@ def ComputeGrad(x, y, out, axis):
 
         for ax in range(len(shape_out)):
             if (ax < src_axis or ax >= src_axis + len(shape_y)) or (
-                    shape_out[ax] > 1 and shape_y[ax - src_axis] == 1):
+                shape_out[ax] > 1 and shape_y[ax - src_axis] == 1
+            ):
                 reduce_axes_y.append(ax)
 
     if len(reduce_axes_x) > 0:
@@ -85,15 +87,15 @@ class TestElementwisePow(OpTest):
         self.init_axis()
 
         self.inputs = {
-            'X': OpTest.np_dtype_to_fluid_dtype(self.x),
-            'Y': OpTest.np_dtype_to_fluid_dtype(self.y)
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
-        self.attrs = {'axis': self.axis}
-        self.outputs = {'Out': self.out}
+        self.attrs = {"axis": self.axis}
+        self.outputs = {"Out": self.out}
 
     def set_mlu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -113,23 +115,20 @@ class TestElementwisePow(OpTest):
     def test_check_grad_normal(self):
         dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
+            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
+        )
 
     def test_check_grad_ingore_x(self):
         _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
+            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
+        )
 
     def test_check_grad_ingore_y(self):
         dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
+            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
+        )
 
 
 class TestElementwisePowFp16(TestElementwisePow):
@@ -142,7 +141,7 @@ class TestElementwisePowFp16(TestElementwisePow):
     def set_mlu(self):
         self.__class__.use_custom_device = True
         # self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace('CustomMLU', 0)
+        self.place = paddle.CustomPlace("mlu", 0)
 
     def init_dtype(self):
         self.dtype = np.float16
@@ -164,88 +163,21 @@ class TestElementwisePowOp_broadcast_0(TestElementwisePow):
     def test_check_grad_normal(self):
         dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
+            self.place, ["X", "Y"], "Out", user_defined_grads=[dx, dy]
+        )
 
     def test_check_grad_ingore_x(self):
         _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
+            self.place, ["Y"], "Out", no_grad_set=set("X"), user_defined_grads=[dy]
+        )
 
     def test_check_grad_ingore_y(self):
         dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
         self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
+            self.place, ["X"], "Out", no_grad_set=set("Y"), user_defined_grads=[dx]
+        )
 
 
-class TestElementwisePowOp_broadcast_1(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 1
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(1, 2, [2, 100, 1]).astype(self.dtype)
-        self.y = np.random.uniform(1, 2, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(1, 100, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
-
-
-class TestElementwisePowOp_broadcast_2(TestElementwisePow):
-    def init_axis(self):
-        self.axis = 0
-
-    def init_input_output(self):
-        np.random.seed(SEED)
-        self.x = np.random.uniform(0.1, 1, [100, 3, 1]).astype(self.dtype)
-        self.y = np.random.uniform(0.1, 1, [100]).astype(self.dtype)
-        self.out = np.power(self.x, self.y.reshape(100, 1, 1))
-
-    def test_check_grad_normal(self):
-        dx, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X', 'Y'], 'Out', user_defined_grads=[dx, dy])
-
-    def test_check_grad_ingore_x(self):
-        _, dy = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['Y'],
-            'Out',
-            no_grad_set=set("X"),
-            user_defined_grads=[dy])
-
-    def test_check_grad_ingore_y(self):
-        dx, _ = ComputeGrad(self.x, self.y, self.out, self.axis)
-        self.check_grad_with_place(
-            self.place, ['X'],
-            'Out',
-            no_grad_set=set("Y"),
-            user_defined_grads=[dx])
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

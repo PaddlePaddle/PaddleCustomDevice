@@ -20,7 +20,7 @@ namespace custom_kernel {
 template <typename T, typename Context>
 void RandpermRawKernel(const Context& dev_ctx,
                        int n,
-                       phi::DenseTensorMeta::DataType dtype,
+                       phi::DataType dtype,
                        unsigned int seed,
                        phi::DenseTensor* out) {
   std::shared_ptr<std::mt19937_64> engine;
@@ -54,7 +54,7 @@ void RandpermRawKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void RandpermKernel(const Context& dev_ctx,
                     int n,
-                    phi::DenseTensorMeta::DataType dtype,
+                    phi::DataType dtype,
                     phi::DenseTensor* out) {
   custom_kernel::RandpermRawKernel<T, Context>(dev_ctx, n, dtype, 0, out);
 }
@@ -62,7 +62,7 @@ void RandpermKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(randperm,
-                          CustomMLU,
+                          mlu,
                           ALL_LAYOUT,
                           custom_kernel::RandpermKernel,
                           int64_t,

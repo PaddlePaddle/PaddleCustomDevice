@@ -55,14 +55,15 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
-  if (out->numel() == 0) {
-    phi::CPUContext dev_ctx_cpu;
-    dev_ctx_cpu.SetZeroAllocator(&(dev_ctx.GetHostAllocator()));
-    dev_ctx_cpu.template Alloc<T>(out);
+  if (x.storage_properties_initialized()) {
+    paddle::Tensor x_tensor(std::make_shared<phi::DenseTensor>(x));
+    auto temp = paddle::npu_identity(x_tensor);
+    auto dense_tensor =
+        std::dynamic_pointer_cast<phi::DenseTensor>(temp.impl());
+    TensorCopy(dev_ctx, *dense_tensor, false, out, phi::CPUPlace());
   } else {
-    dev_ctx.template HostAlloc<T>(out);
+    TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
   }
-  TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
   dev_ctx.Wait();
 }
 
@@ -92,7 +93,7 @@ void MemcpyD2HMultiIOKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyH2DKernel,
                           phi::dtype::float16,
@@ -109,7 +110,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyD2HKernel,
                           phi::dtype::float16,
@@ -126,7 +127,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyD2HMultiIOKernel,
                           phi::dtype::float16,
@@ -143,7 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           int16_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MemcpyKernel,
                           phi::dtype::float16,

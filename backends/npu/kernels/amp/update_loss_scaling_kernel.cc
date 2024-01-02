@@ -216,7 +216,7 @@ class LazyZerosNPU {
       if (!found_inf_vec[0]) {
         TensorCopy(dev_ctx, *x, false, out);
       } else if (zero_ptr != dst_ptr) {
-        auto size = out->numel() * paddle::experimental::SizeOf(out->dtype());
+        auto size = out->numel() * phi::SizeOf(out->dtype());
         aclrtMemcpyAsync(
             dst_ptr, size, zero_ptr, size, ACL_MEMCPY_DEVICE_TO_DEVICE, stream);
       }
@@ -280,7 +280,7 @@ void UpdateLossScaling(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(update_loss_scaling,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::UpdateLossScaling,
                           float,

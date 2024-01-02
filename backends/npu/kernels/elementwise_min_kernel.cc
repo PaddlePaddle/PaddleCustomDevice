@@ -62,9 +62,9 @@ void MinimumGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        const phi::DenseTensor& dout,
-                       int axis,
                        phi::DenseTensor* dx,
                        phi::DenseTensor* dy) {
+  int axis = -1;
   auto stream = dev_ctx.stream();
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
@@ -203,25 +203,31 @@ void MinimumGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_raw,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumRawKernel,
+                          int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumKernel,
+                          int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MinimumGradKernel,
+                          int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}

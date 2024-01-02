@@ -49,8 +49,7 @@ void MaskedSelectKernel(const Context& dev_ctx,
         {mask},
         {mask_int32},
         {{"dst_type",
-          static_cast<int32_t>(
-              ConvertToNpuDtype(phi::DenseTensorMeta::DataType::INT32))}});
+          static_cast<int32_t>(ConvertToNpuDtype(phi::DataType::INT32))}});
     cast_runner.Run(stream);
 
     mask_int32.Resize({mask_int32.numel()});
@@ -66,53 +65,15 @@ void MaskedSelectKernel(const Context& dev_ctx,
     // wait for ReduceSum complete
     dev_ctx.Wait();
     TensorToVector(dev_ctx, out_size, dev_ctx, &out_size_vec);
+    // wait for copy complete
+    dev_ctx.Wait();
   }
 
   out->Resize(phi::make_ddim({out_size_vec[0]}));
   dev_ctx.template Alloc<T>(out);
 
-  phi::DenseTensor topkv2_out;
-  phi::DenseTensor indices;
-  topkv2_out.Resize({out_size_vec[0]});
-  indices.Resize({out_size_vec[0]});
-  dev_ctx.template Alloc<int32_t>(&topkv2_out);
-  dev_ctx.template Alloc<int32_t>(&indices);
-  {
-    NpuOpRunner topkv2_runner;
-    topkv2_runner.SetType("TopKV2")
-        .AddInput(mask_int32)
-        .AddInput(out_size)
-        .AddOutput(topkv2_out)
-        .AddOutput(indices)
-        .AddAttr("sorted", false)
-        .AddAttr("dim", 0)
-        .AddAttr("largest", true)
-        .Run(stream);
-
-    // TopKV2 may be unstable
-    NpuOpRunner topkv2_runner2;
-    topkv2_runner2.SetType("TopKV2")
-        .AddInput(indices)
-        .AddInput(out_size)
-        .AddOutput(topkv2_out)
-        .AddOutput(indices)
-        .AddAttr("sorted", true)
-        .AddAttr("dim", 0)
-        .AddAttr("largest", false)
-        .Run(stream);
-
-    phi::DenseTensor x_tmp(x);
-    x_tmp.Resize({x.numel()});
-
-    NpuOpRunner gather_runner;
-    gather_runner.SetType("GatherV2")
-        .AddInput(x_tmp)
-        .AddInput(topkv2_out)
-        .AddInput(dev_ctx, std::vector<int32_t>(1, 0))
-        .AddAttrs({{"batch_dims", 0}})
-        .AddOutput(*out);
-    gather_runner.Run(stream);
-  }
+  const auto& runner = NpuOpRunner("MaskedSelect", {x, mask}, {*out}, {});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -140,8 +101,7 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
         {mask},
         {mask_int32},
         {{"dst_type",
-          static_cast<int32_t>(
-              ConvertToNpuDtype(phi::DenseTensorMeta::DataType::INT32))}});
+          static_cast<int32_t>(ConvertToNpuDtype(phi::DataType::INT32))}});
     cast_runner.Run(stream);
 
     mask_int32.Resize({mask_int32.numel()});
@@ -196,19 +156,23 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaskedSelectKernel,
                           phi::dtype::float16,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(masked_select_grad,
-                          ascend,
+                          npu,
                           ALL_LAYOUT,
                           custom_kernel::MaskedSelectGradKernel,
                           phi::dtype::float16,
                           float,
                           int,
-                          int64_t) {}
+                          int64_t) {
+  kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
+}

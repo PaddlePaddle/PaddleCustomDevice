@@ -19,7 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
+import paddle.base as base
 
 paddle.enable_static()
 
@@ -34,23 +34,22 @@ class TestIndexSampleOp(OpTest):
         self.config()
         xnp = np.random.random(self.x_shape).astype(self.dtype)
         indexnp = np.random.randint(
-            low=0, high=self.x_shape[1],
-            size=self.index_shape).astype(self.index_type)
-        self.inputs = {'X': xnp, 'Index': indexnp}
+            low=0, high=self.x_shape[1], size=self.index_shape
+        ).astype(self.index_type)
+        self.inputs = {"X": xnp, "Index": indexnp}
         index_array = []
         for i in range(self.index_shape[0]):
             for j in indexnp[i]:
                 index_array.append(xnp[i, j])
         index_array = np.array(index_array).astype(self.dtype)
         out = np.reshape(index_array, self.index_shape)
-        self.outputs = {'Out': out}
+        self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace('ascend', 0))
+        self.check_output_with_place(paddle.CustomPlace("npu", 0))
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            paddle.CustomPlace('ascend', 0), ['X'], 'Out')
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 
     def config(self):
         """
@@ -156,34 +155,35 @@ class TestIndexSampleShape(unittest.TestCase):
         # create index value
         index_shape = (2, 3)
         index_type = "int32"
-        index_np = np.random.randint(
-            low=0, high=x_shape[1], size=index_shape).astype(index_type)
+        index_np = np.random.randint(low=0, high=x_shape[1], size=index_shape).astype(
+            index_type
+        )
 
-        x = fluid.data(name='x', shape=[-1, 5], dtype='float32')
-        index = fluid.data(name='index', shape=[-1, 3], dtype='int32')
+        x = paddle.static.data(name="x", shape=[-1, 5], dtype="float32")
+        index = paddle.static.data(name="index", shape=[-1, 3], dtype="int32")
         output = paddle.index_sample(x=x, index=index)
 
-        place = fluid.CustomPlace('ascend', 0)
-        exe = fluid.Executor(place=place)
-        exe.run(fluid.default_startup_program())
+        place = base.CustomPlace("npu", 0)
+        exe = base.Executor(place=place)
+        exe.run(base.default_startup_program())
 
-        feed = {'x': x_np, 'index': index_np}
+        feed = {"x": x_np, "index": index_np}
         res = exe.run(feed=feed, fetch_list=[output])
 
 
 class TestIndexSampleDynamic(unittest.TestCase):
     def test_result(self):
-        with fluid.dygraph.guard(paddle.CustomPlace('ascend', 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             x = paddle.to_tensor(
-                [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0],
-                 [9.0, 10.0, 11.0, 12.0]],
-                dtype='float32')
-            index = paddle.to_tensor(
-                [[0, 1, 2], [1, 2, 3], [0, 0, 0]], dtype='int32')
+                [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]],
+                dtype="float32",
+            )
+            index = paddle.to_tensor([[0, 1, 2], [1, 2, 3], [0, 0, 0]], dtype="int32")
             out_z1 = paddle.index_sample(x, index)
 
-            except_output = np.array([[1.0, 2.0, 3.0], [6.0, 7.0, 8.0],
-                                      [9.0, 9.0, 9.0]])
+            except_output = np.array(
+                [[1.0, 2.0, 3.0], [6.0, 7.0, 8.0], [9.0, 9.0, 9.0]]
+            )
             assert out_z1.numpy().all() == except_output.all()
 
 

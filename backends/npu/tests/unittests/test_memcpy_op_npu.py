@@ -16,13 +16,10 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-import sys
 
-from tests.op_test import OpTest
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.core as core
-from paddle.fluid import compiler, Program, program_guard
+import paddle.base as base
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 SEED = 2021
@@ -39,15 +36,17 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             cpu_var = main_program.global_block().create_var(
                 name=cpu_var_name,
                 shape=[10, 10],
-                dtype='float32',
+                dtype="float32",
                 persistable=False,
-                stop_gradient=True)
+                stop_gradient=True,
+            )
             npu_var = main_program.global_block().create_var(
                 name=npu_var_name,
                 shape=[10, 10],
-                dtype='float32',
+                dtype="float32",
                 persistable=False,
-                stop_gradient=True)
+                stop_gradient=True,
+            )
             main_program.global_block().append_op(
                 type="fill_constant",
                 outputs={"Out": npu_var_name},
@@ -55,7 +54,8 @@ class TestMemcpy_FillConstant(unittest.TestCase):
                     "shape": [10, 10],
                     "dtype": npu_var.dtype,
                     "value": 1.0,
-                })
+                },
+            )
             main_program.global_block().append_op(
                 type="fill_constant",
                 outputs={"Out": cpu_var_name},
@@ -63,23 +63,25 @@ class TestMemcpy_FillConstant(unittest.TestCase):
                     "shape": [10, 10],
                     "dtype": cpu_var.dtype,
                     "value": 0.0,
-                    "place_type": 0
-                })
+                    "place_type": 0,
+                },
+            )
         return main_program, npu_var, cpu_var
 
     def test_npu_cpoy_to_cpu(self):
         self.__class__.use_custom_device = True
         main_program, npu_var, cpu_var = self.get_prog()
         main_program.global_block().append_op(
-            type='memcpy',
-            inputs={'X': npu_var},
-            outputs={'Out': cpu_var},
-            attrs={'dst_place_type': 0})
-        place = paddle.CustomPlace('ascend', 0)
-        exe = fluid.Executor(place)
-        npu_, cpu_ = exe.run(main_program,
-                             feed={},
-                             fetch_list=[npu_var.name, cpu_var.name])
+            type="memcpy",
+            inputs={"X": npu_var},
+            outputs={"Out": cpu_var},
+            attrs={"dst_place_type": 0},
+        )
+        place = paddle.CustomPlace("npu", 0)
+        exe = base.Executor(place)
+        npu_, cpu_ = exe.run(
+            main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]
+        )
         np.testing.assert_allclose(npu_, cpu_)
         np.testing.assert_allclose(cpu_, np.ones((10, 10)))
 
@@ -87,18 +89,19 @@ class TestMemcpy_FillConstant(unittest.TestCase):
         self.__class__.use_custom_device = True
         main_program, npu_var, cpu_var = self.get_prog()
         main_program.global_block().append_op(
-            type='memcpy',
-            inputs={'X': cpu_var},
-            outputs={'Out': npu_var},
-            attrs={'dst_place_type': 6})
-        place = paddle.CustomPlace('ascend', 0)
-        exe = fluid.Executor(place)
-        npu_, cpu_ = exe.run(main_program,
-                             feed={},
-                             fetch_list=[npu_var.name, cpu_var.name])
+            type="memcpy",
+            inputs={"X": cpu_var},
+            outputs={"Out": npu_var},
+            attrs={"dst_place_type": 6},
+        )
+        place = paddle.CustomPlace("npu", 0)
+        exe = base.Executor(place)
+        npu_, cpu_ = exe.run(
+            main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]
+        )
         np.testing.assert_allclose(npu_, cpu_)
         np.testing.assert_allclose(npu_, np.zeros((10, 10)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

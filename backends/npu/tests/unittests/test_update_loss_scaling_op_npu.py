@@ -15,13 +15,10 @@
 from __future__ import print_function
 
 import numpy as np
-import sys
 import unittest
 from tests.op_test import OpTest
 
 import paddle
-import paddle.fluid as fluid
-import paddle.fluid.contrib.mixed_precision.amp_nn as amp_nn
 
 paddle.enable_static()
 SEED = 2021
@@ -30,7 +27,7 @@ SEED = 2021
 class TestUpdateLossScalingOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def setUp(self):
         self.set_npu()
@@ -40,18 +37,18 @@ class TestUpdateLossScalingOp(OpTest):
         x = np.random.random((1024, 1024)).astype(self.dtype)
 
         self.inputs = {
-            'X': [('x0', x)],
-            'FoundInfinite': found_inf,
-            'PrevLossScaling': self.prev_loss_scaling,
-            'InGoodSteps': self.num_good_steps,
-            'InBadSteps': self.num_bad_steps
+            "X": [("x0", x)],
+            "FoundInfinite": found_inf,
+            "PrevLossScaling": self.prev_loss_scaling,
+            "InGoodSteps": self.num_good_steps,
+            "InBadSteps": self.num_bad_steps,
         }
 
         self.outputs = {
-            'Out': [('out0', x)],
-            'LossScaling': self.prev_loss_scaling * self.incr_ratio,
-            'OutGoodSteps': self.zero_steps,
-            'OutBadSteps': self.zero_steps
+            "Out": [("out0", x)],
+            "LossScaling": self.prev_loss_scaling * self.incr_ratio,
+            "OutGoodSteps": self.zero_steps,
+            "OutBadSteps": self.zero_steps,
         }
 
     def init(self):
@@ -62,22 +59,24 @@ class TestUpdateLossScalingOp(OpTest):
         self.num_good_steps = np.array([999], dtype=np.int32)
         self.num_bad_steps = np.array([1], dtype=np.int32)
         self.zero_steps = np.array([0], dtype=np.int32)
-        self.stop_update = np.array([False], dtype=np.bool)
+        self.stop_update = np.array([False], dtype=np.bool_)
         self.attrs = {
-            'incr_every_n_steps': 1000,
-            'decr_every_n_nan_or_inf': 2,
-            'incr_ratio': self.incr_ratio,
-            'decr_ratio': self.decr_ratio,
+            "incr_every_n_steps": 1000,
+            "decr_every_n_nan_or_inf": 2,
+            "incr_ratio": self.incr_ratio,
+            "decr_ratio": self.decr_ratio,
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, no_check_set=['Out'])
+        self.check_output_with_place(
+            self.place, no_check_set=["Out"], check_dygraph=False
+        )
 
 
 class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace('ascend', 0)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def setUp(self):
         self.set_npu()
@@ -90,41 +89,41 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
         x[i[0]][j[0]] = np.inf
 
         self.inputs = {
-            'X': [('x0', x)],
-            'FoundInfinite': found_inf,
-            'PrevLossScaling': self.prev_loss_scaling,
-            'InGoodSteps': self.num_good_steps,
-            'InBadSteps': self.num_bad_steps,
-            'StopUpdate': self.stop_update
+            "X": [("x0", x)],
+            "FoundInfinite": found_inf,
+            "PrevLossScaling": self.prev_loss_scaling,
+            "InGoodSteps": self.num_good_steps,
+            "InBadSteps": self.num_bad_steps,
+            "StopUpdate": self.stop_update,
         }
 
         self.outputs = {
-            'Out': [('out0', np.zeros_like(x))],
-            'LossScaling': self.prev_loss_scaling * self.decr_ratio,
-            'OutGoodSteps': self.zero_steps,
-            'OutBadSteps': self.zero_steps
+            "Out": [("out0", np.zeros_like(x))],
+            "LossScaling": self.prev_loss_scaling * self.decr_ratio,
+            "OutGoodSteps": self.zero_steps,
+            "OutBadSteps": self.zero_steps,
         }
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(self.place, check_dygraph=False)
 
 
 # NOTE(wangran16): unknown bug - no device error message
 
 # class TestUpdateLossScalingLayer(unittest.TestCase):
 
-#     def loss_scaling_check(self, use_ascend=True, scope=fluid.Scope()):
-#         a = fluid.data(name="a", shape=[1024, 1024], dtype='float32')
-#         b = fluid.data(name="b", shape=[512, 128], dtype='float32')
+#     def loss_scaling_check(self, use_npu=True, scope=base.Scope()):
+#         a = paddle.static.data(name="a", shape=[1024, 1024], dtype='float32')
+#         b = paddle.static.data(name="b", shape=[512, 128], dtype='float32')
 #         x = [a, b]
-#         found_inf = fluid.data(name="found_inf", shape=[1], dtype='bool')
-#         prev_loss_scaling = fluid.data(name="prev_loss_scaling",
+#         found_inf = paddle.static.data(name="found_inf", shape=[1], dtype='bool')
+#         prev_loss_scaling = paddle.static.data(name="prev_loss_scaling",
 #                                        shape=[1],
 #                                        dtype='float32')
-#         num_good_steps = fluid.data(name="num_good_steps",
+#         num_good_steps = paddle.static.data(name="num_good_steps",
 #                                     shape=[1],
 #                                     dtype='int32')
-#         num_bad_steps = fluid.data(name="num_bad_steps",
+#         num_bad_steps = paddle.static.data(name="num_bad_steps",
 #                                    shape=[1],
 #                                    dtype='int32')
 
@@ -151,10 +150,10 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #                                             decr_ratio,
 #                                             name="update_loss_scaling")
 
-#         place = fluid.CustomPlace('ascend', 0) 
-#         exe = fluid.Executor(place)
-#         with fluid.scope_guard(scope):
-#             exe.run(fluid.default_startup_program())
+#         place = base.CustomPlace('npu', 0)
+#         exe = base.Executor(place)
+#         with base.scope_guard(scope):
+#             exe.run(base.default_startup_program())
 #             result_v = exe.run(feed={
 #                 'a': a_v,
 #                 'b': b_v,
@@ -176,18 +175,18 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #         assert np.array_equal(result_v[6], np.zeros_like(num_good_steps_v))
 #         assert np.array_equal(result_v[7], np.zeros_like(num_bad_steps_v))
 
-#     def loss_scaling_check_inf(self, use_ascend=True, scope=fluid.Scope()):
-#         a = fluid.data(name="a", shape=[1024, 1024], dtype='float32')
-#         b = fluid.data(name="b", shape=[512, 128], dtype='float32')
+#     def loss_scaling_check_inf(self, use_npu=True, scope=base.Scope()):
+#         a = paddle.static.data(name="a", shape=[1024, 1024], dtype='float32')
+#         b = paddle.static.data(name="b", shape=[512, 128], dtype='float32')
 #         x = [a, b]
-#         found_inf = fluid.data(name="found_inf", shape=[1], dtype='bool')
-#         prev_loss_scaling = fluid.data(name="prev_loss_scaling",
+#         found_inf = paddle.static.data(name="found_inf", shape=[1], dtype='bool')
+#         prev_loss_scaling = paddle.static.data(name="prev_loss_scaling",
 #                                        shape=[1],
 #                                        dtype='float32')
-#         num_good_steps = fluid.data(name="num_good_steps",
+#         num_good_steps = paddle.static.data(name="num_good_steps",
 #                                     shape=[1],
 #                                     dtype='int32')
-#         num_bad_steps = fluid.data(name="num_bad_steps",
+#         num_bad_steps = paddle.static.data(name="num_bad_steps",
 #                                    shape=[1],
 #                                    dtype='int32')
 
@@ -217,10 +216,10 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #                                             decr_ratio,
 #                                             name="update_loss_scaling")
 
-#         place = fluid.CustomPlace('ascend', 0) 
-#         exe = fluid.Executor(place)
-#         with fluid.scope_guard(scope):
-#             exe.run(fluid.default_startup_program())
+#         place = base.CustomPlace('npu', 0)
+#         exe = base.Executor(place)
+#         with base.scope_guard(scope):
+#             exe.run(base.default_startup_program())
 #             result_v = exe.run(feed={
 #                 'a': a_v,
 #                 'b': b_v,
@@ -243,20 +242,20 @@ class TestUpdateLossScalingOpBad(TestUpdateLossScalingOp):
 #         assert np.array_equal(result_v[7], np.zeros_like(num_bad_steps_v))
 
 #     def test_loss_scaling_gpu(self):
-#         paddle.set_device('ascend')
-#         main = fluid.Program()
-#         startup = fluid.Program()
-#         with fluid.unique_name.guard():
-#             with fluid.program_guard(main, startup):
-#                 self.loss_scaling_check(use_ascend=True)
+#         paddle.set_device('npu')
+#         main = base.Program()
+#         startup = base.Program()
+#         with base.unique_name.guard():
+#             with base.program_guard(main, startup):
+#                 self.loss_scaling_check(use_npu=True)
 
 #     def test_loss_scaling_gpu_inf(self):
-#         paddle.set_device('ascend')
-#         main = fluid.Program()
-#         startup = fluid.Program()
-#         with fluid.unique_name.guard():
-#             with fluid.program_guard(main, startup):
-#                 self.loss_scaling_check_inf(use_ascend=True)
+#         paddle.set_device('npu')
+#         main = base.Program()
+#         startup = base.Program()
+#         with base.unique_name.guard():
+#             with base.program_guard(main, startup):
+#                 self.loss_scaling_check_inf(use_npu=True)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -14,59 +14,38 @@
 
 #include "kernels/funcs/npu_op_runner.h"
 
-#include <map>
-
 #include "acl/acl_op_compiler.h"
 #include "kernels/funcs/npu_enforce.h"
 #include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/string_helper.h"
+#ifndef PADDLE_ON_INFERENCE
 #include "pybind11/pybind11.h"
+#endif
+#include "runtime/flags.h"
 #include "runtime/runtime.h"
 
-static aclDataBuffer *float_status_buffer_;
-static aclTensorDesc *float_status_desc_;
+#ifndef PADDLE_ON_INFERENCE
+#define PY_GIL_RELEASE(expr)              \
+  if (PyGILState_Check()) {               \
+    pybind11::gil_scoped_release release; \
+    expr;                                 \
+  } else {                                \
+    expr;                                 \
+  }
+#else
+#define PY_GIL_RELEASE(expr) \
+  { expr; }
+#endif
 
-ENV_uint64(ascend_check_nan_inf, 0);
+static aclDataBuffer *float_status_buffer_ = NULL;
+static aclTensorDesc *float_status_desc_ = NULL;
 
-static std::map<paddle::experimental::DataType, aclDataType>  //
-    DTYPE_2_ACL_DTYPE = {
-        {paddle::experimental::DataType::BOOL, ACL_BOOL},
-        {paddle::experimental::DataType::UINT8, ACL_UINT8},
-        {paddle::experimental::DataType::INT8, ACL_INT8},
-        {paddle::experimental::DataType::INT16, ACL_INT16},
-        {paddle::experimental::DataType::INT32, ACL_INT32},
-        {paddle::experimental::DataType::INT64, ACL_INT64},
-        {paddle::experimental::DataType::FLOAT16, ACL_FLOAT16},
-        {paddle::experimental::DataType::FLOAT32, ACL_FLOAT},
-        {paddle::experimental::DataType::FLOAT64, ACL_DOUBLE},
-};
-
-static std::map<phi::DataLayout, aclFormat> DATA_LAYOUT_2_ACL_FORMAT = {
-    {phi::DataLayout::NCHW, ACL_FORMAT_NCHW},
-    {phi::DataLayout::NHWC, ACL_FORMAT_NHWC},
-    {phi::DataLayout::kNCDHW, ACL_FORMAT_NCDHW},
-    {phi::DataLayout::kNDHWC, ACL_FORMAT_NDHWC},
-    {phi::DataLayout::ANY, ACL_FORMAT_ND},
-};
-
-aclDataType ConvertToNpuDtype(paddle::experimental::DataType dtype) {
-  auto iter = DTYPE_2_ACL_DTYPE.find(dtype);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DTYPE_2_ACL_DTYPE.end(),
-      phi::errors::NotFound(
-          "The data type %s can not convert to ACL data type.", dtype));
-  return iter->second;
-}
-
-aclFormat ConvertToNpuFormat(phi::DataLayout layout) {
-  auto iter = DATA_LAYOUT_2_ACL_FORMAT.find(layout);
-  PADDLE_ENFORCE_NE(
-      iter,
-      DATA_LAYOUT_2_ACL_FORMAT.end(),
-      phi::errors::NotFound(
-          "The data type (%s) can not convert to ACL data type.", layout));
-  return iter->second;
-}
+FLAGS_DEFINE_bool(npu_check_nan_inf, false, "check nan/inf of all npu kernels");
+FLAGS_DEFINE_bool(npu_blocking_run, false, "enable sync for all npu kernels");
+FLAGS_DEFINE_bool(
+    npu_storage_format,
+    false,
+    "Enable NPU Storage Format for Ascend910 performance improvement.");
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -188,8 +167,8 @@ NpuOpRunner &NpuOpRunner::AddAttrDataType(const std::string &name,
     attr_ = aclopCreateAttr();
   }
   VLOG(4) << "AddAttrDataType call";
-  auto dtype = ConvertToNpuDtype(
-      static_cast<paddle::experimental::DataType>(paddle::get<int>(attr)));
+  auto dtype =
+      ConvertToNpuDtype(static_cast<phi::DataType>(paddle::get<int>(attr)));
   PADDLE_ENFORCE_NPU_SUCCESS(aclopSetAttrDataType(attr_, name.c_str(), dtype));
   return *this;
 }
@@ -212,67 +191,51 @@ NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor) {
 NpuOpRunner &NpuOpRunner::AddInput(const phi::DenseTensor &tensor,
                                    aclMemType mem_type) {
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(tensor, mem_type));
+  auto desc = CreateTensorDesc(tensor, mem_type);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(tensor));
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int32_t> &&dims) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
+  if (mem_type == ACL_MEMTYPE_HOST) {
+    PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorConst(
+        desc, const_cast<void *>(tensor.data()), tensor.capacity()));
+  }
 
   return *this;
 }
 
+template <typename T>
 NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<int64_t> &&dims) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, dims, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
-  return *this;
-}
-
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<float> &&values) {
+                                   const std::vector<T> &&values,
+                                   const bool is_const) {
   phi::DenseTensor host_tensor;
   custom_kernel::TensorFromVector(
       dev_ctx, values, phi::CPUContext(), &host_tensor);
   host_tensors_.emplace_back(host_tensor);
   // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
+  auto desc = CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST);
+  input_descs_.emplace_back(desc);
   // create aclDataBuffer
   input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
+  // set tensor const
+  if (is_const) {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorConst(desc, host_tensor.data(), host_tensor.capacity()));
+  }
   return *this;
 }
 
-NpuOpRunner &NpuOpRunner::AddInput(const phi::CustomContext &dev_ctx,
-                                   const std::vector<double> &&values) {
-  phi::DenseTensor host_tensor;
-  custom_kernel::TensorFromVector(
-      dev_ctx, values, phi::CPUContext(), &host_tensor);
-  host_tensors_.emplace_back(host_tensor);
-  // create aclTensorDesc
-  input_descs_.emplace_back(CreateTensorDesc(host_tensor, ACL_MEMTYPE_HOST));
-  // create aclDataBuffer
-  input_buffers_.emplace_back(CreateDataBuffer(host_tensor));
-
-  return *this;
-}
+#define ADD_INPUT_IMPL_GET_DTYPE(cpp_type)               \
+  template NpuOpRunner &NpuOpRunner::AddInput<cpp_type>( \
+      const phi::CustomContext &dev_ctx,                 \
+      const std::vector<cpp_type> &&values,              \
+      const bool is_const);
+ADD_INPUT_IMPL_GET_DTYPE(bool);
+ADD_INPUT_IMPL_GET_DTYPE(int32_t);
+ADD_INPUT_IMPL_GET_DTYPE(int64_t);
+ADD_INPUT_IMPL_GET_DTYPE(float);
+ADD_INPUT_IMPL_GET_DTYPE(double);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::float16);
+#undef ADD_INPUT_IMPL_GET_DTYPE
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {
   // create aclTensorDesc
@@ -367,24 +330,60 @@ std::vector<aclDataBuffer *> &NpuOpRunner::GetOutputBuffers() {
 
 aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
                                              aclMemType mem_type) {
-  auto dtype = ConvertToNpuDtype(tensor.dtype());
-  auto format = ConvertToNpuFormat(tensor.layout());
-  auto dims = phi::vectorize(tensor.dims());
-  int size = dims.size();
+  auto data_type = ConvertToNpuDtype(tensor.dtype());
+  auto origin_format = ConvertToNpuFormat(tensor.layout());
+  auto origin_dims = phi::vectorize(tensor.dims());
 
-  if (op_type_ == "DropOutGenMask" && size == 1 && *(dims.data()) == 1) {
-    size = 0;
+  auto origin_size = origin_dims.size();
+  bool is_scalar = tensor.dims().size() == 0;
+  if ((op_type_ == "DropOutGenMask" || op_type_ == "StatelessDropOutGenMask") &&
+      origin_size == 1 && *(origin_dims.data()) == 1) {
+    origin_size = 0;
+    is_scalar = true;
+  }
+  if (is_scalar) {
+    origin_dims.clear();
+    origin_dims.push_back(0);
   }
 
-  VLOG(4) << "NPU dtype:" << dtype << " "
-          << "rank:" << dims.size() << " dims: " << tensor.dims()
-          << " format:" << format;
-
-  auto *desc = aclCreateTensorDesc(dtype, size, dims.data(), format);
+  auto *desc =
+      is_scalar
+          ? aclCreateTensorDesc(data_type, 0, nullptr, ACL_FORMAT_ND)
+          : aclCreateTensorDesc(
+                data_type, origin_size, origin_dims.data(), origin_format);
   PADDLE_ENFORCE_NOT_NULL(
       desc, phi::errors::External("Call aclCreateTensorDesc failed."));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorFormat(desc, format));
-  PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorShape(desc, size, dims.data()));
+
+  if (tensor.storage_properties_initialized()) {
+    auto npu_properties =
+        tensor.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    auto storage_dims = phi::vectorize(npu_properties.storage_dims);
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)storage_format));
+    if (!is_scalar) {
+      PADDLE_ENFORCE_NPU_SUCCESS(
+          aclSetTensorShape(desc, storage_dims.size(), storage_dims.data()));
+    }
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << storage_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << npu_properties.storage_dims;
+  } else {
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorFormat(desc, (aclFormat)origin_format));
+    PADDLE_ENFORCE_NPU_SUCCESS(
+        aclSetTensorShape(desc, origin_size, origin_dims.data()));
+    VLOG(1) << "CreateTensorDesc for OP: " << op_type_
+            << ", data_type: " << data_type
+            << ", origin_format: " << origin_format
+            << ", storage_format: " << origin_format
+            << ", origin_dims: " << tensor.dims()
+            << ", storage_dims: " << tensor.dims();
+  }
+
   if (mem_type == ACL_MEMTYPE_HOST) {
     PADDLE_ENFORCE_NPU_SUCCESS(aclSetTensorPlaceMent(desc, mem_type));
   }
@@ -406,8 +405,7 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
   auto attr = aclopCreateAttr();
   // Execute
   aclError ret;
-  if (PyGILState_Check()) {
-    pybind11::gil_scoped_release release;
+  PY_GIL_RELEASE({
     ret = aclopCompileAndExecute(op_type.c_str(),
                                  0,
                                  nullptr,
@@ -420,26 +418,13 @@ void NpuOpRunner::AllocFloatStatus(aclrtStream stream) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
-  } else {
-    ret = aclopCompileAndExecute(op_type.c_str(),
-                                 0,
-                                 nullptr,
-                                 nullptr,
-                                 1,
-                                 &float_status_desc_,
-                                 &float_status_buffer_,
-                                 attr,
-                                 ACL_ENGINE_SYS,
-                                 ACL_COMPILE_SYS,
-                                 NULL,
-                                 stream);
-  }
+  });
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   aclopDestroyAttr(attr);
 }
 
-void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
+void NpuOpRunner::ClearFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUClearFloatStatus";
   // Input
   const std::vector<int64_t> dims{8};
@@ -453,8 +438,7 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
   auto attr = aclopCreateAttr();
   // Execute
   aclError ret;
-  if (PyGILState_Check()) {
-    pybind11::gil_scoped_release release;
+  PY_GIL_RELEASE({
     ret = aclopCompileAndExecute(op_type.c_str(),
                                  1,
                                  &tmp_desc,
@@ -467,20 +451,7 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
-  } else {
-    ret = aclopCompileAndExecute(op_type.c_str(),
-                                 1,
-                                 &tmp_desc,
-                                 &tmp_buffer,
-                                 1,
-                                 &float_status_desc_,
-                                 &float_status_buffer_,
-                                 attr,
-                                 ACL_ENGINE_SYS,
-                                 ACL_COMPILE_SYS,
-                                 NULL,
-                                 stream);
-  }
+  });
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
@@ -490,6 +461,14 @@ void NpuOpRunner::ClearFloatStatus(aclrtStream stream) const {
 }
 
 void NpuOpRunner::InitFloatStatus(aclrtStream stream) const {
+  // Init float_status_desc_ and float_status_buffer_ once, if
+  // npu_check_nan_inf is needed, only do ClearFloatStatus here.
+  if (float_status_desc_ && float_status_buffer_) {
+    if (FLAGS_npu_check_nan_inf) {
+      ClearFloatStatus(stream);
+    }
+    return;
+  }
   // Init float_status_desc_
   const std::vector<int64_t> dims{8};
   float_status_desc_ =
@@ -557,8 +536,7 @@ void NpuOpRunner::PrintOpInfo() const {
     std::vector<float>().swap(cpu_data);
   }
 }
-void NpuOpRunner::GetFloatStatus(aclrtStream stream,
-                                 std::string cur_op_type) const {
+bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
   std::string op_type = "NPUGetFloatStatus";
   // Output
   const std::vector<int64_t> dims{8};
@@ -573,8 +551,7 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
   auto attr = aclopCreateAttr();
   // Execute
   aclError ret;
-  if (PyGILState_Check()) {
-    pybind11::gil_scoped_release release;
+  PY_GIL_RELEASE({
     ret = aclopCompileAndExecute(op_type.c_str(),
                                  1,
                                  &float_status_desc_,
@@ -587,20 +564,7 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
-  } else {
-    ret = aclopCompileAndExecute(op_type.c_str(),
-                                 1,
-                                 &float_status_desc_,
-                                 &float_status_buffer_,
-                                 1,
-                                 &tmp_desc,
-                                 &tmp_buffer,
-                                 attr,
-                                 ACL_ENGINE_SYS,
-                                 ACL_COMPILE_SYS,
-                                 NULL,
-                                 stream);
-  }
+  });
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtSynchronizeStream(stream));
   std::vector<float> cpu_data(8, 0);
@@ -615,39 +579,32 @@ void NpuOpRunner::GetFloatStatus(aclrtStream stream,
   for (int i = 0; i < cpu_data.size(); ++i) {
     sum += cpu_data[i];
   }
-  if (sum > 1.0) {
-    PrintOpInfo();
-  }
-  PADDLE_ENFORCE_LT(sum,
-                    1.0,
-                    phi::errors::PreconditionNotMet(
-                        "Operator %s contains Nan/Inf.", cur_op_type));
   PADDLE_ENFORCE_NPU_SUCCESS(aclDestroyDataBuffer(tmp_buffer));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtFree(tmp_ptr));
-  // return void
   aclDestroyTensorDesc(tmp_desc);
   aclopDestroyAttr(attr);
+  return sum >= 1.0;
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
+  static bool isAclEnableJit = false;
+
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
-  if (FLAGS_ascend_check_nan_inf) {
-    InitFloatStatus(stream);
-  }
-  VLOG(5) << "NpuOpRunner(" << this << ") Run:";
-  VLOG(4) << "op_type: " << op_type_;
-  VLOG(4) << "input_desc.size: " << input_descs_.size();
-  VLOG(4) << "output_desc.size: " << output_descs_.size();
-  VLOG(4) << "attr: " << attr_;
-  VLOG(4) << "stream: " << stream;
+  InitFloatStatus(stream);
+  VLOG(1) << "NpuOpRunner: " << op_type_ << "\n"
+          << GetOpDescString(input_descs_, "Input")
+          << GetOpDescString(output_descs_, "Output");
 
+  if (!isAclEnableJit) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    isAclEnableJit = true;
+  }
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.
-  if (PyGILState_Check()) {
-    pybind11::gil_scoped_release release;
+  PY_GIL_RELEASE({
     ret = aclopCompileAndExecute(op_type_.c_str(),
                                  input_descs_.size(),
                                  input_descs_.data(),
@@ -660,26 +617,18 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
                                  ACL_COMPILE_SYS,
                                  NULL,
                                  stream);
-  } else {
-    ret = aclopCompileAndExecute(op_type_.c_str(),
-                                 input_descs_.size(),
-                                 input_descs_.data(),
-                                 input_buffers_.data(),
-                                 output_descs_.size(),
-                                 output_descs_.data(),
-                                 output_buffers_.data(),
-                                 attr_,
-                                 ACL_ENGINE_SYS,
-                                 ACL_COMPILE_SYS,
-                                 NULL,
-                                 stream);
-  }
+  });
   VLOG(4) << "after aclopCompileAndExecute: " << ret;
-  if (sync) {
+  VLOG(1) << "FLAGS_npu_blocking_run = " << FLAGS_npu_blocking_run;
+  if (sync || FLAGS_npu_blocking_run) {
     ret = aclrtSynchronizeStream(stream);
   }
   PADDLE_ENFORCE_NPU_SUCCESS(ret);
-  if (FLAGS_ascend_check_nan_inf) {
-    GetFloatStatus(stream, op_type_);
+
+  VLOG(1) << "FLAGS_npu_check_nan_inf = " << FLAGS_npu_check_nan_inf;
+  if (FLAGS_npu_check_nan_inf && GetFloatStatus(stream)) {
+    PrintOpInfo();
+    PADDLE_THROW(phi::errors::PreconditionNotMet(
+        "Operator %s contains Nan/Inf.", op_type_));
   }
 }

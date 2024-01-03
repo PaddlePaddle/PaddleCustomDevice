@@ -107,6 +107,9 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
     sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 CMD source ~/.bashrc
 
+# https://github.com/keras-team/keras-tuner/issues/317
+ENV LD_PRELOAD=/opt/py39/lib/python3.9/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
+
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge

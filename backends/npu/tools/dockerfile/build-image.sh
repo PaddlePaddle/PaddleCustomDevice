@@ -36,12 +36,14 @@ fi
 cp /etc/ascend_install.info ./
 cp /usr/local/Ascend/driver/version.info ./
 
-# get chip version
+# get chip version and fix HCCL_BUFFSIZE
 CHIP_VERSION="UNKNOWN"
 if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
   CHIP_VERSION="910A"
+  sed -i "s/HCCL_BUFFSIZE=.*/HCCL_BUFFSIZE=60/g" Dockerfile.npu.*
 elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
   CHIP_VERSION="910B"
+  sed -i "s/HCCL_BUFFSIZE=.*/HCCL_BUFFSIZE=120/g" Dockerfile.npu.*
 else
   echo "Please make sure Ascend 910A or 910B NPUs exists!"
   exit 1

@@ -33,6 +33,9 @@ RUN cd /lib64 && mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.24 
     ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
 ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
 ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LIBRARY_PATH
+# update-alternatives - default gcc 7.3.0
+RUN mv /usr/bin/c++ /usr/bin/c++.bak
+RUN update-alternatives --install /usr/bin/c++ c++ /opt/compiler/gcc-8.2/bin/g++ 90
 
 # cmake 3.27.7
 RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \

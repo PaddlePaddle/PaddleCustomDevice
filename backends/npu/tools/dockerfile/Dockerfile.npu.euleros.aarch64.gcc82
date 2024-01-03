@@ -56,7 +56,6 @@ RUN echo "source /usr/local/Ascend/atb/set_env.sh" >> /root/.bashrc
 
 # install post process ops
 COPY post-process-v5.2 /usr/local/Ascend/post-process-v5.2/
-RUN ls -l /usr/local/Ascend/post-process-v5.2/
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     cd post-process-v5.2/build && bash build_ops.sh > /dev/null && \
     chmod +x aie_ops.run && ./aie_ops.run --extract=/usr/local/Ascend/ && \

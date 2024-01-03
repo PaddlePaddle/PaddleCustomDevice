@@ -96,7 +96,8 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           int8_t,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
                           npu,
@@ -108,4 +109,5 @@ PD_REGISTER_PLUGIN_KERNEL(transpose_grad,
                           int8_t,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

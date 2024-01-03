@@ -17,13 +17,13 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=7.0.RC1
+# export CANN_VERSION=7.0.0
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-7.0.RC1} # default 7.0.RC1
+CANN_VERSION=${1:-7.0.0} # default 7.0.0
 
-# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 701
-DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 70RC1
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 700
+DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 700
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # Download packages from https://www.hiascend.com/software/cann/community first
@@ -33,13 +33,10 @@ if [ ! -f Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run ]; then
 fi
 
 # copy file to current directory
-if [ ! -f ascend_install.info ]; then
-  cp /etc/ascend_install.info ./
-fi
-if [ ! -f version.info ]; then
-  cp /usr/local/Ascend/driver/version.info ./
-fi
+cp /etc/ascend_install.info ./
+cp /usr/local/Ascend/driver/version.info ./
 
+# get chip version
 CHIP_VERSION="UNKNOWN"
 if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
   CHIP_VERSION="910A"
@@ -84,3 +81,6 @@ if [ $(uname -i) == 'aarch64' ]; then
     -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m) .
   docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m)
 fi
+
+# clean driver info
+rm -rf *.info

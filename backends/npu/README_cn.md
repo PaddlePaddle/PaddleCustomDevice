@@ -81,7 +81,7 @@ Running verify PaddlePaddle program ...
 PaddlePaddle works well on 1 npu.
 PaddlePaddle is installed successfully! Let's start deep learning with PaddlePaddle now.
 
-# 4) 运行简单训练、评估和推理示例
+# 4) 运行简单训练和推理示例
 python tests/test_LeNet_MNIST.py
 # 预期得到如下输出结果 - 训练输出
 Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44

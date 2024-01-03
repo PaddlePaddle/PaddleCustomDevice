@@ -54,7 +54,7 @@ add_library(ascend_atb SHARED IMPORTED GLOBAL)
 set_property(TARGET ascend_atb PROPERTY IMPORTED_LOCATION ${ascend_atb_lib})
 
 add_library(ascend_ops SHARED IMPORTED GLOBAL)
-set_property(TARGET ascend_ops PROPERTY IMPORTED_LOCATION ${ascend_atb_lib})
+set_property(TARGET ascend_ops PROPERTY IMPORTED_LOCATION ${ascend_ops_lib})
 
 # add all dependecies
 add_custom_target(ascend_cl DEPENDS ascendcl acl_op_compiler)

@@ -90,6 +90,8 @@ private:
   void BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                         std::vector<const phi::DenseTensor *> &outTensors);
   void BindHostTensorForUpdateParam(atb::VariantPack &variantPack);
+  atb::Tensor CreateBatchStatusAtbHostTensor();
+  std::vector<int32_t> batch_status_param_;
 
 private:
   std::vector<int32_t> seq_len_param_;

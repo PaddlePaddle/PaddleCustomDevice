@@ -224,18 +224,34 @@ void PerpareLlamaBlockAttnDecoderInputs(
   inputs.push_back(&slot_mapping_tensor);
 }
 
+atb::Tensor PpAtbLlamaBlockAttnLayerParallelOp::CreateBatchStatusAtbHostTensor()
+{
+  atb::Tensor atbTensor;
+  atbTensor.desc.format = ACL_FORMAT_ND;
+
+  atbTensor.desc.shape.dimNum = 1;
+  atbTensor.desc.shape.dims[0] = curBatchSize_;
+  atbTensor.desc.dtype = ACL_UINT32;
+
+  atbTensor.dataSize = atb::Utils::GetTensorSize(atbTensor);
+  return atbTensor;
+}
+
 void PpAtbLlamaBlockAttnLayerParallelOp::BindHostTensorForUpdateParam(atb::VariantPack &variantPack)
 {
   if (g_isEncoder) { // 只有Encoder阶段需要这个param。
     const uint32_t seqLenTensorId = LlamaBlockAttnParallelTensorId::IN_SEQLEN;
     variantPack.inTensors.at(seqLenTensorId).hostData = seq_len_param_.data();
   }
+
+  const uint32_t batchStatusTensorId = LlamaBlockAttnParallelTensorId::IN_BATCH_STATUS;
+  variantPack.inTensors.at(batchStatusTensorId).hostData = batch_status_param_.data();
 }
 
 void PpAtbLlamaBlockAttnLayerParallelOp::BuildVariantPack(std::vector<const phi::DenseTensor *> &inTensors,
                                                         std::vector<const phi::DenseTensor *> &outTensors)
 {
-  variantPacks_.inTensors.resize(inTensors.size());
+  variantPacks_.inTensors.resize(inTensors.size() + 1); // 1 batch status host tensor
   for (size_t i = 0; i < inTensors.size(); i++) {
     variantPacks_.inTensors.at(i) = ConvertDenseTensorToAtbTensor(*(inTensors.at(i)));
     if (variantPacks_.inTensors.at(i).desc.format == ACL_FORMAT_NCHW) {
@@ -245,6 +261,8 @@ void PpAtbLlamaBlockAttnLayerParallelOp::BuildVariantPack(std::vector<const phi:
       variantPacks_.inTensors.at(i).desc.dtype = ACL_INT8;
     }
   }
+
+  variantPacks_.inTensors.at(inTensors.size()) = CreateBatchStatusAtbHostTensor();
 
   variantPacks_.outTensors.resize(outTensors.size());
   for (size_t i = 0; i < outTensors.size(); i++) {
@@ -263,6 +281,7 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
       paddle::experimental::DeviceContextPool::Instance().Get(seq_len.place()));
 
   int32_t batch_size = seq_len.shape().at(0);
+  curBatchSize_ = batch_size;
   std::vector<int32_t> seq_len_vec;
 
   auto seq_len_tensor = const_cast<phi::DenseTensor *>(static_cast<const phi::DenseTensor *>(seq_len.impl().get()));
@@ -275,6 +294,9 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
   std::vector<int32_t> slot_mapping_vec; // slot mapping保存的是block table中以0开始偏移的slot id，TODO待优化为模型传入
   int32_t pre_max_block_num = block_tables.shape().at(1);
   int32_t block_offset = 0;
+
+  batch_status_param_.clear();
+
   if (g_isEncoder) {
     int32_t total_seq_len = std::accumulate(seq_len_vec.begin(), seq_len_vec.end(), 0);
     slot_mapping_vec.reserve(total_seq_len);
@@ -285,18 +307,22 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
       int32_t need_block_num = (len + block_size - 1) / block_size;
       int32_t mod_len = len;
       int32_t slot_offset;
+      int32_t status = len == 0 ? 0 : 1; // len=0，flag=0
 
+      batch_status_param_.push_back(status);
       seq_len_param_.push_back(len);
-      for (int32_t j = 0; j < need_block_num - 1; j++) {
-        slot_offset = block_tables_vec[block_offset + j] * block_size;
-        for (int32_t k = 0; k < block_size; k++) {
+      if (status) {
+        for (int32_t j = 0; j < need_block_num - 1; j++) {
+          slot_offset = block_tables_vec[block_offset + j] * block_size;
+          for (int32_t k = 0; k < block_size; k++) {
+            slot_mapping_vec.push_back(slot_offset + k);
+          }
+          mod_len -= block_size;
+        }
+        slot_offset = block_tables_vec[block_offset + need_block_num - 1] * block_size;
+        for (int32_t k = 0; k < mod_len; k++) {
           slot_mapping_vec.push_back(slot_offset + k);
         }
-        mod_len -= block_size;
-      }
-      slot_offset = block_tables_vec[block_offset + need_block_num - 1] * block_size;
-      for (int32_t k = 0; k < mod_len; k++) {
-        slot_mapping_vec.push_back(slot_offset + k);
       }
       block_offset += pre_max_block_num;
     }
@@ -307,12 +333,19 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
     slot_mapping_vec.reserve(batch_size); // 增量阶段，slotmapping只关注增量token
     for (int32_t i = 0; i < batch_size; i++) {
       int32_t len = seq_len_vec[i];
-      int32_t need_block_num = (len + 1 + block_size - 1) / block_size;
-      int32_t slot_id = block_tables_vec[block_offset + need_block_num - 1] * block_size + (len % block_size);
+      int32_t status = len == 0 ? 0 : 1; // len=0，flag=0
 
-      slot_mapping_vec.push_back(slot_id);
+      batch_status_param_.push_back(status);
+      if (status) {
+        int32_t need_block_num = (len + 1 + block_size - 1) / block_size;
+        int32_t slot_id = block_tables_vec[block_offset + need_block_num - 1] * block_size + (len % block_size);
+
+        slot_mapping_vec.push_back(slot_id);
+        token_offset[i] += seq_len_vec[i];
+      } else {
+        token_offset[i] = 0;
+      }
       block_offset += pre_max_block_num;
-      token_offset[i] += seq_len_vec[i];
     }
     custom_kernel::TensorFromVector(*dev_ctx, token_offset,
                                   *dev_ctx, &token_offset_tensor_);

@@ -19,7 +19,7 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 30;
+static const uint64_t IN_TENSOR_COUNT = 31;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 22;
 static const uint64_t NODE_COUNT = 21;
@@ -233,9 +233,10 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         paDeParam.kvHeadNum = param.headNum;
         paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
         paDeParam.isSupportAlibi = true;
+        paDeParam.batchRunStatusEnable = true;
         CreateOperation(paDeParam, &attentionNode.operation);
         attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_CACHE_K_DEQUANT, INTERMIDATE_CACHE_V_DEQUANT,
-                                     IN_BLOCK_TABLES, IN_SEQLEN};
+                                     IN_BLOCK_TABLES, IN_SEQLEN, IN_BATCH_STATUS};
         attentionNode.outTensorIds = {INTERMIDATE_SELFOUT};
         attentionNode.inTensorReshapeFuncs.resize(attentionNode.inTensorIds.size());
         attentionNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {

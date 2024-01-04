@@ -17,27 +17,36 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=6.0.1
+# export CANN_VERSION=7.0.0
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-6.0.1} # default 6.0.1
-CANN_TOOLKIT=Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run
+CANN_VERSION=${1:-7.0.0} # default 7.0.0
 
-DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 601
-#DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 60RC1
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 700
+DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 700
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
-# download $(uname -m) pkgs
-if [ ! -f ${CANN_TOOLKIT} ]; then
-  wget -q https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/${CANN_VERSION}/${CANN_TOOLKIT}
+# Download packages from https://www.hiascend.com/software/cann/community first
+if [ ! -f Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run ]; then
+  echo "Please download CANN packages from https://www.hiascend.com/software/cann/community first!"
+  exit 1
 fi
 
 # copy file to current directory
-if [ ! -f ascend_install.info ]; then
-  cp /etc/ascend_install.info ./
-fi
-if [ ! -f version.info ]; then
-  cp /usr/local/Ascend/driver/version.info ./
+cp /etc/ascend_install.info ./
+cp /usr/local/Ascend/driver/version.info ./
+
+# get chip version and fix HCCL_BUFFSIZE
+CHIP_VERSION="UNKNOWN"
+if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
+  CHIP_VERSION="910A"
+  sed -i "s/HCCL_BUFFSIZE=.*/HCCL_BUFFSIZE=60/g" Dockerfile.npu.*
+elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
+  CHIP_VERSION="910B"
+  sed -i "s/HCCL_BUFFSIZE=.*/HCCL_BUFFSIZE=120/g" Dockerfile.npu.*
+else
+  echo "Please make sure Ascend 910A or 910B NPUs exists!"
+  exit 1
 fi
 
 # ubuntu18-$(uname -m)-gcc82
@@ -48,8 +57,8 @@ docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82 \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \
   --build-arg no_proxy=bcebos.com \
-     -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-ubuntu18-$(uname -m)-gcc82
+  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m) .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m)
 
 # kylinv10-$(uname -m)-gcc82
 docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
@@ -59,8 +68,8 @@ docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82 \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \
   --build-arg no_proxy=bcebos.com \
-    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-kylinv10-$(uname -m)-gcc82
+  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m) .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m)
 
 if [ $(uname -i) == 'aarch64' ]; then
 # euleros-$(uname -m)-gcc82
@@ -71,6 +80,9 @@ if [ $(uname -i) == 'aarch64' ]; then
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-euleros-$(uname -m)-gcc82 .
-  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-euleros-$(uname -m)-gcc82
+    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m) .
+  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m)
 fi
+
+# clean driver info
+rm -rf *.info

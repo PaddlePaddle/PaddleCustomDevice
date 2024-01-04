@@ -40,6 +40,7 @@ using NPUAttribute = paddle::variant<paddle::blank,
 
 using NPUAttributeMap = std::unordered_map<std::string, NPUAttribute>;
 
+// clang-format off
 typedef struct aclOpExecutor aclOpExecutor;
 typedef struct aclTensor aclTensor;
 typedef struct aclScalar aclScalar;
@@ -131,7 +132,6 @@ inline void Release(aclIntArray* p) {
   if (aclDestroyIntArray == nullptr) {
     return;
   }
-
   aclDestroyIntArray(p);
 }
 
@@ -140,7 +140,6 @@ inline void Release(aclBoolArray* p) {
   if (aclDestroyBoolArray == nullptr) {
     return;
   }
-
   aclDestroyBoolArray(p);
 }
 
@@ -293,6 +292,18 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
       releaseMemFunc(nullptr, false);                                                                                                               \
     }                                                                                                                                               \
   } while (false)
+
+#define DO_COMPATIBILITY(aclnn_api, originCallExpression)                                                      \
+  do {                                                                                                         \
+    static const auto getWorkspaceSizeFuncAddr = GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");              \
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);                                            \
+    if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {                                     \
+        VLOG(3) <<"%s or %sGetWorkspaceSize not in %s, or %s not found. Will call %s", #aclnn_api, #aclnn_api, \
+                  GetOpApiLibName(), GetOpApiLibName(), #originCallExpression;                                 \
+      originCallExpression;                                                                                    \
+    }                                                                                                          \
+  } while (0)                                                                                                  \
+// clang-format on
 
 class NpuOpRunner {
  public:

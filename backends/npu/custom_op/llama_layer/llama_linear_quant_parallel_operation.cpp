@@ -22,12 +22,11 @@ enum LlamaLinearQuantParallelTensorId {
     IN_INPUT = 0,
     IN_WEIGHT,
     IN_DEQSCALE,
-    IN_BLANK_BIAS,
     OUT_LINEAROUT,
     INTERMIDATE_LINEAROUT,
 };
  
-static const uint64_t IN_TENSOR_COUNT = 4;
+static const uint64_t IN_TENSOR_COUNT = 3;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 1;
 static const uint64_t NODE_COUNT = 2;
@@ -48,9 +47,9 @@ atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParall
     atb::infer::LinearQuantParam linearQuantParam;
     linearQuantParam.transposeA = false;
     linearQuantParam.transposeB = !param.transWeight;
-    linearQuantParam.hasBias = true;
+    linearQuantParam.hasBias = false;
     CreateOperation(linearQuantParam, &linearQuantNode.operation);
-    linearQuantNode.inTensorIds = {IN_INPUT, IN_WEIGHT, IN_BLANK_BIAS, IN_DEQSCALE};
+    linearQuantNode.inTensorIds = {IN_INPUT, IN_WEIGHT, IN_DEQSCALE};
     linearQuantNode.outTensorIds = {INTERMIDATE_LINEAROUT};
  
     atb::infer::AllReduceParam allReduceParam = { param.rank, param.rankSize, param.rankRoot, "sum",

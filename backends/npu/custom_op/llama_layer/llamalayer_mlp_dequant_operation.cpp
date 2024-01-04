@@ -21,7 +21,6 @@ enum LlamaMlpDequantTensorId {
     IN_HIDDENSTATUS = 0,
     IN_WEIGHTTENSOR,
     IN_DEQSCALE,
-    IN_BLANK_BIAS,
     OUT_MLPRESULTSTENSOR,
     INTERMIDATE_MATMUL_ALL_OUT,
     INTERMIDATE_MATMUL_GATE_OUT,
@@ -29,7 +28,7 @@ enum LlamaMlpDequantTensorId {
     INTERMIDATE_SWISH_OUT,
 };
  
-static const uint64_t IN_TENSOR_COUNT = 4;
+static const uint64_t IN_TENSOR_COUNT = 3;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 4;
 static const uint64_t NODE_COUNT = 4;
@@ -50,9 +49,9 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
     atb::Node &swishNode = opGraph.nodes.at(nodeId++);
     atb::Node &mulNode = opGraph.nodes.at(nodeId++);
 
-    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, true};
+    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, false};
     CreateOperation(linearQuantParam, &linearNode.operation);
-    linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR, IN_BLANK_BIAS, IN_DEQSCALE};
+    linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
  
 

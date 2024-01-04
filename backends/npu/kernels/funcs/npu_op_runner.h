@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <dlfcn.h>
 #include "acl/acl.h"
 #include "glog/logging.h"
 #include "kernels/funcs/npu_op_prepare.h"
@@ -21,6 +22,7 @@
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
+#include "format_utils.h"
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,
@@ -37,6 +39,260 @@ using NPUAttribute = paddle::variant<paddle::blank,
                                      std::vector<std::vector<int64_t>>>;
 
 using NPUAttributeMap = std::unordered_map<std::string, NPUAttribute>;
+
+typedef struct aclOpExecutor aclOpExecutor;
+typedef struct aclTensor aclTensor;
+typedef struct aclScalar aclScalar;
+typedef struct aclIntArray aclIntArray;
+typedef struct aclFloatArray aclFloatArray;
+typedef struct aclBoolArray aclBoolArray;
+typedef struct aclTensorList aclTensorList;
+typedef aclTensor* (*_aclCreateTensor)(const int64_t* view_dims, uint64_t view_dims_num, aclDataType data_type,
+                                       const int64_t* stride, int64_t offset, aclFormat format,
+                                       const int64_t* storage_dims, uint64_t storage_dims_num, void* tensor_data);
+typedef aclScalar* (*_aclCreateScalar)(void* value, aclDataType data_type);
+typedef aclIntArray* (*_aclCreateIntArray)(const int64_t* value, uint64_t size);
+typedef aclFloatArray* (*_aclCreateFloatArray)(const float* value, uint64_t size);
+typedef aclBoolArray* (*_aclCreateBoolArray)(const bool* value, uint64_t size);
+typedef aclTensorList* (*_aclCreateTensorList)(const aclTensor* const* value, uint64_t size);
+
+typedef int (*_aclDestroyTensor)(const aclTensor* tensor);
+typedef int (*_aclDestroyScalar)(const aclScalar* scalar);
+typedef int (*_aclDestroyIntArray)(const aclIntArray* array);
+typedef int (*_aclDestroyFloatArray)(const aclFloatArray* array);
+typedef int (*_aclDestroyBoolArray)(const aclBoolArray* array);
+typedef int (*_aclDestroyTensorList)(const aclTensorList* array);
+
+typedef int (*InitHugeMemThreadLocal)(void*, bool);
+typedef void (*UnInitHugeMemThreadLocal)(void*, bool);
+typedef void (*ReleaseHugeMem)(void*, bool);
+typedef aclOpExecutor*(*PTAGetExecCache) (uint64_t, uint64_t*);
+
+#define GET_OP_API_FUNC(apiName) reinterpret_cast<_##apiName>(GetOpApiFuncAddr(#apiName))
+
+inline const char* GetOpApiLibName(void) {
+  return "libopapi.so";
+}
+
+inline const char* GetCustOpApiLibName(void) {
+  return "libcust_opapi.so";
+}
+
+inline void* GetOpApiFuncAddrInLib(void* handler, const char* libName, const char* apiName) {
+  auto funcAddr = dlsym(handler, apiName);
+  if (funcAddr == nullptr) {
+    printf("dlsym %s from %s failed, error:%s.", apiName, libName, dlerror());
+  }
+  return funcAddr;
+}
+
+inline void* GetOpApiLibHandler(const char* libName) {
+  auto handler = dlopen(libName, RTLD_LAZY);
+  if (handler == nullptr) {
+    printf("dlopen %s failed, error:%s.", libName, dlerror());
+  }
+  return handler;
+}
+
+inline void* GetOpApiFuncAddr(const char* apiName) {
+  static auto custOpApiHandler = GetOpApiLibHandler(GetCustOpApiLibName());
+  if (custOpApiHandler != nullptr) {
+    auto funcAddr = GetOpApiFuncAddrInLib(custOpApiHandler, GetCustOpApiLibName(), apiName);
+    if (funcAddr != nullptr) {
+      return funcAddr;
+    }
+  }
+
+  static auto opApiHandler = GetOpApiLibHandler(GetOpApiLibName());
+  if (opApiHandler == nullptr) {
+    return nullptr;
+  }
+  return GetOpApiFuncAddrInLib(opApiHandler, GetOpApiLibName(), apiName);
+}
+
+inline void Release(aclTensor* p) {
+  static const auto aclDestroyTensor = GET_OP_API_FUNC(aclDestroyTensor);
+  if (aclDestroyTensor == nullptr) {
+    return;
+  }
+  aclDestroyTensor(p);
+}
+
+inline void Release(aclScalar* p) {
+  static const auto aclDestroyScalar = GET_OP_API_FUNC(aclDestroyScalar);
+  if (aclDestroyScalar == nullptr) {
+    return;
+  }
+  aclDestroyScalar(p);
+}
+
+inline void Release(aclIntArray* p) {
+  static const auto aclDestroyIntArray = GET_OP_API_FUNC(aclDestroyIntArray);
+  if (aclDestroyIntArray == nullptr) {
+    return;
+  }
+
+  aclDestroyIntArray(p);
+}
+
+inline void Release(aclBoolArray* p) {
+  static const auto aclDestroyBoolArray = GET_OP_API_FUNC(aclDestroyBoolArray);
+  if (aclDestroyBoolArray == nullptr) {
+    return;
+  }
+
+  aclDestroyBoolArray(p);
+}
+
+inline void Release(aclTensorList* p) {
+  static const auto aclDestroyTensorList = GET_OP_API_FUNC(aclDestroyTensorList);
+  if (aclDestroyTensorList == nullptr) {
+    return;
+  }
+
+  aclDestroyTensorList(p);
+}
+
+template <typename T>
+void Release(T value) {
+  (void)value;
+}
+
+template <typename Tuple, size_t... I>
+void CallRelease(Tuple t, std::index_sequence<I...>) {
+  (void)std::initializer_list<int>{(Release(std::get<I>(t)), 0)...};
+}
+
+template <typename Tuple>
+void ReleaseConvertTypes(Tuple& t) {
+  static constexpr auto size = std::tuple_size<Tuple>::value;
+  CallRelease(t, std::make_index_sequence<size>{});
+}
+
+inline aclScalar* ConvertType(const phi::Scalar& at_scalar) {
+  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
+  if (aclCreateScalar == nullptr) {
+    return nullptr;
+  }
+  auto scalar_data_type = at_scalar.dtype();
+  aclDataType acl_data_type = ConvertToNpuDtype(scalar_data_type);
+  aclScalar* acl_scalar = nullptr;
+  switch (scalar_data_type) {
+    case phi::DataType::FLOAT32: {
+      float value = at_scalar.to<float>();
+      acl_scalar = aclCreateScalar(&value, acl_data_type);
+      break;
+    }
+    default:
+      acl_scalar = nullptr;
+      break;
+  }
+  return acl_scalar;
+}
+
+inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
+  // create aclDataBuffer
+  static const auto aclCreateTensor = GET_OP_API_FUNC(aclCreateTensor);
+  if (aclCreateTensor == nullptr) {
+    return nullptr;
+  }
+  auto at_tensor_dtype = at_tensor.dtype();
+  auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
+  std::vector<int64_t> storageDims(5);
+  if (acl_data_type != ACL_STRING) {
+    storageDims.push_back(at_tensor.numel() * sizeof(at_tensor_dtype));
+  }
+  const auto dimNum = at_tensor.dims().size();
+  aclFormat format = ACL_FORMAT_ND;
+  switch (dimNum) {
+    case 3:
+      format = ACL_FORMAT_NCL;
+      break;
+    case 4:
+      format = ACL_FORMAT_NCHW;
+      break;
+    case 5:
+      format = ACL_FORMAT_NCDHW;
+      break;
+    default:
+      format = ACL_FORMAT_ND;
+  }
+  auto origin_dims = phi::vectorize(at_tensor.dims());
+  auto origin_strides = phi::vectorize(at_tensor.strides());
+  auto acl_tensor = aclCreateTensor(origin_dims.data(), origin_dims.size(), acl_data_type,
+                                    origin_strides.data(), 0, format, origin_dims.data(),
+                                    storageDims.size(), const_cast<void*>(at_tensor.data()));
+  return acl_tensor;
+}
+
+template <typename T>
+T ConvertType(T value) {
+  return value;
+}
+
+template <typename... Ts>
+constexpr auto ConvertTypes(Ts&... args) {
+  return std::make_tuple(ConvertType(args)...);
+}
+
+template <typename Function, typename Tuple, size_t... I>
+auto call(Function f, Tuple t, std::index_sequence<I...>) {
+  return f(std::get<I>(t)...);
+}
+
+template <typename Function, typename Tuple>
+auto call(Function f, Tuple t) {
+  static constexpr auto size = std::tuple_size<Tuple>::value;
+  return call(f, t, std::make_index_sequence<size>{});
+}
+
+template <typename Tuple, size_t... I>
+auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr, std::index_sequence<I...>) {
+  typedef int (*OpApiFunc)(typename std::decay<decltype(std::get<I>(params))>::type...);
+  auto func = reinterpret_cast<OpApiFunc>(opApiAddr);
+  return func;
+}
+
+template <typename Tuple>
+auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
+  static constexpr auto size = std::tuple_size<Tuple>::value;
+  return ConvertToOpApiFunc(params, opApiAddr, std::make_index_sequence<size>{});
+}
+
+#define EXEC_NPU_CMD(aclnn_api,size, dev_ctx, ...)                                                                                                  \
+  do {                                                                                                                                              \
+    static const auto getWorkspaceSizeFuncAddr = GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                                                   \
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);                                                                                 \
+    static const auto initMemAddr = GetOpApiFuncAddr("InitHugeMemThreadLocal");                                                                     \
+    static const auto unInitMemAddr = GetOpApiFuncAddr("UnInitHugeMemThreadLocal");                                                                 \
+    static const auto releaseMemAddr = GetOpApiFuncAddr("ReleaseHugeMem");                                                                          \
+    auto acl_stream = (dev_ctx).stream();                                                                                                             \
+    uint64_t workspace_size = 0;                                                                                                                    \
+    uint64_t* workspace_size_addr = &workspace_size;                                                                                                \
+    aclOpExecutor* executor = nullptr;                                                                                                              \
+    aclOpExecutor** executor_addr = &executor;                                                                                                      \
+    InitHugeMemThreadLocal initMemFunc = reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);                                                     \
+    UnInitHugeMemThreadLocal unInitMemFunc = reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);                                             \
+    auto converted_params = ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);                                                          \
+    static auto getWorkspaceSizeFunc = ConvertToOpApiFunc(converted_params, getWorkspaceSizeFuncAddr);                                              \
+    auto workspace_status = call(getWorkspaceSizeFunc, converted_params);                                                                           \
+    void* workspace_addr = nullptr;                                                                                                                 \
+    if (workspace_size != 0) {                                                                                                                      \
+      phi::Allocator::AllocationPtr workspace_tensor = const_cast<phi::Allocator &>((dev_ctx).GetAllocator()).Allocate(workspace_size * size);        \
+      workspace_addr = reinterpret_cast<void*>(workspace_tensor->ptr());                                                                            \
+    }                                                                                                                                               \
+    if (unInitMemFunc) {                                                                                                                            \
+      unInitMemFunc(nullptr, false);                                                                                                                \
+    }                                                                                                                                               \
+    typedef int (*OpApiFunc)(void*, uint64_t, aclOpExecutor*, const aclrtStream);                                                                   \
+    OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);                                                                               \
+    auto api_ret = opApiFunc(workspace_addr, workspace_size, executor, acl_stream);                                                                 \
+    ReleaseConvertTypes(converted_params);                                                                                                          \
+    ReleaseHugeMem releaseMemFunc = reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                                                               \
+    if (releaseMemFunc) {                                                                                                                           \
+      releaseMemFunc(nullptr, false);                                                                                                               \
+    }                                                                                                                                               \
+  } while (false)
 
 class NpuOpRunner {
  public:

@@ -19,7 +19,7 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 34;
+static const uint64_t IN_TENSOR_COUNT = 30;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 22;
 static const uint64_t NODE_COUNT = 21;
@@ -92,7 +92,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     MultiLayerLinearQuantParam multiLayerLinearQuantParam;
     multiLayerLinearQuantParam.transpose = param.transpose;
     CreateLlamaMultiLayerLinearQuantOperation(multiLayerLinearQuantParam, &mixdQKVLinearNode.operation);
-    mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT, IN_QKVDEQSCALE, IN_QKVDEQBLANKBIAS};
+    mixdQKVLinearNode.inTensorIds = {INTERMIDATE_INPUTNORMOUT, IN_QKVMIXDWEIGHT, IN_QKVDEQSCALE};
     mixdQKVLinearNode.outTensorIds = {INTERMIDATE_MIXEDQ, INTERMIDATE_MIXEDK, INTERMIDATE_MIXEDV};
 
     // output:[bs * seq_len, head_dim * head_num_pre_card]
@@ -296,7 +296,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     selfOutLinearParallelParam.backend = "lccl";
     selfOutLinearParallelParam.hcclComm = param.hcclComm;
     CreateLlamaLinearQuantParallelOperation(selfOutLinearParallelParam, &selfOutLinearParallelNode.operation);
-    selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT_QUANT, IN_SELFOUTLINEARWEIGHT, IN_SELFOUTLINEARDEQSCALE, IN_SELFOUTLINEARDEQBLANKBIAS};
+    selfOutLinearParallelNode.inTensorIds = {INTERMIDATE_SELFOUT_QUANT, IN_SELFOUTLINEARWEIGHT, IN_SELFOUTLINEARDEQSCALE};
     selfOutLinearParallelNode.outTensorIds = {INTERMIDATE_SELFLINEAROUT};
     // selfOutLinearParallelNode.inTensorReshapeFuncs.resize(selfOutLinearParallelNode.inTensorIds.size());
     // selfOutLinearParallelNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -330,7 +330,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     LlamaMlpDequantParam llamaMlpDequantParam;
     llamaMlpDequantParam.transpose = true;
     CreateLlamaMlpDequantOperation(llamaMlpDequantParam, &mlpNode.operation);
-    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_MLPGATEUPWEIGHT, IN_MLPDEQSCALE, IN_MLPDEQBLANKBIAS};
+    mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT, IN_MLPGATEUPWEIGHT, IN_MLPDEQSCALE};
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT};
 
 
@@ -366,7 +366,7 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     mlpLinearParallelParam.backend = "lccl";
     mlpLinearParallelParam.hcclComm = param.hcclComm;
     CreateLlamaLinearQuantParallelOperation(mlpLinearParallelParam, &mlpLinearParallelNode.operation);
-    mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT_QUANT, IN_MLPDOWNWEIGHT, IN_MLPDOWNDEQSCALE, IN_MLPDOWNDEQBLANKBIAS};
+    mlpLinearParallelNode.inTensorIds = {INTERMIDATE_MLPOUT_QUANT, IN_MLPDOWNWEIGHT, IN_MLPDOWNDEQSCALE};
     mlpLinearParallelNode.outTensorIds = {INTERMIDATE_MLPLINEARPARALLELOUT};
 
     atb::infer::ElewiseParam mlpResidualAddParam;

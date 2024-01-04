@@ -21,14 +21,13 @@ enum LlamamultiLayerLinearQuantTensorId {
     IN_INPUTTENSOR = 0,
     IN_WEIGHTTENSOR,
     IN_DEQSCALE,
-    IN_BLANK_BIAS,
     OUT_MATMULRESULTQTENSOR,
     OUT_MATMULRESULTKTENSOR,
     OUT_MATMULRESULTVTENSOR,
     INTERMIDATE_LINEAR_OUT,
 };
  
-static const uint64_t IN_TENSOR_COUNT = 4;
+static const uint64_t IN_TENSOR_COUNT = 3;
 static const uint64_t OUT_TENSOR_COUNT = 3;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 1;
 static const uint64_t NODE_COUNT = 2;
@@ -47,9 +46,9 @@ atb::Status CreateLlamaMultiLayerLinearQuantOperation(const MultiLayerLinearQuan
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
     atb::Node &splitNode = opGraph.nodes.at(nodeId++);
     
-    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, true};
+    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, false};
     CreateOperation(linearQuantParam, &linearNode.operation);
-    linearNode.inTensorIds = {IN_INPUTTENSOR, IN_WEIGHTTENSOR, IN_BLANK_BIAS, IN_DEQSCALE};
+    linearNode.inTensorIds = {IN_INPUTTENSOR, IN_WEIGHTTENSOR, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_LINEAR_OUT};
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
     linearNode.inTensorReshapeFuncs[0] = [](const atb::Dims &oldShape, atb::Dims &newShape) {

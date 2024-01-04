@@ -494,7 +494,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
       mlp_down_deq_blank_bias = paddle::full({mlp_down_weight.shape()[0]}, 0, paddle::DataType::INT32, hidden.place()); 
       norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
       self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-      empty_offset = paddle::full(cache_k_quant_scales.shape(), 0, paddle::DataType::INT8, hidden.place());
+      empty_offset = paddle::full({}, 0, paddle::DataType::INT8, hidden.place());
       first_run = false;
   }
 

@@ -88,6 +88,11 @@ atb::Tensor ConvertDenseTensorToAtbTensor(const phi::DenseTensor &tensor) {
 
   auto origin_dims = phi::vectorize(tensor.dims());
   atbTensor.desc.shape.dimNum = origin_dims.size();
+
+  if (origin_dims[0] == 0) {
+    atbTensor.deviceData = nullptr;
+  }
+
   for (uint64_t i = 0; i < origin_dims.size(); i++) {
     atbTensor.desc.shape.dims[i] = origin_dims[i];
   }

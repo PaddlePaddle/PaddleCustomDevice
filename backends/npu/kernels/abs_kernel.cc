@@ -33,11 +33,11 @@ void AbsKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   DO_COMPATIBILITY(aclnnAbs,
-                   (custom_kernel::AclopAbsKernel<T, Context>(dev_ctx, x, out)));
+                   (custom_kernel::AclopAbsKernel<T, Context>
+                                                 (dev_ctx, x, out)));
   auto size = sizeof(T);
   EXEC_NPU_CMD(aclnnAbs, size, dev_ctx, x, *out);
 }
-
 template <typename T, typename Context>
 void AclopAbsGradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
@@ -58,7 +58,8 @@ void AbsGradKernel(const Context& dev_ctx,
   auto size = sizeof(T);
   DO_COMPATIBILITY(
       aclnnSign,
-      (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
+      (custom_kernel::AclopAbsGradKernel<T, Context>
+                                        (dev_ctx, x, dout, dx)));
   EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
   EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
 }

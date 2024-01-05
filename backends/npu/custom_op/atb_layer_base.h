@@ -19,7 +19,10 @@
 #include "paddle/extension.h"
 #include "atb/context.h"
 
-static void* g_workspace = nullptr;
+#include "kernels/funcs/format_utils.h"
+#include "kernels/funcs/npu_op_runner.h"
+
+static phi::DenseTensor* g_workspace = new phi::DenseTensor();
 static uint64_t g_workspaceSize = 0;
 
 class PpAscendAtbOpBase {
@@ -31,10 +34,12 @@ public:
                                 std::vector<const phi::DenseTensor *> &outTensors);
   virtual atb::Status Execute(aclrtStream stream,
                               std::vector<const phi::DenseTensor *> &inTensors,
-                              std::vector<const phi::DenseTensor *> &outTensors);
+                              std::vector<const phi::DenseTensor *> &outTensors,
+                              const phi::CustomContext * ctx);
   virtual atb::Status Execute(aclrtStream stream,
                               std::vector<const phi::DenseTensor *> &inTensors,
                               std::vector<const phi::DenseTensor *> &outTensors,
+                              const phi::CustomContext * ctx,
                               int layerid);
   std::shared_ptr<atb::Operation> operation_;
   std::vector<std::shared_ptr<atb::Operation>> operations_;
@@ -44,7 +49,7 @@ protected:
   atb::VariantPack variantPacks_;
   aclrtStream stream_;
   atb::Context *context_ = nullptr;
-  void SetWorkspace(uint64_t workspace_size);
+  void SetWorkspace(uint64_t workspace_size, const phi::CustomContext * ctx);
 
 private:
   int32_t currentDevId_ = 0;

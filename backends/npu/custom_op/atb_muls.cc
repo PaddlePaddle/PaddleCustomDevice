@@ -47,7 +47,7 @@ std::vector<paddle::Tensor> AtbMulsOp(const paddle::Tensor& x,
     g_atbMulsOp->operation_.reset(op);
   }
 
-  g_atbMulsOp->Execute(stream, inputs, outputs);
+  g_atbMulsOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {x};
 }

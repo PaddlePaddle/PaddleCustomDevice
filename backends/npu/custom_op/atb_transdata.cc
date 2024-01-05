@@ -92,7 +92,7 @@ std::vector<paddle::Tensor> AtbTransdataOp(const paddle::Tensor &x) {
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(out_tensor.get());
 
-  g_atbTransdataOp->Execute(stream, inputs, outputs);
+  g_atbTransdataOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(out_tensor)};
 }

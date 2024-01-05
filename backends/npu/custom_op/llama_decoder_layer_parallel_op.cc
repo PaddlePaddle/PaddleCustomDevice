@@ -299,7 +299,7 @@ std::vector<paddle::Tensor> LlamaDecoderLayerParallelOp(
                                  inputs);
   std::vector<const phi::DenseTensor *> outputs = {g_llamaDecoderLayerParallelOp->output_.get()};
 
-  g_llamaDecoderLayerParallelOp->Execute(stream, inputs, outputs);
+  g_llamaDecoderLayerParallelOp->Execute(stream, inputs, outputs, dev_ctx);
 
   executeCount++;
 

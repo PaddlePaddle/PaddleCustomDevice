@@ -283,64 +283,64 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     std::make_index_sequence<size>{});
 }
 
-#define EXEC_NPU_CMD(aclnn_api, size, dev_ctx, ...)                            \
-  do {                                                                         \
-    static const auto getWorkspaceSizeFuncAddr =                               \
-    GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                           \
-    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);            \
-    static const auto initMemAddr =                                            \
-      GetOpApiFuncAddr("InitHugeMemThreadLocal");                              \
-    static const auto unInitMemAddr =                                          \
-      GetOpApiFuncAddr("UnInitHugeMemThreadLocal");                            \
-    static const auto releaseMemAddr =                                         \
-      GetOpApiFuncAddr("ReleaseHugeMem");                                      \
-    auto acl_stream = (dev_ctx).stream();                                      \
-    uint64_t workspace_size = 0;                                               \
-    uint64_t* workspace_size_addr = &workspace_size;                           \
-    aclOpExecutor* executor = nullptr;                                         \
-    aclOpExecutor** executor_addr = &executor;                                 \
-    InitHugeMemThreadLocal initMemFunc =                                       \
-      reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);                   \
-    UnInitHugeMemThreadLocal unInitMemFunc =                                   \
-      reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);               \
-    auto converted_params =                                                    \
-      ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);           \
-    static auto getWorkspaceSizeFunc =                                         \
-      ConvertToOpApiFunc(converted_params, getWorkspaceSizeFuncAddr);          \
-    auto workspace_status = call(getWorkspaceSizeFunc, converted_params);      \
-    void* workspace_addr = nullptr;                                            \
-    if (workspace_size != 0) {                                                 \
-      phi::Allocator::AllocationPtr workspace_tensor =                         \
-        const_cast<phi::Allocator &>((dev_ctx).GetAllocator()).                \
-          Allocate(workspace_size * size);                                     \
-      workspace_addr = reinterpret_cast<void*>(workspace_tensor->ptr());       \
-    }                                                                          \
-    if (unInitMemFunc) {                                                       \
-      unInitMemFunc(nullptr, false);                                           \
-    }                                                                          \
-    typedef int                                                                \
-      (*OpApiFunc)(void*, uint64_t, aclOpExecutor*, const aclrtStream);        \
-    OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);          \
-    auto api_ret =                                                             \
-      opApiFunc(workspace_addr, workspace_size, executor, acl_stream);         \
-    ReleaseConvertTypes(converted_params);                                     \
-    ReleaseHugeMem releaseMemFunc =                                            \
-      reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                        \
-    if (releaseMemFunc) {                                                      \
-      releaseMemFunc(nullptr, false);                                          \
-    }                                                                          \
+#define EXEC_NPU_CMD(aclnn_api, size, dev_ctx, ...)\
+  do {\
+    static const auto getWorkspaceSizeFuncAddr =\
+    GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");\
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);\
+    static const auto initMemAddr =\
+      GetOpApiFuncAddr("InitHugeMemThreadLocal");\
+    static const auto unInitMemAddr =\
+      GetOpApiFuncAddr("UnInitHugeMemThreadLocal");\
+    static const auto releaseMemAddr =\
+      GetOpApiFuncAddr("ReleaseHugeMem");\
+    auto acl_stream = (dev_ctx).stream();\
+    uint64_t workspace_size = 0;\
+    uint64_t* workspace_size_addr = &workspace_size;\
+    aclOpExecutor* executor = nullptr;\
+    aclOpExecutor** executor_addr = &executor;\
+    InitHugeMemThreadLocal initMemFunc =\
+      reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);\
+    UnInitHugeMemThreadLocal unInitMemFunc =\
+      reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);\
+    auto converted_params =\
+      ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);\
+    static auto getWorkspaceSizeFunc =\
+      ConvertToOpApiFunc(converted_params, getWorkspaceSizeFuncAddr);\
+    auto workspace_status = call(getWorkspaceSizeFunc, converted_params);\
+    void* workspace_addr = nullptr;\
+    if (workspace_size != 0) {\
+      phi::Allocator::AllocationPtr workspace_tensor =\
+        const_cast<phi::Allocator &>((dev_ctx).GetAllocator()).\
+          Allocate(workspace_size * size);\
+      workspace_addr = reinterpret_cast<void*>(workspace_tensor->ptr());\
+    }\
+    if (unInitMemFunc) {\
+      unInitMemFunc(nullptr, false);\
+    }\
+    typedef int\
+      (*OpApiFunc)(void*, uint64_t, aclOpExecutor*, const aclrtStream);\
+    OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);\
+    auto api_ret =\
+      opApiFunc(workspace_addr, workspace_size, executor, acl_stream);\
+    ReleaseConvertTypes(converted_params);\
+    ReleaseHugeMem releaseMemFunc =\
+      reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);\
+    if (releaseMemFunc) {\
+      releaseMemFunc(nullptr, false);\
+    }\
   } while (false)
 
-#define DO_COMPATIBILITY(aclnn_api, originCallExpression)                      \
-  do {                                                                         \
-    static const auto getWorkspaceSizeFuncAddr =                               \
-      GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                         \
-    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);            \
-    if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {     \
-        VLOG(3) <<"aclop exexuted";                                            \
-      originCallExpression;                                                    \
-    }                                                                          \
-  } while (0)                                                                  \
+#define DO_COMPATIBILITY(aclnn_api, originCallExpression)\
+  do {\
+    static const auto getWorkspaceSizeFuncAddr =\
+      GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");\
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);\
+    if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {\
+        VLOG(3) <<"aclop exexuted";\
+      originCallExpression;\
+    }\
+  } while (0)\
 // clang-format on
 
 class NpuOpRunner {

@@ -17,7 +17,7 @@ static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
 class HpuOperator {
     public:
     HpuOperator(const std::string guid) : guid_(guid) {
-        synStatus status = synGraphCreate(&graphHandle_, synDeviceGaudi);
+        synStatus status = synGraphCreate(&graphHandle_, synDeviceGaudi2);
         CHKSTATUS("synGraphCreate failed!");
     }
     // virtual void AddNode() = 0;
@@ -48,7 +48,7 @@ class HpuOperator {
     void Execute(C_Stream stream, std::map<std::string, uint64_t> &tensors) {
         uint64_t workspaceSize = 0;
         synStatus status = synWorkspaceGetSize(&workspaceSize, recipeHandle_);
-        LOG(INFO) << "compiled recipe workspace size=" << workspaceSize;
+        LOG(INFO) << guid_ << " compiled recipe workspace size=" << workspaceSize;
 
         uint64_t workspaceAddress;
         status = synDeviceMalloc(stream->deviceId, workspaceSize, 0, 0, &workspaceAddress);

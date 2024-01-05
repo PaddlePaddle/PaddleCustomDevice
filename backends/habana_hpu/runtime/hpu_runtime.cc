@@ -51,8 +51,8 @@ C_Status InitDevice(const C_Device device) {
   LOG(INFO) << "device id=" << device->id;
 
   uint32_t deviceId = 0;
-  synDeviceType deviceType = synDeviceGaudi;
-  bool deviceAcquired = waitForIdleDevice(&deviceId, /* INOUT */ deviceType, 60);
+  synDeviceType deviceType = synDeviceGaudi2;
+  bool deviceAcquired = waitForIdleDevice(&deviceId, /* INOUT */ deviceType, 1);
 
   LOG(INFO) << "requested device id=" << device->id << ", real device id=" << deviceId;
   global_current_device = deviceId;
@@ -523,7 +523,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   FUNCALL_S
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = "habana_hpu";
-  params->sub_device_type = "gaudi";
+  params->sub_device_type = "gaudi2";
 
   memset(reinterpret_cast<void *>(params->interface),
          0,

@@ -43,11 +43,6 @@ void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size, const phi::CustomC
   if (workspace_size <= g_workspaceSize) {
     return;
   }
-
-  std::cout << "SetWorkspace" << workspace_size << std::endl;
-  size_t total_memory = 0;
-  size_t free_memory = 0; 
-  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);  
   
   g_workspace->Resize(phi::make_ddim({workspace_size}));
   ctx->Alloc(g_workspace, paddle::DataType::INT8);  
@@ -106,8 +101,8 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                                           "ret message: %d .", opName_, st));
 
   if (workspace_size > 0) {
-    if (workspace_size < 209715200) { // 最低200M，防止频繁申请释放内存
-        workspace_size = 209715200;
+    if (workspace_size < 512) { // 防止频繁申请释放内存，看情况调整
+        workspace_size = 512;
     }
     SetWorkspace(workspace_size, ctx);
   }

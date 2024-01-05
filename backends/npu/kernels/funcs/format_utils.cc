@@ -45,6 +45,7 @@ static std::map<phi::DataType, aclDataType>  //
         {phi::DataType::INT32, ACL_INT32},
         {phi::DataType::INT64, ACL_INT64},
         {phi::DataType::FLOAT16, ACL_FLOAT16},
+        {phi::DataType::BFLOAT16, ACL_BF16},
         {phi::DataType::FLOAT32, ACL_FLOAT},
         {phi::DataType::FLOAT64, ACL_DOUBLE},
         {phi::DataType::COMPLEX64, ACL_COMPLEX64},

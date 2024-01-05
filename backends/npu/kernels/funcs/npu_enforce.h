@@ -54,8 +54,8 @@ DEFINE_NPU_STATUS_TYPE(HcclResult, HCCL_SUCCESS);
               "paddle::get failed, cannot get value "                        \
               "(%s) by type %s, its type is %s.",                            \
               expression,                                                    \
-              phi::enforce::demangle(typeid(OutputType).name()),             \
-              phi::enforce::demangle(input.type().name())),                  \
+              common::demangle(typeid(OutputType).name()),             \
+              common::demangle(input.type().name())),                  \
           file,                                                              \
           line);                                                             \
       END_HANDLE_THE_ERROR                                                   \

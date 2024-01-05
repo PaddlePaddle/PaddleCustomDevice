@@ -345,18 +345,10 @@ C_Status AsyncMemCpyD2H(const C_Device device,
   return C_SUCCESS;
 }
 
-size_t memloc = 0;
-
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   SetDevice(device);
   void *data;
   aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
-  memloc += size;
-  std::cout << "size " << size << " Allocated " << memloc << std::endl;
-  size_t total_memory = 0;
-  size_t free_memory = 0;
-  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);
-  std::cout << "total_memory " << total_memory << " free_memory " << free_memory << std::endl << std::endl;
   if (data) {
     *ptr = data;
     return C_SUCCESS;
@@ -381,12 +373,6 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
   SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
-  memloc -= size;
-  std::cout << "size " << size << " Deallocate " << memloc << std::endl;
-  size_t total_memory = 0;
-  size_t free_memory = 0;
-  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);
-  std::cout << "total_memory " << total_memory << " free_memory " << free_memory << std::endl;
   return C_SUCCESS;
 }
 

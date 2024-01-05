@@ -15,14 +15,15 @@
 #pragma once
 
 #include <dlfcn.h>
+
 #include "acl/acl.h"
 #include "glog/logging.h"
+#include "kernels/funcs/format_utils.h"
 #include "kernels/funcs/npu_op_prepare.h"
 #include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
-#include "kernels/funcs/format_utils.h"
 
 using NPUAttribute = paddle::variant<paddle::blank,
                                      int,
@@ -57,13 +58,13 @@ typedef aclTensor* (*_aclCreateTensor)(const int64_t* view_dims,
                                        const int64_t* storage_dims,
                                        uint64_t storage_dims_num,
                                        void* tensor_data);
-typedef aclScalar* (*_aclCreateScalar)(void* value, 
+typedef aclScalar* (*_aclCreateScalar)(void* value,
                                        aclDataType data_type);
-typedef aclIntArray* (*_aclCreateIntArray)(const int64_t* value, 
+typedef aclIntArray* (*_aclCreateIntArray)(const int64_t* value,
                                            uint64_t size);
 typedef aclFloatArray* (*_aclCreateFloatArray)
     (const float* value, uint64_t size);
-typedef aclBoolArray* (*_aclCreateBoolArray)(const bool* value, 
+typedef aclBoolArray* (*_aclCreateBoolArray)(const bool* value,
                                              uint64_t size);
 typedef aclTensorList* (*_aclCreateTensorList)
         (const aclTensor* const* value, uint64_t size);

@@ -84,7 +84,7 @@ std::vector<paddle::Tensor> LlamaLmHeadOp(const paddle::Tensor &hidden,
     g_llamaLmheadOp->operation_.reset(op);
   }
 
-  g_llamaLmheadOp->Execute(stream, inputs, outputs);
+  g_llamaLmheadOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(g_llamaLmheadOp->output_)};
 }

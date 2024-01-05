@@ -52,7 +52,7 @@ std::vector<paddle::Tensor> AtbAddOp(const paddle::Tensor &x, const paddle::Tens
 
   std::vector<const phi::DenseTensor *> outputs = {static_cast<const phi::DenseTensor *>(x.impl().get())};
 
-  g_atbAddOp->Execute(stream, inputs, outputs);
+  g_atbAddOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {x};
 }

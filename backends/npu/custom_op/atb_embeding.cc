@@ -71,7 +71,7 @@ std::vector<paddle::Tensor> AtbEmbedingOp(const paddle::Tensor &x, const paddle:
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(g_atbEmbedingOp->output_.get());
 
-  g_atbEmbedingOp->Execute(stream, inputs, outputs);
+  g_atbEmbedingOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(g_atbEmbedingOp->output_)};
 }

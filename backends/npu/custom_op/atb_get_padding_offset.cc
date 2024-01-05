@@ -76,7 +76,7 @@ std::vector<paddle::Tensor> AtbUnpadOp(const paddle::Tensor& input_ids,
   outputs.push_back(cum_offsets_out_tensor.get());
   outputs.push_back(padding_offset_tensor.get());
 
-  g_atbUnpadOp->Execute(stream, inputs, outputs);
+  g_atbUnpadOp->Execute(stream, inputs, outputs, dev_ctx);
 
   ids_remove_tensor->Resize(phi::make_ddim({1, token_num_cpu.data<int64_t>()[0]})); // 修改ids的shape为实际token数量
   return {paddle::Tensor(ids_remove_tensor), paddle::Tensor(cum_offsets_out_tensor), paddle::Tensor(padding_offset_tensor)};

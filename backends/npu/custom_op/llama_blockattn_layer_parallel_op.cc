@@ -532,7 +532,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                        slot_mapping_tensor,
                                        inputs);
     std::vector<const phi::DenseTensor *> outputs = {g_llamaBlockAttnEncoderOp->output_.get()};
-    g_llamaBlockAttnEncoderOp->Execute(stream, inputs, outputs, layer_id);
+    g_llamaBlockAttnEncoderOp->Execute(stream, inputs, outputs, dev_ctx, layer_id);
     return {paddle::Tensor(g_llamaBlockAttnEncoderOp->output_)};
   }
   PerpareLlamaBlockAttnDecoderInputs(hidden,
@@ -567,7 +567,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
                                      slot_mapping_tensor,
                                      inputs);
   std::vector<const phi::DenseTensor *> outputs = {g_llamaBlockAttnDecoderOp->output_.get()};
-  g_llamaBlockAttnDecoderOp->Execute(stream, inputs, outputs, layer_id);
+  g_llamaBlockAttnDecoderOp->Execute(stream, inputs, outputs, dev_ctx, layer_id);
   return {paddle::Tensor(g_llamaBlockAttnDecoderOp->output_)};
 }
 

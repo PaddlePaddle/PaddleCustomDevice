@@ -61,7 +61,7 @@ std::vector<paddle::Tensor> AtbPadOp(const paddle::Tensor& tmp_out,
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(out_tensor.get());
 
-  g_atbPadOp->Execute(stream, inputs, outputs);
+  g_atbPadOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(out_tensor)};
 }

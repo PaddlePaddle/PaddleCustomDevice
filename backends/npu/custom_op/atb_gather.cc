@@ -77,7 +77,7 @@ std::vector<paddle::Tensor> AtbGatherOp(const paddle::Tensor &x, const paddle::T
   std::vector<const phi::DenseTensor *> outputs;
   outputs.push_back(out_tensor.get());
 
-  g_atbGatherOp->Execute(stream, inputs, outputs);
+  g_atbGatherOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(out_tensor)};
 }

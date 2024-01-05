@@ -38,32 +38,29 @@ void PpAscendAtbOpBase::BuildVariantPack(std::vector<const phi::DenseTensor *> &
   }
 }
 
-void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size)
+void PpAscendAtbOpBase::SetWorkspace(uint64_t workspace_size, const phi::CustomContext * ctx)
 {
   if (workspace_size <= g_workspaceSize) {
     return;
   }
 
-  if (g_workspace) {
-    aclrtFree(g_workspace);
-    g_workspace = nullptr;
-    g_workspaceSize = 0;
-  }
-  int st = aclrtMalloc((void **)&g_workspace, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
-  PADDLE_ENFORCE_EQ(st,
-                    0,
-                    phi::errors::External("LayerOperation %s SetWorkspace MemMallocDevice,"
-                            "fail, ret: %d size %llu.", opName_, st, workspace_size));
+  std::cout << "SetWorkspace" << workspace_size << std::endl;
+  size_t total_memory = 0;
+  size_t free_memory = 0; 
+  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);  
+  
+  g_workspace->Resize(phi::make_ddim({workspace_size}));
+  ctx->Alloc(g_workspace, paddle::DataType::INT8);  
 
   g_workspaceSize = workspace_size;
 }
 
 atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                                      std::vector<const phi::DenseTensor *> &inTensors,
-                                     std::vector<const phi::DenseTensor *> &outTensors)
+                                     std::vector<const phi::DenseTensor *> &outTensors,
+                                     const phi::CustomContext * ctx)
 {
   uint64_t workspace_size;
-  stream_ = stream;
   BuildVariantPack(inTensors, outTensors);
 
   if(context_ == nullptr) {
@@ -77,11 +74,14 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                     phi::errors::External("Atb Layer %s Op Setup failed,"
                                           "ret message: %d .", opName_, st));
 
-  if (workspace_size > 0) {
-    SetWorkspace(workspace_size);
+  if (workspace_size >= 0) {
+    if (workspace_size < 512) { // 防止频繁申请释放内存，看情况调整
+        workspace_size = 512;
+    }
+    SetWorkspace(workspace_size, ctx);
   }
 
-  st = operation_->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
+  st = operation_->Execute(variantPacks_, (uint8_t *)g_workspace->data(), workspace_size, context_);
 
   return st;
 }
@@ -89,10 +89,10 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
 atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
                                      std::vector<const phi::DenseTensor *> &inTensors,
                                      std::vector<const phi::DenseTensor *> &outTensors,
+                                     const phi::CustomContext * ctx,
                                      int layerid)
 {
   uint64_t workspace_size;
-  stream_ = stream;
   BuildVariantPack(inTensors, outTensors);
 
   if(context_ == nullptr) {
@@ -109,10 +109,10 @@ atb::Status PpAscendAtbOpBase::Execute(aclrtStream stream,
     if (workspace_size < 209715200) { // 最低200M，防止频繁申请释放内存
         workspace_size = 209715200;
     }
-    SetWorkspace(workspace_size);
+    SetWorkspace(workspace_size, ctx);
   }
 
-  st = operations_.at(layerid)->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
+  st = operations_.at(layerid)->Execute(variantPacks_, (uint8_t *)g_workspace->data(), workspace_size, context_);
 
   return st;
 }

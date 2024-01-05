@@ -61,7 +61,7 @@ std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor& x,
     g_toppSamplingOp->operation_.reset(op);
   }
 
-  g_toppSamplingOp->Execute(stream, inputs, outputs);
+  g_toppSamplingOp->Execute(stream, inputs, outputs, dev_ctx);
 
   return {paddle::Tensor(out_probs_tensor), paddle::Tensor(out_ids_tensor)};
 }

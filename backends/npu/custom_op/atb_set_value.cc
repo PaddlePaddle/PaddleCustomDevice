@@ -121,7 +121,7 @@ void AtbSetValueOp(const paddle::Tensor& x,
             std::vector<const phi::DenseTensor *> outputs;
             outputs.resize(0);
 
-            g_atbsetvalue->Execute(stream, inputs, outputs);
+            g_atbsetvalue->Execute(stream, inputs, outputs, dev_ctx);
         }
     } else {
         if (diff_axis_num == 2 &&
@@ -148,7 +148,7 @@ void AtbSetValueOp(const paddle::Tensor& x,
             std::vector<const phi::DenseTensor *> outputs;
             outputs.resize(0);
 
-            g_atbsetvalue->Execute(stream, inputs, outputs);
+            g_atbsetvalue->Execute(stream, inputs, outputs, dev_ctx);
         } else {
             atb::Operation *op = nullptr;
             atb::infer::SetValueParam param;
@@ -217,7 +217,7 @@ void AtbSetValueOp(const paddle::Tensor& x,
             std::vector<const phi::DenseTensor *> outputs;
             outputs.resize(0);
 
-            g_atbsetvalue->Execute(stream, inputs, outputs);
+            g_atbsetvalue->Execute(stream, inputs, outputs, dev_ctx);
             }
         }
     }

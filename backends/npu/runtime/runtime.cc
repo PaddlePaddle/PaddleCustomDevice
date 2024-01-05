@@ -345,10 +345,18 @@ C_Status AsyncMemCpyD2H(const C_Device device,
   return C_SUCCESS;
 }
 
+size_t memloc = 0;
+
 C_Status Allocate(const C_Device device, void **ptr, size_t size) {
   SetDevice(device);
   void *data;
   aclrtMalloc(&data, size, ACL_MEM_MALLOC_HUGE_FIRST);
+  memloc += size;
+  std::cout << "size " << size << " Allocated " << memloc << std::endl;
+  size_t total_memory = 0;
+  size_t free_memory = 0;
+  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);
+  std::cout << "total_memory " << total_memory << " free_memory " << free_memory << std::endl << std::endl;
   if (data) {
     *ptr = data;
     return C_SUCCESS;
@@ -373,6 +381,12 @@ C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
   SetDevice(device);
   ACL_CHECK(aclrtFree(ptr));
+  memloc -= size;
+  std::cout << "size " << size << " Deallocate " << memloc << std::endl;
+  size_t total_memory = 0;
+  size_t free_memory = 0;
+  aclrtGetMemInfo(ACL_HBM_MEM, &free_memory, &total_memory);
+  std::cout << "total_memory " << total_memory << " free_memory " << free_memory << std::endl;
   return C_SUCCESS;
 }
 
@@ -537,54 +551,6 @@ C_Status XcclDestroyComm(C_CCLComm comm) {
   HCCL_CHECK(HcclCommDestroy(reinterpret_cast<HcclComm>(comm)));
   return C_SUCCESS;
 }
-
-#ifdef PADDLE_WITH_ASCEND_TRANSFORMER_ACC
-
-void PpAtbCommOp::BuildVariantPack(void *send_buf,
-                                    void *recv_buf,
-                                    size_t count,
-                                    C_DataType data_type)
-{
-  variantPacks_.inTensors.resize(1);
-  variantPacks_.inTensors.at(0) = ConvertCDataToAsdTensor(send_buf, count, data_type);
-
-  variantPacks_.outTensors.resize(1);
-  variantPacks_.outTensors.at(0) = ConvertCDataToAsdTensor(recv_buf, count, data_type);
-}
-
-atb::Status PpAtbCommOp::Execute(aclrtStream stream, void* send_buf, void* recv_buf, size_t count, C_DataType data_type)
-{
-  uint64_t workspace_size;
-  stream_ = stream;
-  BuildVariantPack(send_buf, recv_buf, count, data_type);
-
-  if(context_ == nullptr) {
-    atb::CreateContext(&context_);
-    context_->SetExecuteStream(stream);
-  }
-
-  atb::Status st = operation_->Setup(variantPacks_, workspace_size, context_);
-  PADDLE_ENFORCE_EQ(st,
-                    0,
-                    phi::errors::External("PpAtbCommOp %s Op Setup failed,"
-                                          "ret message: %d .", opName_, st));
-
-  if (workspace_size > 0) {
-    SetWorkspace(workspace_size);
-  }
-
-  st = operation_->Execute(variantPacks_, (uint8_t *)g_workspace, workspace_size, context_);
-
-  return st;
-}
-
-PpAtbCommOp::PpAtbCommOp(const std::string &modelName) : PpAscendAtbOpBase(modelName) {}
-
-PpAtbCommOp::~PpAtbCommOp() {}
-
-std::shared_ptr<PpAtbCommOp> g_AllReduceOp;
-
-#endif
 
 C_Status XcclAllReduce(void *send_buf,
                        void *recv_buf,

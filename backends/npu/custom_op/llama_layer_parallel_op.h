@@ -81,9 +81,10 @@ private:
 
 class PpAtbLlamaBlockAttnLayerParallelOp : public PpAscendAtbOpBase {
 public:
-  PpAtbLlamaBlockAttnLayerParallelOp(const std::string &modelName, int layer_num);
+  PpAtbLlamaBlockAttnLayerParallelOp(const std::string &modelName, int layer_num, bool isEncoder, bool isKvcacheInt8);
   ~PpAtbLlamaBlockAttnLayerParallelOp();
   phi::DenseTensor token_offset_tensor_;
+  phi::DenseTensor slot_mapping_tensor_; // 保存每个token在Cache中存储偏移，shape为[sum(seq_len_pre_batch)]
   void UpdateInputTensorAndParam(const paddle::Tensor &block_tables, const paddle::Tensor &seq_len, int32_t block_size);
 
 private:
@@ -92,6 +93,8 @@ private:
   void BindHostTensorForUpdateParam(atb::VariantPack &variantPack);
   atb::Tensor CreateBatchStatusAtbHostTensor();
   std::vector<int32_t> batch_status_param_;
+  bool isEncoder_ = true;
+  bool isKvcacheInt8_ = false;
 
 private:
   std::vector<int32_t> seq_len_param_;

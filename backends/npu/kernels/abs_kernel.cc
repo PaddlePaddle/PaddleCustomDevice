@@ -17,6 +17,7 @@
 #include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
+
 template <typename T, typename Context>
 void AclopAbsKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
@@ -88,6 +89,7 @@ PD_REGISTER_PLUGIN_KERNEL(abs,
                           int64_t) {
   kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }
+
 PD_REGISTER_PLUGIN_KERNEL(abs_grad,
                           npu,
                           ALL_LAYOUT,

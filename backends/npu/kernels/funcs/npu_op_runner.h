@@ -104,7 +104,7 @@ inline void* GetOpApiFuncAddrInLib(void* handler,
 
 inline void* GetOpApiLibHandler(const char* libName) {
   auto handler = dlopen(libName, RTLD_LAZY);
-  if (handler == nullptr) {
+  if (handler == nullptr && libName != "libcust_opapi.so") {
     printf("dlopen %s failed, error:%s.", libName, dlerror());
   }
   return handler;

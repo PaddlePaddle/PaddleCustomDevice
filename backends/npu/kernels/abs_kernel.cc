@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/common/type_traits.h"
@@ -32,11 +31,18 @@ void AbsKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
+#if (CANN_VERSION_CODE >= 700000)
   DO_COMPATIBILITY(
       aclnnAbs, (custom_kernel::AclopAbsKernel<T, Context>(dev_ctx, x, out)));
   auto size = sizeof(T);
   EXEC_NPU_CMD(aclnnAbs, size, dev_ctx, x, *out);
+#else
+    auto stream = dev_ctx.stream();
+    const auto& runner = NpuOpRunner("Abs", {x}, {*out}, {});
+    runner.Run(stream);
+#endif
 }
+
 template <typename T, typename Context>
 void AclopAbsGradKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
@@ -54,12 +60,18 @@ void AbsGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
-  auto size = sizeof(T);
-  DO_COMPATIBILITY(
-      aclnnSign,
-      (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
-  EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
-  EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
+#if (CANN_VERSION_CODE >= 700000)
+    auto size = sizeof(T);
+    DO_COMPATIBILITY(
+        aclnnSign,
+        (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
+    EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
+    EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
+#else
+    auto stream = dev_ctx.stream();
+    const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
+    runner.Run(stream);
+#endif
 }
 
 }  // namespace custom_kernel

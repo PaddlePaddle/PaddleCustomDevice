@@ -39,9 +39,9 @@ void AbsKernel(const Context& dev_ctx,
   auto size = sizeof(T);
   EXEC_NPU_CMD(aclnnAbs, size, dev_ctx, x, *out);
 #else
-    auto stream = dev_ctx.stream();
-    const auto& runner = NpuOpRunner("Abs", {x}, {*out}, {});
-    runner.Run(stream);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Abs", {x}, {*out}, {});
+  runner.Run(stream);
 #endif
 }
 
@@ -63,16 +63,16 @@ void AbsGradKernel(const Context& dev_ctx,
                    phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 #if (CANN_VERSION_CODE >= 700000)
-    auto size = sizeof(T);
-    DO_COMPATIBILITY(
-        aclnnSign,
-        (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
-    EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
-    EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
+  auto size = sizeof(T);
+  DO_COMPATIBILITY(
+      aclnnSign,
+      (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
+  EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
+  EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
 #else
-    auto stream = dev_ctx.stream();
-    const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
-    runner.Run(stream);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("AbsGrad", {x, dout}, {*dx}, {});
+  runner.Run(stream);
 #endif
 }
 

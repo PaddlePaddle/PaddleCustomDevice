@@ -11,9 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/common/type_traits.h"
+
 namespace custom_kernel {
 template <typename T, typename Context>
 void AclopAbsKernel(const Context& dev_ctx,

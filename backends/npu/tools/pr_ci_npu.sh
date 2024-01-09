@@ -133,7 +133,14 @@ function main() {
     set -e
     # read disable ut list
     IFS=$'\n'
-    disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+    if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+    elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b")
+    else
+      echo "Please make sure Ascend 910A or 910B NPUs exists!"
+      exit 1
+    fi
     disable_ut_list=''
     while read -r line; do
         res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)

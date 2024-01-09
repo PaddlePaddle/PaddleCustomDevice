@@ -21,8 +21,8 @@
 
 static const uint64_t IN_TENSOR_COUNT = 26;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 18;
-static const uint64_t NODE_COUNT = 17;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 16;
+static const uint64_t NODE_COUNT = 15;
 
 static void reshapeHeads(const atb::Dims &oldShape, atb::Dims &newShape, int headNum)
 {
@@ -55,14 +55,12 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
     atb::Node &ropeNode  = opGraph.nodes.at(nodeId++);
     atb::Node &reshapeAndCacheNode = opGraph.nodes.at(nodeId++);
     atb::Node &attentionNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &outShiftAddNode  = opGraph.nodes.at(nodeId++);
     atb::Node &outSmoothMulNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfOutQuantNode = opGraph.nodes.at(nodeId++);
     atb::Node &selfOutLinearParallelNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfResidualAddNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfNormNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mlpNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &mlpShiftAddNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mlpSmoothMulNode  = opGraph.nodes.at(nodeId++);
     atb::Node &mlpQuantNode = opGraph.nodes.at(nodeId++);
     atb::Node &mlpLinearParallelNode   = opGraph.nodes.at(nodeId++);
@@ -190,23 +188,17 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
         };
     }
 
-    atb::infer::ElewiseParam outShiftAddParam;
-    outShiftAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(outShiftAddParam, &outShiftAddNode.operation);
-    outShiftAddNode.inTensorIds = {INTERMIDATE_SELFOUT_SMOOTH, IN_SELFOUTLINEARSHIFT_SMOOTH};
-    outShiftAddNode.outTensorIds = {IINTERMIDATE_SELFOUTLINEARADDSHIFTOUT_SMOOTH};
-    outShiftAddNode.inTensorReshapeFuncs.resize(outShiftAddNode.inTensorIds.size());
-    outShiftAddNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
+    atb::infer::ElewiseParam outSmoothMulParam;
+    outSmoothMulParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
+    atb::CreateOperation(outSmoothMulParam, &outSmoothMulNode.operation);
+    outSmoothMulNode.inTensorIds = {INTERMIDATE_SELFOUT_SMOOTH, IN_SELFOUTLINEARSMOOTH_SMOOTH};
+    outSmoothMulNode.outTensorIds = {IINTERMIDATE_SELFOUTLINEARMULSMOOTHOUT_SMOOTH};
+    outSmoothMulNode.inTensorReshapeFuncs.resize(outSmoothMulNode.inTensorIds.size());
+    outSmoothMulNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         newShape.dimNum = 2;  // dimNum is 2
         newShape.dims[0] = oldShape.dims[0];
         newShape.dims[1] = oldShape.dims[1] * oldShape.dims[2];
     };
-
-    atb::infer::ElewiseParam outSmoothMulParam;
-    outSmoothMulParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
-    atb::CreateOperation(outSmoothMulParam, &outSmoothMulNode.operation);
-    outSmoothMulNode.inTensorIds = {IINTERMIDATE_SELFOUTLINEARADDSHIFTOUT_SMOOTH, IN_SELFOUTLINEARSMOOTH_SMOOTH};
-    outSmoothMulNode.outTensorIds = {IINTERMIDATE_SELFOUTLINEARMULSMOOTHOUT_SMOOTH};
 
     atb::infer::ElewiseParam selfOutLinearParallelQuantParam;
     selfOutLinearParallelQuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_QUANT;
@@ -253,18 +245,10 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
     mlpNode.inTensorIds = {INTERMIDATE_SELFNORMOUT_SMOOTH, IN_MLPGATEUPWEIGHT_SMOOTH, IN_MLPDEQSCALE_SMOOTH};
     mlpNode.outTensorIds = {INTERMIDATE_MLPOUT_SMOOTH};
 
-
-    atb::infer::ElewiseParam mlpShiftAddParam;
-    mlpShiftAddParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_ADD;
-    atb::CreateOperation(mlpShiftAddParam, &mlpShiftAddNode.operation);
-    mlpShiftAddNode.inTensorIds = {INTERMIDATE_MLPOUT_SMOOTH, IN_MLPDOWNSHIFT_SMOOTH};
-    mlpShiftAddNode.outTensorIds = {IINTERMIDATE_MLPDOWNADDSHIFTOUT_SMOOTH};
-    mlpShiftAddNode.inTensorReshapeFuncs.resize(mlpShiftAddNode.inTensorIds.size());
-
     atb::infer::ElewiseParam mlpSmoothMulParam;
     mlpSmoothMulParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
     atb::CreateOperation(mlpSmoothMulParam, &mlpSmoothMulNode.operation);
-    mlpSmoothMulNode.inTensorIds = {IINTERMIDATE_MLPDOWNADDSHIFTOUT_SMOOTH, IN_MLPDOWNSMOOTH_SMOOTH};
+    mlpSmoothMulNode.inTensorIds = {INTERMIDATE_MLPOUT_SMOOTH, IN_MLPDOWNSMOOTH_SMOOTH};
     mlpSmoothMulNode.outTensorIds = {IINTERMIDATE_MLPDOWNMULSMOOTHOUT_SMOOTH};
 
     atb::infer::ElewiseParam mlpLinearParallelQuantParam;

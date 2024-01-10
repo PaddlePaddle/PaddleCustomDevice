@@ -482,8 +482,6 @@ std::vector<paddle::Tensor> LlamaBlockAttnLayerParallelOp(
   if (layer_id == 0) {
     if (g_isEncoder) {
       g_llamaBlockAttnEncoderOp->output_->Resize(phi::make_ddim(hidden.shape()));
-      dev_ctx->Alloc(g_llamaBlockAttnEncoderOp->output_.get(), 
-        static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());
       g_llamaBlockAttnEncoderOp->UpdateInputTensorAndParam(block_tables, encoder_seq_len, block_size);
     } else {
       g_llamaBlockAttnDecoderOp->output_->Resize(phi::make_ddim(hidden.shape()));

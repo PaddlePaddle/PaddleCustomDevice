@@ -55,10 +55,12 @@ def addPasses(pass_builder, model_type):
         register_pass(pass_builder, "llama_fuse_attention_dynamic_parallel_others_65B")
         register_pass(pass_builder, "remove_fused_bias_residual_layernorm")
         register_pass(pass_builder, "llama_lmhead_quant")
+        register_pass(pass_builder, "replace_embeding")
     elif model_type == "llama65B_mp8_smooth":
         register_pass(pass_builder, "llama_fuse_attention_dynamic_smooth_parallel_first_65B")
         register_pass(pass_builder, "llama_fuse_attention_dynamic_smooth_parallel_others_65B")
         register_pass(pass_builder, "remove_fused_bias_residual_layernorm")
         register_pass(pass_builder, "llama_lmhead_quant")
+        register_pass(pass_builder, "replace_embeding")
     else:
         print("NPU pass not support")

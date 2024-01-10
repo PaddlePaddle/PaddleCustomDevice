@@ -612,16 +612,10 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
     std::vector<int64_t> input_ids_shape = input_ids.shape();
     const int bsz = seq_len.shape()[0];
     const int seq_length = input_ids_shape[1];
-    auto cum_offsets_out = cum_offsets.copy_to(cum_offsets.place(), true);
     auto cpu_token_num = token_num.copy_to(paddle::CPUPlace(), true);
 
     const int token_num_data = cpu_token_num.data<int64_t>()[0];
     std::cout << "get_padding_offset_v2  token_num_data:" << token_num_data << std::endl;
-    auto x_remove_padding = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT64, input_ids.place());
-    auto padding_offset = paddle::full({bsz * seq_length}, 0, paddle::DataType::INT32, input_ids.place());
-    auto cu_seqlens_q = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
-    auto cu_seqlens_k = paddle::full({bsz + 1}, 0, paddle::DataType::INT32, input_ids.place());
-
 
     auto input_ids_tensor = static_cast<const phi::DenseTensor*>(input_ids.impl().get());
     auto cum_offsets_tensor = static_cast<const phi::DenseTensor*>(cum_offsets.impl().get());
@@ -629,11 +623,25 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
     auto seq_len_tensor = static_cast<const phi::DenseTensor*>(seq_len.impl().get());
     token_num_tensor->Resize(phi::make_ddim({1, 1}));
 
-    auto x_remove_padding_out_tensor = static_cast<phi::DenseTensor*>(x_remove_padding.impl().get());
-    auto cum_offsets_out_tensor = static_cast<const phi::DenseTensor*>(cum_offsets_out.impl().get());
-    auto padding_offset_tensor = static_cast<phi::DenseTensor*>(padding_offset.impl().get());
-    auto cu_seqlens_q_tensor = static_cast<const phi::DenseTensor*>(cu_seqlens_q.impl().get());
-    auto cu_seqlens_k_tensor = static_cast<const phi::DenseTensor*>(cu_seqlens_k.impl().get());
+    std::shared_ptr<phi::DenseTensor> x_remove_padding_out_tensor = std::make_shared<phi::DenseTensor>();
+    x_remove_padding_out_tensor->Resize(phi::make_ddim({bsz * seq_length}));
+    dev_ctx->Alloc(x_remove_padding_out_tensor.get(), paddle::DataType::INT64);
+
+    std::shared_ptr<phi::DenseTensor> cum_offsets_out_tensor = std::make_shared<phi::DenseTensor>();
+    cum_offsets_out_tensor->Resize(cum_offsets_tensor->dims());
+    dev_ctx->Alloc(cum_offsets_out_tensor.get(), cum_offsets_tensor->dtype());
+
+    std::shared_ptr<phi::DenseTensor> padding_offset_tensor = std::make_shared<phi::DenseTensor>();
+    padding_offset_tensor->Resize(phi::make_ddim({bsz * seq_length}));
+    dev_ctx->Alloc(padding_offset_tensor.get(), paddle::DataType::INT32);
+
+    std::shared_ptr<phi::DenseTensor> cu_seqlens_q_tensor = std::make_shared<phi::DenseTensor>();
+    cu_seqlens_q_tensor->Resize(phi::make_ddim({bsz + 1}));
+    dev_ctx->Alloc(cu_seqlens_q_tensor.get(), paddle::DataType::INT32);
+
+    std::shared_ptr<phi::DenseTensor> cu_seqlens_k_tensor = std::make_shared<phi::DenseTensor>();
+    cu_seqlens_k_tensor->Resize(phi::make_ddim({bsz + 1}));
+    dev_ctx->Alloc(cu_seqlens_k_tensor.get(), paddle::DataType::INT32);
 
     std::vector<phi::DenseTensor> inputs = {*input_ids_tensor,
                                             *cum_offsets_tensor,
@@ -652,7 +660,11 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
 
     x_remove_padding_out_tensor->Resize(phi::make_ddim({1, token_num_data})); // 补一个1，作为bs维
 
-    return {x_remove_padding, cum_offsets_out, padding_offset, cu_seqlens_q, cu_seqlens_k}; // , enc_token_num, dec_token_num};
+    return {paddle::Tensor(x_remove_padding_out_tensor),
+            paddle::Tensor(cum_offsets_out_tensor),
+            paddle::Tensor(padding_offset_tensor),
+            paddle::Tensor(cu_seqlens_q_tensor),
+            paddle::Tensor(cu_seqlens_k_tensor)};
 }
 
 std::vector<std::vector<int64_t>> GetPaddingOffsetV2InferShape(const std::vector<int64_t>& input_ids_shape,

@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 from numpy import linalg as LA
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -62,6 +62,34 @@ class TestL2LossOpFp16(OpTest):
         X[np.abs(X) < self.max_relative_error] = 0.1
         self.inputs = {"X": X}
         self.outputs = {"Out": np.square(LA.norm(X))}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(place=self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", max_relative_error=self.max_relative_error
+        )
+
+
+class TestL2LossOpBf16(OpTest):
+    """Test npu squared_l2_norm"""
+
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "squared_l2_norm"
+        self.max_relative_error = 0.05
+
+        X = convert_float_to_uint16(
+            np.random.uniform(-1, 1, (13, 19)).astype("float16")
+        )
+        X[np.abs(X) < self.max_relative_error] = 0.1
+        self.inputs = {"X": X}
+        self.outputs = {"Out": np.square(LA.norm(convert_uint16_to_float(X)))}
 
     def set_npu(self):
         self.__class__.use_custom_device = True

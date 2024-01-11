@@ -307,8 +307,6 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
   if (layer_id == 0) {
     if (g_isEncoder) {
       g_llamaBlockAttnSmoothEncoderOp->output_->Resize(phi::make_ddim(hidden.shape()));
-      dev_ctx->Alloc(g_llamaBlockAttnSmoothEncoderOp->output_.get(), 
-        static_cast<const phi::DenseTensor *>(hidden.impl().get())->dtype());
       g_llamaBlockAttnSmoothEncoderOp->UpdateInputTensorAndParam(block_tables, encoder_seq_len, block_size);
     } else {
       g_llamaBlockAttnSmoothDecoderOp->output_->Resize(phi::make_ddim(hidden.shape()));

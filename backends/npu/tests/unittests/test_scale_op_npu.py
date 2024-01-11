@@ -17,8 +17,10 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
+
+from npu_utils import check_soc_version
 
 paddle.enable_static()
 SEED = 2021
@@ -71,6 +73,34 @@ class TestScaleInt64(TestScale):
 class TestScaleDouble(TestScale):
     def init_dtype(self):
         self.dtype = np.double
+
+
+@check_soc_version
+class Testbf16Scale(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "scale"
+        self.place = paddle.CustomPlace("npu", 0)
+        self.init_dtype()
+
+        middle_inputs = np.random.random((10, 10)).astype(self.dtype)
+        middle_inputs = convert_float_to_uint16(middle_inputs)
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(middle_inputs)}
+        self.attrs = {"scale": -2.3, "bias": 0, "bias_after_scale": True}
+        self.outputs = {
+            "Out": (
+                convert_uint16_to_float(middle_inputs) * self.dtype(self.attrs["scale"])
+            ).astype(self.dtype)
+        }
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
 
 
 class TestBiasAfterScale(OpTest):

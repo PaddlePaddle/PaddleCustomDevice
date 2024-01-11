@@ -16,8 +16,10 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
+
+from npu_utils import check_soc_version
 
 paddle.enable_static()
 
@@ -77,6 +79,42 @@ class TestSqueeze2Op3(TestSqueeze2Op):
         self.ori_shape = (6, 1, 5, 1, 4, 1)
         self.axes = (1, -1)
         self.new_shape = (6, 5, 1, 4)
+
+
+# input x is bfloat16
+@check_soc_version
+class TestSqueeze2Op(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "squeeze2"
+        self.init_test_case()
+        middle_inputs = np.random.random(self.ori_shape).astype("float32")
+        middle_inputs = convert_float_to_uint16(middle_inputs)
+        self.inputs = {"X": middle_inputs}
+        self.init_attrs()
+        self.outputs = {
+            "Out": convert_uint16_to_float(middle_inputs).reshape(self.new_shape),
+            "XShape": np.random.random(self.ori_shape).astype("float32"),
+        }
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", 0), no_check_set=["XShape"]
+        )
+
+    def test_check_grad(self):
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+    def init_test_case(self):
+        self.ori_shape = (1, 3, 1, 40)
+        self.axes = (0, 2)
+        self.new_shape = (3, 40)
+
+    def init_attrs(self):
+        self.attrs = {"axes": self.axes}
 
 
 if __name__ == "__main__":

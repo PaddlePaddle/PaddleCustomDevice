@@ -15,17 +15,18 @@
 from __future__ import print_function
 import unittest
 import numpy as np
-
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle.base as base
 from paddle.base import Program, program_guard
 import paddle
+
+from npu_utils import check_soc_version
 
 paddle.enable_static()
 np.random.seed(10)
 
 
-# CANN Op Support X: float16, float32, int32, int8 ,uint8
+# CANN Op Support X: float16, bfloat16, float32, int32, int8 ,uint8
 # Situation 1: shape is a list(without tensor)
 class TestExpandV2NPUOpRank1(OpTest):
     def setUp(self):
@@ -197,7 +198,31 @@ class TestExpandV2OpFloat(OpTest):
         self.check_output_with_place(self.place)
 
 
-# Situation 5: input x is int32
+# Situation 5: input x is bfloat16
+# skip grad check for bfloat16
+@check_soc_version
+class TestExpandV2OpBfloat(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "expand_v2"
+        self.ori_shape = (2, 4, 20)
+        middle_inputs = np.random.random(self.ori_shape).astype(np.float32)
+        middle_inputs = convert_float_to_uint16(middle_inputs)
+        self.inputs = {"X": middle_inputs}
+        self.attrs = {"shape": [2, 4, 20]}
+        output = np.tile(convert_uint16_to_float(middle_inputs), (1, 1, 1))
+        self.outputs = {"Out": output}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=0.004)
+
+
+# Situation 6: input x is int32
 # skip grad check for int32
 class TestExpandV2OpInteger(OpTest):
     def init_dtype(self):
@@ -220,7 +245,7 @@ class TestExpandV2OpInteger(OpTest):
         self.check_output_with_place(self.place)
 
 
-# Situation 6: input x is float64
+# Situation 7: input x is float64
 # skip grad check for float64
 class TestExpandV2OpFloat64(OpTest):
     def setUp(self):

@@ -31,7 +31,6 @@ static bool g_isEncoder = true;
 static bool first_run = true;
 static paddle::Tensor norm_blank_bias; 
 static paddle::Tensor self_out_norm_blank_bias;
-static paddle::Tensor empty_offset;
 
 void PerpareLlamaBlockAttnSmoothEncoderInputs(
     const paddle::Tensor &hidden,
@@ -320,7 +319,6 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
   if (first_run) {
       norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
       self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
-      empty_offset = paddle::full({}, 0, paddle::DataType::INT8, hidden.place());
       first_run = false;
   }
 

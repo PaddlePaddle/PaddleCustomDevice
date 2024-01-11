@@ -160,3 +160,16 @@ def save_with_output_delay_pass_2nd():
         return save_with_output_0, save_with_output_1
 
     return pattern, replace
+
+@ir.RegisterPass
+def remove_get_max_len():
+    def pattern(seq_lens_decoder, seq_lens_encoder):
+        get_max_len_out = ir.PassDesc.OP.get_max_len(
+            seq_lens_decoder=seq_lens_decoder, seq_lens_encoder=seq_lens_encoder)
+        seq_lens_decoder_out = get_max_l en_out.Output("seq_lens_decoder_out")[0]
+        seq_lens_encoder_out = get_max_len_out.Output("seq_lens_encoder_out")[0]
+        return seq_lens_decoder_out, seq_lens_encoder_out
+
+    def replace(seq_lens_decoder, seq_lens_encoder):
+        return seq_lens_decoder, seq_lens_encoder
+    return pattern, replace

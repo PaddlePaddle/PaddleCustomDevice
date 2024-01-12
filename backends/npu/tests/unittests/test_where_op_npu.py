@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 import paddle.base as base
 from paddle.base.backward import append_backward
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 
 paddle.enable_static()
 
@@ -67,6 +67,30 @@ class TestNPUWhereFp16(TestNPUWhereOp):
     def init_config(self):
         self.x = np.random.uniform(-5, 5, (60, 2)).astype("float16")
         self.y = np.random.uniform(-5, 5, (60, 2)).astype("float16")
+        self.cond = np.ones((60, 2)).astype("bool")
+
+
+class TestNPUWhereBF16(TestNPUWhereOp):
+    def setUp(self):
+        self.op_type = "where"
+        self.set_npu()
+        self.init_config()
+        self.inputs = {"Condition": self.cond, "X": self.x, "Y": self.y}
+        self.outputs = {
+            "Out": np.where(
+                self.cond,
+                convert_uint16_to_float(self.x),
+                convert_uint16_to_float(self.y),
+            )
+        }
+
+    def init_config(self):
+        self.x = convert_float_to_uint16(
+            np.random.uniform(-5, 5, (60, 2)).astype("float16")
+        )
+        self.y = convert_float_to_uint16(
+            np.random.uniform(-5, 5, (60, 2)).astype("float16")
+        )
         self.cond = np.ones((60, 2)).astype("bool")
 
 

@@ -147,6 +147,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply,
@@ -158,6 +159,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
@@ -168,4 +170,5 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}

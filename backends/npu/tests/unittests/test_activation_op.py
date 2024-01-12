@@ -22,7 +22,7 @@ from scipy.special import erf, expit
 import paddle
 import paddle.base as base
 import paddle.nn.functional as F
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 from tests.utils import static_guard
 
 paddle.enable_static()
@@ -1117,6 +1117,21 @@ class TestSin_ZeroDim(TestSin):
         self.shape = []
 
 
+class TestSinBF16(TestSin):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "sin"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = np.sin(convert_uint16_to_float(convert_float_to_uint16(x)))
+
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.outputs = {"Out": out}
+
+
 def ref_swish(x):
     out = x * expit(x)
     return out
@@ -1232,6 +1247,20 @@ class TestSilu(TestActivation):
 class TestSilu_ZeroDim(TestSilu):
     def init_shape(self):
         self.shape = []
+
+
+class TestSiluBF16(TestSilu):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "silu"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = x / (np.exp(-convert_uint16_to_float(convert_float_to_uint16(x))) + 1)
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.outputs = {"Out": out}
 
 
 class TestSiluAPI(unittest.TestCase):

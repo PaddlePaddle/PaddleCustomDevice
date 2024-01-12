@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 
 paddle.enable_static()
 SEED = 2021
@@ -61,6 +61,30 @@ class TestRsqrt(OpTest):
 class TestRsqrtDouble(TestRsqrt):
     def init_dtype(self):
         self.dtype = np.double
+
+
+class TestRsqrtFP16(TestRsqrt):
+    def init_dtype(self):
+        self.dtype = np.float16
+
+
+class TestRsqrtBF16(TestRsqrt):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "rsqrt"
+        self.place = paddle.CustomPlace("npu", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [11, 17]).astype(self.dtype)
+        out = 1.0 / np.sqrt(convert_uint16_to_float(convert_float_to_uint16(x)))
+
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.attrs = {}
+        self.outputs = {"Out": out}
+
+    def init_dtype(self):
+        self.dtype = np.float32
 
 
 if __name__ == "__main__":

@@ -121,7 +121,8 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze_infer,
                           int8_t,
                           int64_t,
                           phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<double>,
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           npu,

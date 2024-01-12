@@ -82,7 +82,6 @@ class TestSqueeze2Op3(TestSqueeze2Op):
 
 
 # input x is bfloat16
-@check_soc_version
 class TestSqueeze2Op(OpTest):
     def setUp(self):
         self.set_npu()
@@ -100,11 +99,13 @@ class TestSqueeze2Op(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(
             paddle.CustomPlace("npu", 0), no_check_set=["XShape"]
         )
 
+    @check_soc_version
     def test_check_grad(self):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 

@@ -200,7 +200,6 @@ class TestExpandV2OpFloat(OpTest):
 
 # Situation 5: input x is bfloat16
 # skip grad check for bfloat16
-@check_soc_version
 class TestExpandV2OpBfloat(OpTest):
     def setUp(self):
         self.set_npu()
@@ -218,6 +217,7 @@ class TestExpandV2OpBfloat(OpTest):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=0.004)
 

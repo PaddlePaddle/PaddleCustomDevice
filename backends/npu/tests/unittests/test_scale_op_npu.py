@@ -75,7 +75,6 @@ class TestScaleDouble(TestScale):
         self.dtype = np.double
 
 
-@check_soc_version
 class Testbf16Scale(OpTest):
     def setUp(self):
         self.set_npu()
@@ -99,6 +98,7 @@ class Testbf16Scale(OpTest):
     def init_dtype(self):
         self.dtype = np.float32
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place)
 

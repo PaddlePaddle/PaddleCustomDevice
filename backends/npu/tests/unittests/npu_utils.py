@@ -14,9 +14,11 @@
 
 import paddle_custom_device
 
+
 def check_soc_version(func):
     def wrapper(self):
         if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
             return func(self)
         return
+
     return wrapper

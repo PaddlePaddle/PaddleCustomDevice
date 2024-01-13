@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
 import paddle_custom_device
 
 
@@ -19,6 +20,6 @@ def check_soc_version(func):
     def wrapper(self):
         if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
             return func(self)
-        return
+        return unittest.skip("Skipping the test case since cann is not 7.x")(func)(self)
 
     return wrapper

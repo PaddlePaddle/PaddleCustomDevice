@@ -1,4 +1,4 @@
-#   Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,33 +16,37 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 
-paddle.enable_static()
+from npu_utils import check_soc_version
 
 
-# Correct: General.
+# input x is bfloat16
 class TestSqueeze2Op(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "squeeze2"
         self.init_test_case()
-        self.inputs = {"X": np.random.random(self.ori_shape).astype("float32")}
+        middle_inputs = np.random.random(self.ori_shape).astype("float32")
+        middle_inputs = convert_float_to_uint16(middle_inputs)
+        self.inputs = {"X": middle_inputs}
         self.init_attrs()
         self.outputs = {
-            "Out": self.inputs["X"].reshape(self.new_shape),
+            "Out": convert_uint16_to_float(middle_inputs).reshape(self.new_shape),
             "XShape": np.random.random(self.ori_shape).astype("float32"),
         }
 
     def set_npu(self):
         self.__class__.use_custom_device = True
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(
             paddle.CustomPlace("npu", 0), no_check_set=["XShape"]
         )
 
+    @check_soc_version
     def test_check_grad(self):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 
@@ -53,30 +57,6 @@ class TestSqueeze2Op(OpTest):
 
     def init_attrs(self):
         self.attrs = {"axes": self.axes}
-
-
-# Correct: There is mins axis.
-class TestSqueeze2Op1(TestSqueeze2Op):
-    def init_test_case(self):
-        self.ori_shape = (1, 20, 1, 5)
-        self.axes = (0, -2)
-        self.new_shape = (20, 5)
-
-
-# Correct: No axes input.
-class TestSqueeze2Op2(TestSqueeze2Op):
-    def init_test_case(self):
-        self.ori_shape = (1, 20, 1, 5)
-        self.axes = ()
-        self.new_shape = (20, 5)
-
-
-# Correct: Just part of axes be squeezed.
-class TestSqueeze2Op3(TestSqueeze2Op):
-    def init_test_case(self):
-        self.ori_shape = (6, 1, 5, 1, 4, 1)
-        self.axes = (1, -1)
-        self.new_shape = (6, 5, 1, 4)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,6 @@ class TestExpandV2OpBfloat(OpTest):
         self.attrs = {"shape": [2, 4, 20]}
         output = np.tile(convert_uint16_to_float(middle_inputs), (1, 1, 1))
         self.outputs = {"Out": output}
-        self.__class__.op_type = self.op_type
 
     def set_npu(self):
         self.__class__.use_custom_device = True

@@ -36,7 +36,6 @@ class TestSqueeze2Op(OpTest):
             "Out": convert_uint16_to_float(middle_inputs).reshape(self.new_shape),
             "XShape": np.random.random(self.ori_shape).astype("float32"),
         }
-        self.__class__.op_type = self.op_type
 
     def set_npu(self):
         self.__class__.use_custom_device = True

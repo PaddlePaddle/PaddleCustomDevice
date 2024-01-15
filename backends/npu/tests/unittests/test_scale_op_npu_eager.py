@@ -40,6 +40,7 @@ class Testbf16Scale(OpTest):
                 convert_uint16_to_float(middle_inputs) * self.dtype(self.attrs["scale"])
             ).astype(self.dtype)
         }
+        self.__class__.op_type = self.op_type
 
     def set_npu(self):
         self.__class__.use_custom_device = True

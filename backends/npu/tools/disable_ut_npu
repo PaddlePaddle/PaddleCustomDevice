@@ -11,5 +11,6 @@ test_matmul_op_npu
 test_linear_op_npu
 test_compare_op_npu
 test_elementwise_sub_op_npu
+test_stack_op_npu
+test_concat_op_npu
 test_index_sample_op_npu
-test_rmsprop_op_npu

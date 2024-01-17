@@ -78,6 +78,13 @@ void DropoutRawKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<uint8_t>(mask);
   }
 
+  if (dropout_prob == 0.0f) {
+    TensorCopy(dev_ctx, x, false, out);
+    FillNpuTensorWithConstant<uint8_t>(
+        mask, dev_ctx, static_cast<uint8_t>(255));
+    return;
+  }
+
   if (dropout_prob == 1.) {
     const auto& runner_zeros_out = NpuOpRunner("ZerosLike", {*out}, {*out});
     runner_zeros_out.Run(stream);

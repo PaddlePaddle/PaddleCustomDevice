@@ -36,10 +36,10 @@ static inline int64_t ComputeAxis(int64_t axis, int64_t rank) {
 }
 
 template <typename T, typename Context>
-void ConcatKernel(const Context& dev_ctx,
-                  const std::vector<const phi::DenseTensor*>& ins,
-                  const phi::Scalar& axis_scalar,
-                  phi::DenseTensor* out) {
+void AclopConcatKernel(const Context& dev_ctx,
+                       const std::vector<const phi::DenseTensor*>& ins,
+                       const phi::Scalar& axis_scalar,
+                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -119,6 +119,21 @@ void ConcatKernel(const Context& dev_ctx,
         NpuOpRunner("Cast", {out_fp32}, {*out}, {{"dst_type", ACL_DOUBLE}});
     cast_out.Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void ConcatKernel(const Context& dev_ctx,
+                  const std::vector<const phi::DenseTensor*>& ins,
+                  const phi::Scalar& axis_scalar,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnCat,
+                   (custom_kernel::AclopConcatKernel<T, Context>(
+                       dev_ctx, ins, axis_scalar, out)));
+  int axis = axis_scalar.to<int>();
+  axis = ComputeAxis(static_cast<int64_t>(axis),
+                     static_cast<int64_t>(ins[0]->dims().size()));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnCat, dev_ctx, ins, axis, *out);
 }
 
 template <typename T, typename Context>

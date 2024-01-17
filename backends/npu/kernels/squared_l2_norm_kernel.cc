@@ -26,9 +26,49 @@ void SquaredL2NormKernel(const Context& dev_ctx,
   }
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner(
-      "SquareSumV1", {x}, {*out}, {{"axis", axis}, {"keep_dims", false}});
-  runner.Run(stream);
+
+  phi::DenseTensor result_square;
+  result_square.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&result_square);
+  const auto& mul_runner = NpuOpRunner("Mul", {x, x}, {result_square}, {});
+  mul_runner.Run(stream);
+
+  NpuOpRunner reduce_sum_runner;
+  if (x.dtype() == phi::DataType::FLOAT16) {
+    phi::DenseTensor cast_result_square;
+    phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, {}};
+    cast_result_square.set_meta(meta);
+    cast_result_square.Resize(result_square.dims());
+    dev_ctx.template Alloc<float>(&cast_result_square);
+    const auto& cast_runner1 = NpuOpRunner("Cast",
+                                           {result_square},
+                                           {cast_result_square},
+                                           {{"dst_type", ACL_FLOAT}});
+    cast_runner1.Run(stream);
+
+    phi::DenseTensor cast_out;
+    cast_out.set_meta(meta);
+    cast_out.Resize(out->dims());
+    dev_ctx.template Alloc<float>(&cast_out);
+
+    reduce_sum_runner.SetType("ReduceSum")
+        .AddInput(cast_result_square)
+        .AddInput(dev_ctx, std::move(axis))
+        .AddOutput(cast_out)
+        .AddAttr("keep_dim", false)
+        .Run(stream);
+
+    const auto& cast_runner2 =
+        NpuOpRunner("Cast", {cast_out}, {*out}, {{"dst_type", ACL_FLOAT16}});
+    cast_runner2.Run(stream);
+  } else {
+    reduce_sum_runner.SetType("ReduceSum")
+        .AddInput(result_square)
+        .AddInput(dev_ctx, std::move(axis))
+        .AddOutput(*out)
+        .AddAttr("keep_dim", false)
+        .Run(stream);
+  }
 }
 
 template <typename T, typename Context>

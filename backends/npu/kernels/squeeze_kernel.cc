@@ -70,6 +70,7 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze_infer,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squeeze,
@@ -83,6 +84,7 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squeeze_grad,
@@ -96,4 +98,5 @@ PD_REGISTER_PLUGIN_KERNEL(squeeze_grad,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}

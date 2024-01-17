@@ -146,6 +146,14 @@ void ExpandKernel(const Context& dev_ctx,
                              op_func,
                              {phi::DataType::FLOAT32},
                              {phi::DataType::FLOAT32});
+  } else if (x.dtype() == phi::DataType::BFLOAT16) {
+    NpuOpRunner::TypeAdapter({x},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32},
+                             {phi::DataType::FLOAT32});
   } else {
     const auto& runner = NpuOpRunner("ExpandD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
@@ -223,7 +231,8 @@ PD_REGISTER_PLUGIN_KERNEL(expand,
                           int64_t,
                           double,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(expand_grad,
                           npu,
@@ -231,4 +240,5 @@ PD_REGISTER_PLUGIN_KERNEL(expand_grad,
                           custom_kernel::ExpandGradKernel,
                           int,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

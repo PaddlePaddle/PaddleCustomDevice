@@ -105,13 +105,13 @@ void BatchNormKernel(const Context& dev_ctx,
           "But received: the size of input's dimensions is [%d]",
           x_dims.size()));
 
-  // transform 3d tensor to 4d tensor to satisfy the format
-  if (x.dims().size() == 3) {
+  // transform 2d and 3d tensor to 4d tensor to satisfy the format
+  if (x.dims().size() <= 3) {
     auto x_shape_vec = phi::vectorize(x.dims());
     if (channel_last) {
       x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
     } else {
-      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+      x_shape_vec.resize(4, 1);  // expand NCL -> NCL1
     }
     auto x_new_shape = phi::make_ddim(x_shape_vec);
     x_tensor.Resize(x_new_shape);
@@ -346,7 +346,7 @@ void BatchNormGradKernel(
     if (channel_last) {
       x_shape_vec.insert(x_shape_vec.begin() + 2, 1);  // expand NLC -> NL1C
     } else {
-      x_shape_vec.push_back(1);  // expand NCL -> NCL1
+      x_shape_vec.resize(4, 1);  // expand NCL -> NCL1
     }
     auto x_new_shape = phi::make_ddim(x_shape_vec);
     x_tensor.Resize(x_new_shape);

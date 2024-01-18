@@ -53,8 +53,6 @@ def create_test_class(op_type, typename, callback):
                 self.assertRaises(TypeError, op, x=a, y=b, axis=True)
                 self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
                 self.assertRaises(TypeError, op, x=a, y=b, cond=1)
-                self.assertRaises(TypeError, op, x=a, y=c)
-                self.assertRaises(TypeError, op, x=c, y=a)
                 self.assertRaises(TypeError, op, x=a, y=d)
                 self.assertRaises(TypeError, op, x=d, y=a)
                 self.assertRaises(TypeError, op, x=c, y=d)

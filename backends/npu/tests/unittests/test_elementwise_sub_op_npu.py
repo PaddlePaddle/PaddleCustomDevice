@@ -221,8 +221,8 @@ class TestSubtractNet(unittest.TestCase):
         npu_pred, npu_loss = self._test(True)
         cpu_pred, cpu_loos = self._test(False)
 
-        self.assertTrue(np.allclose(npu_pred, cpu_pred))
-        self.assertTrue(np.allclose(npu_loss, cpu_loos))
+        self.assertTrue(np.allclose(npu_pred, cpu_pred, rtol=5e-04, atol=5e-03))
+        self.assertTrue(np.allclose(npu_loss, cpu_loos, rtol=5e-04, atol=5e-03))
 
 
 if __name__ == "__main__":

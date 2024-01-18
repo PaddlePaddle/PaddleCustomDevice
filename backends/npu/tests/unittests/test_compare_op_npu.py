@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-import paddle.base as base
 from paddle.base import Program, program_guard
 from tests.op_test import OpTest
 
@@ -44,20 +43,44 @@ def create_test_class(op_type, typename, callback):
         def test_errors(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
-                a = paddle.static.data(name="a", shape=[-1, 2], dtype="float32")
-                b = paddle.static.data(name="b", shape=[-1, 2], dtype="float32")
-                c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
-                d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
-
                 op = eval("paddle.%s" % self.op_type)
-                self.assertRaises(TypeError, op, x=a, y=b, axis=True)
-                self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
-                self.assertRaises(TypeError, op, x=a, y=b, cond=1)
-                self.assertRaises(TypeError, op, x=a, y=c)
-                self.assertRaises(TypeError, op, x=c, y=a)
-                self.assertRaises(TypeError, op, x=a, y=d)
-                self.assertRaises(TypeError, op, x=d, y=a)
-                self.assertRaises(TypeError, op, x=c, y=d)
+
+                dtype_list = [
+                    "float",
+                    "float32",
+                    "float64",
+                    "int8",
+                    "int16",
+                    "int32",
+                    "int64",
+                    "uint8",
+                ]
+
+                n = len(dtype_list)
+
+                for i in range(n):
+                    a = paddle.static.data(
+                        name=f"a_{i}", shape=[-1, 2], dtype=dtype_list[i]
+                    )
+                    b = paddle.static.data(
+                        name=f"b_{i}", shape=[-1, 2], dtype=dtype_list[i]
+                    )
+                    try:
+                        result = op(x=a, y=b)
+                    except TypeError:
+                        self.fail(
+                            f"TypeError should not raised for {dtype_list[i]} inputs"
+                        )
+                    for j in range(i + 1, n):
+                        c = paddle.static.data(
+                            name=f"c{i}_{j}", shape=[-1, 2], dtype=dtype_list[j]
+                        )
+                        try:
+                            result = op(x=a, y=c)
+                        except TypeError:
+                            self.fail(
+                                f"TypeError should not raised for {dtype_list[i]} and {dtype_list[j]} inputs"
+                            )
 
         def test_dynamic_api(self):
             paddle.disable_static()

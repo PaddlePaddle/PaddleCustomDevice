@@ -429,7 +429,6 @@ class TestBatchNormOpTraining(unittest.TestCase):
                     n, h, w, c = shape[0], shape[1], shape[2], shape[3]
             scale_shape = [c]
 
-            np.random.seed(123)
             x = np.random.random_sample(shape).astype(self.dtype)
             scale = np.random.random_sample(scale_shape).astype(np.float32)
             bias = np.random.random_sample(scale_shape).astype(np.float32)

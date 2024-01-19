@@ -21,6 +21,12 @@
 
 namespace custom_kernel {
 
+template <typename T, typename Context>
+void CastKernel(const Context &dev_ctx,
+                const phi::DenseTensor &x,
+                phi::DataType dtype,
+                phi::DenseTensor *out);
+
 size_t Alignment(size_t size, const phi::Place &place, int align_size) {
   size_t alignment = 0;
   if (align_size > 0) {
@@ -62,15 +68,20 @@ struct FillConstantVisitor {
     tensor_tmp.set_meta(meta);
     dev_ctx_.template Alloc<T>(&tensor_tmp);
     FillNpuTensorWithConstant<T>(&tensor_tmp, dev_ctx_, static_cast<T>(value_));
+    phi::DenseTensor tensor_cast;
+    tensor_cast.set_meta(meta);
+    dev_ctx_.template Alloc<T>(&tensor_cast);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx_, tensor_tmp, phi::DataType::INT32, &tensor_cast);
 
     if (tensor_->numel() > 1) {
-      const auto &runner =
-          NpuOpRunner("FillD",
-                      {tensor_tmp},
-                      {*tensor_},
-                      {{"dims", phi::vectorize(tensor_->dims())}});
+      NpuOpRunner runner;
       auto stream = dev_ctx_.stream();
-      runner.Run(stream);
+      runner.SetType("Fill")
+          .AddInput(dev_ctx_, phi::vectorize(tensor_->dims()))
+          .AddInput(tensor_tmp)
+          .AddOutput(*tensor_)
+          .Run(stream);
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.
       FillNpuTensorWithConstant<T>(tensor_, dev_ctx_, static_cast<T>(value_));

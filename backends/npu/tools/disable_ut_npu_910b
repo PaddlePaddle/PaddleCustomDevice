@@ -1,5 +1,4 @@
 disable_ut_npu
-test_activation_op
 test_assign_value_op_npu
 test_batch_norm_op_npu
 test_check_finite_and_unscale_op_npu

@@ -199,6 +199,26 @@ inline aclScalar* ConvertType(const phi::Scalar& at_scalar) {
       acl_scalar = aclCreateScalar(&value, acl_data_type);
       break;
     }
+    case phi::DataType::FLOAT64: {
+      double value = at_scalar.to<double>();
+      acl_scalar = aclCreateScalar(&value, acl_data_type);
+      break;
+    }
+    case phi::DataType::BOOL: {
+      bool value = at_scalar.to<bool>();
+      acl_scalar = aclCreateScalar(&value, acl_data_type);
+      break;
+    }
+    case phi::DataType::INT32: {
+      int value = at_scalar.to<int>();
+      acl_scalar = aclCreateScalar(&value, acl_data_type);
+      break;
+    }
+    case phi::DataType::INT64: {
+      int64_t value = at_scalar.to<int64_t>();
+      acl_scalar = aclCreateScalar(&value, acl_data_type);
+      break;
+    }
     default:
       acl_scalar = nullptr;
       break;
@@ -244,6 +264,22 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   return acl_tensor;
 }
 
+inline aclTensorList *ConvertType(
+const std::vector<const phi::DenseTensor*> &phi_tensor_list) {
+  static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
+  if (aclCreateTensorList == nullptr) {
+    return nullptr;
+  }
+
+  std::vector<const aclTensor *> tensor_list(phi_tensor_list.size());
+  for (size_t i = 0; i < phi_tensor_list.size(); i++) {
+    tensor_list[i] = ConvertType(*phi_tensor_list[i]);
+  }
+  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
+                                            tensor_list.size());
+  return acl_tensor_list;
+}
+
 template <typename T>
 T ConvertType(T value) {
   return value;
@@ -281,64 +317,65 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     std::make_index_sequence<size>{});
 }
 
-#define EXEC_NPU_CMD(aclnn_api, size, dev_ctx, ...)\
-  do {\
-    static const auto getWorkspaceSizeFuncAddr =\
-    GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");\
-    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);\
-    static const auto initMemAddr =\
-      GetOpApiFuncAddr("InitHugeMemThreadLocal");\
-    static const auto unInitMemAddr =\
-      GetOpApiFuncAddr("UnInitHugeMemThreadLocal");\
-    static const auto releaseMemAddr =\
-      GetOpApiFuncAddr("ReleaseHugeMem");\
-    auto acl_stream = (dev_ctx).stream();\
-    uint64_t workspace_size = 0;\
-    uint64_t* workspace_size_addr = &workspace_size;\
-    aclOpExecutor* executor = nullptr;\
-    aclOpExecutor** executor_addr = &executor;\
-    InitHugeMemThreadLocal initMemFunc =\
-      reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);\
-    UnInitHugeMemThreadLocal unInitMemFunc =\
-      reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);\
-    auto converted_params =\
-      ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);\
-    static auto getWorkspaceSizeFunc =\
-      ConvertToOpApiFunc(converted_params, getWorkspaceSizeFuncAddr);\
-    auto workspace_status = call(getWorkspaceSizeFunc, converted_params);\
-    void* workspace_addr = nullptr;\
-    if (workspace_size != 0) {\
-      phi::Allocator::AllocationPtr workspace_tensor =\
-        const_cast<phi::Allocator &>((dev_ctx).GetAllocator()).\
-          Allocate(workspace_size * size);\
-      workspace_addr = reinterpret_cast<void*>(workspace_tensor->ptr());\
-    }\
-    if (unInitMemFunc) {\
-      unInitMemFunc(nullptr, false);\
-    }\
-    typedef int\
-      (*OpApiFunc)(void*, uint64_t, aclOpExecutor*, const aclrtStream);\
-    OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);\
-    auto api_ret =\
-      opApiFunc(workspace_addr, workspace_size, executor, acl_stream);\
-    ReleaseConvertTypes(converted_params);\
-    ReleaseHugeMem releaseMemFunc =\
-      reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);\
-    if (releaseMemFunc) {\
-      releaseMemFunc(nullptr, false);\
-    }\
+#define EXEC_NPU_CMD(aclnn_api, dev_ctx, ...)                             \
+  do {                                                                    \
+    static const auto getWorkspaceSizeFuncAddr =                          \
+    GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                      \
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \
+    static const auto initMemAddr =                                       \
+      GetOpApiFuncAddr("InitHugeMemThreadLocal");                         \
+    static const auto unInitMemAddr =                                     \
+      GetOpApiFuncAddr("UnInitHugeMemThreadLocal");                       \
+    static const auto releaseMemAddr =                                    \
+      GetOpApiFuncAddr("ReleaseHugeMem");                                 \
+    auto acl_stream = (dev_ctx).stream();                                 \
+    uint64_t workspace_size = 0;                                          \
+    uint64_t* workspace_size_addr = &workspace_size;                      \
+    aclOpExecutor* executor = nullptr;                                    \
+    aclOpExecutor** executor_addr = &executor;                            \
+    InitHugeMemThreadLocal initMemFunc =                                  \
+      reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);              \
+    UnInitHugeMemThreadLocal unInitMemFunc =                              \
+      reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);          \
+    auto converted_params =                                               \
+      ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);      \
+    static auto getWorkspaceSizeFunc =                                    \
+      ConvertToOpApiFunc(converted_params, getWorkspaceSizeFuncAddr);     \
+    auto workspace_status = call(getWorkspaceSizeFunc, converted_params); \
+    void* workspace_addr = nullptr;                                       \
+    if (workspace_size != 0) {                                            \
+      phi::Allocator::AllocationPtr workspace_tensor =                    \
+        const_cast<phi::Allocator &>((dev_ctx).GetAllocator()).           \
+          Allocate(workspace_size);                                       \
+      workspace_addr = const_cast<void*>(workspace_tensor->ptr());        \
+    }                                                                     \
+    if (unInitMemFunc) {                                                  \
+      unInitMemFunc(nullptr, false);                                      \
+    }                                                                     \
+    typedef int                                                           \
+      (*OpApiFunc)(void*, uint64_t, aclOpExecutor*, const aclrtStream);   \
+    OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);     \
+    auto api_ret =                                                        \
+      opApiFunc(workspace_addr, workspace_size, executor, acl_stream);    \
+    aclrtSynchronizeStream((dev_ctx).stream());                           \
+    ReleaseConvertTypes(converted_params);                                \
+    ReleaseHugeMem releaseMemFunc =                                       \
+      reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                   \
+    if (releaseMemFunc) {                                                 \
+      releaseMemFunc(nullptr, false);                                     \
+    }                                                                     \
   } while (false)
 
-#define DO_COMPATIBILITY(aclnn_api, originCallExpression)\
-  do {\
-    static const auto getWorkspaceSizeFuncAddr =\
-      GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");\
-    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);\
+#define DO_COMPATIBILITY(aclnn_api, originCallExpression)                 \
+  do {                                                                    \
+    static const auto getWorkspaceSizeFuncAddr =                          \
+      GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                    \
+    static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \
     if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {\
-        VLOG(3) <<"aclop exexuted";\
-      originCallExpression;\
-    }\
-  } while (0)\
+        VLOG(3) <<"aclop exexuted";                                       \
+      originCallExpression;                                               \
+    }                                                                     \
+  } while (0)                                                             \
 // clang-format on
 
 class NpuOpRunner {

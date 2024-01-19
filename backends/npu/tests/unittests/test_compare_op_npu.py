@@ -53,8 +53,21 @@ def create_test_class(op_type, typename, callback):
                 self.assertRaises(TypeError, op, x=a, y=b, axis=True)
                 self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
                 self.assertRaises(TypeError, op, x=a, y=b, cond=1)
-                self.assertRaises(TypeError, op, x=a, y=c)
-                self.assertRaises(TypeError, op, x=c, y=a)
+
+                try:
+                    result = op(x=a, y=c)
+                except TypeError:
+                    self.fail(
+                        "TypeError should not raised for float32 and int16 inputs"
+                    )
+
+                try:
+                    result = op(x=c, y=a)
+                except TypeError:
+                    self.fail(
+                        "TypeError should not raised for int16 and float32 inputs"
+                    )
+
                 self.assertRaises(TypeError, op, x=a, y=d)
                 self.assertRaises(TypeError, op, x=d, y=a)
                 self.assertRaises(TypeError, op, x=c, y=d)

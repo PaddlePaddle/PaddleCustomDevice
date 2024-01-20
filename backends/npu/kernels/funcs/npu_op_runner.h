@@ -241,6 +241,9 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   const auto dimNum = at_tensor.dims().size();
   aclFormat format = ACL_FORMAT_ND;
   switch (dimNum) {
+    case 3:
+      format = ACL_FORMAT_NCL;
+      break;
     case 4:
       format = ACL_FORMAT_NCHW;
       break;

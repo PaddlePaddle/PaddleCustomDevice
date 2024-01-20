@@ -18,16 +18,10 @@ import numpy as np
 import unittest
 
 import paddle
-import os
 
-paddle.enable_static()
-if os.getenv("CUSTOM_DEVICE_ROOT") is not None:
-    for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
-        if lib.endswith(".so"):
-            paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
-                lib
-            )
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
+
+from npu_utils import check_soc_version
 
 SEED = 2021
 
@@ -63,11 +57,7 @@ def reference_matmul(X, Y, transpose_X=False, transpose_Y=False):
     return Out
 
 
-class TestMatmulNPUOp(OpTest):
-    """
-    case 1
-    """
-
+class TestMatMulOpBf16Case(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
@@ -79,51 +69,39 @@ class TestMatmulNPUOp(OpTest):
         self.trans_y = False
 
     def init_kernel_type(self):
-        self.dtype = "float32"
+        self.dtype = np.uint16
 
     def setUp(self):
         self.set_npu()
         self.init_kernel_type()
         self.config()
         self.op_type = "matmul_v2"
-        x = np.random.random(self.x_shape).astype(self.dtype)
-        y = np.random.random(self.y_shape).astype(self.dtype)
+        x = np.random.random(self.x_shape).astype(np.float32)
+        y = np.random.random(self.y_shape).astype(np.float32)
         # -0.1 ~ 0.1
         x = -0.1 + 0.2 * x
         y = -0.1 + 0.2 * y
-        result = reference_matmul(x, y, self.trans_x, self.trans_y)
-        result = result.astype(self.dtype)
+        np_uint16_x = convert_float_to_uint16(x)
+        np_uint16_y = convert_float_to_uint16(y)
+        np_uint16_to_fp32_x = convert_uint16_to_float(np_uint16_x)
+        np_uint16_to_fp32_y = convert_uint16_to_float(np_uint16_y)
+        result = reference_matmul(
+            np_uint16_to_fp32_x, np_uint16_to_fp32_y, self.trans_x, self.trans_y
+        )
         self.inputs = {
-            "X": x,
-            "Y": y,
+            "X": OpTest.np_dtype_to_base_dtype(np_uint16_x),
+            "Y": OpTest.np_dtype_to_base_dtype(np_uint16_y),
         }
         self.attrs = {"trans_x": self.trans_x, "trans_y": self.trans_y}
         self.outputs = {"Out": result}
 
+    @check_soc_version
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
+        self.check_output_with_place(self.place, atol=0.004)
 
+    @check_soc_version
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], ["Out"])
-
-
-# --------------------test matmul fp16--------------------
-
-
-def create_test_fp16_class(parent, atol=0.001, max_relative_error=2.5):
-    class TestMatMulOpFp16Case(parent):
-        def init_kernel_type(self):
-            self.dtype = np.float16
-
-        def test_check_output(self):
-            self.check_output_with_place(self.place, atol=atol)
-
-    cls_name = "{0}_{1}".format(parent.__name__, "Fp16")
-    TestMatMulOpFp16Case.__name__ = cls_name
-    globals()[cls_name] = TestMatMulOpFp16Case
-
-
-create_test_fp16_class(TestMatmulNPUOp)
 
 
 if __name__ == "__main__":

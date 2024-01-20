@@ -12,3 +12,4 @@ test_linear_op_npu
 test_compare_op_npu
 test_elementwise_sub_op_npu
 test_index_sample_op_npu
+test_full_like_op.py

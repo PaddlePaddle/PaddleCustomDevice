@@ -265,7 +265,7 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
 }
 
 inline aclTensorList *ConvertType(const std::vector<const phi::DenseTensor*> &phi_tensor_list)
-{ 
+{
   static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
   if (aclCreateTensorList == nullptr) {
     return nullptr;

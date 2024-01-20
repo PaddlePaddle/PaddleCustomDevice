@@ -22,10 +22,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void CastKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
+void CastKernel(const Context &dev_ctx,
+                const phi::DenseTensor &x,
                 phi::DataType dtype,
-                phi::DenseTensor* out);
+                phi::DenseTensor *out);
 
 size_t Alignment(size_t size, const phi::Place &place, int align_size) {
   size_t alignment = 0;

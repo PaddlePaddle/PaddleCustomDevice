@@ -454,7 +454,15 @@ void CeluGradKernel(const Context& dev_ctx,
   phi::Scalar input_scale = times;
   phi::Scalar scale = 1.0f;
   bool isResult = false;
-  EXEC_NPU_CMD(aclnnEluBackward, dev_ctx, dout, alpha_, scale, input_scale, isResult, x, *dx);
+  EXEC_NPU_CMD(aclnnEluBackward,
+               dev_ctx,
+               dout,
+               alpha_,
+               scale,
+               input_scale,
+               isResult,
+               x,
+               *dx);
 }
 
 template <typename T, typename Context>
@@ -942,8 +950,10 @@ void HardSwishGradKernel(const Context& dev_ctx,
     phi::DenseTensor tensor_threshold_cast;
     tensor_threshold_cast.set_meta(meta_x);
     dev_ctx.template Alloc<T>(&tensor_threshold_cast);
-    custom_kernel::CastKernel<T, Context>(
-        dev_ctx, tensor_threshold_tmp, phi::DataType::INT32, &tensor_threshold_cast);
+    custom_kernel::CastKernel<T, Context>(dev_ctx,
+                                          tensor_threshold_tmp,
+                                          phi::DataType::INT32,
+                                          &tensor_threshold_cast);
     if (tensor_threshold.numel() > 1) {
       NpuOpRunner runner;
       runner.SetType("Fill")

@@ -162,6 +162,7 @@ PD_REGISTER_PLUGIN_KERNEL(max_raw,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max,
@@ -172,6 +173,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(max_grad,
@@ -182,4 +184,5 @@ PD_REGISTER_PLUGIN_KERNEL(max_grad,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}

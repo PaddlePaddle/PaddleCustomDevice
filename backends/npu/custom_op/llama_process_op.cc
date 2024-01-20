@@ -610,7 +610,7 @@ std::vector<paddle::Tensor> GetPaddingOffsetV2(const paddle::Tensor& input_ids,
         paddle::experimental::DeviceContextPool::Instance().Get(input_ids.place()));
     auto stream = static_cast<aclrtStream>(dev_ctx->stream());
     std::vector<int64_t> input_ids_shape = input_ids.shape();
-    const int bsz = seq_len.shape()[0];
+    const int bsz = input_ids.shape()[0];
     const int seq_length = input_ids_shape[1];
     auto cpu_token_num = token_num.copy_to(paddle::CPUPlace(), true);
 
@@ -724,6 +724,8 @@ PD_BUILD_OP(set_value_by_flags_and_idx_v2)
     .SetInplaceMap({{"pre_ids_all", "pre_ids_all_out"}})
     .SetKernelFn(PD_KERNEL(SetValueByFlagsAndIdxV2));
 
+static paddle::Tensor repeat_times;
+static bool first_run = true;
 void TokenPenaltyMultiScoresV2(const paddle::Tensor& pre_ids,
                              const paddle::Tensor& logits,
                              const paddle::Tensor& penalty_scores,
@@ -743,7 +745,10 @@ void TokenPenaltyMultiScoresV2(const paddle::Tensor& pre_ids,
     auto pre_ids_tensor = static_cast<const phi::DenseTensor*>(pre_ids.impl().get());
     auto logits_tensor = static_cast<const phi::DenseTensor*>(logits.impl().get());
 
-    auto repeat_times = paddle::full(logits.shape(), 0, paddle::DataType::INT32, pre_ids.place());
+    if (first_run) {
+        repeat_times = paddle::full(logits.shape(), 0, paddle::DataType::INT32, pre_ids.place());
+        first_run = false;
+    }
     auto repeat_times_tensor = static_cast<const phi::DenseTensor*>(repeat_times.impl().get());
 
     auto penalty_scores_tensor = static_cast<const phi::DenseTensor*>(penalty_scores.impl().get()); 

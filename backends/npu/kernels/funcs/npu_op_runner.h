@@ -335,8 +335,8 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
       GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");\
     static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);\
     if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {\
-        VLOG(3) <<"aclop exexuted";\
-      originCallExpression;\
+      VLOG(3) <<"aclop exexuted";\
+      return originCallExpression;\
     }\
   } while (0)\
 // clang-format on

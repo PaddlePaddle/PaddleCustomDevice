@@ -50,11 +50,20 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
   phi::DenseTensorMeta broadcasted_meta = {x_grad->dtype(), x_grad->dims()};
   broadcasted_out_grad.set_meta(broadcasted_meta);
   dev_ctx.template Alloc<T>(&broadcasted_out_grad);
+#if (CANN_VERSION_CODE >= 700000)
+  phi::DenseTensor shape_tensor;
+  dev_ctx.template Alloc<T>(&shape_tensor);
+  std::vector<int64_t> input_dims = phi::vectorize(x_grad->dims());
+  custom_kernel::TensorFromVector(dev_ctx, input_dims, dev_ctx, &shape_tensor);
+  const auto& broadcast_runner = NpuOpRunner(
+      "BroadcastTo", {out_grad, shape_tensor}, {broadcasted_out_grad}, {});
+#else
   const auto& broadcast_runner =
       NpuOpRunner("BroadcastToD",
                   {out_grad},
                   {broadcasted_out_grad},
                   {{"shape", phi::vectorize(x_grad->dims())}});
+#endif
   broadcast_runner.Run(stream);
   // mul x
   phi::DenseTensor tmp_x_grad;
@@ -82,11 +91,13 @@ PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

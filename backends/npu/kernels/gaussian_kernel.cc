@@ -57,5 +57,6 @@ PD_REGISTER_PLUGIN_KERNEL(gaussian,
                           ALL_LAYOUT,
                           custom_kernel::GaussianKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}

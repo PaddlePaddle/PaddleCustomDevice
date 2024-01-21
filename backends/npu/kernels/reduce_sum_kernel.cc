@@ -264,6 +264,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum_raw,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
@@ -277,6 +278,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
@@ -289,6 +291,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum_grad,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);

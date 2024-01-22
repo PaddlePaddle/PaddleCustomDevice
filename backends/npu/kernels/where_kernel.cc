@@ -77,7 +77,8 @@ PD_REGISTER_PLUGIN_KERNEL(where,
                           int64_t,
                           double,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(where_grad,
                           npu,
@@ -87,4 +88,5 @@ PD_REGISTER_PLUGIN_KERNEL(where_grad,
                           int64_t,
                           double,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

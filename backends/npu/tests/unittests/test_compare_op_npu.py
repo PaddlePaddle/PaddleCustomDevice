@@ -20,7 +20,9 @@ import numpy as np
 import paddle
 import paddle.base as base
 from paddle.base import Program, program_guard
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16
+
+import paddle_custom_device
 
 
 def create_test_class(op_type, typename, callback):
@@ -28,10 +30,18 @@ def create_test_class(op_type, typename, callback):
         def setUp(self):
             self.set_npu()
             self.place = paddle.CustomPlace("npu", 0)
-            x = np.random.random(size=(10, 7)).astype(typename)
-            y = np.random.random(size=(10, 7)).astype(typename)
+            if typename == "bfloat16":
+                x = np.random.random(size=(10, 7)).astype(np.float32)
+                y = np.random.random(size=(10, 7)).astype(np.float32)
+                self.inputs = {
+                    "X": convert_float_to_uint16(x),
+                    "Y": convert_float_to_uint16(y),
+                }
+            else:
+                x = np.random.random(size=(10, 7)).astype(typename)
+                y = np.random.random(size=(10, 7)).astype(typename)
+                self.inputs = {"X": x, "Y": y}
             out = callback(x, y)
-            self.inputs = {"X": x, "Y": y}
             self.outputs = {"Out": out}
             self.op_type = op_type
 
@@ -75,8 +85,12 @@ def create_test_class(op_type, typename, callback):
         def test_dynamic_api(self):
             paddle.disable_static()
             paddle.set_device("npu:0")
-            x = np.random.random(size=(10, 7)).astype(typename)
-            y = np.random.random(size=(10, 7)).astype(typename)
+            if typename == "bfloat16":
+                x = np.random.random(size=(10, 7)).astype(np.float32)
+                y = np.random.random(size=(10, 7)).astype(np.float32)
+            else:
+                x = np.random.random(size=(10, 7)).astype(typename)
+                y = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)
             x = paddle.to_tensor(x, dtype=typename)
             y = paddle.to_tensor(y, dtype=typename)
@@ -89,8 +103,11 @@ def create_test_class(op_type, typename, callback):
                 return
             paddle.disable_static()
             paddle.set_device("npu:0")
-            x = np.random.random(size=(10, 7)).astype(typename)
             y = np.random.random(size=(10, 7)).astype("int32")
+            if typename == "bfloat16":
+                x = np.random.random(size=(10, 7)).astype(np.float32)
+            else:
+                x = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)
             x = paddle.to_tensor(x, dtype=typename)
             y = paddle.to_tensor(y, dtype="float32")
@@ -98,7 +115,6 @@ def create_test_class(op_type, typename, callback):
             out = op(x, y)
             self.assertEqual((out.numpy() == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_1(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
@@ -107,13 +123,25 @@ def create_test_class(op_type, typename, callback):
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
-                input_x = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(typename)
-                input_y = np.arange(0, 6).reshape((1, 2, 3)).astype(typename)
+                if typename == "bfloat16":
+                    input_x = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(np.float32)
+                    input_y = np.arange(0, 6).reshape((1, 2, 3)).astype(np.float32)
+                    (res,) = exe.run(
+                        feed={
+                            "x": convert_float_to_uint16(input_x),
+                            "y": convert_float_to_uint16(input_y),
+                        },
+                        fetch_list=[out],
+                    )
+                else:
+                    input_x = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(typename)
+                    input_y = np.arange(0, 6).reshape((1, 2, 3)).astype(typename)
+                    (res,) = exe.run(
+                        feed={"x": input_x, "y": input_y}, fetch_list=[out]
+                    )
                 real_result = callback(input_x, input_y)
-                (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_2(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
@@ -122,13 +150,25 @@ def create_test_class(op_type, typename, callback):
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
-                input_x = np.arange(0, 6).reshape((1, 2, 3)).astype(typename)
-                input_y = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(typename)
+                if typename == "bfloat16":
+                    input_x = np.arange(0, 6).reshape((1, 2, 3)).astype(np.float32)
+                    input_y = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(np.float32)
+                    (res,) = exe.run(
+                        feed={
+                            "x": convert_float_to_uint16(input_x),
+                            "y": convert_float_to_uint16(input_y),
+                        },
+                        fetch_list=[out],
+                    )
+                else:
+                    input_x = np.arange(0, 6).reshape((1, 2, 3)).astype(typename)
+                    input_y = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(typename)
+                    (res,) = exe.run(
+                        feed={"x": input_x, "y": input_y}, fetch_list=[out]
+                    )
                 real_result = callback(input_x, input_y)
-                (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_broadcast_api_3(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
@@ -137,13 +177,25 @@ def create_test_class(op_type, typename, callback):
                 op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
-                input_x = np.arange(0, 5).reshape((5)).astype(typename)
-                input_y = np.array([5, 3, 2]).reshape((3, 1)).astype(typename)
+                if typename == "bfloat16":
+                    input_x = np.arange(0, 5).reshape((5)).astype(typename)
+                    input_y = np.array([5, 3, 2]).reshape((3, 1)).astype(typename)
+                    (res,) = exe.run(
+                        feed={
+                            "x": convert_float_to_uint16(input_x),
+                            "y": convert_float_to_uint16(input_y),
+                        },
+                        fetch_list=[out],
+                    )
+                else:
+                    input_x = np.arange(0, 5).reshape((5)).astype(typename)
+                    input_y = np.array([5, 3, 2]).reshape((3, 1)).astype(typename)
+                    (res,) = exe.run(
+                        feed={"x": input_x, "y": input_y}, fetch_list=[out]
+                    )
                 real_result = callback(input_x, input_y)
-                (res,) = exe.run(feed={"x": input_x, "y": input_y}, fetch_list=[out])
             self.assertEqual((res == real_result).all(), True)
 
-        @unittest.skipIf(typename == "float16", "float16 is not supported now")
         def test_attr_name(self):
             paddle.enable_static()
             with program_guard(Program(), Program()):
@@ -165,6 +217,16 @@ for _type_name in {"float16", "float32", "int32", "int64", "bool"}:
     create_test_class("less_equal", _type_name, lambda _a, _b: _a <= _b)
     create_test_class("greater_than", _type_name, lambda _a, _b: _a > _b)
     create_test_class("greater_equal", _type_name, lambda _a, _b: _a >= _b)
+
+
+if paddle_custom_device.npu.version()["cann"].split(".")[0] == 7:
+    create_test_class("equal", "bfloat16", lambda _a, _b: _a == _b)
+    create_test_class("not_equal", "bfloat16", lambda _a, _b: _a != _b)
+    create_test_class("less_than", "bfloat16", lambda _a, _b: _a < _b)
+    create_test_class("less_equal", "bfloat16", lambda _a, _b: _a <= _b)
+    create_test_class("greater_than", "bfloat16", lambda _a, _b: _a > _b)
+    create_test_class("greater_equal", "bfloat16", lambda _a, _b: _a >= _b)
+
 
 if __name__ == "__main__":
     unittest.main()

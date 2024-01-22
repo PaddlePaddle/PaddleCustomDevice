@@ -20,9 +20,9 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void AclopCastKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DataType dtype,
-                phi::DenseTensor* out) {
+                     const phi::DenseTensor& x,
+                     phi::DataType dtype,
+                     phi::DenseTensor* out) {
   int aclDtype = ConvertToNpuDtype(dtype);
 
   if (dtype == phi::DataType::FLOAT32) {

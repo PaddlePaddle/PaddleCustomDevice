@@ -707,7 +707,7 @@ void PowGradKernel(const Context& dev_ctx,
     factor_bc_tensor.set_meta(factor_bc_tensor_meta);
     dev_ctx.template Alloc<T>(&factor_bc_tensor);
     if (factor_bc_tensor.numel() > 1) {
-#if (CANN_VERSION_CODE >= 70000)
+#if (CANN_VERSION_CODE >= 700000)
       phi::DenseTensor factor_cast_tensor;
       factor_cast_tensor.set_meta(factor_tensor_meta);
       dev_ctx.template Alloc<T>(&factor_cast_tensor);

@@ -434,9 +434,8 @@ class NpuOpRunner {
 
   void Run(aclrtStream stream = nullptr, bool sync = false) const;
 
-  template <typename Context>
   static void AclopCastCall(
-      const Context& dev_ctx,
+      const phi::CustomContext& dev_ctx,
       const phi::DenseTensor& in,
       phi::DataType dtype,
       phi::DenseTensor out) {
@@ -508,12 +507,11 @@ class NpuOpRunner {
         tmp_inputs[i].Resize(inputs[i].dims());
         dev_ctx.Alloc(&(tmp_inputs[i]), input_type[i]);
 
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {inputs[i]},
-            {tmp_inputs[i]},
-            {{"dst_type", static_cast<int>(ConvertToNpuDtype(input_type[i]))}});
-        cast_runner.Run(dev_ctx.stream());
+        DO_COMPATIBILITY(
+            aclnnCast,
+            (AclopCastCall(dev_ctx, inputs[i], outputs[i].dtype(), tmp_inputs[i])));
+        int aclDtype1 = ConvertToNpuDtype(input_type[i]);
+        EXEC_NPU_CMD(aclnnCast, dev_ctx, inputs[i], aclDtype1, tmp_inputs[i]);
       }
     }
     for (size_t i = 0; i < output_type.size(); ++i) {
@@ -535,7 +533,7 @@ class NpuOpRunner {
       if (cast_output) {
         DO_COMPATIBILITY(
             aclnnCast,
-            (AclopCastCall<Context>(dev_ctx, tmp_outputs[i], outputs[i].dtype(), outputs[i])));
+            (AclopCastCall(dev_ctx, tmp_outputs[i], outputs[i].dtype(), outputs[i])));
         int aclDtype2 = ConvertToNpuDtype(outputs[i].dtype());
         EXEC_NPU_CMD(aclnnCast, dev_ctx, tmp_outputs[i], aclDtype2, outputs[i]);
       }

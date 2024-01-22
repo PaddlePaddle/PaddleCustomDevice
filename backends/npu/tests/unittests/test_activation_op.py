@@ -351,6 +351,12 @@ def celu(x, alpha):
     return out_ref.astype(x.dtype)
 
 
+def celu_grad(x, alpha):
+    gradoutput = 1 / x.size
+    x_grad = gradoutput * np.where(x > 0, 1, np.exp(x / alpha))
+    return x_grad.astype(x.dtype)
+
+
 class TestCELU(TestActivation):
     def setUp(self):
         self.set_npu()
@@ -361,19 +367,22 @@ class TestCELU(TestActivation):
         self.python_api = paddle.nn.functional.celu
         np.random.seed(1024)
         x = np.random.uniform(-3, 3, self.shape).astype(self.dtype)
-        alpha = 1.5
-        out = celu(x, alpha)
+        self.alpha = 1.5
+        out = celu(x, self.alpha)
         self.inputs = {"X": x}
-        self.attrs = {"alpha": alpha}
+        self.attrs = {"alpha": self.alpha}
         self.outputs = {"Out": out}
 
     def init_shape(self):
         self.shape = [10, 12]
 
     def test_check_grad(self):
+        x_grad = celu_grad(self.inputs["X"], self.alpha)
         if self.dtype == np.float16:
             return
-        self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", check_dygraph=True, user_defined_grads=[x_grad]
+        )
 
 
 class TestCELU_ZeroDim(TestCELU):

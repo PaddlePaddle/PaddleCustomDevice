@@ -51,7 +51,7 @@ void MaskedSelectKernel(const Context& dev_ctx,
   std::vector<int32_t> out_size_vec;
   {
     custom_kernel::CastKernel<T, Context>(
-          dev_ctx, mask, phi::DataType::INT32, &mask_int32);
+        dev_ctx, mask, phi::DataType::INT32, &mask_int32);
     mask_int32.Resize({mask_int32.numel()});
 
     NpuOpRunner sum_runner;

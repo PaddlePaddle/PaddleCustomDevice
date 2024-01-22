@@ -121,7 +121,8 @@ void CastKernel(const Context& dev_ctx,
   }
 
   DO_COMPATIBILITY(
-      aclnnCast, (custom_kernel::AclopCastKernel<T, Context>(dev_ctx, x, dtype, out)));
+      aclnnCast,
+      (custom_kernel::AclopCastKernel<T, Context>(dev_ctx, x, dtype, out)));
   EXEC_NPU_CMD(aclnnCast, dev_ctx, x, aclDtype, *out);
 }
 

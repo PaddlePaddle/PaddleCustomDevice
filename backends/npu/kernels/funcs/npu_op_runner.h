@@ -509,7 +509,8 @@ class NpuOpRunner {
 
         DO_COMPATIBILITY(
             aclnnCast,
-            (AclopCastCall(dev_ctx, inputs[i], outputs[i].dtype(), tmp_inputs[i])));
+            (AclopCastCall(
+                dev_ctx, inputs[i], outputs[i].dtype(), tmp_inputs[i])));
         int aclDtype1 = ConvertToNpuDtype(input_type[i]);
         EXEC_NPU_CMD(aclnnCast, dev_ctx, inputs[i], aclDtype1, tmp_inputs[i]);
       }
@@ -533,7 +534,8 @@ class NpuOpRunner {
       if (cast_output) {
         DO_COMPATIBILITY(
             aclnnCast,
-            (AclopCastCall(dev_ctx, tmp_outputs[i], outputs[i].dtype(), outputs[i])));
+            (AclopCastCall(
+                dev_ctx, tmp_outputs[i], outputs[i].dtype(), outputs[i])));
         int aclDtype2 = ConvertToNpuDtype(outputs[i].dtype());
         EXEC_NPU_CMD(aclnnCast, dev_ctx, tmp_outputs[i], aclDtype2, outputs[i]);
       }

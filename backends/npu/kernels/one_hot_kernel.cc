@@ -54,7 +54,7 @@ void OneHotRawKernel(const Context& dev_ctx,
     phi::DenseTensor transformed_in;
     transformed_in.Resize(x.dims());
     custom_kernel::CastKernel<T, Context>(
-          dev_ctx, x, phi::DataType::INT32, &transformed_in);
+        dev_ctx, x, phi::DataType::INT32, &transformed_in);
     NpuOpRunner runner;
     runner.SetType("OneHot")
         .AddInput(transformed_in)

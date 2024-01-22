@@ -91,7 +91,7 @@ void EmbeddingGradKernel(const Context& dev_ctx,
   if (input.dtype() == phi::DataType::INT64) {
     input_int32.Resize(input.dims());
     custom_kernel::CastKernel<T, Context>(
-          dev_ctx, input, phi::DataType::INT32, &input_int32);
+        dev_ctx, input, phi::DataType::INT32, &input_int32);
   } else {
     // directly point to input.
     input_int32 = input;

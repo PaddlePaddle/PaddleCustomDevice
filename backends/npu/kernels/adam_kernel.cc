@@ -152,7 +152,7 @@ void AdamImplKernel(const Context& dev_ctx,
     runner.Run(stream);
 
     custom_kernel::CastKernel<T, Context>(
-          dev_ctx, *master_param_out, param_out->dtype(), param_out);
+        dev_ctx, *master_param_out, param_out->dtype(), param_out);
   } else if (param.dtype() == phi::DataType::FLOAT16) {
     phi::DenseTensor param_fp32;
     param_fp32.Resize(calc_param->dims());
@@ -187,7 +187,7 @@ void AdamImplKernel(const Context& dev_ctx,
     runner.Run(stream);
 
     custom_kernel::CastKernel<T, Context>(
-          dev_ctx, param_fp32, param_out->dtype(), param_out);
+        dev_ctx, param_fp32, param_out->dtype(), param_out);
   } else {
     TensorCopy(dev_ctx, param, false, param_out);
     const auto& runner = NpuOpRunner("ApplyAdamD",

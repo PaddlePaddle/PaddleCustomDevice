@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void OneHotRawKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::Scalar& depth_scalar,

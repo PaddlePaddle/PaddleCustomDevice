@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void CosKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
@@ -225,12 +231,26 @@ void SiluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopSiluGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& out,
+                         const phi::DenseTensor& dout,
+                         phi::DenseTensor* dx) {
+  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
+}
+
+template <typename T, typename Context>
 void SiluGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& out,
                     const phi::DenseTensor& dout,
                     phi::DenseTensor* dx) {
-  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
+  DO_COMPATIBILITY(aclnnSiluBackward,
+                   (custom_kernel::AclopSiluGradKernel<T, Context>(
+                       dev_ctx, x, out, dout, dx)));
+
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnSiluBackward, dev_ctx, dout, x, *dx);
 }
 
 template <typename T, typename Context>
@@ -432,11 +452,11 @@ void CeluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void CeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    float alpha,
-                    phi::DenseTensor* dx) {
+void AclopCeluGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& dout,
+                         float alpha,
+                         phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
   phi::DenseTensor tmp_out;
   phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
@@ -457,6 +477,38 @@ void CeluGradKernel(const Context& dev_ctx,
   const auto& runner_1 = NpuOpRunner(
       "EluGradV2", {dout, tmp_out}, {*dx}, {{"alpha", times * alpha}});
   runner_1.Run(stream);
+}
+
+template <typename T, typename Context>
+void CeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    float alpha,
+                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnEluBackward,
+                   (custom_kernel::AclopCeluGradKernel<T, Context>(
+                       dev_ctx, x, dout, alpha, dx)));
+
+  auto stream = dev_ctx.stream();
+  phi::DenseTensor tmp_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  tmp_out.set_meta(meta);
+
+  float times = alpha != 0.0 ? (1 / alpha) : 0.0;
+  dev_ctx.template Alloc<T>(dx);
+  phi::Scalar alpha_ = alpha;
+  phi::Scalar input_scale = times;
+  phi::Scalar scale = 1.0f;
+  bool isResult = false;
+  EXEC_NPU_CMD(aclnnEluBackward,
+               dev_ctx,
+               dout,
+               alpha_,
+               scale,
+               input_scale,
+               isResult,
+               x,
+               *dx);
 }
 
 template <typename T, typename Context>
@@ -655,11 +707,25 @@ void PowGradKernel(const Context& dev_ctx,
     factor_bc_tensor.set_meta(factor_bc_tensor_meta);
     dev_ctx.template Alloc<T>(&factor_bc_tensor);
     if (factor_bc_tensor.numel() > 1) {
+#if (CANN_VERSION_CODE >= 700000)
+      phi::DenseTensor factor_cast_tensor;
+      factor_cast_tensor.set_meta(factor_tensor_meta);
+      dev_ctx.template Alloc<T>(&factor_cast_tensor);
+      custom_kernel::CastKernel<T, Context>(
+          dev_ctx, factor_tensor, phi::DataType::INT32, &factor_cast_tensor);
+      NpuOpRunner runner;
+      runner.SetType("Fill")
+          .AddInput(dev_ctx, phi::vectorize(x_dims))
+          .AddInput(factor_cast_tensor)
+          .AddOutput(factor_bc_tensor)
+          .Run(stream);
+#else
       const auto& runner_bc = NpuOpRunner("FillD",
                                           {factor_tensor},
                                           {factor_bc_tensor},
                                           {{"dims", phi::vectorize(x_dims)}});
       runner_bc.Run(stream);
+#endif
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.
       FillNpuTensorWithConstant<T>(

@@ -36,9 +36,7 @@ void AbsKernel(const Context& dev_ctx,
       aclnnAbs, (custom_kernel::AclopAbsKernel<T, Context>(dev_ctx, x, out)));
 
   dev_ctx.template Alloc<T>(out);
-  auto size = sizeof(T);
-
-  EXEC_NPU_CMD(aclnnAbs, size, dev_ctx, x, *out);
+  EXEC_NPU_CMD(aclnnAbs, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -62,10 +60,8 @@ void AbsGradKernel(const Context& dev_ctx,
       (custom_kernel::AclopAbsGradKernel<T, Context>(dev_ctx, x, dout, dx)));
 
   dev_ctx.template Alloc<T>(dx);
-  auto size = sizeof(T);
-
-  EXEC_NPU_CMD(aclnnSign, size, dev_ctx, x, *dx);
-  EXEC_NPU_CMD(aclnnInplaceMul, size, dev_ctx, *dx, dout);
+  EXEC_NPU_CMD(aclnnSign, dev_ctx, x, *dx);
+  EXEC_NPU_CMD(aclnnInplaceMul, dev_ctx, *dx, dout);
 }
 
 }  // namespace custom_kernel

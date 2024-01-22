@@ -21,8 +21,8 @@
 
 static const uint64_t IN_TENSOR_COUNT = 31;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 20;
-static const uint64_t NODE_COUNT = 19;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 18;
+static const uint64_t NODE_COUNT = 17;
 
 void reshapeHeads(const atb::Dims &oldShape, atb::Dims &newShape, int headNum)
 {
@@ -56,8 +56,6 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
     atb::Node &kValueQuantNode  = opGraph.nodes.at(nodeId++);
     atb::Node &vValueQuantNode  = opGraph.nodes.at(nodeId++);
     atb::Node &reshapeAndCacheNode = opGraph.nodes.at(nodeId++);
-    atb::Node &cachekValueDequantNode  = opGraph.nodes.at(nodeId++);
-    atb::Node &cachevValueDequantNode  = opGraph.nodes.at(nodeId++);    
     atb::Node &attentionNode  = opGraph.nodes.at(nodeId++);
     atb::Node &outSmoothMulNode  = opGraph.nodes.at(nodeId++);
     atb::Node &selfOutQuantNode = opGraph.nodes.at(nodeId++);
@@ -161,46 +159,6 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         newShape.dims[2] = oldShape.dims[1];
     };
 
-    atb::infer::ElewiseParam cachekValueDeuantParam;
-    cachekValueDeuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_DEQUANT_PER_CHANNEL;
-    CreateOperation(cachekValueDeuantParam, &cachekValueDequantNode.operation);
-    cachekValueDequantNode.inTensorIds = {IN_CACHE_K, IN_K_DEQUANT_SCALES, IN_EMPTY_OFFSET};
-    cachekValueDequantNode.outTensorIds = {INTERMIDATE_CACHE_K_DEQUANT};
-    cachekValueDequantNode.inTensorReshapeFuncs.resize(cachekValueDequantNode.inTensorIds.size());
-    cachekValueDequantNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 3;
-        newShape.dims[0] = oldShape.dims[0];
-        newShape.dims[1] = oldShape.dims[2];
-        newShape.dims[2] = oldShape.dims[1]*oldShape.dims[3];
-
-    };
-    cachekValueDequantNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape = oldShape;
-    };
-    cachekValueDequantNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape = oldShape;
-    };
-
-    atb::infer::ElewiseParam chachevValueDeuantParam;
-    chachevValueDeuantParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_DEQUANT_PER_CHANNEL;
-    CreateOperation(chachevValueDeuantParam, &cachevValueDequantNode.operation);
-    cachevValueDequantNode.inTensorIds = {IN_CACHE_V, IN_V_DEQUANT_SCALES, IN_EMPTY_OFFSET};
-    cachevValueDequantNode.outTensorIds = {INTERMIDATE_CACHE_V_DEQUANT};
-    cachevValueDequantNode.inTensorReshapeFuncs.resize(cachevValueDequantNode.inTensorIds.size());
-    cachevValueDequantNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape.dimNum = 3;
-        newShape.dims[0] = oldShape.dims[0];
-        newShape.dims[1] = oldShape.dims[2];
-        newShape.dims[2] = oldShape.dims[1]*oldShape.dims[3];
-
-    };
-    cachevValueDequantNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape = oldShape;
-    };
-    cachevValueDequantNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-        newShape = oldShape;
-    };
-
     if (param.isPrefill) {
         atb::infer::SelfAttentionParam faEnParam;
         faEnParam.headDim = param.headDim;
@@ -232,9 +190,11 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
         paDeParam.isSupportAlibi = true;
         paDeParam.batchRunStatusEnable = true;
+        paDeParam.quantType = atb::infer::PagedAttentionParam::TYPE_DEQUANT_FUSION;
+        paDeParam.hasQuantOffset  = false;
         CreateOperation(paDeParam, &attentionNode.operation);
-        attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, INTERMIDATE_CACHE_K_DEQUANT, INTERMIDATE_CACHE_V_DEQUANT,
-                                     IN_BLOCK_TABLES, IN_SEQLEN, IN_BATCH_STATUS};
+        attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ, IN_CACHE_K, IN_CACHE_V, 
+                                     IN_BLOCK_TABLES, IN_SEQLEN, IN_BATCH_STATUS, IN_K_DEQUANT_SCALES, IN_V_DEQUANT_SCALES};
         attentionNode.outTensorIds = {INTERMIDATE_SELFOUT};
         attentionNode.inTensorReshapeFuncs.resize(attentionNode.inTensorIds.size());
         attentionNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -243,18 +203,14 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         // 传过来[max_block_num, head_num, block_size, head_dim]
         // 加速库需要[max_block_num, block_size, head_num, head_dim]
         attentionNode.inTensorReshapeFuncs[1] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-            newShape.dimNum = 4;
-            newShape.dims[0] = oldShape.dims[0];
-            newShape.dims[1] = oldShape.dims[1];
-            newShape.dims[2] = 8;
-            newShape.dims[3] = oldShape.dims[2] / 8;
+            newShape = oldShape;
+            newShape.dims[1] = oldShape.dims[2];
+            newShape.dims[2] = oldShape.dims[1];
         };
         attentionNode.inTensorReshapeFuncs[2] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
-            newShape.dimNum = 4;
-            newShape.dims[0] = oldShape.dims[0];
-            newShape.dims[1] = oldShape.dims[1];
-            newShape.dims[2] = 8;
-            newShape.dims[3] = oldShape.dims[2] / 8;
+            newShape = oldShape;
+            newShape.dims[1] = oldShape.dims[2];
+            newShape.dims[2] = oldShape.dims[1];
         };
     }
 

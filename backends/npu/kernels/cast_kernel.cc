@@ -23,6 +23,12 @@ void AclopCastKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      phi::DataType dtype,
                      phi::DenseTensor* out) {
+  if (x.dtype() == dtype) {
+    dev_ctx.template Alloc<T>(out);
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  }
+
   int aclDtype = ConvertToNpuDtype(dtype);
 
   if (dtype == phi::DataType::FLOAT32) {
@@ -84,6 +90,10 @@ void CastKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnCast,
+      (custom_kernel::AclopCastKernel<T, Context>(dev_ctx, x, dtype, out)));
+
   if (x.dtype() == dtype) {
     dev_ctx.template Alloc<T>(out);
     TensorCopy(dev_ctx, x, false, out);
@@ -120,9 +130,6 @@ void CastKernel(const Context& dev_ctx,
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }
 
-  DO_COMPATIBILITY(
-      aclnnCast,
-      (custom_kernel::AclopCastKernel<T, Context>(dev_ctx, x, dtype, out)));
   EXEC_NPU_CMD(aclnnCast, dev_ctx, x, aclDtype, *out);
 }
 

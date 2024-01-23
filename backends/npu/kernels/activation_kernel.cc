@@ -860,9 +860,9 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     phi::DenseTensor* out) {
+void AclopHardSwishKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   float threshold = 6;
@@ -940,10 +940,21 @@ void HardSwishKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSwishGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& dout,
-                         phi::DenseTensor* dx) {
+void HardSwishKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnHardswish,
+      (custom_kernel::AclopHardSwishKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnHardswish, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopHardSwishGradKernel(const Context& dev_ctx,
+                              const phi::DenseTensor& x,
+                              const phi::DenseTensor& dout,
+                              phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
   float threshold = 6;
@@ -1036,6 +1047,18 @@ void HardSwishGradKernel(const Context& dev_ctx,
 
   const auto& runner_final = NpuOpRunner("Mul", {tmp5, dout}, {*dx});
   runner_final.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSwishGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& dout,
+                         phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnHardswishBackward,
+                   (custom_kernel::AclopHardSwishGradKernel<T, Context>(
+                       dev_ctx, x, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnHardswishBackward, dev_ctx, dout, x, *dx);
 }
 
 template <typename T, typename Context>

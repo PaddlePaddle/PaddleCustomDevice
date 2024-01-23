@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void StackKernel(const Context& dev_ctx,
-                 const std::vector<const phi::DenseTensor*>& x,
-                 int axis,
-                 phi::DenseTensor* y) {
+void AclopStackKernel(const Context& dev_ctx,
+                      const std::vector<const phi::DenseTensor*>& x,
+                      int axis,
+                      phi::DenseTensor* y) {
   dev_ctx.template Alloc<T>(y);
   auto stream = dev_ctx.stream();
 
@@ -51,6 +51,22 @@ void StackKernel(const Context& dev_ctx,
       .AddAttr("N", static_cast<int>(num));
   runner.AddInputNames(names);
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void StackKernel(const Context& dev_ctx,
+                 const std::vector<const phi::DenseTensor*>& x,
+                 int axis,
+                 phi::DenseTensor* y) {
+  DO_COMPATIBILITY(
+      aclnnStack,
+      (custom_kernel::AclopStackKernel<T, Context>(dev_ctx, x, axis, y)));
+  if (axis < 0) {
+    int rank = x[0]->dims().size();
+    axis = axis + rank + 1;
+  }
+  dev_ctx.template Alloc<T>(y);
+  EXEC_NPU_CMD(aclnnStack, dev_ctx, x, axis, *y);
 }
 
 template <typename T, typename Context>

@@ -1,14 +1,8 @@
 disable_ut_npu
-test_softmax_with_cross_entropy_op_npu
 test_parallel_dygraph_mp_layers
-test_dygraph_recompute_for_eager
-test_slice_op_npu
 test_set_value_op_npu
 test_dygraph_sharding_stage_3
 test_zero_dim_tensor_npu
-test_momentum_op_npu
 test_matmul_op_npu
-test_linear_op_npu
-test_compare_op_npu
 test_elementwise_sub_op_npu
 test_index_sample_op_npu

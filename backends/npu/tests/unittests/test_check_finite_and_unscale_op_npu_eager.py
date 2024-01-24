@@ -23,6 +23,8 @@ from tests.op_test import (
 import numpy as np
 import paddle
 
+from npu_utils import check_soc_version
+
 
 # bf16
 class TestCheckFiniteAndUnscaleOp(OpTest):
@@ -46,6 +48,7 @@ class TestCheckFiniteAndUnscaleOp(OpTest):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place)
 

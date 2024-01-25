@@ -513,14 +513,10 @@ class NpuOpRunner {
       bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
                           output_type[i] != outputs[i].dtype());
       if (cast_output) {
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {tmp_outputs[i]},
-            {outputs[i]},
-            {{"dst_type",
-              static_cast<int>(ConvertToNpuDtype(outputs[i].dtype()))}});
-        cast_runner.Run(dev_ctx.stream());
-        CastCall(dev_ctx, tmp_outputs[i], outputs[i].dtype(), const_cast<phi::DenseTensor*>(&(outputs[i])));
+        CastCall(dev_ctx,
+                 tmp_outputs[i],
+                 outputs[i].dtype(),
+                 const_cast<phi::DenseTensor*>(&(outputs[i])));
       }
     }
   }

@@ -232,6 +232,9 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   if (aclCreateTensor == nullptr) {
     return nullptr;
   }
+if (!at_tensor.initialized()) {
+    return nullptr;
+  }
   auto at_tensor_dtype = at_tensor.dtype();
   auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
   std::vector<int64_t> storageDims(5);
@@ -279,6 +282,16 @@ inline aclTensorList *ConvertType(
                                              tensor_list.size());
   return acl_tensor_list;
 }
+
+inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  auto array = aclCreateIntArray(at_array.data(), at_array.size());
+  return array;
+}
+
 
 template <typename T>
 T ConvertType(T value) {

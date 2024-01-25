@@ -553,6 +553,7 @@ class NpuOpRunner {
     DO_COMPATIBILITY(
         aclnnCast,
         (AclopCastCall(dev_ctx, x, dtype, out)));
+
     int aclDtype = ConvertToNpuDtype(dtype);
     EXEC_NPU_CMD(aclnnCast, dev_ctx, x, aclDtype, *out);
   }

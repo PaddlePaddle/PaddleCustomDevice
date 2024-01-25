@@ -539,7 +539,7 @@ class NpuOpRunner {
       phi::DenseTensor* out) {
     const auto &cast_runner = NpuOpRunner(
         "Cast",
-        {s},
+        {x},
         {*out},
         {{"dst_type", static_cast<int>(ConvertToNpuDtype(dtype))}});
     cast_runner.Run(dev_ctx.stream());

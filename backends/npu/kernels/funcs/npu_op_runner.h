@@ -533,7 +533,7 @@ class NpuOpRunner {
   void PrintOpInfo() const;
 
   static void AclopCastCall(
-      const Context& dev_ctx,
+      const phi::CustomContext& dev_ctx,
       const phi::DenseTensor& x,
       phi::DataType dtype,
       phi::DenseTensor* out) {
@@ -546,7 +546,7 @@ class NpuOpRunner {
   }
 
   static void CastCall(
-      const Context& dev_ctx,
+      const phi::CustomContext& dev_ctx,
       const phi::DenseTensor& x,
       phi::DataType dtype,
       phi::DenseTensor* out) {

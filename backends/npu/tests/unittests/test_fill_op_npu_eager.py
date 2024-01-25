@@ -30,6 +30,7 @@ class TestFill_API(unittest.TestCase):
         self.shape = [9, 9]
         self.value = 6.0
 
+    @check_soc_version
     def test_dygraph(self):
         paddle.disable_static(paddle.CustomPlace("npu", 0))
         with base.dygraph.guard():

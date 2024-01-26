@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/common/type_traits.h"
@@ -35,7 +34,6 @@ void AbsKernel(const Context& dev_ctx,
                phi::DenseTensor* out) {
   DO_COMPATIBILITY(
       aclnnAbs, (custom_kernel::AclopAbsKernel<T, Context>(dev_ctx, x, out)));
-
   dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnAbs, dev_ctx, x, *out);
 }

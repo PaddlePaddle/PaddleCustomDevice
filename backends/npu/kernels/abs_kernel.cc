@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/phi/common/type_traits.h"

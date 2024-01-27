@@ -561,7 +561,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} passed"
         )
 
-    def test_fa_withmask_fp16(self):
+    def test_fa_withmask_bf16(self):
         self.causal = False
         self.dtype = "bfloat16"
         print(

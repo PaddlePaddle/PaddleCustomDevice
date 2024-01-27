@@ -18,7 +18,6 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/extension.h"
-#include "paddle/phi/kernels/funcs/tensor_formatter.h"
 
 enum class DropOutStatus { DROPOUT_NORMAL = 0, DROPOUT_NONE, DROPOUT_ALL };
 
@@ -233,10 +232,10 @@ std::vector<paddle::Tensor> npu_flash_attention(
   softmax_sum->Resize({B, head_num, S0, 8});
   (*dev_ctx).Alloc(softmax_sum.get(), phi::DataType::FLOAT32);
 
-  // softmax_out
+  // softmax_out,此处最好填空tensor，但是paddle目前传空tensor会报错！！！！
   std::shared_ptr<phi::DenseTensor> softmax_out =
       std::make_shared<phi::DenseTensor>();
-  softmax_out->Resize({B, head_num, S0, S1});
+  softmax_out->Resize({1});
   (*dev_ctx).Alloc(softmax_out.get(), query_tensor.dtype());
 
   // seed_tensor
@@ -480,7 +479,7 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
   // dpse_out在cann8.0上需要传一个shape为0的tensor
   std::shared_ptr<phi::DenseTensor> dpse_out =
       std::make_shared<phi::DenseTensor>();
-  dpse_out->Resize(query_tensor.dims());
+  dpse_out->Resize({1});
   (*dev_ctx).Alloc(dpse_out.get(), query_tensor.dtype());
 
   char* input_layout_ptr = "BSND";

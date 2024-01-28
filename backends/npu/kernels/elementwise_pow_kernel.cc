@@ -241,6 +241,7 @@ PD_REGISTER_PLUGIN_KERNEL(elementwise_pow,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_raw,
@@ -261,4 +262,5 @@ PD_REGISTER_PLUGIN_KERNEL(elementwise_pow_grad,
                           int64_t,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}

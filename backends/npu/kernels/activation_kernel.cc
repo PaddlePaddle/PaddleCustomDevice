@@ -1248,7 +1248,8 @@ PD_REGISTER_PLUGIN_KERNEL(exp,
                           custom_kernel::ExpKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(exp_grad,
                           npu,
@@ -1256,7 +1257,8 @@ PD_REGISTER_PLUGIN_KERNEL(exp_grad,
                           custom_kernel::ExpGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sin,
                           npu,
@@ -1452,6 +1454,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt,
                           custom_kernel::SqrtKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
@@ -1460,6 +1463,7 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           custom_kernel::SqrtGradKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square,
@@ -1468,6 +1472,7 @@ PD_REGISTER_PLUGIN_KERNEL(square,
                           custom_kernel::SquareKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square_grad,
@@ -1476,6 +1481,7 @@ PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           custom_kernel::SquareGradKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hardtanh,

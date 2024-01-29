@@ -126,7 +126,8 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril,
                           npu,
@@ -136,7 +137,8 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           float,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu,
                           npu,
@@ -147,7 +149,8 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
                           npu,
@@ -158,7 +161,8 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_grad,
                           npu,
@@ -169,7 +173,8 @@ PD_REGISTER_PLUGIN_KERNEL(tril_grad,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu_grad,
                           npu,
@@ -180,4 +185,5 @@ PD_REGISTER_PLUGIN_KERNEL(triu_grad,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

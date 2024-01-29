@@ -6,29 +6,32 @@ Please refer to the following steps to compile, install and verify the custom de
 
 ## Ascend NPU System Requirements
 
-| Chip Version  | CANN Version     |
+| Type | Version     |
 | --------- | -------- |
-| Ascend 910A | [CANN 7.0.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.RC1.beta1)  |
-| Ascend 910B | [CANN 7.0.0](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.0)  |
+| Chip | Ascend 910A、Ascend 910B |
+| CANN | [CANN 7.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/258923273) |
+| Driver | [23.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
+| Firmware | [7.1.0.3.220](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
 
 ## Prepare environment and source code
 
 ```bash
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-# docker images for Ascend 910A
-registry.baidubce.com/device/paddle-npu:cann70RC1-910A-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann70RC1-910A-ubuntu18-aarch64
-# docker images for Ascend 910B
+# Ascend 910A - check with the output of 'lspci | grep d801'
+registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-aarch64
+# Ascend 910B - check with the output of 'lspci | grep d802'
 registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-x86_64
 registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-aarch64
 
 # 2. refer to the following commands to start docker container
-docker run -it --name paddle-dev -v `pwd`:/workspace -w=/workspace \
+docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
     --privileged --network=host --shm-size=128G \
     -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
+    -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
     registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-$(uname -m) /bin/bash
 
 # 3. clone the source code

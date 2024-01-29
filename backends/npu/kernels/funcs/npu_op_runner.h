@@ -22,6 +22,7 @@
 #include "kernels/funcs/npu_op_prepare.h"
 #include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/extension.h"
+#include "paddle/phi/kernels/funcs/tensor_formatter.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
 
@@ -241,6 +242,9 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   const auto dimNum = at_tensor.dims().size();
   aclFormat format = ACL_FORMAT_ND;
   switch (dimNum) {
+    case 3:
+      format = ACL_FORMAT_NCL;
+      break;
     case 4:
       format = ACL_FORMAT_NCHW;
       break;
@@ -275,8 +279,7 @@ inline aclTensorList *ConvertType(
   for (size_t i = 0; i < phi_tensor_list.size(); i++) {
     tensor_list[i] = ConvertType(*phi_tensor_list[i]);
   }
-  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
-                                             tensor_list.size());
+  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(), tensor_list.size());
   return acl_tensor_list;
 }
 
@@ -291,8 +294,7 @@ inline aclTensorList *ConvertType(
   for (size_t i = 0; i < phi_tensor_list.size(); i++) {
     tensor_list[i] = ConvertType(*phi_tensor_list[i]);
   }
-  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
-                                             tensor_list.size());
+  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(), tensor_list.size());
   return acl_tensor_list;
 }
 
@@ -307,8 +309,7 @@ inline aclTensorList *ConvertType(
   for (size_t i = 0; i < phi_tensor_list.size(); i++) {
     tensor_list[i] = ConvertType(phi_tensor_list[i]);
   }
-  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
-                                             tensor_list.size());
+  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(), tensor_list.size());
   return acl_tensor_list;
 }
 
@@ -404,8 +405,8 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
       GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                    \
     static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \
     if (getWorkspaceSizeFuncAddr == nullptr || opApiFuncAddr == nullptr) {\
-      VLOG(3) <<"aclop exexuted";                                         \
-      return originCallExpression;                                        \
+        VLOG(3) <<"aclop exexuted";                                       \
+      originCallExpression;                                               \
     }                                                                     \
   } while (0)                                                             \
 // clang-format on

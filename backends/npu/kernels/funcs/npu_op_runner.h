@@ -281,21 +281,6 @@ inline aclTensorList *ConvertType(
 }
 
 inline aclTensorList *ConvertType(
-  const std::vector<phi::DenseTensor*> &phi_tensor_list) {
-  static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
-  if (aclCreateTensorList == nullptr) {
-    return nullptr;
-  }
-
-  std::vector<const aclTensor *> tensor_list(phi_tensor_list.size());
-  for (size_t i = 0; i < phi_tensor_list.size(); i++) {
-    tensor_list[i] = ConvertType(*phi_tensor_list[i]);
-  }
-  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(), tensor_list.size());
-  return acl_tensor_list;
-}
-
-inline aclTensorList *ConvertType(
   std::vector<phi::DenseTensor*> &phi_tensor_list) {
   static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
   if (aclCreateTensorList == nullptr) {

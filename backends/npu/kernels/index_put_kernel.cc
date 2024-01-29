@@ -34,15 +34,16 @@ void IndexPutKernel(const Context& dev_ctx,
                     phi::DenseTensor* out) {
   bool unsafe = true;
 
-  std::vector<phi::DenseTensor> tensor_list(indices.size());
+  std::vector<phi::DenseTensor*> tensor_list(indices.size());
   for (size_t i = 0; i < indices.size(); i++) {
     if (indices[i]->dtype() == phi::DataType::INT32) {
-      tensor_list[i].Resize(indices[i]->dims());
-      dev_ctx.Alloc(&(tensor_list[i]), phi::DataType::INT64);
+      tensor_list[i] = new phi::DenseTensor;
+      tensor_list[i]->Resize(indices[i]->dims());
+      dev_ctx.Alloc(tensor_list[i], phi::DataType::INT64);
       custom_kernel::CastKernel<T, Context>(
-          dev_ctx, *(indices[i]), phi::DataType::INT64, &(tensor_list[i]));
+          dev_ctx, *(indices[i]), phi::DataType::INT64, tensor_list[i]);
     } else {
-      tensor_list[i] = *(indices[i]);
+      tensor_list[i] = new phi::DenseTensor(*(indices[i]));
     }
   }
 
@@ -62,20 +63,21 @@ void IndexPutGradKernel(const Context& dev_ctx,
                         phi::DenseTensor* out) {
   bool unsafe = true;
 
-  std::vector<phi::DenseTensor> tensor_list(indices.size());
+  std::vector<phi::DenseTensor*> tensor_list(indices.size());
   for (size_t i = 0; i < indices.size(); i++) {
     if (indices[i]->dtype() == phi::DataType::INT32) {
-      tensor_list[i].Resize(indices[i]->dims());
-      dev_ctx.Alloc(&(tensor_list[i]), phi::DataType::INT64);
+      tensor_list[i] = new phi::DenseTensor;
+      tensor_list[i]->Resize(indices[i]->dims());
+      dev_ctx.Alloc(tensor_list[i], phi::DataType::INT64);
       custom_kernel::CastKernel<T, Context>(
-          dev_ctx, *(indices[i]), phi::DataType::INT64, &(tensor_list[i]));
+          dev_ctx, *(indices[i]), phi::DataType::INT64, tensor_list[i]);
     } else {
-      tensor_list[i] = *(indices[i]);
+      tensor_list[i] = new phi::DenseTensor(*(indices[i]));
     }
   }
 
   EXEC_NPU_CMD(
-      aclnnIndexPutImpl, dev_ctx, x, indices, value, accumulate, unsafe);
+      aclnnIndexPutImpl, dev_ctx, x, tensor_list, value, accumulate, unsafe);
   dev_ctx.template Alloc<T>(out);
   TensorCopy(dev_ctx, x, true, out);
 }

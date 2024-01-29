@@ -44,7 +44,7 @@ void IndexPutKernel(const Context& dev_ctx,
         tensor_list[i] = *(indices[i]);
     }
   }
- 
+
   EXEC_NPU_CMD(
       aclnnIndexPutImpl, dev_ctx, x, tensor_list, value, accumulate, unsafe);
   dev_ctx.template Alloc<T>(out);
@@ -72,7 +72,7 @@ void IndexPutGradKernel(const Context& dev_ctx,
         tensor_list[i] = *(indices[i]);
     }
   }
-  
+
   EXEC_NPU_CMD(
       aclnnIndexPutImpl, dev_ctx, x, tensor_list, value, accumulate, unsafe);
   dev_ctx.template Alloc<T>(out);

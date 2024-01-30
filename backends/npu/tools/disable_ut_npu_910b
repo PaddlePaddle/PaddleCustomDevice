@@ -1,7 +1,6 @@
 disable_ut_npu
 test_assign_value_op_npu
 test_batch_norm_op_npu
-test_check_finite_and_unscale_op_npu
 test_check_nan_inf_op_npu
 test_collective_api
 test_compare_op_npu
@@ -22,7 +21,6 @@ test_momentum_op_npu
 test_parallel_dygraph_mp_layers
 test_pool2d_op_npu
 test_rnn_op_npu
-test_set_value_op_npu
 test_slice_op_npu
 test_softmax_with_cross_entropy_op_npu
 test_squared_l2_norm_op_npu

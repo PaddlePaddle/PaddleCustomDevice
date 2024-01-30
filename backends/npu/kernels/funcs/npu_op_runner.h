@@ -370,7 +370,6 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);     \
     auto api_ret =                                                        \
       opApiFunc(workspace_addr, workspace_size, executor, acl_stream);    \
-    aclrtSynchronizeStream((dev_ctx).stream());                           \
     ReleaseConvertTypes(converted_params);                                \
     ReleaseHugeMem releaseMemFunc =                                       \
       reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                   \

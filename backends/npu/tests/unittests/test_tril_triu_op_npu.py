@@ -20,7 +20,10 @@ import paddle
 import paddle.base as base
 import paddle.tensor as tensor
 from paddle.base.framework import Program, program_guard
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
+from npu_utils import check_soc_version
+
+import paddle_custom_device
 
 paddle.enable_static()
 
@@ -75,6 +78,45 @@ class TestNPUTrilTriu(OpTest):
 class TestNPUTrilTriuFP16(TestNPUTrilTriu):
     def init_dtype(self):
         self.dtype = np.float16
+
+
+class TestNPUTrilTriuBF16(TestNPUTrilTriu):
+    def setUp(self):
+        self.op_type = "tril_triu"
+        self.set_npu()
+        self.init_dtype()
+        self.initTestCase()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.real_np_op = getattr(np, self.real_op_type)
+
+        self.inputs = {"X": convert_float_to_uint16(self.X)}
+        self.attrs = {
+            "diagonal": self.diagonal,
+            "lower": True if self.real_op_type == "tril" else False,
+        }
+        self.outputs = {
+            "Out": self.real_np_op(convert_uint16_to_float(self.X), self.diagonal)
+            if self.diagonal
+            else self.real_np_op(convert_uint16_to_float(self.X))
+        }
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    @check_soc_version
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            check_dygraph=False,
+            max_relative_error=0.009,
+            numeric_place=paddle.CPUPlace(),
+        )
 
 
 class TestNPUTrilTriuFP64(TestNPUTrilTriu):
@@ -158,11 +200,18 @@ class TestTrilTriuOpAPI(unittest.TestCase):
         paddle.enable_static()
 
         dtypes = ["float16", "float32"]
+        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+            dtypes.append("bfloat16")
         for dtype in dtypes:
             prog = Program()
             startup_prog = Program()
             with program_guard(prog, startup_prog):
-                data = np.random.random([1, 9, 9, 4]).astype(dtype)
+                if dtype == "bfloat16":
+                    data = convert_float_to_uint16(
+                        np.random.random([1, 9, 9, 4]).astype(np.float32)
+                    )
+                else:
+                    data = np.random.random([1, 9, 9, 4]).astype(dtype)
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
@@ -173,30 +222,56 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                     feed={"x": data},
                     fetch_list=[tril_out, triu_out],
                 )
-                np.testing.assert_allclose(tril_out, np.tril(data))
-                np.testing.assert_allclose(triu_out, np.triu(data))
+                np.testing.assert_allclose(
+                    convert_uint16_to_float(tril_out),
+                    np.tril(convert_uint16_to_float(data)),
+                )
+                np.testing.assert_allclose(
+                    convert_uint16_to_float(triu_out),
+                    np.triu(convert_uint16_to_float(data)),
+                )
 
     def test_api_with_dygraph(self):
         paddle.disable_static(paddle.CustomPlace("npu", 0))
 
         dtypes = ["float16", "float32"]
+        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+            dtypes.append("bfloat16")
         for dtype in dtypes:
             with base.dygraph.guard():
-                data = np.random.random([1, 9, 9, 4]).astype(dtype)
+                if dtype == "bfloat16":
+                    data = convert_float_to_uint16(
+                        np.random.random([1, 9, 9, 4]).astype(np.float32)
+                    )
+                else:
+                    data = np.random.random([1, 9, 9, 4]).astype(dtype)
                 x = base.dygraph.to_variable(data)
                 tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(x).numpy()
-                np.testing.assert_allclose(tril_out, np.tril(data))
-                np.testing.assert_allclose(triu_out, np.triu(data))
+                np.testing.assert_allclose(
+                    convert_uint16_to_float(tril_out),
+                    np.tril(convert_uint16_to_float(data)),
+                )
+                np.testing.assert_allclose(
+                    convert_uint16_to_float(triu_out),
+                    np.triu(convert_uint16_to_float(data)),
+                )
 
     def test_base_api(self):
         paddle.enable_static()
 
         dtypes = ["float16", "float32"]
+        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+            dtypes.append("bfloat16")
         for dtype in dtypes:
             prog = Program()
             startup_prog = Program()
             with program_guard(prog, startup_prog):
-                data = np.random.random([1, 9, 9, 4]).astype(dtype)
+                if dtype == "bfloat16":
+                    data = convert_float_to_uint16(
+                        np.random.random([1, 9, 9, 4]).astype(np.float32)
+                    )
+                else:
+                    data = np.random.random([1, 9, 9, 4]).astype(dtype)
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 triu_out = paddle.triu(x)
 

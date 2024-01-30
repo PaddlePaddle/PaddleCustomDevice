@@ -20,6 +20,12 @@ namespace custom_kernel {
 constexpr int64_t kNoPadding = -1;
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void EmbeddingKernel(const Context& dev_ctx,
                      const phi::DenseTensor& inputx,
                      const phi::DenseTensor& weight,
@@ -84,10 +90,8 @@ void EmbeddingGradKernel(const Context& dev_ctx,
   phi::DenseTensor input_int32;
   if (input.dtype() == phi::DataType::INT64) {
     input_int32.Resize(input.dims());
-    dev_ctx.template Alloc<int32_t>(&input_int32);
-    const auto& cast_runner =
-        NpuOpRunner("Cast", {input}, {input_int32}, {{"dst_type", ACL_INT32}});
-    cast_runner.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, input, phi::DataType::INT32, &input_int32);
   } else {
     // directly point to input.
     input_int32 = input;

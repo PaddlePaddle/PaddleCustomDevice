@@ -283,6 +283,7 @@ inline aclTensorList *ConvertType(
   return acl_tensor_list;
 }
 
+
 inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
   static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
   if (aclCreateIntArray == nullptr) {
@@ -290,6 +291,23 @@ inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
   }
   auto array = aclCreateIntArray(at_array.data(), at_array.size());
   return array;
+}
+
+
+inline aclTensorList *ConvertType(
+  const std::vector<phi::DenseTensor*> &phi_tensor_list) {
+  static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
+  if (aclCreateTensorList == nullptr) {
+    return nullptr;
+  }
+
+  std::vector<const aclTensor *> tensor_list(phi_tensor_list.size());
+  for (size_t i = 0; i < phi_tensor_list.size(); i++) {
+    tensor_list[i] = ConvertType(*phi_tensor_list[i]);
+  }
+  auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
+                                             tensor_list.size());
+  return acl_tensor_list;
 }
 
 
@@ -505,12 +523,7 @@ class NpuOpRunner {
         tmp_inputs[i].Resize(inputs[i].dims());
         dev_ctx.Alloc(&(tmp_inputs[i]), input_type[i]);
 
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {inputs[i]},
-            {tmp_inputs[i]},
-            {{"dst_type", static_cast<int>(ConvertToNpuDtype(input_type[i]))}});
-        cast_runner.Run(dev_ctx.stream());
+        CastCall(dev_ctx, inputs[i], input_type[i], &(tmp_inputs[i]));
       }
     }
     for (size_t i = 0; i < output_type.size(); ++i) {
@@ -530,13 +543,10 @@ class NpuOpRunner {
       bool cast_output = (output_type[i] == phi::DataType::UNDEFINED ||
                           output_type[i] != outputs[i].dtype());
       if (cast_output) {
-        const auto &cast_runner = NpuOpRunner(
-            "Cast",
-            {tmp_outputs[i]},
-            {outputs[i]},
-            {{"dst_type",
-              static_cast<int>(ConvertToNpuDtype(outputs[i].dtype()))}});
-        cast_runner.Run(dev_ctx.stream());
+        CastCall(dev_ctx,
+                 tmp_outputs[i],
+                 outputs[i].dtype(),
+                 const_cast<phi::DenseTensor*>(&(outputs[i])));
       }
     }
   }
@@ -551,6 +561,32 @@ class NpuOpRunner {
   void InitFloatStatus(aclrtStream stream) const;
   void AllocFloatStatus(aclrtStream stream) const;
   void PrintOpInfo() const;
+
+  static void AclopCastCall(
+      const phi::CustomContext& dev_ctx,
+      const phi::DenseTensor& x,
+      phi::DataType dtype,
+      phi::DenseTensor* out) {
+    const auto &cast_runner = NpuOpRunner(
+        "Cast",
+        {x},
+        {*out},
+        {{"dst_type", static_cast<int>(ConvertToNpuDtype(dtype))}});
+    cast_runner.Run(dev_ctx.stream());
+  }
+
+  static void CastCall(
+      const phi::CustomContext& dev_ctx,
+      const phi::DenseTensor& x,
+      phi::DataType dtype,
+      phi::DenseTensor* out) {
+    DO_COMPATIBILITY(
+        aclnnCast,
+        (AclopCastCall(dev_ctx, x, dtype, out)));
+
+    int aclDtype = ConvertToNpuDtype(dtype);
+    EXEC_NPU_CMD(aclnnCast, dev_ctx, x, aclDtype, *out);
+  }
 
  private:
   std::string op_type_;

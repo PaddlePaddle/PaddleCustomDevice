@@ -21,11 +21,11 @@ import paddle.base as base
 import paddle.tensor as tensor
 from paddle.base.framework import Program, program_guard
 from tests.op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
-from npu_utils import check_soc_version
-
-import paddle_custom_device
+from npu_utils import check_soc_version, get_cann_version
 
 paddle.enable_static()
+
+CANN_VERSION_CODE = get_cann_version()
 
 
 class TestNPUTrilTriu(OpTest):
@@ -200,7 +200,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
         paddle.enable_static()
 
         dtypes = ["float16", "float32"]
-        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+        if CANN_VERSION_CODE >= 7:
             dtypes.append("bfloat16")
         for dtype in dtypes:
             prog = Program()
@@ -235,7 +235,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
         paddle.disable_static(paddle.CustomPlace("npu", 0))
 
         dtypes = ["float16", "float32"]
-        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+        if CANN_VERSION_CODE >= 7:
             dtypes.append("bfloat16")
         for dtype in dtypes:
             with base.dygraph.guard():
@@ -260,7 +260,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
         paddle.enable_static()
 
         dtypes = ["float16", "float32"]
-        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+        if CANN_VERSION_CODE >= 7:
             dtypes.append("bfloat16")
         for dtype in dtypes:
             prog = Program()

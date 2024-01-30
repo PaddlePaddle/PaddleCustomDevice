@@ -125,7 +125,8 @@ PD_REGISTER_PLUGIN_KERNEL(softmax,
                           custom_kernel::SoftmaxKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
                           npu,
@@ -133,4 +134,5 @@ PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
                           custom_kernel::SoftmaxGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

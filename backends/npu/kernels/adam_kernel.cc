@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AdamImplKernel(const Context& dev_ctx,
                     const phi::DenseTensor& param,
                     const phi::DenseTensor& grad,
@@ -120,12 +126,8 @@ void AdamImplKernel(const Context& dev_ctx,
                                                 tmp_master_param.dims(),
                                                 tmp_master_param.layout()};
       master_param_t.set_meta(master_param_meta);
-      dev_ctx.template Alloc<float>(&master_param_t);
-      const auto& cast_runner = NpuOpRunner("Cast",
-                                            {tmp_master_param},
-                                            {master_param_t},
-                                            {{"dst_type", ACL_FLOAT}});
-      cast_runner.Run(stream);
+      custom_kernel::CastKernel<T, Context>(
+          dev_ctx, tmp_master_param, phi::DataType::FLOAT32, &master_param_t);
     }
     TensorCopy(dev_ctx, master_param_t, false, master_param_out);
     const auto& runner = NpuOpRunner("ApplyAdamD",
@@ -149,13 +151,8 @@ void AdamImplKernel(const Context& dev_ctx,
                                      {});
     runner.Run(stream);
 
-    const auto& cast_runner = NpuOpRunner(
-        "Cast",
-        {*master_param_out},
-        {*param_out},
-        {{"dst_type",
-          static_cast<int>(ConvertToNpuDtype(param_out->dtype()))}});
-    cast_runner.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, *master_param_out, param_out->dtype(), param_out);
   } else if (param.dtype() == phi::DataType::FLOAT16) {
     phi::DenseTensor param_fp32;
     param_fp32.Resize(calc_param->dims());
@@ -189,13 +186,8 @@ void AdamImplKernel(const Context& dev_ctx,
                                      {});
     runner.Run(stream);
 
-    const auto& cast_runner2 = NpuOpRunner(
-        "Cast",
-        {param_fp32},
-        {*param_out},
-        {{"dst_type",
-          static_cast<int>(ConvertToNpuDtype(param_out->dtype()))}});
-    cast_runner2.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, param_fp32, param_out->dtype(), param_out);
   } else {
     TensorCopy(dev_ctx, param, false, param_out);
     const auto& runner = NpuOpRunner("ApplyAdamD",

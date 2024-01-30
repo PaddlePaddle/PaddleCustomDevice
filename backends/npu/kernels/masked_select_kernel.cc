@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void MaskedSelectKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& mask,
@@ -44,14 +50,8 @@ void MaskedSelectKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int32_t>(&out_size);
   std::vector<int32_t> out_size_vec;
   {
-    const auto& cast_runner = NpuOpRunner(
-        "Cast",
-        {mask},
-        {mask_int32},
-        {{"dst_type",
-          static_cast<int32_t>(ConvertToNpuDtype(phi::DataType::INT32))}});
-    cast_runner.Run(stream);
-
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, mask, phi::DataType::INT32, &mask_int32);
     mask_int32.Resize({mask_int32.numel()});
 
     NpuOpRunner sum_runner;

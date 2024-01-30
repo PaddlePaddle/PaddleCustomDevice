@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void OneHotRawKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::Scalar& depth_scalar,
@@ -47,10 +53,8 @@ void OneHotRawKernel(const Context& dev_ctx,
   } else {
     phi::DenseTensor transformed_in;
     transformed_in.Resize(x.dims());
-    dev_ctx.template Alloc<int32_t>(&transformed_in);
-    const auto& cast_runner =
-        NpuOpRunner("Cast", {x}, {transformed_in}, {{"dst_type", ACL_INT32}});
-    cast_runner.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::INT32, &transformed_in);
     NpuOpRunner runner;
     runner.SetType("OneHot")
         .AddInput(transformed_in)

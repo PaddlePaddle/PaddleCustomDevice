@@ -1216,7 +1216,8 @@ PD_REGISTER_PLUGIN_KERNEL(cos,
                           custom_kernel::CosKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cos_grad,
                           npu,
@@ -1224,7 +1225,8 @@ PD_REGISTER_PLUGIN_KERNEL(cos_grad,
                           custom_kernel::CosGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan,
                           npu,
@@ -1266,7 +1268,8 @@ PD_REGISTER_PLUGIN_KERNEL(sin,
                           custom_kernel::SinKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish,
                           npu,
@@ -1287,14 +1290,16 @@ PD_REGISTER_PLUGIN_KERNEL(silu,
                           ALL_LAYOUT,
                           custom_kernel::SiluKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(silu_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::SiluGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu,
                           npu,
@@ -1349,14 +1354,16 @@ PD_REGISTER_PLUGIN_KERNEL(pow,
                           ALL_LAYOUT,
                           custom_kernel::PowKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::PowGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log,
                           npu,
@@ -1598,15 +1605,23 @@ PD_REGISTER_PLUGIN_KERNEL(selu_grad,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(
-    rsqrt, npu, ALL_LAYOUT, custom_kernel::RsqrtKernel, float, double) {}
+PD_REGISTER_PLUGIN_KERNEL(rsqrt,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::RsqrtKernel,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::RsqrtGradKernel,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(elu,
                           npu,

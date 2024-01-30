@@ -131,5 +131,154 @@ class TestSqrt(TestActivationBf16):
         self.check_output_with_place(self.place, check_dygraph=True)
 
 
+class TestSinBF16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "sin"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = np.sin(convert_uint16_to_float(convert_float_to_uint16(x)))
+
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.outputs = {"Out": out}
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def init_kernel_type(self):
+        pass
+
+    @unittest.skip("sin_grad not implemented on NPU yet")
+    def test_check_grad(self):
+        pass
+
+    @check_soc_version
+    def test_check_output(self):
+        check_dygraph = False
+        if hasattr(self, "check_dygraph"):
+            check_dygraph = self.check_dygraph
+        self.check_output_with_place(self.place, check_dygraph=check_dygraph)
+
+
+class TestSiluBF16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "silu"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = x / (np.exp(-convert_uint16_to_float(convert_float_to_uint16(x))) + 1)
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.outputs = {"Out": out}
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def init_shape(self):
+        self.shape = [11, 17]
+
+    def init_kernel_type(self):
+        pass
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    @check_soc_version
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+        )
+
+
+class TestCos(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "cos"
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        out = np.cos(convert_uint16_to_float(convert_float_to_uint16(x)))
+
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.outputs = {"Out": out}
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    @check_soc_version
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
+
+
+class TestPow(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "pow"
+        self.python_api = paddle.pow
+        self.check_dygraph = True
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(1024)
+        x = np.random.uniform(1, 2, self.shape).astype(self.dtype)
+        out = np.power(convert_uint16_to_float(convert_float_to_uint16(x)), 3)
+
+        self.inputs = {"X": convert_float_to_uint16(OpTest.np_dtype_to_base_dtype(x))}
+        self.attrs = {"factor": 3.0}
+        self.outputs = {"Out": out}
+
+    def init_shape(self):
+        self.shape = []
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(self.place, check_dygraph=self.check_dygraph)
+
+    @check_soc_version
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(
+            self.place, ["X"], "Out", check_dygraph=self.check_dygraph
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

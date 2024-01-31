@@ -75,12 +75,24 @@ void MultiplyRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopMultiplyKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         phi::DenseTensor* out) {
+  int axis = -1;
+  custom_kernel::MultiplyRawKernel<T>(dev_ctx, x, y, axis, out);
+}
+
+template <typename T, typename Context>
 void MultiplyKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  int axis = -1;
-  custom_kernel::MultiplyRawKernel<T>(dev_ctx, x, y, axis, out);
+  DO_COMPATIBILITY(
+      aclnnMul,
+      (custom_kernel::AclopMultiplyKernel<T, Context>(dev_ctx, x, y, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, x, y, *out);
 }
 
 template <typename T, typename Context>

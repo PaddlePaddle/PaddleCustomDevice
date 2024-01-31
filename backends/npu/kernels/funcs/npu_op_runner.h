@@ -310,6 +310,16 @@ inline aclTensorList *ConvertType(
   return acl_tensor_list;
 }
 
+inline aclIntArray *ConvertType(const phi::IntArray &phi_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  std::vector<int64_t> temp_array(
+    phi_array.GetData().begin(), phi_array.GetData().end());
+  auto array = aclCreateIntArray(temp_array.data(), temp_array.size());
+  return array;
+}
 
 template <typename T>
 T ConvertType(T value) {

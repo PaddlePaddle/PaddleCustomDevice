@@ -15,6 +15,7 @@
 from __future__ import print_function
 
 import unittest
+from paddle import _legacy_C_ops
 from tests.op_test import (
     OpTest,
     convert_float_to_uint16,
@@ -53,21 +54,19 @@ class TestCheckFiniteAndUnscaleOp(OpTest):
         self.check_output_with_place(self.place)
 
 
-class TestCheckFiniteAndUnscaleOpWithNan(TestCheckFiniteAndUnscaleOp):
-    def init_test_case(self):
+class TestCheckFiniteAndUnscaleOpWithNan(unittest.TestCase):
+    @check_soc_version
+    def test_with_nan(self):
         x = np.random.random((1024, 1024)).astype(np.float32)
         x[128][128] = np.nan
-        scale = np.random.random(1).astype(np.float32)
-        self.inputs = {"X": [("x0", x)], "Scale": scale}
-        self.outputs = {
-            "FoundInfinite": np.array([1]),
-            "Out": [("out0", x)],
-        }
+        y = np.random.random(1).astype(np.float32)
+        npu_x = paddle.to_tensor(x)
+        scale = paddle.to_tensor(y)
+        found_inf = paddle.to_tensor(np.array([0]).astype(np.bool_))
+        _legacy_C_ops.check_finite_and_unscale([npu_x], scale, [npu_x], found_inf)
 
-    def test_check_output(self):
-        # When input contains nan, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output(no_check_set=["Out"])
+        np.testing.assert_allclose(npu_x.numpy(), x / y, rtol=1e-05)
+        np.testing.assert_equal(found_inf.numpy(), 1)
 
 
 class TestCheckFiniteAndUnscaleOpWithInf(TestCheckFiniteAndUnscaleOp):
@@ -78,13 +77,12 @@ class TestCheckFiniteAndUnscaleOpWithInf(TestCheckFiniteAndUnscaleOp):
         self.inputs = {"X": [("x0", x)], "Scale": scale}
         self.outputs = {
             "FoundInfinite": np.array([1]),
-            "Out": [("out0", x)],
+            "Out": [("out0", x / scale)],
         }
 
+    @check_soc_version
     def test_check_output(self):
-        # When input contains inf, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output(no_check_set=["Out"])
+        self.check_output_with_place(self.place)
 
 
 if __name__ == "__main__":

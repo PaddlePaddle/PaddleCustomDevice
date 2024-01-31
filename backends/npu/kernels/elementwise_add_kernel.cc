@@ -48,6 +48,12 @@ inline phi::DDim GetDimsWithAxis(const phi::DDim& x_dims,
 }
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AddRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::DenseTensor& y,
@@ -79,12 +85,43 @@ void AddRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopAddKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  int axis = -1;
+  custom_kernel::AddRawKernel<T>(dev_ctx, x, y, axis, out);
+}
+
+template <typename T, typename Context>
 void AddKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::DenseTensor& y,
                phi::DenseTensor* out) {
-  int axis = -1;
-  custom_kernel::AddRawKernel<T>(dev_ctx, x, y, axis, out);
+  DO_COMPATIBILITY(
+      aclnnAdd,
+      (custom_kernel::AclopAddKernel<T, Context>(dev_ctx, x, y, out)));
+  if (x.storage_properties_initialized()) {
+    custom_kernel::AclopAddKernel<T, Context>(dev_ctx, x, y, out);
+    return;
+  }
+  phi::Scalar alpha = 1;
+
+  if (x.dtype() == phi::DataType::FLOAT64) {
+    LOG(WARNING) << "Add Kernel is running on the AICPU. "
+                 << "For better performance. use other dtypes";
+    phi::DenseTensor trans_x;
+    trans_x.Resize(x.dims());
+    dev_ctx.template Alloc<float>(&trans_x);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::FLOAT32, &trans_x);
+
+    dev_ctx.template Alloc<float>(out);
+    EXEC_NPU_CMD(aclnnAdd, dev_ctx, trans_x, y, alpha, *out);
+  } else {
+    dev_ctx.template Alloc<T>(out);
+    EXEC_NPU_CMD(aclnnAdd, dev_ctx, x, y, alpha, *out);
+  }
 }
 
 template <typename T, typename Context>

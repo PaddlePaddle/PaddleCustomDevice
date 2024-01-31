@@ -79,12 +79,29 @@ void AddRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopAddKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out) {
+  int axis = -1;
+  custom_kernel::AddRawKernel<T>(dev_ctx, x, y, axis, out);
+}
+
+template <typename T, typename Context>
 void AddKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::DenseTensor& y,
                phi::DenseTensor* out) {
-  int axis = -1;
-  custom_kernel::AddRawKernel<T>(dev_ctx, x, y, axis, out);
+  DO_COMPATIBILITY(
+      aclnnAdd,
+      (custom_kernel::AclopAddKernel<T, Context>(dev_ctx, x, y, out)));
+  if (x.storage_properties_initialized()) {
+    custom_kernel::AclopAddKernel<T, Context>(dev_ctx, x, y, out);
+    return;
+  }
+  phi::Scalar alpha = 1;
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnAdd, dev_ctx, x, y, alpha, *out);
 }
 
 template <typename T, typename Context>

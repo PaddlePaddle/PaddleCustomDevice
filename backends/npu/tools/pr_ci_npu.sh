@@ -157,8 +157,11 @@ function card_test() {
         done
         tmpfile=$tmp_dir/$tmpfile_rand"_"$i
         if [[ $cardnumber == $CUDA_DEVICE_COUNT ]]; then
-           echo $npu_list
-           #(ctest -I $i,,$NUM_PROC -R "($testcases)" | tee $tmpfile;test ${PIPESTATUS[0] -eq 0}) &
+           echo "================"
+           echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
+           echo FLAGS_selected_npus=${logical_card_sequence}
+           echo "================"
+           (ctest -I $i,,$NUM_PROC -R "($testcases)" | tee $tmpfile;test ${PIPESTATUS[0] -eq 0}) &
         else
            echo "================"
            echo ASCEND_RT_VISIBLE_DEVICE=$npu_list

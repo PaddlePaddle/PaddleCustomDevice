@@ -23,7 +23,7 @@ if [ -z ${PADDLE_BRANCH} ]; then
     PADDLE_BRANCH="develop"
 fi
 
-export ASCEND_RT_VISIBLE_DEVICES="5,6,7,9"
+export ASCEND_RT_VISIBLE_DEVICES="1,2"
 CODE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
 export CODE_ROOT
 
@@ -168,7 +168,7 @@ function card_test() {
            echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
            echo FLAGS_selected_npus=${logical_card_sequence}
            echo "================"
-           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list FLAGS_selected_npus=${logical_card_sequence} ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
+           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list env FLAGS_selected_npus=${logical_card_sequence} ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
         fi
     done
     wait; # wait for all subshells to finish

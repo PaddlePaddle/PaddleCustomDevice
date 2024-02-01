@@ -23,6 +23,7 @@ if [ -z ${PADDLE_BRANCH} ]; then
     PADDLE_BRANCH="develop"
 fi
 
+export ASCEND_RT_VISIBLE_DEVICES="5,6,7,9"
 CODE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
 export CODE_ROOT
 

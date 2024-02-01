@@ -19,6 +19,9 @@ from tests.op_test import OpTest
 from scipy.special import logit
 from scipy.special import expit
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import paddle
 
 paddle.enable_static()
@@ -59,7 +62,7 @@ class TestSigmoidCrossEntropyWithLogitsOp1(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = np.float32

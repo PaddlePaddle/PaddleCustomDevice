@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -31,7 +34,7 @@ def ref_hardsigmoid(x, slope=0.166666666666667, offset=0.5):
 class TestHardSigmoid(OpTest):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "hard_sigmoid"
         self.dtype = "float64"
         self.slope = 0.166666666666667
@@ -97,7 +100,7 @@ class TestHardsigmoidAPI(unittest.TestCase):
     # test paddle.nn.Hardsigmoid, paddle.nn.functional.hardsigmoid
     def setUp(self):
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         with paddle.static.program_guard(paddle.static.Program()):

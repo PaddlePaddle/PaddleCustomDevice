@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -40,7 +43,7 @@ def ref_prelu_nn(x, num_parameters, init):
 class TestFunctionalPReluAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.x_np = np.random.uniform(-1.0, 1.0, [1, 2, 3, 4]).astype("float32")
         self.weight_np_0 = np.random.randn(1).astype("float32")
         self.weight_np_1 = np.random.randn(self.x_np.shape[1]).astype("float32")
@@ -80,7 +83,7 @@ class TestFunctionalPReluAPI(unittest.TestCase):
 class TestNNPReluAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.x_np = np.ones([1, 2, 3, 4]).astype("float32")
 
     def test_static_api(self):
@@ -194,7 +197,7 @@ class PReluTest(OpTest):
         self.x_shape = [2, 100, 3, 4]
 
     def init_place(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_attr(self):
         self.attrs = {"mode": "channel", "data_format": "NCHW"}

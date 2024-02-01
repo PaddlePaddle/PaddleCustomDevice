@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -29,7 +32,7 @@ class TestElementwiseDivBf16(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_div"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         np.random.seed(SEED)
         x = convert_float_to_uint16(np.random.uniform(1, 2, [3, 4]).astype(np.float32))

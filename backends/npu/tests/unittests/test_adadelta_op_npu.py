@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -94,7 +97,7 @@ class TestAdadeltaOp1(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place, rtol=2e-5, atol=1e-6)
@@ -150,7 +153,7 @@ class TestAdadeltaOp2(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place, rtol=2e-5, atol=1e-6)
@@ -158,7 +161,7 @@ class TestAdadeltaOp2(OpTest):
 
 class TestAdadeltaV2(unittest.TestCase):
     def test_adadelta_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear = paddle.nn.Linear(13, 5)
@@ -175,7 +178,7 @@ class TestAdadeltaV2(unittest.TestCase):
 
     def test_adadelta(self):
         paddle.enable_static()
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         main = base.Program()
         with base.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
@@ -212,7 +215,7 @@ class TestAdadeltaV2(unittest.TestCase):
 
 class TestAdadeltaV2Group(TestAdadeltaV2):
     def test_adadelta_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear_1 = paddle.nn.Linear(13, 5)

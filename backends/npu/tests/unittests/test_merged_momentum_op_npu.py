@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import paddle
 from paddle.base.layer_helper import LayerHelper
@@ -322,7 +325,7 @@ class TestMergedMomentum(unittest.TestCase):
                 self.assertTrue(np.allclose(out1, out2, atol=1e-7))
 
     def get_places(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.use_custom_device = True
         places = [self.place]
         return places
@@ -400,7 +403,7 @@ class TestMergedMomentum2(unittest.TestCase):
                 self.assertTrue(np.allclose(out3, out4, atol=1e-7))
 
     def get_places(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.use_custom_device = True
         places = [self.place]
         return places

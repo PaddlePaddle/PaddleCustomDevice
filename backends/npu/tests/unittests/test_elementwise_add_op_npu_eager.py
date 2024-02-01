@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import paddle
 import numpy as np
 
@@ -31,7 +34,7 @@ class TestElementwiseAddBF16(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_add"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.shape_x = [5, 6, 2, 10]
         self.shape_y = [5, 1, 2, 10]
         self.x = np.random.uniform(0.1, 1, self.shape_x).astype(np.float32)

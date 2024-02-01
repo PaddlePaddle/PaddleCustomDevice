@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -43,7 +46,7 @@ class TestTakeAlongAxisOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -92,7 +95,7 @@ class TestTakeAlongAxisAPI(unittest.TestCase):
         self.index_shape = [1, 3]
         self.index_np = np.array([[0, 1, 2]]).astype("int64")
         self.x_np = np.random.random(self.shape).astype(np.float32)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.axis = 0
 
     def test_api_static(self):
@@ -126,7 +129,7 @@ class TestTakeAlongAxisAPICase1(TestTakeAlongAxisAPI):
         self.index_shape = [4, 2]
         self.index_np = np.array([[0, 0], [1, 0], [0, 0], [1, 0]]).astype("int64")
         self.x_np = np.random.random(self.shape).astype(np.float32)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.axis = 0
 
 

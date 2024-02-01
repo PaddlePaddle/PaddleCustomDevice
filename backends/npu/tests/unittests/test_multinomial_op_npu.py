@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import paddle
 import paddle.base as base
 
@@ -53,7 +56,7 @@ class TestMultinomialOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_data(self):
         # input probability is a vector, and replacement is True
@@ -190,7 +193,7 @@ class TestMultinomialFP16Op(OpTest):
     def setUp(self):
         paddle.enable_static()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "multinomial"
         self.dtype = np.float16
         self.init_data()

@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -25,7 +28,7 @@ class TestNPUIdentityOp(unittest.TestCase):
         self.shape = [64, 6, 28, 28]
         self.x = np.random.random(self.shape).astype(np.float32)
         self.format = 3  # ACL_FORMAT_NC1HWC0 = 3
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_api_static(self):
         paddle.enable_static()

@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -96,7 +99,7 @@ class TestMomentumOp1(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0))
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu))
 
 
 class TestMomentumOpFp16(TestMomentumOp1):
@@ -115,7 +118,7 @@ class TestMomentumOp2(TestMomentumOp1):
 
 class TestMomentumV2(unittest.TestCase):
     def test_momentum_dygraph(self):
-        paddle.disable_static(place=paddle.CustomPlace("npu", 0))
+        paddle.disable_static(place=paddle.CustomPlace("npu", select_npu))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear = paddle.nn.Linear(13, 5)
@@ -130,7 +133,7 @@ class TestMomentumV2(unittest.TestCase):
 
     def test_momentum(self):
         paddle.enable_static()
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         main = base.Program()
         with base.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
@@ -211,7 +214,7 @@ class TestMomentumOpWithDecay(OpTest):
 
     def test_check_output(self):
         paddle.enable_static()
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=3e-3)
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu), atol=3e-3)
 
 
 class TestMomentumOpWithDecayFP16(TestMomentumOpWithDecay):
@@ -230,7 +233,7 @@ class TestMomentumOpWithDecay2(TestMomentumOpWithDecay):
 
 class TestMomentumOpWithDecayAPI(unittest.TestCase):
     def _test_momentum_dygraph_common(self, regularization):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         inp = np.random.uniform(-0.1, 0.1, [10, 10]).astype("float32")
         linear = paddle.nn.Linear(10, 10)
         inp = paddle.to_tensor(inp)
@@ -252,7 +255,7 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
 
     def test_momentum_static(self):
         paddle.enable_static()
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         main = base.Program()
         with base.program_guard(main):
             x = paddle.static.data(name="x", shape=[-1, 13], dtype="float32")
@@ -290,7 +293,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             momentum.minimize(loss)
             linear.clear_gradients()
 
-    def __test_vs(self, place=paddle.CustomPlace("npu", 0)):
+    def __test_vs(self, place=paddle.CustomPlace("npu", select_npu)):
         linear_old = paddle.nn.Linear(
             2,
             2,
@@ -325,7 +328,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
             "the param weight updated by two Momentum optimizers should equal",
         )
 
-    def test_vs(self, place=paddle.CustomPlace("npu", 0)):
+    def test_vs(self, place=paddle.CustomPlace("npu", select_npu)):
         paddle.disable_static()
         self.__test_vs(place=place)
         paddle.enable_static()
@@ -333,7 +336,7 @@ class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):
 
 class TestMomentumV2Group(TestMomentumV2):
     def test_momentum_dygraph(self):
-        paddle.disable_static(place=paddle.CustomPlace("npu", 0))
+        paddle.disable_static(place=paddle.CustomPlace("npu", select_npu))
         value = np.arange(26).reshape(2, 13).astype("float32")
         a = paddle.to_tensor(value)
         linear_1 = paddle.nn.Linear(13, 5)

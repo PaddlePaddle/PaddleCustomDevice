@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -29,7 +32,7 @@ np.random.seed(10)
 class TestTileOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.init_data()
 
@@ -111,7 +114,7 @@ class TestTileOpRank_ZeroDim3(TestTileOpRank1):
 class TestTileOpRank1_tensor_attr(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.init_data()
         repeat_times_tensor = []
@@ -161,7 +164,7 @@ class TestTileOpRank2_attr_tensor(TestTileOpRank1_tensor_attr):
 class TestTileOpRank1_tensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.init_data()
 
@@ -197,7 +200,7 @@ class TestTileOpRank2_tensor(TestTileOpRank1_tensor):
 class TestTileOpInteger(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.inputs = {"X": np.random.randint(10, size=(4, 4, 5)).astype("int32")}
         self.attrs = {"repeat_times": [2, 1, 4]}
@@ -215,7 +218,7 @@ class TestTileOpInteger(OpTest):
 class TestTileOpInt64_t(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.inputs = {"X": np.random.randint(10, size=(2, 4, 5)).astype("int64")}
         self.attrs = {"repeat_times": [2, 1, 4]}
@@ -233,7 +236,7 @@ class TestTileOpInt64_t(OpTest):
 class TestTileOpBool(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.inputs = {"X": np.random.randint(1, size=(2, 4, 5)).astype("bool")}
         self.attrs = {"repeat_times": [2, 1, 4]}
@@ -251,7 +254,7 @@ class TestTileOpBool(OpTest):
 class TestTileOpDouble(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.inputs = {"X": np.random.randint(10, size=(2, 10, 5)).astype("double")}
         self.attrs = {"repeat_times": [2, 1, 4]}
@@ -272,7 +275,7 @@ class TestTileOpDouble(OpTest):
 class TestTileOpFloat16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "tile"
         self.inputs = {"X": np.random.randint(10, size=(2, 10, 5)).astype("float16")}
         self.attrs = {"repeat_times": [2, 1, 4]}
@@ -294,7 +297,7 @@ class TestTileOpFloat16(OpTest):
 # Test python API
 class TestTileAPI(unittest.TestCase):
     def test_api(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             np_x = np.random.random([12, 14]).astype("float32")
             x = paddle.to_tensor(np_x)
 

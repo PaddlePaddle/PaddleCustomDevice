@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -28,7 +31,7 @@ SEED = 2021
 class TestFillConstant(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
         self.init_dtype()
 
@@ -49,7 +52,7 @@ class TestFillConstant(OpTest):
 class TestFillConstantInt(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
 
         self.inputs = {}
@@ -73,7 +76,7 @@ class TestFillConstantInt(OpTest):
 class TestFillConstantInt64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
 
         self.inputs = {}
@@ -97,7 +100,7 @@ class TestFillConstantInt64(OpTest):
 class TestFillConstantFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
 
         self.inputs = {}
@@ -121,7 +124,7 @@ class TestFillConstantFP16(OpTest):
 class TestFillConstantFP64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
 
         self.inputs = {}
@@ -145,7 +148,7 @@ class TestFillConstantFP64(OpTest):
 class TestFillConstantBool(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
 
         self.inputs = {}
@@ -169,7 +172,7 @@ class TestFillConstantBool(OpTest):
 class TestFillConstantWithPlaceType(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_constant"
         self.init_dtype()
 

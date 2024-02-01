@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -34,7 +37,7 @@ class BaseTestCase(OpTest):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         np.random.seed(2021)
         self.x = (np.random.random(self.dims)).astype(self.dtype)
         self.inputs = {"X": self.x}
@@ -50,7 +53,7 @@ class TestArgMinParamDtypeInt32(BaseTestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         np.random.seed(2021)
         self.x = (np.random.random(self.dims)).astype(self.dtype)
         self.inputs = {"X": self.x}
@@ -229,7 +232,7 @@ class TestArgMinAPI(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -257,7 +260,7 @@ class TestArgMaxAPI_2(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -286,7 +289,7 @@ class TestArgMinDtypeInt32(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):

@@ -18,6 +18,9 @@ import paddle
 import paddle.base as base
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 
 paddle.enable_static()
@@ -138,7 +141,7 @@ class TestBCELoss(unittest.TestCase):
         label_np = np.random.randint(0, 2, size=(20, 30)).astype(np.float32)
         places = [base.CPUPlace()]
         if "npu" in paddle.base.core.get_all_custom_device_type():
-            places.append(paddle.CustomPlace("npu", 0))
+            places.append(paddle.CustomPlace("npu", select_npu))
         reductions = ["sum", "mean", "none"]
         for place in places:
             for reduction in reductions:
@@ -163,7 +166,7 @@ class TestBCELoss(unittest.TestCase):
         label_np = np.random.randint(0, 2, size=(2, 3, 4, 10)).astype(np.float32)
         weight_np = np.random.random(size=(3, 4, 10)).astype(np.float32)
         place = (
-            paddle.CustomPlace("npu", 0)
+            paddle.CustomPlace("npu", select_npu)
             if ("npu" in paddle.base.core.get_all_custom_device_type())
             else base.CPUPlace()
         )
@@ -189,7 +192,7 @@ class TestBCELoss(unittest.TestCase):
             self.assertTrue(np.allclose(dy_functional, expected))
 
     def test_BCELoss_error(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         self.assertRaises(
             ValueError, paddle.nn.loss.BCELoss, reduction="unsupport reduction"
         )
@@ -223,7 +226,7 @@ class TestBceLossOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

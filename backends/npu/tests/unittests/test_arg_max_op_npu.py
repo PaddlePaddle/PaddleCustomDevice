@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -27,7 +30,7 @@ paddle.enable_static()
 class BaseTestCase(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def initTestCase(self):
         self.op_type = "arg_max"
@@ -385,7 +388,7 @@ class TestArgMaxInt32Case10(BaseTestCase):
 class BaseTestComplex1_1(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def initTestCase(self):
         self.op_type = "arg_max"
@@ -408,7 +411,7 @@ class BaseTestComplex1_1(OpTest):
 class BaseTestComplex1_2(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def initTestCase(self):
         self.op_type = "arg_max"
@@ -437,7 +440,7 @@ class TestArgMaxAPI(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -465,7 +468,7 @@ class TestArgMaxAPI_2(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -493,7 +496,7 @@ class TestArgMaxAPI_3(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):
@@ -521,7 +524,7 @@ class TestArgMaxDtypeInt32(unittest.TestCase):
     def setUp(self):
         self.initTestCase()
         self.__class__.use_custom_device = True
-        self.place = [paddle.CustomPlace("npu", 0)]
+        self.place = [paddle.CustomPlace("npu", select_npu)]
 
     def test_dygraph_api(self):
         def run(place):

@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -26,7 +29,7 @@ paddle.enable_static()
 class TestFillAnyLikeNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "fill_any_like"
         self.dtype = np.float32
         self.shape = [2, 3, 4, 5]

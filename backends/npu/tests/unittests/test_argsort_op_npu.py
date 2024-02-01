@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -57,7 +60,7 @@ class TestArgsortOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.no_need_check_grad = True
 
     def init_inputshape(self):
@@ -153,7 +156,7 @@ class TestArgsortOpAxis0NPUFP32(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.03)
@@ -241,7 +244,7 @@ class TestArgsortOpAxis0NPUINT64(TestArgsortOp):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
 
 class TestArgsortOpAxis1NPUINT64(TestArgsortOpAxis0NPUINT64):

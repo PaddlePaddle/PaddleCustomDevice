@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -73,7 +76,7 @@ class TestRandpermOp(OpTest):
         self.__class__.use_custom_device = True
 
     def _get_places(self):
-        return [paddle.CustomPlace("npu", 0)]
+        return [paddle.CustomPlace("npu", select_npu)]
 
     def init_attrs(self):
         pass
@@ -116,7 +119,7 @@ class TestRandpermOpError(unittest.TestCase):
 class TestRandpermAPI(unittest.TestCase):
     def test_out(self):
         n = 10
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         with program_guard(Program(), Program()):
             x1 = paddle.randperm(n)
             x2 = paddle.randperm(n, "float32")
@@ -132,7 +135,7 @@ class TestRandpermAPI(unittest.TestCase):
 
 class TestRandpermImperative(unittest.TestCase):
     def test_out(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         n = 10
         for dtype in ["int32", np.int64, "float32", "float64"]:
             data_p = paddle.randperm(n, dtype)

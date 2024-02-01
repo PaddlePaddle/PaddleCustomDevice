@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -348,7 +351,7 @@ class TestConv3DOp_2(OpTest):
         self.outputs = {"Output": output}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=1e-2)
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu), atol=1e-2)
 
     def test_check_grad(self):
         if self.dtype == np.float16:

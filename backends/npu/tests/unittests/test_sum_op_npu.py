@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 import paddle
 
@@ -28,7 +31,7 @@ class TestSum1(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         x0 = np.random.random((3, 40)).astype(self.dtype)
         x1 = np.random.random((3, 40)).astype(self.dtype)
@@ -54,7 +57,7 @@ class TestSum2(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         x0 = np.random.random((3, 3)).astype(self.dtype)
         x1 = np.random.random((3, 3)).astype(self.dtype)
@@ -92,7 +95,7 @@ class TestSum3(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         x0 = np.random.random((3, 3)).astype(self.dtype)
 
@@ -117,7 +120,7 @@ class TestSum4(OpTest):
         self.set_npu()
         self.init_dtype()
         self.op_type = "sum"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         x0 = np.random.random((3, 40)).astype(self.dtype)
         x1 = np.random.random((0, 0)).astype(self.dtype)

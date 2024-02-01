@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -37,7 +40,7 @@ class TestHardSwishNPU(OpTest):
 
         self.set_npu()
         self.op_type = "hard_swish"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
 
         x = np.random.uniform(-6, 6, [10, 12]).astype(self.dtype)
@@ -89,7 +92,7 @@ class TestHardSwishNumel1Input(TestHardSwishNPU):
 
         self.set_npu()
         self.op_type = "hard_swish"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
 
         x = np.random.uniform(-6, 6, [1, 1]).astype(self.dtype)
@@ -114,7 +117,7 @@ class TestHardSwishNPUWithCPU(unittest.TestCase):
     def setUp(self):
         paddle.disable_static()
 
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.dtype = np.float32
 
         self.x = np.random.uniform(-6, 10, [8, 15]).astype(self.dtype)

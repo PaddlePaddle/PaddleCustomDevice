@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -26,7 +29,7 @@ class TestAdagradOp1(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -64,7 +67,7 @@ class TestAdagradOp2(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()

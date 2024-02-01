@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -302,7 +305,7 @@ def GridSampler3D(
 
 class TestGridSamplerOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.use_custom_device = True
         self.op_type = "grid_sampler"
         self.python_api = paddle.nn.functional.grid_sample
@@ -489,7 +492,7 @@ class TestGridSamperAPI(unittest.TestCase):
                     for k in range(4):
                         self.theta[i, j, k] = np.random.rand(1)[0]
             self.grid = AffineGrid3D(self.theta, self.grid_shape)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_api_dygraph(self):
         paddle.disable_static(self.place)

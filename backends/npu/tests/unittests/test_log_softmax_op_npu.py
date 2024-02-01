@@ -15,6 +15,9 @@
 from __future__ import print_function
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 import paddle
 import paddle.nn.functional as F
@@ -43,7 +46,7 @@ def ref_log_softmax_grad(x, axis):
 class TestLogSoftmaxNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "log_softmax"
         self.dtype = np.float32
         self.shape = [2, 3, 4, 5]
@@ -125,7 +128,7 @@ class TestNNLogSoftmaxAPI(unittest.TestCase):
         self.x_shape = [2, 3, 4, 5]
         self.x = np.random.uniform(-1.0, 1.0, self.x_shape).astype(np.float32)
         self.place = (
-            paddle.CustomPlace("npu", 0)
+            paddle.CustomPlace("npu", select_npu)
             if ("npu" in paddle.base.core.get_all_custom_device_type())
             else paddle.CPUPlace()
         )
@@ -159,7 +162,7 @@ class TestNNFunctionalLogSoftmaxAPI(unittest.TestCase):
         self.x_shape = [2, 3, 4, 5]
         self.x = np.random.uniform(-1, 1, self.x_shape).astype(np.float32)
         self.place = (
-            paddle.CustomPlace("npu", 0)
+            paddle.CustomPlace("npu", select_npu)
             if ("npu" in paddle.base.core.get_all_custom_device_type())
             else paddle.CPUPlace()
         )

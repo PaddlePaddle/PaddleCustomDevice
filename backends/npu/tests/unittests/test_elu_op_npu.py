@@ -16,6 +16,9 @@ from __future__ import print_function
 
 from tests.op_test import OpTest
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import paddle
 import paddle.base as base
@@ -37,7 +40,7 @@ def ref_elu(
 class EluTest(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_kernel_type(self):
         self.dtype = np.float32
@@ -87,7 +90,7 @@ class TestEluAPI(unittest.TestCase):
         self.alpha = 0.2
         np.random.seed(SEED)
         self.x_np = np.random.normal(size=[3, 5]).astype(np.float32)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()

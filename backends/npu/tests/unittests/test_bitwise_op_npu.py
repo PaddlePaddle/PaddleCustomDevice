@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -40,7 +43,7 @@ class TestBitwiseAnd(OpTest):
 
     def init_place(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -143,7 +146,7 @@ class TestBitwiseOr(OpTest):
 
     def init_place(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_grad(self):
         pass
@@ -246,7 +249,7 @@ class TestBitwiseXor(OpTest):
 
     def init_place(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = np.int32
@@ -345,7 +348,7 @@ class TestBitwiseNot(OpTest):
 
     def init_place(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = np.int32

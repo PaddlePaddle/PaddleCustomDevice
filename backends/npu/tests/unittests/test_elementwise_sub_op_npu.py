@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -30,7 +33,7 @@ class TestElementwiseSubOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_sub"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
         self.init_input_output()
         self.init_kernel_type()
@@ -122,7 +125,7 @@ class TestSubtractAPI(unittest.TestCase):
             z = paddle.subtract(x_reshape, y_reshape)
             z = paddle.reshape(z, shape=[3])
 
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             x_value, y_value, z_value = exe.run(
                 feed={"x": x_np, "y": y_np}, fetch_list=[x, y, z]
@@ -151,10 +154,14 @@ class TestSubtractError(unittest.TestCase):
         with paddle.static.program_guard(paddle.static.Program()):
             # the input of elementwise_add must be Variable.
             x1 = base.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
+                np.array([-1, 3, 5, 5]),
+                [[1, 1, 1, 1]],
+                paddle.CustomPlace("npu", select_npu),
             )
             y1 = base.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
+                np.array([-1, 3, 5, 5]),
+                [[1, 1, 1, 1]],
+                paddle.CustomPlace("npu", select_npu),
             )
             self.assertRaises(TypeError, paddle.subtract, x1, y1)
 
@@ -194,7 +201,7 @@ class TestSubtractNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

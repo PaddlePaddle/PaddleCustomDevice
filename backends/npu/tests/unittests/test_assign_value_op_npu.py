@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy
 import paddle
@@ -29,7 +32,7 @@ numpy.random.seed(2021)
 class TestAssignValueNPUOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         self.op_type = "assign_value"
         self.inputs = {}
@@ -75,7 +78,7 @@ class TestAssignApi(unittest.TestCase):
     def setUp(self):
         self.init_dtype()
         self.value = (-100 + 200 * numpy.random.random(size=(2, 5))).astype(self.dtype)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -110,7 +113,7 @@ class TestAssignApi4(TestAssignApi):
         self.value = numpy.random.choice(a=[False, True], size=(2, 5)).astype(
             numpy.bool_
         )
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = "bool"

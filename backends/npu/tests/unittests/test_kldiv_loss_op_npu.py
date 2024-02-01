@@ -16,6 +16,9 @@ from __future__ import print_function, division
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -43,7 +46,7 @@ def kldiv_loss(x, target, reduction):
 class TestKLDivLossOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -138,7 +141,7 @@ class TestKLDivLossDygraph(unittest.TestCase):
         target = np.random.uniform(-10, 10, shape).astype("float32")
         gt_loss = kldiv_loss(x, target, reduction)
 
-        with paddle.base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with paddle.base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             kldiv_criterion = paddle.nn.KLDivLoss(reduction)
             pred_loss = kldiv_criterion(paddle.to_tensor(x), paddle.to_tensor(target))
             self.assertTrue(np.allclose(pred_loss.numpy(), gt_loss))
@@ -167,7 +170,7 @@ class TestKLDivLossDygraph(unittest.TestCase):
 
 class TestKLDivLossTypePromotion(unittest.TestCase):
     def test_kl_div_promotion(self):
-        with paddle.base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with paddle.base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x1 = paddle.rand([5, 20], dtype="float32")
             target1 = paddle.rand([5, 20], dtype="float32")
 

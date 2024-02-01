@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -76,7 +79,7 @@ class TestStridedSliceBf16(OpTest):
     def setUp(self):
         self.initTestCase()
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.output = convert_uint16_to_float(
             strided_slice_native_forward(

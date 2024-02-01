@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import sys
 
@@ -30,7 +33,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def get_prog(self):
         main_program = Program()
@@ -45,7 +48,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
 
     def run_prog(self, a, b):
         main_program, out = self.get_prog()
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
 
         exe = static.Executor(place)
         out_ = exe.run(main_program, feed={"a": a, "b": b}, fetch_list=[out])

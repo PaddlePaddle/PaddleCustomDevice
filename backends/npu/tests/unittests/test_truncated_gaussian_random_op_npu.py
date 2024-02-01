@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import paddle
 import paddle.base as base
@@ -48,7 +51,7 @@ class TestTruncatedNormal(unittest.TestCase):
                 )
 
             if run_npu:
-                place = paddle.CustomPlace("npu", 0)
+                place = paddle.CustomPlace("npu", select_npu)
             else:
                 place = paddle.CPUPlace()
 

@@ -14,6 +14,9 @@
 
 from __future__ import print_function
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -30,7 +33,7 @@ np.random.seed(10)
 class TestExpandV2NPUOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.dtype = np.float32
         self.init_data()
@@ -101,7 +104,7 @@ class TestExpandV2OpRank6(TestExpandV2NPUOpRank1):
 class TestExpandV2OpNPURank1_tensor_attr(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
@@ -147,7 +150,7 @@ class TestExpandV2OpRank2_Corner_tensor_attr(TestExpandV2OpNPURank1_tensor_attr)
 class TestExpandV2NPUOpRank1_tensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.init_data()
         self.dtype = np.float32
@@ -180,7 +183,7 @@ class TestExpandV2NPUOpRank1_tensor(OpTest):
 class TestExpandV2OpFloat(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.dtype = np.float16
         self.ori_shape = (2, 4, 20)
@@ -205,7 +208,7 @@ class TestExpandV2OpInteger(OpTest):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.inputs = {"X": np.random.randint(10, size=(2, 4, 20)).astype(self.dtype)}
         self.attrs = {"shape": [2, 4, 20]}
@@ -225,7 +228,7 @@ class TestExpandV2OpInteger(OpTest):
 class TestExpandV2OpFloat64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.dtype = np.double
         self.ori_shape = (2, 4, 20)
@@ -253,7 +256,7 @@ class TesstExpandV2OpBool(TestExpandV2OpInteger):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.inputs = {"X": np.random.randint(10, size=(2, 4, 20)) > 5}
         self.attrs = {"shape": [2, 4, 20]}
@@ -265,7 +268,7 @@ class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
         with program_guard(Program(), Program()):
             x1 = base.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace("npu", 0)
+                np.array([[-1]]), [[1]], paddle.CustomPlace("npu", select_npu)
             )
             shape = [2, 2]
             self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
@@ -294,7 +297,7 @@ class TestExpandV2API(unittest.TestCase):
 
             g0 = base.backward.calc_gradient(out_2, x)
 
-            exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+            exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
             res_1, res_2, res_3 = exe.run(
                 base.default_main_program(),
                 feed={"x": input, "expand_shape": np.array([12, 14]).astype("int32")},

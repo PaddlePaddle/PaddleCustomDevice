@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -27,7 +30,7 @@ SEED = 2021
 class TestIncrement(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -52,7 +55,7 @@ class TestIncrement(OpTest):
 class TestIncrementFP16(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -77,7 +80,7 @@ class TestIncrementFP16(OpTest):
 class TestIncrementINT64(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "increment"
         self.init_dtype()
 
@@ -113,7 +116,7 @@ class TestIncrementInplace(unittest.TestCase):
             a = paddle.static.data(name="a", shape=[1], dtype="float32")
             b = paddle.increment(a)
 
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
 
         exe = paddle.static.Executor(place)
         exe.run(startup_prog)

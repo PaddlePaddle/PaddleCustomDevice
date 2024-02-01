@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
@@ -42,7 +45,7 @@ class TestGatherNdOpWithEmptyIndex(OpTest):
 
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "gather_nd"
         xnp = convert_float_to_uint16(
             np.random.uniform(0, 100, (10, 10)).astype(np.float32)

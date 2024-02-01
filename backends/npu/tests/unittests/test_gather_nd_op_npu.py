@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -42,7 +45,7 @@ def test_class1(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             xnp = np.random.random((5, 20)).astype(typename)
             self.inputs = {"X": xnp, "Index": np.array([[], []]).astype("int32")}
@@ -69,7 +72,7 @@ def test_class2(op_type, typename):
     class TestGatherNdOpWithIndex1(OpTest):
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             xnp = np.random.random((5, 20)).astype(typename)
             self.inputs = {"X": xnp, "Index": np.array([1]).astype("int32")}
@@ -98,7 +101,7 @@ def test_class3(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([[1], [2]]).astype("int64")
@@ -132,7 +135,7 @@ def test_class4(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([1, 2]).astype("int64")
@@ -164,7 +167,7 @@ def test_class5(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             xnp = np.random.uniform(0, 100, (10, 10)).astype(typename)
             index = np.array([[1, 1], [2, 1]]).astype("int64")
@@ -195,7 +198,7 @@ def test_class6(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             shape = (5, 2, 3, 1, 10)
             xnp = np.random.rand(*shape).astype(typename)
@@ -227,7 +230,7 @@ def test_class7(op_type, typename):
 
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             self.op_type = "gather_nd"
             shape = (2, 3, 4, 1, 10)
             xnp = np.random.rand(*shape).astype(typename)

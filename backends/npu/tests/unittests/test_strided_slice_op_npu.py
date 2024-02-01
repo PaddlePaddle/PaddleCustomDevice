@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -77,7 +80,7 @@ class TestStridedSliceOp(OpTest):
     def setUp(self):
         self.initTestCase()
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.output = strided_slice_native_forward(
             self.input, self.axes, self.starts, self.ends, self.strides
@@ -308,7 +311,7 @@ class TestStridedSliceOpBool6D(TestStridedSliceOpBool):
 
 class TestStridedSliceOp_starts_ListTensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.config()
         self.set_npu()
@@ -352,7 +355,7 @@ class TestStridedSliceOp_starts_ListTensor(OpTest):
 
 class TestStridedSliceOp_ends_ListTensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.config()
         self.set_npu()
@@ -396,7 +399,7 @@ class TestStridedSliceOp_ends_ListTensor(OpTest):
 
 class TestStridedSliceOp_starts_Tensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.config()
         self.set_npu()
@@ -437,7 +440,7 @@ class TestStridedSliceOp_starts_Tensor(OpTest):
 
 class TestStridedSliceOp_ends_Tensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.config()
         self.set_npu()
@@ -478,7 +481,7 @@ class TestStridedSliceOp_ends_Tensor(OpTest):
 
 class TestStridedSliceOp_listTensor_Tensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.set_npu()
         self.config()
@@ -524,7 +527,7 @@ class TestStridedSliceOp_listTensor_Tensor(OpTest):
 
 class TestStridedSliceOp_strides_Tensor(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "strided_slice"
         self.set_npu()
         self.config()
@@ -600,7 +603,7 @@ class TestStridedSliceAPI(unittest.TestCase):
         out_6 = x[minus_3:3:1, 0:100:2, :, minus_1:2:minus_1]
         out_7 = x[minus_1, 0:100:2, :, -1:2:-1]
 
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
         res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
             base.default_main_program(),
             feed={
@@ -640,7 +643,7 @@ class TestStridedSliceAPI(unittest.TestCase):
 #         self.ends = [0, 2]
 #         self.strides = [1]
 #         self.iter_num = 3
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 #         self.exe = base.Executor(self.place)
 
 #     def set_program_and_run(self, main_program, case_num):

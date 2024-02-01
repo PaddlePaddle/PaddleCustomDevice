@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest
 import paddle
@@ -39,7 +42,7 @@ def calc_ground_truth_mask(x, maxlen):
 class TestSequenceMask(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -98,7 +101,7 @@ class TestSequenceMaskAPI(unittest.TestCase):
     # test paddle.nn.functional.sequence_mask
     def setUp(self):
         self.x_np = np.random.uniform(-5, 5, [10, 12]).astype(np.int64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()

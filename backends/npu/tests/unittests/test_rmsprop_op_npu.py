@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -52,7 +55,7 @@ class TestNet(unittest.TestCase):
             rmsprop.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 
@@ -113,7 +116,7 @@ class TestCenteredNet(unittest.TestCase):
             rmsprop.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

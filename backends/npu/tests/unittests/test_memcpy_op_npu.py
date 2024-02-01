@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import paddle
 import paddle.base as base
@@ -77,7 +80,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             outputs={"Out": cpu_var},
             attrs={"dst_place_type": 0},
         )
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         exe = base.Executor(place)
         npu_, cpu_ = exe.run(
             main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]
@@ -94,7 +97,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             outputs={"Out": npu_var},
             attrs={"dst_place_type": 6},
         )
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         exe = base.Executor(place)
         npu_, cpu_ = exe.run(
             main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]

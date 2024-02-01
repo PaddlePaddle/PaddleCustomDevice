@@ -14,6 +14,9 @@
 
 from __future__ import print_function, division
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import paddle
 import numpy as np
@@ -48,7 +51,7 @@ class TestNPUAbsBF16(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     @check_soc_version
     def test_check_output(self):

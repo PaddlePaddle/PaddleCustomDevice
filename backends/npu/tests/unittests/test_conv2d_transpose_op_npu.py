@@ -14,6 +14,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import paddle
 import paddle.nn as nn
@@ -130,7 +133,7 @@ def conv2dtranspose_forward_naive(input_, filter_, attrs):
 class TestConv2DTransposeOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         # init as conv transpose
@@ -600,7 +603,7 @@ class TestConv2DTransposeAPI(unittest.TestCase):
 
 class TestConv2DTransposeRepr(unittest.TestCase):
     def test_case(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         x_var = paddle.uniform((2, 4, 8, 8), dtype="float32", min=-1.0, max=1.0)
         conv = nn.Conv2DTranspose(4, 6, (3, 3), output_padding=1, stride=2)
         print(conv)

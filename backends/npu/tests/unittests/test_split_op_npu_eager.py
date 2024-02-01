@@ -16,6 +16,9 @@ from __future__ import print_function, division
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 from npu_utils import check_soc_version
@@ -25,7 +28,7 @@ class TestNPUSplitOpBF16(OpTest):
     def set_plugin(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_plugin()

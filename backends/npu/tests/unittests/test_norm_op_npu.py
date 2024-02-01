@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import paddle
 import paddle.base as base
@@ -33,7 +36,7 @@ class TestNPUNormOp(OpTest):
     def setUp(self):
         paddle.enable_static()
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "norm"
         self.init_dtype()
         self.init_test_case()

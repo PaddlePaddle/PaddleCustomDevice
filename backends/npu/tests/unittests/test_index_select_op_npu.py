@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -28,7 +31,7 @@ SEED = 2021
 class TestNPUIndexSelect(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "index_select"
         self.config()
 
@@ -138,7 +141,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 4], dtype="float32")
             index = paddle.static.data(name="index", shape=[3], dtype="int32")
             z = paddle.index_select(x, index, axis=1)
-            exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
+            exe = paddle.static.Executor(paddle.CustomPlace("npu", select_npu))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
                 fetch_list=[z.name],
@@ -154,7 +157,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 4], dtype="float32")
             index = paddle.static.data(name="index", shape=[3], dtype="int32")
             z = paddle.index_select(x, index)
-            exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
+            exe = paddle.static.Executor(paddle.CustomPlace("npu", select_npu))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
                 fetch_list=[z.name],

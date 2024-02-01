@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -28,7 +31,7 @@ class TestCast1_FP32(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         ref_np = np.ones((3, 2)).astype("float32")
         index_np = np.array([1]).astype("int32")
@@ -60,7 +63,7 @@ class TestCast_INT32(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         ref_np = np.ones((3, 2)).astype("int32")
         index_np = np.array([1]).astype("int32")
@@ -83,7 +86,7 @@ class TestCast2_FP32(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         ref_np = np.ones((3, 2)).astype("float32")
         index_np = np.array([1]).astype("int32")
@@ -115,7 +118,7 @@ class TestCast3_FP32(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         ref_np = np.ones((3, 2)).astype("float32")
         index_np = np.array([1, 2]).astype("int32")
@@ -148,7 +151,7 @@ class TestCast_INT64(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "scatter"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         ref_np = np.ones((3, 2)).astype("int64")
         index_np = np.array([1]).astype("int32")

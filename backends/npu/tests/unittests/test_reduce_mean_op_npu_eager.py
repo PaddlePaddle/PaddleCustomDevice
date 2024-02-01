@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -44,11 +47,11 @@ class TestMeanOpBF16(OpTest):
 
     @check_soc_version
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=0.004)
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu), atol=0.004)
 
     @check_soc_version
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", select_npu), ["X"], "Out")
 
 
 class TestMeanOp5DBF16(TestMeanOpBF16):

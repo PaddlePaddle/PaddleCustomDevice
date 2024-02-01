@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -77,7 +80,7 @@ class TestTopkV2NPUOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
 
 class TestTopkV2OpFloat16(TestTopkV2NPUOp):
@@ -208,7 +211,7 @@ class TestTopkV2Op4Float64(TestTopkV2OP4Int32):
 class TestTopKAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         np.random.seed(123)
         self.input_data = np.random.rand(6, 7, 8)
         self.large_input_data = np.random.rand(2, 1030)
@@ -342,7 +345,7 @@ class TestTopKAPI(unittest.TestCase):
 
     def test_errors(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         paddle.disable_static()
         x = paddle.to_tensor([1, 2, 3])
         with self.assertRaises(BaseException):

@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -49,7 +52,9 @@ class TestOneHotOp(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_non_lod(OpTest):
@@ -72,7 +77,9 @@ class TestOneHotOp_non_lod(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_attr(OpTest):
@@ -98,7 +105,9 @@ class TestOneHotOp_attr(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_default_dtype(OpTest):
@@ -125,7 +134,9 @@ class TestOneHotOp_default_dtype(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_default_dtype_attr(OpTest):
@@ -151,7 +162,9 @@ class TestOneHotOp_default_dtype_attr(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_out_of_range(OpTest):
@@ -173,7 +186,9 @@ class TestOneHotOp_out_of_range(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOp_dtype_int64(OpTest):
@@ -195,7 +210,9 @@ class TestOneHotOp_dtype_int64(OpTest):
         self.outputs = {"Out": (out, x_lod)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0), check_dygraph=False)
+        self.check_output_with_place(
+            paddle.CustomPlace("npu", select_npu), check_dygraph=False
+        )
 
 
 class TestOneHotOpApi(unittest.TestCase):
@@ -212,7 +229,7 @@ class TestOneHotOpApi(unittest.TestCase):
         label = np.array([np.random.randint(0, depth - 1) for i in range(6)]).reshape(
             [6, 1]
         )
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             one_hot_label = paddle.nn.functional.one_hot(
                 base.dygraph.to_variable(label), depth
             )
@@ -222,7 +239,7 @@ class TestOneHotOpApi(unittest.TestCase):
         label = paddle.static.data(name="label", shape=[-1, 1], dtype="int64")
         one_hot_label = paddle.nn.functional.one_hot(x=label, num_classes=depth)
 
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         label_data = np.array([np.random.randint(0, 10 - 1) for i in range(6)]).reshape(
             [6, 1]
         )

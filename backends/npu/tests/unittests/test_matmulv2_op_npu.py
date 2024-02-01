@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -67,7 +70,7 @@ class TestMatMulV2Op(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def config(self):
         self.x_shape = (100,)
@@ -428,7 +431,7 @@ create_test_fp64_class(TestMatMulOp17)
 class TestMatMulV2API(unittest.TestCase):
     def setUp(self):
         self.places = [paddle.CPUPlace()]
-        self.places.append(paddle.CustomPlace("npu", 0))
+        self.places.append(paddle.CustomPlace("npu", select_npu))
 
     def check_static_result(self, place):
         with base.program_guard(base.Program(), base.Program()):
@@ -461,7 +464,7 @@ class TestMatMulV2API(unittest.TestCase):
                 result = paddle.matmul(x, y)
 
     def test_dygraph_fp16(self):
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         with base.dygraph.guard(place):
             input_x = np.random.random([4, 3]).astype("float16")
             input_y = np.random.random([3, 4]).astype("float16")
@@ -477,7 +480,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
 
         def compute(x, y, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
-            with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
                 x = paddle.to_tensor(x)
                 y = paddle.to_tensor(y)
                 if npu_storage:
@@ -493,7 +496,7 @@ class TestDygraphMatmulTrainableStats(unittest.TestCase):
         np.testing.assert_allclose(z1, z2, rtol=1e-05)
 
     def test_static(self):
-        exe = base.Executor(paddle.CustomPlace("npu", 0))
+        exe = base.Executor(paddle.CustomPlace("npu", select_npu))
         shape = [3, 2]
         paddle.set_default_dtype("float16")
 

@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
 import paddle
@@ -35,7 +38,7 @@ class TestFill_API(unittest.TestCase):
         index = [paddle.to_tensor([1, 1]), paddle.to_tensor([3, 4])]
         index_np = np.array([[1, 1], [3, 4]])
 
-        # paddle.disable_static(paddle.CustomPlace("npu", 0))
+        # paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         with base.dygraph.guard():
             input_np = np.random.random(self.shape).astype(self.dtype)
             input = paddle.to_tensor(input_np)
@@ -62,7 +65,7 @@ class TestFill_BF16API(unittest.TestCase):
         index = [paddle.to_tensor([1, 1]), paddle.to_tensor([3, 4])]
         index_np = np.array([[1, 1], [3, 4]])
 
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         with base.dygraph.guard():
             input_np = convert_float_to_uint16(
                 np.random.random(self.shape).astype(self.dtype)

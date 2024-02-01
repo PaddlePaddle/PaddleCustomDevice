@@ -14,6 +14,9 @@
 
 from __future__ import print_function
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
@@ -26,7 +29,7 @@ np.random.seed(10)
 class TestExpandV2OpBfloat(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_v2"
         self.ori_shape = (2, 4, 20)
         middle_inputs = np.random.random(self.ori_shape).astype(np.float32)

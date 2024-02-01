@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from scipy.special import erf, expit
@@ -32,7 +35,7 @@ SEED = 2021
 class TestActivation(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -210,7 +213,7 @@ class TestLeakyReluAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -312,7 +315,7 @@ class TestGELUAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [11, 17]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -395,7 +398,7 @@ class TestCELUAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-3, 3, [10, 12]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.executed_api()
 
     def executed_api(self):
@@ -624,7 +627,7 @@ class TestReluAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.executed_api()
 
     def executed_api(self):
@@ -705,7 +708,7 @@ class TestRelu6API(unittest.TestCase):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 10, [10, 12]).astype(np.float64)
         self.x_np[np.abs(self.x_np) < 0.005] = 0.02
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -858,7 +861,7 @@ class TestTanhAPI(unittest.TestCase):
         self.dtype = "float32"
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(self.dtype)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.executed_api()
 
     def executed_api(self):
@@ -937,7 +940,7 @@ class TestSoftShrink(TestActivation):
     def setUp(self):
         self.set_npu()
         self.op_type = "softshrink"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
         self.init_shape()
 
@@ -984,7 +987,7 @@ class TestSoftshrinkAPI(unittest.TestCase):
         self.threshold = 0.8
         np.random.seed(1024)
         self.x_np = np.random.uniform(0.25, 10, [10, 12]).astype(np.float64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -1072,7 +1075,7 @@ class TestSoftplusAPI(unittest.TestCase):
         self.threshold = 15
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()
@@ -1172,7 +1175,7 @@ class TestSwishAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         with static_guard():
@@ -1248,7 +1251,7 @@ class TestSiluAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [11, 17]).astype("float32")
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         with static_guard():
@@ -1309,7 +1312,7 @@ class TestMishAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(1024)
         self.x_np = np.random.uniform(-1, 1, [10, 12]).astype(np.float64)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         with static_guard():

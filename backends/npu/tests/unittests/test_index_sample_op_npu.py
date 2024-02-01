@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -46,10 +49,10 @@ class TestIndexSampleOp(OpTest):
         self.outputs = {"Out": out}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0))
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu))
 
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", select_npu), ["X"], "Out")
 
     def config(self):
         """
@@ -173,7 +176,7 @@ class TestIndexSampleShape(unittest.TestCase):
 
 class TestIndexSampleDynamic(unittest.TestCase):
     def test_result(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x = paddle.to_tensor(
                 [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]],
                 dtype="float32",

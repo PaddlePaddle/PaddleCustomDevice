@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest
 import paddle
@@ -40,7 +43,7 @@ def ref_selu(
 class SeluTest(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -101,7 +104,7 @@ class TestSeluAPI(unittest.TestCase):
         # Since zero point in selu is not differentiable, avoid randomize
         # zero.
         self.x_np[np.abs(self.x_np) < 0.005] = 0.02
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_static_api(self):
         paddle.enable_static()

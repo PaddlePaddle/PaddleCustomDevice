@@ -16,6 +16,9 @@ from __future__ import print_function, division
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 import paddle
 
@@ -43,7 +46,7 @@ class TestNPUAbs(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = np.float32

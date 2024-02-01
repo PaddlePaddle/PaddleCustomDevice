@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -28,7 +31,7 @@ np.random.seed(10)
 class TestExpandAsOpRank1(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_as_v2"
         x = np.random.rand(100).astype("float32")
         target_tensor = np.random.rand(2, 100).astype("float32")
@@ -51,7 +54,7 @@ class TestExpandAsOpRank1(OpTest):
 class TestExpandAsOpRank2(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_as_v2"
         x = np.random.rand(10, 12).astype("float32")
         target_tensor = np.random.rand(10, 12).astype("float32")
@@ -74,7 +77,7 @@ class TestExpandAsOpRank2(OpTest):
 class TestExpandAsOpRank3(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_as_v2"
         x = np.random.rand(2, 3, 20).astype("float32")
         target_tensor = np.random.rand(2, 3, 20).astype("float32")
@@ -97,7 +100,7 @@ class TestExpandAsOpRank3(OpTest):
 class TestExpandAsOpRank4(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "expand_as_v2"
         x = np.random.rand(1, 1, 7, 16).astype("float32")
         target_tensor = np.random.rand(4, 6, 7, 16).astype("float32")

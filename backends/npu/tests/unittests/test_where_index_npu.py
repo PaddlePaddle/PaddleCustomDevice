@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -29,7 +32,7 @@ class TestWhereIndexOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "where_index"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_config()
 
     def test_check_output(self):
@@ -98,7 +101,7 @@ class TestWhereOpError(unittest.TestCase):
             cond = paddle.static.data(name="cond", shape=[-1, 4], dtype="bool")
             result = paddle.nonzero(cond)
 
-            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            exe = base.Executor(paddle.CustomPlace("npu", select_npu))
             exe.run(base.default_startup_program())
             cond_i = np.array([True, False, False, False]).astype("bool")
             out = exe.run(base.default_main_program(), feed={"cond": cond_i})

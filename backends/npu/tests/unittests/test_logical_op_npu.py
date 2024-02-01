@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 import paddle
@@ -56,7 +59,7 @@ def run_static(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
     main_program = Program()
     place = paddle.CPUPlace()
     if use_custom_device:
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
     exe = Executor(place)
     with program_guard(main_program, startup_program):
         x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
@@ -76,7 +79,7 @@ def run_static(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
 def run_dygraph(x_np, y_np, op_str, use_custom_device=False, binary_op=True):
     place = paddle.CPUPlace()
     if use_custom_device:
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
     paddle.disable_static(place)
     op = getattr(paddle, op_str)
     x = paddle.to_tensor(x_np, dtype=x_np.dtype)

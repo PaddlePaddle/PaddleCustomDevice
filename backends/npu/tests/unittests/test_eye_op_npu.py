@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -31,7 +34,7 @@ class TestEyeOp(OpTest):
         Test eye op with specified shape
         """
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "eye"
         self.inputs = {}
 
@@ -109,7 +112,7 @@ class API_TestTensorEye(unittest.TestCase):
     def test_out(self):
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10)
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="float32")
@@ -117,7 +120,7 @@ class API_TestTensorEye(unittest.TestCase):
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, num_columns=7, dtype="float16")
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, 7, dtype="float16")
@@ -125,13 +128,13 @@ class API_TestTensorEye(unittest.TestCase):
 
         with paddle.static.program_guard(paddle.static.Program()):
             data = paddle.eye(10, dtype="int32")
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             (result,) = exe.run(fetch_list=[data])
             expected_result = np.eye(10, dtype="int32")
         self.assertEqual((result == expected_result).all(), True)
 
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         out = paddle.eye(10, dtype="int32")
         expected_result = np.eye(10, dtype="int32")
         paddle.enable_static()

@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest
 import paddle
@@ -56,7 +59,7 @@ class TestShardIndexShardId0Op(OpTest):
         common_setup(self, 20, 2, 0, -1)
 
     def test_check_output(self):
-        return self.check_output_with_place(place=paddle.CustomPlace("npu", 0))
+        return self.check_output_with_place(place=paddle.CustomPlace("npu", select_npu))
 
 
 class TestShardIndexShardId1Op(TestShardIndexShardId0Op):

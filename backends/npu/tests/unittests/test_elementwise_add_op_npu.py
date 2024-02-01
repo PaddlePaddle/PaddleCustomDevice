@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -28,7 +31,7 @@ class TestElementwiseAddOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_add"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
         self.init_input_output()
         self.init_kernel_type()
@@ -188,7 +191,7 @@ class TestAddAPI(unittest.TestCase):
             z = paddle.add(x_reshape, y_reshape)
             z = paddle.reshape(z, shape=[3])
 
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             x_value, y_value, z_value = exe.run(
                 feed={"x": x_np, "y": y_np}, fetch_list=[x, y, z]
@@ -217,10 +220,14 @@ class TestAddError(unittest.TestCase):
         with paddle.static.program_guard(paddle.static.Program()):
             # the input of elementwise_add must be Variable.
             x1 = base.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
+                np.array([-1, 3, 5, 5]),
+                [[1, 1, 1, 1]],
+                paddle.CustomPlace("npu", select_npu),
             )
             y1 = base.create_lod_tensor(
-                np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
+                np.array([-1, 3, 5, 5]),
+                [[1, 1, 1, 1]],
+                paddle.CustomPlace("npu", select_npu),
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
 
@@ -510,14 +517,14 @@ class TestAddApi(unittest.TestCase):
             y = paddle.static.data(name="y", shape=[3], dtype="float32")
             z = self._executed_api(x, y)
 
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = base.Executor(place)
             z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
             z_expected = np.array([3.0, 8.0, 6.0])
             self.assertEqual((z_value == z_expected).all(), True)
 
     def test_dygraph(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             np_x = np.array([2, 3, 4]).astype("float32")
             np_y = np.array([1, 5, 2]).astype("float32")
             x = base.dygraph.to_variable(np_x)
@@ -539,7 +546,7 @@ class TestAddInplaceBroadcastSuccess(unittest.TestCase):
         self.y_numpy = np.random.rand(3, 4).astype("float")
 
     def test_broadcast_success(self):
-        paddle.disable_static(place=paddle.CustomPlace("npu", 0))
+        paddle.disable_static(place=paddle.CustomPlace("npu", select_npu))
         self.init_data()
         x = paddle.to_tensor(self.x_numpy)
         y = paddle.to_tensor(self.y_numpy)
@@ -567,7 +574,7 @@ class TestAddInplaceBroadcastError(unittest.TestCase):
         self.y_numpy = np.random.rand(2, 3, 4).astype("float")
 
     def test_broadcast_errors(self):
-        paddle.disable_static(place=paddle.CustomPlace("npu", 0))
+        paddle.disable_static(place=paddle.CustomPlace("npu", select_npu))
         self.init_data()
         x = paddle.to_tensor(self.x_numpy)
         y = paddle.to_tensor(self.y_numpy)
@@ -598,7 +605,7 @@ class TestAddAPIWithNPUStroageFormat(unittest.TestCase):
         self.x = np.random.random(self.shape_x).astype(np.float32)
         self.y = np.random.random(self.shape_y).astype(np.float32)
         self.format = 3  # ACL_FORMAT_NC1HWC0 = 3
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_api_static(self):
         paddle.enable_static()

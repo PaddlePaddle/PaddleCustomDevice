@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -25,7 +28,7 @@ paddle.enable_static()
 
 class TestAllOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {"X": np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
@@ -54,7 +57,7 @@ class TestAllOp(OpTest):
 
 class TestAll8DOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {
@@ -69,7 +72,7 @@ class TestAll8DOp(OpTest):
 
 class TestAllOpWithDim(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {"X": np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
@@ -82,7 +85,7 @@ class TestAllOpWithDim(OpTest):
 
 class TestAll8DOpWithDim(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {
@@ -97,7 +100,7 @@ class TestAll8DOpWithDim(OpTest):
 
 class TestAllOpWithKeepDim(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {"X": np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
@@ -110,7 +113,7 @@ class TestAllOpWithKeepDim(OpTest):
 
 class TestAll8DOpWithKeepDim(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "reduce_all"
         self.python_api = paddle.all
         self.inputs = {

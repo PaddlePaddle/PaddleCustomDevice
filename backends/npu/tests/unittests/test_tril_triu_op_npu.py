@@ -14,6 +14,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -36,7 +39,7 @@ class TestNPUTrilTriu(OpTest):
         self.set_npu()
         self.init_dtype()
         self.initTestCase()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.real_np_op = getattr(np, self.real_op_type)
 
         self.inputs = {"X": self.X}
@@ -86,7 +89,7 @@ class TestNPUTrilTriuBF16(TestNPUTrilTriu):
         self.set_npu()
         self.init_dtype()
         self.initTestCase()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.real_np_op = getattr(np, self.real_op_type)
 
         self.inputs = {"X": convert_float_to_uint16(self.X)}
@@ -215,7 +218,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 tril_out, triu_out = tensor.tril(x), tensor.triu(x)
 
-                place = paddle.CustomPlace("npu", 0)
+                place = paddle.CustomPlace("npu", select_npu)
                 exe = base.Executor(place)
                 tril_out, triu_out = exe.run(
                     base.default_main_program(),
@@ -232,7 +235,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 )
 
     def test_api_with_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
 
         dtypes = ["float16", "float32"]
         if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
@@ -275,7 +278,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                 x = paddle.static.data(shape=[1, 9, -1, 4], dtype=dtype, name="x")
                 triu_out = paddle.triu(x)
 
-                place = paddle.CustomPlace("npu", 0)
+                place = paddle.CustomPlace("npu", select_npu)
                 exe = base.Executor(place)
                 triu_out = exe.run(
                     base.default_main_program(),

@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -295,7 +298,7 @@ class TestBatchNormOpInference(unittest.TestCase):
             self.__assert_close(var_dict["y"], out[0], "y", atol=1e-3)
 
     def test_check_output(self):
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         for data_format in self.data_formats:
             for npu_storage in self.npu_storages:
                 if data_format == "NHWC" and npu_storage:
@@ -571,13 +574,22 @@ class TestBatchNormOpTraining(unittest.TestCase):
                 if data_format == "NHWC" and npu_storage:
                     continue
                 test_with_place(
-                    paddle.CustomPlace("npu", 0), data_format, [2, 3, 4, 5], npu_storage
+                    paddle.CustomPlace("npu", select_npu),
+                    data_format,
+                    [2, 3, 4, 5],
+                    npu_storage,
                 )
                 test_with_place(
-                    paddle.CustomPlace("npu", 0), data_format, [3, 8, 5], npu_storage
+                    paddle.CustomPlace("npu", select_npu),
+                    data_format,
+                    [3, 8, 5],
+                    npu_storage,
                 )
                 test_with_place(
-                    paddle.CustomPlace("npu", 0), data_format, [2, 3], npu_storage
+                    paddle.CustomPlace("npu", select_npu),
+                    data_format,
+                    [2, 3],
+                    npu_storage,
                 )
 
     def init_kernel_type(self):
@@ -741,7 +753,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
 
         def compute(x, is_test, trainable_statistics, npu_storage):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
-            with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
                 bn = paddle.nn.BatchNorm(
                     shape[1],
                     is_test=is_test,
@@ -764,7 +776,7 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
         np.testing.assert_allclose(y2, y4, rtol=1e-05)
 
     def test_static(self):
-        exe = base.Executor(paddle.CustomPlace("npu", 0))
+        exe = base.Executor(paddle.CustomPlace("npu", select_npu))
         shape = [4, 10, 16, 16]
 
         def compute(x_np, is_test, trainable_statistics):
@@ -810,7 +822,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
         set_flags({"FLAGS_npu_storage_format": False})
 
     def test_1d(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x = paddle.randn([2, 6, 4])
             net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
             net2 = paddle.nn.BatchNorm1D(4)
@@ -823,7 +835,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
             np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07)
 
     def test_2d(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x_np = np.random.randn(2, 6, 6, 4).astype("float32")
             channel_first_x_np = np.transpose(x_np, (0, 3, 1, 2))
             # net1 - NHWC
@@ -843,7 +855,7 @@ class TestBatchNormChannelLast(unittest.TestCase):
             )
 
     def test_3d(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x_np = np.random.randn(2, 6, 6, 6, 4).astype("float32")
             channel_first_x_np = np.transpose(x_np, (0, 4, 1, 2, 3))
             # net1 - NDHWC

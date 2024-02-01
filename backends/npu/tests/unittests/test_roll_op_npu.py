@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -37,7 +40,7 @@ class TestRollOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype_type(self):
         self.dtype = np.float32
@@ -144,7 +147,7 @@ class TestRollAPI(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 3], dtype="float32")
             x.desc.set_need_check_feed(False)
             z = paddle.roll(x, shifts=1)
-            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            exe = base.Executor(paddle.CustomPlace("npu", select_npu))
             (res,) = exe.run(
                 feed={"x": self.data_x}, fetch_list=[z.name], return_numpy=False
             )
@@ -156,7 +159,7 @@ class TestRollAPI(unittest.TestCase):
             x = paddle.static.data(name="x", shape=[-1, 3], dtype="float32")
             x.desc.set_need_check_feed(False)
             z = paddle.roll(x, shifts=1, axis=0)
-            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            exe = base.Executor(paddle.CustomPlace("npu", select_npu))
             (res,) = exe.run(
                 feed={"x": self.data_x}, fetch_list=[z.name], return_numpy=False
             )
@@ -164,7 +167,7 @@ class TestRollAPI(unittest.TestCase):
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
 
     def test_dygraph_api(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         self.input_data()
         # case 1:
         with base.dygraph.guard():
@@ -184,7 +187,7 @@ class TestRollAPI(unittest.TestCase):
         paddle.enable_static()
 
     def test_shifts_as_tensor_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         with base.dygraph.guard():
             x = paddle.arange(9).reshape([3, 3])
             shape = paddle.shape(x)
@@ -204,7 +207,7 @@ class TestRollAPI(unittest.TestCase):
             out = paddle.roll(x, shifts=shifts, axis=axes)
             expected_out = np.array([[8, 6, 7], [2, 0, 1], [5, 3, 4]])
 
-            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            exe = base.Executor(paddle.CustomPlace("npu", select_npu))
             [out_np] = exe.run(fetch_list=[out])
             np.testing.assert_allclose(out_np, expected_out, rtol=1e-05)
 

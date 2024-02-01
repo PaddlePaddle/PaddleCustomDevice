@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import paddle
 import paddle.base as base
@@ -25,7 +28,7 @@ from tests.op_test import OpTest
 class TestClipOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -112,7 +115,7 @@ class TestCase5(TestClipOp):
 class TestClipInt32(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -193,7 +196,7 @@ class TestClipAPI(unittest.TestCase):
         max = paddle.static.data(name="max", shape=[1], dtype="float32")
 
         place = (
-            paddle.CustomPlace("npu", 0)
+            paddle.CustomPlace("npu", select_npu)
             if ("npu" in paddle.base.core.get_all_custom_device_type())
             else base.CPUPlace()
         )
@@ -231,7 +234,7 @@ class TestClipAPI(unittest.TestCase):
     def test_clip_dygraph(self):
         paddle.disable_static()
         place = (
-            paddle.CustomPlace("npu", 0)
+            paddle.CustomPlace("npu", select_npu)
             if ("npu" in paddle.base.core.get_all_custom_device_type())
             else base.CPUPlace()
         )

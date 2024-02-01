@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 import paddle
 
@@ -101,7 +104,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -174,7 +177,7 @@ class TestSoftmaxWithCrossEntropyOp(OpTest):
 class TestSoftmaxWithCrossEntropyOpFP64(TestSoftmaxWithCrossEntropyOp):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -226,7 +229,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_1D(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -247,7 +250,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -265,7 +268,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis2(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -283,7 +286,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis3(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -301,7 +304,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_SoftLabel_2D_Axis4(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -328,7 +331,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis2(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -346,7 +349,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Axis3(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -373,7 +376,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_Ignore(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -391,7 +394,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_Ignore_Axis(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -409,7 +412,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Ignore(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -427,7 +430,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Ignore_Axis3(
 ):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_core_api_without_softmax
         self.python_out_sig = ["Loss"]
@@ -448,7 +451,7 @@ class TestSoftmaxWithCrossEntropyOp_NotWithSoftmax_HardLabel_2D_Ignore_Axis3(
 class TestSoftmaxWithCrossEntropyOpNoCudnn(TestSoftmaxWithCrossEntropyOp):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -468,7 +471,7 @@ class TestSoftmaxWithCrossEntropyOp2(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -498,7 +501,7 @@ class TestSoftmaxWithCrossEntropyOp3(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -514,7 +517,7 @@ class TestSoftmaxWithCrossEntropyOp3(TestSoftmaxWithCrossEntropyOp):
 class TestSoftmaxWithCrossEntropyOp3NoCudnn(TestSoftmaxWithCrossEntropyOp3):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -535,7 +538,7 @@ class TestSoftmaxWithCrossEntropyOpAxis1(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -556,7 +559,7 @@ class TestSoftmaxWithCrossEntropyOpAxis2(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -577,7 +580,7 @@ class TestSoftmaxWithCrossEntropyOpAxis3(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -598,7 +601,7 @@ class TestSoftmaxWithCrossEntropyOpAxis4(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -619,7 +622,7 @@ class TestSoftmaxWithCrossEntropyOpAxisDimEqualOne(TestSoftmaxWithCrossEntropyOp
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -635,7 +638,7 @@ class TestSoftmaxWithCrossEntropyOpAxisDimEqualOne(TestSoftmaxWithCrossEntropyOp
 class TestSoftmaxWithCrossEntropyOpSoftLabelAxis1(TestSoftmaxWithCrossEntropyOp2):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -651,7 +654,7 @@ class TestSoftmaxWithCrossEntropyOpSoftLabelAxis1(TestSoftmaxWithCrossEntropyOp2
 class TestSoftmaxWithCrossEntropyOpSoftLabelAxis2(TestSoftmaxWithCrossEntropyOp2):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -667,7 +670,7 @@ class TestSoftmaxWithCrossEntropyOpSoftLabelAxis2(TestSoftmaxWithCrossEntropyOp2
 class TestSoftmaxWithCrossEntropyOpSoftLabelAxis3(TestSoftmaxWithCrossEntropyOp2):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -683,7 +686,7 @@ class TestSoftmaxWithCrossEntropyOpSoftLabelAxis3(TestSoftmaxWithCrossEntropyOp2
 class TestSoftmaxWithCrossEntropyOpSoftLabelAxis4(TestSoftmaxWithCrossEntropyOp2):
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -704,7 +707,7 @@ class TestSoftmaxWithCrossEntropyOpBoundary0(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]
@@ -726,7 +729,7 @@ class TestSoftmaxWithCrossEntropyOpBoundary1(TestSoftmaxWithCrossEntropyOp):
 
     def initParams(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "softmax_with_cross_entropy"
         self.python_api = python_api
         self.python_out_sig = ["Loss", "Softmax"]

@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -27,7 +30,7 @@ class TestUnsqueeze2Op(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "unsqueeze2"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_test_case()
         self.x = np.random.random(self.ori_shape).astype("float32")
         self.inputs = {"X": OpTest.np_dtype_to_base_dtype(self.x)}

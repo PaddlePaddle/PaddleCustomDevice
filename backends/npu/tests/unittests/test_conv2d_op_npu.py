@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -189,7 +192,7 @@ class TestConv2DOp(OpTest):
 
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "conv2d"
         self.init_data_format()
         self.init_dtype()
@@ -435,21 +438,23 @@ class TestConv2DOp_v2(OpTest):
     def test_check_output(self):
         for npu_storage in self.npu_storages:
             set_flags({"FLAGS_npu_storage_format": npu_storage})
-            self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=1e-2)
+            self.check_output_with_place(
+                paddle.CustomPlace("npu", select_npu), atol=1e-2
+            )
 
     def test_check_grad(self):
         for npu_storage in self.npu_storages:
             set_flags({"FLAGS_npu_storage_format": npu_storage})
             if self.dtype == np.float16:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     {"Input", "Filter"},
                     "Output",
                     max_relative_error=1.1,
                 )
             else:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     {"Input", "Filter"},
                     "Output",
                     max_relative_error=0.02,
@@ -461,7 +466,7 @@ class TestConv2DOp_v2(OpTest):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
             if self.dtype == np.float16:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     ["Input"],
                     "Output",
                     max_relative_error=0.99,
@@ -469,7 +474,7 @@ class TestConv2DOp_v2(OpTest):
                 )
             else:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     ["Input"],
                     "Output",
                     max_relative_error=0.02,
@@ -482,7 +487,7 @@ class TestConv2DOp_v2(OpTest):
             set_flags({"FLAGS_npu_storage_format": npu_storage})
             if self.dtype == np.float16:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     ["Filter"],
                     "Output",
                     max_relative_error=0.99,
@@ -490,7 +495,7 @@ class TestConv2DOp_v2(OpTest):
                 )
             else:
                 self.check_grad_with_place(
-                    paddle.CustomPlace("npu", 0),
+                    paddle.CustomPlace("npu", select_npu),
                     ["Filter"],
                     "Output",
                     no_grad_set=set(["Input"]),

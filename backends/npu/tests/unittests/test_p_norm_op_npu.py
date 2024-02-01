@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 import paddle
@@ -81,13 +84,18 @@ class TestPnormOp(OpTest):
 
     def test_check_output(self):
         if self.dtype == "float16":
-            self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=5e-3)
+            self.check_output_with_place(
+                paddle.CustomPlace("npu", select_npu), atol=5e-3
+            )
         else:
-            self.check_output_with_place(paddle.CustomPlace("npu", 0))
+            self.check_output_with_place(paddle.CustomPlace("npu", select_npu))
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            paddle.CustomPlace("npu", 0), ["X"], "Out", user_defined_grads=self.gradient
+            paddle.CustomPlace("npu", select_npu),
+            ["X"],
+            "Out",
+            user_defined_grads=self.gradient,
         )
 
     def init_test_case(self):

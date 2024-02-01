@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 
@@ -26,7 +29,7 @@ class TestTransposeOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "transpose2"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
         self.init_shape_axis()
 

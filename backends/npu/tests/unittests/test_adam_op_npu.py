@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -59,7 +62,7 @@ def adam_step(inputs, attributes):
 class TestAdam(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
@@ -109,7 +112,7 @@ class TestAdam(OpTest):
 class TestAdamWithEpsilonTensor(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
@@ -162,7 +165,7 @@ class TestAdamWithEpsilonTensor(OpTest):
 class TestAdamOpWithSkipUpdate(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
@@ -214,7 +217,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
 class TestAdamOpWithGlobalBetaPow(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "adam"
         param = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
         grad = np.random.uniform(-1, 1, (102, 105)).astype(self.dtype)
@@ -334,7 +337,7 @@ class TestNet(unittest.TestCase):
             adam.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

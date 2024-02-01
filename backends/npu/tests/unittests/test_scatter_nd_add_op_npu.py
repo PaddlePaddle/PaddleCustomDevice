@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -85,7 +88,7 @@ class TestScatterNdAddSimpleOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def _set_dtype(self):
         self.dtype = np.float32
@@ -133,7 +136,7 @@ class TestScatterNdAddWithEmptyIndex(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def _set_dtype(self):
         self.dtype = np.float32
@@ -183,7 +186,7 @@ class TestScatterNdAddWithHighRankSame(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def _set_dtype(self):
         self.dtype = np.float32
@@ -246,7 +249,7 @@ class TestScatterNdOpAPI(unittest.TestCase):
                 feed = {x_t.name: x, index_t.name: index, val_t.name: val}
                 fetch = [out_t]
 
-                npu_exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
+                npu_exe = paddle.static.Executor(paddle.CustomPlace("npu", select_npu))
                 gpu_value = npu_exe.run(feed=feed, fetch_list=fetch)[0]
                 cpu_exe = paddle.static.Executor(paddle.CPUPlace())
                 cpu_value = cpu_exe.run(feed=feed, fetch_list=fetch)[0]
@@ -257,7 +260,7 @@ class TestScatterNdOpAPI(unittest.TestCase):
 
 class TestDygraph(unittest.TestCase):
     def test_dygraph(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x = paddle.rand(shape=[3, 5, 9, 10], dtype="float32")
             updates = paddle.rand(shape=[3, 9, 10], dtype="float32")
             index_data = np.array([[1, 1], [0, 1], [1, 3]]).astype(np.int64)

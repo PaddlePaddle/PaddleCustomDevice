@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -34,10 +37,10 @@ class TestMeanOp(OpTest):
         self.outputs = {"Out": self.inputs["X"].mean(axis=0)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0))
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu))
 
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", select_npu), ["X"], "Out")
 
 
 class TestMeanOpFP16(OpTest):
@@ -51,10 +54,10 @@ class TestMeanOpFP16(OpTest):
         self.outputs = {"Out": self.inputs["X"].mean(axis=0)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("npu", 0))
+        self.check_output_with_place(paddle.CustomPlace("npu", select_npu))
 
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", select_npu), ["X"], "Out")
 
 
 class TestMeanOpNumel1(OpTest):

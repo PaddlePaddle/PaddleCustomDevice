@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import paddle
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest
 
@@ -136,7 +139,7 @@ def deform_conv2d_wrapper(
 
 class TestModulatedDeformableConvOp(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.use_custom_device = True
         self.python_api = deform_conv2d_wrapper
         self.op_type = "deformable_conv"
@@ -257,7 +260,7 @@ class TestWithStride(TestModulatedDeformableConvOp):
 
 class TestWithDilation(OpTest):
     def setUp(self):
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.__class__.use_custom_device = True
         self.python_api = deform_conv2d_wrapper
         self.op_type = "deformable_conv"

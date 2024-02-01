@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -29,7 +32,7 @@ class TestUnbind(unittest.TestCase):
         [out_0, out_1] = tensor.unbind(input=x_1, axis=0)
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
 
         [res_1, res_2] = exe.run(
             base.default_main_program(),
@@ -41,7 +44,7 @@ class TestUnbind(unittest.TestCase):
         assert np.array_equal(res_2, input_1[1, 0:100])
 
     def test_unbind_static_fp16_npu(self):
-        place = paddle.CustomPlace("npu", 0)
+        place = paddle.CustomPlace("npu", select_npu)
         with paddle.static.program_guard(
             paddle.static.Program(), paddle.static.Program()
         ):
@@ -63,7 +66,7 @@ class TestUnbind(unittest.TestCase):
             assert np.array_equal(res[1], input[1, :])
 
     def test_unbind_dygraph(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             np_x = np.random.random([2, 3]).astype("float32")
             x = paddle.to_tensor(np_x)
             x.stop_gradient = False
@@ -86,7 +89,7 @@ class TestLayersUnbind(unittest.TestCase):
         [out_0, out_1] = paddle.unbind(input=x_1, axis=0)
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
 
         [res_1, res_2] = exe.run(
             base.default_main_program(),
@@ -112,7 +115,7 @@ class TestUnbindOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()

@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -25,7 +28,7 @@ SEED = 2021
 class TestSGD(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "sgd"
         self.conf()
         w = np.random.random((self.h, self.w)).astype("float32")
@@ -78,7 +81,7 @@ class TestNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

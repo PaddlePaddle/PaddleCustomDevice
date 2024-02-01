@@ -14,6 +14,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 import paddle
@@ -220,7 +223,7 @@ class TestDepthwiseConvNPU(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_test_case(self):
         self.pad = [1, 1]
@@ -386,7 +389,7 @@ class TestDepthwiseConvNPU_Padding(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_test_case(self):
         self.pad = [1, 1, 0, 1]

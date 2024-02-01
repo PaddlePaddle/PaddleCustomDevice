@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 from tests.op_test import OpTest
 import paddle
@@ -27,7 +30,7 @@ SEED = 2023
 class TestDiagonalOp(OpTest):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "diagonal"
         self.python_api = paddle.diagonal
         self.init_dtype()
@@ -141,7 +144,7 @@ class TestDiagonalAPI(unittest.TestCase):
     def setUp(self):
         self.shape = [10, 3, 4]
         self.x = np.random.random((10, 3, 4)).astype(np.float32)
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_api_static(self):
         paddle.enable_static()

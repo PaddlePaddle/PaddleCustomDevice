@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -56,7 +59,7 @@ EPOCH = 100
 
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 #     def test_check_output(self):
 #         if self.dtype == np.float16:
@@ -90,7 +93,7 @@ EPOCH = 100
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
 #         self.__class__.no_need_check_grad = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 
 # class TestSliceOpTensor(TestSliceOp):
@@ -156,7 +159,7 @@ EPOCH = 100
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
 #         self.__class__.no_need_check_grad = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 
 # class TestSliceOpTensorList(TestSliceOp):
@@ -248,7 +251,7 @@ EPOCH = 100
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
 #         self.__class__.no_need_check_grad = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 
 # class TestSliceNet(unittest.TestCase):
@@ -285,7 +288,7 @@ EPOCH = 100
 #             sgd.minimize(loss)
 
 #         if run_npu:
-#             place = paddle.CustomPlace("npu", 0)
+#             place = paddle.CustomPlace("npu", select_npu)
 #         else:
 #             place = paddle.CPUPlace()
 
@@ -355,7 +358,7 @@ EPOCH = 100
 
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 #     def test_check_output(self):
 #         self.check_output_with_place(self.place)
@@ -544,7 +547,7 @@ EPOCH = 100
 # class TestSliceOpInt64(OpTest):
 #     def set_npu(self):
 #         self.__class__.use_custom_device = True
-#         self.place = paddle.CustomPlace("npu", 0)
+#         self.place = paddle.CustomPlace("npu", select_npu)
 
 #     def setUp(self):
 #         self.op_type = "slice"
@@ -613,7 +616,7 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
         self.axis = 1
 
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.exe = base.Executor(self.place)
 
     def set_program_and_run(self, main_program, case_num):

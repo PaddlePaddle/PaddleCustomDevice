@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest, skip_check_grad_ci
 import paddle.base as base
@@ -34,7 +37,7 @@ class TestMeshgridOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def get_dtype(self):
         return "float32"
@@ -111,7 +114,7 @@ class TestMeshgridOp3(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
         grid_x, grid_y = paddle.tensor.meshgrid(x, y)
         res_1, res_2 = exe.run(
             base.default_main_program(),
@@ -148,7 +151,7 @@ class TestMeshgridOp4(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
         grid_x, grid_y = paddle.tensor.meshgrid([x, y])
         res_1, res_2 = exe.run(
             base.default_main_program(),
@@ -185,7 +188,7 @@ class TestMeshgridOp5(unittest.TestCase):
         out_2 = np.reshape(input_2, [1, 200])
         out_2 = np.broadcast_to(out_2, [100, 200])
 
-        exe = base.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = base.Executor(place=paddle.CustomPlace("npu", select_npu))
         grid_x, grid_y = paddle.tensor.meshgrid((x, y))
         res_1, res_2 = exe.run(
             base.default_main_program(),
@@ -199,7 +202,7 @@ class TestMeshgridOp5(unittest.TestCase):
 
 class TestMeshgridOp6(unittest.TestCase):
     def test_api_with_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         input_3 = np.random.randint(
             0,
             100,
@@ -231,7 +234,7 @@ class TestMeshgridOp6(unittest.TestCase):
 
 class TestMeshgridOp7(unittest.TestCase):
     def test_api_with_dygraph_list_input(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         input_3 = np.random.randint(
             0,
             100,
@@ -263,7 +266,7 @@ class TestMeshgridOp7(unittest.TestCase):
 
 class TestMeshgridOp8(unittest.TestCase):
     def test_api_with_dygraph_tuple_input(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         input_3 = np.random.randint(
             0,
             100,

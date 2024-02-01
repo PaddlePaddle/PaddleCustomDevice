@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -37,7 +40,7 @@ class TestFlipOp_API(unittest.TestCase):
             output = paddle.flip(input, axis)
             output = paddle.flip(output, -1)
             output = output.flip(0)
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = base.Executor(place)
             exe.run(startup_program)
             img = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.float32)
@@ -50,7 +53,7 @@ class TestFlipOp_API(unittest.TestCase):
             )
 
     def test_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         img = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.float32)
         with base.dygraph.guard():
             inputs = base.dygraph.to_variable(img)
@@ -77,7 +80,7 @@ class TestFlipOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_attrs(self):
         self.attrs = {"axis": self.axis}

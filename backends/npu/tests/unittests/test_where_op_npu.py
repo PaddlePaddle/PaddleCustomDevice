@@ -15,6 +15,9 @@
 from __future__ import division, print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -40,7 +43,7 @@ class TestNPUWhereOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -73,7 +76,7 @@ class TestNPUWhereFp16(TestNPUWhereOp):
 class TestNPUWhereAPI(unittest.TestCase):
     def setUp(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_data()
 
     def init_data(self):
@@ -153,7 +156,7 @@ class TestNPUWhereAPI(unittest.TestCase):
 
 class TestWhereDygraphAPI(unittest.TestCase):
     def test_api(self):
-        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+        with base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
             x_i = np.array([0.9383, 0.1983, 3.2, 1.2]).astype("float64")
             y_i = np.array([1.0, 1.0, 1.0, 1.0]).astype("float64")
             cond_i = np.array([False, False, True, True]).astype("bool")

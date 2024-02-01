@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 
@@ -24,7 +27,7 @@ def run_static(x_np, dtype, op_str):
     paddle.enable_static()
     startup_program = base.Program()
     main_program = base.Program()
-    place = paddle.CustomPlace("npu", 0)
+    place = paddle.CustomPlace("npu", select_npu)
     exe = base.Executor(place)
     with base.program_guard(main_program, startup_program):
         x = paddle.static.data(name="x", shape=x_np.shape, dtype=dtype)
@@ -35,7 +38,7 @@ def run_static(x_np, dtype, op_str):
 
 
 def run_dygraph(x_np, op_str):
-    place = paddle.CustomPlace("npu", 0)
+    place = paddle.CustomPlace("npu", select_npu)
     paddle.disable_static(place)
     x = paddle.to_tensor(x_np)
     dygraph_result = getattr(paddle.tensor, op_str)(x)
@@ -43,7 +46,7 @@ def run_dygraph(x_np, op_str):
 
 
 def run_eager(x_np, op_str):
-    with paddle.base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+    with paddle.base.dygraph.guard(paddle.CustomPlace("npu", select_npu)):
         x = paddle.to_tensor(x_np)
         dygraph_result = getattr(paddle.tensor, op_str)(x)
         return dygraph_result

@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -35,7 +38,7 @@ def gather_numpy(x, index, axis):
 class TestGatherOp(OpTest):
     def setUp(self):
         self.set_npu()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "gather"
         self.config()
         xnp = np.random.random(self.x_shape).astype(self.x_type)
@@ -125,7 +128,7 @@ class API_TestGather(unittest.TestCase):
             data1 = paddle.static.data("data1", shape=[-1, 2], dtype="float32")
             index = paddle.static.data("index", shape=[-1, 1], dtype="int32")
             out = paddle.gather(data1, index)
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = base.Executor(place)
             input = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
             index_1 = np.array([1, 2]).astype("int32")
@@ -142,7 +145,7 @@ class API_TestGather(unittest.TestCase):
             x = paddle.static.data("x", shape=[-1, 2], dtype="float32")
             index = paddle.static.data("index", shape=[-1, 1], dtype="int32")
             out = paddle.gather(x, index)
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = paddle.static.Executor(place)
             x_np = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
             index_np = np.array([1, 1]).astype("int32")
@@ -173,7 +176,7 @@ class TestGatherGrad(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

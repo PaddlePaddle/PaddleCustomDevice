@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -32,7 +35,7 @@ class TestEmpty(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -82,7 +85,7 @@ class TestIsEmptyOpError(unittest.TestCase):
 
 class TestIsEmptyOpDygraph(unittest.TestCase):
     def test_dygraph(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         input = paddle.rand(shape=[4, 32, 32], dtype="float32")
         res = paddle.is_empty(x=input)
 

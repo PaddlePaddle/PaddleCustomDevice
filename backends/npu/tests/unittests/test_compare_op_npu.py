@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -29,7 +32,7 @@ def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
             self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.place = paddle.CustomPlace("npu", select_npu)
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
                 y = np.random.random(size=(10, 7)).astype(np.float32)

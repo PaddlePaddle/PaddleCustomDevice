@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 from tests.op_test import OpTest
 import paddle.base.core as core
@@ -88,7 +91,7 @@ def nearest_neighbor_interp_np(
 class TestNearestInterpOp(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -306,7 +309,7 @@ class TestNearestNeighborInterpScale3(TestNearestInterpOp):
 class TestNearestInterpOp_attr_tensor(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def setUp(self):
         self.set_npu()
@@ -451,7 +454,7 @@ class TestNearestInterpOpAPI_dy(unittest.TestCase):
         import paddle
 
         if "npu" in paddle.base.core.get_all_custom_device_type():
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = core.CPUPlace()
         with base.dygraph.guard(place):

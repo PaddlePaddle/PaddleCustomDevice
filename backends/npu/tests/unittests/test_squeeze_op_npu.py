@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 import paddle
 
@@ -40,11 +43,11 @@ class TestSqueeze2Op(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            paddle.CustomPlace("npu", 0), no_check_set=["XShape"]
+            paddle.CustomPlace("npu", select_npu), no_check_set=["XShape"]
         )
 
     def test_check_grad(self):
-        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+        self.check_grad_with_place(paddle.CustomPlace("npu", select_npu), ["X"], "Out")
 
     def init_test_case(self):
         self.ori_shape = (1, 3, 1, 40)

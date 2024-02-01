@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 import numpy as np
 
 from tests.op_test import OpTest
@@ -28,7 +31,7 @@ class TestPad3dNPUOp(OpTest):
         paddle.enable_static()
         self.__class__.use_custom_device = True
         self.op_type = "pad3d"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
         self.x_type = "float32"
         self.mode = "constant"
@@ -389,7 +392,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.static.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], value=1, mode="constant")
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = Executor(place)
             outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
@@ -398,7 +401,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.static.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="reflect")
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = Executor(place)
             outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
@@ -407,7 +410,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.static.data(name="x", shape=input_shape)
             y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="replicate")
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
             exe = Executor(place)
             outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 

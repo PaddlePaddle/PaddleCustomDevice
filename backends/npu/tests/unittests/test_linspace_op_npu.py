@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 from tests.op_test import OpTest
@@ -40,7 +43,7 @@ class TestLinspaceOpCommonCase(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -107,7 +110,7 @@ class TestLinspaceOpReverseCase(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -129,7 +132,7 @@ class TestLinspaceOpNumOneCase(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -143,13 +146,13 @@ class TestLinspaceAPI(unittest.TestCase):
             stop = paddle.full(shape=[1], fill_value=10, dtype="float32")
             num = paddle.full(shape=[1], fill_value=5, dtype="int32")
             out = paddle.linspace(start, stop, num, dtype="float32")
-            exe = base.Executor(paddle.CustomPlace("npu", 0))
+            exe = base.Executor(paddle.CustomPlace("npu", select_npu))
             res = exe.run(base.default_main_program(), fetch_list=[out])
         np_res = np.linspace(0, 10, 5, dtype="float32")
         self.assertEqual((res == np_res).all(), True)
 
     def test_variable_input2(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         start = paddle.full(shape=[1], fill_value=0, dtype="float32")
         stop = paddle.full(shape=[1], fill_value=10, dtype="float32")
         num = paddle.full(shape=[1], fill_value=5, dtype="int32")
@@ -159,7 +162,7 @@ class TestLinspaceAPI(unittest.TestCase):
         paddle.enable_static()
 
     def test_imperative(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         out1 = paddle.linspace(0, 10, 5, dtype="float32")
         np_out1 = np.linspace(0, 10, 5, dtype="float32")
         out2 = paddle.linspace(0, 10.1, 5, dtype="float64")

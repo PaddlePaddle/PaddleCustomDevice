@@ -15,8 +15,14 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle.base as base
@@ -63,7 +69,7 @@ class TestDropoutOp(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -207,7 +213,7 @@ class TestDropoutOpInference(OpTest):
 
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -278,7 +284,7 @@ class TestDropoutOpFp16(TestDropoutOp):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
 
 class TestDropoutOpFp64(TestDropoutOp):
@@ -289,7 +295,7 @@ class TestDropoutOpFp64(TestDropoutOp):
     def set_npu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
 
 _list = [
@@ -302,7 +308,7 @@ _list = [
 class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
-        self.places = [base.CPUPlace(), paddle.CustomPlace("npu", 0)]
+        self.places = [base.CPUPlace(), paddle.CustomPlace("npu", select_npu)]
 
     def check_static_result(self, place):
         with base.program_guard(base.Program(), base.Program()):

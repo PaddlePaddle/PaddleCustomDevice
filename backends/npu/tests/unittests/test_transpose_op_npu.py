@@ -16,6 +16,9 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 from tests.op_test import OpTest
 import paddle
 
@@ -26,7 +29,7 @@ class TestTransposeOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "transpose2"
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_dtype()
         self.init_shape_axis()
 
@@ -133,7 +136,7 @@ class TestTransposeAPIWithNPUStroageFormat(unittest.TestCase):
         self.x = np.random.random(self.shape_x).astype(np.float32)
         self.axis = [0, 3, 1, 2]
         self.format = 3  # ACL_FORMAT_NC1HWC0 = 3
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
 
     def test_api_static(self):
         paddle.enable_static()

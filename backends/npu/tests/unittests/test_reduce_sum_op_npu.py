@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -29,7 +32,7 @@ class TestReduceSum(OpTest):
         np.random.seed(SEED)
         self.set_npu()
         self.init_dtype()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.init_op_type()
         self.initTestCase()
 
@@ -138,7 +141,7 @@ class TestReduceSumNet(unittest.TestCase):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 
@@ -197,7 +200,7 @@ class TestReduceSumNet3(TestReduceSumNet):
             sgd.minimize(loss)
 
         if run_npu:
-            place = paddle.CustomPlace("npu", 0)
+            place = paddle.CustomPlace("npu", select_npu)
         else:
             place = paddle.CPUPlace()
 

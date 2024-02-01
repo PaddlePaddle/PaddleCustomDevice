@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+import os
+
+select_npu = os.environ.get("FLAGS_selected_npus", 0)
 
 import numpy as np
 import paddle
@@ -39,7 +42,7 @@ class TestMaskedSelectOp(OpTest):
         self.set_npu()
         self.init()
         self.init_dtype()
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", select_npu)
         self.op_type = "masked_select"
         x = np.random.random(self.shape).astype(self.dtype)
         mask = np.array(np.random.randint(2, size=self.shape, dtype=bool))
@@ -100,7 +103,7 @@ class TestMaskedSelectOpInt64(TestMaskedSelectOp):
 
 class TestMaskedSelectAPI(unittest.TestCase):
     def test_imperative_mode(self):
-        paddle.disable_static(paddle.CustomPlace("npu", 0))
+        paddle.disable_static(paddle.CustomPlace("npu", select_npu))
         shape = (88, 6, 8)
         np_x = np.random.random(shape).astype("float32")
         np_mask = np.array(np.random.randint(2, size=shape, dtype=bool))
@@ -122,7 +125,7 @@ class TestMaskedSelectAPI(unittest.TestCase):
         out = paddle.masked_select(x, mask)
         np_out = np_masked_select(np_x, np_mask)
 
-        exe = paddle.static.Executor(place=paddle.CustomPlace("npu", 0))
+        exe = paddle.static.Executor(place=paddle.CustomPlace("npu", select_npu))
 
         res = exe.run(
             paddle.static.default_main_program(),

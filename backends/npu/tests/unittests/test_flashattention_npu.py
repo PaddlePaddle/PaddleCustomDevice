@@ -19,6 +19,7 @@ import paddle.nn.functional as F
 import numpy as np
 import paddle
 from paddle.base import core
+from npu_utils import check_soc_version
 
 for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
     if lib.endswith(".so"):
@@ -67,6 +68,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
         self.causal = False
         self.return_softmax = False
 
+    @check_soc_version
     def test_fa_fp16(self):
         # profiler.start()
         self.causal = False
@@ -167,6 +169,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} passed"
         )
 
+    @check_soc_version
     def test_fa_casual_fp16(self):
         self.causal = False
         self.dtype = "float16"
@@ -265,6 +268,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} passed"
         )
 
+    @check_soc_version
     def test_fa_withmask_fp16(self):
         self.causal = False
         self.dtype = "float16"
@@ -374,6 +378,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} with defined mask passed"
         )
 
+    @check_soc_version
     def test_fa_bf16(self):
         self.causal = False
         self.dtype = "bfloat16"
@@ -468,6 +473,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} passed"
         )
 
+    @check_soc_version
     def test_fa_casual_bf16(self):
         self.causal = False
         self.dtype = "bfloat16"
@@ -561,6 +567,7 @@ class TestFlashAttentionAPI(unittest.TestCase):
             f"Test fa case shape {self.shape} dtype {self.dtype} causal {self.causal} passed"
         )
 
+    @check_soc_version
     def test_fa_withmask_bf16(self):
         self.causal = False
         self.dtype = "bfloat16"

@@ -96,6 +96,22 @@ function caught_error() {
     done
 }
 
+function generate_logical_card_sequence() {
+    local n=$1
+    local sequence=()
+
+    for ((i=0; i<n; i++)); do
+        if [[ $i -eq 0 ]];then
+            sequence=$i
+        else
+            sequence+=",$i"
+        fi
+    done
+
+    # 返回数组
+    echo "${sequence}"
+}
+
 function card_test() {
     set -m
     ut_startTime_s=`date +%s`
@@ -127,17 +143,16 @@ function card_test() {
 
     trap 'caught_error' CHLD
     tmpfile_rand=`date +%s%N`
-    echo $NPU_DEVICE_COUNT
     NUM_PROC=$[NPU_DEVICE_COUNT/$cardnumber]
-    echo $NUM_PROC
+    logical_card_sequence=($(generate_logical_card_sequence $cardnumber))
 
     for (( i = 0; i < $NUM_PROC; i++ )); do
         npu_list=()
         for (( j = 0; j < cardnumber; j++ )); do
             if [ $j -eq 0 ]; then
-                    npu_list=("$[i*cardnumber]")
+                    npu_list=("${numbers_array[$[i*cardnumber]]}")
                 else
-                    npu_list="$cuda_list,$[i*cardnumber+j]"
+                    npu_list="$npu_list,${numbers_array[$[i*cardnumber+j]]}"
             fi
         done
         tmpfile=$tmp_dir/$tmpfile_rand"_"$i
@@ -146,10 +161,10 @@ function card_test() {
            #(ctest -I $i,,$NUM_PROC -R "($testcases)" | tee $tmpfile;test ${PIPESTATUS[0] -eq 0}) &
         else
            echo "================"
-           echo $npu_list
-           echo FLAGS_selected_npus=$npu_list
+           echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
+           echo FLAGS_selected_npus=${logical_card_sequence}
            echo "================"
-           (env FLAGS_selected_npus=$npu_list ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
+           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list FLAGS_selected_npus=${logical_card_sequence} ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
         fi
     done
     wait; # wait for all subshells to finish

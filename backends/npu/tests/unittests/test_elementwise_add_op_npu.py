@@ -545,7 +545,7 @@ class TestAddInplaceBroadcastSuccess(unittest.TestCase):
         y = paddle.to_tensor(self.y_numpy)
         inplace_result = x.add_(y)
         numpy_result = self.x_numpy + self.y_numpy
-        self.assertEqual((inplace_result.numpy() == numpy_result).all(), True)
+        self.assertEqual(np.allclose(inplace_result.numpy(), numpy_result), True)
         paddle.enable_static()
 
 

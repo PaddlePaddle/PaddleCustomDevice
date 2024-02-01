@@ -19,6 +19,7 @@ import numpy as np
 
 import paddle
 import paddle.distributed as dist
+from npu_utils import check_soc_version_and_dtype
 
 
 def init_process_group(strategy=None):
@@ -41,6 +42,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         self.dtype = "float32"
         self.shape = (2, 10, 5)
 
+    @check_soc_version_and_dtype
     def test_create_process_group_xccl(self):
         device_id = paddle.distributed.ParallelEnv().dev_id
         paddle.set_device("npu:%d" % device_id)

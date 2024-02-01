@@ -24,3 +24,18 @@ def check_soc_version(func):
         return unittest.skip("Skipping the test case since cann is not 7.x")(func)(self)
 
     return wrapper
+
+
+def check_soc_version_and_dtype(func):
+    def wrapper(self):
+        if (
+            paddle_custom_device.npu.version()["cann"].split(".")[0] == "7"
+            or self.dtype != "bfloat16"
+        ):
+            return func(self)
+        self.__class__.op_type = "skip"
+        return unittest.skip(
+            "Skipping the test case since cann is not 7.x and dtype is bfloat16"
+        )(func)(self)
+
+    return wrapper

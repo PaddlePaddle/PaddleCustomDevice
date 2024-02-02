@@ -100,7 +100,13 @@ void AddKernel(const Context& dev_ctx,
     return;
   }
   phi::Scalar alpha = 1;
-  dev_ctx.template Alloc<T>(out);
+  if (x.dtype() == phi::DataType::FLOAT32 &&
+    (y.dtype() == phi::DataType::BFLOAT16 ||
+      y.dtype() == phi::DataType::FLOAT16)) {
+    dev_ctx.template Alloc<float>(out);
+  } else{
+    dev_ctx.template Alloc<T>(out);
+  }
   EXEC_NPU_CMD(aclnnAdd, dev_ctx, x, y, alpha, *out);
 }
 

@@ -232,6 +232,9 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   if (aclCreateTensor == nullptr) {
     return nullptr;
   }
+if (!at_tensor.initialized()) {
+    return nullptr;
+  }
   auto at_tensor_dtype = at_tensor.dtype();
   auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
   std::vector<int64_t> storageDims(5);
@@ -280,6 +283,17 @@ inline aclTensorList *ConvertType(
   return acl_tensor_list;
 }
 
+
+inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  auto array = aclCreateIntArray(at_array.data(), at_array.size());
+  return array;
+}
+
+
 inline aclTensorList *ConvertType(
   const std::vector<phi::DenseTensor*> &phi_tensor_list) {
   static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
@@ -295,6 +309,7 @@ inline aclTensorList *ConvertType(
                                              tensor_list.size());
   return acl_tensor_list;
 }
+
 
 template <typename T>
 T ConvertType(T value) {
@@ -373,7 +388,6 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);     \
     auto api_ret =                                                        \
       opApiFunc(workspace_addr, workspace_size, executor, acl_stream);    \
-    aclrtSynchronizeStream((dev_ctx).stream());                           \
     ReleaseConvertTypes(converted_params);                                \
     ReleaseHugeMem releaseMemFunc =                                       \
       reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                   \

@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 from paddle.base import core
-from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
+from tests.op_test import convert_float_to_uint16
 
 from npu_utils import check_soc_version
 
@@ -48,8 +48,8 @@ class TestNPURMSNormFP32(unittest.TestCase):
             rtol = 1e-04
             atol = 1e-04
         elif self.dtype == "float16":
-            rtol = 3e-03
-            atol = 3e-03
+            rtol = 1e-03
+            atol = 1e-03
         elif self.dtype == "bfloat16":
             rtol = 8e-3
             atol = 8e-3
@@ -69,16 +69,21 @@ class TestNPURMSNormFP32(unittest.TestCase):
         np.testing.assert_allclose(golden_dx, fused_dx, rtol=rtol, atol=atol)
         np.testing.assert_allclose(golden_dgamma, fused_dgamma, rtol=rtol, atol=atol)
 
-    def golden_rms_norm(self, x_, gamma_, eps):
+    def golden_rms_norm(self, x_, gamma, eps):
         x = x_.cast("float32")
-        gamma = gamma_.cast("float32")
         var = paddle.mean(paddle.pow(x, 2), axis=-1, keepdim=True)
         std = paddle.sqrt(var + eps)
         rstd = 1 / std
-        y = x * rstd * gamma
+        y = x * rstd
+        y = y.cast(self.dtype)
+        y = y * gamma
         y.backward()
-        dx = x_.grad.cast("float32")
-        dgamma = gamma_.grad.cast("float32")
+        dx = x_.grad
+        dgamma = gamma.grad
+        if self.dtype == "bfloat16":
+            y = y.cast("float32")
+            dx = dx.cast("float32")
+            dgamma = dgamma.cast("float32")
         return y.numpy(), rstd.numpy(), dx.numpy(), dgamma.numpy()
 
     def fused_rms_norm(self, x, gamma, eps):
@@ -87,9 +92,8 @@ class TestNPURMSNormFP32(unittest.TestCase):
         dx = x.grad
         dgamma = gamma.grad
         if self.dtype == "bfloat16":
-            y = convert_uint16_to_float(y.numpy())
-            dx = convert_uint16_to_float(dx.numpy())
-            return y, rstd.numpy(), dx, dgamma.numpy()
+            y = y.cast("float32")
+            dx = dx.cast("float32")
         return y.numpy(), rstd.numpy(), dx.numpy(), dgamma.numpy()
 
     def gen_input(self):

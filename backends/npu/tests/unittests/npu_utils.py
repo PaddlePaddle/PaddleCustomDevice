@@ -29,7 +29,7 @@ def check_soc_version(func):
 def check_soc_version_and_dtype(func):
     def wrapper(self):
         if (
-            paddle_custom_device.npu.version()["cann"].split(".")[0] == "7"
+            int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7
             or self.dtype != "bfloat16"
         ):
             return func(self)

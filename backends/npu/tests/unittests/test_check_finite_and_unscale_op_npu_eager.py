@@ -15,6 +15,7 @@
 from __future__ import print_function
 
 import unittest
+from paddle import _legacy_C_ops
 from tests.op_test import (
     OpTest,
     convert_float_to_uint16,
@@ -31,10 +32,11 @@ class TestCheckFiniteAndUnscaleOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "check_finite_and_unscale"
+        self.set_dtype()
         self.init_test_case()
 
     def init_test_case(self):
-        x_fp32 = np.random.random((129, 129)).astype(np.float32)
+        x_fp32 = np.random.random((1024, 1024)).astype(self.dtype)
         x = convert_float_to_uint16(x_fp32)
         scale = np.random.random((1)).astype(np.float32)
 
@@ -48,43 +50,106 @@ class TestCheckFiniteAndUnscaleOp(OpTest):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
 
+    def set_dtype(self):
+        self.dtype = np.float32
+
     @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
 
-class TestCheckFiniteAndUnscaleOpWithNan(TestCheckFiniteAndUnscaleOp):
-    def init_test_case(self):
-        x = np.random.random((1024, 1024)).astype(np.float32)
+class TestCheckFiniteAndUnscaleOpWithNan(unittest.TestCase):
+    def setUp(self):
+        self.dtype = np.float32
+
+    @check_soc_version
+    def test_with_nan(self):
+        x = np.random.random((129, 129)).astype(self.dtype)
         x[128][128] = np.nan
-        scale = np.random.random(1).astype(np.float32)
-        self.inputs = {"X": [("x0", x)], "Scale": scale}
-        self.outputs = {
-            "FoundInfinite": np.array([1]),
-            "Out": [("out0", x)],
-        }
+        y = np.random.random(1).astype(np.float32)
+        npu_x = paddle.to_tensor(x)
+        scale = paddle.to_tensor(y)
+        found_inf = paddle.to_tensor(np.array([0]).astype(np.bool_))
+        _legacy_C_ops.check_finite_and_unscale([npu_x], scale, [npu_x], found_inf)
 
-    def test_check_output(self):
-        # When input contains nan, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output(no_check_set=["Out"])
+        k = x / y
+        np.testing.assert_allclose(npu_x.numpy()[:-1], k[:-1], rtol=1e-03)
+        np.testing.assert_allclose(npu_x.numpy()[-1][:-1], k[-1][:-1], rtol=1e-03)
+        np.testing.assert_equal(found_inf.numpy(), 1)
 
 
+class TestCheckFiniteAndUnscaleOpWithNanFP16(TestCheckFiniteAndUnscaleOpWithNan):
+    def setUp(self):
+        self.dtype = np.float16
+
+
+class TestCheckFiniteAndUnscaleOp2(unittest.TestCase):
+    @check_soc_version
+    def test_with_nan(self):
+        a = np.array([1, 3e38, 1]).astype(np.float32)
+        b = np.array([1, 3e38, 1]).astype(np.float32)
+        x = a + b
+
+        y = np.random.random(1).astype(np.float32)
+        npu_x = paddle.to_tensor(x)
+        scale = paddle.to_tensor(y)
+        found_inf = paddle.to_tensor(np.array([0]).astype(np.bool_))
+        _legacy_C_ops.check_finite_and_unscale([npu_x], scale, [npu_x], found_inf)
+
+        np.testing.assert_equal(found_inf.numpy(), 1)
+
+    @check_soc_version
+    def test_with_nan2(self):
+        a = np.ones((32, 32)).astype(np.float32)
+        b = np.zeros((32, 32)).astype(np.float32)
+        x = a / b
+
+        y = np.random.random(1).astype(np.float32)
+        npu_x = paddle.to_tensor(x)
+        scale = paddle.to_tensor(y)
+        found_inf = paddle.to_tensor(np.array([0]).astype(np.bool_))
+        _legacy_C_ops.check_finite_and_unscale([npu_x], scale, [npu_x], found_inf)
+
+        np.testing.assert_equal(found_inf.numpy(), 1)
+
+
+# fp32
 class TestCheckFiniteAndUnscaleOpWithInf(TestCheckFiniteAndUnscaleOp):
     def init_test_case(self):
-        x = np.random.random((1024, 1024)).astype(np.float32)
+        x = np.random.random((1024, 1024)).astype(self.dtype)
         x[128][128] = np.inf
         scale = np.random.random(1).astype(np.float32)
         self.inputs = {"X": [("x0", x)], "Scale": scale}
         self.outputs = {
             "FoundInfinite": np.array([1]),
-            "Out": [("out0", x)],
+            "Out": [("out0", x / scale)],
         }
 
+    def set_dtype(self):
+        self.dtype = np.float32
+
+    @check_soc_version
     def test_check_output(self):
-        # When input contains inf, do not check the output,
-        # since the output may be nondeterministic and will be discarded.
-        self.check_output(no_check_set=["Out"])
+        self.check_output_with_place(self.place, atol=1e-04)
+
+
+# fp16
+class TestCheckFiniteAndUnscaleOpWithInfFP16(TestCheckFiniteAndUnscaleOpWithInf):
+    def init_test_case(self):
+        x = np.random.random((1024, 1024)).astype(self.dtype)
+        x[128][128] = np.inf
+        scale = np.random.random(1).astype(np.float32)
+        self.inputs = {"X": [("x0", x)], "Scale": scale}
+        self.outputs = {
+            "FoundInfinite": np.array([1]),
+            "Out": [("out0", x / scale.astype(np.float16))],
+        }
+    def set_dtype(self):
+        self.dtype = np.float16
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-03)
 
 
 if __name__ == "__main__":

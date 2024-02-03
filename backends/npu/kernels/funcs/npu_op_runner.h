@@ -233,6 +233,11 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
     return nullptr;
   }
   auto at_tensor_dtype = at_tensor.dtype();
+
+  if (at_tensor_dtype == phi::DataType::FLOAT64) {
+    VLOG(2) << "Kernel is running on the AICPU."
+            << "For better performance. use other dtypes.";
+  }
   auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
   std::vector<int64_t> storageDims(5);
   if (acl_data_type != ACL_STRING) {
@@ -335,6 +340,7 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
 
 #define EXEC_NPU_CMD(aclnn_api, dev_ctx, ...)                             \
   do {                                                                    \
+    VLOG(1) << "NpuAclnnOpRunner: " << #aclnn_api;                        \
     static const auto getWorkspaceSizeFuncAddr =                          \
     GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                      \
     static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \

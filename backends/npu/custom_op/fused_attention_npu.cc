@@ -91,7 +91,7 @@ int64_t get_single(const paddle::optional<paddle::Tensor>& fixed_seed_offset,
   return seed;
 }
 
-//query,key,value：（batch,seq_len,head_num,head_dim）
+// query,key,value：（batch,seq_len,head_num,head_dim）
 std::vector<paddle::Tensor> npu_flash_attention(
     const paddle::Tensor& query,
     const paddle::Tensor& key,

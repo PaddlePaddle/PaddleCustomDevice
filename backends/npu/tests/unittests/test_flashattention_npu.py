@@ -58,10 +58,7 @@ class TestNPUFAFP16(unittest.TestCase):
         self.dtype = "float16"
 
     def check_result(self, golden_res, fused_res):
-        if self.dtype == "float32":
-            rtol = 5e-3
-            atol = 5e-3
-        elif self.dtype == "float16":
+        if self.dtype == "float16":
             rtol = 5e-3
             atol = 5e-3
         elif self.dtype == "bfloat16":
@@ -70,8 +67,8 @@ class TestNPUFAFP16(unittest.TestCase):
         else:
             self.assertTrue(
                 False,
-                msg="NPURMSNorm input dtype only supports bfloat16, \
-                     float16 and float32, but got "
+                msg="NPUFA input dtype only supports bfloat16, \
+                     float16, but got "
                 + self.dtype,
             )
         golden_y, golden_dx = golden_res

@@ -32,7 +32,7 @@ else
 fi
 
 WITH_ATB=OFF
-if [ -z "${ATB_HOME_PATH}" ] && [ -d "${ATB_HOME_PATH}" ]; then
+if [ -n "${ATB_HOME_PATH}" ] && [ -d "${ATB_HOME_PATH}" ]; then
     WITH_ATB=ON
 fi
 

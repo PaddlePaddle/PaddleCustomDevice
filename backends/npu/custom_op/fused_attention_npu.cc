@@ -484,7 +484,7 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
   (*dev_ctx).Alloc(dpse_out.get(), query_tensor.dtype());
 #else
     void* dpse_out_null = nullptr;
-  #endif
+#endif
   char* input_layout_ptr = "BSND";
 #if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE <= 800000)
   EXEC_NPU_CMD(aclnnFlashAttentionScoreGrad,
@@ -542,7 +542,7 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                   *dk_out,
                   *dv_out,
                 dpse_out_null);
-  #endif
+#endif
   return {
       paddle::Tensor(dq_out), paddle::Tensor(dk_out), paddle::Tensor(dv_out)};
 }

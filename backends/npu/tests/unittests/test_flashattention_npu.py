@@ -22,6 +22,7 @@ import paddle.nn.functional as F
 from paddle.base import core
 from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
 from npu_utils import check_soc_version
+
 for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
     if lib.endswith(".so"):
         paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
@@ -37,6 +38,7 @@ def attention_naive(q, k, v):
     p = F.softmax(s)
     o = paddle.matmul(p, v)
     return paddle.transpose(o, [0, 2, 1, 3])
+
 
 class TestNPUFAFP16(unittest.TestCase):
     def setUp(self):
@@ -94,24 +96,25 @@ class TestNPUFAFP16(unittest.TestCase):
         query = query_.transpose((0, 2, 1, 3))
         key = key_.transpose((0, 2, 1, 3))
         value = value_.transpose((0, 2, 1, 3))
-        y = core.eager._run_custom_op("flash_attention_npu", 
-                                      query, 
-                                      key, 
-                                      value,
-                                      self.fixed_seed_offset,
-                                      self.attn_mask,
-                                      self.dropout,
-                                      self.causal,
-                                      self.return_softmax,
-                                      self.is_test
-                                      )[0]
+        y = core.eager._run_custom_op(
+            "flash_attention_npu",
+            query,
+            key,
+            value,
+            self.fixed_seed_offset,
+            self.attn_mask,
+            self.dropout,
+            self.causal,
+            self.return_softmax,
+            self.is_test,
+        )[0]
         y.backward()
         dx = query_.grad
         if self.dtype == "bfloat16":
             y = convert_uint16_to_float(y.numpy())
             dx = convert_uint16_to_float(dx.numpy())
-            return y,  dx
-        return y.numpy(),dx.numpy()
+            return y, dx
+        return y.numpy(), dx.numpy()
 
     def gen_input(self):
         np_query = np.random.randn(

@@ -45,7 +45,7 @@ class TestNPUFAFP16(unittest.TestCase):
         self.npu_place = paddle.CustomPlace("npu", 0)
         self.cpu_place = paddle.CPUPlace()
         # (B,S,N,D)
-        self.shape = (1, 5, 16, 64)
+        self.shape = (1, 5, 2048, 128)
         self.dropout = 0.0
         self.fixed_seed_offset = None
         self.attn_mask = None

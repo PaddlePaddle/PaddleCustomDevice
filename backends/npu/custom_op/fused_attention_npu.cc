@@ -476,17 +476,17 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
       std::make_shared<phi::DenseTensor>();
   dv_out->Resize(value_tensor.dims());
   (*dev_ctx).Alloc(dv_out.get(), value_tensor.dtype());
-#if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE <= 800000)
+#if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE < 800000)
   // dpse_out在cann8.0上需要传一个shape为0的tensor
   std::shared_ptr<phi::DenseTensor> dpse_out =
       std::make_shared<phi::DenseTensor>();
   dpse_out->Resize({1});
   (*dev_ctx).Alloc(dpse_out.get(), query_tensor.dtype());
 #else
-    void* dpse_out_null = nullptr;
+  void* dpse_out_null = nullptr;
 #endif
   char* input_layout_ptr = "BSND";
-#if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE <= 800000)
+#if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE < 800000)
   EXEC_NPU_CMD(aclnnFlashAttentionScoreGrad,
                *dev_ctx,
                query_tensor,
@@ -515,33 +515,33 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                *dv_out,
                *dpse_out);
 #else
-    EXEC_NPU_CMD(aclnnFlashAttentionScoreGrad,
-                  *dev_ctx,
-                  query_tensor,
-                  key_tensor,
-                  value_tensor,
-                  grad_tensor,
-                  realShiftOptional,
-                  *dropmask_tensor,
-                  padding_mask,
-                  *attn_mask_tensor,
-                  *softmax_max_tensor,
-                  *softmax_sum_tensor,
-                  *softmax_out_tensor,
-                  *attention_score_out_tensor,
-                  prefixOptional,
-                  scale,
-                  keep_prob,
-                  pre_tockens,
-                  next_tockens,
-                  head_num,
-                  input_layout_ptr,
-                  inner_precise,
-                  sparseModeOptional,
-                  *dq_out,
-                  *dk_out,
-                  *dv_out,
-                dpse_out_null);
+  EXEC_NPU_CMD(aclnnFlashAttentionScoreGrad,
+               *dev_ctx,
+               query_tensor,
+               key_tensor,
+               value_tensor,
+               grad_tensor,
+               realShiftOptional,
+               *dropmask_tensor,
+               padding_mask,
+               *attn_mask_tensor,
+               *softmax_max_tensor,
+               *softmax_sum_tensor,
+               *softmax_out_tensor,
+               *attention_score_out_tensor,
+               prefixOptional,
+               scale,
+               keep_prob,
+               pre_tockens,
+               next_tockens,
+               head_num,
+               input_layout_ptr,
+               inner_precise,
+               sparseModeOptional,
+               *dq_out,
+               *dk_out,
+               *dv_out,
+               dpse_out_null);
 #endif
   return {
       paddle::Tensor(dq_out), paddle::Tensor(dk_out), paddle::Tensor(dv_out)};

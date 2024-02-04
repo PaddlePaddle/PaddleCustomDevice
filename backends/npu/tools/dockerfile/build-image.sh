@@ -28,7 +28,7 @@ DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 700
 
 # Download packages from https://www.hiascend.com/software/cann/community first
 if [ ! -f Ascend-cann-toolkit_${CANN_VERSION}_linux-$(uname -m).run ]; then
-  echo "Please download CANN packages from https://www.hiascend.com/software/cann/community first!"
+  echo "Please download CANN installation packages first!"
   exit 1
 fi
 

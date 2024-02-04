@@ -185,5 +185,4 @@ class TestNPUFABF16(TestNPUFAFP16):
 
 
 if __name__ == "__main__":
-    np.random.seed(2024)
     unittest.main()

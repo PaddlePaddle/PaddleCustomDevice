@@ -486,7 +486,6 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
   void* dpse_out_null = nullptr;
 #endif
   char* input_layout_ptr = "BSND";
-  printf("CANN_VERSION_CODE=%d\r\n", CANN_VERSION_CODE);
 #if (CANN_VERSION_CODE >= 700000 && CANN_VERSION_CODE < 800000)
   EXEC_NPU_CMD(aclnnFlashAttentionScoreGrad,
                *dev_ctx,

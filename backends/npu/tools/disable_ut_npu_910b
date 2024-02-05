@@ -14,7 +14,6 @@ test_elementwise_sub_op_npu
 test_elu_op_npu
 test_eye_op_npu
 test_index_sample_op_npu
-test_layer_norm_op_npu
 test_linear_op_npu
 test_matmul_op_npu
 test_momentum_op_npu
@@ -26,3 +25,4 @@ test_softmax_with_cross_entropy_op_npu
 test_squared_l2_norm_op_npu
 test_stack_op_npu
 test_zero_dim_tensor_npu
+test_rmsprop_op_npu

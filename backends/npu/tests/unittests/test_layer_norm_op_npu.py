@@ -22,6 +22,7 @@ import numpy as np
 import paddle
 import paddle.base as base
 import paddle.base.core as core
+import paddle_custom_device
 
 paddle.enable_static()
 
@@ -238,6 +239,10 @@ class TestLayerNormOp(unittest.TestCase):
                     },
                     fetch_list=fetch_list,
                 )
+                # CANN 7.0 changes the output mode of variance
+                if int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7:
+                    out[2] = (1 / out[2]) ** 2 - epsilon
+
                 self.__assert_close(y, out[0], "y", self.atol)
                 self.__assert_close(mean, out[1], "mean")
                 self.__assert_close(variance, out[2], "variance", 1e-3)

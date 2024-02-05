@@ -23,12 +23,15 @@ enum LlamaMlpDequantTensorId {
     IN_DEQSCALE,
     OUT_MLPRESULTSTENSOR,
     INTERMIDATE_MATMUL_ALL_OUT,
+    INTERMIDATE_MATMUL_GATE_OUT,
+    INTERMIDATE_MATMUL_UP_OUT,
+    INTERMIDATE_SWISH_OUT,
 };
  
 static const uint64_t IN_TENSOR_COUNT = 3;
 static const uint64_t OUT_TENSOR_COUNT = 1;
-static const uint64_t INTERMEDIATE_TENSOR_COUNT = 1;
-static const uint64_t NODE_COUNT = 2;
+static const uint64_t INTERMEDIATE_TENSOR_COUNT = 4;
+static const uint64_t NODE_COUNT = 4;
 static uint64_t DIM3 = 3;
  
 atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, atb::Operation **operation)
@@ -42,20 +45,34 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
  
     size_t nodeId = 0;
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
+    atb::Node &splitNode = opGraph.nodes.at(nodeId++);
     atb::Node &swishNode = opGraph.nodes.at(nodeId++);
+    atb::Node &mulNode = opGraph.nodes.at(nodeId++);
 
     atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, false};
     CreateOperation(linearQuantParam, &linearNode.operation);
     linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
  
+
+    atb::infer::SplitParam splitParam = {2, 2};
+    CreateOperation(splitParam, &splitNode.operation);
+    splitNode.inTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
+    splitNode.outTensorIds = {INTERMIDATE_MATMUL_GATE_OUT, INTERMIDATE_MATMUL_UP_OUT};
+ 
     atb::infer::ActivationParam activationParam;
-    activationParam.activationType = atb::infer::ActivationType::ACTIVATION_SWIGLU_FORWARD;
-    activationParam.dim = -1;
+    activationParam.activationType = atb::infer::ActivationType::ACTIVATION_SWISH;
     CreateOperation(activationParam, &swishNode.operation);
-    swishNode.inTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};
-    swishNode.outTensorIds = {OUT_MLPRESULTSTENSOR};
-  
+    swishNode.inTensorIds = {INTERMIDATE_MATMUL_GATE_OUT};
+    swishNode.outTensorIds = {INTERMIDATE_SWISH_OUT};
+ 
+    atb::infer::ElewiseParam elewiseParam;
+    elewiseParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
+    CreateOperation(elewiseParam, &mulNode.operation);
+    mulNode.inTensorIds = {INTERMIDATE_SWISH_OUT, INTERMIDATE_MATMUL_UP_OUT};
+    mulNode.outTensorIds = {OUT_MLPRESULTSTENSOR};
+ 
+ 
     opGraph.inferShapeFunc = [=](const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
         outTensorDescs.at(0) = inTensorDescs.at(0);

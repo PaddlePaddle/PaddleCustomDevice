@@ -65,37 +65,37 @@ static void MatMulForNZFormat(const Context& dev_ctx,
     out_tmp.set_meta(meta);
   }
   AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_FRACTAL_NZ, &out_tmp);
+
   std::function<void(const std::vector<phi::DenseTensor>&,
                      const std::vector<phi::DenseTensor>&,
                      const NPUAttributeMap& attrs,
                      const phi::CustomContext&)>
       functional;
   NPUAttributeMap attr_input = {};
+  if (is_batch) {
+    attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
+    functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+  } else {
+    attr_input = {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}};
+    functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+  }
   if (X.dtype() == phi::DataType::FLOAT64 &&
       Y.dtype() == phi::DataType::FLOAT64) {
     // To optimize the performace, we transform the datatype from fp64 tp fp16.
     // This is because ascend "matmul" op will transform fp32 to fp16 during
     // actual calculation，
-    if (is_batch) {
-      attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
-      functional = [&](const std::vector<phi::DenseTensor>& inputs,
-                       const std::vector<phi::DenseTensor>& outputs,
-                       const NPUAttributeMap& attrs,
-                       const phi::CustomContext& dev_ctx) {
-        const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
-        runner.Run(dev_ctx.stream());
-      };
-    } else {
-      attr_input = {{"transpose_x1", transpose_x},
-                    {"transpose_x2", transpose_y}};
-      functional = [&](const std::vector<phi::DenseTensor>& inputs,
-                       const std::vector<phi::DenseTensor>& outputs,
-                       const NPUAttributeMap& attrs,
-                       const phi::CustomContext& dev_ctx) {
-        const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
-        runner.Run(dev_ctx.stream());
-      };
-    }
     NpuOpRunner::TypeAdapter({X, Y},
                              {out_tmp},
                              attr_input,
@@ -103,6 +103,8 @@ static void MatMulForNZFormat(const Context& dev_ctx,
                              functional,
                              {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
                              {phi::DataType::FLOAT16});
+  } else {
+    functional({X, Y}, {out_tmp}, attr_input, dev_ctx);
   }
   custom_kernel::NPUIdentityKernel<T, Context>(
       dev_ctx, out_tmp, ConvertToNpuFormat(out->layout()), out);
@@ -125,31 +127,30 @@ static void MatMulForNotNZFormat(const Context& dev_ctx,
                      const NPUAttributeMap&,
                      const phi::CustomContext&)>
       functional;
+  if (is_batch) {
+    attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
+    functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+  } else {
+    attr_input = {{"transpose_x1", transpose_x}, {"transpose_x2", transpose_y}};
+    functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                     const std::vector<phi::DenseTensor>& outputs,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
+      runner.Run(dev_ctx.stream());
+    };
+  }
   if (X.dtype() == phi::DataType::FLOAT64 &&
       Y.dtype() == phi::DataType::FLOAT64) {
     // To optimize the performace, we transform the datatype from fp64 tp fp16.
     // This is because ascend "matmul" op will transform fp32 to fp16 during
     // actual calculation，
-    if (is_batch) {
-      attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
-      functional = [&](const std::vector<phi::DenseTensor>& inputs,
-                       const std::vector<phi::DenseTensor>& outputs,
-                       const NPUAttributeMap& attrs,
-                       const phi::CustomContext& dev_ctx) {
-        const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
-        runner.Run(dev_ctx.stream());
-      };
-    } else {
-      attr_input = {{"transpose_x1", transpose_x},
-                    {"transpose_x2", transpose_y}};
-      functional = [&](const std::vector<phi::DenseTensor>& inputs,
-                       const std::vector<phi::DenseTensor>& outputs,
-                       const NPUAttributeMap& attrs,
-                       const phi::CustomContext& dev_ctx) {
-        const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
-        runner.Run(dev_ctx.stream());
-      };
-    }
     NpuOpRunner::TypeAdapter({X, Y},
                              {*out},
                              attr_input,
@@ -158,53 +159,25 @@ static void MatMulForNotNZFormat(const Context& dev_ctx,
                              {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
                              {phi::DataType::FLOAT16});
   } else {
-    if (is_batch) {
-      const auto& runner =
-          NpuOpRunner("BatchMatMul", {X, Y}, {*out}, attr_input);
-      runner.Run(stream);
-    } else {
-      const auto& runner = NpuOpRunner("MatMul", {X, Y}, {*out}, attr_input);
-      runner.Run(stream);
-    }
+    functional({X, Y}, {*out}, attr_input, dev_ctx);
   }
 }
 
 template <typename T, typename Context>
-static void MatMul2D(const Context& dev_ctx,
-                     const aclrtStream& stream,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
-                     const bool transpose_x,
-                     const bool transpose_y) {
-  phi::DenseTensor out_tmp;
-  auto out_dim = out->dims();
-  phi::DenseTensorMeta meta;
-  dev_ctx.template Alloc<T>(out);
+static void MatMul(const Context& dev_ctx,
+                   const aclrtStream& stream,
+                   const phi::DenseTensor& X,
+                   const phi::DenseTensor& Y,
+                   phi::DenseTensor* out,
+                   const bool transpose_x,
+                   const bool transpose_y,
+                   bool is_batch) {
   if (IsNotTransformedNZFormat(X, Y)) {
     MatMulForNotNZFormat<T>(
-        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, false);
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   } else {
     MatMulForNZFormat<T>(
-        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, false);
-  }
-}
-
-template <typename T, typename Context>
-static void MatMulND(const Context& dev_ctx,
-                     const aclrtStream& stream,
-                     const phi::DenseTensor& X,
-                     const phi::DenseTensor& Y,
-                     phi::DenseTensor* out,
-                     const bool transpose_x,
-                     const bool transpose_y,
-                     const phi::DDim out_dims) {
-  if (IsNotTransformedNZFormat(X, Y)) {
-    MatMulForNotNZFormat<T>(
-        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, true);
-  } else {
-    MatMulForNZFormat<T>(
-        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, true);
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   }
 }
 
@@ -296,7 +269,6 @@ void MatmulKernel(const Context& dev_ctx,
     DotImpl<T, Context>(dev_ctx, x, y, out);
     return;
   }
-
   // Resize dim 1 to 2
   phi::DenseTensor x_temp(x), y_temp(y);
   if (x_ndim == 1) {
@@ -338,10 +310,17 @@ void MatmulKernel(const Context& dev_ctx,
                                      y_ndim - 2,
                                      y_dims[y_ndim - 2]));
   }
-
+  bool is_batch = false;
   // Case 2: [M, K] x [K, N] = [M, N]
   if (x_ndim == 2 && y_ndim == 2) {
-    MatMul2D<T>(dev_ctx, stream, x_temp, y_temp, out, transpose_x, transpose_y);
+    MatMul<T>(dev_ctx,
+              stream,
+              x_temp,
+              y_temp,
+              out,
+              transpose_x,
+              transpose_y,
+              is_batch);
     return;
   }
 
@@ -350,7 +329,14 @@ void MatmulKernel(const Context& dev_ctx,
   if (transpose_x == false && y_ndim == 2) {
     std::vector<int64_t> vec_dim = {x_temp.numel() / K, K};
     x_temp.Resize(phi::make_ddim(vec_dim));
-    MatMul2D<T>(dev_ctx, stream, x_temp, y_temp, out, transpose_x, transpose_y);
+    MatMul<T>(dev_ctx,
+              stream,
+              x_temp,
+              y_temp,
+              out,
+              transpose_x,
+              transpose_y,
+              is_batch);
     return;
   }
 
@@ -395,14 +381,15 @@ void MatmulKernel(const Context& dev_ctx,
         .AddOutput(y_temp_brd)
         .Run(stream);
   }
-  MatMulND<T>(dev_ctx,
-              stream,
-              x_temp_brd,
-              y_temp_brd,
-              out,
-              transpose_x,
-              transpose_y,
-              phi::make_ddim(out_dims));
+  is_batch = true;
+  MatMul<T>(dev_ctx,
+            stream,
+            x_temp_brd,
+            y_temp_brd,
+            out,
+            transpose_x,
+            transpose_y,
+            is_batch);
 }
 
 template <typename T, typename Context>
@@ -448,7 +435,7 @@ void MatmulGradKernel(const Context& dev_ctx,
     }
     return;
   }
-
+  bool is_batch = false;
   // Resize dim 1 to 2
   phi::DenseTensor x_temp(x), y_temp(y), dout_temp(dout);
   if (x_ndim == 1) {
@@ -473,20 +460,46 @@ void MatmulGradKernel(const Context& dev_ctx,
     if (dx) {
       dx->Resize(phi::make_ddim(x_dims));
       if (transpose_x) {
-        MatMul2D<T>(dev_ctx, stream, y_temp, dout_temp, dx, transpose_y, true);
+        MatMul<T>(dev_ctx,
+                  stream,
+                  y_temp,
+                  dout_temp,
+                  dx,
+                  transpose_y,
+                  true,
+                  is_batch);
       } else {
-        MatMul2D<T>(
-            dev_ctx, stream, dout_temp, y_temp, dx, false, !transpose_y);
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  y_temp,
+                  dx,
+                  false,
+                  !transpose_y,
+                  is_batch);
       }
       dx->Resize(x.dims());
     }
     if (dy) {
       dy->Resize(phi::make_ddim(y_dims));
       if (transpose_y) {
-        MatMul2D<T>(dev_ctx, stream, dout_temp, x_temp, dy, true, transpose_x);
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  x_temp,
+                  dy,
+                  true,
+                  transpose_x,
+                  is_batch);
       } else {
-        MatMul2D<T>(
-            dev_ctx, stream, x_temp, dout_temp, dy, !transpose_x, false);
+        MatMul<T>(dev_ctx,
+                  stream,
+                  x_temp,
+                  dout_temp,
+                  dy,
+                  !transpose_x,
+                  false,
+                  is_batch);
       }
       dy->Resize(y.dims());
     }
@@ -495,7 +508,6 @@ void MatmulGradKernel(const Context& dev_ctx,
 
   const int K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
   const int N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-
   // Case 3: [B, M, K] x [K, N] =  [B, M, N], when transpose_x = false
   // Equal: [B * M, K] x [K, N] = [B * M, N] => [B, M, N]
   if (transpose_x == false && y_ndim == 2) {
@@ -504,15 +516,24 @@ void MatmulGradKernel(const Context& dev_ctx,
         phi::make_ddim(std::vector<int64_t>{dout_temp.numel() / N, N}));
     if (dx) {
       dx->Resize(phi::make_ddim(x_vec_dim));
-      MatMul2D<T>(dev_ctx, stream, dout_temp, y_temp, dx, false, !transpose_y);
+      MatMul<T>(dev_ctx,
+                stream,
+                dout_temp,
+                y_temp,
+                dx,
+                false,
+                !transpose_y,
+                is_batch);
       dx->Resize(x.dims());
     }
     if (dy) {
       x_temp.Resize(phi::make_ddim(x_vec_dim));
       if (transpose_y) {
-        MatMul2D<T>(dev_ctx, stream, dout_temp, x_temp, dy, true, false);
+        MatMul<T>(
+            dev_ctx, stream, dout_temp, x_temp, dy, true, false, is_batch);
       } else {
-        MatMul2D<T>(dev_ctx, stream, x_temp, dout_temp, dy, true, false);
+        MatMul<T>(
+            dev_ctx, stream, x_temp, dout_temp, dy, true, false, is_batch);
       }
     }
     return;
@@ -559,27 +580,27 @@ void MatmulGradKernel(const Context& dev_ctx,
         .AddOutput(y_temp_brd)
         .Run(stream);
   }
-
+  is_batch = true;
   if (dx) {
     if (x_dims == x_broadcast_dims) {
       if (transpose_x) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    y_temp_brd,
-                    dout_temp,
-                    dx,
-                    transpose_y,
-                    true,
-                    dx->dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  y_temp_brd,
+                  dout_temp,
+                  dx,
+                  transpose_y,
+                  true,
+                  is_batch);
       } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    y_temp_brd,
-                    dx,
-                    false,
-                    !transpose_y,
-                    dx->dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  y_temp_brd,
+                  dx,
+                  false,
+                  !transpose_y,
+                  is_batch);
       }
     } else {
       phi::DenseTensor dx_temp;
@@ -587,23 +608,23 @@ void MatmulGradKernel(const Context& dev_ctx,
                                            phi::make_ddim(x_broadcast_dims)};
       dx_temp.set_meta(dx_temp_meta);
       if (transpose_x) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    y_temp_brd,
-                    dout_temp,
-                    &dx_temp,
-                    transpose_y,
-                    true,
-                    dx_temp.dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  y_temp_brd,
+                  dout_temp,
+                  &dx_temp,
+                  transpose_y,
+                  true,
+                  is_batch);
       } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    y_temp_brd,
-                    &dx_temp,
-                    false,
-                    !transpose_y,
-                    dx_temp.dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  y_temp_brd,
+                  &dx_temp,
+                  false,
+                  !transpose_y,
+                  is_batch);
       }
       ReduceDims<T>(dev_ctx, stream, x_dims, x_broadcast_dims, dx_temp, dx);
     }
@@ -611,23 +632,23 @@ void MatmulGradKernel(const Context& dev_ctx,
   if (dy) {
     if (y_dims == y_broadcast_dims) {
       if (transpose_y) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    x_temp_brd,
-                    dy,
-                    true,
-                    transpose_x,
-                    dy->dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  x_temp_brd,
+                  dy,
+                  true,
+                  transpose_x,
+                  is_batch);
       } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    x_temp_brd,
-                    dout_temp,
-                    dy,
-                    !transpose_x,
-                    false,
-                    dy->dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  x_temp_brd,
+                  dout_temp,
+                  dy,
+                  !transpose_x,
+                  false,
+                  is_batch);
       }
     } else {
       phi::DenseTensor dy_temp;
@@ -635,23 +656,23 @@ void MatmulGradKernel(const Context& dev_ctx,
                                            phi::make_ddim(y_broadcast_dims)};
       dy_temp.set_meta(dy_temp_meta);
       if (transpose_y) {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    dout_temp,
-                    x_temp_brd,
-                    &dy_temp,
-                    true,
-                    transpose_x,
-                    dy_temp.dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  dout_temp,
+                  x_temp_brd,
+                  &dy_temp,
+                  true,
+                  transpose_x,
+                  is_batch);
       } else {
-        MatMulND<T>(dev_ctx,
-                    stream,
-                    x_temp_brd,
-                    dout_temp,
-                    &dy_temp,
-                    !transpose_x,
-                    false,
-                    dy_temp.dims());
+        MatMul<T>(dev_ctx,
+                  stream,
+                  x_temp_brd,
+                  dout_temp,
+                  &dy_temp,
+                  !transpose_x,
+                  false,
+                  is_batch);
       }
       ReduceDims<T>(dev_ctx, stream, y_dims, y_broadcast_dims, dy_temp, dy);
     }

@@ -51,8 +51,8 @@ class TestNPURMSNormFP32(unittest.TestCase):
             rtol = 1e-03
             atol = 1e-03
         elif self.dtype == "bfloat16":
-            rtol = 8e-3
-            atol = 8e-3
+            rtol = 4e-3
+            atol = 4e-3
         else:
             self.assertTrue(
                 False,

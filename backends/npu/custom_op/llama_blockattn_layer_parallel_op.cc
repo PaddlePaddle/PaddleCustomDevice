@@ -231,7 +231,7 @@ atb::Tensor PpAtbLlamaBlockAttnLayerParallelOp::CreateBatchStatusAtbHostTensor()
 
   atbTensor.desc.shape.dimNum = 1;
   atbTensor.desc.shape.dims[0] = curBatchSize_;
-  atbTensor.desc.dtype = ACL_UINT32;
+  atbTensor.desc.dtype = ACL_INT32;
 
   atbTensor.dataSize = atb::Utils::GetTensorSize(atbTensor);
   return atbTensor;
@@ -239,10 +239,8 @@ atb::Tensor PpAtbLlamaBlockAttnLayerParallelOp::CreateBatchStatusAtbHostTensor()
 
 void PpAtbLlamaBlockAttnLayerParallelOp::BindHostTensorForUpdateParam(atb::VariantPack &variantPack)
 {
-  if (isEncoder_) { // 只有Encoder阶段需要这个param。
-    const uint32_t seqLenTensorId = isKvcacheInt8_ ? LlamaBlockAttnParallelTensorId::IN_SEQLEN : LlamaBlockAttnSmoothParallelTensorId::IN_SEQLEN_SMOOTH;
-    variantPack.inTensors.at(seqLenTensorId).hostData = seq_len_param_.data();
-  }
+  const uint32_t seqLenTensorId = isKvcacheInt8_ ? LlamaBlockAttnParallelTensorId::IN_SEQLEN : LlamaBlockAttnSmoothParallelTensorId::IN_SEQLEN_SMOOTH;
+  variantPack.inTensors.at(seqLenTensorId).hostData = seq_len_param_.data();
   const uint32_t batchStatusTensorId = isKvcacheInt8_ ? LlamaBlockAttnParallelTensorId::IN_BATCH_STATUS : LlamaBlockAttnSmoothParallelTensorId::IN_BATCH_STATUS_SMOOTH;
   variantPack.inTensors.at(batchStatusTensorId).hostData = batch_status_param_.data();
 }
@@ -331,6 +329,7 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
     token_offset.resize(batch_size, 1); // decoder_seqlen不包含增量当前的长度
 
     slot_mapping_vec.reserve(batch_size); // 增量阶段，slotmapping只关注增量token
+    seq_len_param_.clear();
     for (int32_t i = 0; i < batch_size; i++) {
       int32_t len = seq_len_vec[i];
       int32_t status = len == 0 ? 0 : 1; // len=0，flag=0
@@ -345,6 +344,7 @@ void PpAtbLlamaBlockAttnLayerParallelOp::UpdateInputTensorAndParam(const paddle:
       } else {
         token_offset[i] = 0;
       }
+      seq_len_param_.push_back(token_offset[i]);
       block_offset += pre_max_block_num;
     }
     custom_kernel::TensorFromVector(*dev_ctx, token_offset,

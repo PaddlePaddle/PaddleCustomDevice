@@ -42,6 +42,134 @@ bool IsNotTransformedNZFormat(const phi::DenseTensor& x,
 }
 
 template <typename T, typename Context>
+static void MatMulForNZFormat(const Context& dev_ctx,
+                              const aclrtStream& stream,
+                              const phi::DenseTensor& X,
+                              const phi::DenseTensor& Y,
+                              phi::DenseTensor* out,
+                              const bool transpose_x,
+                              const bool transpose_y,
+                              bool is_batch) {
+  phi::DenseTensor out_tmp;
+  phi::DenseTensorMeta meta;
+  auto out_dim = out->dims();
+  dev_ctx.template Alloc<T>(out);
+  VLOG(6) << "Alloc Matmul output in ACL_FORMAT_FRACTAL_NZ format";
+  if (out->dims().size() == X.dims().size() - 1) {
+    std::vector<int64_t> out_tmp_dims = phi::vectorize(out->dims());
+    out_tmp_dims.push_back(1);
+    meta = {X.dtype(), phi::make_ddim(out_tmp_dims)};
+    out_tmp.set_meta(meta);
+  } else {
+    meta = {X.dtype(), out->dims()};
+    out_tmp.set_meta(meta);
+  }
+  AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_FRACTAL_NZ, &out_tmp);
+  std::function<void(const std::vector<phi::DenseTensor>&,
+                     const std::vector<phi::DenseTensor>&,
+                     const NPUAttributeMap& attrs,
+                     const phi::CustomContext&)>
+      functional;
+  NPUAttributeMap attr_input = {};
+  if (X.dtype() == phi::DataType::FLOAT64 &&
+      Y.dtype() == phi::DataType::FLOAT64) {
+    // To optimize the performace, we transform the datatype from fp64 tp fp16.
+    // This is because ascend "matmul" op will transform fp32 to fp16 during
+    // actual calculation，
+    if (is_batch) {
+      attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
+      functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                       const std::vector<phi::DenseTensor>& outputs,
+                       const NPUAttributeMap& attrs,
+                       const phi::CustomContext& dev_ctx) {
+        const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
+        runner.Run(dev_ctx.stream());
+      };
+    } else {
+      attr_input = {{"transpose_x1", transpose_x},
+                    {"transpose_x2", transpose_y}};
+      functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                       const std::vector<phi::DenseTensor>& outputs,
+                       const NPUAttributeMap& attrs,
+                       const phi::CustomContext& dev_ctx) {
+        const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
+        runner.Run(dev_ctx.stream());
+      };
+    }
+    NpuOpRunner::TypeAdapter({X, Y},
+                             {out_tmp},
+                             attr_input,
+                             dev_ctx,
+                             functional,
+                             {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
+                             {phi::DataType::FLOAT16});
+  }
+  custom_kernel::NPUIdentityKernel<T, Context>(
+      dev_ctx, out_tmp, ConvertToNpuFormat(out->layout()), out);
+  out->Resize(out_dim);
+}
+
+template <typename T, typename Context>
+static void MatMulForNotNZFormat(const Context& dev_ctx,
+                                 const aclrtStream& stream,
+                                 const phi::DenseTensor& X,
+                                 const phi::DenseTensor& Y,
+                                 phi::DenseTensor* out,
+                                 const bool transpose_x,
+                                 const bool transpose_y,
+                                 bool is_batch) {
+  dev_ctx.template Alloc<T>(out);
+  NPUAttributeMap attr_input = {};
+  std::function<void(const std::vector<phi::DenseTensor>&,
+                     const std::vector<phi::DenseTensor>&,
+                     const NPUAttributeMap&,
+                     const phi::CustomContext&)>
+      functional;
+  if (X.dtype() == phi::DataType::FLOAT64 &&
+      Y.dtype() == phi::DataType::FLOAT64) {
+    // To optimize the performace, we transform the datatype from fp64 tp fp16.
+    // This is because ascend "matmul" op will transform fp32 to fp16 during
+    // actual calculation，
+    if (is_batch) {
+      attr_input = {{"adj_x1", transpose_x}, {"adj_x2", transpose_y}};
+      functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                       const std::vector<phi::DenseTensor>& outputs,
+                       const NPUAttributeMap& attrs,
+                       const phi::CustomContext& dev_ctx) {
+        const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
+        runner.Run(dev_ctx.stream());
+      };
+    } else {
+      attr_input = {{"transpose_x1", transpose_x},
+                    {"transpose_x2", transpose_y}};
+      functional = [&](const std::vector<phi::DenseTensor>& inputs,
+                       const std::vector<phi::DenseTensor>& outputs,
+                       const NPUAttributeMap& attrs,
+                       const phi::CustomContext& dev_ctx) {
+        const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
+        runner.Run(dev_ctx.stream());
+      };
+    }
+    NpuOpRunner::TypeAdapter({X, Y},
+                             {*out},
+                             attr_input,
+                             dev_ctx,
+                             functional,
+                             {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
+                             {phi::DataType::FLOAT16});
+  } else {
+    if (is_batch) {
+      const auto& runner =
+          NpuOpRunner("BatchMatMul", {X, Y}, {*out}, attr_input);
+      runner.Run(stream);
+    } else {
+      const auto& runner = NpuOpRunner("MatMul", {X, Y}, {*out}, attr_input);
+      runner.Run(stream);
+    }
+  }
+}
+
+template <typename T, typename Context>
 static void MatMul2D(const Context& dev_ctx,
                      const aclrtStream& stream,
                      const phi::DenseTensor& X,
@@ -54,54 +182,12 @@ static void MatMul2D(const Context& dev_ctx,
   phi::DenseTensorMeta meta;
   dev_ctx.template Alloc<T>(out);
   if (IsNotTransformedNZFormat(X, Y)) {
-    meta = {X.dtype(), out->dims()};
-    out_tmp.set_meta(meta);
-    dev_ctx.template Alloc<T>(&out_tmp);
+    MatMulForNotNZFormat<T>(
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, false);
   } else {
-    VLOG(6) << "Alloc Matmul output in ACL_FORMAT_FRACTAL_NZ format";
-    if (out->dims().size() == X.dims().size() - 1) {
-      std::vector<int64_t> out_tmp_dims = phi::vectorize(out->dims());
-      out_tmp_dims.push_back(1);
-      meta = {X.dtype(), phi::make_ddim(out_tmp_dims)};
-      out_tmp.set_meta(meta);
-    } else {
-      meta = {X.dtype(), out->dims()};
-      out_tmp.set_meta(meta);
-    }
-    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_FRACTAL_NZ, &out_tmp);
+    MatMulForNZFormat<T>(
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, false);
   }
-  NPUAttributeMap attr_input = {{"transpose_x1", transpose_x},
-                                {"transpose_x2", transpose_y}};
-  if (X.dtype() == phi::DataType::FLOAT64 &&
-      Y.dtype() == phi::DataType::FLOAT64) {
-    // To optimize the performace, we transform the datatype from fp64 tp fp16.
-    // This is because ascend "matmul" op will transform fp32 to fp16 during
-    // actual calculation，
-    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                      const std::vector<phi::DenseTensor>& outputs,
-                      const NPUAttributeMap& attrs,
-                      const phi::CustomContext& dev_ctx) {
-      const auto& runner = NpuOpRunner("MatMul", inputs, outputs, attrs);
-      runner.Run(dev_ctx.stream());
-    };
-    NpuOpRunner::TypeAdapter({X, Y},
-                             {out_tmp},
-                             attr_input,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
-                             {phi::DataType::FLOAT16});
-  } else {
-    const auto& runner = NpuOpRunner("MatMul", {X, Y}, {out_tmp}, attr_input);
-    runner.Run(stream);
-  }
-  if (out_tmp.storage_properties_initialized()) {
-    custom_kernel::NPUIdentityKernel<T, Context>(
-        dev_ctx, out_tmp, ConvertToNpuFormat(out->layout()), out);
-  } else {
-    TensorCopy(dev_ctx, out_tmp, false, out);
-  }
-  out->Resize(out_dim);
 }
 
 template <typename T, typename Context>
@@ -113,54 +199,13 @@ static void MatMulND(const Context& dev_ctx,
                      const bool transpose_x,
                      const bool transpose_y,
                      const phi::DDim out_dims) {
-  phi::DenseTensor out_tmp;
-  auto out_dim = out->dims();
-  phi::DenseTensorMeta meta = {X.dtype(), out_dims};
-  out_tmp.set_meta(meta);
   if (IsNotTransformedNZFormat(X, Y)) {
-    dev_ctx.template Alloc<T>(&out_tmp);
+    MatMulForNotNZFormat<T>(
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, true);
   } else {
-    VLOG(6) << "Alloc Matmul output in ACL_FORMAT_FRACTAL_NZ format";
-    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_FRACTAL_NZ, &out_tmp);
+    MatMulForNZFormat<T>(
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, true);
   }
-  NPUAttributeMap attr_input = {{"adj_x1", transpose_x},
-                                {"adj_x2", transpose_y}};
-  if (X.dtype() == phi::DataType::FLOAT64 &&
-      Y.dtype() == phi::DataType::FLOAT64) {
-    // To optimize the performace, we transform the datatype from fp64 tp fp16.
-    // This is because ascend "matmul" op will transform fp32 to fp16 during
-    // actual calculation，
-    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
-                      const std::vector<phi::DenseTensor>& outputs,
-                      const NPUAttributeMap& attrs,
-                      const phi::CustomContext& dev_ctx) {
-      const auto& runner = NpuOpRunner("BatchMatMul", inputs, outputs, attrs);
-      runner.Run(dev_ctx.stream());
-    };
-    NpuOpRunner::TypeAdapter({X, Y},
-                             {out_tmp},
-                             attr_input,
-                             dev_ctx,
-                             op_func,
-                             {phi::DataType::FLOAT16, phi::DataType::FLOAT16},
-                             {phi::DataType::FLOAT16});
-  } else {
-    const auto& runner =
-        NpuOpRunner("BatchMatMul", {X, Y}, {out_tmp}, attr_input);
-    runner.Run(stream);
-  }
-
-  dev_ctx.template Alloc<T>(out);
-  if (out_tmp.storage_properties_initialized()) {
-    NpuOpRunner runner_identity;
-    runner_identity.SetType("Identity")
-        .AddInput(out_tmp)
-        .AddOutput(*out)
-        .Run(stream);
-  } else {
-    TensorCopy(dev_ctx, out_tmp, false, out);
-  }
-  out->Resize(out_dim);
 }
 
 template <typename T, typename Context>

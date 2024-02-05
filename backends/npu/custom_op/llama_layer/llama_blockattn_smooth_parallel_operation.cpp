@@ -19,7 +19,7 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 26;
+static const uint64_t IN_TENSOR_COUNT = 25;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 16;
 static const uint64_t NODE_COUNT = 15;
@@ -163,12 +163,12 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
         paDeParam.headNum = param.headNum;
         paDeParam.qkScale = param.qkScale;
         paDeParam.kvHeadNum = param.headNum;
-        paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
-        paDeParam.isSupportAlibi = true;
-        paDeParam.batchRunStatusEnable = true;
+        // paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
+        // paDeParam.isSupportAlibi = true;
+        // paDeParam.batchRunStatusEnable = true;
         CreateOperation(paDeParam, &attentionNode.operation);
         attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ_SMOOTH, IN_CACHE_K_SMOOTH, IN_CACHE_V_SMOOTH,
-                                     IN_BLOCK_TABLES_SMOOTH, IN_SEQLEN_SMOOTH, IN_BATCH_STATUS_SMOOTH};
+                                     IN_BLOCK_TABLES_SMOOTH, IN_SEQLEN_SMOOTH};
         attentionNode.outTensorIds = {INTERMIDATE_SELFOUT_SMOOTH};
         attentionNode.inTensorReshapeFuncs.resize(attentionNode.inTensorIds.size());
         attentionNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {

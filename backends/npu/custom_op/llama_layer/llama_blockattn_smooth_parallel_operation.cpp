@@ -163,9 +163,6 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
         paDeParam.headNum = param.headNum;
         paDeParam.qkScale = param.qkScale;
         paDeParam.kvHeadNum = param.headNum;
-        paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
-        paDeParam.isSupportAlibi = true;
-        paDeParam.batchRunStatusEnable = true;
         CreateOperation(paDeParam, &attentionNode.operation);
         attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ_SMOOTH, IN_CACHE_K_SMOOTH, IN_CACHE_V_SMOOTH,
                                      IN_BLOCK_TABLES_SMOOTH, IN_SEQLEN_SMOOTH, IN_BATCH_STATUS_SMOOTH};

@@ -188,7 +188,6 @@ atb::Status LlamaBlockAttnParallelOperation(const LlamaBlockAttnParallelParam &p
         paDeParam.qkScale = param.qkScale;
         paDeParam.kvHeadNum = param.headNum;
         paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
-        paDeParam.isSupportAlibi = true;
         paDeParam.batchRunStatusEnable = true;
         paDeParam.quantType = atb::infer::PagedAttentionParam::TYPE_DEQUANT_FUSION;
         paDeParam.hasQuantOffset  = false;

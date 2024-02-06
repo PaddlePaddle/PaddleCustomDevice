@@ -18,7 +18,7 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopGaussianKernel(const Context& ctx,
+void GaussianKernel(const Context& ctx,
                          const phi::IntArray& shape,
                          float mean,
                          float std,
@@ -48,22 +48,6 @@ void AclopGaussianKernel(const Context& ctx,
     cpu_data[i] = static_cast<T>(dist(*engine));
   }
   TensorCopy(ctx, cpu_tensor, true, out);
-}
-
-template <typename T, typename Context>
-void GaussianKernel(const Context& dev_ctx,
-                    const phi::IntArray& shape,
-                    float mean,
-                    float std,
-                    int seed,
-                    phi::DataType dtype,
-                    phi::DenseTensor* out) {
-  DO_COMPATIBILITY(aclnnNormalFloatFloat,
-                   (custom_kernel::AclopGaussianKernel<T, Context>(
-                       dev_ctx, shape, mean, std, seed, dtype, out)));
-  dev_ctx.template Alloc<T>(out);
-  int offset = 0;
-  EXEC_NPU_CMD(aclnnNormalFloatFloat, dev_ctx, mean, std, seed, offset, *out);
 }
 
 }  // namespace custom_kernel

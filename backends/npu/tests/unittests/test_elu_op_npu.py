@@ -43,7 +43,7 @@ def elu_grad(x, alpha):
 class EluTest(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 1)
+        self.place = paddle.CustomPlace("npu", 0)
 
     def init_kernel_type(self):
         self.dtype = np.float32

@@ -19,12 +19,12 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void GaussianKernel(const Context& ctx,
-                         const phi::IntArray& shape,
-                         float mean,
-                         float std,
-                         int seed,
-                         phi::DataType dtype,
-                         phi::DenseTensor* out) {
+                    const phi::IntArray& shape,
+                    float mean,
+                    float std,
+                    int seed,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out) {
   ctx.template Alloc<T>(out);
 
   phi::DenseTensor cpu_tensor;

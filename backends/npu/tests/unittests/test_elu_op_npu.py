@@ -34,10 +34,16 @@ def ref_elu(
     return Out
 
 
+def elu_grad(x, alpha):
+    gradoutput = 1 / x.size
+    x_grad = gradoutput * np.where(x > 0, 1, alpha * np.exp(x))
+    return x_grad.astype(x.dtype)
+
+
 class EluTest(OpTest):
     def set_npu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("npu", 0)
+        self.place = paddle.CustomPlace("npu", 1)
 
     def init_kernel_type(self):
         self.dtype = np.float32
@@ -48,23 +54,29 @@ class EluTest(OpTest):
         self.op_type = "elu"
         self.python_api = paddle.nn.functional.elu
 
-        alpha = 0.4
+        self.alpha = 0.4
 
         np.random.seed(SEED)
         x = np.random.uniform(-5, 7, [30, 5]).astype(self.dtype)
 
-        result = ref_elu(x, alpha)
+        result = ref_elu(x, self.alpha)
 
         self.inputs = {"X": x}
-        self.attrs = {"alpha": alpha, "scale": 1.0}
+        self.attrs = {"alpha": self.alpha, "scale": 1.0}
         self.outputs = {"Out": result}
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1.0e-4)
 
     def test_check_grad(self):
+        x_grad = elu_grad(self.inputs["X"], self.alpha)
         self.check_grad_with_place(
-            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=0.005,
+            numeric_grad_delta=0.001,
+            user_defined_grads=[x_grad],
         )
 
 
@@ -76,8 +88,14 @@ class EluTestFp16(EluTest):
         self.check_output_with_place(self.place, atol=1.0e-3)
 
     def test_check_grad(self):
+        x_grad = elu_grad(self.inputs["X"], self.alpha)
         self.check_grad_with_place(
-            self.place, ["X"], "Out", max_relative_error=0.5, numeric_grad_delta=0.001
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=0.005,
+            numeric_grad_delta=0.001,
+            user_defined_grads=[x_grad],
         )
 
 

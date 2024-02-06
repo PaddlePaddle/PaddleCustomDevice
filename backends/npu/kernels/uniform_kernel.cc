@@ -85,12 +85,12 @@ void UniformRawKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UniformKernel(const Context& dev_ctx,
-                        const phi::IntArray& shape,
-                        phi::DataType dtype,
-                        const phi::Scalar& min,
-                        const phi::Scalar& max,
-                        int seed,
-                        phi::DenseTensor* out) {
+                   const phi::IntArray& shape,
+                   phi::DataType dtype,
+                   const phi::Scalar& min,
+                   const phi::Scalar& max,
+                   int seed,
+                   phi::DenseTensor* out) {
   custom_kernel::UniformRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
 }

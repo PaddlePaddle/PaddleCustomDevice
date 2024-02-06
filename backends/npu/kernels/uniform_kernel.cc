@@ -84,7 +84,7 @@ void UniformRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AclopUniformKernel(const Context& dev_ctx,
+void UniformKernel(const Context& dev_ctx,
                         const phi::IntArray& shape,
                         phi::DataType dtype,
                         const phi::Scalar& min,
@@ -93,30 +93,6 @@ void AclopUniformKernel(const Context& dev_ctx,
                         phi::DenseTensor* out) {
   custom_kernel::UniformRawKernel<T>(
       dev_ctx, shape, dtype, min, max, seed, 0, 0, 0.0f, out);
-}
-
-template <typename T, typename Context>
-void UniformKernel(const Context& dev_ctx,
-                   const phi::IntArray& shape,
-                   phi::DataType dtype,
-                   const phi::Scalar& min,
-                   const phi::Scalar& max,
-                   int seed,
-                   phi::DenseTensor* out) {
-  DO_COMPATIBILITY(aclnnInplaceUniform,
-                   (custom_kernel::AclopUniformKernel<T, Context>(
-                       dev_ctx, shape, dtype, min, max, seed, out)));
-  phi::DenseTensor out_tmp;
-
-  auto dim = phi::make_ddim(shape.GetData());
-  out->ResizeAndAllocate(dim);
-  dev_ctx.template Alloc<T>(out);
-
-  double max_a = max.to<double>();
-  double min_a = min.to<double>();
-
-  int offset = 0;
-  EXEC_NPU_CMD(aclnnInplaceUniform, dev_ctx, *out, min_a, max_a, seed, offset);
 }
 
 }  // namespace custom_kernel

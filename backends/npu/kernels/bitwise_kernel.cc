@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void BitwiseAndKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      phi::DenseTensor* out) {
+void AclopBitwiseAndKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           const phi::DenseTensor& y,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -41,6 +41,27 @@ void BitwiseAndKernel(const Context& dev_ctx,
         NpuOpRunner("BitwiseAnd", {x_tensor, y_tensor}, {out_tensor});
     runner.Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void BitwiseAndKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnBitwiseAndTensor,
+      (custom_kernel::AclopBitwiseAndKernel<T, Context>(dev_ctx, x, y, out)));
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor x_tensor(x), y_tensor(y), out_tensor(*out);
+  if (x.dims().size() == 0 && y.dims().size() == 0) {
+    x_tensor.Resize(phi::make_ddim({1}));
+    y_tensor.Resize(phi::make_ddim({1}));
+    out_tensor.Resize(phi::make_ddim({1}));
+  }
+
+  EXEC_NPU_CMD(aclnnBitwiseAndTensor, dev_ctx, x_tensor, y_tensor, out_tensor);
 }
 
 template <typename T, typename Context>

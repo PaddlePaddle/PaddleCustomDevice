@@ -1,10 +1,8 @@
 disable_ut_npu
 test_assign_value_op_npu
 test_batch_norm_op_npu
-test_check_nan_inf_op_npu
 test_collective_api
 test_compare_op_npu
-test_concat_op_npu
 test_conv2d_op_npu
 test_conv3d_op_npu
 test_conv3d_op_npu

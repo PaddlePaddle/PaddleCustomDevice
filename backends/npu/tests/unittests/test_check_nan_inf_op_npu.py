@@ -21,6 +21,8 @@ import paddle
 import paddle.static as static
 from paddle.static import Program, program_guard
 
+from npu_utils import check_soc_version
+
 paddle.enable_static()
 
 
@@ -51,6 +53,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
         out_ = exe.run(main_program, feed={"a": a, "b": b}, fetch_list=[out])
         return out_
 
+    @check_soc_version
     def test_contains_nan(self):
         a = np.zeros((32, 32)).astype("float32")
         b = np.zeros((32, 32)).astype("float32")
@@ -59,6 +62,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
             out = self.run_prog(a, b)
             print(out)
 
+    @check_soc_version
     def test_contains_inf(self):
         a = np.ones((32, 32)).astype("float32")
         b = np.zeros((32, 32)).astype("float32")
@@ -67,6 +71,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
             out = self.run_prog(a, b)
             print(out)
 
+    @check_soc_version
     def test_not_contains_nan_inf(self):
         a = np.ones((32, 32)).astype("float32")
         b = np.ones((32, 32)).astype("float32")
@@ -74,6 +79,7 @@ class TestCheckFiniteAndUnscale(unittest.TestCase):
         out = self.run_prog(a, b)
         print(out)
 
+    @check_soc_version
     def test_fp16_overflow(self):
         a = np.ones((32, 32)).astype("float32")
         b = np.ones((32, 32)).astype("float32")

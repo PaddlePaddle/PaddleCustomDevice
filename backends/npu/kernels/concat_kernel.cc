@@ -132,14 +132,14 @@ void ConcatKernel(const Context& dev_ctx,
   int axis = axis_scalar.to<int>();
   axis = ComputeAxis(static_cast<int64_t>(axis),
                      static_cast<int64_t>(ins[0]->dims().size()));
-  std::vector<const phi::DenseTensor*> inputs;                 
+  std::vector<const phi::DenseTensor*> inputs;            
   for (size_t i = 0; i < ins.size(); ++i) {
     if (ins[i] && ins[i]->numel() > 0) {
       inputs.push_back(ins[i]);
     } else {
       continue;
     }
-  }                
+  }             
   dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnCat, dev_ctx, ins, axis, *out);
 }

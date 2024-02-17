@@ -141,7 +141,7 @@ void ConcatKernel(const Context& dev_ctx,
     }
   }
   dev_ctx.template Alloc<T>(out);
-  EXEC_NPU_CMD(aclnnCat, dev_ctx, ins, axis, *out);
+  EXEC_NPU_CMD(aclnnCat, dev_ctx, inputs, axis, *out);
 }
 
 template <typename T, typename Context>

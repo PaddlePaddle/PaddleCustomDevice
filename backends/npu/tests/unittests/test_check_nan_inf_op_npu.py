@@ -21,8 +21,6 @@ import paddle
 import paddle.static as static
 from paddle.static import Program, program_guard
 
-from npu_utils import check_soc_version
-
 paddle.enable_static()
 
 

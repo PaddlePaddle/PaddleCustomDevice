@@ -141,8 +141,9 @@ void DropoutRawKernel(const Context& dev_ctx,
           .AddInput(seed1_tensor)
           .AddInput(seed2_tensor)
           .AddOutput(*mask);
-      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
-      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
+      // dropout用双stream性能会更好，后续要持续优化
+      runner_gen_mask.Run(stream);
+      // SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
       phi::DenseTensor keep_prob_tensor;
       phi::DenseTensorMeta keep_prob_tensor_meta = {phi::DataType::FLOAT32,
@@ -194,8 +195,10 @@ void DropoutRawKernel(const Context& dev_ctx,
           .AddInput(seed1_tensor)
           .AddInput(seed2_tensor)
           .AddOutput(*mask);
-      runner_gen_mask.Run(SecondaryStream::Instance().Get(dev_ctx.stream()));
-      SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
+      // dropout用双stream性能会更好，后续要持续优化！！！！
+      // 当前双stream有问题，与wangran沟通，先改成单stream
+      runner_gen_mask.Run(stream);
+      // SecondaryStream::Instance().RecordBefore(dev_ctx.stream());
 
       phi::DenseTensor keep_prob_tensor;
       phi::DenseTensorMeta keep_prob_tensor_meta = {x.dtype(), {1}};

@@ -30,25 +30,25 @@ using std::shared_ptr;
   catch (Status & e) {                                                       \
     switch (e.Code()) {                                                      \
       case Status::kBr_InvalidArgument:                                      \
-        throw ::phi::enforce::EnforceNotMet(                                 \
+        throw ::common::enforce::EnforceNotMet(                              \
             ::phi::ErrorSummary(::phi::ErrorCode::INVALID_ARGUMENT,          \
                                 string(e.what())),                           \
             e.File(),                                                        \
             e.Line());                                                       \
       case Status::kBr_SupaKernelError_UnImplemented:                        \
-        throw ::phi::enforce::EnforceNotMet(                                 \
+        throw ::common::enforce::EnforceNotMet(                              \
             ::phi::ErrorSummary(::phi::ErrorCode::UNIMPLEMENTED,             \
                                 string(e.what())),                           \
             e.File(),                                                        \
             e.Line());                                                       \
       case Status::kBr_SupaKernelError_LaunchError:                          \
       case Status::kBr_Error:                                                \
-        throw ::phi::enforce::EnforceNotMet(                                 \
+        throw ::common::enforce::EnforceNotMet(                              \
             ::phi::ErrorSummary(::phi::ErrorCode::FATAL, string(e.what())),  \
             e.File(),                                                        \
             e.Line());                                                       \
       default:                                                               \
-        throw ::phi::enforce::EnforceNotMet(                                 \
+        throw ::common::enforce::EnforceNotMet(                              \
             ::phi::ErrorSummary(::phi::ErrorCode::LEGACY, string(e.what())), \
             e.File(),                                                        \
             e.Line());                                                       \

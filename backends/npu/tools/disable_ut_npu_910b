@@ -4,13 +4,11 @@ test_batch_norm_op_npu
 test_check_nan_inf_op_npu
 test_collective_api
 test_compare_op_npu
-test_concat_op_npu
 test_conv2d_op_npu
 test_conv3d_op_npu
 test_conv3d_op_npu
 test_dygraph_sharding_stage_3
 test_elementwise_sub_op_npu
-test_elu_op_npu
 test_eye_op_npu
 test_index_sample_op_npu
 test_linear_op_npu

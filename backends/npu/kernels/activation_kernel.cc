@@ -117,14 +117,25 @@ void FloorKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void FloorGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+void AclopFloorGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& dout,
+                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
   const auto& runner =
       NpuOpRunner("Fills", {*dx}, {*dx}, {{"value", static_cast<float>(0)}});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnInplaceZero,
+      (custom_kernel::AclopFloorGradKernel<T, Context>(dev_ctx, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, *dx);
 }
 
 template <typename T, typename Context>
@@ -427,17 +438,46 @@ void EluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopEluGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,  // output
+                        const phi::DenseTensor& out,
+                        const phi::DenseTensor& dout,
+                        float alpha,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  bool isResult = true;
+  const auto& runner = NpuOpRunner("EluGradV2",
+                                   {dout, out},
+                                   {*dx},
+                                   {{"alpha", alpha}, {"is_result", isResult}});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void EluGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,  // output
                    const phi::DenseTensor& out,
                    const phi::DenseTensor& dout,
                    float alpha,
                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnEluBackward,
+                   (custom_kernel::AclopEluGradKernel<T, Context>(
+                       dev_ctx, x, out, dout, alpha, dx)));
   dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-  const auto& runner =
-      NpuOpRunner("EluGradV2", {dout, out}, {*dx}, {{"alpha", alpha}});
-  runner.Run(stream);
+  phi::Scalar alpha_ = alpha;
+  phi::Scalar input_scale = 1.0f;
+  phi::Scalar scale = 1.0f;
+  bool isResult = false;
+  EXEC_NPU_CMD(aclnnEluBackward,
+               dev_ctx,
+               dout,
+               alpha_,
+               scale,
+               input_scale,
+               isResult,
+               x,
+               *dx);
 }
 
 template <typename T, typename Context>
@@ -473,9 +513,13 @@ void AclopCeluGradKernel(const Context& dev_ctx,
       NpuOpRunner("Muls", {tmp_out}, {tmp_out}, {{"value", times}});
   runner_mul.Run(stream);
 
+  bool isResult = true;
   dev_ctx.template Alloc<T>(dx);
-  const auto& runner_1 = NpuOpRunner(
-      "EluGradV2", {dout, tmp_out}, {*dx}, {{"alpha", times * alpha}});
+  const auto& runner_1 =
+      NpuOpRunner("EluGradV2",
+                  {dout, tmp_out},
+                  {*dx},
+                  {{"alpha", times * alpha}, {"is_result", isResult}});
   runner_1.Run(stream);
 }
 
@@ -488,11 +532,6 @@ void CeluGradKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnEluBackward,
                    (custom_kernel::AclopCeluGradKernel<T, Context>(
                        dev_ctx, x, dout, alpha, dx)));
-
-  auto stream = dev_ctx.stream();
-  phi::DenseTensor tmp_out;
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
-  tmp_out.set_meta(meta);
 
   float times = alpha != 0.0 ? (1 / alpha) : 0.0;
   dev_ctx.template Alloc<T>(dx);

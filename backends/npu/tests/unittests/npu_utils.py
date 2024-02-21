@@ -16,9 +16,14 @@ import unittest
 import paddle_custom_device
 
 
+def get_cann_version():
+    return int(paddle_custom_device.npu.version()["cann"].split(".")[0])
+
+
 def check_soc_version(func):
     def wrapper(self):
-        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+        version_code = get_cann_version()
+        if version_code >= 7:
             return func(self)
         self.__class__.op_type = "skip"
         return unittest.skip("Skipping the test case since cann is not 7.x")(func)(self)

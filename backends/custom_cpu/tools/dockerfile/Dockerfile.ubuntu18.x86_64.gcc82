@@ -55,13 +55,13 @@ RUN /usr/local/bin/python3.9 -m venv /opt/py39
 # update env
 ENV PATH=/opt/py39/bin:$PATH
 RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
-# upgrade pip and setuptools
+# upgrade pip and setuptools and disable cache
+ARG CACHEBUST=1
 RUN pip install --upgrade pip setuptools wheel
 
 # install pylint and pre-commit
-RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole gitpython
+RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole distro
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
-RUN pip install PyGithub distro
 
 # add more libs
 RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libprotoc-dev lsof libgeos-dev \

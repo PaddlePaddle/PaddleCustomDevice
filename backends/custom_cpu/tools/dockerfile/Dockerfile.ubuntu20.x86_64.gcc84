@@ -15,23 +15,11 @@ RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar ntp x
 # workdir
 WORKDIR /opt
 
-# GCC 8.2
-RUN wget -q https://paddle-ci.gz.bcebos.com/gcc-8.2.0.tar.xz && \
-    tar xf gcc-8.2.0.tar.xz && cd gcc-8.2.0 && \
-    unset LIBRARY_PATH CPATH C_INCLUDE_PATH PKG_CONFIG_PATH CPLUS_INCLUDE_PATH INCLUDE && \
-    ./contrib/download_prerequisites > /dev/null && cd .. && mkdir temp_gcc82 && cd temp_gcc82 && \
-    ../gcc-8.2.0/configure --prefix=/opt/compiler/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib > /dev/null && \
-    make -j16 > /dev/null && make install > /dev/null && cd .. && rm -rf temp_gcc82 && rm -rf gcc-8.2.0*
-RUN cd /usr/lib/x86_64-linux-gnu && \
-    mv libstdc++.so.6 libstdc++.so.6.bak && mv libstdc++.so.6.0.25 libstdc++.so.6.0.25.bak && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libgfortran.so.5 /usr/lib/x86_64-linux-gnu/libstdc++.so.5 && \
-    ln -s /opt/compiler/gcc-8.2/lib64/libstdc++.so.6   /usr/lib/x86_64-linux-gnu/libstdc++.so.6 && \
-    cp /opt/compiler/gcc-8.2/lib64/libstdc++.so.6.0.25 /usr/lib/x86_64-linux-gnu && \
-    cd /usr/bin && mv gcc gcc.bak && mv g++ g++.bak && \
-    ln -s /opt/compiler/gcc-8.2/bin/gcc /usr/bin/gcc && \
-    ln -s /opt/compiler/gcc-8.2/bin/g++ /usr/bin/g++
-ENV PATH=/opt/compiler/gcc-8.2/bin:$PATH
-ENV LD_LIBRARY_PATH=/opt/compiler/gcc-8.2/lib:/opt/compiler/gcc-8.2/lib64:$LD_LIBRARY_PATH
+# GCC 8.4
+RUN apt-get install -y gcc-8 g++-8 gfortran-8
+RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-8  90 && \
+    update-alternatives --install /usr/bin/gcc  gcc  /usr/bin/gcc-8  90 && \
+    update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-8  90
 
 # cmake 3.27.7
 RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
@@ -40,21 +28,25 @@ RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
     rm -rf cmake-3.27.7-linux-x86_64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# Python 3.9.17 - default 3.6
-RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
-    CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
-    make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
-    cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
+RUN ls -l /usr/bin/python*
+# RUN ls -l /usr/bin/pip*
+# RUN ls -l /usr/local/bin/python*
+# RUN ls -l /usr/local/bin/pip*
 
-# create venv and activate
-RUN /usr/local/bin/python3.9 -m venv /opt/py39
-# update env
-ENV PATH=/opt/py39/bin:$PATH
-RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
-# upgrade pip and setuptools and disable cache
-ARG CACHEBUST=1
-RUN pip install --upgrade pip setuptools wheel
+# Python 3.8 - 3.10
+RUN apt-get install -y  python3-distutils \
+    python3.8 python3.8-dev \
+    python3.9 python3.9-dev \
+    python3.10 python3.10-dev
+
+# install pip
+RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.8 && \
+    curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.9 && \
+    curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.10
+
+# set default to python3.10
+RUN rm -rf /usr/bin/python3 && ln -s /usr/bin/python3.10 /usr/bin/python3 && \
+    rm -rf /usr/bin/python  && ln -s /usr/bin/python3.10 /usr/bin/python
 
 # install pylint and pre-commit
 RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole distro

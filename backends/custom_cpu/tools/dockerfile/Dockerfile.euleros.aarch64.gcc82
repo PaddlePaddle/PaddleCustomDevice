@@ -67,8 +67,7 @@ RUN /usr/local/bin/python3.9 -m venv /opt/py39
 # update env
 ENV PATH=/opt/py39/bin:$PATH
 RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
-# upgrade pip and setuptools and disable cache
-ARG CACHEBUST=1
+# upgrade pip
 RUN pip install --upgrade pip setuptools wheel
 
 # install pylint and pre-commit

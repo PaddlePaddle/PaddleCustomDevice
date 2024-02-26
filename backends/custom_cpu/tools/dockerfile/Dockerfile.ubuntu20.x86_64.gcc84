@@ -52,9 +52,9 @@ RUN apt-get update && apt-get install libprotobuf-dev protobuf-compiler libproto
 
 # install Paddle requirement
 RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
-    pip install -r requirements.txt && rm -rf requirements.txt
+    pip install -r requirements.txt -i https://pip.baidu-int.com/simple --trusted-host pip.baidu-int.com && rm -rf requirements.txt
 RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
-    pip install -r requirements.txt && rm -rf requirements.txt
+    pip install -r requirements.txt -i https://pip.baidu-int.com/simple --trusted-host pip.baidu-int.com && rm -rf requirements.txt
 
 # git credential to skip password typing
 RUN git config --global credential.helper store

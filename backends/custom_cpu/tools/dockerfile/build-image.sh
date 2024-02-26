@@ -16,6 +16,26 @@
 
 # BOTH for x86_64 and aarch64
 
+# ubuntu20.gcc84-py310
+docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
+  --build-arg PY_VERSION=3.10 \
+  --build-arg http_proxy=${proxy} \
+  --build-arg https_proxy=${proxy} \
+  --build-arg ftp_proxy=${proxy} \
+  --build-arg no_proxy=bcebos.com,baidu-int.com \
+  -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84 .
+docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84
+
+# ubuntu20.gcc84-py38
+docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
+  --build-arg PY_VERSION=3.8 \
+  --build-arg http_proxy=${proxy} \
+  --build-arg https_proxy=${proxy} \
+  --build-arg ftp_proxy=${proxy} \
+  --build-arg no_proxy=bcebos.com,baidu-int.com \
+  -t iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38 .
+docker push iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
+
 # ubuntu18.gcc82
 docker build --network=host -f Dockerfile.ubuntu18.$(uname -m).gcc82 \
   --build-arg http_proxy=${proxy} \
@@ -33,16 +53,6 @@ docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc82 \
   --build-arg no_proxy=bcebos.com \
   -t registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82 .
 docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
-
-# ubuntu20.gcc84
-docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
-  --build-arg PY_VERSION=3.10 \
-  --build-arg http_proxy=${proxy} \
-  --build-arg https_proxy=${proxy} \
-  --build-arg ftp_proxy=${proxy} \
-  --build-arg no_proxy=bcebos.com,baidu-int.com \
-  -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84 .
-docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84
 
 if [ $(uname -i) == 'x86_64' ]; then
   # kylinv10.gcc73

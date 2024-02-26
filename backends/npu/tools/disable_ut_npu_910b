@@ -23,3 +23,6 @@ test_squared_l2_norm_op_npu
 test_stack_op_npu
 test_zero_dim_tensor_npu
 test_rmsprop_op_npu
+test_grid_sample_op_npu
+test_linspace_op_npu
+test_kldiv_loss_op_npu

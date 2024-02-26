@@ -36,6 +36,7 @@ docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
 
 # ubuntu20.gcc84
 docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
+  --build-arg PY_VERSION=3.10 \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \

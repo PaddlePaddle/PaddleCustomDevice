@@ -31,20 +31,16 @@ RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
     rm -rf cmake-3.27.7-linux-aarch64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# Python 3.8 - 3.10
-RUN apt-get install -y  python3-distutils \
-    python3.8 python3.8-dev \
-    python3.9 python3.9-dev \
-    python3.10 python3.10-dev
+# default python version
+ARG PY_VERSION=3.10
+RUN apt-get install -y python3-distutils python${PY_VERSION} python${PY_VERSION}-dev
 
 # install pip
-RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.8 && \
-    curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.9 && \
-    curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.10
+RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python${PY_VERSION}
 
-# set default to python3.10
-RUN rm -rf /usr/bin/python3 && ln -s /usr/bin/python3.10 /usr/bin/python3 && \
-    rm -rf /usr/bin/python  && ln -s /usr/bin/python3.10 /usr/bin/python
+# set default python
+RUN rm -rf /usr/bin/python3 && ln -s /usr/bin/python${PY_VERSION} /usr/bin/python3 && \
+    rm -rf /usr/bin/python  && ln -s /usr/bin/python${PY_VERSION} /usr/bin/python
 
 # install pylint and pre-commit
 RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole distro
@@ -88,7 +84,7 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
 CMD source ~/.bashrc
 
 # https://github.com/keras-team/keras-tuner/issues/317
-ENV LD_PRELOAD=/usr/local/lib/python3.10/dist-packages/scikit_learn.libslibgomp-d22c30c5.so.1.0.0
+ENV LD_PRELOAD=/usr/local/lib/python${PY_VERSION}/dist-packages/scikit_learn.libslibgomp-d22c30c5.so.1.0.0
 
 # Clean
 RUN apt-get clean -y

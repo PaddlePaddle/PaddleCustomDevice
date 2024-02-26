@@ -84,7 +84,7 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
 CMD source ~/.bashrc
 
 # https://github.com/keras-team/keras-tuner/issues/317
-ENV LD_PRELOAD=/usr/local/lib/python${PY_VERSION}/dist-packages/scikit_learn.libslibgomp-d22c30c5.so.1.0.0
+ENV LD_PRELOAD=/usr/local/lib/python3.8/dist-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
 
 # Clean
 RUN apt-get clean -y

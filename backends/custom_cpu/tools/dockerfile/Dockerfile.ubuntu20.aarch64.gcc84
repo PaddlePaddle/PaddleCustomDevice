@@ -25,10 +25,10 @@ RUN update-alternatives --install /usr/bin/g++  g++  /usr/bin/g++-8  90 && \
     update-alternatives --install /usr/bin/gfortran  gfortran  /usr/bin/gfortran-8  90
 
 # cmake 3.27.7
-RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
-    chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
-    ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
-    rm -rf cmake-3.27.7-linux-x86_64.sh
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
+    chmod +x cmake-3.27.7-linux-aarch64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-aarch64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-aarch64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
 # Python 3.8 - 3.10
@@ -87,8 +87,18 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
     sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 CMD source ~/.bashrc
 
+# https://github.com/keras-team/keras-tuner/issues/317
+ENV LD_PRELOAD=/usr/local/lib/python3.10/dist-packages/scikit_learn.libslibgomp-d22c30c5.so.1.0.0
+
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge
+
+# Create /lib64/ld-linux-aarch64.so.1
+RUN umask 0022 && \
+    if [ ! -d "/lib64" ]; \
+    then \
+        mkdir /lib64 && ln -sf /lib/ld-linux-aarch64.so.1 /lib64/ld-linux-aarch64.so.1; \
+    fi
 
 EXPOSE 22

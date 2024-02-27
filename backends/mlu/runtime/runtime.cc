@@ -90,6 +90,8 @@ class EventPool {
 static std::vector<std::vector<EventPool::Event>> hold_event_vecs(
     get_devices_count());
 
+static std::mutex g_mutex;
+
 // Device
 C_Status Init() {
   size_t dev_cnt = get_devices_count();
@@ -303,6 +305,7 @@ C_Status StreamWaitEvent(const C_Device device,
                          C_Event event) {
   auto use_stream = GetQueue(stream);
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     for (auto iter = hold_event_vecs[device->id].begin();
          iter != hold_event_vecs[device->id].end();
          iter++) {
@@ -330,6 +333,7 @@ C_Status StreamWaitEvent(const C_Device device,
 // Event
 C_Status CreateEvent(const C_Device device, C_Event *event) {
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     // Get CNRTEvent from event-pool and the ownership will be transfered
     // to hold_event_vecs (, whose lifecycle is managed by customdevice).
     // In upper-layer of the framework, we use cnrtNotifier_t that managed by
@@ -352,6 +356,7 @@ C_Status CreateEvent(const C_Device device, C_Event *event) {
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     // The CNRTEvent will be deleted from hold_event_vecs if whoes
     // cnrtNotifier_t member matches with that passed in, and the ownership will
     // be transfered to the event-pool.
@@ -381,6 +386,7 @@ C_Status DestroyEvent(const C_Device device, C_Event event) {
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     LOG_IF(INFO, FLAGS_mlu_runtime_debug) << "[RecordEvent] hold_vec size: "
                                           << hold_event_vecs[device->id].size();
     for (auto iter = hold_event_vecs[device->id].begin();
@@ -408,6 +414,7 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 
 C_Status QueryEvent(const C_Device device, C_Event event) {
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     bool query_status = false;
     for (auto iter = hold_event_vecs[device->id].begin();
          iter != hold_event_vecs[device->id].end();
@@ -431,6 +438,7 @@ C_Status QueryEvent(const C_Device device, C_Event event) {
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
   if (FLAGS_mlu_reuse_event) {
+    std::lock_guard<std::mutex> lock(g_mutex);
     for (auto iter = hold_event_vecs[device->id].begin();
          iter != hold_event_vecs[device->id].end();
          iter++) {

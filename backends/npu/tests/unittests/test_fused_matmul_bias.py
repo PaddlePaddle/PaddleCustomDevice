@@ -22,10 +22,6 @@ from paddle.incubate.nn import FusedLinear
 from paddle.incubate.nn.functional import fused_linear, fused_matmul_bias
 
 
-def is_fused_matmul_bias_supported():
-    return hasattr(paddle._C_ops, 'fused_gemm_epilogue')
-
-
 def matmul(x, y, bias, trans_x, trans_y):
     x = np.array(x)
     if trans_x:
@@ -61,10 +57,6 @@ def matmul_grad(x, y, bias, dz, trans_x, trans_y):
     return dx, dy, dbias
 
 
-@unittest.skipIf(
-    not is_fused_matmul_bias_supported(),
-    "fused_gemm_epilogue is only supported when CUDA version >= 11.6",
-)
 class TestFusedMatmulBias(unittest.TestCase):
     def setUp(self):
         paddle.set_device('npu')
@@ -129,10 +121,6 @@ class TestFusedMatmulBias(unittest.TestCase):
         self.rand_test(4, 5, 7, np.float16)
 
 
-@unittest.skipIf(
-    not is_fused_matmul_bias_supported(),
-    "fused_gemm_epilogue is only supported when CUDA version >= 11.6",
-)
 class TestFusedLinear(unittest.TestCase):
     def check_fused_linear(self, transpose):
         x = paddle.randn([30, 40])

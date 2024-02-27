@@ -68,8 +68,8 @@ docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82 \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \
   --build-arg no_proxy=bcebos.com \
-  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m)-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m)-gcc82
+  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m) .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m)
 
 # kylinv10-$(uname -m)-gcc82-py39
 docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
@@ -79,8 +79,8 @@ docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82 \
   --build-arg https_proxy=${proxy} \
   --build-arg ftp_proxy=${proxy} \
   --build-arg no_proxy=bcebos.com \
-  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m)-gcc82 .
-docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m)-gcc82
+  -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m) .
+docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m)
 
 if [ $(uname -i) == 'aarch64' ]; then
 # euleros-$(uname -m)-gcc82-py39
@@ -91,8 +91,8 @@ if [ $(uname -i) == 'aarch64' ]; then
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m)-gcc82 .
-  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m)-gcc82
+    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m) .
+  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-euleros-$(uname -m)
 fi
 
 # clean driver info

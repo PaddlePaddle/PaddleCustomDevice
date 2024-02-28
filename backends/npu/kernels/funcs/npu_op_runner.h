@@ -185,6 +185,16 @@ void ReleaseConvertTypes(const Tuple& t) {
   CallRelease(t, std::make_index_sequence<size>{});
 }
 
+template <std::size_t N>
+inline aclBoolArray* ConvertType(const std::array<bool, N> &value) {
+    static const auto aclCreateBoolArray = GET_OP_API_FUNC(aclCreateBoolArray);
+    if (aclCreateBoolArray == nullptr) {
+      return nullptr;
+    }
+    auto array = aclCreateBoolArray(value.data(), value.size());
+    return array;
+}
+
 inline aclScalar* ConvertType(const phi::Scalar& at_scalar) {
   static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
   if (aclCreateScalar == nullptr) {
@@ -242,11 +252,12 @@ if (!at_tensor.initialized()) {
             << "For better performance. use other dtypes.";
   }
   auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
-  std::vector<int64_t> storageDims(5);
+  const auto dimNum =
+      at_tensor.dims().size() == 0 ? 1 : at_tensor.dims().size();
+  std::vector<int64_t> storageDims(dimNum - 1);
   if (acl_data_type != ACL_STRING) {
     storageDims.push_back(at_tensor.numel() * sizeof(at_tensor_dtype));
   }
-  const auto dimNum = at_tensor.dims().size();
   aclFormat format = ACL_FORMAT_ND;
   switch (dimNum) {
     case 4:

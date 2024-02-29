@@ -12,7 +12,6 @@ test_elementwise_sub_op_npu
 test_eye_op_npu
 test_index_sample_op_npu
 test_kldiv_loss_op_npu
-test_linear_op_npu
 test_linspace_op_npu
 test_matmul_op_npu
 test_momentum_op_npu

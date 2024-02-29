@@ -49,16 +49,18 @@ else
   exit 1
 fi
 
-# ubuntu20-$(uname -m)-gcc84-py38
-docker pull iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
-docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84 \
-  --build-arg CANN_VERSION=${CANN_VERSION} \
-  --build-arg http_proxy=${proxy} \
-  --build-arg https_proxy=${proxy} \
-  --build-arg ftp_proxy=${proxy} \
-  --build-arg no_proxy=bcebos.com \
-  -t iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84 .
-docker push iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84
+if [ ${CHIP_VERSION} == "910B" ]; then
+  # ubuntu20-$(uname -m)-gcc84-py38
+  docker pull iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
+  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84 \
+    --build-arg CANN_VERSION=${CANN_VERSION} \
+    --build-arg http_proxy=${proxy} \
+    --build-arg https_proxy=${proxy} \
+    --build-arg ftp_proxy=${proxy} \
+    --build-arg no_proxy=bcebos.com \
+    -t iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84 .
+  docker push iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84
+fi
 
 # ubuntu18-$(uname -m)-gcc82-py39
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82

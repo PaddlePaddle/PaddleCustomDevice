@@ -20,8 +20,8 @@ ARG CANN_VERSION
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html
-RUN apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev libbz2-dev libxslt1-dev unzip \
-    pciutils net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev
+RUN apt-get update -y && apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev libbz2-dev \
+    libxslt1-dev unzip pciutils net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html

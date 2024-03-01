@@ -195,7 +195,8 @@ std::vector<paddle::Tensor> npu_flash_attention(
     attn_mask_tensor =
         static_cast<phi::DenseTensor*>(attn_mask_ptr.impl().get());
     auto mask_dtype = attn_mask_tensor->dtype();
-    PD_CHECK(mask_dtype != phi::DataType::BOOL,
+
+    PD_CHECK(mask_dtype == phi::DataType::BOOL,
              "The mask tensor dtype must be bool , but got ",
              mask_dtype);
   } else {

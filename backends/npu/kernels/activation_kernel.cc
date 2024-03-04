@@ -24,9 +24,9 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void CosKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AclopCosKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Cos", {x}, {*out}, {});
@@ -34,33 +34,13 @@ void CosKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void CosGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
-  dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-
-  phi::DenseTensor sin_out;
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
-  sin_out.set_meta(meta);
-  dev_ctx.template Alloc<T>(&sin_out);
-
-  const auto& runner = NpuOpRunner("Sin", {x}, {sin_out}, {});
-  runner.Run(stream);
-
-  const auto& runner_dx = NpuOpRunner("Mul", {dout, sin_out}, {*dx}, {});
-  runner_dx.Run(stream);
-
-  phi::DenseTensor tmp;
-  phi::DenseTensorMeta tmp_meta = {x.dtype(), {1, 1}};
-  tmp.set_meta(tmp_meta);
-  dev_ctx.template Alloc<T>(&tmp);
-  float factor = -1.;
-  FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(factor));
-
-  const auto& runner_dx_ = NpuOpRunner("Xdivy", {*dx, tmp}, {*dx}, {});
-  runner_dx_.Run(stream);
+void CosKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnCos, (custom_kernel::AclopCosKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnCos, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -86,12 +66,33 @@ void AtanGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ExpKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AclopExpKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Exp", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ExpKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnExp, (custom_kernel::AclopExpKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnExp, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopExpGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& out,
+                        const phi::DenseTensor& dout,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("Mul", {dout, out}, {*dx}, {});
   runner.Run(stream);
 }
 
@@ -100,10 +101,11 @@ void ExpGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& out,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnMul,
+      (custom_kernel::AclopExpGradKernel<T, Context>(dev_ctx, dout, out, dx)));
   dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("Mul", {dout, out}, {*dx}, {});
-  runner.Run(stream);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, out, *dx);
 }
 
 template <typename T, typename Context>
@@ -162,13 +164,23 @@ void RsqrtGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SinKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AclopSinKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Sin", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SinKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSin, (custom_kernel::AclopSinKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSin, dev_ctx, x, *out);
 }
 
 // Swish = x * sigmoid(beta * x)
@@ -1153,6 +1165,61 @@ void SoftshrinkGradKernel(const Context& dev_ctx,
   const auto& runner =
       NpuOpRunner("SoftShrinkGrad", {dout, a}, {*dx}, {{"lambd", lambd}});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AclopCosGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& dout,
+                        phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor sin_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  sin_out.set_meta(meta);
+  dev_ctx.template Alloc<T>(&sin_out);
+
+  const auto& runner = NpuOpRunner("Sin", {x}, {sin_out}, {});
+  runner.Run(stream);
+
+  const auto& runner_dx = NpuOpRunner("Mul", {dout, sin_out}, {*dx}, {});
+  runner_dx.Run(stream);
+
+  phi::DenseTensor tmp;
+  phi::DenseTensorMeta tmp_meta = {x.dtype(), {1, 1}};
+  tmp.set_meta(tmp_meta);
+  dev_ctx.template Alloc<T>(&tmp);
+  float factor = -1.;
+  FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(factor));
+
+  const auto& runner_dx_ = NpuOpRunner("Xdivy", {*dx, tmp}, {*dx}, {});
+  runner_dx_.Run(stream);
+}
+
+template <typename T, typename Context>
+void CosGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor sin_out;
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
+  sin_out.set_meta(meta);
+  custom_kernel::SinKernel<T, Context>(dev_ctx, x, &sin_out);
+  custom_kernel::ExpGradKernel<T, Context>(dev_ctx, dout, sin_out, dx);
+
+  phi::DenseTensor tmp;
+  phi::DenseTensorMeta tmp_meta = {x.dtype(), {1, 1}};
+  tmp.set_meta(tmp_meta);
+  dev_ctx.template Alloc<T>(&tmp);
+  float factor = -1.;
+  FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(factor));
+
+  const auto& runner_dx_ = NpuOpRunner("Xdivy", {*dx, tmp}, {*dx}, {});
+  runner_dx_.Run(stream);
 }
 
 template <typename T, typename Context>

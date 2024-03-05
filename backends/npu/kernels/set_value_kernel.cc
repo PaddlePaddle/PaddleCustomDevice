@@ -131,7 +131,8 @@ void SetTensorValueNPUImplKernel(const Context& dev_ctx,
     }
   }
   phi::DenseTensor value_temp;
-  if (slice_dims_for_assign == value.dims()) {
+  if (slice_dims_for_assign == value.dims() ||
+      slice_dims_for_assign.size() == 0) {
     value_temp = value;
   } else {
     value_temp.Resize(slice_dims_for_assign);

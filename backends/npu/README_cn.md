@@ -9,9 +9,9 @@
 | 芯片类型  | CANN版本     |
 | --------- | -------- |
 | 芯片类型 | 昇腾910A、昇腾910B |
-| CANN版本 | [CANN 7.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/258923273) |
-| 驱动版本 | [23.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
-| 固件版本 | [7.1.0.3.220](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
+| CANN版本 | [CANN 7.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/261956975) |
+| 驱动版本 | [23.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/261964443) |
+| 固件版本 | [7.1.0.4.220](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/261964443) |
 
 ## 环境准备与源码同步
 
@@ -19,11 +19,11 @@
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
 # 昇腾910A芯片 - 系统环境下查看 lspci | grep d801 是否有输出
-registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-aarch64
 # 昇腾910B芯片 - 系统环境下查看 lspci | grep d802 是否有输出
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-aarch64
 
 # 2) 参考如下命令启动容器，ASCEND_RT_VISIBLE_DEVICES 指定可见的 NPU 卡号
 docker run -it --name paddle-dev -v `pwd`:/work -w=/work \

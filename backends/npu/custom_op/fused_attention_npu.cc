@@ -111,6 +111,10 @@ std::vector<paddle::Tensor> npu_flash_attention(
   auto query_tensor_dims = phi::vectorize(query_tensor.dims());
   auto key_tensor_dims = phi::vectorize(key_tensor.dims());
 
+  auto query_dtype = query_tensor.dtype();
+  auto key_dtype = key_tensor.dtype();
+  auto value_dtype = value_tensor.dtype();
+
   PADDLE_ENFORCE_EQ(query_tensor_dims.size(),
                     4,
                     phi::errors::InvalidArgument(
@@ -129,6 +133,19 @@ std::vector<paddle::Tensor> npu_flash_attention(
   PD_CHECK(dropout >= 0 && dropout <= 1,
            "The dropout value must be in range of [0, 1], but got ",
            dropout);
+
+  PD_CHECK(query_dtype == phi::DataType::FLOAT16 ||
+               query_dtype == phi::DataType::BFLOAT16,
+           "The query tensor dtype must be bfloat16 or float16 , but got ",
+           query_dtype);
+  PD_CHECK(key_dtype == phi::DataType::FLOAT16 ||
+               key_dtype == phi::DataType::BFLOAT16,
+           "The key tensor dtype must be bfloat16 or float16 , but got ",
+           key_dtype);
+  PD_CHECK(value_dtype == phi::DataType::FLOAT16 ||
+               value_dtype == phi::DataType::BFLOAT16,
+           "The value tensor dtype must be bfloat16 or float16 , but got ",
+           value_dtype);
 
   const int32_t head_num = query_tensor_dims[2];
   const double scale = 1.0f / std::sqrt(query_tensor_dims[3]);
@@ -177,6 +194,11 @@ std::vector<paddle::Tensor> npu_flash_attention(
     auto attn_mask_ptr = *(attn_mask.get_ptr());
     attn_mask_tensor =
         static_cast<phi::DenseTensor*>(attn_mask_ptr.impl().get());
+    auto mask_dtype = attn_mask_tensor->dtype();
+
+    PD_CHECK(mask_dtype == phi::DataType::BOOL,
+             "The mask tensor dtype must be bool , but got ",
+             mask_dtype);
   } else {
     VLOG(3) << "Forward flash attention without mask";
     // 无mask

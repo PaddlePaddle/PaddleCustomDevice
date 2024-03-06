@@ -289,6 +289,117 @@ void SliceArrayDenseGradKernel(const Context& dev_ctx,
       dev_ctx, out_grad, dev_ctx.GetPlace(), false, &input_grad->at(start));
 }
 
+template <typename Context>
+void SliceStridedKernel(const Context& ctx,
+                        const phi::DenseTensor& input,
+                        const std::vector<int64_t>& axes,
+                        const phi::IntArray& starts_arr,
+                        const phi::IntArray& ends_arr,
+                        const std::vector<int64_t>& infer_flags,
+                        const std::vector<int64_t>& decrease_axis,
+                        phi::DenseTensor* out) {
+  std::vector<int64_t> starts = starts_arr.GetData();
+  std::vector<int64_t> ends = ends_arr.GetData();
+  auto in_dims = input.dims();
+
+  auto new_axes = axes;
+  for (auto& item : new_axes) {
+    if (item < 0) {
+      item = std::max(int64_t(0), item + int64_t(in_dims.size()));
+    }
+  }
+
+  custom_kernel::CheckAndUpdateSliceAttrs<int64_t>(
+      in_dims, new_axes, &starts, &ends, nullptr, nullptr);
+
+  std::vector<int64_t> output_dims = common::vectorize<int64_t>(input.dims());
+  std::vector<int64_t> output_stride =
+      common::vectorize<int64_t>(input.strides());
+  int64_t output_offset = static_cast<int64_t>(input.offset());
+
+  for (size_t i = 0; i < new_axes.size(); ++i) {
+    output_offset = static_cast<int64_t>(
+        output_offset +
+        starts[i] * output_stride[new_axes[i]] * SizeOf(out->dtype()));
+    output_dims[new_axes[i]] = ends[i] - starts[i];
+  }
+
+  std::vector<uint8_t> decrease_flag(output_dims.size(), 0);
+  if (!decrease_axis.empty()) {
+    for (int i = 0; i < static_cast<int>(decrease_axis.size()); ++i) {
+      int64_t axis = decrease_axis[i];
+      decrease_flag[axis] = 1;
+    }
+
+    std::vector<int64_t> new_shape;
+    std::vector<int64_t> new_stride;
+    for (size_t i = 0; i < output_dims.size(); ++i) {
+      if (decrease_flag[i] == 0) {
+        new_shape.push_back(output_dims[i]);
+        new_stride.push_back(output_stride[i]);
+      }
+    }
+    output_dims = new_shape;
+    output_stride = new_stride;
+  }
+
+  auto meta = out->meta();
+  meta.offset = output_offset;
+  auto tmp_dim =
+      common::DDim(output_dims.data(), static_cast<int>(output_dims.size()));
+  // if (product(meta.dims) > 0 && meta.dims != tmp_dim) {
+  //   PADDLE_THROW(
+  //       phi::errors::Fatal("Slice kernel stride compute diff, infer shape is
+  //       "
+  //                          "%s, but compute is %s.",
+  //                          meta.dims,
+  //                          tmp_dim));
+  // }
+  meta.dims = tmp_dim;
+  meta.strides = common::DDim(output_stride.data(),
+                              static_cast<int>(output_stride.size()));
+  out->set_meta(meta);
+  out->ResetHolder(input.Holder());
+  out->ShareInplaceVersionCounterWith(input);
+}
+
+template <typename T, typename Context>
+void SliceGradStridedKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& input,
+                            const phi::DenseTensor& out_grad,
+                            const std::vector<int64_t>& axes,
+                            const phi::IntArray& starts,
+                            const phi::IntArray& ends,
+                            const std::vector<int64_t>& infer_flags,
+                            const std::vector<int64_t>& decrease_axis,
+                            phi::DenseTensor* input_grad) {
+  dev_ctx.Alloc(input_grad, input_grad->dtype());
+  input_grad->set_strides(
+      phi::DenseTensorMeta::calc_strides(input_grad->dims()));
+
+  // FillKernel
+  const phi::Scalar val = 0.0;
+  EXEC_NPU_CMD(aclnnInplaceFillScalar, dev_ctx, *input_grad, val);
+
+  phi::DenseTensor tmp;
+  tmp.set_meta(out_grad.meta());
+  custom_kernel::SliceStridedKernel<Context>(dev_ctx,
+                                             *input_grad,
+                                             axes,
+                                             starts,
+                                             ends,
+                                             infer_flags,
+                                             decrease_axis,
+                                             &tmp);
+
+  custom_kernel::StridedCopy<T, Context>(
+      dev_ctx,
+      out_grad,
+      common::vectorize<int64_t>(tmp.dims()),
+      common::vectorize<int64_t>(tmp.strides()),
+      tmp.offset(),
+      &tmp);
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
@@ -330,6 +441,12 @@ PD_REGISTER_PLUGIN_KERNEL(slice_array_dense,
                           int64_t,
                           bool) {}
 
+PD_REGISTER_PLUGIN_KERNEL_FOR_ALL_DTYPE(
+    slice,
+    npu,
+    STRIDED,
+    custom_kernel::SliceStridedKernel<::phi::CustomContext>) {}
+
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
                           npu,
                           ALL_LAYOUT,
@@ -368,3 +485,15 @@ PD_REGISTER_PLUGIN_KERNEL(slice_array_dense_grad,
                           int32_t,
                           int64_t,
                           bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(slice_grad,
+                          npu,
+                          STRIDED,
+                          custom_kernel::SliceGradStridedKernel,
+                          float,
+                          double,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16,
+                          bool,
+                          int,
+                          int64_t) {}

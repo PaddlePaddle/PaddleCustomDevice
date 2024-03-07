@@ -622,8 +622,8 @@ class TestStride(unittest.TestCase):
         # self.call_unfold()
 
 
-class TestStrideCPU(TestStride):
-    def test_stride_cpu(self):
+class TestStrideNPU(TestStride):
+    def test_stride_npu(self):
         paddle.set_device("npu")
         self.call_stride()
 

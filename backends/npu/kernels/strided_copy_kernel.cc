@@ -15,10 +15,24 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
+namespace custom_kernel {
+
+template <typename T, typename Context>
+void StridedCopyKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& input,
+                       const std::vector<int64_t>& dims,
+                       const std::vector<int64_t>& out_stride,
+                       int64_t offset,
+                       phi::DenseTensor* out) {
+  custom_kernel::StridedCopy<T, Context>(
+      dev_ctx, input, dims, out_stride, offset, out);
+}
+}  // namespace custom_kernel
+
 PD_REGISTER_PLUGIN_KERNEL(strided_copy,
                           npu,
                           ALL_LAYOUT,
-                          custom_kernel::StridedCopy,
+                          custom_kernel::StridedCopyKernel,
                           bool,
                           uint8_t,
                           int8_t,

@@ -141,14 +141,25 @@ void FloorGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void RsqrtKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+void AclopRsqrtKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("Rsqrt", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RsqrtKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnRsqrt,
+      (custom_kernel::AclopRsqrtKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnRsqrt, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -243,14 +254,24 @@ void SwishGradKernel(const Context& dev_ctx,
 
 // Silu = x * sigmoid(x)
 template <typename T, typename Context>
-void SiluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+void AclopSiluKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner =
       NpuOpRunner("Swish", {x}, {*out}, {{"scale", static_cast<float>(1.0)}});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SiluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSilu, (custom_kernel::AclopSiluKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSilu, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -698,10 +719,10 @@ void Log2GradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void PowKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::Scalar& factor_scalar,
-               phi::DenseTensor* out) {
+void AclopPowKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& factor_scalar,
+                    phi::DenseTensor* out) {
   auto factor = factor_scalar.to<float>();
   dev_ctx.template Alloc<T>(out);
 
@@ -714,6 +735,18 @@ void PowKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
 
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void PowKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::Scalar& factor_scalar,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnPowTensorScalar,
+                   (custom_kernel::AclopPowKernel<T, Context>(
+                       dev_ctx, x, factor_scalar, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnPowTensorScalar, dev_ctx, x, factor_scalar, *out);
 }
 
 template <typename T, typename Context>

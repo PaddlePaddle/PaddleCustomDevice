@@ -20,11 +20,43 @@ namespace custom_kernel {
 #define MAX_RANK_SUPPORTED 6
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+bool check_tensor_values_in_range(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  phi::DataType dtype = phi::DataType::INT32) {
+  if (x.dtype() != phi::DataType::INT64) {
+    return true;
+  }
+  std::vector<int64_t> x_v;
+  TensorToVector(dev_ctx, x, dev_ctx, &x_v);
+  if (static_cast<int32_t>(x_v[0]) != x_v[0]) {
+    return false;
+  }
+  return true;
+}
+
+template <typename T, typename Context>
 void ExpandAsKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const paddle::optional<phi::DenseTensor>& y,
                     const std::vector<int>& target_shape,
                     phi::DenseTensor* out) {
+  bool x_inrange = check_tensor_values_in_range<T, Context>(dev_ctx, x);
+  PADDLE_ENFORCE_EQ(
+      x_inrange,
+      1,
+      phi::errors::InvalidArgument("The size of the input int64 data must be "
+                                   "whithin the range of int32."));
+  phi::DenseTensor cast_x(x);
+  if (x.dtype() == phi::DataType::INT64) {
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::INT32, &cast_x);
+  }
   auto rank = x.dims().size();
   auto target_rank = target_shape.size();
   PADDLE_ENFORCE_GE(target_rank,
@@ -79,7 +111,7 @@ void ExpandAsKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   const auto& runner =
-      NpuOpRunner("ExpandD", {x}, {*out}, {{"shape", target_shape}});
+      NpuOpRunner("ExpandD", {cast_x}, {*out}, {{"shape", target_shape}});
 
   auto stream = dev_ctx.stream();
   runner.Run(stream);
@@ -94,6 +126,7 @@ PD_REGISTER_PLUGIN_KERNEL(expand_as,
                           int8_t,
                           uint8_t,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

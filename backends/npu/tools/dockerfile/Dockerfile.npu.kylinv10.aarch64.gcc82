@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Ascend910 NPU
 
-FROM registry.baidubce.com/device/paddle-cpu:kylinv10-aarch64-gcc82
+FROM registry.baidubce.com/device/paddle-cpu:kylinv10-aarch64-gcc82-py39
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser

@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle MLU
 
-FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
+FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82-py39
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # version for mlu packages

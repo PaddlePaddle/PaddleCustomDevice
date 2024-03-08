@@ -9,14 +9,14 @@
 ```bash
 # 1. PaddlePaddle CPU の開発用 Docker イメージをプル
 # イメージの dockerfile は tools/dockerfile ディレクトリにあります
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82-py39
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82-py39
 
 # 2. docker コンテナを起動するには、以下のコマンドを参照
 docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
-       --network=host --shm-size=128G --workdir=/workspace \
-       --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
-       registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82 /bin/bash
+  --network=host --shm-size=128G --workdir=/workspace \
+  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82-py39 /bin/bash
 
 # 3. Paddle のソースコードと一緒にソースコードを再帰的にクローン
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

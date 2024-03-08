@@ -89,7 +89,17 @@ void NotEqualKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  DO_COMPATIBILITY(
+      aclnnNe,
+      (custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor res;
+  phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
+  res.set_meta(res_meta);
+  dev_ctx.template Alloc<T>(&res);
+  EXEC_NPU_CMD(aclnnNe, dev_ctx, x, y, res);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 
 template <typename T, typename Context>
@@ -127,7 +137,17 @@ void LessEqualKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& y,
                      phi::DenseTensor* out) {
-  custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  DO_COMPATIBILITY(
+      aclnnLeTensor,
+      (custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor res;
+  phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
+  res.set_meta(res_meta);
+  dev_ctx.template Alloc<T>(&res);
+  EXEC_NPU_CMD(aclnnLeTensor, dev_ctx, x, y, res);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 
 template <typename T, typename Context>
@@ -165,7 +185,17 @@ void LessThanKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
-  custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  DO_COMPATIBILITY(
+      aclnnLtTensor,
+      (custom_kernel::LessThanRawKernel<T, Context>(dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor res;
+  phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
+  res.set_meta(res_meta);
+  dev_ctx.template Alloc<T>(&res);
+  EXEC_NPU_CMD(aclnnLtTensor, dev_ctx, x, y, res);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 
 template <typename T, typename Context>
@@ -222,7 +252,17 @@ void GreaterEqualKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& y,
                         phi::DenseTensor* out) {
-  custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  DO_COMPATIBILITY(aclnnGeTensor,
+                   (custom_kernel::GreaterEqualRawKernel<T, Context>(
+                       dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor res;
+  phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
+  res.set_meta(res_meta);
+  dev_ctx.template Alloc<T>(&res);
+  EXEC_NPU_CMD(aclnnGeTensor, dev_ctx, x, y, res);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 
 template <typename T, typename Context>
@@ -279,7 +319,17 @@ void GreaterThanKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
                        phi::DenseTensor* out) {
-  custom_kernel::GreaterThanRawKernel<T, Context>(dev_ctx, x, y, -1, out);
+  DO_COMPATIBILITY(aclnnGtTensor,
+                   (custom_kernel::GreaterThanRawKernel<T, Context>(
+                       dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor res;
+  phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
+  res.set_meta(res_meta);
+  dev_ctx.template Alloc<T>(&res);
+  EXEC_NPU_CMD(aclnnGtTensor, dev_ctx, x, y, res);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 
 }  // namespace custom_kernel

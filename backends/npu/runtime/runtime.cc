@@ -782,6 +782,11 @@ HcclReduceOp PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
+C_Status XcclGetCommName(C_CCLComm comm, char *comm_name) {
+  HCCL_CHECK(HcclGetCommName(reinterpret_cast<HcclComm>(comm), comm_name));
+  return C_SUCCESS;
+}
+
 C_Status XcclGetUniqueIdSize(size_t *size) {
   *size = sizeof(HcclRootInfo);
   return C_SUCCESS;
@@ -1036,6 +1041,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->device_extra_padding_size = ExtraPaddingSize;
 
   // xccl
+  params->interface->xccl_get_comm_name = XcclGetCommName;
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;

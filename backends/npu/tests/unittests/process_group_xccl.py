@@ -41,7 +41,7 @@ class TestProcessGroupFp32(unittest.TestCase):
     def config(self):
         self.dtype = "float32"
         self.shape = (2, 10, 5)
-
+    
     @check_soc_version_and_dtype
     def test_create_process_group_xccl(self):
         device_id = paddle.distributed.ParallelEnv().dev_id
@@ -50,8 +50,8 @@ class TestProcessGroupFp32(unittest.TestCase):
         assert paddle.distributed.is_available()
 
         pg = init_process_group()
-        print("rank:", pg.rank(), "size:", pg.size(), "name:", pg.name())
-        print("test new group api ok")
+        print("rank:", pg.rank(), "size:", pg.size(), "name:", pg.name(), flush=True)
+        print("test new group api ok", flush=True)
 
         # test allreduce sum
         # rank 0
@@ -69,7 +69,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.all_reduce(tensor_y)
             assert np.array_equal(tensor_y, sum_result)
 
-        print("test allreduce sum api ok")
+        print("test allreduce sum api ok", flush=True)
 
         # test allreduce sum with shape = []
         # rank 0
@@ -87,7 +87,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.all_reduce(tensor_y)
             assert np.array_equal(tensor_y, sum_result)
 
-        print("test allreduce sum api with = [] ok")
+        print("test allreduce sum api with = [] ok", flush=True)
 
         # test allreduce max
         # rank 0
@@ -108,7 +108,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             assert np.array_equal(tensor_y, max_result)
 
-        print("test allreduce max api ok")
+        print("test allreduce max api ok", flush=True)
 
         # test allreduce max with shape = []
         # rank 0
@@ -129,7 +129,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             assert np.array_equal(tensor_y, max_result)
 
-        print("test allreduce max api with shape = [] ok")
+        print("test allreduce max api with shape = [] ok", flush=True)
 
         # test allreduce min
         # rank 0
@@ -150,7 +150,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             assert np.array_equal(tensor_y, min_result)
 
-        print("test allreduce min api ok")
+        print("test allreduce min api ok", flush=True)
 
         # test allreduce min with shape = []
         # rank 0
@@ -171,7 +171,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             assert np.array_equal(tensor_y, min_result)
 
-        print("test allreduce min api with shape [] ok")
+        print("test allreduce min api with shape [] ok", flush=True)
 
         if self.dtype != "bfloat16":
             # test allreduce prod
@@ -193,7 +193,7 @@ class TestProcessGroupFp32(unittest.TestCase):
                 task.wait()
                 assert np.array_equal(tensor_y, prod_result)
 
-            print("test allreduce prod api ok")
+            print("test allreduce prod api ok", flush=True)
 
             # test allreduce prod with shape = []
             # rank 0
@@ -214,7 +214,7 @@ class TestProcessGroupFp32(unittest.TestCase):
                 task.wait()
                 assert np.array_equal(tensor_y, prod_result)
 
-            print("test allreduce prod api with shape = [] ok")
+            print("test allreduce prod api with shape = [] ok", flush=True)
 
         # test broadcast
         # rank 0
@@ -236,7 +236,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             paddle.device.synchronize()
             assert np.array_equal(broadcast_result, tensor_y)
 
-        print("test broadcast api ok")
+        print("test broadcast api ok", flush=True)
 
         # test broadcast with shape=[]
         # rank 0
@@ -259,7 +259,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(broadcast_result, tensor_y)
         assert tensor_y.shape == []
 
-        print("test broadcast api with shape=[] ok")
+        print("test broadcast api with shape=[] ok", flush=True)
 
         # test barrier
         # rank 0
@@ -299,7 +299,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         out_2 = paddle.slice(tensor_out, [0], [out_shape[0] // 2], [out_shape[0]])
         assert np.array_equal(tensor_x, out_1)
         assert np.array_equal(tensor_y, out_2)
-        print("test allgather api ok\n")
+        print("test allgather api ok\n", flush=True)
 
         if pg.rank() == 0:
             task = pg.all_gather(tensor_x, tensor_out)
@@ -315,7 +315,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         out_2 = paddle.slice(tensor_out, [0], [out_shape[0] // 2], [out_shape[0]])
         assert np.array_equal(tensor_x, out_1)
         assert np.array_equal(tensor_y, out_2)
-        print("test allgather api2 ok\n")
+        print("test allgather api2 ok\n", flush=True)
 
         # test allgather with shape = []
         # rank 0
@@ -336,7 +336,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         out_2 = tensor_out_list[1]
         assert np.array_equal(tensor_x, out_1)
         assert np.array_equal(tensor_y, out_2)
-        print("test allgather api with shape [] ok\n")
+        print("test allgather api with shape [] ok\n", flush=True)
 
         # test alltoall
         # rank 0
@@ -369,7 +369,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(out1_2.numpy(), raw_tensor_y_1.numpy())
         else:
             assert np.array_equal(out2_1, raw_tensor_x_2)
-        print("test alltoall api ok\n")
+        print("test alltoall api ok\n", flush=True)
 
         x = np.random.random(self.shape)
         y = np.random.random(self.shape)
@@ -400,7 +400,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(out1_2.numpy(), raw_tensor_y_1.numpy())
         else:
             assert np.array_equal(out2_1, raw_tensor_x_2)
-        print("test alltoall api2 ok\n")
+        print("test alltoall api2 ok\n", flush=True)
 
         # test Reduce
         # rank 0
@@ -419,7 +419,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             paddle.device.synchronize()
         if pg.rank() == 0:
             assert np.array_equal(tensor_x, sum_result)
-        print("test reduce sum api ok\n")
+        print("test reduce sum api ok\n", flush=True)
 
         # test reduce max
         # rank 0
@@ -439,7 +439,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.reduce(tensor_y, 0, dist.ReduceOp.MAX, sync_op=False)
             task.wait()
 
-        print("test reduce max api ok")
+        print("test reduce max api ok", flush=True)
 
         # test reduce min
         # rank 0
@@ -459,7 +459,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.reduce(tensor_y, 0, dist.ReduceOp.MIN, sync_op=False)
             task.wait()
 
-        print("test reduce min api ok")
+        print("test reduce min api ok", flush=True)
 
         if self.dtype != "bfloat16":
             # test reduce product
@@ -480,7 +480,7 @@ class TestProcessGroupFp32(unittest.TestCase):
                 task = dist.reduce(tensor_y, 0, dist.ReduceOp.PROD, sync_op=False)
                 task.wait()
 
-            print("test reduce prod api ok")
+            print("test reduce prod api ok", flush=True)
 
         test_reduce_with_zero_dim([], self.dtype, pg)
 
@@ -508,7 +508,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(tensor_y, out1)
         else:
             assert np.array_equal(tensor_y, out2)
-        print("test scatter api ok\n")
+        print("test scatter api ok\n", flush=True)
 
         # test Scatter with shape=[]
         # rank 0
@@ -532,7 +532,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         else:
             assert np.array_equal(tensor_y, out2), f"{tensor_y}, {out2}"
         assert tensor_y.shape == []
-        print("test scatter api with shape=[] ok\n")
+        print("test scatter api with shape=[] ok\n", flush=True)
 
         # test send min
         # rank 0
@@ -550,7 +550,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             assert np.array_equal(tensor_y, tensor_x)
 
-        print("test send api ok")
+        print("test send api ok", flush=True)
 
         # test send min
         # rank 0
@@ -566,7 +566,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.recv(tensor_y, 0, sync_op=True)
             assert np.array_equal(tensor_y, tensor_x)
 
-        print("test send api ok")
+        print("test send api ok", flush=True)
 
         # test send 0-d tensor
         # rank 0
@@ -582,8 +582,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = dist.recv(tensor_y, 0, sync_op=True)
             assert np.array_equal(tensor_y, tensor_x) and tensor_y.shape == []
 
-        print("test send & recv 0-d tensor ok")
-
+        print("test send & recv 0-d tensor ok", flush=True)
 
 class TestProcessGroupFp16(TestProcessGroupFp32):
     def setUp(self):
@@ -596,7 +595,6 @@ class TestProcessGroupFp16(TestProcessGroupFp32):
         self.dtype = "float16"
         self.shape = (4, 20, 20)
 
-
 class TestProcessGroupBF16(TestProcessGroupFp32):
     def setUp(self):
         paddle.seed(2022)
@@ -608,7 +606,7 @@ class TestProcessGroupBF16(TestProcessGroupFp32):
         self.dtype = "bfloat16"
         self.shape = (4, 20, 20)
 
-
+ 
 def test_reduce_with_zero_dim(shape, dtype, pg):
     # test Reduce With Zero Dim
     # rank 0

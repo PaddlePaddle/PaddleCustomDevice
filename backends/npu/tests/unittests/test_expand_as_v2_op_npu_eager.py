@@ -66,5 +66,26 @@ class TestExpandAsV2OpFp16(OpTest):
         self.check_output_with_place(self.place, atol=0.004)
 
 
+class TestExpandAsV2OpInt64(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "expand_as_v2"
+        x = np.random.rand(100).astype("int64")
+        target_tensor = np.random.rand(2, 100).astype("int64")
+        self.inputs = {"X": x}
+        self.attrs = {"target_shape": target_tensor.shape}
+        bcast_dims = [2, 1]
+        output = np.tile(self.inputs["X"], bcast_dims)
+        self.outputs = {"Out": output}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=0.004)
+
+
 if __name__ == "__main__":
     unittest.main()

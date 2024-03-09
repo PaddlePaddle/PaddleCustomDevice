@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Ascend910 NPU
 
-FROM registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
+FROM iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-aarch64-gcc84-py38
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser

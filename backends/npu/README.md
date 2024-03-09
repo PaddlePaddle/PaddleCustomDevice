@@ -9,9 +9,9 @@ Please refer to the following steps to compile, install and verify the custom de
 | Type | Version     |
 | --------- | -------- |
 | Chip | Ascend 910A、Ascend 910B |
-| CANN | [CANN 7.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/258923273) |
-| Driver | [23.0.0](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
-| Firmware | [7.1.0.3.220](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/258924109) |
+| CANN | [CANN 7.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software/261956975) |
+| Driver | [23.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/261964443) |
+| Firmware | [7.1.0.4.220](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software/261964443) |
 
 ## Prepare environment and source code
 
@@ -19,11 +19,11 @@ Please refer to the following steps to compile, install and verify the custom de
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
 # Ascend 910A - check with the output of 'lspci | grep d801'
-registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann700-910A-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-aarch64
 # Ascend 910B - check with the output of 'lspci | grep d802'
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-aarch64
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-dev -v `pwd`:/work -w=/work \

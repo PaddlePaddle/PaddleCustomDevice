@@ -107,17 +107,21 @@ void MultiplyGradKernel(const Context& dev_ctx,
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
 
-  phi::DenseTensor trans_x, trans_y;
-  NpuElementWiseOpBroadcast<T>(dev_ctx, &x, &y, axis, &trans_x, &trans_y);
+  int x_axis;
+  int y_axis;
+  phi::DDim dst_dims;
+  NpuElementWiseHelper(&x, &y, axis, &x_axis, &y_axis, &dst_dims);
 
   if (dx) {
+    phi::DenseTensor trans_y;
+    NpuBroadcast<T>(dev_ctx, &y, y_axis, dst_dims, &trans_y);
     if (dx->dims() == dout.dims()) {
       dev_ctx.template Alloc<T>(dx);
       const auto& runner_dx = NpuOpRunner("Mul", {dout, trans_y}, {*dx}, {});
       runner_dx.Run(stream);
     } else {
       phi::DenseTensor dx_temp;
-      phi::DenseTensorMeta dx_temp_meta = {x.dtype(), trans_x.dims()};
+      phi::DenseTensorMeta dx_temp_meta = {x.dtype(), trans_y.dims()};
       dx_temp.set_meta(dx_temp_meta);
       dev_ctx.template Alloc<T>(&dx_temp);
 
@@ -125,17 +129,19 @@ void MultiplyGradKernel(const Context& dev_ctx,
           NpuOpRunner("Mul", {dout, trans_y}, {dx_temp}, {});
       runner_dx.Run(stream);
       ReduceDims<T>(
-          dev_ctx, stream, axis, dx->dims(), trans_x.dims(), dx_temp, dx);
+          dev_ctx, stream, axis, dx->dims(), trans_y.dims(), dx_temp, dx);
     }
   }
   if (dy) {
+    phi::DenseTensor trans_x;
+    NpuBroadcast<T>(dev_ctx, &x, x_axis, dst_dims, &trans_x);
     if (dy->dims() == dout.dims()) {
       dev_ctx.template Alloc<T>(dy);
       const auto& runner_dy = NpuOpRunner("Mul", {trans_x, dout}, {*dy}, {});
       runner_dy.Run(stream);
     } else {
       phi::DenseTensor dy_temp;
-      phi::DenseTensorMeta dy_temp_meta = {y.dtype(), trans_y.dims()};
+      phi::DenseTensorMeta dy_temp_meta = {y.dtype(), trans_x.dims()};
       dy_temp.set_meta(dy_temp_meta);
       dev_ctx.template Alloc<T>(&dy_temp);
 
@@ -143,7 +149,7 @@ void MultiplyGradKernel(const Context& dev_ctx,
           NpuOpRunner("Mul", {trans_x, dout}, {dy_temp}, {});
       runner_dy.Run(stream);
       ReduceDims<T>(
-          dev_ctx, stream, axis, dy->dims(), trans_y.dims(), dy_temp, dy);
+          dev_ctx, stream, axis, dy->dims(), trans_x.dims(), dy_temp, dy);
     }
   }
 }

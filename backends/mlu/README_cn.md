@@ -26,7 +26,7 @@ docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
     --shm-size=128G --network=host -w=/workspace \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82 /bib/bash
+    registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82 /bib/bash
 
 
 # 3) 克隆 PaddleCustomDevice 源码

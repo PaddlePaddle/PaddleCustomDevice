@@ -433,12 +433,16 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                  *attn_mask_tensor_null,
                  *attn_mask_tensor_null);
     attn_mask_tensor = attn_mask_tensor_null.get();
+    next_tockens = 0;
   } else if (attn_mask) {
     VLOG(3) << "Forward flash attention with user defined mask";
     // 用户指定mask
     auto attn_mask_ptr = *(attn_mask.get_ptr());
     attn_mask_tensor =
         static_cast<phi::DenseTensor*>(attn_mask_ptr.impl().get());
+    if (is_triangle_upper_mask) {
+      next_tockens = 0;
+    }
   } else {
     VLOG(3) << "Forward flash attention without mask";
     // 无mask

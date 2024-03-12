@@ -52,10 +52,18 @@ void ExpandAsKernel(const Context& dev_ctx,
       1,
       phi::errors::InvalidArgument("The size of the input int64 data must be "
                                    "whithin the range of int32."));
-  phi::DenseTensor cast_x(x);
+
+  phi::DenseTensor cast_x;
+
   if (x.dtype() == phi::DataType::INT64) {
+    phi::DenseTensorMeta meta(x.meta());
+    meta.dtype = phi::DataType::INT32;
+    cast_x.set_meta(meta);
+
     custom_kernel::CastKernel<T, Context>(
         dev_ctx, x, phi::DataType::INT32, &cast_x);
+  } else {
+    cast_x = x;
   }
   auto rank = x.dims().size();
   auto target_rank = target_shape.size();

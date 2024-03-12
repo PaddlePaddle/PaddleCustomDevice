@@ -90,7 +90,7 @@ void NotEqualKernel(const Context& dev_ctx,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
   DO_COMPATIBILITY(
-      aclnnNe,
+      aclnnNeTensor,
       (custom_kernel::NotEqualRawKernel<T, Context>(dev_ctx, x, y, -1, out)));
   dev_ctx.template Alloc<T>(out);
 
@@ -98,7 +98,7 @@ void NotEqualKernel(const Context& dev_ctx,
   phi::DenseTensorMeta res_meta = {x.dtype(), out->dims()};
   res.set_meta(res_meta);
   dev_ctx.template Alloc<T>(&res);
-  EXEC_NPU_CMD(aclnnNe, dev_ctx, x, y, res);
+  EXEC_NPU_CMD(aclnnNeTensor, dev_ctx, x, y, res);
   custom_kernel::CastKernel<T, Context>(dev_ctx, res, phi::DataType::BOOL, out);
 }
 

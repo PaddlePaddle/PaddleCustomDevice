@@ -101,7 +101,8 @@ std::vector<paddle::Tensor> npu_flash_attention(
     float dropout = 0.0,
     bool casual = false,
     bool return_softmax = false,
-    bool is_test = false) {
+    bool is_test = false,
+    bool is_triangle_upper_mask = true) {
   auto dev_ctx = getcontext(query);
   // q,k,v [batch_size, seq_len, num_heads, head_dim]
   auto query_tensor = paddletensor2densortensor(query);
@@ -188,6 +189,7 @@ std::vector<paddle::Tensor> npu_flash_attention(
                  *attn_mask_tensor_null,
                  *attn_mask_tensor_null);
     attn_mask_tensor = attn_mask_tensor_null.get();
+    next_tockens = 0;
   } else if (attn_mask) {
     VLOG(3) << "Forward flash attention with user defined mask";
     // 用户指定mask
@@ -199,6 +201,10 @@ std::vector<paddle::Tensor> npu_flash_attention(
     PD_CHECK(mask_dtype == phi::DataType::BOOL,
              "The mask tensor dtype must be bool , but got ",
              mask_dtype);
+    // 标准上三角矩阵mask，next_tockens为0可以提升性能
+    if (is_triangle_upper_mask) {
+      next_tockens = 0;
+    }
   } else {
     VLOG(3) << "Forward flash attention without mask";
     // 无mask
@@ -331,7 +337,8 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
     const paddle::optional<paddle::Tensor>& offset_tensor,
     const paddle::optional<paddle::Tensor>& numel_tensor,
     float dropout,
-    bool casual) {
+    bool casual,
+    bool is_triangle_upper_mask) {
   // q,k,v [batch_size, seq_len, num_heads, head_dim]
   auto dev_ctx = getcontext(query);
   // q,k,v [batch_size, seq_len, num_heads, head_dim]
@@ -426,12 +433,16 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                  *attn_mask_tensor_null,
                  *attn_mask_tensor_null);
     attn_mask_tensor = attn_mask_tensor_null.get();
+    next_tockens = 0;
   } else if (attn_mask) {
     VLOG(3) << "Forward flash attention with user defined mask";
     // 用户指定mask
     auto attn_mask_ptr = *(attn_mask.get_ptr());
     attn_mask_tensor =
         static_cast<phi::DenseTensor*>(attn_mask_ptr.impl().get());
+    if (is_triangle_upper_mask) {
+      next_tockens = 0;
+    }
   } else {
     VLOG(3) << "Forward flash attention without mask";
     // 无mask
@@ -585,7 +596,8 @@ PD_BUILD_OP(flash_attention_npu)
     .Attrs({"dropout: float",
             "causal:bool",
             "return_softmax:bool",
-            "is_test:bool"})
+            "is_test:bool",
+            "is_triangle_upper_mask:bool"})
     .SetKernelFn(PD_KERNEL(npu_flash_attention))
     .SetInferShapeFn(PD_INFER_SHAPE(
         fusedattentionInferShape));  // neccessary if the op has muti_inputs
@@ -606,7 +618,7 @@ PD_BUILD_GRAD_OP(flash_attention_npu)
     .Outputs({paddle::Grad("query"),
               paddle::Grad("key"),
               paddle::Grad("value")})
-    .Attrs({"dropout: float", "causal:bool"})
+    .Attrs({"dropout: float", "causal:bool", "is_triangle_upper_mask:bool"})
     .SetKernelFn(PD_KERNEL(npu_flash_attention_grad))
     .SetInferShapeFn(PD_INFER_SHAPE(
         fusedattentionInferShape));  // neccessary if the op has muti_inputs

@@ -395,6 +395,9 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
       reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);              \
     UnInitHugeMemThreadLocal unInitMemFunc =                              \
       reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);          \
+    if (initMemFunc) {                                                    \
+      initMemFunc(nullptr, false);                                        \
+    }                                                                     \
     auto converted_params =                                               \
       ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);      \
     static auto getWorkspaceSizeFunc =                                    \

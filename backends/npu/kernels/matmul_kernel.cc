@@ -12,10 +12,119 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/format_utils.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
+static inline aclTensor* Create_Acltensor(const phi::DenseTensor& paddletensor,
+                                          const bool transpose) {
+  static const auto aclCreateTensor = GET_OP_API_FUNC(aclCreateTensor);
+  auto tensor_dtype = paddletensor.dtype();
+  auto acl_data_type = ConvertToNpuDtype(tensor_dtype);
+  const auto dimNum =
+      paddletensor.dims().size() == 0 ? 1 : paddletensor.dims().size();
+  std::vector<int64_t> storageDims(dimNum - 1);
+  storageDims.push_back(paddletensor.numel() * sizeof(tensor_dtype));
+  aclFormat format = ACL_FORMAT_ND;
+  switch (dimNum) {
+    case 3:
+      format = ACL_FORMAT_NCL;
+      break;
+    case 4:
+      format = ACL_FORMAT_NCHW;
+      break;
+    case 5:
+      format = ACL_FORMAT_NCDHW;
+      break;
+    default:
+      format = ACL_FORMAT_ND;
+  }
+  auto shape = phi::vectorize(paddletensor.dims());
+  auto strides = shape;
+  if (!strides.empty()) {
+    strides.erase(strides.begin());
+  }
+  strides.push_back(1);
+  for (int i = static_cast<int>(strides.size()) - 2; i >= 0; i--) {
+    strides[i] = strides[i] * strides[i + 1];
+  }
+  if (transpose) {
+    std::swap(shape[shape.size() - 1], shape[shape.size() - 2]);
+    std::swap(strides[strides.size() - 1], strides[strides.size() - 2]);
+  }
+  auto acl_tensor = aclCreateTensor(shape.data(),
+                                    dimNum,
+                                    acl_data_type,
+                                    strides.data(),
+                                    0,
+                                    format,
+                                    shape.data(),
+                                    dimNum,
+                                    const_cast<void*>(paddletensor.data()));
+  return acl_tensor;
+}
+
+template <typename T, typename Context>
+static void AclnnMatmulForward(const Context& dev_ctx,
+                               const phi::DenseTensor& X,
+                               const phi::DenseTensor& Y,
+                               phi::DenseTensor* out,
+                               const bool transpose_x,
+                               const bool transpose_y) {
+  dev_ctx.template Alloc<T>(out);
+  auto out_dim = phi::vectorize(out->dims());
+  aclTensor* x_acltensor = Create_Acltensor(X, transpose_x);
+  aclTensor* y_acltensor = Create_Acltensor(Y, transpose_y);
+  int8_t cube_math_type = 0;
+  EXEC_NPU_CMD(
+      aclnnMatmul, dev_ctx, x_acltensor, y_acltensor, *out, cube_math_type);
+}
+
+template <typename T, typename Context>
+static void AclnnMatmulBackward(const Context& dev_ctx,
+                                const phi::DenseTensor& X,
+                                const phi::DenseTensor& Y,
+                                const phi::DenseTensor& dout,
+                                const bool transpose_x,
+                                const bool transpose_y,
+                                phi::DenseTensor* dx,
+                                phi::DenseTensor* dy) {
+  std::vector<int64_t> x_dims = phi::vectorize(X.dims());
+  std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
+  std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  int out_ndim = out_dims.size();
+  // Case 1: [K] x [K] = [1]
+  if (x_ndim == 1 && y_ndim == 1) {
+    if (dx) {
+      dev_ctx.template Alloc<T>(dx);
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, Y, *dx);
+    }
+    if (dy) {
+      dev_ctx.template Alloc<T>(dy);
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, X, *dy);
+    }
+    return;
+  }
+  if (dx) {
+    if (transpose_x) {
+      AclnnMatmulForward<T, Context>(dev_ctx, Y, dout, dx, transpose_y, true);
+    } else {
+      AclnnMatmulForward<T, Context>(dev_ctx, dout, Y, dx, false, !transpose_y);
+    }
+    dx->Resize(X.dims());
+  }
+  if (dy) {
+    if (transpose_y) {
+      AclnnMatmulForward<T, Context>(dev_ctx, dout, X, dy, true, transpose_x);
+    } else {
+      AclnnMatmulForward<T, Context>(dev_ctx, X, dout, dy, !transpose_x, false);
+    }
+    dy->Resize(Y.dims());
+  }
+}
 
 template <typename T, typename Context>
 void NPUIdentityKernel(const Context& dev_ctx,
@@ -249,12 +358,12 @@ void DotImpl(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MatmulKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& y,
-                  bool transpose_x,
-                  bool transpose_y,
-                  phi::DenseTensor* out) {
+void MatmulAclOpImpl(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     bool transpose_x,
+                     bool transpose_y,
+                     phi::DenseTensor* out) {
   std::vector<int64_t> x_dims = phi::vectorize(x.dims());
   std::vector<int64_t> y_dims = phi::vectorize(y.dims());
   std::vector<int64_t> out_dims = phi::vectorize(out->dims());
@@ -393,14 +502,14 @@ void MatmulKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MatmulGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& dout,
-                      bool transpose_x,
-                      bool transpose_y,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
+void MatmulGradAclOpImpl(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         const phi::DenseTensor& dout,
+                         bool transpose_x,
+                         bool transpose_y,
+                         phi::DenseTensor* dx,
+                         phi::DenseTensor* dy) {
   std::vector<int64_t> x_dims = phi::vectorize(x.dims());
   std::vector<int64_t> y_dims = phi::vectorize(y.dims());
   std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
@@ -677,6 +786,52 @@ void MatmulGradKernel(const Context& dev_ctx,
       ReduceDims<T>(dev_ctx, stream, y_dims, y_broadcast_dims, dy_temp, dy);
     }
   }
+}
+
+template <typename T, typename Context>
+void MatmulKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& y,
+                  bool transpose_x,
+                  bool transpose_y,
+                  phi::DenseTensor* out) {
+  // 没有aclnn时默认走aclop
+  DO_COMPATIBILITY(aclnnMatmul,
+                   (MatmulAclOpImpl<T, Context>(
+                       dev_ctx, x, y, transpose_x, transpose_y, out)));
+  bool is_nz = IsNotTransformedNZFormat(x, y);
+  // NZ私有格式走ACLOP
+  if (is_nz) {
+    MatmulAclOpImpl<T, Context>(dev_ctx, x, y, transpose_x, transpose_y, out);
+    return;
+  }
+  // ACLNN调用
+  AclnnMatmulForward<T, Context>(dev_ctx, x, y, out, transpose_x, transpose_y);
+}
+
+template <typename T, typename Context>
+void MatmulGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      const phi::DenseTensor& dout,
+                      bool transpose_x,
+                      bool transpose_y,
+                      phi::DenseTensor* dx,
+                      phi::DenseTensor* dy) {
+  // 没有aclnn时默认走aclop
+  DO_COMPATIBILITY(aclnnMatmul,
+                   (MatmulGradAclOpImpl<T, Context>(
+                       dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy)));
+  // NZ私有格式走ACLOP
+  bool is_nz = IsNotTransformedNZFormat(x, y);
+  if (is_nz) {
+    MatmulGradAclOpImpl<T, Context>(
+        dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy);
+    return;
+  }
+  // ACLNN调用
+  AclnnMatmulBackward<T, Context>(
+      dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy);
 }
 
 }  // namespace custom_kernel

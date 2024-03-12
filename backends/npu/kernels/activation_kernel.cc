@@ -602,14 +602,24 @@ void SeluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SqrtKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+void AclopSqrtKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("Sqrt", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SqrtKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSqrt, (custom_kernel::AclopSqrtKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSqrt, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -804,14 +814,25 @@ void PowGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SquareKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  phi::DenseTensor* out) {
+void AclopSquareKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("Square", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SquareKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnMul,
+      (custom_kernel::AclopSquareKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, x, x, *out);
 }
 
 template <typename T, typename Context>

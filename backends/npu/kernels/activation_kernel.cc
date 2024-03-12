@@ -1168,36 +1168,6 @@ void SoftshrinkGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AclopCosGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& dout,
-                        phi::DenseTensor* dx) {
-  dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-
-  phi::DenseTensor sin_out;
-  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
-  sin_out.set_meta(meta);
-  dev_ctx.template Alloc<T>(&sin_out);
-
-  const auto& runner = NpuOpRunner("Sin", {x}, {sin_out}, {});
-  runner.Run(stream);
-
-  const auto& runner_dx = NpuOpRunner("Mul", {dout, sin_out}, {*dx}, {});
-  runner_dx.Run(stream);
-
-  phi::DenseTensor tmp;
-  phi::DenseTensorMeta tmp_meta = {x.dtype(), {1, 1}};
-  tmp.set_meta(tmp_meta);
-  dev_ctx.template Alloc<T>(&tmp);
-  float factor = -1.;
-  FillNpuTensorWithConstant<T>(&tmp, dev_ctx, static_cast<T>(factor));
-
-  const auto& runner_dx_ = NpuOpRunner("Xdivy", {*dx, tmp}, {*dx}, {});
-  runner_dx_.Run(stream);
-}
-
-template <typename T, typename Context>
 void CosGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& dout,

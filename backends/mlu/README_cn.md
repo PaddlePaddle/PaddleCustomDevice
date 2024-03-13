@@ -19,14 +19,14 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82
+docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc84-py310
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
     --shm-size=128G --network=host -w=/workspace \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82 /bib/bash
+    docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc84-py310 /bib/bash
 
 
 # 3) 克隆 PaddleCustomDevice 源码
@@ -123,12 +123,12 @@ cd PaddleCustomDevice/Paddle
 mkdir build && cd build
 
 # 3.1) X86-64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+cmake .. -DPY_VERSION=3.10 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=OFF
 make -j8
 
 # 3.2) Aarch64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+cmake .. -DPY_VERSION=3.10 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 

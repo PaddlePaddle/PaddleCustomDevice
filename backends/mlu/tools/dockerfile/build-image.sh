@@ -29,9 +29,9 @@ MLUOPS_VERSION=${6:-0.11.0-1} # default 0.11.0
 CNNL_EXTRA_VERSION=${7:-1.6.1-1} # default 1.6.1-1
 
 if [ $(uname -i) == 'x86_64' ]; then
-  # ubuntu18-$(uname -m)-gcc82
-  docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82-py39
-  docker build --network=host -f Dockerfile.mlu.ubuntu18.$(uname -m).gcc82 \
+  # ubuntu20-$(uname -m)-gcc84-py310
+  docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
+  docker build --network=host -f Dockerfile.mlu.ubuntu20.$(uname -m).gcc84.py310 \
        --build-arg CNTOOLKIT_VERSION=${CNTOOLKIT_VERSION} \
        --build-arg CNNL_VERSION=${CNNL_VERSION} \
        --build-arg CNNL_EXTRA_VERSION=${CNNL_EXTRA_VERSION} \
@@ -43,11 +43,11 @@ if [ $(uname -i) == 'x86_64' ]; then
        --build-arg https_proxy=${proxy} \
        --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc82-py39 .
-  docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc82-py39
+       -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc84-py310 .
+  docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc84-py310
 else
-  # kylinv10-$(uname -m)-gcc82-py39
-  docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py39
+  # kylinv10-$(uname -m)-gcc82-py310
+  docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
   docker build --network=host -f Dockerfile.mlu.kylinv10.$(uname -m).gcc82 \
        --build-arg FTP_USER=${FTP_USER} \
        --build-arg FTP_PASSWORD=${FTP_PASSWORD} \
@@ -55,6 +55,6 @@ else
        --build-arg https_proxy=${proxy} \
        --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py39 .
-  docker push registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py39
+       -t registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310 .
+  docker push registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310
 fi

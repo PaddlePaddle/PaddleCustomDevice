@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TrilTriuKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    int diagonal,
-                    bool lower,
-                    phi::DenseTensor* out) {
+void AclopTrilTriuKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         int diagonal,
+                         bool lower,
+                         phi::DenseTensor* out) {
   const auto* x_data = x.data<T>();
   auto* out_data = dev_ctx.template Alloc<T>(out);
 
@@ -69,6 +69,28 @@ void TrilTriuKernel(const Context& dev_ctx,
   } else {
     const auto& runner = NpuOpRunner(op_type, {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
+  }
+}
+
+template <typename T, typename Context>
+void TrilTriuKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    int diagonal,
+                    bool lower,
+                    phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnTril,
+                   (custom_kernel::AclopTrilTriuKernel<T, Context>(
+                       dev_ctx, x, diagonal, lower, out)));
+  DO_COMPATIBILITY(aclnnTriu,
+                   (custom_kernel::AclopTrilTriuKernel<T, Context>(
+                       dev_ctx, x, diagonal, lower, out)));
+
+  int64_t dia = diagonal;
+  dev_ctx.template Alloc<T>(out);
+  if (lower) {
+    EXEC_NPU_CMD(aclnnTril, dev_ctx, x, dia, *out);
+  } else {
+    EXEC_NPU_CMD(aclnnTriu, dev_ctx, x, dia, *out);
   }
 }
 

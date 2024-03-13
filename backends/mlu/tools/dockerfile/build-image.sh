@@ -41,10 +41,9 @@ if [ $(uname -i) == 'x86_64' ]; then
        --build-arg FTP_PASSWORD=${FTP_PASSWORD} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \
-       --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc84-py310 .
-  docker push registry.baidubce.com/device/paddle-mlu:cntoolkit${CNTOOLKIT_VERSION}-cnnl${CNNL_VERSION}-gcc84-py310
+       -t registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-$(uname -m)-gcc84-py310 .
+  docker push registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-$(uname -m)-gcc84-py310
 else
   # kylinv10-$(uname -m)-gcc82-py310
   docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
@@ -53,7 +52,6 @@ else
        --build-arg FTP_PASSWORD=${FTP_PASSWORD} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \
-       --build-arg ftp_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
        -t registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310 .
   docker push registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310

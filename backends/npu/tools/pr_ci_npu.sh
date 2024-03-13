@@ -243,7 +243,6 @@ function main() {
         show_ut_retry_result
     fi
     if [[ "${WITH_COVERAGE:-OFF}" == "ON" ]];then
-        cd ${CODE_ROOT}/build
         bash ${CODE_ROOT}/tools/coverage_process.sh
     fi
 

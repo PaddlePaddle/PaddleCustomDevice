@@ -9,14 +9,14 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82-py39
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82-py39
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-aarch64-gcc84-py310
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
   --network=host --shm-size=128G --workdir=/workspace \
   --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
-  registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82-py39 /bin/bash
+  registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310 /bin/bash
 
 # 3) 克隆源码，注意 PaddleCustomDevice 依赖 PaddlePaddle 主框架源码
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

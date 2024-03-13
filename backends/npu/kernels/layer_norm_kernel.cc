@@ -34,6 +34,14 @@ class NormDataType<phi::dtype::float16> {
 };
 
 template <>
+class NormDataType<phi::dtype::bfloat16> {
+ public:
+  // The scaling param type is float for HALF and FLOAT tensors
+  using ScalingParamType = const float;
+  using BatchNormParamType = float;
+};
+
+template <>
 class NormDataType<float> {
  public:
   using ScalingParamType = const float;
@@ -443,6 +451,7 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormNPUKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
@@ -450,4 +459,5 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradNPUKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

@@ -8,25 +8,25 @@ Please refer to the following steps to compile, install and verify the custom de
 
 | Module    | Version  |
 | --------- | -------- |
-| cntoolkit | 3.7.2-1  |
-| cnnl      | 1.22.0-1 |
-| cnnlextra | 1.5.0-1  |
-| cncl      | 1.13.0-1 |
-| mluops    | 0.10.0-1  |
+| cntoolkit | 3.8.4-1  |
+| cnnl      | 1.23.2-1 |
+| cnnlextra | 1.6.1-1  |
+| cncl      | 1.14.0-1 |
+| mluops    | 0.11.0-1  |
 
 ## Prepare environment and source code
 
 ```bash
 # 1. pull PaddlePaddle Cambricon MLU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82-py39
+docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
     --shm-size=128G --network=host -w=/workspace \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    registry.baidubce.com/device/paddle-mlu:cntoolkit3.7.2-1-cnnl1.22.0-1-gcc82-py39 /bin/bash
+    registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82 /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -69,12 +69,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # expected output
 version: 0.0.0
-commit: 7a45dfc420caa6176c36e89f325f908632c7a739
-cntoolkit: 3.7.2
-cnnl: 1.22.0
-cnnlextra: 1.5.0
-cncl: 1.13.0
-mluops: 0.10.0
+commit: 5c29d8a4bfd742081ec3b457e02e276f738ef786
+cntoolkit: 3.8.4
+cnnl: 1.23.2
+cnnlextra: 1.6.1
+cncl: 1.14.0
+mluops: 0.11.0
 
 # 3. demo for training, evaluation and inference
 python tests/test_LeNet_MNIST.py

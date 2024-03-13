@@ -511,6 +511,7 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
                           ALL_LAYOUT,
                           custom_kernel::AdamKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
@@ -533,6 +534,7 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
                           ALL_LAYOUT,
                           custom_kernel::AdamwKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   // Skip beta1_pow, beta2_pow, skip_update data transform

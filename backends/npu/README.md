@@ -50,8 +50,8 @@ cd backends/npu
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
 # you may download and install the nightly built cpu whl package with links below
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp310-cp310-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp310-cp310-linux_aarch64.whl
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF

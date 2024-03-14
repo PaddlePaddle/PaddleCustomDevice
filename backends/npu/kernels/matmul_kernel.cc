@@ -28,9 +28,7 @@ static inline aclTensor* Create_Acltensor(const phi::DenseTensor& paddletensor,
   storageDims.push_back(paddletensor.numel() * sizeof(tensor_dtype));
   aclFormat format = ACL_FORMAT_ND;
   switch (dimNum) {
-    case 3:
-      format = ACL_FORMAT_NCL;
-      break;
+    break;
     case 4:
       format = ACL_FORMAT_NCHW;
       break;

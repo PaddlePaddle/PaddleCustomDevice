@@ -36,15 +36,6 @@ docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
   -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310 .
 docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
 
-# ubuntu18.gcc82-py310
-docker build --network=host -f Dockerfile.ubuntu18.$(uname -m).gcc82 \
-  --build-arg http_proxy=${proxy} \
-  --build-arg https_proxy=${proxy} \
-  --build-arg ftp_proxy=${proxy} \
-  --build-arg no_proxy=bcebos.com \
-  -t registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc84-py310 .
-docker push registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc84-py310
-
 # kylinv10.gcc82-py310
 docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc82 \
   --build-arg http_proxy=${proxy} \

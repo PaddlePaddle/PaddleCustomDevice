@@ -52,7 +52,7 @@ fi
 if [ ${CHIP_VERSION} == "910B" ]; then
   # ubuntu20-$(uname -m)-gcc84-py38
   docker pull iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
-  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84 \
+  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py38 \
     --build-arg CANN_VERSION=${CANN_VERSION} \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \
@@ -64,7 +64,7 @@ fi
 
 # ubuntu20-$(uname -m)-gcc84-py310
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
-docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82 \
+docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc82.py310 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -75,7 +75,7 @@ docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP
 
 # kylinv10-$(uname -m)-gcc82-py310
 docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
-docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82 \
+docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82.py310 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -87,7 +87,7 @@ docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP
 if [ $(uname -i) == 'aarch64' ]; then
 # euleros-$(uname -m)-gcc82-py310
   docker pull registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82-py310
-  docker build --network=host -f Dockerfile.npu.euleros.$(uname -m).gcc82 \
+  docker build --network=host -f Dockerfile.npu.euleros.$(uname -m).gcc82.py310 \
     --build-arg CANN_VERSION=${CANN_VERSION} \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \

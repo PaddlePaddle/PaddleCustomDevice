@@ -520,8 +520,8 @@ class TestAddApi(unittest.TestCase):
         with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
             np_x = np.array([2, 3, 4]).astype("float32")
             np_y = np.array([1, 5, 2]).astype("float32")
-            x = base.dygraph.to_variable(np_x)
-            y = base.dygraph.to_variable(np_y)
+            x = paddle.to_tensor(np_x)
+            y = paddle.to_tensor(np_y)
             z = self._executed_api(x, y)
             np_z = z.numpy()
             z_expected = np.array([3.0, 8.0, 6.0])

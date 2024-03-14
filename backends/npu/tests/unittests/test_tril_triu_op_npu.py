@@ -245,7 +245,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
                     )
                 else:
                     data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = base.dygraph.to_variable(data)
+                x = paddle.to_tensor(data)
                 tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(x).numpy()
                 np.testing.assert_allclose(
                     convert_uint16_to_float(tril_out),

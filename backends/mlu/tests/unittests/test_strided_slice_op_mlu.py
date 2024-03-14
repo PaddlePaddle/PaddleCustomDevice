@@ -632,7 +632,7 @@ class TestStridedSliceTensorArray(unittest.TestCase):
     def test(self):
         with base.dygraph.guard():
             data = np.random.rand(2, 10).astype("float32")
-            var = base.dygraph.to_variable(data)
+            var = paddle.to_tensor(data)
             out = var[:, ::-1]
             assert np.array_equal(out, data[:, ::-1])
 

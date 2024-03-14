@@ -107,8 +107,8 @@ class API_TestMm(unittest.TestCase):
         with base.dygraph.guard(device):
             input_array1 = np.random.rand(3, 4).astype("float64")
             input_array2 = np.random.rand(4, 3).astype("float64")
-            data1 = base.dygraph.to_variable(input_array1)
-            data2 = base.dygraph.to_variable(input_array2)
+            data1 = paddle.to_tensor(input_array1)
+            data2 = paddle.to_tensor(input_array2)
             out = paddle.mm(data1, data2)
             expected_result = np.matmul(input_array1, input_array2)
         self.assertTrue(np.allclose(expected_result, out.numpy()))
@@ -129,8 +129,8 @@ class Test_API_Matmul2DX2D(unittest.TestCase):
         with base.dygraph.guard(device):
             input_array1 = np.random.random(self.shape_x).astype(self.dtype)
             input_array2 = np.random.random(self.shape_y).astype(self.dtype)
-            data1 = base.dygraph.to_variable(input_array1)
-            data2 = base.dygraph.to_variable(input_array2)
+            data1 = paddle.to_tensor(input_array1)
+            data2 = paddle.to_tensor(input_array2)
             out = paddle.matmul(
                 data1, data2, transpose_x=self.trans_x, transpose_y=self.trans_y
             )

@@ -1249,7 +1249,7 @@ class TestDygraphPool2DAPI(unittest.TestCase):
     def test_nhwc(self):
         with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = base.dygraph.to_variable(data)
+            x = paddle.to_tensor(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,
@@ -1270,7 +1270,7 @@ class TestDygraphPool2DAPI(unittest.TestCase):
     def test_lower_case(self):
         with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = base.dygraph.to_variable(data)
+            x = paddle.to_tensor(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,
@@ -1291,7 +1291,7 @@ class TestDygraphPool2DAPI(unittest.TestCase):
     def test_upper_case(self):
         with base.dygraph.guard():
             data = np.random.random((3, 32, 32, 5)).astype("float32")
-            x = base.dygraph.to_variable(data)
+            x = paddle.to_tensor(data)
             pool2d = paddle.nn.MaxPool2D(
                 kernel_size=2,
                 stride=1,

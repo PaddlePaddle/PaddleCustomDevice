@@ -157,8 +157,8 @@ void BitwiseXorKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void AclopBitwiseNotKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+                           const phi::DenseTensor& x,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 

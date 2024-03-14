@@ -19,11 +19,11 @@
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
 # 昇腾910A芯片 - 系统环境下查看 lspci | grep d801 是否有输出
-registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-x86_64-gcc82-py39
-registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu18-aarch64-gcc82-py39
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu20-x86_64-gcc84-py310
+registry.baidubce.com/device/paddle-npu:cann701-910A-ubuntu20-aarch64-gcc84-py310
 # 昇腾910B芯片 - 系统环境下查看 lspci | grep d802 是否有输出
-registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-x86_64-gcc82-py39
-registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-aarch64-gcc82-py39
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu20-x86_64-gcc84-py310
+registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu20-aarch64-gcc84-py310
 
 # 2) 参考如下命令启动容器，ASCEND_RT_VISIBLE_DEVICES 指定可见的 NPU 卡号
 docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
@@ -32,7 +32,7 @@ docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
     -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
-    registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-$(uname -m)-gcc82-py39 /bin/bash
+    registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu20-$(uname -m)-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice

@@ -19,14 +19,14 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-mlu-dev -v $(pwd):/work \
   -w=/work --shm-size=128G --network=host --privileged  \
   --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   -v /usr/bin/cnmon:/usr/bin/cnmon \
-  registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
+  registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice

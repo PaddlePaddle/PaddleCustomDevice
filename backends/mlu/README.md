@@ -19,14 +19,14 @@ Please refer to the following steps to compile, install and verify the custom de
 ```bash
 # 1. pull PaddlePaddle Cambricon MLU development docker image
 #    dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-mlu-dev -v $(pwd):/work \
   -w=/work --shm-size=128G --network=host --privileged  \
   --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   -v /usr/bin/cnmon:/usr/bin/cnmon \
-  registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
+  registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice

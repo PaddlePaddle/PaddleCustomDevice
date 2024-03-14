@@ -21,7 +21,7 @@ void AssignKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  TensorCopy(dev_ctx, x, true, out);
+  TensorCopy(dev_ctx, x, false, out);
 }
 
 template <typename T, typename Context>

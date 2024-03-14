@@ -1,3 +1,17 @@
+# Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 usage: coverage_diff.py info_file diff_file > > coverage-diff.info
 """
@@ -22,24 +36,24 @@ def get_diff_file_lines(diff_file):
         for line in diff_file:
             line = line.strip()
 
-            if line.startswith('+++ '):
-                current_file = line.lstrip('+++ ')
+            if line.startswith("+++ "):
+                current_file = line.lstrip("+++ ")
 
                 diff_file_lines[current_file] = []
 
                 continue
 
-            elif line.startswith('@@ '):
+            elif line.startswith("@@ "):
                 current_line = line.split()[2]
-                current_line = current_line.lstrip('+').split(',')[0]
+                current_line = current_line.lstrip("+").split(",")[0]
                 current_line = int(current_line)
 
                 continue
 
-            elif line.startswith('-'):
+            elif line.startswith("-"):
                 continue
 
-            elif line.startswith('+'):
+            elif line.startswith("+"):
                 diff_file_lines[current_file].append(current_line)
 
             current_line += 1
@@ -66,41 +80,41 @@ def get_info_file_lines(info_file, diff_file):
         for line in info_file:
             line = line.strip()
 
-            if line.startswith('SF:'):
-                current_file = line.lstrip('SF:')
+            if line.startswith("SF:"):
+                current_file = line.lstrip("SF:")
 
-                if current_file.startswith('/paddle/'):
-                    current_file = current_file[len('/paddle/') :]
+                if current_file.startswith("/paddle/"):
+                    current_file = current_file[len("/paddle/") :]
 
                 current_lines = diff_file_lines.get(current_file, [])
 
-            elif line.startswith('DA:'):
-                da = line.lstrip('DA:').split(',')
+            elif line.startswith("DA:"):
+                da = line.lstrip("DA:").split(",")
 
                 if int(da[0]) in current_lines:
                     current_lf += 1
 
-                    if not line.endswith(',0'):
+                    if not line.endswith(",0"):
                         current_lh += 1
 
                     print(line)
 
                 continue
 
-            elif line.startswith('LF:'):
-                print(f'LF:{current_lf}')
+            elif line.startswith("LF:"):
+                print(f"LF:{current_lf}")
 
                 continue
 
-            elif line.startswith('LH:'):
-                print(f'LH:{current_lh}')
+            elif line.startswith("LH:"):
+                print(f"LH:{current_lh}")
 
                 continue
 
             print(line)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if len(sys.argv) < 3:
         sys.exit()
 

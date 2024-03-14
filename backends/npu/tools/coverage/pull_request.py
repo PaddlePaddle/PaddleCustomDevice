@@ -1,3 +1,17 @@
+# Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 usage: pull_request.py files pull_id
        pull_request.py diff  pull_id
@@ -8,7 +22,7 @@ import os
 
 from github import Github
 
-token = os.getenv('GITHUB_API_TOKEN')
+token = os.getenv("GITHUB_API_TOKEN")
 
 
 def get_pull(pull_id):
@@ -20,7 +34,7 @@ def get_pull(pull_id):
         github.PullRequest.PullRequest
     """
     github = Github(token, timeout=60)
-    repo = github.get_repo('PaddlePaddle/PaddleCustomDevice')
+    repo = github.get_repo("PaddlePaddle/PaddleCustomDevice")
     pull = repo.get_pull(pull_id)
 
     return pull
@@ -38,7 +52,7 @@ def get_files(args):
     pull = get_pull(args.pull_id)
 
     for file in pull.get_files():
-        print(f'/paddle/{file.filename}')
+        print(f"/paddle/{file.filename}")
 
 
 def diff(args):
@@ -53,20 +67,20 @@ def diff(args):
     pull = get_pull(args.pull_id)
 
     for file in pull.get_files():
-        print(f'+++ {file.filename}')
+        print(f"+++ {file.filename}")
         print(file.patch)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
-    files_parser = subparsers.add_parser('files')
-    files_parser.add_argument('pull_id', type=int)
+    files_parser = subparsers.add_parser("files")
+    files_parser.add_argument("pull_id", type=int)
     files_parser.set_defaults(func=get_files)
 
-    diff_parser = subparsers.add_parser('diff')
-    diff_parser.add_argument('pull_id', type=int)
+    diff_parser = subparsers.add_parser("diff")
+    diff_parser.add_argument("pull_id", type=int)
     diff_parser.set_defaults(func=diff)
 
     args = parser.parse_args()

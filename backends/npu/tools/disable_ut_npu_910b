@@ -15,3 +15,5 @@ test_zero_dim_tensor_npu
 test_grid_sample_op_npu
 test_linspace_op_npu
 test_kldiv_loss_op_npu
+test_einsum_op_npu
+test_fused_matmul_bias_op_npu

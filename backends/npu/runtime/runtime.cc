@@ -783,7 +783,9 @@ HcclReduceOp PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
 }
 
 C_Status XcclGetCommName(C_CCLComm comm, char *comm_name) {
+#if (CANN_VERSION_CODE >= 700000)
   HCCL_CHECK(HcclGetCommName(reinterpret_cast<HcclComm>(comm), comm_name));
+#endif
   return C_SUCCESS;
 }
 
@@ -1041,7 +1043,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->device_extra_padding_size = ExtraPaddingSize;
 
   // xccl
+#if (CANN_VERSION_CODE >= 700000)
   params->interface->xccl_get_comm_name = XcclGetCommName;
+#endif
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;

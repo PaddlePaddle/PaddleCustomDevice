@@ -91,8 +91,8 @@ std::vector<paddle::Tensor> npu_allgather_mm(
   auto x1_tensor = *(static_cast<const phi::DenseTensor*>(x1.impl().get()));
   auto x2_tensor = *(static_cast<const phi::DenseTensor*>(x2.impl().get()));
   char* hcom_ptr = const_cast<char*>(hcom.data());
+#if (CANN_VERSION_CODE >= 700000)
   int64_t stream_mode = ACL_STOP_ON_FAILURE;
-
   EXEC_NPU_CMD(aclnnAllGatherMatmul,
                *dev_ctx,
                x1_tensor,
@@ -104,6 +104,7 @@ std::vector<paddle::Tensor> npu_allgather_mm(
                stream_mode,
                *out_gather_mm,
                *out_gather);
+#endif
   return {paddle::Tensor(out_gather_mm), paddle::Tensor(out_gather)};
 }
 

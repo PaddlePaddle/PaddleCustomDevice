@@ -18,6 +18,8 @@ tar -xf /home/lcov-1.16.tar.gz -C /
 cd /lcov-1.16
 make install
 
+cd ${CODE_ROOT}/build
+
 lcov --ignore-errors gcov --capture -d ./ -o coverage.info --rc lcov_branch_coverage=0
 
 function gen_full_html_report() {

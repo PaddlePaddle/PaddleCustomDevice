@@ -36,3 +36,26 @@ function gen_full_html_report() {
 gen_full_html_report
 
 genhtml coverage-full.info --output-directory cpp-coverage-full
+
+
+function gen_diff_html_report() {
+    if [ "${GIT_PR_ID}" != "" ]; then
+
+        COVERAGE_DIFF_PATTERN="`python ${CODE_ROOT}/tools/coverage/pull_request.py files ${GIT_PR_ID}`"
+
+        python ${CODE_ROOT}/tools/coverage/pull_request.py diff ${GIT_PR_ID} > git-diff.out
+    fi
+
+    lcov --extract coverage-full.info \
+        ${COVERAGE_DIFF_PATTERN} \
+        -o coverage-diff.info \
+        --rc lcov_branch_coverage=0
+
+    python ${CODE_ROOT}/tools/coverage/coverage_diff.py coverage-diff.info git-diff.out > coverage-diff.tmp
+
+    mv -f coverage-diff.tmp coverage-diff.info
+
+    genhtml -o coverage-diff -t 'Diff Coverage' --no-function-coverage --no-branch-coverage coverage-diff.info
+}
+
+gen_diff_html_report || true

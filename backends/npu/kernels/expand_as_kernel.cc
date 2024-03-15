@@ -26,18 +26,42 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
+
+void EqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AllKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const std::vector<int64_t>& dims,
+               bool keep_dim,
+               phi::DenseTensor* out);
+
+template <typename T, typename Context>
 bool check_tensor_values_in_range(const Context& dev_ctx,
                                   const phi::DenseTensor& x,
                                   phi::DataType dtype = phi::DataType::INT32) {
   if (x.dtype() != phi::DataType::INT64) {
     return true;
   }
-  std::vector<int64_t> x_v;
-  TensorToVector(dev_ctx, x, dev_ctx, &x_v);
-  if (static_cast<int32_t>(x_v[0]) != x_v[0]) {
-    return false;
-  }
-  return true;
+  phi::DenseTensor cast_x, equal_result, all_result;
+  phi::DenseTensorMeta x_meta = {phi::DataType::INT32, x.dims()};
+  cast_x.set_meta(x_meta);
+  phi::DenseTensorMeta equal_meta = {phi::DataType::BOOL, x.dims()};
+  equal_result.set_meta(equal_meta);
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, x, phi::DataType::INT32, &cast_x);
+  custom_kernel::EqualKernel<T, Context>(dev_ctx, x, cast_x, &equal_result);
+  const std::vector<int64_t> dims;
+  all_result.Resize(phi::make_ddim({1}));
+  bool keep_dim = false;
+  custom_kernel::AllKernel<bool, Context>(
+      dev_ctx, equal_result, dims, keep_dim, &all_result);
+  std::vector<bool> all_v;
+  TensorToVector(dev_ctx, all_result, dev_ctx, &all_v);
+  return all_v[0];
 }
 
 template <typename T, typename Context>

@@ -110,7 +110,7 @@ class TestAtan(TestActivation):
     def test_dygraph(self):
         with base.dygraph.guard(self.place):
             np_x = np.array([0.1])
-            x = base.dygraph.to_variable(np_x)
+            x = paddle.to_tensor(np_x)
             z = paddle.atan(x).numpy().astype(np.float32)
             z_expected = np.arctan(np_x).astype(np.float32)
             self.assertEqual(z, z_expected)

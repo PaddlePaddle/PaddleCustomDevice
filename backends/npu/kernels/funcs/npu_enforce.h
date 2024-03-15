@@ -49,7 +49,7 @@ DEFINE_NPU_STATUS_TYPE(HcclResult, HCCL_SUCCESS);
       return paddle::get<OutputType>(input);                                 \
     } catch (paddle::bad_variant_access const&) {                            \
       HANDLE_THE_ERROR                                                       \
-      throw ::phi::enforce::EnforceNotMet(                                   \
+      throw ::common::enforce::EnforceNotMet(                                \
           phi::errors::InvalidArgument(                                      \
               "paddle::get failed, cannot get value "                        \
               "(%s) by type %s, its type is %s.",                            \

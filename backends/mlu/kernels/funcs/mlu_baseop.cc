@@ -1173,6 +1173,37 @@ NormalizeDesc::~NormalizeDesc() {
       cnnlArange(handle, start, end, step, output_dtype, output));
 }
 
+/* static */ void MLUCnnl::Roll(const Context& ctx,
+                                const cnnlTensorDescriptor_t input_desc,
+                                const void* input,
+                                const int shifts[],
+                                const int shifts_num,
+                                const int dims[],
+                                const int dims_num,
+                                const cnnlTensorDescriptor_t output_desc,
+                                void* output) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlGetRollWorkspaceSize(handle, input_desc, &workspace_size));
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRoll(handle,
+                                      input_desc,
+                                      input,
+                                      shifts,
+                                      shifts_num,
+                                      dims,
+                                      dims_num,
+                                      workspace_ptr,
+                                      workspace_size,
+                                      output_desc,
+                                      output));
+}
+
 /* static */ void MLUCnnl::Round(const Context& ctx,
                                  const cnnlTensorDescriptor_t input_desc,
                                  const void* input,

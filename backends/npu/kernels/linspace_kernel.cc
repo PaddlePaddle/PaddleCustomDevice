@@ -13,17 +13,39 @@
 // limitations under the License.
 
 #include "kernels/funcs/npu_funcs.h"
+#include "kernels/funcs/npu_op_prepare.h"
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void LinspaceKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& start,
-                    const phi::DenseTensor& stop,
-                    const phi::DenseTensor& number,
-                    phi::DataType dtype,
-                    phi::DenseTensor* out) {
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+bool check_tensor_values_in_range(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  phi::DataType dtype = phi::DataType::INT32) {
+  if (x.dtype() != phi::DataType::INT64) {
+    return true;
+  }
+  std::vector<int64_t> x_v;
+  TensorToVector(dev_ctx, x, dev_ctx, &x_v);
+  if (static_cast<int32_t>(x_v[0]) != x_v[0]) {
+    return false;
+  }
+  return true;
+}
+
+template <typename T, typename Context>
+void AclopLinspaceKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& start,
+                         const phi::DenseTensor& stop,
+                         const phi::DenseTensor& number,
+                         phi::DataType dtype,
+                         phi::DenseTensor* out) {
   phi::DenseTensor start_n, stop_n, number_n;
   TensorCopy(dev_ctx, start, false, &start_n, phi::CustomPlace());
   TensorCopy(dev_ctx, stop, false, &stop_n, phi::CustomPlace());
@@ -51,13 +73,9 @@ void LinspaceKernel(const Context& dev_ctx,
   dev_ctx.Alloc(&start_t, start_t.dtype());
   dev_ctx.Alloc(&stop_t, stop_t.dtype());
 
-  const auto& cast_runner1 = NpuOpRunner(
-      "Cast", {start_n}, {start_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
-  cast_runner1.Run(stream);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, start_n, dtype, &start_t);
 
-  const auto& cast_runner2 = NpuOpRunner(
-      "Cast", {stop_n}, {stop_t}, {{"dst_type", ConvertToNpuDtype(dtype)}});
-  cast_runner2.Run(stream);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, stop_n, dtype, &stop_t);
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
                     const std::vector<phi::DenseTensor>& outputs,
@@ -67,7 +85,6 @@ void LinspaceKernel(const Context& dev_ctx,
         "LinSpace", {inputs[0], inputs[1], inputs[2]}, {outputs[0]}, attrs);
     runner.Run(dev_ctx.stream());
   };
-
   if (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT64) {
     NpuOpRunner::TypeAdapter(
         {start_t, stop_t, number_n},
@@ -89,6 +106,86 @@ void LinspaceKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void LinspaceKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& start,
+                    const phi::DenseTensor& stop,
+                    const phi::DenseTensor& number,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnLinspace,
+                   (custom_kernel::AclopLinspaceKernel<T, Context>(
+                       dev_ctx, start, stop, number, dtype, out)));
+  auto cast_dtype =
+      dtype == phi::DataType::INT64 ? phi::DataType::INT32 : dtype;
+  phi::DenseTensor start_n, stop_n, number_n;
+  TensorCopy(dev_ctx, start, false, &start_n, phi::CustomPlace());
+  TensorCopy(dev_ctx, stop, false, &stop_n, phi::CustomPlace());
+  TensorCopy(dev_ctx, number, true, &number_n, phi::CustomPlace());
+
+  bool start_inrange =
+      check_tensor_values_in_range<T, Context>(dev_ctx, start_n);
+  bool stop_inrange = check_tensor_values_in_range<T, Context>(dev_ctx, stop_n);
+  bool number_inrange =
+      check_tensor_values_in_range<T, Context>(dev_ctx, number_n);
+  PADDLE_ENFORCE_EQ(
+      start_inrange && stop_inrange && number_inrange,
+      1,
+      phi::errors::InvalidArgument("The size of the input int64 data must be "
+                                   "whithin the range of int32."));
+  phi::DenseTensor start_t, stop_t;
+  phi::DenseTensorMeta start_meta = {cast_dtype, start.dims()};
+  phi::DenseTensorMeta stop_meta = {cast_dtype, stop.dims()};
+  start_t.set_meta(start_meta);
+  stop_t.set_meta(stop_meta);
+  dev_ctx.Alloc(&start_t, start_t.dtype());
+  dev_ctx.Alloc(&stop_t, stop_t.dtype());
+
+  custom_kernel::CastKernel<T, Context>(dev_ctx, start_n, cast_dtype, &start_t);
+
+  custom_kernel::CastKernel<T, Context>(dev_ctx, stop_n, cast_dtype, &stop_t);
+
+  std::vector<int32_t> number_v;
+  TensorToVector(dev_ctx, number_n, dev_ctx, &number_v);
+  int64_t num = number_v[0];
+  PADDLE_ENFORCE_GT(
+      num,
+      0,
+      phi::errors::InvalidArgument("The num of linspace op should be larger "
+                                   "than 0, but received num is %d",
+                                   number_v[0]));
+  if (dtype == phi::DataType::INT64) {
+    std::vector<int32_t> start_v, stop_v;
+    TensorToVector(dev_ctx, start_t, dev_ctx, &start_v);
+    TensorToVector(dev_ctx, stop_t, dev_ctx, &stop_v);
+
+    phi::Scalar start_scalar = start_v[0];
+    phi::Scalar stop_scalar = stop_v[0];
+
+    phi::DenseTensor out_tmp;
+    phi::DenseTensorMeta out_meta = {phi::DataType::INT32,
+                                     phi::make_ddim({num})};
+    out_tmp.set_meta(out_meta);
+    dev_ctx.Alloc(&out_tmp, out_tmp.dtype());
+
+    EXEC_NPU_CMD(
+        aclnnLinspace, dev_ctx, start_scalar, stop_scalar, num, out_tmp);
+    out->Resize(phi::make_ddim({num}));
+    custom_kernel::CastKernel<T, Context>(dev_ctx, out_tmp, dtype, out);
+  } else {
+    std::vector<T> start_v, stop_v;
+    TensorToVector(dev_ctx, start_t, dev_ctx, &start_v);
+    TensorToVector(dev_ctx, stop_t, dev_ctx, &stop_v);
+
+    phi::Scalar start_scalar = start_v[0];
+    phi::Scalar stop_scalar = stop_v[0];
+
+    out->Resize(phi::make_ddim({num}));
+    dev_ctx.template Alloc<T>(out);
+
+    EXEC_NPU_CMD(aclnnLinspace, dev_ctx, start_scalar, stop_scalar, num, *out);
+  }
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(linspace,

@@ -38,6 +38,7 @@ class ElementwiseMulOpBF16(OpTest):
         self.dtype = np.float32
         self.axis = -1
         self.init_input_output()
+        self.init_axis()
 
         self.inputs = {
             "X": OpTest.np_dtype_to_base_dtype(self.x),
@@ -72,6 +73,102 @@ class ElementwiseMulOpBF16(OpTest):
         self.out = np.multiply(
             convert_uint16_to_float(self.x), convert_uint16_to_float(self.y)
         )
+
+    def init_axis(self):
+        pass
+
+
+class TestElementwiseMulOp_BF16_broadcast_0(ElementwiseMulOpBF16):
+    def init_input_output(self):
+        self.x = convert_float_to_uint16(np.random.rand(100, 2, 3).astype(self.dtype))
+        self.y = convert_float_to_uint16(np.random.rand(100).astype(self.dtype))
+        self.out = convert_uint16_to_float(self.x) * convert_uint16_to_float(
+            self.y
+        ).reshape(100, 1, 1)
+
+    def init_axis(self):
+        self.axis = 0
+
+
+class TestElementwiseMulOp_BF16_broadcast_1(ElementwiseMulOpBF16):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "elementwise_mul"
+        self.inputs = {
+            "X": convert_float_to_uint16(np.random.rand(2, 100, 3).astype(np.float32)),
+            "Y": convert_float_to_uint16(np.random.rand(100).astype(np.float32)),
+        }
+
+        self.attrs = {"axis": 1}
+        self.outputs = {
+            "Out": convert_uint16_to_float(self.inputs["X"])
+            * convert_uint16_to_float(self.inputs["Y"]).reshape(1, 100, 1)
+        }
+
+
+class TestElementwiseMulOp_BF16_broadcast_2(ElementwiseMulOpBF16):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "elementwise_mul"
+        self.inputs = {
+            "X": convert_float_to_uint16(np.random.rand(2, 3, 100).astype(np.float32)),
+            "Y": convert_float_to_uint16(np.random.rand(100).astype(np.float32)),
+        }
+
+        self.outputs = {
+            "Out": convert_uint16_to_float(self.inputs["X"])
+            * convert_uint16_to_float(self.inputs["Y"]).reshape(1, 1, 100)
+        }
+
+
+class TestElementwiseMulOp_BF16_broadcast_3(ElementwiseMulOpBF16):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "elementwise_mul"
+        self.inputs = {
+            "X": convert_float_to_uint16(
+                np.random.rand(2, 10, 12, 3).astype(np.float32)
+            ),
+            "Y": convert_float_to_uint16(np.random.rand(10, 12).astype(np.float32)),
+        }
+
+        self.attrs = {"axis": 1}
+        self.outputs = {
+            "Out": convert_uint16_to_float(self.inputs["X"])
+            * convert_uint16_to_float(self.inputs["Y"]).reshape(1, 10, 12, 1)
+        }
+
+
+class TestElementwiseMulOp_BF16_broadcast_4(ElementwiseMulOpBF16):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "elementwise_mul"
+        self.inputs = {
+            "X": convert_float_to_uint16(np.random.rand(10, 2, 11).astype(np.float32)),
+            "Y": convert_float_to_uint16(np.random.rand(10, 1, 11).astype(np.float32)),
+        }
+        self.outputs = {
+            "Out": convert_uint16_to_float(self.inputs["X"])
+            * convert_uint16_to_float(self.inputs["Y"])
+        }
+
+
+class TestElementwiseMulOp_BF16_broadcast_5(ElementwiseMulOpBF16):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "elementwise_mul"
+        self.inputs = {
+            "X": convert_float_to_uint16(
+                np.random.rand(10, 4, 2, 3).astype(np.float32)
+            ),
+            "Y": convert_float_to_uint16(
+                np.random.rand(10, 4, 1, 3).astype(np.float32)
+            ),
+        }
+        self.outputs = {
+            "Out": convert_uint16_to_float(self.inputs["X"])
+            * convert_uint16_to_float(self.inputs["Y"])
+        }
 
 
 if __name__ == "__main__":

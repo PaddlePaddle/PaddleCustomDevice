@@ -30,6 +30,7 @@ option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ATB "compile with ascend transformer boost" ON)
 option(WITH_ARM "compile with armv8 support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
+option(WITH_COVERAGE "Compile PaddlePaddle with code coverage" OFF)
 
 message(STATUS "CXX compiler: ${CMAKE_CXX_COMPILER}, version: "
                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
@@ -42,6 +43,12 @@ set(CMAKE_CXX_FLAGS
 # Note: _GLIBCXX_USE_CXX11_ABI should be same with libpaddle.so, default is 1
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 
+if(WITH_COVERAGE)
+  set(CMAKE_CXX_FLAGS
+      "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+endif()
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 # custom runtime
 set(CUSTOM_NPU_SRCS runtime/runtime.cc)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)

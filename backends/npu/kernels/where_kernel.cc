@@ -18,16 +18,29 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+void AclopWhereKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& condition,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Select", {condition, x, y}, {*out}, {});
 
   auto stream = dev_ctx.stream();
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void WhereKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& condition,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnSWhere,
+                   (custom_kernel::AclopWhereKernel<T, Context>(
+                       dev_ctx, condition, x, y, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSWhere, dev_ctx, condition, x, y, *out);
 }
 
 template <typename T, typename Context>

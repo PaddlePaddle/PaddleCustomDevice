@@ -399,13 +399,12 @@ inline void NpuBroadcast(const Context& dev_ctx,
   TensorCopy(dev_ctx, tmp_src, false, transformed_src);
 }
 
-template <typename T, typename Context>
-inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
-                                      const phi::DenseTensor* x,
-                                      const phi::DenseTensor* y,
-                                      int axis,
-                                      phi::DenseTensor* transformed_x,
-                                      phi::DenseTensor* transformed_y) {
+inline void NpuElementWiseHelper(const phi::DenseTensor* x,
+                                 const phi::DenseTensor* y,
+                                 int axis,
+                                 int* x_axis,
+                                 int* y_axis,
+                                 phi::DDim* dst_dims) {
   auto x_dims = x->dims();
   auto y_dims = y->dims();
   bool is_xsize_larger = true;
@@ -419,9 +418,8 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
   }
 
   axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
-  int x_axis = is_xsize_larger ? 0 : axis;
-  int y_axis = is_xsize_larger ? axis : 0;
-
+  *x_axis = is_xsize_larger ? 0 : axis;
+  *y_axis = is_xsize_larger ? axis : 0;
   PADDLE_ENFORCE_GE(
       axis,
       0,
@@ -437,15 +435,26 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
           axis));
 
   for (int i = 0; i < x_dims.size(); ++i) {
-    dst_dims_vec[i + x_axis] =
-        std::max(dst_dims_vec[i + x_axis], static_cast<int>(x_dims[i]));
+    dst_dims_vec[i + *x_axis] =
+        std::max(dst_dims_vec[i + *x_axis], static_cast<int>(x_dims[i]));
   }
   for (int i = 0; i < y_dims.size(); ++i) {
-    dst_dims_vec[i + y_axis] =
-        std::max(dst_dims_vec[i + y_axis], static_cast<int>(y_dims[i]));
+    dst_dims_vec[i + *y_axis] =
+        std::max(dst_dims_vec[i + *y_axis], static_cast<int>(y_dims[i]));
   }
+  *dst_dims = phi::make_ddim(dst_dims_vec);
+}
 
-  auto dst_dims = phi::make_ddim(dst_dims_vec);
+template <typename T, typename Context>
+inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
+                                      const phi::DenseTensor* x,
+                                      const phi::DenseTensor* y,
+                                      int axis,
+                                      phi::DenseTensor* transformed_x,
+                                      phi::DenseTensor* transformed_y) {
+  int x_axis, y_axis;
+  phi::DDim dst_dims;
+  NpuElementWiseHelper(x, y, axis, &x_axis, &y_axis, &dst_dims);
   NpuBroadcast<T>(dev_ctx, x, x_axis, dst_dims, transformed_x);
   NpuBroadcast<T>(dev_ctx, y, y_axis, dst_dims, transformed_y);
 }

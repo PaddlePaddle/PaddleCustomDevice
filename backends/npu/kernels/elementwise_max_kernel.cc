@@ -54,8 +54,11 @@ void MaximumKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& y,
                    phi::DenseTensor* out) {
-  int axis = -1;
-  custom_kernel::MaximumRawKernel<T>(dev_ctx, x, y, axis, out);
+  DO_COMPATIBILITY(
+      aclnnMaximum,
+      (custom_kernel::MaximumRawKernel<T>(dev_ctx, x, y, -1, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnMaximum, dev_ctx, x, y, *out);
 }
 
 template <typename T, typename Context>

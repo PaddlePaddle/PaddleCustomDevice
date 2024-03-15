@@ -54,8 +54,12 @@ void MeanKernel(const Context& dev_ctx,
                 const phi::IntArray& dims,
                 bool keep_dim,
                 phi::DenseTensor* out) {
-  bool reduce_all = false;
-  custom_kernel::MeanRawKernel<T>(dev_ctx, x, dims, keep_dim, reduce_all, out);
+  DO_COMPATIBILITY(aclnnMean,
+                   (custom_kernel::MeanRawKernel<T>(
+                       dev_ctx, x, dims, keep_dim, false, out)));
+  dev_ctx.template Alloc<T>(out);
+  auto dst_dtype = ConvertToNpuDtype(x.dtype());
+  EXEC_NPU_CMD(aclnnMean, dev_ctx, x, dims, keep_dim, dst_dtype, *out);
 }
 
 template <typename T, typename Context>

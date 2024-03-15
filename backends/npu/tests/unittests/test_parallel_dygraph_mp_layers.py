@@ -28,10 +28,7 @@ from paddle.distributed.utils.launch_utils import (
     watch_local_trainers,
 )
 
-
-def get_gpus(selected_gpus):
-    selected_gpus = [x.strip() for x in selected_gpus.split(",")]
-    return selected_gpus
+from npu_utils import get_two_npus
 
 
 def get_cluster_from_args(selected_gpus):
@@ -127,7 +124,7 @@ class TestMultipleCustomDevices(unittest.TestCase):
         if dev_cnt < 2:
             return
 
-        selected_gpus = get_gpus("0,1")
+        selected_gpus = get_two_npus()
         cluster = None
         pod = None
 

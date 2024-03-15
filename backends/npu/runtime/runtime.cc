@@ -751,6 +751,8 @@ HcclDataType PDDataTypeToHcclDataType(C_DataType dtype) {
     return HCCL_DATA_TYPE_FP32;
   } else if (dtype == C_DataType::FLOAT16) {
     return HCCL_DATA_TYPE_FP16;
+  } else if (dtype == C_DataType::BFLOAT16) {
+    return HCCL_DATA_TYPE_BFP16;
   } else if (dtype == C_DataType::INT64) {
     return HCCL_DATA_TYPE_INT64;
   } else if (dtype == C_DataType::INT32) {
@@ -778,6 +780,11 @@ HcclReduceOp PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
     LOG(ERROR) << "Reduceop " << op << " in hccl is not supported.";
     exit(-1);
   }
+}
+
+C_Status XcclGetCommName(C_CCLComm comm, char *comm_name) {
+  HCCL_CHECK(HcclGetCommName(reinterpret_cast<HcclComm>(comm), comm_name));
+  return C_SUCCESS;
 }
 
 C_Status XcclGetUniqueIdSize(size_t *size) {
@@ -1034,6 +1041,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->device_extra_padding_size = ExtraPaddingSize;
 
   // xccl
+  params->interface->xccl_get_comm_name = XcclGetCommName;
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;

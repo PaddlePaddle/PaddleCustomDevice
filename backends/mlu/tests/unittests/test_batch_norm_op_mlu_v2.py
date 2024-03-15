@@ -39,32 +39,32 @@ class TestBatchNorm(unittest.TestCase):
             def error1d_dataformat():
                 x_data_4 = np.random.random(size=(2, 1, 3, 3)).astype("float32")
                 batch_norm1d = paddle.nn.BatchNorm1D(1, data_format="NCDHW")
-                batch_norm1d(base.dygraph.to_variable(x_data_4))
+                batch_norm1d(paddle.to_tensor(x_data_4))
 
             def error2d_dataformat():
                 x_data_3 = np.random.random(size=(2, 1, 3)).astype("float32")
                 batch_norm2d = paddle.nn.BatchNorm2D(1, data_format="NCDHW")
-                batch_norm2d(base.dygraph.to_variable(x_data_3))
+                batch_norm2d(paddle.to_tensor(x_data_3))
 
             def error3d_dataformat():
                 x_data_4 = np.random.random(size=(2, 1, 3, 3)).astype("float32")
                 batch_norm3d = paddle.nn.BatchNorm3D(1, data_format="NCL")
-                batch_norm3d(base.dygraph.to_variable(x_data_4))
+                batch_norm3d(paddle.to_tensor(x_data_4))
 
             def error1d():
                 x_data_4 = np.random.random(size=(2, 1, 3, 3)).astype("float32")
                 batch_norm1d = paddle.nn.BatchNorm1D(1)
-                batch_norm1d(base.dygraph.to_variable(x_data_4))
+                batch_norm1d(paddle.to_tensor(x_data_4))
 
             def error2d():
                 x_data_3 = np.random.random(size=(2, 1, 3)).astype("float32")
                 batch_norm2d = paddle.nn.BatchNorm2D(1)
-                batch_norm2d(base.dygraph.to_variable(x_data_3))
+                batch_norm2d(paddle.to_tensor(x_data_3))
 
             def error3d():
                 x_data_4 = np.random.random(size=(2, 1, 3, 3)).astype("float32")
                 batch_norm3d = paddle.nn.BatchNorm3D(1)
-                batch_norm3d(base.dygraph.to_variable(x_data_4))
+                batch_norm3d(paddle.to_tensor(x_data_4))
 
             with base.dygraph.guard(p):
                 self.assertRaises(ValueError, error1d)
@@ -86,13 +86,13 @@ class TestBatchNorm(unittest.TestCase):
                         is_test=is_test,
                         trainable_statistics=trainable_statistics,
                     )
-                    y = bn(base.dygraph.to_variable(x))
+                    y = bn(paddle.to_tensor(x))
                 return y.numpy()
 
             def compute_v2(x):
                 with base.dygraph.guard(p):
                     bn = paddle.nn.BatchNorm2D(shape[1])
-                    y = bn(base.dygraph.to_variable(x))
+                    y = bn(paddle.to_tensor(x))
                 return y.numpy()
 
             def compute_v3(x, is_test, trainable_statistics):
@@ -110,7 +110,7 @@ class TestBatchNorm(unittest.TestCase):
                         ),
                         trainable_statistics=trainable_statistics,
                     )
-                    y = bn(base.dygraph.to_variable(x))
+                    y = bn(paddle.to_tensor(x))
                 return y.numpy()
 
             def compute_v4(x):
@@ -118,7 +118,7 @@ class TestBatchNorm(unittest.TestCase):
                     bn = paddle.nn.BatchNorm2D(
                         shape[1], weight_attr=False, bias_attr=False
                     )
-                    y = bn(base.dygraph.to_variable(x))
+                    y = bn(paddle.to_tensor(x))
                 return y.numpy()
 
             x = np.random.randn(*shape).astype("float32")

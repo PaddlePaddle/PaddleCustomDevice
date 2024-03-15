@@ -190,8 +190,8 @@ class TestMeshgridOp7(unittest.TestCase):
         ).astype("int32")
 
         with base.dygraph.guard():
-            tensor_3 = base.dygraph.to_variable(input_3)
-            tensor_4 = base.dygraph.to_variable(input_4)
+            tensor_3 = paddle.to_tensor(input_3)
+            tensor_4 = paddle.to_tensor(input_4)
             res_3, res_4 = paddle.tensor.meshgrid([tensor_3, tensor_4])
 
             assert np.array_equal(res_3.shape, [100, 200])
@@ -217,8 +217,8 @@ class TestMeshgridOp8(unittest.TestCase):
 
         paddle.set_device("mlu")
         with base.dygraph.guard():
-            tensor_3 = base.dygraph.to_variable(input_3)
-            tensor_4 = base.dygraph.to_variable(input_4)
+            tensor_3 = paddle.to_tensor(input_3)
+            tensor_4 = paddle.to_tensor(input_4)
             res_3, res_4 = paddle.tensor.meshgrid((tensor_3, tensor_4))
 
             assert np.array_equal(res_3.shape, [100, 200])

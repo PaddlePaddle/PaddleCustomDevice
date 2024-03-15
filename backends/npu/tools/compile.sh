@@ -32,7 +32,7 @@ else
 fi
 
 WITH_ATB=OFF
-if [ -z "${ATB_HOME_PATH}" ] && [ -d "${ATB_HOME_PATH}" ]; then
+if [ -n "${ATB_HOME_PATH}" ] && [ -d "${ATB_HOME_PATH}" ]; then
     WITH_ATB=ON
 fi
 
@@ -45,6 +45,7 @@ Configuring cmake in build ...
     -DWITH_ARM=${WITH_ARM:-OFF}
     -DWITH_ATB=${WITH_ATB:-OFF}
     -DON_INFER=${ON_INFER:-OFF}
+    -DWITH_COVERAGE=${WITH_COVERAGE:-OFF}
 ========================================
 EOF
 
@@ -56,6 +57,7 @@ cmake .. \
     -DWITH_ARM=${WITH_ARM:-OFF} \
     -DWITH_ATB=${WITH_ATB:-OFF} \
     -DON_INFER=${ON_INFER:-OFF} \
+    -DWITH_COVERAGE=${WITH_COVERAGE:-OFF} \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON;cmake_error=$?
 
 if [ "$cmake_error" != 0 ];then

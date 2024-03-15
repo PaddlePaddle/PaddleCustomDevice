@@ -98,69 +98,72 @@ static void StridedSliceOutDims(const std::vector<int64_t>& starts,
   }
 }
 
-static void ProcessStridedSliceParams(
-    const std::vector<int>& axes,
-    const phi::DDim& input_dims,
-    const std::vector<int64_t>& starts,
-    const std::vector<int64_t>& ends,
-    const std::vector<int64_t>& strides,
-    const std::vector<int>& infer_flags,
-    const std::vector<int>& decrease_axis,
-    std::vector<int>* starts_indices_vector,
-    std::vector<int>* ends_indices_vector,
-    std::vector<int>* strides_indices_vector) {
-  for (size_t axis = 0; axis < axes.size(); axis++) {
-    int64_t start = starts[axis];
-    int64_t end = ends[axis];
-    int64_t stride = strides[axis];
-
-    int axis_index = axes[axis];
-    int64_t dim_size = input_dims[axis_index];
-
+static void StridedSliceFunctor(int64_t* starts,
+                                int64_t* ends,
+                                int64_t* strides,
+                                const int* axes,
+                                int* reverse_axis,
+                                const phi::DDim dims,
+                                const std::vector<int>& infer_flags,
+                                const std::vector<int>& decrease_axis,
+                                const size_t size) {
+  for (size_t axis = 0; axis < size; axis++) {
+    int64_t axis_size = dims[axes[axis]];
+    int axis_index = axis;
+    if (axis_size < 0) {
+      starts[axis_index] = 0;
+      ends[axis_index] = 1;
+      strides[axis_index] = 1;
+    }
     bool decrease_axis_affect = false;
-    if (start == -1 && end == 0 && infer_flags[axis] == -1) {
-      auto ret =
-          std::find(decrease_axis.begin(), decrease_axis.end(), axis_index);
+    if (starts[axis_index] == -1 && ends[axis_index] == 0 &&
+        infer_flags[axis_index] == -1) {
+      auto ret = std::find(
+          decrease_axis.begin(), decrease_axis.end(), axes[axis_index]);
       if (ret != decrease_axis.end()) {
         decrease_axis_affect = true;
       }
     }
-
-    if (stride < 0) {
-      if (start < 0) {
-        start = std::max(start, -dim_size);
-      } else {
-        start = std::min(start, dim_size - 1) - dim_size;
-      }
-      if (end < 0) {
-        end = std::max(end, -dim_size - 1);
-      } else {
-        end = end - dim_size;
-      }
-    } else {
-      if (start < 0) {
-        start = std::max(start, -dim_size) + dim_size;
-      } else {
-        start = std::min(start, dim_size - 1);
-      }
-      if (end < 0) {
-        end = end + dim_size;
-      } else {
-        end = std::min(end, dim_size);
+    // stride must not be zero
+    if (starts[axis_index] < 0) {
+      starts[axis_index] = starts[axis_index] + axis_size;
+      starts[axis_index] = std::max<int64_t>(starts[axis_index], 0);
+    }
+    if (ends[axis_index] < 0) {
+      if (!(ends[axis_index] == -1 &&
+            strides[axis_index] < 0)) {  // skip None stop condition
+        ends[axis_index] = ends[axis_index] + axis_size;
+        if (ends[axis_index] < 0) {
+          ends[axis_index] = 0;
+        }
       }
     }
-
     if (decrease_axis_affect) {
-      if (stride < 0) {
-        end = start - 1;
+      if (strides[axis_index] < 0) {
+        ends[axis_index] = starts[axis_index] - 1;
       } else {
-        end = start + 1;
+        ends[axis_index] = starts[axis_index] + 1;
       }
     }
 
-    (*starts_indices_vector)[axis_index] = static_cast<int>(start);
-    (*ends_indices_vector)[axis_index] = static_cast<int>(end);
-    (*strides_indices_vector)[axis_index] = static_cast<int>(stride);
+    if (strides[axis_index] < 0) {
+      reverse_axis[axis_index] = 1;
+      strides[axis_index] = -strides[axis_index];
+      if (starts[axis_index] > ends[axis_index]) {
+        // swap the reverse
+        auto end_dim = axis_size - 1 < starts[axis_index] ? axis_size - 1
+                                                          : starts[axis_index];
+        auto offset = (end_dim - ends[axis_index]) % strides[axis_index];
+        offset = offset == 0 ? strides[axis_index] : offset;
+
+        starts[axis_index] = starts[axis_index] + offset;
+        ends[axis_index] = ends[axis_index] + offset;
+      }
+      std::swap(starts[axis_index], ends[axis_index]);
+    } else {
+      reverse_axis[axis_index] = 0;
+      strides[axis_index] = strides[axis_index];
+    }
   }
 }
 
@@ -175,6 +178,7 @@ void StridedSliceCompute(const Context& dev_ctx,
                          const std::vector<int>& decrease_axis,
                          phi::DenseTensor* out) {
   auto in_dims = x.dims();
+  // list<int>
   auto starts = starts_array.GetData();
   auto ends = ends_array.GetData();
   auto strides = strides_array.GetData();
@@ -193,6 +197,18 @@ void StridedSliceCompute(const Context& dev_ctx,
                                      false);
   phi::DDim out_dims(phi::make_ddim(out_dims_vector));
 
+  // check whether need to reverse (false: stride > 0; true: stride < 0)
+  std::vector<int> reverse_vector(starts.size(), 0);
+  custom_kernel::StridedSliceFunctor(starts.data(),
+                                     ends.data(),
+                                     strides.data(),
+                                     axes.data(),
+                                     reverse_vector.data(),
+                                     in_dims,
+                                     infer_flags,
+                                     decrease_axis,
+                                     starts.size());
+
   // construct the starts_indices, ends_indices and strides_indices tensor for
   // calling StridedSlice op
   std::vector<int> starts_indices_vector(D, 0);
@@ -200,16 +216,12 @@ void StridedSliceCompute(const Context& dev_ctx,
                                        out_dims_vector.end());
   std::vector<int> strides_indices_vector(D, 1);
 
-  custom_kernel::ProcessStridedSliceParams(axes,
-                                           in_dims,
-                                           starts,
-                                           ends,
-                                           strides,
-                                           infer_flags,
-                                           decrease_axis,
-                                           &starts_indices_vector,
-                                           &ends_indices_vector,
-                                           &strides_indices_vector);
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    int axis_index = axes[axis];
+    starts_indices_vector[axis_index] = starts[axis];
+    ends_indices_vector[axis_index] = ends[axis];
+    strides_indices_vector[axis_index] = strides[axis];
+  }
 
   auto out_dims_origin = out_dims;
   if (decrease_axis.size() > 0) {
@@ -235,7 +247,15 @@ void StridedSliceCompute(const Context& dev_ctx,
     out_dims_origin = phi::make_ddim(new_out_shape);
   }
 
-  out->Resize(out_dims_origin);
+  bool need_reverse = false;
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    if (reverse_vector[axis] == 1) {
+      need_reverse = true;
+      break;
+    }
+  }
+
+  out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc in_desc(x);
@@ -249,6 +269,38 @@ void StridedSliceCompute(const Context& dev_ctx,
                         GetBasePtr(&x),
                         out_desc.get(),
                         GetBasePtr(out));
+
+  if (need_reverse) {
+    phi::DenseTensor out_tmp;
+    out_tmp.Resize(out_dims);
+    dev_ctx.template Alloc<T>(&out_tmp);
+    TensorCopy(dev_ctx, *out, false, &out_tmp);
+
+    phi::DenseTensor reverse_axis;
+    std::vector<int> reverse_axis_vector;
+    for (size_t axis = 0; axis < axes.size(); axis++) {
+      if (reverse_vector[axis] == 1) {
+        reverse_axis_vector.push_back(axes[axis]);
+      }
+    }
+    reverse_axis.Resize({static_cast<int>(reverse_axis_vector.size())});
+    dev_ctx.template Alloc<int>(&reverse_axis);
+    TensorFromVector(dev_ctx, reverse_axis_vector, dev_ctx, &reverse_axis);
+
+    MLUCnnlTensorDesc input_desc(out_tmp);
+    MLUCnnlTensorDesc output_desc(*out);
+    MLUCnnl::Flip(dev_ctx,
+                  reverse_axis_vector.data(),
+                  reverse_axis_vector.size(),
+                  input_desc.get(),
+                  GetBasePtr(&out_tmp),
+                  output_desc.get(),
+                  GetBasePtr(out));
+  }
+
+  if (decrease_axis.size() > 0) {
+    out->Resize(out_dims_origin);
+  }
 }
 
 template <typename T, typename Context>
@@ -389,33 +441,88 @@ void StridedSliceGradCompute(const Context& dev_ctx,
                                      axes.size(),
                                      false);
 
+  std::vector<int> reverse_vector(starts.size(), 0);
+  custom_kernel::StridedSliceFunctor(starts.data(),
+                                     ends.data(),
+                                     strides.data(),
+                                     axes.data(),
+                                     reverse_vector.data(),
+                                     input_dims,
+                                     infer_flags,
+                                     decrease_axis,
+                                     starts.size());
+
   std::vector<int> starts_indices_vector(D, 0);
   std::vector<int> ends_indices_vector(out_dims_vector.begin(),
                                        out_dims_vector.end());
   std::vector<int> strides_indices_vector(D, 1);
 
-  custom_kernel::ProcessStridedSliceParams(axes,
-                                           input_dims,
-                                           starts,
-                                           ends,
-                                           strides,
-                                           infer_flags,
-                                           decrease_axis,
-                                           &starts_indices_vector,
-                                           &ends_indices_vector,
-                                           &strides_indices_vector);
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    int axis_index = axes[axis];
+    starts_indices_vector[axis_index] = starts[axis];
+    ends_indices_vector[axis_index] = ends[axis];
+    strides_indices_vector[axis_index] = strides[axis];
+  }
 
-  MLUCnnlTensorDesc out_grad_desc(
-      out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
-  MLUCnnlTensorDesc x_grad_desc(x);
-  MLUCnnl::StridedSliceGrad(dev_ctx,
-                            starts_indices_vector.data(),
-                            ends_indices_vector.data(),
-                            strides_indices_vector.data(),
-                            out_grad_desc.get(),
-                            GetBasePtr(&out_grad),
-                            x_grad_desc.get(),
-                            GetBasePtr(x_grad));
+  std::vector<int64_t> input_dims_vector;
+  for (int i = 0; i < input_dims.size(); i++) {
+    input_dims_vector.push_back(input_dims[i]);
+  }
+
+  bool need_reverse = false;
+  for (size_t axis = 0; axis < axes.size(); axis++) {
+    if (reverse_vector[axis] == 1) {
+      need_reverse = true;
+      break;
+    }
+  }
+
+  if (need_reverse) {
+    phi::DenseTensor reverse_axis;
+    std::vector<int> reverse_axis_vector;
+    for (size_t axis = 0; axis < axes.size(); axis++) {
+      if (reverse_vector[axis] == 1) {
+        reverse_axis_vector.push_back(axes[axis]);
+      }
+    }
+    TensorFromVector<int>(dev_ctx, reverse_axis_vector, dev_ctx, &reverse_axis);
+
+    phi::DenseTensor out_grad_tmp;
+    out_grad_tmp.Resize(out_grad.dims());
+    dev_ctx.template Alloc<T>(&out_grad_tmp);
+    MLUCnnlTensorDesc input_desc(out_grad);
+    MLUCnnlTensorDesc out_grad_tmp_desc(out_grad_tmp);
+    MLUCnnl::Flip(dev_ctx,
+                  reverse_axis_vector.data(),
+                  reverse_axis_vector.size(),
+                  input_desc.get(),
+                  GetBasePtr(&out_grad),
+                  out_grad_tmp_desc.get(),
+                  GetBasePtr(&out_grad_tmp));
+
+    MLUCnnlTensorDesc x_grad_desc(x);
+    MLUCnnl::StridedSliceGrad(dev_ctx,
+                              starts_indices_vector.data(),
+                              ends_indices_vector.data(),
+                              strides_indices_vector.data(),
+                              out_grad_tmp_desc.get(),
+                              GetBasePtr(&out_grad_tmp),
+                              x_grad_desc.get(),
+                              GetBasePtr(x_grad));
+
+  } else {
+    MLUCnnlTensorDesc out_grad_desc(
+        out_dims_vector.size(), out_dims_vector.data(), ToCnnlDataType<T>());
+    MLUCnnlTensorDesc x_grad_desc(x);
+    MLUCnnl::StridedSliceGrad(dev_ctx,
+                              starts_indices_vector.data(),
+                              ends_indices_vector.data(),
+                              strides_indices_vector.data(),
+                              out_grad_desc.get(),
+                              GetBasePtr(&out_grad),
+                              x_grad_desc.get(),
+                              GetBasePtr(x_grad));
+  }
 }
 
 template <typename T, typename Context>

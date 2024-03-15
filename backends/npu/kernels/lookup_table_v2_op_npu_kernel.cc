@@ -138,6 +138,7 @@ PD_REGISTER_PLUGIN_KERNEL(embedding,
                           float,
                           int,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 PD_REGISTER_PLUGIN_KERNEL(embedding_grad,
                           npu,
@@ -146,4 +147,5 @@ PD_REGISTER_PLUGIN_KERNEL(embedding_grad,
                           float,
                           int,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

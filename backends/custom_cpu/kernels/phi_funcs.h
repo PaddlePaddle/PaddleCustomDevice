@@ -359,4 +359,110 @@ static inline std::vector<int64_t> BroadcastDims(
   return dst_dims;
 }
 
+static inline std::vector<int64_t> CalcStrides(
+    const std::vector<int64_t>& dims) {
+  int64_t product_dims = 1;
+  for (int64_t const& item : dims) {
+    product_dims *= item;
+  }
+
+  if (dims.empty() || product_dims <= 0) {
+    return dims;
+  }
+
+  std::vector<int64_t> strides(dims.size());
+
+  // NOTE: The NHWC and NDHWC in Paddle are implemented by actually modifying
+  // the video memory data format, and stride is not required. But it may be
+  // used in the future. if (dims.size() == 4 && layout == DataLayout::NHWC) {
+  //   strides[1] = 1;
+  //   strides[3] = dims[1];
+  //   strides[2] = strides[3] * dims[3];
+  //   strides[0] = strides[2] * dims[2];
+  // } else if (dims.size() == 5 && layout == DataLayout::NDHWC) {
+  //   strides[1] = 1;
+  //   strides[4] = dims[1];
+  //   strides[3] = strides[4] * dims[4];
+  //   strides[2] = strides[3] * dims[3];
+  //   strides[0] = strides[2] * dims[2];
+  // } else {
+  //   strides[dims.size() - 1] = 1;
+  //   for (int i = dims.size() - 2; i >= 0; --i) {
+  //     strides[i] = strides[i + 1] * dims[i + 1];
+  //   }
+  // }
+  auto p_dims = dims.data();
+  auto p_strides = strides.data();
+  switch (dims.size()) {
+    case 0:
+      return strides;
+    case 1:
+      p_strides[0] = 1;
+      return strides;
+    case 2:
+      p_strides[1] = 1;
+      p_strides[0] = p_dims[1];
+      return strides;
+    case 3:
+      p_strides[2] = 1;
+      p_strides[1] = p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 4:
+      p_strides[3] = 1;
+      p_strides[2] = p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 5:
+      p_strides[4] = 1;
+      p_strides[3] = p_dims[4];
+      p_strides[2] = p_strides[3] * p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 6:
+      p_strides[5] = 1;
+      p_strides[4] = p_dims[5];
+      p_strides[3] = p_strides[4] * p_dims[4];
+      p_strides[2] = p_strides[3] * p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 7:
+      p_strides[6] = 1;
+      p_strides[5] = p_dims[6];
+      p_strides[4] = p_strides[5] * p_dims[5];
+      p_strides[3] = p_strides[4] * p_dims[4];
+      p_strides[2] = p_strides[3] * p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 8:
+      p_strides[7] = 1;
+      p_strides[6] = p_dims[7];
+      p_strides[5] = p_strides[6] * p_dims[6];
+      p_strides[4] = p_strides[5] * p_dims[5];
+      p_strides[3] = p_strides[4] * p_dims[4];
+      p_strides[2] = p_strides[3] * p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    case 9:
+      p_strides[8] = 1;
+      p_strides[7] = p_dims[8];
+      p_strides[6] = p_strides[7] * p_dims[7];
+      p_strides[5] = p_strides[6] * p_dims[6];
+      p_strides[4] = p_strides[5] * p_dims[5];
+      p_strides[3] = p_strides[4] * p_dims[4];
+      p_strides[2] = p_strides[3] * p_dims[3];
+      p_strides[1] = p_strides[2] * p_dims[2];
+      p_strides[0] = p_strides[1] * p_dims[1];
+      return strides;
+    default:
+      PD_CHECK(false,
+               "The rank of input should be less than 9, but received %d.",
+               dims.size());
+  }
+}
 }  // namespace phi

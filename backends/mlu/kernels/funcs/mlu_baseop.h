@@ -1091,6 +1091,16 @@ class MLUCnnl {
                     const cnnlDataType_t output_dtype,
                     void* output);
 
+  static void Roll(const Context& ctx,
+                   const cnnlTensorDescriptor_t input_desc,
+                   const void* input,
+                   const int shifts[],
+                   const int shifts_num,
+                   const int dims[],
+                   const int dims_num,
+                   const cnnlTensorDescriptor_t output_desc,
+                   void* output);
+
   static void Round(const Context& ctx,
                     const cnnlTensorDescriptor_t input_desc,
                     const void* input,

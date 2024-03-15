@@ -30,6 +30,29 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void CastToFp16(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+#if (CANN_VERSION_CODE >= 700000)
+  if (x.dtype() != phi::DataType::FLOAT16) {
+    out->Resize(x.dims());
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::FLOAT16, out);
+  } else {
+    TensorCopy(dev_ctx, x, false, out);
+  }
+#else
+  TensorCopy(dev_ctx, x, false, out);
+#endif
+}
+
+template <typename T, typename Context>
 void ResetParameterVector(
     const Context& dev_ctx,
     const std::vector<const phi::DenseTensor*>& raw_params_vec,
@@ -111,6 +134,8 @@ void LSTMKernel(const Context& dev_ctx,
                 phi::DenseTensor* last_h,
                 phi::DenseTensor* last_c) {
   auto stream = dev_ctx.stream();
+  phi::DenseTensor cast_x;
+  CastToFp16<T, Context>(dev_ctx, x, &cast_x);
   phi::DenseTensor seq;
   seq.Resize(phi::make_ddim({SequenceLength.size()}));
   dev_ctx.template Alloc<int>(&seq);
@@ -137,6 +162,11 @@ void LSTMKernel(const Context& dev_ctx,
   weight.Resize(phi::make_ddim({w.dims()[1], w.dims()[0]}));
   custom_kernel::TransposeKernel<T, Context>(dev_ctx, w, {1, 0}, &weight);
 
+  phi::DenseTensor cast_weight, cast_b, cast_init_c;
+  CastToFp16<T, Context>(dev_ctx, weight, &cast_weight);
+  CastToFp16<T, Context>(dev_ctx, b, &cast_b);
+  CastToFp16<T, Context>(dev_ctx, init_c, &cast_init_c);
+
   phi::DenseTensor i, j, f, o, tanhc;
   i.Resize(out->dims());
   j.Resize(out->dims());
@@ -151,12 +181,12 @@ void LSTMKernel(const Context& dev_ctx,
 
   NpuOpRunner runner;
   runner.SetType("DynamicRNN")
-      .AddInput(x)
-      .AddInput(weight)
-      .AddInput(b)
+      .AddInput(cast_x)
+      .AddInput(cast_weight)
+      .AddInput(cast_b)
       .AddInput(seq)
       .AddInput(init_h)
-      .AddInput(init_c)
+      .AddInput(cast_init_c)
       .AddOutput(*out)
       .AddOutput(*last_h)
       .AddOutput(*last_c)
@@ -193,6 +223,8 @@ void GRUKernel(const Context& dev_ctx,
                phi::DenseTensor* out,
                phi::DenseTensor* last_h) {
   auto stream = dev_ctx.stream();
+  phi::DenseTensor cast_x;
+  CastToFp16<T, Context>(dev_ctx, x, &cast_x);
 
   phi::DenseTensor w_i_t, w_h_t;
   w_i_t.Resize(phi::make_ddim({w_i.dims()[1], w_i.dims()[0]}));
@@ -200,6 +232,10 @@ void GRUKernel(const Context& dev_ctx,
 
   custom_kernel::TransposeKernel<T, Context>(dev_ctx, w_i, {1, 0}, &w_i_t);
   custom_kernel::TransposeKernel<T, Context>(dev_ctx, w_h, {1, 0}, &w_h_t);
+
+  phi::DenseTensor cast_w_i_t, cast_w_h_t;
+  CastToFp16<T, Context>(dev_ctx, w_i_t, &cast_w_i_t);
+  CastToFp16<T, Context>(dev_ctx, w_h_t, &cast_w_h_t);
 
   phi::DenseTensor seq;
   seq.Resize(phi::make_ddim({SequenceLength.size()}));
@@ -218,9 +254,9 @@ void GRUKernel(const Context& dev_ctx,
 
   NpuOpRunner runner;
   runner.SetType("DynamicGRUV2")
-      .AddInput(x)
-      .AddInput(w_i_t)
-      .AddInput(w_h_t)
+      .AddInput(cast_x)
+      .AddInput(cast_w_i_t)
+      .AddInput(cast_w_h_t)
       .AddInput(b_i)
       .AddInput(b_h)
       .AddInput(seq)

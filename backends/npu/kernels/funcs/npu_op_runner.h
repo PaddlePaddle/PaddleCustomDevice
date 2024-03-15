@@ -185,6 +185,16 @@ void ReleaseConvertTypes(const Tuple& t) {
   CallRelease(t, std::make_index_sequence<size>{});
 }
 
+template <std::size_t N>
+inline aclBoolArray* ConvertType(const std::array<bool, N> &value) {
+    static const auto aclCreateBoolArray = GET_OP_API_FUNC(aclCreateBoolArray);
+    if (aclCreateBoolArray == nullptr) {
+      return nullptr;
+    }
+    auto array = aclCreateBoolArray(value.data(), value.size());
+    return array;
+}
+
 inline aclScalar* ConvertType(const phi::Scalar& at_scalar) {
   static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
   if (aclCreateScalar == nullptr) {
@@ -232,13 +242,22 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   if (aclCreateTensor == nullptr) {
     return nullptr;
   }
+if (!at_tensor.initialized()) {
+    return nullptr;
+  }
   auto at_tensor_dtype = at_tensor.dtype();
+
+  if (at_tensor_dtype == phi::DataType::FLOAT64) {
+    VLOG(2) << "Kernel is running on the AICPU."
+            << "For better performance. use other dtypes.";
+  }
   auto acl_data_type = ConvertToNpuDtype(at_tensor_dtype);
-  std::vector<int64_t> storageDims(5);
+  const auto dimNum =
+      at_tensor.dims().size() == 0 ? 1 : at_tensor.dims().size();
+  std::vector<int64_t> storageDims(dimNum - 1);
   if (acl_data_type != ACL_STRING) {
     storageDims.push_back(at_tensor.numel() * sizeof(at_tensor_dtype));
   }
-  const auto dimNum = at_tensor.dims().size();
   aclFormat format = ACL_FORMAT_ND;
   switch (dimNum) {
     case 4:
@@ -280,6 +299,17 @@ inline aclTensorList *ConvertType(
   return acl_tensor_list;
 }
 
+
+inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  auto array = aclCreateIntArray(at_array.data(), at_array.size());
+  return array;
+}
+
+
 inline aclTensorList *ConvertType(
   const std::vector<phi::DenseTensor*> &phi_tensor_list) {
   static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
@@ -294,6 +324,17 @@ inline aclTensorList *ConvertType(
   auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
                                              tensor_list.size());
   return acl_tensor_list;
+}
+
+inline aclIntArray *ConvertType(const phi::IntArray &phi_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  std::vector<int64_t> temp_array(
+    phi_array.GetData().begin(), phi_array.GetData().end());
+  auto array = aclCreateIntArray(temp_array.data(), temp_array.size());
+  return array;
 }
 
 template <typename T>
@@ -335,6 +376,7 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
 
 #define EXEC_NPU_CMD(aclnn_api, dev_ctx, ...)                             \
   do {                                                                    \
+    VLOG(1) << "NpuAclnnOpRunner: " << #aclnn_api;                        \
     static const auto getWorkspaceSizeFuncAddr =                          \
     GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                      \
     static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \
@@ -353,6 +395,9 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
       reinterpret_cast<InitHugeMemThreadLocal>(initMemAddr);              \
     UnInitHugeMemThreadLocal unInitMemFunc =                              \
       reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);          \
+    if (initMemFunc) {                                                    \
+      initMemFunc(nullptr, false);                                        \
+    }                                                                     \
     auto converted_params =                                               \
       ConvertTypes(__VA_ARGS__, workspace_size_addr, executor_addr);      \
     static auto getWorkspaceSizeFunc =                                    \
@@ -373,7 +418,6 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     OpApiFunc opApiFunc = reinterpret_cast<OpApiFunc>(opApiFuncAddr);     \
     auto api_ret =                                                        \
       opApiFunc(workspace_addr, workspace_size, executor, acl_stream);    \
-    aclrtSynchronizeStream((dev_ctx).stream());                           \
     ReleaseConvertTypes(converted_params);                                \
     ReleaseHugeMem releaseMemFunc =                                       \
       reinterpret_cast<ReleaseHugeMem>(releaseMemAddr);                   \

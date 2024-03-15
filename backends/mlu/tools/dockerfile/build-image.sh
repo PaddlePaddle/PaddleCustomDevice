@@ -22,11 +22,11 @@ set -ex
 
 FTP_USER=${1} # Please contact Cambricon technicians to obtain username and password
 FTP_PASSWORD=${2}
-CNTOOLKIT_VERSION=${3:-3.7.2-1} # default 3.7.2
-CNNL_VERSION=${4:-1.22.0-1} # default 1.22.0
-CNCL_VERSION=${5:-1.13.0-1} # default 1.13.0
-MLUOPS_VERSION=${6:-0.10.0-1} # default 0.10.0
-CNNL_EXTRA_VERSION=${7:-1.5.0-1} # default 1.5.0-1
+CNTOOLKIT_VERSION=${3:-3.8.4-1} # default 3.8.4
+CNNL_VERSION=${4:-1.23.2-1} # default 1.23.2
+CNCL_VERSION=${5:-1.14.0-1} # default 1.14.0
+MLUOPS_VERSION=${6:-0.11.0-1} # default 0.11.0
+CNNL_EXTRA_VERSION=${7:-1.6.1-1} # default 1.6.1-1
 
 if [ $(uname -i) == 'x86_64' ]; then
   # ubuntu18-$(uname -m)-gcc82

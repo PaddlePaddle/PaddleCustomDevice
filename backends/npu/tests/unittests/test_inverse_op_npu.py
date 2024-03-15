@@ -117,7 +117,7 @@ class TestInverseAPI(unittest.TestCase):
         for place in self.places:
             with base.dygraph.guard(place):
                 input_np = np.random.random([4, 4]).astype("float64")
-                input = base.dygraph.to_variable(input_np)
+                input = paddle.to_tensor(input_np)
                 result = paddle.inverse(input)
                 np.testing.assert_allclose(
                     result.numpy(), np.linalg.inv(input_np), rtol=1e-05

@@ -204,9 +204,7 @@ class TestOneHotOpApi(unittest.TestCase):
             [6, 1]
         )
         with base.dygraph.guard(paddle.CustomPlace("gcu", 0)):
-            one_hot_label = paddle.nn.functional.one_hot(
-                base.dygraph.to_variable(label), depth
-            )
+            one_hot_label = paddle.nn.functional.one_hot(paddle.to_tensor(label), depth)
             one_hot_label = paddle.nn.functional.one_hot(paddle.to_tensor(label), depth)
 
     def _run(self, depth):

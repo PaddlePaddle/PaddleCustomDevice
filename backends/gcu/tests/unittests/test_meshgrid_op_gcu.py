@@ -302,15 +302,15 @@ class TestMeshgridEager(unittest.TestCase):
         ).astype("int32")
 
         with base.dygraph.guard():
-            tensor_1 = base.dygraph.to_variable(input_1)
-            tensor_2 = base.dygraph.to_variable(input_2)
+            tensor_1 = paddle.to_tensor(input_1)
+            tensor_2 = paddle.to_tensor(input_2)
             tensor_1.stop_gradient = False
             tensor_2.stop_gradient = False
             res_1, res_2 = paddle.tensor.meshgrid((tensor_1, tensor_2))
             sum = paddle.add_n([res_1, res_2])
             sum.backward()
-            tensor_eager_1 = base.dygraph.to_variable(input_1)
-            tensor_eager_2 = base.dygraph.to_variable(input_2)
+            tensor_eager_1 = paddle.to_tensor(input_1)
+            tensor_eager_2 = paddle.to_tensor(input_2)
             tensor_eager_1.stop_gradient = False
             tensor_eager_2.stop_gradient = False
             res_eager_1, res_eager_2 = paddle.tensor.meshgrid(

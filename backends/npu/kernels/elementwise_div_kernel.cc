@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void ExpGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& out,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx);
+
+template <typename T, typename Context>
 static void ReduceDims(const Context& dev_ctx,
                        const aclrtStream& stream,
                        const int axis,
@@ -45,16 +51,50 @@ static void ReduceDims(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void DivideRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& y,
-                     int axis,
-                     phi::DenseTensor* out) {
+void AclopNegKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Neg", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void NegKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnNeg, (custom_kernel::AclopNegKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnNeg, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopDivideRawKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& y,
+                          int axis,
+                          phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("Div", {x, y}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void DivideRawKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     int axis,
+                     phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnDiv,
+                   (custom_kernel::AclopDivideRawKernel<T, Context>(
+                       dev_ctx, x, y, axis, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnDiv, dev_ctx, x, y, *out);
 }
 
 template <typename T, typename Context>
@@ -83,9 +123,8 @@ void DivideGradKernel(const Context& dev_ctx,
   phi::DenseTensor dout_div_y;
   phi::DenseTensorMeta dout_div_y_meta = {dout.dtype(), dout.dims()};
   dout_div_y.set_meta(dout_div_y_meta);
-  dev_ctx.template Alloc<T>(&dout_div_y);
-  const auto& runner = NpuOpRunner("Div", {dout, trans_y}, {dout_div_y}, {});
-  runner.Run(stream);
+  custom_kernel::DivideRawKernel<T, Context>(
+      dev_ctx, dout, trans_y, axis, &dout_div_y);
   if (dx) {
     // compute dx = dout/y = 1/y * dout
     if (dx->dims() == dout.dims()) {
@@ -101,17 +140,13 @@ void DivideGradKernel(const Context& dev_ctx,
     phi::DenseTensor neg_out;
     phi::DenseTensorMeta neg_out_meta = {out.dtype(), out.dims()};
     neg_out.set_meta(neg_out_meta);
-    dev_ctx.template Alloc<T>(&neg_out);
-    const auto& runner_neg_out = NpuOpRunner("Neg", {out}, {neg_out}, {});
-    runner_neg_out.Run(stream);
+    custom_kernel::NegKernel<T, Context>(dev_ctx, out, &neg_out);
 
     phi::DenseTensor dy_tmp;
     phi::DenseTensorMeta dy_tmp_meta = {dout.dtype(), dout.dims()};
     dy_tmp.set_meta(dy_tmp_meta);
-    dev_ctx.template Alloc<T>(&dy_tmp);
-    const auto& runner_mul =
-        NpuOpRunner("Mul", {neg_out, dout_div_y}, {dy_tmp}, {});
-    runner_mul.Run(stream);
+    custom_kernel::ExpGradKernel<T, Context>(
+        dev_ctx, neg_out, dout_div_y, &dy_tmp);
 
     if (dy->dims() == dout.dims()) {
       *dy = dy_tmp;

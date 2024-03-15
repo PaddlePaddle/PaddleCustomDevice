@@ -162,8 +162,6 @@ class TestElementwiseMulOp_broadcast_5(ElementwiseMulOp):
         self.outputs = {"Out": self.inputs["X"] * self.inputs["Y"]}
 
 
-# TODO
-@unittest.skipIf(True, "Not support")
 class TestElementwiseMulOpFp16(ElementwiseMulOp):
     def init_dtype(self):
         self.dtype = np.float16

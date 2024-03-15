@@ -38,7 +38,11 @@ void SetTensorValueNPUImplKernel(const Context& dev_ctx,
   std::vector<int32_t> in_dims_arr = phi::vectorize<int32_t>(x.dims());
   std::vector<int32_t> pad_in_dims_arr = phi::vectorize<int32_t>(x.dims());
   in_dims_arr.push_back(1);
-  pad_in_dims_arr.push_back(8);
+  if (x.dtype() == phi::DateType::FLOAT16) {
+    pad_in_dims_arr.push_back(16);
+  } else {
+    pad_in_dims_arr.push_back(8);
+  }
 
   phi::DenseTensor x_tmp(x);
   x_tmp.Resize(phi::make_ddim(in_dims_arr));
@@ -161,7 +165,11 @@ void SetTensorValueNPUImplKernel(const Context& dev_ctx,
 
   // Add last dim for index
   starts_indices.push_back(0);
-  ends_indices.push_back(8);
+  if (x.dtype() == phi::DateType::FLOAT16) {
+    ends_indices.push_back(16);
+  } else {
+    ends_indices.push_back(8);
+  }
   strides_indices.push_back(1);
 
   // Broadcast value;
@@ -169,7 +177,11 @@ void SetTensorValueNPUImplKernel(const Context& dev_ctx,
   auto slice_dims_brd = phi::vectorize<int32_t>(slice_dims_for_assign);
   slice_dims_brd.push_back(1);
   reverse_value.Resize(phi::make_ddim(slice_dims_brd));
-  slice_dims_brd[slice_dims_brd.size() - 1] = 8;
+  if (x.dtype() == phi::DateType::FLOAT16) {
+    slice_dims_brd[slice_dims_brd.size() - 1] = 16;
+  } else {
+    slice_dims_brd[slice_dims_brd.size() - 1] = 8;
+  }
   value_brd.Resize(phi::make_ddim(slice_dims_brd));
   dev_ctx.template Alloc<T>(&value_brd);
   NpuOpRunner runner_brd1;
@@ -346,6 +358,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value,
                           ALL_LAYOUT,
                           custom_kernel::SetValueNPUKernel,
                           float,
+                          phi::dtype::float16,
                           double,
                           int,
                           int64_t,
@@ -356,6 +369,7 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           ALL_LAYOUT,
                           custom_kernel::SetTensorValueNPUKernel,
                           float,
+                          phi::dtype::float16,
                           double,
                           int,
                           int64_t,

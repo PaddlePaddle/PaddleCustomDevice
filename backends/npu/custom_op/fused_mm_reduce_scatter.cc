@@ -67,6 +67,7 @@ std::vector<paddle::Tensor> npu_mm_reduce_scatter(
   } else {
     bias_real = new phi::DenseTensor();
   }
+#if (CANN_VERSION_CODE >= 700000)
   int64_t stream_mode = ACL_STOP_ON_FAILURE;
   EXEC_NPU_CMD(aclnnMatmulReduceScatter,
                *dev_ctx,
@@ -78,7 +79,7 @@ std::vector<paddle::Tensor> npu_mm_reduce_scatter(
                comm_turn,
                stream_mode,
                *result);
-
+#endif
   return {paddle::Tensor(result)};
 }
 

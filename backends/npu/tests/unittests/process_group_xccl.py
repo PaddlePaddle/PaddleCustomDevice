@@ -19,6 +19,7 @@ import numpy as np
 
 import paddle
 import paddle.distributed as dist
+import paddle_custom_device
 from npu_utils import check_soc_version_and_dtype
 
 
@@ -28,7 +29,7 @@ def init_process_group(strategy=None):
     is_master = True if rank == 0 else False
     pg_group = dist.init_parallel_env()
 
-    return pg_group.process_group
+    return pg_group.process_group, pg_group
 
 
 class TestProcessGroupFp32(unittest.TestCase):
@@ -49,7 +50,7 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         assert paddle.distributed.is_available()
 
-        pg = init_process_group()
+        pg, pg_group = init_process_group()
         print("rank:", pg.rank(), "size:", pg.size(), "name:", pg.name())
         print("test new group api ok")
 
@@ -583,6 +584,66 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(tensor_y, tensor_x) and tensor_y.shape == []
 
         print("test send & recv 0-d tensor ok")
+
+        if int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7:
+            # test fused_allgather_mm
+            rank = dist.get_rank()
+            world_size = dist.get_world_size()
+            hcom_name = pg_group.process_group.get_comm_name(rank)
+            x1 = np.random.uniform(-1, 1, [16, 512])
+            x1 = paddle.to_tensor(x1).astype(self.dtype)
+            x2 = np.random.uniform(-1, 1, [512, 256])
+            x2 = paddle.to_tensor(x2).astype(self.dtype)
+            bias = np.random.uniform(-1, 1, [x2.shape[1]])
+            bias = None  # paddle.to_tensor(bias).astype(self.dtype)
+            out, gather_out = paddle_custom_device.npu.fused_allgather_mm(
+                x1,
+                x2,
+                bias=bias,
+                hcom=hcom_name,
+                world_size=world_size,
+                gather_index=0,
+                gather_output=True,
+                comm_turn=0,
+            )
+            gather_res = []
+            paddle.distributed.all_gather(gather_res, x1, group=pg_group)
+            gather_res = paddle.concat(gather_res)
+            out_res = paddle.matmul(gather_res, x2)
+            if bias is not None:
+                out_res += bias
+            np.testing.assert_allclose(out.cpu().numpy(), out_res.cpu().numpy())
+            np.testing.assert_allclose(
+                gather_out.cpu().numpy(), gather_res.cpu().numpy()
+            )
+
+            # test fused_mm_reduce_scatter
+            x1 = np.random.uniform(-1, 1, [128, 512])
+            x1 = paddle.to_tensor(x1).astype(self.dtype)
+            x2 = np.random.uniform(-1, 1, [512, 256])
+            x2 = paddle.to_tensor(x2).astype(self.dtype)
+            bias = np.random.uniform(-1, 1, [x2.shape[1]])
+            bias = None  # paddle.to_tensor(bias).astype(self.dtype)
+            out = paddle_custom_device.npu.fused_mm_reduce_scatter(
+                x1,
+                x2,
+                bias=bias,
+                hcom=hcom_name,
+                world_size=world_size,
+                reduce_op="sum",
+                comm_turn=0,
+            )
+            mm = paddle.matmul(x1, x2)
+            if bias is not None:
+                mm += bias
+            reduce_scatter_res = paddle.empty(
+                [mm.shape[0] // world_size, mm.shape[1]], dtype=mm.dtype
+            )
+            paddle.distributed.reduce_scatter(reduce_scatter_res, [mm], group=pg_group)
+            np.testing.assert_allclose(
+                out.cpu().numpy(), reduce_scatter_res.cpu().numpy()
+            )
+            print("test fused_allgather_mm & fused_mm_reduce_scatter ok!")
 
 
 class TestProcessGroupFp16(TestProcessGroupFp32):

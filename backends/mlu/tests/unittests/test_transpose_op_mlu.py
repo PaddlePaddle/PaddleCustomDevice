@@ -285,7 +285,7 @@ class TestTAPI(unittest.TestCase):
 
         with base.dygraph.guard():
             np_x = np.random.random([10]).astype("float32")
-            data = base.dygraph.to_variable(np_x)
+            data = paddle.to_tensor(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
@@ -293,7 +293,7 @@ class TestTAPI(unittest.TestCase):
 
         with base.dygraph.guard():
             np_x = np.random.random([10, 5]).astype("float32")
-            data = base.dygraph.to_variable(np_x)
+            data = paddle.to_tensor(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))
@@ -301,7 +301,7 @@ class TestTAPI(unittest.TestCase):
 
         with base.dygraph.guard():
             np_x = np.random.random([1, 5]).astype("float32")
-            data = base.dygraph.to_variable(np_x)
+            data = paddle.to_tensor(np_x)
             z = paddle.t(data)
             np_z = z.numpy()
             z_expected = np.array(np.transpose(np_x))

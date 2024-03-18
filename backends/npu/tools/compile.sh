@@ -45,6 +45,7 @@ Configuring cmake in build ...
     -DWITH_ARM=${WITH_ARM:-OFF}
     -DWITH_ATB=${WITH_ATB:-OFF}
     -DON_INFER=${ON_INFER:-OFF}
+    -DWITH_COVERAGE=${WITH_COVERAGE:-OFF}
 ========================================
 EOF
 
@@ -56,6 +57,7 @@ cmake .. \
     -DWITH_ARM=${WITH_ARM:-OFF} \
     -DWITH_ATB=${WITH_ATB:-OFF} \
     -DON_INFER=${ON_INFER:-OFF} \
+    -DWITH_COVERAGE=${WITH_COVERAGE:-OFF} \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON;cmake_error=$?
 
 if [ "$cmake_error" != 0 ];then

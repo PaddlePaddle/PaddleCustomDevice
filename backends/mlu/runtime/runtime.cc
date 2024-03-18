@@ -622,7 +622,7 @@ inline cnclDataType_t PDDataTypeToCnclDataType(C_DataType type) {
   } else if (type == C_DataType::UINT8) {
     return cnclUint8;
   } else if (type == C_DataType::INT64) {
-    return cnclInt32;
+    return cnclInt64;
   } else {
     LOG(ERROR) << "Datatype " << type << " in cncl is not supported.";
   }
@@ -695,10 +695,6 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-  PADDLE_ENFORCE_NE(data_type,
-                    C_DataType::INT64,
-                    phi::errors::InvalidArgument(
-                        "The dtype of cncl reduce shouldn't be int64."));
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllReduce(send_buf,
                                            recv_buf,
@@ -716,11 +712,6 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclBroadcast(buf,
                                            buf,
@@ -759,11 +750,6 @@ C_Status XcclAllGather(void *send_buf,
                        C_DataType data_type,
                        C_CCLComm comm,
                        C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllGather(send_buf,
                                            recv_buf,
@@ -781,10 +767,6 @@ C_Status XcclReduceScatter(void *send_buf,
                            C_CCLReduceOp op,
                            C_CCLComm comm,
                            C_Stream stream) {
-  PADDLE_ENFORCE_NE(data_type,
-                    C_DataType::INT64,
-                    phi::errors::InvalidArgument(
-                        "The dtype of cncl reduce shouldn't be int64."));
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclReduceScatter(send_buf,
@@ -807,11 +789,6 @@ C_Status XcclSend(void *send_buf,
                   size_t dest_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclSend(send_buf,
                                       count,
@@ -828,11 +805,6 @@ C_Status XcclRecv(void *recv_buf,
                   size_t src_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclRecv(recv_buf,
                                       count,

@@ -73,6 +73,7 @@ class EventResourcePool {
   aclrtEvent CreateEvent(int dev_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     aclrtEvent event;
+    // update idle_event_list_
     for (auto iter = wait_event_list_[dev_id].begin();
          iter != wait_event_list_[dev_id].end();) {
       if (event_has_been_recorded_[dev_id][*iter]) {
@@ -88,6 +89,7 @@ class EventResourcePool {
         iter = wait_event_list_[dev_id].erase(iter);
       }
     }
+    // create or get an idle event
     if (idle_event_list_[dev_id].empty()) {
       ACL_CHECK(aclrtCreateEvent(&event));
     } else {
@@ -96,13 +98,15 @@ class EventResourcePool {
     }
     busy_event_list_[dev_id].push_back(event);
     event_has_been_recorded_[dev_id][event] = false;
+    recorded_event_stream_map_[event] = nullptr;
+    recorded_event_wait_stream_map_[event].clear();
     return event;
   }
 
   void DestroyEvent(int dev_id, aclrtEvent event) {
     std::lock_guard<std::mutex> lock(mutex_);
+    // put the event into the wait_event_list_
     wait_event_list_[dev_id].push_back(event);
-    event_has_been_recorded_[dev_id][event] = false;
     auto it = std::find(busy_event_list_[dev_id].begin(),
                         busy_event_list_[dev_id].end(),
                         event);
@@ -145,6 +149,31 @@ class EventResourcePool {
     recorded_event_wait_stream_map_[event].push_back(stream);
   }
 
+  void PostDestroyStream(aclrtStream stream) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto iter = recorded_event_stream_map_.begin();
+         iter != recorded_event_stream_map_.end();) {
+      if (iter->second == stream) {
+        iter = recorded_event_stream_map_.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
+
+    for (auto iter = recorded_event_wait_stream_map_.begin();
+         iter != recorded_event_wait_stream_map_.end();
+         ++iter) {
+      for (auto wait_stream_iter = iter->second.begin();
+           wait_stream_iter != iter->second.end();) {
+        if (*wait_stream_iter == stream) {
+          wait_stream_iter = iter->second.erase(wait_stream_iter);
+        } else {
+          ++wait_stream_iter;
+        }
+      }
+    }
+  }
+
  private:
   bool event_is_completed(aclrtEvent event) {
     aclrtEventRecordedStatus status = ACL_EVENT_RECORDED_STATUS_COMPLETE;
@@ -167,12 +196,17 @@ class EventResourcePool {
             << event;
         // blocking cpu
         for (auto &wait_stream : recorded_event_wait_stream_map_[event]) {
+          LOG_IF(INFO, FLAGS_npu_runtime_debug)
+              << "[RUNTIME] reset_event: sychronize the waiting stream. stream="
+              << wait_stream;
           ACL_CHECK(aclrtSynchronizeStream(wait_stream));
         }
       }
+      recorded_event_wait_stream_map_[event].clear();
     }
-    ACL_CHECK(aclrtResetEvent(event, stream));
-    recorded_event_wait_stream_map_[event].clear();
+    if (stream) {
+      ACL_CHECK(aclrtResetEvent(event, stream));
+    }
   }
 
   void record_evnt(aclrtStream stream, aclrtEvent event) {
@@ -620,6 +654,7 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
   HostCallbackManager::Instance().ReleaseProcessWorker(stream);
   ACL_CHECK(aclrtDestroyStream(reinterpret_cast<aclrtStream>(stream)));
   SecondaryStream::Instance().Destroy(reinterpret_cast<aclrtStream>(stream));
+  EventResourcePool::Instance()->PostDestroyStream(stream);
   return C_SUCCESS;
 }
 

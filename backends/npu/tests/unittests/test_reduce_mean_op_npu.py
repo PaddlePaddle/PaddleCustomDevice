@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 import paddle
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 
 paddle.enable_static()
 
@@ -55,6 +55,63 @@ class TestMeanOpFP16(OpTest):
 
     def test_check_grad(self):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
+class TestMeanOpBF16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def setUp(self):
+        self.set_npu()
+        self.init_dtype()
+        self.init_data()
+        self.op_type = "reduce_mean"
+        self.inputs = {"X": self.x}
+        self.outputs = {"Out": self.out}
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_data(self):
+        self.x = convert_float_to_uint16(np.random.random((5, 6, 10)).astype("float32"))
+        self.out = convert_uint16_to_float(self.x).mean(axis=0)
+
+    def test_check_output(self):
+        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=0.004)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
+class TestMeanOp5DBF16(TestMeanOpBF16):
+    def init_data(self):
+        self.x = convert_float_to_uint16(
+            np.random.random((1, 2, 5, 6, 10)).astype("float32")
+        )
+        self.out = convert_uint16_to_float(self.x).mean(axis=0)
+
+
+class TestReduceAllBF16(TestMeanOpBF16):
+    def init_data(self):
+        self.x = convert_float_to_uint16(
+            np.random.random((5, 6, 2, 10)).astype("float32")
+        )
+        self.attrs = {"reduce_all": True}
+        self.out = convert_uint16_to_float(self.x).mean()
+
+
+class Test1DReduceBF16(TestMeanOpBF16):
+    def init_data(self):
+        self.x = convert_float_to_uint16(np.random.random((120)).astype("float32"))
+        self.out = convert_uint16_to_float(self.x).mean(axis=0)
+
+
+class TestMeanOp6DBF16(TestMeanOpBF16):
+    def init_data(self):
+        self.x = convert_float_to_uint16(
+            np.random.random((1, 1, 2, 5, 6, 10)).astype("float32")
+        )
+        self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
 
 class TestMeanOpNumel1(OpTest):

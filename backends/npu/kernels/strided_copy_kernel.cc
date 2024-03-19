@@ -86,12 +86,60 @@ void StridedCopyKernel(const Context& dev_ctx,
         &device, stream, dst_ptr, src_ptr, phi::SizeOf(input.dtype()));
   }
 }
+
+template <typename T, typename Context>
+void AsStridedKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& input,
+                     const std::vector<int64_t>& dims,
+                     const std::vector<int64_t>& out_stride,
+                     int64_t offset,
+                     phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensorMeta meta = input.meta();
+  meta.strides = common::make_ddim(out_stride);
+  meta.dims = common::make_ddim(dims);
+  meta.offset = offset;
+  out->set_meta(meta);
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor offset_tensor;
+  offset_tensor.Resize({1});
+  dev_ctx.template Alloc<T>(&offset_tensor);
+  FillNpuTensorWithConstant<int64_t>(&offset_tensor, dev_ctx, static_cast<int64_t>(offset));
+
+  NpuOpRunner runner;
+  runner.SetType("AsStrided")
+      .AddInput(input)
+      .AddInput(dev_ctx, std::move(dims))
+      .AddInput(dev_ctx, std::move(out_stride))
+      .AddInput(offset_tensor)
+      .AddOutput(*out)
+      .Run(stream);
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(strided_copy,
                           npu,
                           ALL_LAYOUT,
                           custom_kernel::StridedCopyKernel,
+                          bool,
+                          uint8_t,
+                          int8_t,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+PD_REGISTER_PLUGIN_KERNEL(as_strided,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::AsStridedKernel,
                           bool,
                           uint8_t,
                           int8_t,

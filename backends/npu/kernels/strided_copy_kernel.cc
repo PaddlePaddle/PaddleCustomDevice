@@ -106,7 +106,8 @@ void AsStridedKernel(const Context& dev_ctx,
   phi::DenseTensor offset_tensor;
   offset_tensor.Resize({1});
   dev_ctx.template Alloc<T>(&offset_tensor);
-  FillNpuTensorWithConstant<int64_t>(&offset_tensor, dev_ctx, static_cast<int64_t>(offset));
+  FillNpuTensorWithConstant<int64_t>(
+    &offset_tensor, dev_ctx, static_cast<int64_t>(offset));
 
   NpuOpRunner runner;
   runner.SetType("AsStrided")

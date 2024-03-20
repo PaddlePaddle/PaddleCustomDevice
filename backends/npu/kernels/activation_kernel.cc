@@ -187,7 +187,7 @@ void RsqrtGradKernel(const Context& dev_ctx,
   phi::DenseTensor x_tmp;
   x_tmp.Resize(out.dims());
   dev_ctx.template Alloc<T>(&x_tmp);
-  auto neg_two_value = static_cast<T>(-2.0);
+  auto neg_two_value = static_cast<T>(-0.5);
   auto three_value = static_cast<T>(3.0);
   aclDataType acl_data_type = ConvertToNpuDtype(out.dtype());
   static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);

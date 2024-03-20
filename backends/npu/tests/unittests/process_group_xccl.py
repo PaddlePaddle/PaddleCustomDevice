@@ -643,7 +643,21 @@ class TestProcessGroupFp32(unittest.TestCase):
             np.testing.assert_allclose(
                 out.cpu().numpy(), reduce_scatter_res.cpu().numpy()
             )
-            print("test fused_allgather_mm & fused_mm_reduce_scatter ok!")
+
+            # test fused_mm_allreduce
+            x1 = np.random.uniform(-1, 1, [128, 512]).astype(self.dtype)
+            x1 = paddle.to_tensor(x1)
+            x2 = np.random.uniform(-1, 1, [512, 256]).astype(self.dtype)
+            x2 = paddle.to_tensor(x2)
+            out = paddle_custom_device.npu.fused_mm_allreduce(
+                x1, x2, bias=None, hcom=hcom_name, reduce_op="sum", comm_turn=0
+            )
+            mm = paddle.matmul(x1, x2)
+            paddle.distributed.all_reduce(mm, group=pg_group, sync_op=True)
+            np.testing.assert_allclose(out.cpu().numpy(), mm.cpu().numpy())
+            print(
+                "test fused_allgather_mm & fused_mm_reduce_scatter & fused_mm_allreduce ok!"
+            )
 
 
 class TestProcessGroupFp16(TestProcessGroupFp32):

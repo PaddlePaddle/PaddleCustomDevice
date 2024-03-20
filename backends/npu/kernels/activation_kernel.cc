@@ -919,6 +919,17 @@ void PowGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopSquareKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("Square", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
 void SquareKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out) {

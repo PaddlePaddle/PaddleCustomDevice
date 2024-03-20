@@ -727,6 +727,7 @@ def create_test_value_fp16(parent):
     TestValueInt.__name__ = cls_name
     globals()[cls_name] = TestValueInt
 
+
 create_test_value_fp16(TestSetValueItemInt)
 create_test_value_fp16(TestSetValueItemSlice)
 create_test_value_fp16(TestSetValueItemSlice2)

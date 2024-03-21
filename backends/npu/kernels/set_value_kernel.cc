@@ -370,7 +370,10 @@ PD_REGISTER_PLUGIN_KERNEL(set_value,
                           ALL_LAYOUT,
                           custom_kernel::SetValueNPUKernel,
                           float,
+#if (CANN_VERSION_CODE >= 700000)
                           phi::dtype::float16,
+#else
+#endif
                           double,
                           int,
                           int64_t,
@@ -381,7 +384,10 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           ALL_LAYOUT,
                           custom_kernel::SetTensorValueNPUKernel,
                           float,
+#if (CANN_VERSION_CODE >= 700000)
                           phi::dtype::float16,
+#else
+#endif
                           double,
                           int,
                           int64_t,

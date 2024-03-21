@@ -32,7 +32,7 @@ docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
     -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
-    registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-$(uname -m) /bin/bash
+    registry.baidubce.com/device/paddle-npu:cann701-910B-ubuntu18-$(uname -m) /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -50,8 +50,8 @@ cd backends/npu
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
 # you may download and install the nightly built cpu whl package with links below
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
+pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
+
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF

@@ -888,6 +888,29 @@ void FloorKernel(const Context& dev_ctx,
                  GetBasePtr(out));
 }
 
+template <typename T, typename Context>
+void RoundKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  MLUCnnlTensorDesc input_desc(x);
+  MLUCnnlTensorDesc output_desc(*out);
+  MLUCnnl::Round(dev_ctx,
+                 input_desc.get(),
+                 GetBasePtr(&x),
+                 output_desc.get(),
+                 GetBasePtr(out));
+}
+
+template <typename T, typename Context>
+void RoundGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  FillMLUTensorWithHostValue<T>(dev_ctx, static_cast<T>(0), dx);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(relu,
@@ -1180,5 +1203,19 @@ PD_REGISTER_PLUGIN_KERNEL(atan_grad,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::AtanGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(round_grad,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::RoundGradKernel,
                           float,
                           phi::dtype::float16) {}

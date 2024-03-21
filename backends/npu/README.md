@@ -128,3 +128,4 @@ Output data shape is (1, 10)
 | Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
 | Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |
 | Performance | FLAGS_npu_storage_format         | Bool   | enable Conv/BN private ACL format | False                                                        |
+| OP Compile | FLAGS_npu_jit_compile  | Bool   | enable NPU OP JIT compile  | True |

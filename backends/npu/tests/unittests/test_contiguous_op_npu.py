@@ -41,8 +41,20 @@ class TestContiguous(unittest.TestCase):
         return x.strides, y, y.strides, z, z.strides
 
     def test_contiguous(self):
-        input_strides, output0, output0_strides, output1, output1_strides = self.run_test(False)
-        input_strides_npu, output0_npu, output0_strides_npu, output1_npu, output1_strides_npu = self.run_test(True)
+        (
+            input_strides, 
+            output0, 
+            output0_strides, 
+            output1, 
+            output1_strides 
+        ) = self.run_test(False)
+        (
+            input_strides_npu, 
+            output0_npu, 
+            output0_strides_npu, 
+            output1_npu, 
+            output1_strides_npu 
+        ) = self.run_test(True)
 
         np.testing.assert_allclose(input_strides, input_strides_npu)
         np.testing.assert_allclose(output0, output0_npu)

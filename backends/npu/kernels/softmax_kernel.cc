@@ -45,8 +45,9 @@ void SoftmaxKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out) {
-  DO_COMPATIBILITY(
-      aclnnSoftmax, (custom_kernel::AclopSoftmaxKernel<T, Context>(dev_ctx, x, axis, out)));
+  DO_COMPATIBILITY(aclnnSoftmax,
+                   (custom_kernel::AclopSoftmaxKernel<T, Context>(
+                       dev_ctx, x, axis, out)));
   dev_ctx.template Alloc<T>(out);
   int64_t dim = static_cast<int64_t>(axis);
   EXEC_NPU_CMD(aclnnSoftmax, dev_ctx, x, dim, *out);

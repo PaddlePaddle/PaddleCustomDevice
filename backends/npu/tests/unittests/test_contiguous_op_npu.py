@@ -22,13 +22,13 @@ import numpy as np
 class TestContiguous(unittest.TestCase):
     def setUp(self):
         self.dtype = "float32"
-        self.input = np.random.random([3,3]).astype(self.dtype)
+        self.input = np.random.random([3, 3]).astype(self.dtype)
 
     def run_test(self, use_npu):
         if not use_npu:
-            paddle.set_device('cpu')
+            paddle.set_device("cpu")
         else:
-            paddle.set_device('npu')
+            paddle.set_device("npu")
 
         x = paddle.to_tensor(self.input)
         assert x.is_contiguous()

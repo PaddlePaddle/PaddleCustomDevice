@@ -377,7 +377,8 @@ PD_REGISTER_PLUGIN_KERNEL(set_value,
                           double,
                           int,
                           int64_t,
-                          bool) {}
+                          bool) {
+}
 
 PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           npu,
@@ -391,4 +392,5 @@ PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           double,
                           int,
                           int64_t,
-                          bool) {}
+                          bool) {
+}

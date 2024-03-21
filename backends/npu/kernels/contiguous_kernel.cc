@@ -18,35 +18,30 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ContiguousKernel(const Context& dev_ctx,
+void Contiguous2Kernel(const Context& dev_ctx,
                       const phi::DenseTensor& input,
                       phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+
   phi::DenseTensorMeta meta = input.meta();
   meta.strides = meta.calc_strides(meta.dims);
   meta.offset = 0;
   out->set_meta(meta);
-  const T* input_data = input.data<T>();
-  auto* output_data = dev_ctx.template Alloc<T>(out);
-  int rank = input.dims().size();
-  auto dims = input.dims();
-  auto input_stride = input.strides();
-  auto numel = input.numel();
+  dev_ctx.template Alloc<T>(out);
 
-  for (int64_t i = 0; i < numel; i++) {
-    int64_t input_offset = 0;
-    int64_t index_tmp = i;
-    for (int dim = rank - 1; dim >= 0; --dim) {
-      int64_t mod = index_tmp % dims[dim];
-      index_tmp = index_tmp / dims[dim];
-      input_offset += mod * input_stride[dim];
-    }
-    C_Device_st device{input.place().GetDeviceId()};
-    C_Stream stream = static_cast<C_Stream>(dev_ctx.stream());
-    auto* dst_ptr = &output_data[i];
-    auto* src_ptr = &input_data[input_offset];
-    AsyncMemCpyD2D(
-        &device, stream, dst_ptr, src_ptr, phi::SizeOf(input.dtype()));
-  }
+  phi::DenseTensor offset_tensor;
+  offset_tensor.Resize({1});
+  dev_ctx.template Alloc<T>(&offset_tensor);
+  FillNpuTensorWithConstant<int64_t>(&offset_tensor, dev_ctx, static_cast<int64_t>(0));
+
+  NpuOpRunner runner;
+  runner.SetType("AsStrided")
+      .AddInput(input)
+      .AddInput(dev_ctx, std::move(phi::vectorize(input.dims())))
+      .AddInput(dev_ctx, std::move(phi::vectorize(input.strides())))
+      .AddInput(offset_tensor)
+      .AddOutput(*out)
+      .Run(stream);
 }
 }  // namespace custom_kernel
 

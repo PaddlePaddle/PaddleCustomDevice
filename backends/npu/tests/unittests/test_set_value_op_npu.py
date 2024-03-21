@@ -16,8 +16,11 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-
 import paddle
+from npu_utils import get_cann_version
+
+paddle.enable_static()
+CANN_VERSION_CODE = get_cann_version()
 
 
 class TestSetValueBase(unittest.TestCase):
@@ -711,6 +714,27 @@ create_test_value_int64(TestSetValueItemSlice)
 create_test_value_int64(TestSetValueItemSlice2)
 create_test_value_int64(TestSetValueItemSlice3)
 create_test_value_int64(TestSetValueItemSlice4)
+
+
+def create_test_value_fp16(parent):
+    class TestValueInt(parent):
+        def set_value(self):
+            self.value = 3.7
+
+        def set_dtype(self):
+            self.dtype = "float16"
+
+    cls_name = "{}_{}".format(parent.__name__, "Valuefp16")
+    TestValueInt.__name__ = cls_name
+    globals()[cls_name] = TestValueInt
+
+
+if CANN_VERSION_CODE >= 7:
+    create_test_value_fp16(TestSetValueItemInt)
+    create_test_value_fp16(TestSetValueItemSlice)
+    create_test_value_fp16(TestSetValueItemSlice2)
+    create_test_value_fp16(TestSetValueItemSlice3)
+    create_test_value_fp16(TestSetValueItemSlice4)
 
 
 def create_test_value_fp64(parent):

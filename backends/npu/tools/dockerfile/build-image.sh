@@ -17,13 +17,13 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=7.0.1
+# export CANN_VERSION=8.0.T2
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-7.0.1} # default 7.0.1
+CANN_VERSION=${1:-8.0.T2} # default 8.0.T2
 
-# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 701
-DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 701
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 802
+DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80T2
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # Download packages from https://www.hiascend.com/software/cann/community first

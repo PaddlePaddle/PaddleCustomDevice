@@ -24,6 +24,7 @@ import paddle.base as base
 import paddle.nn.functional as F
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 from tests.utils import static_guard
+from npu_utils import check_soc_version
 
 paddle.enable_static()
 SEED = 2021
@@ -821,9 +822,11 @@ class TestSqrtBF16(OpTest):
         self.x = convert_float_to_uint16(np.random.random((5, 6, 10)).astype("float32"))
         self.out = np.sqrt(convert_uint16_to_float(self.x))
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=0.004)
 
+    @check_soc_version
     def test_check_grad(self):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
 

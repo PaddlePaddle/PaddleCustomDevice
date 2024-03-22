@@ -21,13 +21,14 @@ template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::Scalar& in_scale,
-                 float bias,
+                 const phi::Scalar& bias,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
+  float bias_val = bias.to<float>();
   auto stream = dev_ctx.stream();
   float power = 1.0;
-  VLOG(4) << "scale:" << scale << ", bias:" << bias
+  VLOG(4) << "scale:" << scale << ", bias:" << bias_val
           << " ,bias_after_scale:" << bias_after_scale;
   dev_ctx.template Alloc<T>(out);
   if (std::isinf(scale) || std::isnan(scale)) {
@@ -35,10 +36,11 @@ void ScaleKernel(const Context& dev_ctx,
     return;
   }
   if (!bias_after_scale) {
-    bias *= scale;
+    bias_val *= scale;
   }
 
-  NPUAttributeMap attrs = {{"power", power}, {"scale", scale}, {"shift", bias}};
+  NPUAttributeMap attrs = {
+      {"power", power}, {"scale", scale}, {"shift", bias_val}};
 
   auto op_func1 = [](const std::vector<phi::DenseTensor>& inputs,
                      const std::vector<phi::DenseTensor>& outputs,

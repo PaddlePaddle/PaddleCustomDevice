@@ -17,13 +17,13 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=7.0.1
+# export CANN_VERSION=8.0.T2
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-7.0.1} # default 7.0.1
+CANN_VERSION=${1:-8.0.T2} # default 8.0.T2
 
-# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 701
-DOCKER_VERSION=${CANN_VERSION//[^0-9a-z]/} # 701
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 802
+DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80T2
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # Download packages from https://www.hiascend.com/software/cann/community first
@@ -52,19 +52,19 @@ fi
 if [ ${CHIP_VERSION} == "910B" ]; then
   # ubuntu20-$(uname -m)-gcc84-py38
   docker pull iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
-  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84 \
+  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py38 \
     --build-arg CANN_VERSION=${CANN_VERSION} \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84 .
-  docker push iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84
+    -t iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38 .
+  docker push iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38
 fi
 
 # ubuntu18-$(uname -m)-gcc82-py39
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82
-docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82 \
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82-py39
+docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82.py39 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -73,9 +73,9 @@ docker build --network=host -f Dockerfile.npu.ubuntu18.$(uname -m).gcc82 \
   -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m) .
 docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu18-$(uname -m)
 
-# kylinv10-$(uname -m)-gcc82-py39
-docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82
-docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82 \
+# kylinv10-$(uname -m)-gcc82-py310
+docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
+docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82.py310 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -85,9 +85,9 @@ docker build --network=host -f Dockerfile.npu.kylinv10.$(uname -m).gcc82 \
 docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-kylinv10-$(uname -m)
 
 if [ $(uname -i) == 'aarch64' ]; then
-# euleros-$(uname -m)-gcc82-py39
-  docker pull registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82
-  docker build --network=host -f Dockerfile.npu.euleros.$(uname -m).gcc82 \
+# euleros-$(uname -m)-gcc82-py310
+  docker pull registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82-py310
+  docker build --network=host -f Dockerfile.npu.euleros.$(uname -m).gcc82.py310 \
     --build-arg CANN_VERSION=${CANN_VERSION} \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \

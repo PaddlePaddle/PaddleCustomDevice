@@ -12,22 +12,21 @@
 | cnnl      | 1.23.2-1 |
 | cnnlextra | 1.6.1-1  |
 | cncl      | 1.14.0-1 |
-| mluops    | 0.11.0-1  |
+| mluops    | 0.11.0-1 |
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82
+docker pull registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310
 
 # 2) 参考如下命令启动容器
-docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
-    --shm-size=128G --network=host -w=/workspace \
-    --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
-    --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    docker pull registry.baidubce.com/device/paddle-mlu:cntoolkit3.8.4-1-cnnl1.23.2-1-gcc82 /bib/bash
-
+docker run -it --name paddle-mlu-dev -v $(pwd):/work \
+  -w=/work --shm-size=128G --network=host --privileged  \
+  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  -v /usr/bin/cnmon:/usr/bin/cnmon \
+  registry.baidubce.com/device/paddle-mlu:ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -123,12 +122,12 @@ cd PaddleCustomDevice/Paddle
 mkdir build && cd build
 
 # 3.1) X86-64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+cmake .. -DPY_VERSION=3.10 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=OFF
 make -j8
 
 # 3.2) Aarch64 环境下的编译命令 - 编译 CPU 版本即可
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
+cmake .. -DPY_VERSION=3.10 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
          -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=ON
 make TARGET=ARMV8 -j8
 

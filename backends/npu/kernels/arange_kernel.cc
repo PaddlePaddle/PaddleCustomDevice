@@ -116,6 +116,7 @@ void ArangeKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnArange,
                    (custom_kernel::AclopArangeKernel<T, Context>(
                        dev_ctx, start, end, step, out)));
+  dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnArange, dev_ctx, start, end, step, *out);
 }
 

@@ -136,13 +136,14 @@ void SoftmaxGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& out_grad,
                        int axis,
                        phi::DenseTensor* x_grad) {
-  DO_COMPATIBILITY(
-      aclnnSoftmaxBackward, 
-      (custom_kernel::AclopSoftmaxGradKernel<T, Context>(dev_ctx, out, out_grad, axis, x_grad)));
+  DO_COMPATIBILITY(aclnnSoftmax,
+                   (custom_kernel::AclopSoftmaxGradKernel<T, Context>(
+                       dev_ctx, out, out_grad, axis, x_grad)));
   dev_ctx.template Alloc<T>(x_grad);
   int64_t dim = static_cast<int64_t>(axis);
   EXEC_NPU_CMD(aclnnSoftmaxBackward, dev_ctx, out_grad, out, dim, *x_grad);
 }
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(softmax,

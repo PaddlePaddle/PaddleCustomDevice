@@ -40,6 +40,7 @@ class TestContiguous(unittest.TestCase):
         assert z.is_contiguous()
         return x.strides, y, y.strides, z, z.strides
 
+    @check_soc_version
     def test_contiguous(self):
         (
             input_strides, 

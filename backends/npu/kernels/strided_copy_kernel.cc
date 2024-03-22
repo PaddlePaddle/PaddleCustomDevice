@@ -103,7 +103,6 @@ void AsStridedKernel(const Context& dev_ctx,
   meta.dims = common::make_ddim(dims);
   meta.offset = offset;
   out->set_meta(meta);
-
 }
 }  // namespace custom_kernel
 

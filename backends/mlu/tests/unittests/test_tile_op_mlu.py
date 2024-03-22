@@ -48,11 +48,6 @@ class TestTileOpRank1(OpTest):
         self.check_grad_with_place(self.place, ["X"], "Out")
 
 
-class TestTileOpRank5Expanding(TestTileOpRank1):
-    def init_data(self):
-        self.ori_shape = [146, 4, 2, 1, 128]
-        self.repeat_times = [1, 1, 1, 16, 1]
-
 
 # with dimension expanding
 class TestTileOpRank2Expanding(TestTileOpRank1):

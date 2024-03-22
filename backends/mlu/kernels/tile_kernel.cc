@@ -147,34 +147,6 @@ void TileGradKernel(const Context& dev_ctx,
     reshape_dims_vec.push_back(vec_x_dims[i]);
   }
 
-  if (reshape_dims_vec.size() > 9) {
-    // since tensor with rank over 9 is not supported by PaddlePaddle,
-    // do squeeze reshape_dims_vec (dim did not tiled) according to
-    // reduce_dims_vec here
-    std::vector<int> deleted_reshape_dim_vec;
-    std::vector<int64_t> deleteced_reduce_dim_vec;
-    int skip_num = 0;
-    for (int i = 0; i < reshape_dims_vec.size(); ++i) {
-      if (std::find(reduce_dims_vec.begin(), reduce_dims_vec.end(), i) !=
-          reduce_dims_vec.end()) {
-        if (reshape_dims_vec[i] == 1) {
-          // found idx in reduce_dims_vec and dim is not tiled
-          // then skip the element
-          skip_num += 1;
-        } else {
-          // found idx in reduce_dims_vec and dim is tiled
-          // push i to deleteced_reduce_dim_vec
-          deleted_reshape_dim_vec.push_back(reshape_dims_vec[i]);
-          deleteced_reduce_dim_vec.push_back(i - skip_num);
-        }
-      } else {
-        deleted_reshape_dim_vec.push_back(reshape_dims_vec[i]);
-      }
-    }
-    reshape_dims_vec = deleted_reshape_dim_vec;
-    reduce_dims_vec = deleteced_reduce_dim_vec;
-  }
-
   int dims = reduce_dims_vec.size();
 
   bool just_copy = true;

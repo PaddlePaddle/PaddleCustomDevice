@@ -120,9 +120,10 @@ Output data shape is (1, 10)
 | 主题   | 变量名称                         | 类型   | 说明                              | 默认值                                                       |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
 | 调试     | CUSTOM_DEVICE_BLACK_LIST  | String   | 在黑名单内的算子会异构到CPU上运行 | "" |
-| 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False                                                        |
-| 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False                                                        |
-| 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling"                                           |
+| 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False |
+| 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False |
+| 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling" |
 | 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
 | 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |
-| 性能加速 | FLAGS_npu_storage_format  | Bool   | 支持 Conv/BN 等算子的昇腾私有化格式 | False                                                        |
+| 性能加速 | FLAGS_npu_storage_format  | Bool   | 支持 Conv/BN 等算子的昇腾私有化格式 | False |
+| 算子编译 | FLAGS_npu_jit_compile  | Bool   | 是否开启算子在线编译 | True |

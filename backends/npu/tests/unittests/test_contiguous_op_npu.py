@@ -1,4 +1,4 @@
-#  Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+#  Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ from __future__ import print_function
 import paddle
 import unittest
 import numpy as np
+from npu_utils import check_soc_version
 
 
 class TestContiguous(unittest.TestCase):
@@ -43,18 +44,18 @@ class TestContiguous(unittest.TestCase):
     @check_soc_version
     def test_contiguous(self):
         (
-            input_strides, 
-            output0, 
-            output0_strides, 
-            output1, 
-            output1_strides 
+            input_strides,
+            output0,
+            output0_strides,
+            output1,
+            output1_strides,
         ) = self.run_test(False)
         (
-            input_strides_npu, 
-            output0_npu, 
-            output0_strides_npu, 
-            output1_npu, 
-            output1_strides_npu 
+            input_strides_npu,
+            output0_npu,
+            output0_strides_npu,
+            output1_npu,
+            output1_strides_npu,
         ) = self.run_test(True)
 
         np.testing.assert_allclose(input_strides, input_strides_npu)

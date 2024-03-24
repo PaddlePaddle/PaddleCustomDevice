@@ -15,13 +15,9 @@
 import os
 import unittest
 
-from . import test_parallel_dygraph_dataparallel
+from test_parallel_dygraph_dataparallel import TestMultipleAccelerators
 
-TestMultipleAccelerators = test_parallel_dygraph_dataparallel.TestMultipleAccelerators
-
-
-linked_test_file_path_prefix = "../../../../Paddle/python/tests/"
-# linked_test_file_path_prefix=""
+linked_test_file_path_prefix = "../../../../../python/tests/"
 
 
 class TestHybridParallel(TestMultipleAccelerators):

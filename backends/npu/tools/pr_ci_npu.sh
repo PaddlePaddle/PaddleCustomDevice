@@ -158,8 +158,8 @@ function main() {
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
     
-    set +16
-    NUM_PROC=8
+    set +e
+    NUM_PROC=16
     EXIT_CODE=0
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do

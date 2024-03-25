@@ -69,6 +69,12 @@ static phi::DDim GetOutputShape(const std::vector<int64_t> unsqz_dims,
 }
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void SumRawKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::IntArray& axes,
@@ -169,12 +175,12 @@ void SumRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SumKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::IntArray& dims,
-               phi::DataType out_dtype,
-               bool keep_dim,
-               phi::DenseTensor* out) {
+void AclopSumKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::IntArray& dims,
+                    phi::DataType out_dtype,
+                    bool keep_dim,
+                    phi::DenseTensor* out) {
   bool reduce_all = false;
   if (dims.size() == 0 || x.dims().size() == 0 ||
       static_cast<int>(dims.size()) == x.dims().size()) {
@@ -182,6 +188,153 @@ void SumKernel(const Context& dev_ctx,
   }
   custom_kernel::SumRawKernel<T>(
       dev_ctx, x, dims, keep_dim, reduce_all, out_dtype, out);
+}
+
+template <typename T, typename Context>
+void SumKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& axes,
+               phi::DataType out_dtype,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnReduceSum,
+                   (custom_kernel::AclopSumKernel<T, Context>(
+                       dev_ctx, x, axes, out_dtype, keep_dim, out)));
+
+  int aclDtype = ConvertToNpuDtype(out->dtype());
+
+  if (out->dtype() == phi::DataType::FLOAT32) {
+    dev_ctx.template Alloc<float>(out);
+  } else if (out->dtype() == phi::DataType::FLOAT64) {
+    dev_ctx.template Alloc<double>(out);
+  } else if (out->dtype() == phi::DataType::FLOAT16) {
+    dev_ctx.template Alloc<phi::dtype::float16>(out);
+  } else if (out->dtype() == phi::DataType::BFLOAT16) {
+    dev_ctx.template Alloc<phi::dtype::bfloat16>(out);
+  } else if (out->dtype() == phi::DataType::INT16) {
+    dev_ctx.template Alloc<int16_t>(out);
+  } else if (out->dtype() == phi::DataType::INT32) {
+    dev_ctx.template Alloc<int32_t>(out);
+  } else if (out->dtype() == phi::DataType::INT64) {
+    dev_ctx.template Alloc<int64_t>(out);
+  } else if (out->dtype() == phi::DataType::BOOL) {
+    dev_ctx.template Alloc<bool>(out);
+  } else if (out->dtype() == phi::DataType::UINT8) {
+    dev_ctx.template Alloc<uint8_t>(out);
+  } else if (out->dtype() == phi::DataType::INT8) {
+    dev_ctx.template Alloc<int8_t>(out);
+  } else if (out->dtype() == phi::DataType::COMPLEX64) {
+    dev_ctx.template Alloc<phi::dtype::complex<float>>(out);
+  } else if (out->dtype() == phi::DataType::COMPLEX128) {
+    dev_ctx.template Alloc<phi::dtype::complex<double>>(out);
+  } else {
+    phi::errors::InvalidArgument("Unsupported cast dtype %s", out->dtype());
+  }
+
+  bool reduce_all = false;
+  if (axes.size() == 0 || x.dims().size() == 0 ||
+      static_cast<int>(axes.size()) == x.dims().size()) {
+    reduce_all = true;
+  }
+
+  auto dims = axes.GetData();
+
+  // special case
+  if (x.dims().size() == 1 && keep_dim == false) {
+    keep_dim = true;
+  }
+
+  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
+
+  if (x.dims().size() == 0) {
+    custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), out);
+    return;
+  }
+
+  phi::DenseTensor cast_x;
+  phi::DenseTensor cast_out;
+
+  if (out->dtype() == phi::DataType::BOOL) {
+    if (x.dtype() == phi::DataType::FLOAT32) {
+      cast_x = x;
+    } else {
+      cast_x.Resize(x.dims());
+      dev_ctx.template Alloc<float>(&cast_x);
+
+      custom_kernel::CastKernel<T, Context>(
+          dev_ctx, x, phi::DataType::FLOAT32, &cast_x);
+    }
+
+    cast_out.Resize(out->dims());
+    dev_ctx.template Alloc<float>(&cast_out);
+  } else if (out->dtype() == x.dtype()) {
+    cast_x = x;
+    cast_out = *out;
+  } else {
+    phi::DenseTensorMeta meta = {out->dtype(), x.dims()};
+    cast_x.set_meta(meta);
+    dev_ctx.Alloc(&cast_x, cast_x.dtype());
+
+    custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
+
+    cast_out = *out;
+  }
+
+  reduce_all = (reduce_all || axes.size() == 0 || x.dims().size() == 0 ||
+                static_cast<int>(axes.size()) == x.dims().size());
+
+  if (reduce_all) {
+    std::vector<int64_t> dim_vec;
+    for (int i = 0; i < x.dims().size(); i++) {
+      dim_vec.push_back(i);
+    }
+    static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+    auto dim_vec_acl = aclCreateIntArray(dim_vec.data(), dim_vec.size());
+    if (out->dtype() == phi::DataType::BOOL) {
+      int aclFloat32 = ConvertToNpuDtype(phi::DataType::FLOAT32);
+      EXEC_NPU_CMD(aclnnReduceSum,
+                   dev_ctx,
+                   cast_x,
+                   dim_vec_acl,
+                   keep_dim,
+                   aclFloat32,
+                   cast_out);
+    } else {
+      EXEC_NPU_CMD(aclnnReduceSum,
+                   dev_ctx,
+                   cast_x,
+                   dim_vec_acl,
+                   keep_dim,
+                   aclDtype,
+                   cast_out);
+    }
+  } else {
+    static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+    auto dim_acl = aclCreateIntArray(dims.data(), dims.size());
+    if (out->dtype() == phi::DataType::BOOL) {
+      int aclFloat32 = ConvertToNpuDtype(phi::DataType::FLOAT32);
+      EXEC_NPU_CMD(aclnnReduceSum,
+                   dev_ctx,
+                   cast_x,
+                   dim_acl,
+                   keep_dim,
+                   aclFloat32,
+                   cast_out);
+    } else {
+      EXEC_NPU_CMD(aclnnReduceSum,
+                   dev_ctx,
+                   cast_x,
+                   dim_acl,
+                   keep_dim,
+                   aclDtype,
+                   cast_out);
+    }
+  }
+
+  if (out->dtype() == phi::DataType::BOOL) {
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, cast_out, phi::DataType::BOOL, out);
+  }
 }
 
 template <typename T, typename Context>

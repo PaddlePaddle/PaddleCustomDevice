@@ -18,7 +18,6 @@ import unittest
 
 import numpy as np
 import paddle
-from paddle.base import Program, program_guard
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 from npu_utils import check_soc_version
 
@@ -49,9 +48,11 @@ class TestPadOp(OpTest):
             )
         }
 
+    @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    @check_soc_version
     def test_check_grad_normal(self):
         if self.dtype == np.float16:
             self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.6)

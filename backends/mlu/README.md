@@ -1,4 +1,3 @@
-# Test
 # PaddlePaddle Custom Device Implementaion for Cambricon MLU
 
 English | [简体中文](./README_cn.md)

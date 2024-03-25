@@ -158,6 +158,7 @@ function main() {
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
     set +e
+    set -x
 
     NUM_PROC=4
     EXIT_CODE=0

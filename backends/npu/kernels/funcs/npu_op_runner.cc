@@ -599,8 +599,10 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
   static std::once_flag jit_compile_flag;
   std::call_once(jit_compile_flag, [&]() {
     if (FLAGS_npu_jit_compile) {
-      aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+      VLOG(0) << "zyc1";
+      aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
     } else {
+      VLOG(0) << "zyc2";
       aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
     }
   });

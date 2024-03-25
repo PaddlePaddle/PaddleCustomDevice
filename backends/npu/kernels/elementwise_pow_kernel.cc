@@ -17,6 +17,14 @@
 
 namespace custom_kernel {
 
+template <typename T, typename Context>
+void SumKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& axes,
+               phi::DataType out_dtype,
+               bool keep_dim,
+               phi::DenseTensor* out);
+
 bool DetermineDirectCompute(const phi::DenseTensor& x,
                             const phi::DenseTensor& y,
                             int axis) {
@@ -165,12 +173,12 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {tmp_dx},
-                        {*dx},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
+        custom_kernel::SumKernel<T, Context>(dev_ctx,
+                                             tmp_dx,
+                                             phi::IntArray(reduce_axes),
+                                             dx->dtype(),
+                                             false,
+                                             dx);
       }
     } else {
       TensorCopy(dev_ctx, tmp_dx, false, dx);
@@ -242,12 +250,12 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {tmp_dy},
-                        {*dy},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
+        custom_kernel::SumKernel<T, Context>(dev_ctx,
+                                             tmp_dy,
+                                             phi::IntArray(reduce_axes),
+                                             dy->dtype(),
+                                             false,
+                                             dy);
       }
     } else {
       TensorCopy(dev_ctx, tmp_dy, false, dy);

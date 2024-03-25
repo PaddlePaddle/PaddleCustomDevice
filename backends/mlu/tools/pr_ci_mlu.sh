@@ -145,8 +145,8 @@ function main() {
             echo "Found ${line} code changed, ignore ut list disabled in disable_ut_mlu"
         fi
     done <<< "$disable_ut_mlu";
-    disable_ut_list+="^disable_ut_mlu$|^test_tile_op_mlu$"
-    echo "disable_ut_list=${disable_ut_list}|^test_tile_op_mlu$"
+    disable_ut_list+="^disable_ut_mlu$"
+    echo "disable_ut_list=${disable_ut_list}"
 
     # run ut
     ut_total_startTime_s=`date +%s`

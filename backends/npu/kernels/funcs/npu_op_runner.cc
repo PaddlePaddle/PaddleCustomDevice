@@ -235,6 +235,8 @@ ADD_INPUT_IMPL_GET_DTYPE(int64_t);
 ADD_INPUT_IMPL_GET_DTYPE(float);
 ADD_INPUT_IMPL_GET_DTYPE(double);
 ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::float16);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::complex<float>);
+ADD_INPUT_IMPL_GET_DTYPE(phi::dtype::complex<double>);
 #undef ADD_INPUT_IMPL_GET_DTYPE
 
 NpuOpRunner &NpuOpRunner::AddOutput(const phi::DenseTensor &tensor) {

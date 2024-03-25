@@ -22,12 +22,35 @@ template <typename T, typename Context>
 void FillKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 const phi::Scalar& val) {
+#if (CANN_VERSION_CODE >= 700000)
   EXEC_NPU_CMD(aclnnInplaceFillScalar, dev_ctx, x, val);
+#else
+  auto dims = phi::vectorize<int64_t>(x.dims());
+  auto value = std::vector<T>({val.to<T>()});
+  auto stream = dev_ctx.stream();
+  NpuOpRunner runner;
+  runner.SetType("Fill")
+      .AddInput(dev_ctx, std::move(dims))
+      .AddInput(dev_ctx, std::move(value))
+      .AddOutput(x)
+      .Run(stream);
+#endif
 }
 
 template <typename T, typename Context>
 void FillGradKernel(const Context& dev_ctx, const phi::DenseTensor& x) {
+#if (CANN_VERSION_CODE >= 700000)
   EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, x);
+#else
+  auto dims = phi::vectorize<int64_t>(x.dims());
+  auto stream = dev_ctx.stream();
+  NpuOpRunner runner;
+  runner.SetType("Fill")
+      .AddInput(dev_ctx, std::move(dims))
+      .AddInput(dev_ctx, std::move(std::vector<T>({0})))
+      .AddOutput(x)
+      .Run(stream);
+#endif
 }
 }  // namespace custom_kernel
 
@@ -41,7 +64,9 @@ PD_REGISTER_PLUGIN_KERNEL(fill,
                           phi::dtype::float16,
                           bool,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
 PD_REGISTER_PLUGIN_KERNEL(fill_grad,
                           npu,
@@ -53,4 +78,6 @@ PD_REGISTER_PLUGIN_KERNEL(fill_grad,
                           phi::dtype::float16,
                           bool,
                           int,
-                          int64_t) {}
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

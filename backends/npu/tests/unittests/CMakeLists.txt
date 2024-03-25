@@ -73,3 +73,5 @@ set_tests_properties(test_einsum_op_npu PROPERTIES ENVIRONMENT
                                                    FLAGS_npu_storage_format=0)
 set_tests_properties(test_matmulv2_op_npu PROPERTIES ENVIRONMENT
                                                      FLAGS_npu_storage_format=0)
+set_tests_properties(test_stride_npu PROPERTIES ENVIRONMENT
+                                                FLAGS_use_stride_kernel=1)

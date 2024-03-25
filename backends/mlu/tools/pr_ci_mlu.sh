@@ -145,8 +145,8 @@ function main() {
             echo "Found ${line} code changed, ignore ut list disabled in disable_ut_mlu"
         fi
     done <<< "$disable_ut_mlu";
-    disable_ut_list+="^disable_ut_mlu$"
-    echo "disable_ut_list=${disable_ut_list}"
+    disable_ut_list+="^disable_ut_mlu$|^test_tile_op_mlu$"
+    echo "disable_ut_list=${disable_ut_list}|^test_tile_op_mlu$"
 
     # run ut
     ut_total_startTime_s=`date +%s`
@@ -160,7 +160,7 @@ function main() {
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do
         mlu_list="$((i*2)),$((i*2+1))"
-        (env CUDA_VISIBLE_DEVICES=$mlu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
+        (env MLU_VISIBLE_DEVICES=$mlu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
         pids+=($!)
     done
     

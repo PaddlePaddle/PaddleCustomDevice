@@ -19,16 +19,21 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void Conv2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& input,
-                  const phi::DenseTensor& filter,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
-                  const std::string& padding_algorithm,
-                  const std::vector<int>& dilations_t,
-                  int groups,
-                  const std::string& data_format,
-                  phi::DenseTensor* output) {
+void FillKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::Scalar& val);
+
+template <typename T, typename Context>
+void AclopConv2dKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& input,
+                       const phi::DenseTensor& filter,
+                       const std::vector<int>& strides_t,
+                       const std::vector<int>& paddings_t,
+                       const std::string& padding_algorithm,
+                       const std::vector<int>& dilations_t,
+                       int groups,
+                       const std::string& data_format,
+                       phi::DenseTensor* output) {
   if (FLAGS_npu_storage_format) {
     AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, output);
   } else {
@@ -108,18 +113,125 @@ void Conv2dKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void Conv2DGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& output_grad,
-                      const std::vector<int>& strides_t,
-                      const std::vector<int>& paddings_t,
-                      const std::string& padding_algorithm,
-                      const std::vector<int>& dilations_t,
-                      int groups,
-                      const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+void Conv2dKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& input,
+                  const phi::DenseTensor& filter,
+                  const std::vector<int>& strides_t,
+                  const std::vector<int>& paddings_t,
+                  const std::string& padding_algorithm,
+                  const std::vector<int>& dilations_t,
+                  int groups,
+                  const std::string& data_format,
+                  phi::DenseTensor* output) {
+  DO_COMPATIBILITY(
+      aclnnConvolution,
+      (custom_kernel::AclopConv2dKernel<T, Context>(dev_ctx,
+                                                    input,
+                                                    filter,
+                                                    strides_t,
+                                                    paddings_t,
+                                                    padding_algorithm,
+                                                    dilations_t,
+                                                    groups,
+                                                    data_format,
+                                                    output)));
+
+  if (FLAGS_npu_storage_format) {
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, output);
+  } else {
+    dev_ctx.template Alloc<T>(output);
+  }
+
+  auto strides = strides_t;
+  auto paddings = paddings_t;
+  auto dilations = dilations_t;
+
+  const bool channel_last = data_format == "NHWC";
+
+  PADDLE_ENFORCE_EQ(channel_last && FLAGS_npu_storage_format,
+                    false,
+                    phi::errors::InvalidArgument(
+                        "PaddlePaddle do not support NPU storage format when "
+                        "Conv2D in NHWC format, but got data_format [%s] and "
+                        "FLAGS_npu_storage_format [%d]. Please execute 'export "
+                        "FLAGS_npu_storage_format=0' in your environment.",
+                        data_format,
+                        FLAGS_npu_storage_format));
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  custom_kernel::UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
+
+  phi::DenseTensor input_tensor(input), output_tensor(*output);
+  if (channel_last) {
+    phi::DenseTensorMeta input_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_meta = {
+        output->dtype(), output->dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_meta);
+    output_tensor.set_meta(output_meta);
+    dev_ctx.template Alloc<T>(&input_tensor);
+    dev_ctx.template Alloc<T>(&output_tensor);
+  }
+
+  phi::DenseTensor bias;
+  phi::DenseTensorMeta bias_meta = {input_tensor.dtype(),
+                                    phi::make_ddim({filter_dims[0], 1})};
+  bias.set_meta(bias_meta);
+  dev_ctx.template Alloc<T>(&bias);
+  FillNpuTensorWithConstant<float>(&bias, dev_ctx, 0.f);
+
+  phi::IntArray strides_(strides);
+  phi::IntArray paddings_(paddings);
+  phi::IntArray dilations_(dilations);
+
+  std::vector<int64_t> output_padding = {0};
+  bool transposed = false;
+  int8_t cubeMathType = 0;
+
+  auto stream = dev_ctx.stream();
+
+  EXEC_NPU_CMD(aclnnConvolution,
+               dev_ctx,
+               input_tensor,
+               filter,
+               bias,
+               strides_,
+               paddings_,
+               dilations_,
+               transposed,
+               output_padding,
+               groups,
+               cubeMathType,
+               output_tensor);
+}
+
+template <typename T, typename Context>
+void AclopConv2DGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& input,
+                           const phi::DenseTensor& filter,
+                           const phi::DenseTensor& output_grad,
+                           const std::vector<int>& strides_t,
+                           const std::vector<int>& paddings_t,
+                           const std::string& padding_algorithm,
+                           const std::vector<int>& dilations_t,
+                           int groups,
+                           const std::string& data_format,
+                           phi::DenseTensor* input_grad,
+                           phi::DenseTensor* filter_grad) {
   auto strides = strides_t;
   auto paddings = paddings_t;
   auto dilations = dilations_t;
@@ -214,6 +326,130 @@ void Conv2DGradKernel(const Context& dev_ctx,
         .AddAttrs({{"data_format", data_format}})
         .Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void Conv2DGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const phi::DenseTensor& filter,
+                      const phi::DenseTensor& output_grad,
+                      const std::vector<int>& strides_t,
+                      const std::vector<int>& paddings_t,
+                      const std::string& padding_algorithm,
+                      const std::vector<int>& dilations_t,
+                      int groups,
+                      const std::string& data_format,
+                      phi::DenseTensor* input_grad,
+                      phi::DenseTensor* filter_grad) {
+  DO_COMPATIBILITY(
+      aclnnConvolutionBackward,
+      (custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        output_grad,
+                                                        strides_t,
+                                                        paddings_t,
+                                                        padding_algorithm,
+                                                        dilations_t,
+                                                        groups,
+                                                        data_format,
+                                                        input_grad,
+                                                        filter_grad)));
+  auto strides = strides_t;
+  auto paddings = paddings_t;
+  auto dilations = dilations_t;
+  const bool channel_last = data_format == "NHWC";
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  custom_kernel::UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
+
+  phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
+  if (channel_last) {
+    phi::DenseTensorMeta input_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_grad_meta = {
+        output_grad.dtype(), output_grad.dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_meta);
+    output_grad_tensor.set_meta(output_grad_meta);
+  }
+
+  auto stream = dev_ctx.stream();
+
+  std::vector<int64_t> biasSizes =
+      phi::vectorize<int64_t>(phi::slice_ddim(filter.dims(), 0, 1));
+  const bool transposed = false;
+  std::vector<int64_t> outputPaddding = {0};
+  bool outputMask[3] = {input_grad != nullptr, filter_grad != nullptr, false};
+  const int8_t cubeMathType = 0;
+
+  phi::DenseTensor bias_grad;
+  phi::DenseTensorMeta bias_grad_meta = {input_tensor.dtype(),
+                                         phi::make_ddim({1})};
+  bias_grad.set_meta(bias_grad_meta);
+
+  dev_ctx.template Alloc<T>(&bias_grad);
+  custom_kernel::FillKernel<T, Context>(dev_ctx, bias_grad, 0.f);
+
+  phi::DenseTensor input_grad_tensor;
+
+  if (filter_grad) {
+    if (groups == 1 && FLAGS_npu_storage_format) {
+      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_FRACTAL_Z, filter_grad);
+    } else {
+      dev_ctx.template Alloc<T>(filter_grad);
+    }
+  }
+
+  if (input_grad) {
+    if (FLAGS_npu_storage_format) {
+      AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, input_grad);
+    } else {
+      dev_ctx.template Alloc<T>(input_grad);
+    }
+
+    input_grad_tensor = *input_grad;
+    if (channel_last) {
+      phi::DenseTensorMeta input_grad_meta = {
+          input_grad->dtype(), input_grad->dims(), phi::DataLayout::kNHWC};
+      input_grad_tensor.set_meta(input_grad_meta);
+    }
+  }
+
+  phi::IntArray strides_(strides);
+  phi::IntArray paddings_(paddings);
+  phi::IntArray dilations_(dilations);
+
+  EXEC_NPU_CMD(aclnnConvolutionBackward,
+               dev_ctx,
+               output_grad_tensor,
+               input_tensor,
+               filter,
+               biasSizes,
+               strides_,
+               paddings_,
+               dilations_,
+               transposed,
+               outputPaddding,
+               groups,
+               outputMask,
+               cubeMathType,
+               input_grad_tensor,
+               filter_grad,
+               bias_grad);
 }
 
 }  // namespace custom_kernel

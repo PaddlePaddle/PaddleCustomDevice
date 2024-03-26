@@ -165,6 +165,14 @@ inline cnrtQueue_t GetQueue(void *stream) {
 
 C_Status SetDevice(const C_Device device);
 
+C_Status QueryEvent(const C_Device device, C_Event event);
+
+C_Status DestroyEvent(const C_Device device, C_Event event);
+
+C_Status HostAllocate(const C_Device device, void **ptr, size_t size);
+
+C_Status HostDeallocate(const C_Device device, void *ptr, size_t size);
+
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,

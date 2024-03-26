@@ -63,6 +63,109 @@ static inline aclTensor* Create_Acltensor(const phi::DenseTensor& paddletensor,
   return acl_tensor;
 }
 
+static std::vector<int64_t> MatmulInferShape(const phi::DenseTensor& x,
+                                             const phi::DenseTensor& y,
+                                             bool trans_x,
+                                             bool trans_y) {
+  std::vector<int64_t> dims_x = phi::vectorize(x.dims());
+  std::vector<int64_t> dims_y = phi::vectorize(y.dims());
+  auto ndims_x = dims_x.size();
+  auto ndims_y = dims_y.size();
+  PADDLE_ENFORCE_GT(ndims_x,
+                    0UL,
+                    phi::errors::InvalidArgument(
+                        "The Input(x) dims size must be greater than 0,"
+                        " but reviced dims size is 0. "));
+  PADDLE_ENFORCE_GT(ndims_y,
+                    0UL,
+                    phi::errors::InvalidArgument(
+                        "The Input(y) dims size must be greater than 0,"
+                        " but reviced dims size is 0. "));
+
+  bool x_broadcasted = false, y_broadcasted = false;
+  if (ndims_x == 1) {
+    dims_x.insert(dims_x.begin(), 1);
+    ndims_x = 2;
+    x_broadcasted = true;
+  }
+
+  if (ndims_y == 1) {
+    dims_y.push_back(1);
+    ndims_y = 2;
+    y_broadcasted = true;
+  }
+
+  size_t M = 0, N = 0;
+  if (trans_x) {
+    M = dims_x[ndims_x - 1];
+  } else {
+    M = dims_x[ndims_x - 2];
+  }
+  if (trans_y) {
+    N = dims_y[ndims_y - 2];
+  } else {
+    N = dims_y[ndims_y - 1];
+  }
+
+  std::vector<int64_t> new_dims;
+  if (ndims_x > ndims_y) {
+    new_dims.assign(dims_x.begin(), dims_x.end() - 2);
+  } else if (ndims_x < ndims_y) {
+    new_dims.assign(dims_y.begin(), dims_y.end() - 2);
+  } else {
+    new_dims.reserve(ndims_x);
+    for (size_t i = 0; i < ndims_x - 2; ++i) {
+      new_dims.push_back(std::max(dims_x[i], dims_y[i]));
+    }
+  }
+  if (!x_broadcasted) {
+    new_dims.push_back(M);
+  }
+  if (!y_broadcasted) {
+    new_dims.push_back(N);
+  }
+  return new_dims;
+}
+
+template <typename Context>
+static phi::DenseTensor TensorCast(const Context& dev_ctx,
+                                   const phi::DenseTensor& tensor) {
+  if (tensor.dtype() != phi::DataType::FLOAT64) {
+    return tensor;
+  }
+  phi::DenseTensor tensor_cast;
+  phi::DenseTensorMeta x_temp_cast_meta = {phi::DataType::FLOAT16,
+                                           tensor.dims()};
+  tensor_cast.set_meta(x_temp_cast_meta);
+  dev_ctx.Alloc(&tensor_cast, phi::DataType::FLOAT16);
+  int aclDtype = ConvertToNpuDtype(phi::DataType::FLOAT16);
+  EXEC_NPU_CMD(aclnnCast, dev_ctx, tensor, aclDtype, tensor_cast);
+  return tensor_cast;
+}
+
+template <typename Context>
+static phi::DenseTensor OutCast(const Context& dev_ctx, phi::DenseTensor* out) {
+  if (out->dtype() != phi::DataType::FLOAT64) {
+    return *out;
+  }
+  phi::DenseTensor out_fp16;
+  phi::DenseTensorMeta out_temp_cast_meta = {phi::DataType::FLOAT16,
+                                             out->dims()};
+  out_fp16.set_meta(out_temp_cast_meta);
+  dev_ctx.Alloc(&out_fp16, phi::DataType::FLOAT16);
+  return out_fp16;
+}
+
+template <typename Context>
+static void OutRevert(const Context& dev_ctx,
+                      const phi::DenseTensor& out_temp,
+                      phi::DenseTensor* out) {
+  if (out->dtype() == phi::DataType::FLOAT64) {
+    int aclDtype = ConvertToNpuDtype(out->dtype());
+    EXEC_NPU_CMD(aclnnCast, dev_ctx, out_temp, aclDtype, out);
+  }
+}
+
 template <typename T, typename Context>
 static void AclnnMatmulForward(const Context& dev_ctx,
                                const phi::DenseTensor& X,
@@ -70,13 +173,109 @@ static void AclnnMatmulForward(const Context& dev_ctx,
                                phi::DenseTensor* out,
                                const bool transpose_x,
                                const bool transpose_y) {
-  dev_ctx.template Alloc<T>(out);
-  auto out_dim = phi::vectorize(out->dims());
-  aclTensor* x_acltensor = Create_Acltensor(X, transpose_x);
-  aclTensor* y_acltensor = Create_Acltensor(Y, transpose_y);
+  // cubeMathType(int8_t，计算输入)：
+  // 0:KEEP_DTYE保持输入的数据类型进行计算
+  // 1:ALLOW_FP32_DOWN_PRECISON，允许将输入数据降精度计算
+  // 2:USE_FP16，允许转换为数据类型FLOAT16进行计算。当输入数据类型是FLOAT，转换为FLOAT16计算。
+  // 3:USE_HF32，允许转换为数据类型HFLOAT32计算
+  // 当前取0，维持原类型即可
   int8_t cube_math_type = 0;
+  dev_ctx.template Alloc<T>(out);
+  std::vector<int64_t> x_dims = phi::vectorize(X.dims());
+  std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
+  int x_ndim = x_dims.size();
+  int y_ndim = y_dims.size();
+  phi::DenseTensor x_temp(X), y_temp(Y);
+  if (x_ndim == 1) {
+    x_dims.insert(x_dims.begin(), 1);
+    x_temp.Resize(phi::make_ddim(x_dims));
+  }
+  if (y_ndim == 1) {
+    y_dims.push_back(1);
+    y_temp.Resize(phi::make_ddim(y_dims));
+  }
+  // 如果是float64转换成fp16计算，其余数据类型透传
+  auto x_temp_cast = TensorCast<Context>(dev_ctx, x_temp);
+  auto y_temp_cast = TensorCast<Context>(dev_ctx, y_temp);
+  // 如果out是float64,也要转成fp16，其余数据类型透传
+  auto out_temp = OutCast<Context>(dev_ctx, out);
+  // transpose场景下通过acl接口实现view机制
+  aclTensor* x_acltensor = Create_Acltensor(x_temp_cast, transpose_x);
+  aclTensor* y_acltensor = Create_Acltensor(y_temp_cast, transpose_y);
   EXEC_NPU_CMD(
-      aclnnMatmul, dev_ctx, x_acltensor, y_acltensor, *out, cube_math_type);
+      aclnnMatmul, dev_ctx, x_acltensor, y_acltensor, out_temp, cube_math_type);
+  // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+  OutRevert<Context>(dev_ctx, out_temp, out);
+}
+
+inline static std::vector<int64_t> GetReduceDims(
+    const std::vector<int64_t>& x_dims,
+    const std::vector<int64_t>& y_dims,
+    const std::vector<int64_t>& brd_dims) {
+  std::vector<int64_t> axes;
+  int64_t size = brd_dims.size();
+  int64_t diff = brd_dims.size() - x_dims.size();
+  // 输入输出shape相同,有1则需要reduce
+  if (x_dims.size() == brd_dims.size() && x_dims.size() == y_dims.size()) {
+    for (auto i = 0; i < x_dims.size(); i++) {
+      if (x_dims[i] == 1) {
+        axes.push_back(i);
+      }
+    }
+    return axes;
+  }
+  for (int64_t i = 0; i < size; ++i) {
+    if (i < diff) {
+      axes.push_back(i);
+      continue;
+    }
+    if ((brd_dims[i] > x_dims[i - diff])) {
+      axes.push_back(i);
+    }
+  }
+  return axes;
+}
+
+template <typename T, typename Context>
+static phi::DenseTensor MakeReduceTempOut(const Context& dev_ctx,
+                                          std::vector<int64_t> reduce_axes,
+                                          const phi::DenseTensor& x_tensor,
+                                          const phi::DenseTensor& y_tensor,
+                                          phi::DenseTensor* d_tensor,
+                                          bool transpose_x,
+                                          bool transpose_y) {
+  phi::DenseTensor d_tmp;
+  if (!reduce_axes.empty()) {
+    auto dx_tmp_shape =
+        MatmulInferShape(x_tensor, y_tensor, transpose_x, transpose_y);
+    d_tmp.Resize(phi::make_ddim(dx_tmp_shape));
+    dev_ctx.template Alloc<T>(&d_tmp);
+  } else {
+    d_tmp = *d_tensor;
+  }
+  return d_tmp;
+}
+
+template <typename Context>
+static void OuttempReduceOut(const Context& dev_ctx,
+                             const std::vector<int64_t>& reduce_axes,
+                             const phi::DenseTensor& out_temp,
+                             phi::DenseTensor* out) {
+  bool keep_dims = false;
+  phi::DenseTensor out_resized(*out);
+  if (!reduce_axes.empty()) {
+    if (out_temp.dims().size() == out->dims().size()) {
+      keep_dims = true;
+    }
+    auto dtype = ConvertToNpuDtype(out->dtype());
+    EXEC_NPU_CMD(aclnnReduceSum,
+                 dev_ctx,
+                 out_temp,
+                 reduce_axes,
+                 keep_dims,
+                 dtype,
+                 out_resized);
+  }
 }
 
 template <typename T, typename Context>
@@ -88,39 +287,174 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
                                 const bool transpose_y,
                                 phi::DenseTensor* dx,
                                 phi::DenseTensor* dy) {
-  std::vector<int64_t> x_dims = phi::vectorize(X.dims());
-  std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
-  std::vector<int64_t> out_dims = phi::vectorize(dout.dims());
+  int8_t cube_math_type = 0;
+  auto x_dims = X.dims();
+  auto y_dims = Y.dims();
+  auto dout_dims = dout.dims();
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
-  int out_ndim = out_dims.size();
-  // Case 1: [K] x [K] = [1]
+  int out_ndim = dout_dims.size();
+  // 输入输出shape全为1，反向用乘法
   if (x_ndim == 1 && y_ndim == 1) {
     if (dx) {
       dev_ctx.template Alloc<T>(dx);
+      // aclnnMul支持float64，此处不用转数据类型
       EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, Y, *dx);
     }
     if (dy) {
       dev_ctx.template Alloc<T>(dy);
+      // aclnnMul支持float64，此处不用转数据类型
       EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, X, *dy);
     }
     return;
   }
+  phi::DenseTensor x_temp(X), y_temp(Y), dout_temp(dout);
+  if (x_ndim == 1) {
+    auto x_dims_vector = phi::vectorize(x_dims);
+    auto out_dims_vector = phi::vectorize(dout_dims);
+    x_dims_vector.insert(x_dims_vector.begin(), 1);
+    out_dims_vector.insert(out_dims_vector.end() - 1, 1);
+    x_dims = phi::make_ddim(x_dims_vector);
+    x_temp.Resize(x_dims);
+    dout_dims = phi::make_ddim(out_dims_vector);
+    dout_temp.Resize(dout_dims);
+  }
+  if (y_ndim == 1) {
+    auto y_dims_vector = phi::vectorize(y_dims);
+    auto out_dims_vector = phi::vectorize(dout_dims);
+    y_dims_vector.push_back(1);
+    out_dims_vector.push_back(1);
+    y_dims = phi::make_ddim(y_dims_vector);
+    y_temp.Resize(y_dims);
+    dout_dims = phi::make_ddim(out_dims_vector);
+    dout_temp.Resize(dout_dims);
+  }
+
   if (dx) {
+    dev_ctx.template Alloc<T>(dx);
+    phi::DenseTensor dx_tmp;
+    phi::DenseTensor dx_resized(*dx);
+    dx_resized.Resize(x_dims);
+    // 如果需要reduce sum，先计算出需要reduce sum的轴
+    auto reduce_dims = GetReduceDims(phi::vectorize(x_dims),
+                                     phi::vectorize(y_dims),
+                                     phi::vectorize(dout_dims));
     if (transpose_x) {
-      AclnnMatmulForward<T, Context>(dev_ctx, Y, dout, dx, transpose_y, true);
+      // 如果需要reduce，先申请一个reduce前的临时tensor,不需要reduce时透传
+      dx_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
+                                             reduce_dims,
+                                             y_temp,
+                                             dout_temp,
+                                             &dx_resized,
+                                             transpose_y,
+                                             true);
+      // 如果out是float64,也要转成fp16，其余数据类型透传
+      auto dx_tmp_out = OutCast<Context>(dev_ctx, &dx_tmp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto Y_temp_cast = TensorCast<Context>(dev_ctx, y_temp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto dout_temp_cast = TensorCast<Context>(dev_ctx, dout_temp);
+      // transpose场景下通过acl接口实现view机制
+      aclTensor* x_acltensor = Create_Acltensor(Y_temp_cast, transpose_y);
+      aclTensor* y_acltensor = Create_Acltensor(dout_temp_cast, true);
+      EXEC_NPU_CMD(aclnnMatmul,
+                   dev_ctx,
+                   x_acltensor,
+                   y_acltensor,
+                   dx_tmp_out,
+                   cube_math_type);
+      // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+      OutRevert<Context>(dev_ctx, dx_tmp_out, &dx_tmp);
     } else {
-      AclnnMatmulForward<T, Context>(dev_ctx, dout, Y, dx, false, !transpose_y);
+      dx_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
+                                             reduce_dims,
+                                             dout_temp,
+                                             y_temp,
+                                             &dx_resized,
+                                             false,
+                                             !transpose_y);
+      // 如果out是float64,也要转成fp16，其余数据类型透传
+      auto dx_tmp_out = OutCast<Context>(dev_ctx, &dx_tmp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto Y_temp_cast = TensorCast<Context>(dev_ctx, y_temp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto dout_temp_cast = TensorCast<Context>(dev_ctx, dout_temp);
+      aclTensor* x_acltensor = Create_Acltensor(dout_temp_cast, false);
+      aclTensor* y_acltensor = Create_Acltensor(Y_temp_cast, !transpose_y);
+      EXEC_NPU_CMD(aclnnMatmul,
+                   dev_ctx,
+                   x_acltensor,
+                   y_acltensor,
+                   dx_tmp_out,
+                   cube_math_type);
+      // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+      OutRevert<Context>(dev_ctx, dx_tmp_out, &dx_tmp);
     }
-    dx->Resize(X.dims());
+    // reduce场景下，生成对应的reduce tensor，否则透传
+    OuttempReduceOut<Context>(dev_ctx, reduce_dims, dx_tmp, &dx_resized);
   }
   if (dy) {
+    dev_ctx.template Alloc<T>(dy);
+    phi::DenseTensor dy_tmp;
+    phi::DenseTensor dy_resized(*dy);
+    dy_resized.Resize(y_dims);
+    // 如果需要reduce sum，先计算出需要reduce sum的轴
+    auto reduce_dims = GetReduceDims(phi::vectorize(y_dims),
+                                     phi::vectorize(x_dims),
+                                     phi::vectorize(dout_dims));
     if (transpose_y) {
-      AclnnMatmulForward<T, Context>(dev_ctx, dout, X, dy, true, transpose_x);
+      dy_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
+                                             reduce_dims,
+                                             dout_temp,
+                                             x_temp,
+                                             &dy_resized,
+                                             true,
+                                             transpose_x);
+      // 如果out是float64,也要转成fp16，其余数据类型透传
+      auto dy_tmp_out = OutCast<Context>(dev_ctx, &dy_tmp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto X_temp_cast = TensorCast<Context>(dev_ctx, x_temp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto dout_temp_cast = TensorCast<Context>(dev_ctx, dout_temp);
+      aclTensor* x_acltensor = Create_Acltensor(dout_temp_cast, true);
+      aclTensor* y_acltensor = Create_Acltensor(X_temp_cast, transpose_x);
+      EXEC_NPU_CMD(aclnnMatmul,
+                   dev_ctx,
+                   x_acltensor,
+                   y_acltensor,
+                   dy_tmp_out,
+                   cube_math_type);
+      // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+      OutRevert<Context>(dev_ctx, dy_tmp_out, &dy_tmp);
+      // AclnnMatmulForward<T, Context>(dev_ctx, dout, X, dy, true,
+      // transpose_x);
     } else {
-      AclnnMatmulForward<T, Context>(dev_ctx, X, dout, dy, !transpose_x, false);
+      dy_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
+                                             reduce_dims,
+                                             x_temp,
+                                             dout_temp,
+                                             &dy_resized,
+                                             !transpose_x,
+                                             false);
+      // 如果out是float64,也要转成fp16，其余数据类型透传
+      auto dy_tmp_out = OutCast<Context>(dev_ctx, &dy_tmp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto X_temp_cast = TensorCast<Context>(dev_ctx, x_temp);
+      // 如果是float64转换成fp16计算，其余数据类型透传
+      auto dout_temp_cast = TensorCast<Context>(dev_ctx, dout_temp);
+      aclTensor* x_acltensor = Create_Acltensor(X_temp_cast, !transpose_x);
+      aclTensor* y_acltensor = Create_Acltensor(dout_temp_cast, false);
+      EXEC_NPU_CMD(aclnnMatmul,
+                   dev_ctx,
+                   x_acltensor,
+                   y_acltensor,
+                   dy_tmp_out,
+                   cube_math_type);
+      // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+      OutRevert<Context>(dev_ctx, dy_tmp_out, &dy_tmp);
     }
-    dy->Resize(Y.dims());
+    // reduce场景下，生成对应的reduce tensor，否则透传
+    OuttempReduceOut<Context>(dev_ctx, reduce_dims, dy_tmp, &dy_resized);
   }
 }
 
@@ -280,8 +614,12 @@ static void MatMul(const Context& dev_ctx,
                    const bool transpose_y,
                    bool is_batch) {
   if (IsNotTransformedNZFormat(X, Y)) {
-    MatMulForNotNZFormat<T>(
-        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
+    DO_COMPATIBILITY(
+        aclnnMatmul,
+        (MatMulForNotNZFormat<T>(
+            dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch)));
+    // MatMulForNotNZFormat<T>(
+    //     dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   } else {
     MatMulForNZFormat<T>(
         dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
@@ -797,13 +1135,12 @@ void MatmulKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnMatmul,
                    (MatmulAclOpImpl<T, Context>(
                        dev_ctx, x, y, transpose_x, transpose_y, out)));
-  bool is_nz = IsNotTransformedNZFormat(x, y);
-  // NZ私有格式走ACLOP
-  if (is_nz) {
+  // 私有格式走aclop
+  if (x.storage_properties_initialized() ||
+      y.storage_properties_initialized()) {
     MatmulAclOpImpl<T, Context>(dev_ctx, x, y, transpose_x, transpose_y, out);
     return;
   }
-  // ACLNN调用
   AclnnMatmulForward<T, Context>(dev_ctx, x, y, out, transpose_x, transpose_y);
 }
 
@@ -816,18 +1153,16 @@ void MatmulGradKernel(const Context& dev_ctx,
                       bool transpose_y,
                       phi::DenseTensor* dx,
                       phi::DenseTensor* dy) {
-  // 没有aclnn时默认走aclop
   DO_COMPATIBILITY(aclnnMatmul,
                    (MatmulGradAclOpImpl<T, Context>(
                        dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy)));
-  // NZ私有格式走ACLOP
-  bool is_nz = IsNotTransformedNZFormat(x, y);
-  if (is_nz) {
+  // 私有格式走aclop
+  if (x.storage_properties_initialized() ||
+      y.storage_properties_initialized()) {
     MatmulGradAclOpImpl<T, Context>(
         dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy);
     return;
   }
-  // ACLNN调用
   AclnnMatmulBackward<T, Context>(
       dev_ctx, x, y, dout, transpose_x, transpose_y, dx, dy);
 }

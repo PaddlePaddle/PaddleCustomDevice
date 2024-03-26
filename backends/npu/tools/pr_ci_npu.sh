@@ -158,13 +158,13 @@ function main() {
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
     
-    set +e
+    set -x
     NUM_PROC=16
     EXIT_CODE=0
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do
-        mlu_list="$((i*2)),$((i*2+1))"
-        (env MLU_VISIBLE_DEVICES=$mlu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
+        npu_list="$((i*2)),$((i*2+1))"
+        (env NPU_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
         pids+=($!)
     done
 
@@ -176,7 +176,7 @@ function main() {
         fi
     done
 
-    set -e
+    set +x
     
     collect_failed_tests
 

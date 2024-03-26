@@ -164,7 +164,7 @@ function main() {
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do
         npu_list="$((i*2)),$((i*2+1))"
-        (env NPU_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
+        (env ASCEND_RT_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
         pids+=($!)
     done
 

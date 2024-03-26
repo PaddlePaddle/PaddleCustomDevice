@@ -159,7 +159,7 @@ function main() {
     tmpfile=$tmp_dir/$tmpfile_rand
     
     set -x
-    NUM_PROC=16
+    NUM_PROC=14
     EXIT_CODE=0
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do

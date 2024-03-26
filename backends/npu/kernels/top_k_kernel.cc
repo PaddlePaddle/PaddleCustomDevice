@@ -18,14 +18,14 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TopkKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& k_scalar,
-                int axis,
-                bool largest,
-                bool sorted,
-                phi::DenseTensor* out,
-                phi::DenseTensor* indices) {
+void AclopTopkKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::Scalar& k_scalar,
+                     int axis,
+                     bool largest,
+                     bool sorted,
+                     phi::DenseTensor* out,
+                     phi::DenseTensor* indices) {
   const int64_t kMaxTopkSize = 32768;
   const int64_t kMaxK = 8;
   const int64_t kMinK = 0;
@@ -84,6 +84,51 @@ void TopkKernel(const Context& dev_ctx,
                   {*indices},
                   {{"dst_type", static_cast<int>(dst_dtype)}});
   npu_op_runner_cast.Run(npu_stream);
+}
+
+template <typename T, typename Context>
+void TopkKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::Scalar& k_scalar,
+                int axis,
+                bool largest,
+                bool sorted,
+                phi::DenseTensor* out,
+                phi::DenseTensor* indices) {
+  DO_COMPATIBILITY(
+      aclnnTopk,
+      (custom_kernel::AclopTopkKernel<T, Context>(
+          dev_ctx, x, k_scalar, axis, largest, sorted, out, indices)));
+
+  const int64_t kMaxTopkSize = 32768;
+  const int64_t kMaxK = 8;
+  const int64_t kMinK = 0;
+
+  if (axis < 0) {
+    axis += x.dims().size();
+  }
+
+  int k = k_scalar.to<int>();
+
+  phi::DDim output_dims = x.dims();
+  output_dims[axis] = k;
+
+  out->Resize(output_dims);
+  indices->Resize(output_dims);
+
+  dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<int64_t>(indices);
+
+  // Support 0D
+  if (output_dims.size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    FillNpuTensorWithConstant<int64_t>(
+        indices, dev_ctx, static_cast<int64_t>(0.0));
+    indices->Resize(output_dims);
+    return;
+  }
+
+  EXEC_NPU_CMD(aclnnTopk, dev_ctx, x, k, axis, largest, sorted, *out, *indices);
 }
 
 }  // namespace custom_kernel

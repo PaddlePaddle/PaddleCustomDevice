@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void ConcatKernel(const Context& dev_ctx,
+                  const std::vector<const phi::DenseTensor*>& ins,
+                  const phi::Scalar& axis_scalar,
+                  phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void IndexSampleGather(const Context& dev_ctx,
                        const phi::DenseTensor* index,
                        const phi::DenseTensor* input,
@@ -101,20 +107,34 @@ void IndexSampleGather(const Context& dev_ctx,
       tmp_output.push_back(tmp_out_t);
     }
 
-    // concat
-    std::vector<std::string> names;
-    names.emplace_back("concat_dim");
-    for (size_t i = 0; i < tmp_output.size(); ++i) {
-      names.emplace_back("x" + std::to_string(i));
+    int count = 0;
+    std::vector<const phi::DenseTensor*> concat_input;
+    for (int i = 0; i < tmp_output.size(); ++i) {
+      count += tmp_output[i].numel();
+      concat_input.push_back(&tmp_output[i]);
     }
-    NpuOpRunner concat_runner;
-    concat_runner.SetType("Concat")
-        .AddInput(dev_ctx, std::move(std::vector<int>(1, 0)))
-        .AddInputs(tmp_output)
-        .AddOutput(*out)
-        .AddAttr("N", static_cast<int>(tmp_output.size()))
-        .AddInputNames(names);
-    concat_runner.Run(stream);
+
+    auto dtype = concat_input[0]->dtype();
+    auto out_dim = out->dims();
+    phi::DenseTensorMeta meta = {dtype, phi::make_ddim({count})};
+    out->set_meta(meta);
+
+    phi::Scalar axis = 0;
+    if (dtype == phi::DataType::FLOAT32) {
+      custom_kernel::ConcatKernel<float, Context>(
+          dev_ctx, concat_input, axis, out);
+    } else if (dtype == phi::DataType::INT32) {
+      custom_kernel::ConcatKernel<int32_t, Context>(
+          dev_ctx, concat_input, axis, out);
+    } else if (dtype == phi::DataType::INT64) {
+      custom_kernel::ConcatKernel<int64_t, Context>(
+          dev_ctx, concat_input, axis, out);
+    } else if (dtype == phi::DataType::FLOAT16) {
+      custom_kernel::ConcatKernel<phi::dtype::float16, Context>(
+          dev_ctx, concat_input, axis, out);
+    }
+    out->Resize(out_dim);
+
   } else {
     // CPU implementation for index
     std::vector<T> gather_index_vec;

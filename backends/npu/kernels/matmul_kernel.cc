@@ -162,7 +162,7 @@ static void OutRevert(const Context& dev_ctx,
                       phi::DenseTensor* out) {
   if (out->dtype() == phi::DataType::FLOAT64) {
     int aclDtype = ConvertToNpuDtype(out->dtype());
-    EXEC_NPU_CMD(aclnnCast, dev_ctx, out_temp, aclDtype, out);
+    EXEC_NPU_CMD(aclnnCast, dev_ctx, out_temp, aclDtype, *out);
   }
 }
 

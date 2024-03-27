@@ -49,12 +49,24 @@ void MinimumRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopMinimumKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out) {
+  int axis = -1;
+  custom_kernel::MinimumRawKernel<T>(dev_ctx, x, y, axis, out);
+}
+
+template <typename T, typename Context>
 void MinimumKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    const phi::DenseTensor& y,
                    phi::DenseTensor* out) {
-  int axis = -1;
-  custom_kernel::MinimumRawKernel<T>(dev_ctx, x, y, axis, out);
+  DO_COMPATIBILITY(
+      aclnnMinimum,
+      (custom_kernel::AclopMinimumKernel<T, Context>(dev_ctx, x, y, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnMinimum, dev_ctx, x, y, *out);
 }
 
 template <typename T, typename Context>

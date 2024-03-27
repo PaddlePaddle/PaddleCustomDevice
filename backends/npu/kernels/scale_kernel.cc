@@ -21,11 +21,10 @@ template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::Scalar& in_scale,
-                 const phi::Scalar& in_bias,
+                 float bias,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
-  auto bias = in_bias.to<float>();
   auto stream = dev_ctx.stream();
   float power = 1.0;
   VLOG(4) << "scale:" << scale << ", bias:" << bias

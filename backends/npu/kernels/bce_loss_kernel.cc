@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void BCELossKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& labels,
-                   phi::DenseTensor* out) {
+void AclopBCELossKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& labels,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -34,11 +34,26 @@ void BCELossKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void BCELossGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& labels,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+void BCELossKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& labels,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnBinaryCrossEntropy,
+      (custom_kernel::AclopBCELossKernel<T, Context>(dev_ctx, x, labels, out)));
+  dev_ctx.template Alloc<T>(out);
+  int64_t reduction = 0;
+  phi::DenseTensor* weight = nullptr;
+  EXEC_NPU_CMD(
+      aclnnBinaryCrossEntropy, dev_ctx, x, labels, weight, reduction, *out);
+}
+
+template <typename T, typename Context>
+void AclopBCELossGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& labels,
+                            const phi::DenseTensor& dout,
+                            phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   auto stream = dev_ctx.stream();
@@ -48,6 +63,28 @@ void BCELossGradKernel(const Context& dev_ctx,
                   {*dx},
                   {{"reduction", static_cast<std::string>("none")}});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void BCELossGradKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& labels,
+                       const phi::DenseTensor& dout,
+                       phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnBinaryCrossEntropyBackward,
+                   (custom_kernel::AclopBCELossGradKernel<T, Context>(
+                       dev_ctx, x, labels, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  int64_t reduction = 0;
+  phi::DenseTensor* weight = nullptr;
+  EXEC_NPU_CMD(aclnnBinaryCrossEntropyBackward,
+               dev_ctx,
+               dout,
+               x,
+               labels,
+               weight,
+               reduction,
+               *dx);
 }
 
 }  // namespace custom_kernel

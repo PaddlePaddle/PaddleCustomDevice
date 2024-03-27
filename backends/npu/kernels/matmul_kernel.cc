@@ -185,6 +185,18 @@ static void AclnnMatmulForward(const Context& dev_ctx,
   std::vector<int64_t> y_dims = phi::vectorize(Y.dims());
   int x_ndim = x_dims.size();
   int y_ndim = y_dims.size();
+  if ((x_ndim == 1) && (y_ndim == 1)) {
+    // 如果是float64转换成fp16计算，其余数据类型透传
+    auto x_temp_cast = TensorCast<Context>(dev_ctx, X);
+    auto y_temp_cast = TensorCast<Context>(dev_ctx, Y);
+    // 如果out是float64,也要转成fp16，其余数据类型透传
+    auto out_temp = OutCast<Context>(dev_ctx, out);
+    EXEC_NPU_CMD(aclnnDot, dev_ctx, x_temp_cast, y_temp_cast, out_temp);
+    // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
+    OutRevert<Context>(dev_ctx, out_temp, out);
+    out->Resize({1});
+    return;
+  }
   phi::DenseTensor x_temp(X), y_temp(Y);
   if (x_ndim == 1) {
     x_dims.insert(x_dims.begin(), 1);
@@ -215,15 +227,6 @@ inline static std::vector<int64_t> GetReduceDims(
   std::vector<int64_t> axes;
   int64_t size = brd_dims.size();
   int64_t diff = brd_dims.size() - x_dims.size();
-  // 输入输出shape相同,有1则需要reduce
-  if (x_dims.size() == brd_dims.size() && x_dims.size() == y_dims.size()) {
-    for (auto i = 0; i < x_dims.size(); i++) {
-      if (x_dims[i] == 1) {
-        axes.push_back(i);
-      }
-    }
-    return axes;
-  }
   for (int64_t i = 0; i < size; ++i) {
     if (i < diff) {
       axes.push_back(i);
@@ -329,18 +332,17 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
     dout_dims = phi::make_ddim(out_dims_vector);
     dout_temp.Resize(dout_dims);
   }
-
+  std::vector<int64_t> reduce_dims;
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
     phi::DenseTensor dx_tmp;
     phi::DenseTensor dx_resized(*dx);
     dx_resized.Resize(x_dims);
-    // 如果需要reduce sum，先计算出需要reduce sum的轴
-    auto reduce_dims = GetReduceDims(phi::vectorize(x_dims),
-                                     phi::vectorize(y_dims),
-                                     phi::vectorize(dout_dims));
     if (transpose_x) {
       // 如果需要reduce，先申请一个reduce前的临时tensor,不需要reduce时透传
+      auto mew_shape = MatmulInferShape(y_temp, dout_temp, transpose_y, true);
+      reduce_dims = GetReduceDims(
+          phi::vectorize(x_dims), phi::vectorize(y_dims), mew_shape);
       dx_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
                                              reduce_dims,
                                              y_temp,
@@ -366,6 +368,9 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
       // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
       OutRevert<Context>(dev_ctx, dx_tmp_out, &dx_tmp);
     } else {
+      auto mew_shape = MatmulInferShape(dout_temp, y_temp, false, !transpose_y);
+      reduce_dims = GetReduceDims(
+          phi::vectorize(x_dims), phi::vectorize(y_dims), mew_shape);
       dx_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
                                              reduce_dims,
                                              dout_temp,
@@ -398,11 +403,11 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
     phi::DenseTensor dy_tmp;
     phi::DenseTensor dy_resized(*dy);
     dy_resized.Resize(y_dims);
-    // 如果需要reduce sum，先计算出需要reduce sum的轴
-    auto reduce_dims = GetReduceDims(phi::vectorize(y_dims),
-                                     phi::vectorize(x_dims),
-                                     phi::vectorize(dout_dims));
     if (transpose_y) {
+      // 如果需要reduce，先申请一个reduce前的临时tensor,不需要reduce时透传
+      auto mew_shape = MatmulInferShape(dout_temp, x_temp, true, transpose_x);
+      reduce_dims = GetReduceDims(
+          phi::vectorize(y_dims), phi::vectorize(x_dims), mew_shape);
       dy_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
                                              reduce_dims,
                                              dout_temp,
@@ -426,9 +431,11 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
                    cube_math_type);
       // 如果是float64,输出结果最后转成float64输出，其余数据类型透传
       OutRevert<Context>(dev_ctx, dy_tmp_out, &dy_tmp);
-      // AclnnMatmulForward<T, Context>(dev_ctx, dout, X, dy, true,
-      // transpose_x);
     } else {
+      // 如果需要reduce，先申请一个reduce前的临时tensor,不需要reduce时透传
+      auto mew_shape = MatmulInferShape(x_temp, dout_temp, !transpose_x, false);
+      reduce_dims = GetReduceDims(
+          phi::vectorize(y_dims), phi::vectorize(x_dims), mew_shape);
       dy_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
                                              reduce_dims,
                                              x_temp,
@@ -614,12 +621,8 @@ static void MatMul(const Context& dev_ctx,
                    const bool transpose_y,
                    bool is_batch) {
   if (IsNotTransformedNZFormat(X, Y)) {
-    DO_COMPATIBILITY(
-        aclnnMatmul,
-        (MatMulForNotNZFormat<T>(
-            dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch)));
-    // MatMulForNotNZFormat<T>(
-    //     dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
+    MatMulForNotNZFormat<T>(
+        dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   } else {
     MatMulForNZFormat<T>(
         dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);

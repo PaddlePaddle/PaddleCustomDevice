@@ -421,10 +421,10 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                bool approximate,
-                phi::DenseTensor* out) {
+void AclopGeluKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     bool approximate,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -433,11 +433,23 @@ void GeluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
-                    bool approximate,
-                    phi::DenseTensor* x_grad) {
+void GeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                bool approximate,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnGelu,
+                   (custom_kernel::AclopGeluKernel<T, Context>(
+                       dev_ctx, x, approximate, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnGelu, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopGeluGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& out_grad,
+                         bool approximate,
+                         phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();
 
@@ -450,6 +462,19 @@ void GeluGradKernel(const Context& dev_ctx,
   const auto& runner_dx =
       NpuOpRunner("GeluGrad", {out_grad, x, out_grad}, {*x_grad}, {});
   runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void GeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out_grad,
+                    bool approximate,
+                    phi::DenseTensor* x_grad) {
+  DO_COMPATIBILITY(aclnnGeluBackward,
+                   (custom_kernel::AclopGeluGradKernel<T, Context>(
+                       dev_ctx, x, out_grad, approximate, x_grad)));
+  dev_ctx.template Alloc<T>(x_grad);
+  EXEC_NPU_CMD(aclnnGeluBackward, dev_ctx, out_grad, x, *x_grad);
 }
 
 template <typename T, typename Context>

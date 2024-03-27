@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
 
@@ -24,10 +25,10 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void MaskedSelectKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& mask,
-                        phi::DenseTensor* out) {
+void AclopMaskedSelectKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& mask,
+                             phi::DenseTensor* out) {
   auto input_dim = x.dims();
   auto mask_dim = mask.dims();
   PADDLE_ENFORCE_EQ(input_dim,
@@ -80,6 +81,77 @@ void MaskedSelectKernel(const Context& dev_ctx,
   const auto& runner =
       NpuOpRunner("MaskedSelect", {x_tmp, mask_tmp}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void MaskedSelectKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& mask,
+                        phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnMaskedSelect,
+                   (custom_kernel::AclopMaskedSelectKernel<T, Context>(
+                       dev_ctx, x, mask, out)));
+  if (x.storage_properties_initialized()) {
+    custom_kernel::AclopMaskedSelectKernel<T, Context>(dev_ctx, x, mask, out);
+    return;
+  }
+  auto input_dim = x.dims();
+  auto mask_dim = mask.dims();
+  PADDLE_ENFORCE_EQ(input_dim,
+                    mask_dim,
+                    phi::errors::InvalidArgument(
+                        "The dim size of input and mask in OP(masked_selected) "
+                        "must be equal, but got input dim:(%ld), mask dim: "
+                        "(%ld). Please check input "
+                        "value.",
+                        input_dim,
+                        mask_dim));
+
+  auto stream = dev_ctx.stream();
+
+  phi::DenseTensor x_tmp(x), mask_tmp(mask);
+  if (x.dims().size() == 0 && mask.dims().size() == 0) {
+    x_tmp.Resize({1});
+    mask_tmp.Resize({1});
+  }
+
+  phi::DenseTensor middle_out;
+  phi::DenseTensorMeta out_meta = {x.dtype(), phi::make_ddim({x.numel()})};
+  middle_out.set_meta(out_meta);
+  dev_ctx.Alloc(&middle_out, middle_out.dtype());
+
+  EXEC_NPU_CMD(aclnnMaskedSelect, dev_ctx, x_tmp, mask_tmp, middle_out);
+
+  phi::DenseTensor mask_int32;
+  phi::DenseTensor out_size;
+  mask_int32.Resize(mask_dim);
+  out_size.Resize({1});
+  dev_ctx.template Alloc<int32_t>(&mask_int32);
+  dev_ctx.template Alloc<int32_t>(&out_size);
+  std::vector<int32_t> out_size_vec;
+  {
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, mask, phi::DataType::INT32, &mask_int32);
+    mask_int32.Resize({mask_int32.numel()});
+
+    NpuOpRunner sum_runner;
+    sum_runner.SetType("ReduceSum");
+    sum_runner.AddInput(mask_int32);
+    sum_runner.AddInput(dev_ctx, std::vector<int32_t>(1, 0));
+    sum_runner.AddOutput(out_size);
+    sum_runner.AddAttr("keep_dims", false);
+    sum_runner.Run(stream);
+
+    // wait for ReduceSum complete
+    dev_ctx.Wait();
+    TensorToVector(dev_ctx, out_size, dev_ctx, &out_size_vec);
+    // wait for copy complete
+    dev_ctx.Wait();
+  }
+
+  *out = custom_kernel::Slice(middle_out,
+                              static_cast<int64_t>(0),
+                              static_cast<int64_t>(out_size_vec[0]));
 }
 
 template <typename T, typename Context>

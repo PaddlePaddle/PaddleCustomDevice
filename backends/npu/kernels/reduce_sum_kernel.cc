@@ -356,12 +356,8 @@ void SumGradKernel(const Context& dev_ctx,
     out_grad_tmp.set_meta(meta);
     dev_ctx.Alloc(&out_grad_tmp, out_grad_tmp.dtype());
 
-    const auto& cast_runner = NpuOpRunner(
-        "Cast",
-        {out_grad},
-        {out_grad_tmp},
-        {{"dst_type", static_cast<int>(ConvertToNpuDtype(x_grad->dtype()))}});
-    cast_runner.Run(stream);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, out_grad, x_grad->dtype(), &out_grad_tmp);
   }
 
   if (x.dims().size() == 0) {

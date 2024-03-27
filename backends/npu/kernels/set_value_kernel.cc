@@ -365,32 +365,32 @@ void SetValueNPUKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(set_value,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::SetValueNPUKernel,
-                          float,
-#if (CANN_VERSION_CODE >= 700000)
-                          phi::dtype::float16,
-#else
-#endif
-                          double,
-                          int,
-                          int64_t,
-                          bool) {
-}
+// PD_REGISTER_PLUGIN_KERNEL(set_value,
+//                           npu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::SetValueNPUKernel,
+//                           float,
+// #if (CANN_VERSION_CODE >= 700000)
+//                           phi::dtype::float16,
+// #else
+// #endif
+//                           double,
+//                           int,
+//                           int64_t,
+//                           bool) {
+// }
 
-PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::SetTensorValueNPUKernel,
-                          float,
-#if (CANN_VERSION_CODE >= 700000)
-                          phi::dtype::float16,
-#else
-#endif
-                          double,
-                          int,
-                          int64_t,
-                          bool) {
-}
+// PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
+//                           npu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::SetTensorValueNPUKernel,
+//                           float,
+// #if (CANN_VERSION_CODE >= 700000)
+//                           phi::dtype::float16,
+// #else
+// #endif
+//                           double,
+//                           int,
+//                           int64_t,
+//                           bool) {
+// }

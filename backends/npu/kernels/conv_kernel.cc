@@ -19,6 +19,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void TransposeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void DepthwiseConv2dKernel(const Context& dev_ctx,
                            const phi::DenseTensor& input,
                            const phi::DenseTensor& filter,
@@ -85,9 +91,8 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   transformed_filter.set_meta(meta);
   dev_ctx.template Alloc<T>(&transformed_filter);
   std::vector<int> perm = {1, 0, 2, 3};
-  const auto& runner_trans = NpuOpRunner(
-      "TransposeD", {filter}, {transformed_filter}, {{"perm", perm}});
-  runner_trans.Run(stream);
+  custom_kernel::TransposeKernel<T, Context>(
+      dev_ctx, filter, perm, &transformed_filter);
 
   const auto& runner = NpuOpRunner("DepthwiseConv2D",
                                    {input_tensor, transformed_filter},
@@ -143,9 +148,8 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
   transformed_filter.set_meta(meta);
   dev_ctx.template Alloc<T>(&transformed_filter);
   std::vector<int> perm = {1, 0, 2, 3};
-  const auto& runner_trans = NpuOpRunner(
-      "TransposeD", {filter}, {transformed_filter}, {{"perm", perm}});
-  runner_trans.Run(stream);
+  custom_kernel::TransposeKernel<T, Context>(
+      dev_ctx, filter, perm, &transformed_filter);
 
   // construct NPU attr
   std::vector<int> strides(4, 1);

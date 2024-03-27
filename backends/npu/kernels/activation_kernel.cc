@@ -44,13 +44,23 @@ void CosKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AtanKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+void AclopAtanKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Atan", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AtanKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnAtan, (custom_kernel::AclopAtanKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnAtan, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -109,13 +119,24 @@ void ExpGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void FloorKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+void AclopFloorKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Floor", {x}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnFloor,
+      (custom_kernel::AclopFloorKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnFloor, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -322,14 +343,24 @@ void SiluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ReluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DenseTensor* out) {
+void AclopReluKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   const auto& runner = NpuOpRunner("Relu", {x}, {*out}, {});
 
   auto stream = dev_ctx.stream();
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ReluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnRelu, (custom_kernel::AclopReluKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnRelu, dev_ctx, x, *out);
 }
 
 template <typename T, typename Context>
@@ -400,10 +431,10 @@ void LeakyReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GeluKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                bool approximate,
-                phi::DenseTensor* out) {
+void AclopGeluKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     bool approximate,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -412,11 +443,23 @@ void GeluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void GeluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
-                    bool approximate,
-                    phi::DenseTensor* x_grad) {
+void GeluKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                bool approximate,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnGelu,
+                   (custom_kernel::AclopGeluKernel<T, Context>(
+                       dev_ctx, x, approximate, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnGelu, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopGeluGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& out_grad,
+                         bool approximate,
+                         phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
   auto stream = dev_ctx.stream();
 
@@ -429,6 +472,19 @@ void GeluGradKernel(const Context& dev_ctx,
   const auto& runner_dx =
       NpuOpRunner("GeluGrad", {out_grad, x, out_grad}, {*x_grad}, {});
   runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void GeluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& out_grad,
+                    bool approximate,
+                    phi::DenseTensor* x_grad) {
+  DO_COMPATIBILITY(aclnnGeluBackward,
+                   (custom_kernel::AclopGeluGradKernel<T, Context>(
+                       dev_ctx, x, out_grad, approximate, x_grad)));
+  dev_ctx.template Alloc<T>(x_grad);
+  EXEC_NPU_CMD(aclnnGeluBackward, dev_ctx, out_grad, x, *x_grad);
 }
 
 template <typename T, typename Context>
@@ -456,9 +512,9 @@ void TanhGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SigmoidKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+void AclopSigmoidKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -467,15 +523,38 @@ void SigmoidKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SigmoidGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& dout,
-                       phi::DenseTensor* dx) {
+void SigmoidKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSigmoid,
+      (custom_kernel::AclopSigmoidKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSigmoid, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopSigmoidGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& out,
+                            const phi::DenseTensor& dout,
+                            phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("SigmoidGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void SigmoidGradKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& out,
+                       const phi::DenseTensor& dout,
+                       phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnSigmoidBackward,
+                   (custom_kernel::AclopSigmoidGradKernel<T, Context>(
+                       dev_ctx, out, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnSigmoidBackward, dev_ctx, dout, out, *dx);
 }
 
 template <typename T, typename Context>

@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void FillDiagonalKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        float value,
-                        int offset,
-                        bool wrap,
-                        phi::DenseTensor* out) {
+void AclopFillDiagonalKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             float value,
+                             int offset,
+                             bool wrap,
+                             phi::DenseTensor* out) {
   PADDLE_ENFORCE_EQ(
       offset,
       0,
@@ -45,12 +45,41 @@ void FillDiagonalKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void FillDiagonalGradKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& out_grad,
-                            float value,
-                            int offset,
-                            bool wrap,
-                            phi::DenseTensor* x_grad) {
+void FillDiagonalKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        float value,
+                        int offset,
+                        bool wrap,
+                        phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnInplaceFillDiagonal,
+                   (custom_kernel::AclopFillDiagonalKernel<T, Context>(
+                       dev_ctx, x, value, offset, wrap, out)));
+  if (x.storage_properties_initialized()) {
+    custom_kernel::AclopFillDiagonalKernel<T, Context>(
+        dev_ctx, x, value, offset, wrap, out);
+    return;
+  }
+  PADDLE_ENFORCE_EQ(
+      offset,
+      0,
+      phi::errors::InvalidArgument("Paddle Custom NPU only support offset = 0 "
+                                   "for fill_diagonal, but got offset = %d",
+                                   offset));
+
+  dev_ctx.template Alloc<T>(out);
+  TensorCopy(dev_ctx, x, true, out);
+  phi::Scalar val = value;
+
+  EXEC_NPU_CMD(aclnnInplaceFillDiagonal, dev_ctx, *out, val, wrap);
+}
+
+template <typename T, typename Context>
+void AclopFillDiagonalGradKernel(const Context& dev_ctx,
+                                 const phi::DenseTensor& out_grad,
+                                 float value,
+                                 int offset,
+                                 bool wrap,
+                                 phi::DenseTensor* x_grad) {
   PADDLE_ENFORCE_EQ(
       offset,
       0,
@@ -68,6 +97,34 @@ void FillDiagonalGradKernel(const Context& dev_ctx,
       .AddAttr("fill_value", static_cast<T>(0))
       .AddAttr("wrap", wrap);
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FillDiagonalGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& out_grad,
+                            float value,
+                            int offset,
+                            bool wrap,
+                            phi::DenseTensor* x_grad) {
+  DO_COMPATIBILITY(aclnnInplaceFillDiagonal,
+                   (custom_kernel::AclopFillDiagonalGradKernel<T, Context>(
+                       dev_ctx, out_grad, value, offset, wrap, x_grad)));
+  if (out_grad.storage_properties_initialized()) {
+    custom_kernel::AclopFillDiagonalGradKernel<T, Context>(
+        dev_ctx, out_grad, value, offset, wrap, x_grad);
+    return;
+  }
+  PADDLE_ENFORCE_EQ(
+      offset,
+      0,
+      phi::errors::InvalidArgument("Paddle Custom NPU only support offset = 0 "
+                                   "for fill_diagonal, but got offset = %d",
+                                   offset));
+
+  dev_ctx.template Alloc<T>(x_grad);
+  TensorCopy(dev_ctx, out_grad, true, x_grad);
+  phi::Scalar val = value;
+  EXEC_NPU_CMD(aclnnInplaceFillDiagonal, dev_ctx, *x_grad, val, wrap);
 }
 
 }  // namespace custom_kernel

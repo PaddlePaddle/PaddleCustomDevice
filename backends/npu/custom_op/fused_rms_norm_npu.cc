@@ -63,12 +63,13 @@ std::vector<paddle::Tensor> npu_rms_norm(const paddle::Tensor& x,
   auto rstd_shape = phi::make_ddim(rstd_shape_vec);
   rstd_tensor->Resize(rstd_shape);
   dev_ctx->Alloc(rstd_tensor.get(), phi::DataType::FLOAT32);
+  double eps = epsilon;
 
   EXEC_NPU_CMD(aclnnRmsNorm,
                *dev_ctx,
                *x_tensor,
                *gamma_tensor,
-               epsilon,
+               eps,
                *y_tensor,
                *rstd_tensor);
   return {paddle::Tensor(y_tensor), paddle::Tensor(rstd_tensor)};

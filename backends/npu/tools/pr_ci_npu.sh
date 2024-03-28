@@ -262,9 +262,6 @@ function main() {
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
     fi
-    if [[ "${WITH_COVERAGE:-OFF}" == "ON" ]];then
-        # bash ${CODE_ROOT}/tools/coverage/coverage_process.sh
-    fi
 
 }
 

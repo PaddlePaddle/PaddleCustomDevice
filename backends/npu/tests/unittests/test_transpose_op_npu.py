@@ -173,6 +173,7 @@ class TestTransposeAPIWithNPUStroageFormat(unittest.TestCase):
         x_grad_expect = x.grad
 
         # fwd and bwd with storage format
+        paddle.base.set_flags({"FLAGS_use_stride_kernel": False})
         x_format = paddle.incubate._npu_identity(x, self.format)
         x_format.stop_gradient = False
         out_format = paddle.transpose(x_format, axis)

@@ -56,21 +56,21 @@ docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc82.py310 \
 docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
 
 if [ $(uname -i) == 'x86_64' ]; then
-  # kylinv10.gcc73-py310
-  docker build --network=host -f Dockerfile.kylinv10.$(uname -m).gcc73.py310 \
+  # kylinv10-x86_64-gcc73-py310
+  docker build --network=host -f Dockerfile.kylinv10.x86_64.gcc73.py310 \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc73-py310 .
-  docker push registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc73-py310
+    -t registry.baidubce.com/device/paddle-cpu:kylinv10-x86_64-gcc73-py310 .
+  docker push registry.baidubce.com/device/paddle-cpu:kylinv10-x86_64-gcc73-py310
 else
-  # euleros.gcc82-py310
-  docker build --network=host -f Dockerfile.euleros.$(uname -m).gcc82.py310 \
+  # euleros-aarch64-gcc82-py310
+  docker build --network=host -f Dockerfile.euleros.aarch64.gcc82.py310 \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82-py310 .
-  docker push registry.baidubce.com/device/paddle-cpu:euleros-$(uname -m)-gcc82-py310
+    -t registry.baidubce.com/device/paddle-cpu:euleros-aarch64-gcc82-py310 .
+  docker push registry.baidubce.com/device/paddle-cpu:euleros-aarch64-gcc82-py310
 fi

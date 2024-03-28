@@ -96,12 +96,12 @@ void ElementwisePowKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ElementwisePowGradKernel(const Context& dev_ctx,
-                              const phi::DenseTensor& x,
-                              const phi::DenseTensor& y,
-                              const phi::DenseTensor& dout,
-                              phi::DenseTensor* dx,
-                              phi::DenseTensor* dy) {
+void ElementwisePowGradAclop(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             const phi::DenseTensor& dout,
+                             phi::DenseTensor* dx,
+                             phi::DenseTensor* dy) {
   int axis = -1;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
@@ -264,6 +264,107 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
   if (!dx && !dy) {
     PADDLE_THROW(
         phi::errors::Unavailable("Not support all outputs to be empty."));
+  }
+}
+
+template <typename T, typename Context>
+void ElementwisePowGradKernel(const Context& dev_ctx,
+                              const phi::DenseTensor& x,
+                              const phi::DenseTensor& y,
+                              const phi::DenseTensor& dout,
+                              phi::DenseTensor* dx,
+                              phi::DenseTensor* dy) {
+  DO_COMPATIBILITY(aclnnPowTensorTensor,
+                   (custom_kernel::ElementwisePowGradAclop<T, Context>(
+                       dev_ctx, x, y, dout, dx, dy)));
+  int axis = -1;
+
+  auto x_dims = x.dims();
+  auto y_dims = y.dims();
+  auto dout_dims = dout.dims();
+  axis = (axis < 0 ? std::abs(x_dims.size() - y_dims.size()) + axis + 1 : axis);
+  // const phi::DenseTensor& print_tensor = dout;
+  // paddle::funcs::TensorFormatter formatter;
+  // formatter.Print(print_tensor);
+  std::vector<int64_t> reduce_axes;
+  std::vector<int64_t> dst_dims_vec;
+  if (dx) {
+    dev_ctx.template Alloc<T>(dx);
+    if (x_dims != dout_dims) {
+      reduce_axes.clear();
+      int src_axis = (x_dims.size() < dout_dims.size() ? axis : 0);
+      for (int ax = 0; ax < dout_dims.size(); ++ax) {
+        if ((ax < src_axis || ax >= src_axis + x_dims.size()) ||
+            (dout_dims[ax] > 1 && x_dims[ax - src_axis] == 1)) {
+          reduce_axes.push_back(ax);
+        } else {
+          dst_dims_vec.push_back(dout_dims[ax]);
+        }
+      }
+    }
+    phi::DenseTensor y_sub_1;
+    phi::DenseTensorMeta y_meta = {y.dtype(), y.dims()};
+    y_sub_1.set_meta(y_meta);
+    dev_ctx.template Alloc<T>(&y_sub_1);
+    phi::DenseTensor x_temp;
+    if (reduce_axes.empty()) {
+      x_temp = *dx;
+    } else {
+      x_temp.Resize(dout_dims);
+      dev_ctx.template Alloc<T>(&x_temp);
+    }
+    phi::Scalar acl_scalar_one = phi::Scalar(1.0);
+    EXEC_NPU_CMD(
+        aclnnSubs, dev_ctx, y, acl_scalar_one, acl_scalar_one, y_sub_1);
+    EXEC_NPU_CMD(aclnnPowTensorTensor, dev_ctx, x, y_sub_1, x_temp);
+    EXEC_NPU_CMD(aclnnInplaceMul, dev_ctx, x_temp, y);
+    EXEC_NPU_CMD(aclnnInplaceMul, dev_ctx, x_temp, dout);
+    if (!reduce_axes.empty()) {
+      phi::DenseTensor tmp(*dx);
+      tmp.Resize(phi::make_ddim(dst_dims_vec));
+      bool keep_dims = false;
+      auto dtype = ConvertToNpuDtype(x.dtype());
+      EXEC_NPU_CMD(
+          aclnnReduceSum, dev_ctx, x_temp, reduce_axes, keep_dims, dtype, tmp);
+    }
+  }
+  if (dy) {
+    dev_ctx.template Alloc<T>(dy);
+    if (y_dims != dout_dims) {
+      reduce_axes.clear();
+      int src_axis = (y_dims.size() < dout_dims.size() ? axis : 0);
+      for (int ax = 0; ax < dout_dims.size(); ++ax) {
+        if ((ax < src_axis || ax >= src_axis + y_dims.size()) ||
+            (dout_dims[ax] > 1 && y_dims[ax - src_axis] == 1)) {
+          reduce_axes.push_back(ax);
+        } else {
+          dst_dims_vec.push_back(dout_dims[ax]);
+        }
+      }
+    }
+    phi::DenseTensor y_temp;
+    if (reduce_axes.empty()) {
+      y_temp = *dy;
+    } else {
+      y_temp.Resize(dout_dims);
+      dev_ctx.template Alloc<T>(&y_temp);
+    }
+    phi::DenseTensor x_log;
+    phi::DenseTensorMeta x_log_meta = {x.dtype(), x.dims()};
+    x_log.set_meta(x_log_meta);
+    dev_ctx.template Alloc<T>(&x_log);
+    EXEC_NPU_CMD(aclnnPowTensorTensor, dev_ctx, x, y, y_temp);
+    EXEC_NPU_CMD(aclnnLog, dev_ctx, x, x_log);
+    EXEC_NPU_CMD(aclnnInplaceMul, dev_ctx, y_temp, x_log);
+    EXEC_NPU_CMD(aclnnMul, dev_ctx, y_temp, dout, y_temp);
+    if (!reduce_axes.empty()) {
+      phi::DenseTensor tmp(*dy);
+      tmp.Resize(phi::make_ddim(dst_dims_vec));
+      bool keep_dims = false;
+      auto dtype = ConvertToNpuDtype(y.dtype());
+      EXEC_NPU_CMD(
+          aclnnReduceSum, dev_ctx, y_temp, reduce_axes, keep_dims, dtype, tmp);
+    }
   }
 }
 

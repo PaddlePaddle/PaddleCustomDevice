@@ -15,8 +15,10 @@
 #pragma once
 
 #include <dlfcn.h>
+#include <hccl/hccl.h>
 
 #include "acl/acl.h"
+#include "acl/acl_op_compiler.h"
 #include "glog/logging.h"
 #include "kernels/funcs/format_utils.h"
 #include "kernels/funcs/npu_op_prepare.h"
@@ -374,9 +376,26 @@ auto ConvertToOpApiFunc(const Tuple& params, void* opApiAddr) {
     std::make_index_sequence<size>{});
 }
 
+inline void SetDeterministic() {
+#if (CANN_VERSION_CODE >= 700000)
+  bool env_deterministic_flag = std::getenv("npu_deterministic") != nullptr && \
+    std::string(std::getenv("npu_deterministic")) == "true";
+  static std::once_flag deterministic_flag;
+  std::call_once(deterministic_flag, [&]() {
+    if (env_deterministic_flag) {
+      aclSetCompileopt(ACL_OP_DETERMINISTIC, "1");
+      aclrtCtxSetSysParamOpt(ACL_OPT_DETERMINISTIC, 1);
+      HcclConfigValue configValue = {1};
+      HcclSetConfig(HcclConfig::HCCL_DETERMINISTIC, configValue);
+    }
+  });
+#endif
+}
+
 #define EXEC_NPU_CMD(aclnn_api, dev_ctx, ...)                             \
   do {                                                                    \
     VLOG(1) << "NpuAclnnOpRunner: " << #aclnn_api;                        \
+    SetDeterministic();                                                   \
     static const auto getWorkspaceSizeFuncAddr =                          \
     GetOpApiFuncAddr(#aclnn_api "GetWorkspaceSize");                      \
     static const auto opApiFuncAddr = GetOpApiFuncAddr(#aclnn_api);       \

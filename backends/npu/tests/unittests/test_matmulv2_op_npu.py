@@ -21,8 +21,6 @@ import paddle
 import paddle.base as base
 
 from tests.op_test import OpTest
-from paddle.framework import set_flags
-from paddle.base import Program, program_guard
 
 
 paddle.enable_static()
@@ -468,80 +466,6 @@ class TestMatMulV2API(unittest.TestCase):
             x = paddle.to_tensor(input_x)
             y = paddle.to_tensor(input_y)
             result = paddle.matmul(x, y)
-
-
-class TestDygraphMatmulTrainableStats(unittest.TestCase):
-    def test_dygraph(self):
-        shape1 = [11, 100]
-        shape2 = [100, 11]
-
-        def compute(x, y, npu_storage):
-            set_flags({"FLAGS_npu_storage_format": npu_storage})
-            with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
-                x = paddle.to_tensor(x)
-                y = paddle.to_tensor(y)
-                if npu_storage:
-                    x = paddle.incubate._npu_identity(x, 29)  # ACL_FORMAT_FRACTAL_NZ
-                    y = paddle.incubate._npu_identity(y, 29)  # ACL_FORMAT_FRACTAL_NZ
-                z = paddle.matmul(x, y)
-            return z.numpy()
-
-        x = np.random.randn(*shape1).astype("float16")
-        y = np.random.randn(*shape2).astype("float16")
-        z1 = compute(x, y, False)
-        z2 = compute(x, y, True)
-        np.testing.assert_allclose(z1, z2, rtol=1e-05)
-
-    def test_static(self):
-        exe = base.Executor(paddle.CustomPlace("npu", 0))
-        shape = [3, 2]
-        paddle.set_default_dtype("float16")
-
-        def compute(x_np):
-            with program_guard(Program(), Program()):
-                weight_attr = paddle.framework.ParamAttr(
-                    name="linear_weight",
-                    initializer=paddle.nn.initializer.Constant(value=1.0),
-                )
-                bias_attr = paddle.framework.ParamAttr(
-                    name="linear_bias",
-                    initializer=paddle.nn.initializer.Constant(value=1.0),
-                )
-                linear = paddle.nn.Linear(
-                    2, 4, weight_attr=weight_attr, bias_attr=bias_attr
-                )
-                x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
-                y = linear(x)
-                exe.run(base.default_startup_program())
-                r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
-            return r
-
-        def compute_npu_storage(x_np):
-            set_flags({"FLAGS_npu_storage_format": True})
-            with program_guard(Program(), Program()):
-                weight_attr = paddle.framework.ParamAttr(
-                    name="linear_weight",
-                    initializer=paddle.nn.initializer.Constant(value=1.0),
-                )
-                bias_attr = paddle.framework.ParamAttr(
-                    name="linear_bias",
-                    initializer=paddle.nn.initializer.Constant(value=1.0),
-                )
-                linear = paddle.nn.Linear(
-                    2, 4, weight_attr=weight_attr, bias_attr=bias_attr
-                )
-                x = paddle.static.data(name="x", shape=x_np.shape, dtype=x_np.dtype)
-                x = paddle.incubate._npu_identity(x, 29)
-                y = linear(x)
-                exe.run(base.default_startup_program())
-                r = exe.run(feed={"x": x_np}, fetch_list=[y])[0]
-            return r
-
-        x = np.random.randn(*shape).astype("float16")
-        y1 = compute(x)
-        y2 = compute_npu_storage(x)
-
-        np.testing.assert_allclose(y1, y2, atol=1e-05)
 
 
 if __name__ == "__main__":

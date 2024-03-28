@@ -18,7 +18,13 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void BatchNormKernel(const Context& dev_ctx,
+void TransposeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AclopBatchNormKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& running_mean,
                      const phi::DenseTensor& running_var,
@@ -267,6 +273,221 @@ void BatchNormKernel(const Context& dev_ctx,
         NpuOpRunner("Sqrt", {*saved_variance}, {*saved_variance}, {});
     sqrt_ruuner.Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void BatchNormKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& running_mean,
+                     const phi::DenseTensor& running_var,
+                     const paddle::optional<phi::DenseTensor>& scale,
+                     const paddle::optional<phi::DenseTensor>& bias,
+                     bool is_test,
+                     float momentum,
+                     float epsilon,
+                     const std::string& data_layout_str,
+                     bool use_global_stats,
+                     bool trainable_stats,
+                     phi::DenseTensor* y,
+                     phi::DenseTensor* mean_out,
+                     phi::DenseTensor* variance_out,
+                     phi::DenseTensor* saved_mean,
+                     phi::DenseTensor* saved_variance,
+                     phi::DenseTensor* reserve_space) {
+  // custom_kernel::AclopBatchNormKernel<T, Context>(dev_ctx,
+  //     x, running_mean, running_var, scale, bias, is_test, momentum, epsilon,
+  //     data_layout_str, use_global_stats, trainable_stats, y, mean_out, variance_out,
+  //     saved_mean, saved_variance, reserve_space);
+  // return;
+  DO_COMPATIBILITY(
+      aclnnBatchNorm, (custom_kernel::AclopBatchNormKernel<T, Context>(dev_ctx,
+      x, running_mean, running_var, scale, bias, is_test, momentum, epsilon,
+      data_layout_str, use_global_stats, trainable_stats, y, mean_out, variance_out,
+      saved_mean, saved_variance, reserve_space)));
+
+  PADDLE_ENFORCE_EQ(data_layout_str == "NCHW" || data_layout_str == "NHWC",
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The 'data_layout' attribute must be NCHW or NHWC. "
+                        "But recevived 'data_layout' is [%s].",
+                        data_layout_str));
+
+  const auto& x_dims = x.dims();
+  const bool channel_last = data_layout_str == "NHWC" && x_dims.size() > 2;
+
+  PADDLE_ENFORCE_EQ(
+      channel_last && FLAGS_npu_storage_format,
+      false,
+      phi::errors::InvalidArgument(
+          "PaddlePaddle do not support NPU storage format when "
+          "BatchNorm in NHWC format, but got data_format [%s] and "
+          "FLAGS_npu_storage_format [%d]. Please execute 'export "
+          "FLAGS_npu_storage_format=0' in your environment.",
+          data_layout_str,
+          FLAGS_npu_storage_format));
+
+  auto* Scale = scale.get_ptr();
+  auto* Bias = bias.get_ptr();
+
+  phi::DenseTensor new_scale, new_bias;
+  const auto data_layout = common::StringToDataLayout(data_layout_str);
+
+  int C;
+  if (x_dims.size() == 2) {
+    C = x_dims[1];
+  } else {
+    C = data_layout == phi::DataLayout::kNCHW ? x_dims[1]
+                                              : x_dims[x_dims.size() - 1];
+  }
+
+  if (Scale) {
+    new_scale = scale.get();
+  } else {
+    new_scale.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_scale, dev_ctx, static_cast<T>(1));
+  }
+
+  if (Bias) {
+    new_bias = bias.get();
+  } else {
+    new_bias.Resize({C});
+    FillNpuTensorWithConstant<T>(&new_bias, dev_ctx, static_cast<T>(0));
+  }
+
+  if (FLAGS_npu_storage_format &&
+      x_dims.size() == 4) {  // TODO(qili93): add 3D support
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, y);
+  } else {
+    dev_ctx.template Alloc<T>(y);
+  }
+
+  bool test_mode = is_test && (!trainable_stats);
+  bool training = !test_mode && !use_global_stats;
+
+  phi::DenseTensor x_tensor(x), y_tensor(*y);
+
+  PADDLE_ENFORCE_EQ(
+      x_dims.size() >= 2 && x_dims.size() <= 5,
+      true,
+      phi::errors::InvalidArgument(
+          "The size of input's dimensions should be between 2 and 5"
+          "But received: the size of input's dimensions is [%d]",
+          x_dims.size()));
+
+  // aclnn only support channel first
+  phi::DenseTensor transformed_x, transformed_y;
+  if (channel_last) {
+    std::vector<int> perm;
+    std::vector<int> perm_shape;
+    if (x_dims.size() == 3) {
+      perm = {0, 2, 1};
+      perm_shape = {x_dims[0], x_dims[2], x_dims[1]};
+    } else if (x_dims.size() == 4) {
+      perm = {0, 3, 1, 2};
+      perm_shape = {x_dims[0], x_dims[3], x_dims[1], x_dims[2]};
+    } else if (x_dims.size() == 5) {
+      perm = {0, 4, 1, 2, 3};
+      perm_shape = {x_dims[0], x_dims[4], x_dims[1], x_dims[2], x_dims[3]};
+    }
+    transformed_x.Resize(phi::make_ddim(perm_shape));
+    dev_ctx.template Alloc<T>(&transformed_x);
+    transformed_y.Resize(phi::make_ddim(perm_shape));
+    dev_ctx.template Alloc<T>(&transformed_y);
+    custom_kernel::TransposeKernel<T, Context>(dev_ctx, x, perm, &transformed_x);
+  } else {
+    transformed_x = x_tensor;
+    transformed_y = y_tensor;
+  }
+
+  phi::DenseTensor tmp_running_mean, tmp_running_var;
+  tmp_running_mean.Resize(mean_out->dims());
+  tmp_running_var.Resize(variance_out->dims());
+
+  if (FLAGS_npu_storage_format &&
+      x_dims.size() == 4) {  // TODO(qili93): add 3D support
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &tmp_running_mean);
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, &tmp_running_var);
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, mean_out);
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, variance_out);
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, saved_mean);
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, saved_variance);
+  } else {
+    dev_ctx.template Alloc<float>(&tmp_running_mean);
+    dev_ctx.template Alloc<float>(&tmp_running_var);
+    dev_ctx.template Alloc<float>(mean_out);
+    dev_ctx.template Alloc<float>(variance_out);
+    dev_ctx.template Alloc<float>(saved_mean);
+    dev_ctx.template Alloc<float>(saved_variance);
+  }
+  TensorCopy(dev_ctx, running_mean, false, &tmp_running_mean);
+  TensorCopy(dev_ctx, running_var, false, &tmp_running_var);
+
+  double this_factor = 1. - momentum;
+  double epsilon_d = epsilon;
+
+  EXEC_NPU_CMD(aclnnBatchNorm, dev_ctx, transformed_x, new_scale, new_bias, running_mean, running_var, training, this_factor, epsilon_d, transformed_y, *saved_mean, *saved_variance);
+
+  // aclnn only support channel first
+  if (channel_last) {
+    std::vector<int> perm;
+    std::vector<int> perm_shape;
+    if (x_dims.size() == 3) {
+      perm = {0, 2, 1};
+      perm_shape = {x_dims[0], x_dims[2], x_dims[1]};
+    } else if (x_dims.size() == 4) {
+      perm = {0, 3, 1, 2};
+      perm_shape = {x_dims[0], x_dims[3], x_dims[1], x_dims[2]};
+    } else if (x_dims.size() == 5) {
+      perm = {0, 4, 1, 2, 3};
+      perm_shape = {x_dims[0], x_dims[4], x_dims[1], x_dims[2], x_dims[3]};
+    }
+    phi::DenseTensorMeta meta = {
+        phi::DataType::FLOAT32, phi::make_ddim(perm_shape), data_layout};
+    y_tensor.set_meta(meta);
+    y_tensor.Resize(phi::make_ddim(perm_shape));
+    custom_kernel::TransposeKernel<T, Context>(dev_ctx, transformed_y, perm, &y_tensor);
+  }
+
+  // CANN mean_out/var_out and paddlepaddle-cpu mean_out/var_out are
+  // defferent.
+  auto stream = dev_ctx.stream();
+  const auto& mean_muls_runner =
+      NpuOpRunner("Muls",
+                  {tmp_running_mean},
+                  {*mean_out},
+                  {{"value", static_cast<float>(momentum)}});
+  mean_muls_runner.Run(stream);
+  const auto& mean_axpy_runner =
+      NpuOpRunner("Axpy",
+                  {*mean_out, *saved_mean},
+                  {*mean_out},
+                  {{"alpha", static_cast<float>(1 - momentum)}});
+  mean_axpy_runner.Run(stream);
+  const auto& var_muls_runner =
+      NpuOpRunner("Muls",
+                  {tmp_running_var},
+                  {*variance_out},
+                  {{"value", static_cast<float>(momentum)}});
+  var_muls_runner.Run(stream);
+  const auto& var_axpy_runner =
+      NpuOpRunner("Axpy",
+                  {*variance_out, *saved_variance},
+                  {*variance_out},
+                  {{"alpha", static_cast<float>(1 - momentum)}});
+  var_axpy_runner.Run(stream);
+
+  const auto& adds_runner =
+      NpuOpRunner("Adds",
+                  {*saved_variance},
+                  {*saved_variance},
+                  {{"value", static_cast<float>(epsilon)}});
+  adds_runner.Run(stream);
+  const auto& inv_runner =
+      NpuOpRunner("Inv", {*saved_variance}, {*saved_variance}, {});
+  inv_runner.Run(stream);
+  const auto& sqrt_ruuner =
+      NpuOpRunner("Sqrt", {*saved_variance}, {*saved_variance}, {});
+  sqrt_ruuner.Run(stream);
 }
 
 template <typename T, typename Context>

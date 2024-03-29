@@ -18,6 +18,8 @@ import numpy as np
 
 import paddle
 
+paddle.base.set_flags({"FLAGS_use_stride_kernel": True})
+
 
 def ref_view_as_real(x):
     return np.stack([x.real, x.imag], -1)

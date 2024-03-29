@@ -75,6 +75,7 @@ ENV HCCL_BUFFSIZE=120
 
 # environment for PaddlePaddle
 ENV FLAGS_npu_storage_format=1
+ENV FLAGS_use_stride_kernel=0
 ENV FLAGS_allocator_strategy=naive_best_fit
 ENV PADDLE_XCCL_BACKEND=npu
 

@@ -604,6 +604,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
       aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
     }
   });
+  SetDeterministic();
 
   aclError ret;
   // Ensure that the Gil has been released before running

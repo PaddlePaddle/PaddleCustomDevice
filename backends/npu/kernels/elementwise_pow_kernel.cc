@@ -18,13 +18,16 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ElementwisePowRawKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& x,
-                             const phi::DenseTensor& y,
-                             int axis,
-                             phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+void SumKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::IntArray& axes,
+               phi::DataType out_dtype,
+               bool keep_dim,
+               phi::DenseTensor* out);
 
+bool DetermineDirectCompute(const phi::DenseTensor& x,
+                            const phi::DenseTensor& y,
+                            int axis) {
   bool direct_compute = false;
   auto x_dims = x.dims();
   auto y_dims = y.dims();
@@ -34,9 +37,19 @@ void ElementwisePowRawKernel(const Context& dev_ctx,
   } else {
     direct_compute = x_dims == phi::slice_ddim(y_dims, axis, y_dims.size());
   }
+  return direct_compute;
+}
 
+template <typename T, typename Context>
+void AclopElementwisePowRawKernel(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  const phi::DenseTensor& y,
+                                  int axis,
+                                  phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
+  bool direct_compute = DetermineDirectCompute(x, y, axis);
   if (direct_compute) {
     const auto& runner = NpuOpRunner("Pow", {x, y}, {*out}, {});
     runner.Run(stream);
@@ -47,6 +60,29 @@ void ElementwisePowRawKernel(const Context& dev_ctx,
     const auto& runner =
         NpuOpRunner("Pow", {transformed_x, transformed_y}, {*out}, {});
     runner.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void ElementwisePowRawKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             int axis,
+                             phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnPowTensorTensor,
+                   (custom_kernel::AclopElementwisePowRawKernel<T, Context>(
+                       dev_ctx, x, y, axis, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  bool direct_compute = DetermineDirectCompute(x, y, axis);
+  if (direct_compute) {
+    EXEC_NPU_CMD(aclnnPowTensorTensor, dev_ctx, x, y, *out);
+  } else {
+    phi::DenseTensor transformed_x, transformed_y;
+    custom_kernel::NpuElementWiseOpBroadcast<T>(
+        dev_ctx, &x, &y, axis, &transformed_x, &transformed_y);
+    EXEC_NPU_CMD(
+        aclnnPowTensorTensor, dev_ctx, transformed_x, transformed_y, *out);
   }
 }
 
@@ -137,12 +173,12 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {tmp_dx},
-                        {*dx},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
+        custom_kernel::SumKernel<T, Context>(dev_ctx,
+                                             tmp_dx,
+                                             phi::IntArray(reduce_axes),
+                                             dx->dtype(),
+                                             false,
+                                             dx);
       }
     } else {
       TensorCopy(dev_ctx, tmp_dx, false, dx);
@@ -214,12 +250,12 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        const auto& runner =
-            NpuOpRunner("ReduceSumD",
-                        {tmp_dy},
-                        {*dy},
-                        {{"axes", reduce_axes}, {"keep_dims", false}});
-        runner.Run(stream);
+        custom_kernel::SumKernel<T, Context>(dev_ctx,
+                                             tmp_dy,
+                                             phi::IntArray(reduce_axes),
+                                             dy->dtype(),
+                                             false,
+                                             dy);
       }
     } else {
       TensorCopy(dev_ctx, tmp_dy, false, dy);

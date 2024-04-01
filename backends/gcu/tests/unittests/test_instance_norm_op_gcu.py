@@ -20,7 +20,6 @@ from tests.op_test import OpTest
 import paddle
 from paddle import base
 from paddle.base import Program, core, program_guard
-from paddle.base.dygraph import to_variable
 
 
 def _reference_instance_norm_naive(x, scale, bias, epsilon, mean, var):
@@ -346,7 +345,7 @@ class TestElasticNormOp(unittest.TestCase):
                 instance_norm = paddle.nn.InstanceNorm2D(
                     5, weight_attr=False, bias_attr=False
                 )
-                outputs = instance_norm(to_variable(inputs))
+                outputs = instance_norm(paddle.to_tensor(inputs))
                 np.testing.assert_allclose(
                     outputs.numpy(), out_np, rtol=1e-05, atol=1e-06
                 )
@@ -376,7 +375,7 @@ class TestElasticNormOpCase2(unittest.TestCase):
                 instance_norm = paddle.nn.InstanceNorm2D(
                     3, weight_attr=True, bias_attr=True
                 )
-                outputs = instance_norm(to_variable(inputs))
+                outputs = instance_norm(paddle.to_tensor(inputs))
                 np.testing.assert_allclose(
                     outputs.numpy(), out_np, rtol=1e-05, atol=1e-06
                 )

@@ -61,13 +61,13 @@ add_custom_target(ascend_cl DEPENDS ascendcl acl_op_compiler)
 
 macro(find_ascend_toolkit_version ascend_toolkit_version_info)
   file(READ ${ascend_toolkit_version_info} ASCEND_TOOLKIT_VERSION_CONTENTS)
-  string(REGEX MATCH "version=([0-9]+\.[0-9]+\.(RC)?[0-9]*)"
+  string(REGEX MATCH "version=([0-9]+\.[0-9]+\.(RC)?(T)?[0-9]*)"
                ASCEND_TOOLKIT_VERSION "${ASCEND_TOOLKIT_VERSION_CONTENTS}")
-  string(REGEX REPLACE "version=([0-9]+\.[0-9]+\.(RC)?[0-9]*)" "\\1"
+  string(REGEX REPLACE "version=([0-9]+\.[0-9]+\.(RC)?(T)?[0-9]*)" "\\1"
                        ASCEND_TOOLKIT_VERSION "${ASCEND_TOOLKIT_VERSION}")
   string(REGEX REPLACE "[A-Z]|[a-z|\.]" "" CANN_VERSION
                        "${ASCEND_TOOLKIT_VERSION}")
-  string(SUBSTRING "${CANN_VERSION}000" 0 6 CANN_VERSION)
+  string(SUBSTRING "${CANN_VERSION}00000" 0 6 CANN_VERSION)
   add_definitions("-DCANN_VERSION_CODE=${CANN_VERSION}")
   if(NOT ASCEND_TOOLKIT_VERSION)
     set(ASCEND_TOOLKIT_VERSION "???")

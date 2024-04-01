@@ -9,3 +9,8 @@ test_zero_dim_tensor_npu
 test_momentum_op_npu
 test_elementwise_sub_op_npu
 test_index_sample_op_npu
+test_flashattention_npu
+test_rmsprop_op_npu
+test_einsum_op_npu
+test_fused_matmul_bias_op_npu
+test_set_value_op_npu.py

@@ -19,6 +19,8 @@ import numpy as np
 
 import paddle
 import paddle.distributed as dist
+import paddle_custom_device
+from npu_utils import check_soc_version_and_dtype
 
 
 def init_process_group(strategy=None):
@@ -27,7 +29,7 @@ def init_process_group(strategy=None):
     is_master = True if rank == 0 else False
     pg_group = dist.init_parallel_env()
 
-    return pg_group.process_group
+    return pg_group.process_group, pg_group
 
 
 class TestProcessGroupFp32(unittest.TestCase):
@@ -41,23 +43,24 @@ class TestProcessGroupFp32(unittest.TestCase):
         self.dtype = "float32"
         self.shape = (2, 10, 5)
 
+    @check_soc_version_and_dtype
     def test_create_process_group_xccl(self):
         device_id = paddle.distributed.ParallelEnv().dev_id
         paddle.set_device("npu:%d" % device_id)
 
         assert paddle.distributed.is_available()
 
-        pg = init_process_group()
+        pg, pg_group = init_process_group()
         print("rank:", pg.rank(), "size:", pg.size(), "name:", pg.name())
         print("test new group api ok")
 
         # test allreduce sum
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         sum_result = tensor_x + tensor_y
         if pg.rank() == 0:
@@ -71,11 +74,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allreduce sum with shape = []
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random([]).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random([])
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         sum_result = tensor_x + tensor_y
         if pg.rank() == 0:
@@ -89,11 +92,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allreduce max
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         max_result = paddle.maximum(tensor_x, tensor_y)
 
@@ -110,11 +113,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allreduce max with shape = []
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random([]).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random([])
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         max_result = paddle.maximum(tensor_x, tensor_y)
 
@@ -131,11 +134,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allreduce min
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         min_result = paddle.minimum(tensor_x, tensor_y)
 
@@ -152,11 +155,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allreduce min with shape = []
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random([]).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random([])
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         min_result = paddle.minimum(tensor_x, tensor_y)
 
@@ -171,55 +174,56 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         print("test allreduce min api with shape [] ok")
 
-        # test allreduce prod
-        # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        if self.dtype != "bfloat16":
+            # test allreduce prod
+            # rank 0
+            x = np.random.random(self.shape)
+            tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+            # rank 1
+            y = np.random.random(self.shape)
+            tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
-        prod_result = np.multiply(x, y)
+            prod_result = paddle.multiply(tensor_x, tensor_y)
 
-        if pg.rank() == 0:
-            task = dist.all_reduce(tensor_x, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
-            assert np.array_equal(tensor_x, prod_result)
-        else:
-            task = dist.all_reduce(tensor_y, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
-            assert np.array_equal(tensor_y, prod_result)
+            if pg.rank() == 0:
+                task = dist.all_reduce(tensor_x, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
+                assert np.array_equal(tensor_x, prod_result)
+            else:
+                task = dist.all_reduce(tensor_y, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
+                assert np.array_equal(tensor_y, prod_result)
 
-        print("test allreduce prod api ok")
+            print("test allreduce prod api ok")
 
-        # test allreduce prod with shape = []
-        # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        # rank 1
-        y = np.random.random([]).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+            # test allreduce prod with shape = []
+            # rank 0
+            x = np.random.random([]).astype(self.dtype)
+            tensor_x = paddle.to_tensor(x)
+            # rank 1
+            y = np.random.random([]).astype(self.dtype)
+            tensor_y = paddle.to_tensor(y)
 
-        prod_result = np.multiply(x, y)
+            prod_result = paddle.multiply(tensor_x, tensor_y)
 
-        if pg.rank() == 0:
-            task = dist.all_reduce(tensor_x, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
-            assert np.array_equal(tensor_x, prod_result)
-        else:
-            task = dist.all_reduce(tensor_y, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
-            assert np.array_equal(tensor_y, prod_result)
+            if pg.rank() == 0:
+                task = dist.all_reduce(tensor_x, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
+                assert np.array_equal(tensor_x, prod_result)
+            else:
+                task = dist.all_reduce(tensor_y, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
+                assert np.array_equal(tensor_y, prod_result)
 
-        print("test allreduce prod api with shape = [] ok")
+            print("test allreduce prod api with shape = [] ok")
 
         # test broadcast
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         broadcast_result = paddle.assign(tensor_x)
         if pg.rank() == 0:
@@ -237,11 +241,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test broadcast with shape=[]
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random([]).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random([])
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         broadcast_result = paddle.assign(tensor_x)
         if pg.rank() == 0:
@@ -271,14 +275,14 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allgather
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
+        x = np.random.random(self.shape)
+        y = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
         out_shape = list(self.shape)
         out_shape[0] *= 2
-        out = np.random.random(out_shape).astype(self.dtype)
-        tensor_out = paddle.to_tensor(out)
+        out = np.random.random(out_shape)
+        tensor_out = paddle.to_tensor(out, dtype=self.dtype)
         if pg.rank() == 0:
             task = pg.all_gather(tensor_x, tensor_out)
             task.wait()
@@ -316,10 +320,10 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test allgather with shape = []
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        y = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
+        x = np.random.random([])
+        y = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
         tensor_out_list = []
         if pg.rank() == 0:
             task = dist.all_gather(tensor_out_list, tensor_x)
@@ -337,14 +341,14 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test alltoall
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        y = np.random.random(self.shape).astype(self.dtype)
-        out1 = np.random.random(self.shape).astype(self.dtype)
-        out2 = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
-        tensor_out1 = paddle.to_tensor(out1)
-        tensor_out2 = paddle.to_tensor(out2)
+        x = np.random.random(self.shape)
+        y = np.random.random(self.shape)
+        out1 = np.random.random(self.shape)
+        out2 = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
+        tensor_out1 = paddle.to_tensor(out1, dtype=self.dtype)
+        tensor_out2 = paddle.to_tensor(out2, dtype=self.dtype)
         raw_tensor_x_2 = paddle.slice(
             tensor_x, [0], [self.shape[0] // 2], [self.shape[0]]
         )
@@ -368,14 +372,14 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(out2_1, raw_tensor_x_2)
         print("test alltoall api ok\n")
 
-        x = np.random.random(self.shape).astype(self.dtype)
-        y = np.random.random(self.shape).astype(self.dtype)
-        out1 = np.random.random(self.shape).astype(self.dtype)
-        out2 = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
-        tensor_out1 = paddle.to_tensor(out1)
-        tensor_out2 = paddle.to_tensor(out2)
+        x = np.random.random(self.shape)
+        y = np.random.random(self.shape)
+        out1 = np.random.random(self.shape)
+        out2 = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
+        tensor_out1 = paddle.to_tensor(out1, dtype=self.dtype)
+        tensor_out2 = paddle.to_tensor(out2, dtype=self.dtype)
         raw_tensor_x_2 = paddle.slice(
             tensor_x, [0], [self.shape[0] // 2], [self.shape[0]]
         )
@@ -401,10 +405,10 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test Reduce
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
+        x = np.random.random(self.shape)
+        y = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
         sum_result = tensor_x + tensor_y
         if pg.rank() == 0:
             task = dist.reduce(tensor_x, 0, sync_op=True)
@@ -420,11 +424,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test reduce max
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         max_result = paddle.maximum(tensor_x, tensor_y)
 
@@ -440,11 +444,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test reduce min
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         min_result = paddle.minimum(tensor_x, tensor_y)
 
@@ -458,25 +462,26 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         print("test reduce min api ok")
 
-        # test reduce product
-        # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        if self.dtype != "bfloat16":
+            # test reduce product
+            # rank 0
+            x = np.random.random(self.shape)
+            tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+            # rank 1
+            y = np.random.random(self.shape)
+            tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
-        prod_result = np.multiply(x, y)
+            prod_result = paddle.multiply(tensor_x, tensor_y)
 
-        if pg.rank() == 0:
-            task = dist.reduce(tensor_x, 0, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
-            assert np.array_equal(tensor_x, prod_result)
-        else:
-            task = dist.reduce(tensor_y, 0, dist.ReduceOp.PROD, sync_op=False)
-            task.wait()
+            if pg.rank() == 0:
+                task = dist.reduce(tensor_x, 0, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
+                assert np.array_equal(tensor_x, prod_result)
+            else:
+                task = dist.reduce(tensor_y, 0, dist.ReduceOp.PROD, sync_op=False)
+                task.wait()
 
-        print("test reduce prod api ok")
+            print("test reduce prod api ok")
 
         test_reduce_with_zero_dim([], self.dtype, pg)
 
@@ -484,10 +489,10 @@ class TestProcessGroupFp32(unittest.TestCase):
         # rank 0
         in_shape = list(self.shape)
         in_shape[0] *= 2
-        x = np.random.random(in_shape).astype(self.dtype)
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
+        x = np.random.random(in_shape)
+        y = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
         if pg.rank() == 0:
             in_1, in_2 = paddle.split(tensor_x, 2)
             task = dist.scatter(tensor_y, [in_1, in_2], 0, sync_op=True)
@@ -508,10 +513,10 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test Scatter with shape=[]
         # rank 0
-        x = np.random.random([]).astype(self.dtype)
-        y = np.random.random([]).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
-        tensor_y = paddle.to_tensor(y)
+        x = np.random.random([])
+        y = np.random.random([])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
         if pg.rank() == 0:
             in_1, in_2 = tensor_x, tensor_x + 1
             task = dist.scatter(tensor_y, [in_1, in_2], 0, sync_op=True)
@@ -532,11 +537,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test send min
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         if pg.rank() == 0:
             task = dist.send(tensor_x, 1, sync_op=False)
@@ -550,11 +555,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test send min
         # rank 0
-        x = np.random.random(self.shape).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.random(self.shape)
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.random.random(self.shape).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.random.random(self.shape)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         if pg.rank() == 0:
             task = dist.send(tensor_x, 1, sync_op=True)
@@ -566,11 +571,11 @@ class TestProcessGroupFp32(unittest.TestCase):
 
         # test send 0-d tensor
         # rank 0
-        x = np.random.uniform(-1, 1, []).astype(self.dtype)
-        tensor_x = paddle.to_tensor(x)
+        x = np.random.uniform(-1, 1, [])
+        tensor_x = paddle.to_tensor(x, dtype=self.dtype)
         # rank 1
-        y = np.array(0.2022).astype(self.dtype)
-        tensor_y = paddle.to_tensor(y)
+        y = np.array(0.2022)
+        tensor_y = paddle.to_tensor(y, dtype=self.dtype)
 
         if pg.rank() == 0:
             task = dist.send(tensor_x, 1, sync_op=True)
@@ -579,6 +584,80 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert np.array_equal(tensor_y, tensor_x) and tensor_y.shape == []
 
         print("test send & recv 0-d tensor ok")
+
+        if int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7:
+            # test fused_allgather_mm
+            rank = dist.get_rank()
+            world_size = dist.get_world_size()
+            hcom_name = pg_group.process_group.get_comm_name(rank)
+            x1 = np.random.uniform(-1, 1, [16, 512])
+            x1 = paddle.to_tensor(x1).astype(self.dtype)
+            x2 = np.random.uniform(-1, 1, [512, 256])
+            x2 = paddle.to_tensor(x2).astype(self.dtype)
+            bias = np.random.uniform(-1, 1, [x2.shape[1]])
+            bias = None  # paddle.to_tensor(bias).astype(self.dtype)
+            out, gather_out = paddle_custom_device.npu.fused_allgather_mm(
+                x1,
+                x2,
+                bias=bias,
+                hcom=hcom_name,
+                world_size=world_size,
+                gather_index=0,
+                gather_output=True,
+                comm_turn=0,
+            )
+            gather_res = []
+            paddle.distributed.all_gather(gather_res, x1, group=pg_group)
+            gather_res = paddle.concat(gather_res)
+            out_res = paddle.matmul(gather_res, x2)
+            if bias is not None:
+                out_res += bias
+            np.testing.assert_allclose(out.cpu().numpy(), out_res.cpu().numpy())
+            np.testing.assert_allclose(
+                gather_out.cpu().numpy(), gather_res.cpu().numpy()
+            )
+
+            # test fused_mm_reduce_scatter
+            x1 = np.random.uniform(-1, 1, [128, 512])
+            x1 = paddle.to_tensor(x1).astype(self.dtype)
+            x2 = np.random.uniform(-1, 1, [512, 256])
+            x2 = paddle.to_tensor(x2).astype(self.dtype)
+            bias = np.random.uniform(-1, 1, [x2.shape[1]])
+            bias = None  # paddle.to_tensor(bias).astype(self.dtype)
+            out = paddle_custom_device.npu.fused_mm_reduce_scatter(
+                x1,
+                x2,
+                bias=bias,
+                hcom=hcom_name,
+                world_size=world_size,
+                reduce_op="sum",
+                comm_turn=0,
+            )
+            mm = paddle.matmul(x1, x2)
+            if bias is not None:
+                mm += bias
+            reduce_scatter_res = paddle.empty(
+                [mm.shape[0] // world_size, mm.shape[1]], dtype=mm.dtype
+            )
+            paddle.distributed.reduce_scatter(reduce_scatter_res, [mm], group=pg_group)
+            np.testing.assert_allclose(
+                out.cpu().numpy(), reduce_scatter_res.cpu().numpy()
+            )
+
+            # test fused_mm_allreduce
+            x1 = np.random.uniform(-1, 1, [128, 512]).astype(self.dtype)
+            x1 = paddle.to_tensor(x1)
+            x2 = np.random.uniform(-1, 1, [512, 256]).astype(self.dtype)
+            x2 = paddle.to_tensor(x2)
+            out = paddle_custom_device.npu.fused_mm_allreduce(
+                x1, x2, bias=None, hcom=hcom_name, reduce_op="sum", comm_turn=0
+            )
+            mm = paddle.matmul(x1, x2)
+            paddle.distributed.all_reduce(mm, group=pg_group, sync_op=True)
+            np.testing.assert_allclose(out.cpu().numpy(), mm.cpu().numpy())
+            print(
+                "test fused_allgather_mm & fused_mm_reduce_scatter & fused_mm_allreduce ok!"
+            )
 
 
 class TestProcessGroupFp16(TestProcessGroupFp32):
@@ -593,13 +672,25 @@ class TestProcessGroupFp16(TestProcessGroupFp32):
         self.shape = (4, 20, 20)
 
 
+class TestProcessGroupBF16(TestProcessGroupFp32):
+    def setUp(self):
+        paddle.seed(2022)
+        random.seed(2022)
+        np.random.seed(2022)
+        self.config()
+
+    def config(self):
+        self.dtype = "bfloat16"
+        self.shape = (4, 20, 20)
+
+
 def test_reduce_with_zero_dim(shape, dtype, pg):
     # test Reduce With Zero Dim
     # rank 0
-    x = np.random.random(shape).astype(dtype)
-    y = np.random.random(shape).astype(dtype)
-    tensor_x = paddle.to_tensor(x)
-    tensor_y = paddle.to_tensor(y)
+    x = np.random.random(shape)
+    y = np.random.random(shape)
+    tensor_x = paddle.to_tensor(x, dtype=dtype)
+    tensor_y = paddle.to_tensor(y, dtype=dtype)
     sum_result = tensor_x + tensor_y
     if pg.rank() == 0:
         task = dist.reduce(tensor_x, 0, sync_op=True)
@@ -615,11 +706,11 @@ def test_reduce_with_zero_dim(shape, dtype, pg):
 
     # test reduce with zero dim max
     # rank 0
-    x = np.random.random(shape).astype(dtype)
-    tensor_x = paddle.to_tensor(x)
+    x = np.random.random(shape)
+    tensor_x = paddle.to_tensor(x, dtype=dtype)
     # rank 1
-    y = np.random.random(shape).astype(dtype)
-    tensor_y = paddle.to_tensor(y)
+    y = np.random.random(shape)
+    tensor_y = paddle.to_tensor(y, dtype=dtype)
 
     max_result = paddle.maximum(tensor_x, tensor_y)
 
@@ -635,11 +726,11 @@ def test_reduce_with_zero_dim(shape, dtype, pg):
 
     # test reduce with zero dim min
     # rank 0
-    x = np.random.random(shape).astype(dtype)
-    tensor_x = paddle.to_tensor(x)
+    x = np.random.random(shape)
+    tensor_x = paddle.to_tensor(x, dtype=dtype)
     # rank 1
-    y = np.random.random(shape).astype(dtype)
-    tensor_y = paddle.to_tensor(y)
+    y = np.random.random(shape)
+    tensor_y = paddle.to_tensor(y, dtype=dtype)
 
     min_result = paddle.minimum(tensor_x, tensor_y)
 
@@ -653,25 +744,26 @@ def test_reduce_with_zero_dim(shape, dtype, pg):
 
     print("test reduce with zero dim min api ok")
 
-    # test reduce with zero dim product
-    # rank 0
-    x = np.random.random(shape).astype(dtype)
-    tensor_x = paddle.to_tensor(x)
-    # rank 1
-    y = np.random.random(shape).astype(dtype)
-    tensor_y = paddle.to_tensor(y)
+    if dtype != "bfloat16":
+        # test reduce with zero dim product
+        # rank 0
+        x = np.random.random(shape)
+        tensor_x = paddle.to_tensor(x, dtype=dtype)
+        # rank 1
+        y = np.random.random(shape)
+        tensor_y = paddle.to_tensor(y, dtype=dtype)
 
-    prod_result = np.multiply(x, y)
+        prod_result = paddle.multiply(tensor_x, tensor_y)
 
-    if pg.rank() == 0:
-        task = dist.reduce(tensor_x, 0, dist.ReduceOp.PROD, sync_op=False)
-        task.wait()
-        assert np.array_equal(tensor_x, prod_result) and len(tensor_x.shape) == 0
-    else:
-        task = dist.reduce(tensor_y, 0, dist.ReduceOp.PROD, sync_op=False)
-        task.wait()
+        if pg.rank() == 0:
+            task = dist.reduce(tensor_x, 0, dist.ReduceOp.PROD, sync_op=False)
+            task.wait()
+            assert np.array_equal(tensor_x, prod_result) and len(tensor_x.shape) == 0
+        else:
+            task = dist.reduce(tensor_y, 0, dist.ReduceOp.PROD, sync_op=False)
+            task.wait()
 
-    print("test reduce with zero dim prod api ok")
+        print("test reduce with zero dim prod api ok")
 
 
 if __name__ == "__main__":

@@ -14,13 +14,48 @@
 
 import unittest
 import paddle_custom_device
+import os
+
+
+def get_cann_version():
+    return int(paddle_custom_device.npu.version()["cann"].split(".")[0])
+
+
+def get_cann_minor_version():
+    return int(paddle_custom_device.npu.version()["cann"].split(".")[1])
+
+
+def get_two_npus(device_str=None):
+    if device_str is None:
+        if get_cann_version() <= 6 and get_cann_minor_version() < 3:
+            device_str = os.getenv("ASCEND_RT_VISIBLE_DEVICES", "0,1")
+        else:
+            device_str = "0,1"
+    selected = [x.strip() for x in device_str.split(",")]
+    return selected
 
 
 def check_soc_version(func):
     def wrapper(self):
-        if paddle_custom_device.npu.version()["cann"].split(".")[0] == "7":
+        version_code = get_cann_version()
+        if version_code >= 7:
             return func(self)
         self.__class__.op_type = "skip"
         return unittest.skip("Skipping the test case since cann is not 7.x")(func)(self)
+
+    return wrapper
+
+
+def check_soc_version_and_dtype(func):
+    def wrapper(self):
+        if (
+            int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7
+            or self.dtype != "bfloat16"
+        ):
+            return func(self)
+        self.__class__.op_type = "skip"
+        return unittest.skip(
+            "Skipping the test case since cann is not 7.x and dtype is bfloat16"
+        )(func)(self)
 
     return wrapper

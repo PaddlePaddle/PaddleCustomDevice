@@ -22,8 +22,9 @@ from scipy.special import erf, expit
 import paddle
 import paddle.base as base
 import paddle.nn.functional as F
-from tests.op_test import OpTest
+from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 from tests.utils import static_guard
+from npu_utils import check_soc_version
 
 paddle.enable_static()
 SEED = 2021
@@ -113,7 +114,7 @@ class TestAtan(TestActivation):
     def test_dygraph(self):
         with base.dygraph.guard(self.place):
             np_x = np.array([0.1])
-            x = base.dygraph.to_variable(np_x)
+            x = paddle.to_tensor(np_x)
             z = paddle.atan(x).numpy()
             z_expected = np.arctan(np_x)
             self.assertEqual(z, z_expected)
@@ -795,6 +796,77 @@ class TestSqrt(TestActivation):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, check_dygraph=True)
+
+
+class TestSqrt_ZeroDim(TestSqrt):
+    def init_shape(self):
+        self.shape = []
+
+
+class TestSqrtBF16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def setUp(self):
+        self.set_npu()
+        self.init_dtype()
+        self.init_data()
+        self.op_type = "sqrt"
+        self.inputs = {"X": self.x}
+        self.outputs = {"Out": self.out}
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_data(self):
+        self.x = convert_float_to_uint16(np.random.random((5, 6, 10)).astype("float32"))
+        self.out = np.sqrt(convert_uint16_to_float(self.x))
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=0.004)
+
+    @check_soc_version
+    def test_check_grad(self):
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
+class TestSqrt_ZeroDimBF16(TestSqrtBF16):
+    def init_shape(self):
+        self.shape = []
+
+
+class TestRsqrtBF16(OpTest):
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def setUp(self):
+        self.set_npu()
+        self.init_dtype()
+        self.init_data()
+        self.op_type = "rsqrt"
+        self.inputs = {"X": self.x}
+        self.outputs = {"Out": self.out}
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_data(self):
+        self.x = convert_float_to_uint16(np.random.random((5, 6, 10)).astype("float32"))
+        self.out = 1.0 / np.sqrt(convert_uint16_to_float(self.x))
+
+    @check_soc_version
+    def test_check_output(self):
+        self.check_output_with_place(paddle.CustomPlace("npu", 0), atol=0.004)
+
+    @check_soc_version
+    def test_check_grad(self):
+        self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
+class TestRsqrt_ZeroDimBF16(TestSqrtBF16):
+    def init_shape(self):
+        self.shape = []
 
 
 class TestSqrt_ZeroDim(TestSqrt):

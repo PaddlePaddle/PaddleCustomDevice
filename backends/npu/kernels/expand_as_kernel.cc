@@ -20,11 +20,75 @@ namespace custom_kernel {
 #define MAX_RANK_SUPPORTED 6
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+
+void EqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AllKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const std::vector<int64_t>& dims,
+               bool keep_dim,
+               phi::DenseTensor* out);
+
+template <typename T, typename Context>
+bool check_tensor_values_in_range(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  phi::DataType dtype = phi::DataType::INT32) {
+  if (x.dtype() != phi::DataType::INT64) {
+    return true;
+  }
+  phi::DenseTensor cast_x, equal_result, all_result;
+  phi::DenseTensorMeta x_meta = {phi::DataType::INT32, x.dims()};
+  cast_x.set_meta(x_meta);
+  phi::DenseTensorMeta equal_meta = {phi::DataType::BOOL, x.dims()};
+  equal_result.set_meta(equal_meta);
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, x, phi::DataType::INT32, &cast_x);
+  custom_kernel::EqualKernel<T, Context>(dev_ctx, x, cast_x, &equal_result);
+  const std::vector<int64_t> dims;
+  all_result.Resize(phi::make_ddim({}));
+  bool keep_dim = false;
+  custom_kernel::AllKernel<bool, Context>(
+      dev_ctx, equal_result, dims, keep_dim, &all_result);
+  std::vector<bool> all_v;
+  TensorToVector(dev_ctx, all_result, dev_ctx, &all_v);
+  return all_v[0];
+}
+
+template <typename T, typename Context>
 void ExpandAsKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const paddle::optional<phi::DenseTensor>& y,
                     const std::vector<int>& target_shape,
                     phi::DenseTensor* out) {
+  bool x_inrange = check_tensor_values_in_range<T, Context>(dev_ctx, x);
+  PADDLE_ENFORCE_EQ(
+      x_inrange,
+      1,
+      phi::errors::InvalidArgument("The size of the input int64 data must be "
+                                   "whithin the range of int32."));
+
+  phi::DenseTensor cast_x;
+
+  if (x.dtype() == phi::DataType::INT64) {
+    phi::DenseTensorMeta meta(x.meta());
+    meta.dtype = phi::DataType::INT32;
+    cast_x.set_meta(meta);
+
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::INT32, &cast_x);
+  } else {
+    cast_x = x;
+  }
   auto rank = x.dims().size();
   auto target_rank = target_shape.size();
   PADDLE_ENFORCE_GE(target_rank,
@@ -79,7 +143,7 @@ void ExpandAsKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   const auto& runner =
-      NpuOpRunner("ExpandD", {x}, {*out}, {{"shape", target_shape}});
+      NpuOpRunner("ExpandD", {cast_x}, {*out}, {{"shape", target_shape}});
 
   auto stream = dev_ctx.stream();
   runner.Run(stream);
@@ -94,5 +158,7 @@ PD_REGISTER_PLUGIN_KERNEL(expand_as,
                           int8_t,
                           uint8_t,
                           int,
+                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

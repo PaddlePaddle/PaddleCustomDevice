@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SoftmaxKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   int axis,
-                   phi::DenseTensor* out) {
+void AclopSoftmaxKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        int axis,
+                        phi::DenseTensor* out) {
   const int rank = x.dims().size();
   if (rank == 0) {
     dev_ctx.template Alloc<T>(out);
@@ -41,11 +41,24 @@ void SoftmaxKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SoftmaxGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& out,
-                       const phi::DenseTensor& out_grad,
-                       int axis,
-                       phi::DenseTensor* x_grad) {
+void SoftmaxKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   int axis,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSoftmax,
+      (custom_kernel::AclopSoftmaxKernel<T, Context>(dev_ctx, x, axis, out)));
+  dev_ctx.template Alloc<T>(out);
+  int64_t dim = static_cast<int64_t>(axis);
+  EXEC_NPU_CMD(aclnnSoftmax, dev_ctx, x, dim, *out);
+}
+
+template <typename T, typename Context>
+void AclopSoftmaxGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& out,
+                            const phi::DenseTensor& out_grad,
+                            int axis,
+                            phi::DenseTensor* x_grad) {
   auto dims = x_grad->dims();
   const int rank = dims.size();
   if (out.dims().size() == 0) {
@@ -117,6 +130,20 @@ void SoftmaxGradKernel(const Context& dev_ctx,
   x_grad->Resize(dims);
 }
 
+template <typename T, typename Context>
+void SoftmaxGradKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& out,
+                       const phi::DenseTensor& out_grad,
+                       int axis,
+                       phi::DenseTensor* x_grad) {
+  DO_COMPATIBILITY(aclnnSoftmax,
+                   (custom_kernel::AclopSoftmaxGradKernel<T, Context>(
+                       dev_ctx, out, out_grad, axis, x_grad)));
+  dev_ctx.template Alloc<T>(x_grad);
+  int64_t dim = static_cast<int64_t>(axis);
+  EXEC_NPU_CMD(aclnnSoftmaxBackward, dev_ctx, out_grad, out, dim, *x_grad);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(softmax,
@@ -125,7 +152,8 @@ PD_REGISTER_PLUGIN_KERNEL(softmax,
                           custom_kernel::SoftmaxKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
                           npu,
@@ -133,4 +161,5 @@ PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
                           custom_kernel::SoftmaxGradKernel,
                           float,
                           double,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

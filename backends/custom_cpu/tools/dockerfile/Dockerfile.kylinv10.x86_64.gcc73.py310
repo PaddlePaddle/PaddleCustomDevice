@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Kylin V10 develop base environment
 
-FROM opstool/kylin:v10sp1-x86_64
+FROM sugonhub/kylin:v10-dev
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache
@@ -9,7 +9,8 @@ RUN yum install -y bzip2-devel openssh-server elfutils-devel diffutils libtool i
         blas-devel lapack-devel make git patch unzip bison hostname yasm libsndfile-devel \
         automake which file net-tools zlib-devel libffi-devel vim tk-devel tkinter rpm-build \
         sqlite-devel xz-devel wget curl-devel initscripts mesa-libGL numactl-devel pcre-devel \
-        openssl-devel libjpeg-turbo-devel libpng-devel ninja-build gcc gcc-c++ gcc-gfortran
+        openssl-devel libjpeg-turbo-devel libpng-devel ninja-build pciutils libzstd-devel \
+        gcc gcc-c++ gcc-gfortran
 
 # add bash envs
 COPY root/ /root/
@@ -21,35 +22,34 @@ WORKDIR /opt
 RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
     chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
     ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
-    rm -rf cmake-3.27.7-linux-x86_64.sh
+    rm -rf cmake-3.27.7-linux-x86_64.sh && rm -rf /opt/cmake
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# Python 3.9.17
-RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+# Python 3.10.14
+RUN wget -q https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tgz && \
+    tar xzf Python-3.10.14.tgz && cd Python-3.10.14 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
     make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
-    cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
+    cd ../ && rm -rf Python-3.10.14 && rm -rf Python-3.10.14.tgz
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
-ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.9:${CPLUS_INCLUDE_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.10:${CPLUS_INCLUDE_PATH}
 
 # create venv and activate
-RUN /usr/local/bin/python3.9 -m venv /opt/py39
+RUN /usr/local/bin/python3.10 -m venv /opt/py310
 # update env
-ENV PATH=/opt/py39/bin:$PATH
-RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
-# upgrade pip and setuptools
+ENV PATH=/opt/py310/bin:$PATH
+RUN echo "source /opt/py310/bin/activate" >> /root/.bashrc
+# upgrade pip
 RUN pip install --upgrade pip setuptools wheel
 
 # install pylint and pre-commit
-RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole gitpython
+RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole distro
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
-RUN pip install PyGithub distro
 
 # install Paddle requirement
-RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
-RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
+RUN wget https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/unittest_py/requirements.txt -O requirements.txt && \
     pip install -r requirements.txt && rm -rf requirements.txt
 
 # git credential to skip password typing
@@ -61,19 +61,30 @@ RUN yum -y install glibc-locale-source glibc-langpack-en
 RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
 # patchelf 0.14.5 - https://github.com/NixOS/patchelf/pull/216
-RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
+RUN wget -q https://github.com/NixOS/patchelf/archive/refs/tags/0.14.5.tar.gz && \
     tar xzf 0.14.5.tar.gz && cd patchelf-0.14.5 && \
     ./bootstrap.sh  > /dev/null && ./configure > /dev/null && \
     make -j16 > /dev/null && make install > /dev/null && \
     cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
-# ccache 3.7.9
-RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
-    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
-    make -j16 > /dev/null && make install > /dev/null && \ 
-    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
-    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
+# ccache 4.6.3
+RUN wget -q https://github.com/ccache/ccache/releases/download/v4.6.3/ccache-4.6.3.tar.gz && \
+    tar xf ccache-4.6.3.tar.gz && mkdir /usr/local/ccache-4.6.3 && cd ccache-4.6.3 && \
+    mkdir build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DREDIS_STORAGE_BACKEND=OFF \
+    -DCMAKE_INSTALL_PREFIX=/usr/local/ccache-4.6.3 ..  > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd ../../ && rm -rf ccache-4.6.3.tar.gz && rm -rf ccache-4.6.3 && \
+    ln -s /usr/local/ccache-4.6.3/bin/ccache /usr/local/bin/ccache
+ENV CCACHE_MAXSIZE=50G \
+    CCACHE_LIMIT_MULTIPLE=0.8 \
+    CCACHE_SLOPPINESS=clang_index_store,time_macros,include_file_mtime
+
+# fix zlib conflict - 1.2.11 to 1.2.8
+RUN cd /usr/lib64/ && \
+    wget -q https://paddle-device.bj.bcebos.com/dcu/zlib-1.2.8.tar.gz && \
+    rm -rf libz.a libz.so libz.so.1 libz.so.1.2.8 && \
+    tar -zxvf zlib-1.2.8.tar.gz && rm -rf zlib-1.2.8.tar.gz
 
 # configure ssh
 RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \

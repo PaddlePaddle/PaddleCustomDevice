@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Kylin V10 develop base environment
 
-FROM kylin-server-10-sp2-aarch64:b09
+FROM opstool/kylin:v10sp1-x86_64
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 RUN yum makecache
@@ -38,41 +38,32 @@ RUN mv /usr/bin/c++ /usr/bin/c++.bak
 RUN update-alternatives --install /usr/bin/c++ c++ /opt/compiler/gcc-8.2/bin/g++ 90
 
 # cmake 3.27.7
-RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-aarch64.sh && \
-    chmod +x cmake-3.27.7-linux-aarch64.sh && mkdir -p /opt/cmake-3.27.7 && \
-    ./cmake-3.27.7-linux-aarch64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
-    rm -rf cmake-3.27.7-linux-aarch64.sh
+RUN wget -q https://cmake.org/files/v3.27/cmake-3.27.7-linux-x86_64.sh && \
+    chmod +x cmake-3.27.7-linux-x86_64.sh && mkdir -p /opt/cmake-3.27.7 && \
+    ./cmake-3.27.7-linux-x86_64.sh --prefix=/opt/cmake-3.27.7 --skip-license && \
+    rm -rf cmake-3.27.7-linux-x86_64.sh
 ENV PATH=/opt/cmake-3.27.7/bin:${PATH}
 
-# Python 3.9.17
-RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.9.17/Python-3.9.17.tgz && \
-    tar xzf Python-3.9.17.tgz && cd Python-3.9.17 && \
+# Python 3.10.13
+RUN wget -q --no-check-certificate https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz && \
+    tar xzf Python-3.10.13.tgz && cd Python-3.10.13 && \
     CFLAGS="-Wformat" ./configure --prefix=/usr/local/ --enable-shared > /dev/null && \
     make -j16 > /dev/null && make altinstall > /dev/null && ldconfig && \
-    cd ../ && rm -rf Python-3.9.17 && rm -rf Python-3.9.17.tgz
-ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.9:${CPLUS_INCLUDE_PATH}
-
-# openssl 1.1.1w - https://github.com/openssl/openssl/pull/13218
-RUN wget -q --no-check-certificate https://www.openssl.org/source/openssl-1.1.1w.tar.gz && \
-    tar zxf openssl-1.1.1w.tar.gz && cd openssl-1.1.1w && ./config  > /dev/null && \
-    make -j16 > /dev/null && make install > /dev/null && ldconfig && \
-    cd .. && rm -rf openssl-1.1.1w && rm -rf openssl-1.1.1w.tar.gz
+    cd ../ && rm -rf Python-3.10.13 && rm -rf Python-3.10.13.tgz
 ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=/usr/lib64:${LD_LIBRARY_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include/python3.10:${CPLUS_INCLUDE_PATH}
 
 # create venv and activate
-RUN /usr/local/bin/python3.9 -m venv /opt/py39
+RUN /usr/local/bin/python3.10 -m venv /opt/py310
 # update env
-ENV PATH=/opt/py39/bin:$PATH
-RUN echo "source /opt/py39/bin/activate" >> /root/.bashrc
-# upgrade pip and setuptools
+ENV PATH=/opt/py310/bin:$PATH
+RUN echo "source /opt/py310/bin/activate" >> /root/.bashrc
+# upgrade pip
 RUN pip install --upgrade pip setuptools wheel
 
 # install pylint and pre-commit
-RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole gitpython
+RUN pip install pre-commit==2.17.0 pylint pytest astroid isort coverage qtconsole distro
 RUN pip install attrs pyyaml pathlib2 scipy requests psutil Cython clang-format==13.0.0
-RUN pip install PyGithub distro
 
 # install Paddle requirement
 RUN wget --no-check-certificate https://raw.githubusercontent.com/PaddlePaddle/Paddle/develop/python/requirements.txt -O requirements.txt && \
@@ -95,22 +86,20 @@ RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/ref
     make -j16 > /dev/null && make install > /dev/null && \
     cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
-# ccache 3.7.9
-RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
-    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
-    make -j16 > /dev/null && make install > /dev/null && \ 
-    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
-    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
+# ccache 4.8.2
+RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-4.8.2.tar.gz && \
+    tar xf ccache-4.8.2.tar.gz && mkdir /usr/local/ccache-4.8.2 && cd ccache-4.8.2 && \
+    mkdir build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/ccache-4.8.2 ..  > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd ../../ && rm -rf ccache-4.8.2.tar.gz && rm -rf ccache-4.8.2 && \
+    ln -s /usr/local/ccache-4.8.2/bin/ccache /usr/local/bin/ccache
 
 # configure ssh
 RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \
     sed -i "s/^#PubkeyAuthentication/PubkeyAuthentication/" /etc/ssh/sshd_config && \
     sed -i "s/^#RSAAuthentication/RSAAuthentication/" /etc/ssh/sshd_config && \
     sed -i "s/#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
-
-# https://github.com/keras-team/keras-tuner/issues/317
-ENV LD_PRELOAD=/opt/py39/lib/python3.9/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
 
 # yum clean
 RUN yum clean all && \

@@ -45,11 +45,11 @@ static void ReduceDims(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MultiplyRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       int axis,
-                       phi::DenseTensor* out) {
+void AclopMultiplyRawKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& y,
+                            int axis,
+                            phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -75,6 +75,36 @@ void MultiplyRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void MultiplyRawKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       int axis,
+                       phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnMul,
+                   (custom_kernel::AclopMultiplyRawKernel<T, Context>(
+                       dev_ctx, x, y, axis, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  bool direct_compute = false;
+  auto x_dims = x.dims();
+  auto y_dims = y.dims();
+  axis = (axis == -1 ? std::abs(x_dims.size() - y_dims.size()) : axis);
+  if (x_dims.size() >= y_dims.size()) {
+    direct_compute = x_dims.size() == (y_dims.size() + axis);
+  } else {
+    direct_compute = y_dims.size() == (x_dims.size() + axis);
+  }
+
+  if (direct_compute) {
+    EXEC_NPU_CMD(aclnnMul, dev_ctx, x, y, *out);
+  } else {
+    phi::DenseTensor trans_x, trans_y;
+    NpuElementWiseOpBroadcast<T>(dev_ctx, &x, &y, axis, &trans_x, &trans_y);
+    EXEC_NPU_CMD(aclnnMul, dev_ctx, trans_x, trans_y, *out);
+  }
+}
+
+template <typename T, typename Context>
 void AclopMultiplyKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          const phi::DenseTensor& y,
@@ -96,28 +126,32 @@ void MultiplyKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MultiplyGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
-                        int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
+void AclopMultiplyGradKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             const phi::DenseTensor& dout,
+                             int axis,
+                             phi::DenseTensor* dx,
+                             phi::DenseTensor* dy) {
   auto stream = dev_ctx.stream();
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
 
-  phi::DenseTensor trans_x, trans_y;
-  NpuElementWiseOpBroadcast<T>(dev_ctx, &x, &y, axis, &trans_x, &trans_y);
+  int x_axis;
+  int y_axis;
+  phi::DDim dst_dims;
+  NpuElementWiseHelper(&x, &y, axis, &x_axis, &y_axis, &dst_dims);
 
   if (dx) {
+    phi::DenseTensor trans_y;
+    NpuBroadcast<T>(dev_ctx, &y, y_axis, dst_dims, &trans_y);
     if (dx->dims() == dout.dims()) {
       dev_ctx.template Alloc<T>(dx);
       const auto& runner_dx = NpuOpRunner("Mul", {dout, trans_y}, {*dx}, {});
       runner_dx.Run(stream);
     } else {
       phi::DenseTensor dx_temp;
-      phi::DenseTensorMeta dx_temp_meta = {x.dtype(), trans_x.dims()};
+      phi::DenseTensorMeta dx_temp_meta = {x.dtype(), trans_y.dims()};
       dx_temp.set_meta(dx_temp_meta);
       dev_ctx.template Alloc<T>(&dx_temp);
 
@@ -125,17 +159,19 @@ void MultiplyGradKernel(const Context& dev_ctx,
           NpuOpRunner("Mul", {dout, trans_y}, {dx_temp}, {});
       runner_dx.Run(stream);
       ReduceDims<T>(
-          dev_ctx, stream, axis, dx->dims(), trans_x.dims(), dx_temp, dx);
+          dev_ctx, stream, axis, dx->dims(), trans_y.dims(), dx_temp, dx);
     }
   }
   if (dy) {
+    phi::DenseTensor trans_x;
+    NpuBroadcast<T>(dev_ctx, &x, x_axis, dst_dims, &trans_x);
     if (dy->dims() == dout.dims()) {
       dev_ctx.template Alloc<T>(dy);
       const auto& runner_dy = NpuOpRunner("Mul", {trans_x, dout}, {*dy}, {});
       runner_dy.Run(stream);
     } else {
       phi::DenseTensor dy_temp;
-      phi::DenseTensorMeta dy_temp_meta = {y.dtype(), trans_y.dims()};
+      phi::DenseTensorMeta dy_temp_meta = {y.dtype(), trans_x.dims()};
       dy_temp.set_meta(dy_temp_meta);
       dev_ctx.template Alloc<T>(&dy_temp);
 
@@ -143,7 +179,64 @@ void MultiplyGradKernel(const Context& dev_ctx,
           NpuOpRunner("Mul", {trans_x, dout}, {dy_temp}, {});
       runner_dy.Run(stream);
       ReduceDims<T>(
-          dev_ctx, stream, axis, dy->dims(), trans_y.dims(), dy_temp, dy);
+          dev_ctx, stream, axis, dy->dims(), trans_x.dims(), dy_temp, dy);
+    }
+  }
+}
+
+template <typename T, typename Context>
+void MultiplyGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        const phi::DenseTensor& dout,
+                        int axis,
+                        phi::DenseTensor* dx,
+                        phi::DenseTensor* dy) {
+  DO_COMPATIBILITY(aclnnMul,
+                   (custom_kernel::AclopMultiplyGradKernel<T, Context>(
+                       dev_ctx, x, y, dout, axis, dx, dy)));
+
+  auto stream = dev_ctx.stream();
+
+  axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
+
+  int x_axis;
+  int y_axis;
+  phi::DDim dst_dims;
+  NpuElementWiseHelper(&x, &y, axis, &x_axis, &y_axis, &dst_dims);
+
+  if (dx) {
+    phi::DenseTensor trans_y;
+    NpuBroadcast<T>(dev_ctx, &y, y_axis, dst_dims, &trans_y);
+    if (dx->dims() == dout.dims()) {
+      dev_ctx.template Alloc<T>(dx);
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, trans_y, *dx);
+    } else {
+      phi::DenseTensor dx_temp;
+      phi::DenseTensorMeta dx_temp_meta = {x.dtype(), trans_y.dims()};
+      dx_temp.set_meta(dx_temp_meta);
+      dev_ctx.template Alloc<T>(&dx_temp);
+
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, trans_y, dx_temp);
+      ReduceDims<T>(
+          dev_ctx, stream, axis, dx->dims(), trans_y.dims(), dx_temp, dx);
+    }
+  }
+  if (dy) {
+    phi::DenseTensor trans_x;
+    NpuBroadcast<T>(dev_ctx, &x, x_axis, dst_dims, &trans_x);
+    if (dy->dims() == dout.dims()) {
+      dev_ctx.template Alloc<T>(dy);
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, trans_x, dout, *dy);
+    } else {
+      phi::DenseTensor dy_temp;
+      phi::DenseTensorMeta dy_temp_meta = {y.dtype(), trans_x.dims()};
+      dy_temp.set_meta(dy_temp_meta);
+      dev_ctx.template Alloc<T>(&dy_temp);
+
+      EXEC_NPU_CMD(aclnnMul, dev_ctx, trans_x, dout, dy_temp);
+      ReduceDims<T>(
+          dev_ctx, stream, axis, dy->dims(), trans_x.dims(), dy_temp, dy);
     }
   }
 }

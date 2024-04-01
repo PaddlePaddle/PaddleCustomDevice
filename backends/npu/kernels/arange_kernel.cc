@@ -82,11 +82,11 @@ void ArangeTensorKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ArangeKernel(const Context& dev_ctx,
-                  const phi::Scalar& start,
-                  const phi::Scalar& end,
-                  const phi::Scalar& step,
-                  phi::DenseTensor* out) {
+void AclopArangeKernel(const Context& dev_ctx,
+                       const phi::Scalar& start,
+                       const phi::Scalar& end,
+                       const phi::Scalar& step,
+                       phi::DenseTensor* out) {
   T start_value = start.to<T>();
   T end_value = end.to<T>();
   T step_value = step.to<T>();
@@ -105,6 +105,18 @@ void ArangeKernel(const Context& dev_ctx,
   }
 
   TensorFromVector(dev_ctx, odata, dev_ctx, out);
+}
+
+template <typename T, typename Context>
+void ArangeKernel(const Context& dev_ctx,
+                  const phi::Scalar& start,
+                  const phi::Scalar& end,
+                  const phi::Scalar& step,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnArange,
+                   (custom_kernel::AclopArangeKernel<T, Context>(
+                       dev_ctx, start, end, step, out)));
+  EXEC_NPU_CMD(aclnnArange, dev_ctx, start, end, step, *out);
 }
 
 }  // namespace custom_kernel

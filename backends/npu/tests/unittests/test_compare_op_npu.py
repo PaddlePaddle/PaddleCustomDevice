@@ -21,8 +21,9 @@ import paddle
 import paddle.base as base
 from paddle.base import Program, program_guard
 from tests.op_test import OpTest, convert_float_to_uint16
+from npu_utils import get_cann_version
 
-import paddle_custom_device
+CANN_VERSION_CODE = get_cann_version()
 
 
 def create_test_class(op_type, typename, callback):
@@ -178,8 +179,8 @@ def create_test_class(op_type, typename, callback):
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 if typename == "bfloat16":
-                    input_x = np.arange(0, 5).reshape((5)).astype(typename)
-                    input_y = np.array([5, 3, 2]).reshape((3, 1)).astype(typename)
+                    input_x = np.arange(0, 5).reshape((5)).astype(np.float32)
+                    input_y = np.array([5, 3, 2]).reshape((3, 1)).astype(np.float32)
                     (res,) = exe.run(
                         feed={
                             "x": convert_float_to_uint16(input_x),
@@ -219,7 +220,7 @@ for _type_name in {"float16", "float32", "int32", "int64", "bool"}:
     create_test_class("greater_equal", _type_name, lambda _a, _b: _a >= _b)
 
 
-if paddle_custom_device.npu.version()["cann"].split(".")[0] == 7:
+if CANN_VERSION_CODE >= 7:
     create_test_class("equal", "bfloat16", lambda _a, _b: _a == _b)
     create_test_class("not_equal", "bfloat16", lambda _a, _b: _a != _b)
     create_test_class("less_than", "bfloat16", lambda _a, _b: _a < _b)

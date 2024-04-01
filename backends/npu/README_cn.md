@@ -8,28 +8,30 @@
 
 | 芯片类型  | CANN版本     |
 | --------- | -------- |
-| 昇腾910A | [CANN 7.0.RC1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.RC1.beta1)  |
-| 昇腾910B | [CANN 7.0.0](https://www.hiascend.com/developer/download/community/result?module=cann&cann=7.0.0)  |
+| 芯片类型 | 昇腾910A、昇腾910B |
+| CANN版本 | [CANN 8.0.T2](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
+| 驱动版本 | [23.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-# 昇腾910A芯片请使用如下镜像
-registry.baidubce.com/device/paddle-npu:cann70RC1-910A-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann70RC1-910A-ubuntu18-aarch64
-# 昇腾910B芯片请使用如下镜像
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-aarch64
+# 昇腾910A芯片 - 系统环境下查看 lspci | grep d801 是否有输出
+registry.baidubce.com/device/paddle-npu:cann80T2-910A-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann80T2-910A-ubuntu18-aarch64
+# 昇腾910B芯片 - 系统环境下查看 lspci | grep d802 是否有输出
+registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-x86_64
+registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-aarch64
 
-# 2) 参考如下命令启动容器
-docker run -it --name paddle-dev -v `pwd`:/workspace -w=/workspace \
+# 2) 参考如下命令启动容器，ASCEND_RT_VISIBLE_DEVICES 指定可见的 NPU 卡号
+docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
     --privileged --network=host --shm-size=128G \
     -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
-    registry.baidubce.com/device/paddle-npu:cann700-910B-ubuntu18-$(uname -m) /bin/bash
+    -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
+    registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-$(uname -m) /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -46,8 +48,7 @@ cd backends/npu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
 # 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle develop 分支的 nightly build 版本的安装包
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/0.0.0/cpu/paddlepaddle-0.0.0-cp39-cp39-linux_aarch64.whl
+pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -117,9 +118,10 @@ Output data shape is (1, 10)
 | 主题   | 变量名称                         | 类型   | 说明                              | 默认值                                                       |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
 | 调试     | CUSTOM_DEVICE_BLACK_LIST  | String   | 在黑名单内的算子会异构到CPU上运行 | "" |
-| 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False                                                        |
-| 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False                                                        |
-| 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling"                                           |
+| 调试     | FLAGS_npu_check_nan_inf | Bool   | 是否开启所有NPU算子输入输出检查   | False |
+| 调试     | FLAGS_npu_blocking_run | Bool   | 是否开启强制同步执行所有 NPU 算子 | False |
+| 性能分析 | FLAGS_npu_profiling_dir | String | 设置 Profiling 数据保存目录       | "ascend_profiling" |
 | 性能分析 | FLAGS_npu_profiling_dtypes | Uint64 | 指定需要采集的 Profiling 数据类型 | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
 | 性能分析 | FLAGS_npu_profiling_metrics | Uint64 | 设置 AI Core 性能指标采集项       | 见 [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |
-| 性能加速 | FLAGS_npu_storage_format  | Bool   | 支持 Conv/BN 等算子的昇腾私有化格式 | False                                                        |
+| 性能加速 | FLAGS_npu_storage_format  | Bool   | 支持 Conv/BN 等算子的昇腾私有化格式 | False |
+| 算子编译 | FLAGS_npu_jit_compile  | Bool   | 是否开启算子在线编译 | True |

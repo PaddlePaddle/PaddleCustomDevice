@@ -182,7 +182,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
         for dtype in dtypes:
             with base.dygraph.guard():
                 data = np.random.random([1, 9, 9, 4]).astype(dtype)
-                x = base.dygraph.to_variable(data)
+                x = paddle.to_tensor(data)
                 tril_out, triu_out = tensor.tril(x).numpy(), tensor.triu(x).numpy()
                 np.testing.assert_allclose(tril_out, np.tril(data))
                 np.testing.assert_allclose(triu_out, np.triu(data))

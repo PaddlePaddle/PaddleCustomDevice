@@ -364,14 +364,27 @@ void ReluKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ReluGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& out,
-                    const phi::DenseTensor& dout,
-                    phi::DenseTensor* dx) {
+void AclopReluGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& out,
+                         const phi::DenseTensor& dout,
+                         phi::DenseTensor* dx) {
   auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(dx);
   const auto& runner = NpuOpRunner("ReluGrad", {dout, out}, {*dx}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ReluGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnThresholdBackWard,
+      (custom_kernel::AclopReluGradKernel<T, Context>(dev_ctx, out, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  float threshold = 0.0;
+  EXEC_NPU_CMD(aclnnThresholdBackWard, dev_ctx, dout, out, threshold, *dx);
 }
 
 template <typename T, typename Context>

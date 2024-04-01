@@ -44,7 +44,11 @@ atb::Status CreateLlamaMlpDequantOperation(const LlamaMlpDequantParam &param, at
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
     atb::Node &swishNode = opGraph.nodes.at(nodeId++);
 
-    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, false};
+    atb::infer::LinearParam linearQuantParam;
+    linearQuantParam.linearType = atb::infer::LinearType::LINEAR_INT8INT8_INT32_FP16;
+    linearQuantParam.transposeA = false;
+    linearQuantParam.transposeB = param.transpose;
+    linearQuantParam.hasBias = false;
     CreateOperation(linearQuantParam, &linearNode.operation);
     linearNode.inTensorIds = {IN_HIDDENSTATUS, IN_WEIGHTTENSOR, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_MATMUL_ALL_OUT};

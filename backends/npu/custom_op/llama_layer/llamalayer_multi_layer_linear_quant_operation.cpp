@@ -46,7 +46,11 @@ atb::Status CreateLlamaMultiLayerLinearQuantOperation(const MultiLayerLinearQuan
     atb::Node &linearNode = opGraph.nodes.at(nodeId++);
     atb::Node &splitNode = opGraph.nodes.at(nodeId++);
     
-    atb::infer::LinearQuantParam linearQuantParam = {false, param.transpose, false};
+    atb::infer::LinearParam linearQuantParam;
+    linearQuantParam.linearType = atb::infer::LinearType::LINEAR_INT8INT8_INT32_FP16;
+    linearQuantParam.transposeA = false;
+    linearQuantParam.transposeB = param.transpose;
+    linearQuantParam.hasBias = false;
     CreateOperation(linearQuantParam, &linearNode.operation);
     linearNode.inTensorIds = {IN_INPUTTENSOR, IN_WEIGHTTENSOR, IN_DEQSCALE};
     linearNode.outTensorIds = {INTERMIDATE_LINEAR_OUT};

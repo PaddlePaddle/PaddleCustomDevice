@@ -30,6 +30,7 @@ static bool g_isEncoder = true;
 
 static bool first_run = true;
 static paddle::Tensor norm_blank_bias; 
+static paddle::Tensor norm_blank_offset;
 static paddle::Tensor self_out_norm_blank_bias;
 
 void PerpareLlamaBlockAttnSmoothEncoderInputs(
@@ -55,6 +56,11 @@ void PerpareLlamaBlockAttnSmoothEncoderInputs(
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key,
     const paddle::Tensor &cache_value,
+    const paddle::Tensor &norm_blank_offset,
+    const paddle::Tensor &inputRmsNormScale,
+    const paddle::Tensor &selfRmsNormScale,
+    const paddle::Tensor &selfQuantScale,
+    const paddle::Tensor &mlpQuantScale,
     const paddle::Tensor &seq_len,
     const paddle::Tensor &block_tables,
     const phi::DenseTensor &slot_mapping_tensor,
@@ -82,6 +88,11 @@ void PerpareLlamaBlockAttnSmoothEncoderInputs(
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_tensor = static_cast<const phi::DenseTensor *>(cache_key.impl().get());
   auto cache_value_tensor = static_cast<const phi::DenseTensor *>(cache_value.impl().get());
+  auto norm_blank_offset_tensor = static_cast<const phi::DenseTensor *>(norm_blank_offset.impl().get());
+  auto inputRmsNormScale_tensor = static_cast<const phi::DenseTensor *>(inputRmsNormScale.impl().get());
+  auto selfRmsNormScale_tensor = static_cast<const phi::DenseTensor *>(selfRmsNormScale.impl().get());
+  auto selfQuantScale_tensor = static_cast<const phi::DenseTensor *>(selfQuantScale.impl().get());
+  auto mlpQuantScale_tensor = static_cast<const phi::DenseTensor *>(mlpQuantScale.impl().get());
   auto seq_len_tensor = static_cast<const phi::DenseTensor *>(seq_len.impl().get());
   auto block_tables_tensor = static_cast<const phi::DenseTensor *>(block_tables.impl().get());
 
@@ -107,6 +118,11 @@ void PerpareLlamaBlockAttnSmoothEncoderInputs(
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_tensor);
   inputs.push_back(cache_value_tensor);
+  inputs.push_back(norm_blank_offset_tensor);
+  inputs.push_back(inputRmsNormScale_tensor);
+  inputs.push_back(selfRmsNormScale_tensor);
+  inputs.push_back(selfQuantScale_tensor);
+  inputs.push_back(mlpQuantScale_tensor);
   inputs.push_back(seq_len_tensor);
   inputs.push_back(block_tables_tensor);
   inputs.push_back(&slot_mapping_tensor);
@@ -135,6 +151,11 @@ void PerpareLlamaBlockAttnSmoothDecoderInputs(
     const paddle::Tensor &attention_mask,
     const paddle::Tensor &cache_key,
     const paddle::Tensor &cache_value,
+    const paddle::Tensor &norm_blank_offset,
+    const paddle::Tensor &inputRmsNormScale,
+    const paddle::Tensor &selfRmsNormScale,
+    const paddle::Tensor &selfQuantScale,
+    const paddle::Tensor &mlpQuantScale,
     const phi::DenseTensor &seq_len_tensor,
     const paddle::Tensor &block_tables,
     const phi::DenseTensor &slot_mapping_tensor,
@@ -162,6 +183,11 @@ void PerpareLlamaBlockAttnSmoothDecoderInputs(
   auto attention_mask_tensor = static_cast<const phi::DenseTensor *>(attention_mask.impl().get());
   auto cache_key_tensor = static_cast<const phi::DenseTensor *>(cache_key.impl().get());
   auto cache_value_tensor = static_cast<const phi::DenseTensor *>(cache_value.impl().get());
+  auto norm_blank_offset_tensor = static_cast<const phi::DenseTensor *>(norm_blank_offset.impl().get());
+  auto inputRmsNormScale_tensor = static_cast<const phi::DenseTensor *>(inputRmsNormScale.impl().get());
+  auto selfRmsNormScale_tensor = static_cast<const phi::DenseTensor *>(selfRmsNormScale.impl().get());
+  auto selfQuantScale_tensor = static_cast<const phi::DenseTensor *>(selfQuantScale.impl().get());
+  auto mlpQuantScale_tensor = static_cast<const phi::DenseTensor *>(mlpQuantScale.impl().get());
   auto block_tables_tensor = static_cast<const phi::DenseTensor *>(block_tables.impl().get());
 
   inputs.push_back(hidden_tensor);
@@ -186,6 +212,11 @@ void PerpareLlamaBlockAttnSmoothDecoderInputs(
   inputs.push_back(attention_mask_tensor);
   inputs.push_back(cache_key_tensor);
   inputs.push_back(cache_value_tensor);
+  inputs.push_back(norm_blank_offset_tensor);
+  inputs.push_back(inputRmsNormScale_tensor);
+  inputs.push_back(selfRmsNormScale_tensor);
+  inputs.push_back(selfQuantScale_tensor);
+  inputs.push_back(mlpQuantScale_tensor);
   inputs.push_back(&seq_len_tensor);
   inputs.push_back(block_tables_tensor);
   inputs.push_back(&slot_mapping_tensor);
@@ -297,6 +328,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
   selfRmsNormScale *= 127;
   selfQuantScale *= 127;
   mlpQuantScale *= 127;
+  paddle::Tensor inputRmsNormScale_tensor = paddle::full({1}, 1.0f/inputRmsNormScale, paddle::DataType::FLOAT16, hidden.place());
+  paddle::Tensor selfRmsNormScale_tensor = paddle::full({1}, 1.0f/selfRmsNormScale, paddle::DataType::FLOAT16, hidden.place());
+  paddle::Tensor selfQuantScale_tensor = paddle::full({1}, 1.0f/selfQuantScale, paddle::DataType::FLOAT16, hidden.place());
+  paddle::Tensor mlpQuantScale_tensor = paddle::full({1}, 1.0f/mlpQuantScale, paddle::DataType::FLOAT16, hidden.place());
+
   if (g_isEncoder && (!g_llamaBlockAttnSmoothEncoderOp || !g_llamaBlockAttnSmoothEncoderOp->operations_.at(layer_id))) {
     InitAtbLlamaBlockAttnSmoothLayerOp(g_llamaBlockAttnSmoothEncoderOp, rmsNormEps, head_num, head_dim, comm, inputRmsNormScale, selfRmsNormScale, selfQuantScale, mlpQuantScale, layer_id);
   } else if (!g_isEncoder && (!g_llamaBlockAttnSmoothDecoderOp || !g_llamaBlockAttnSmoothDecoderOp->operations_.at(layer_id))) {
@@ -318,6 +354,7 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
   executeCount++;
   if (first_run) {
       norm_blank_bias = paddle::full(norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
+      norm_blank_offset = paddle::full({1}, 0, paddle::DataType::INT8, hidden.place());
       self_out_norm_blank_bias = paddle::full(self_out_norm_weight.shape(), 0, paddle::DataType::FLOAT16, hidden.place()); 
       first_run = false;
   }
@@ -345,6 +382,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
                                        attention_mask,
                                        cache_key,
                                        cache_value,
+                                       norm_blank_offset,
+                                       inputRmsNormScale_tensor,
+                                       selfRmsNormScale_tensor,
+                                       selfQuantScale_tensor,
+                                       mlpQuantScale_tensor,
                                        encoder_seq_len,
                                        block_tables,
                                        g_llamaBlockAttnSmoothEncoderOp->slot_mapping_tensor_,
@@ -375,6 +417,11 @@ std::vector<paddle::Tensor> LlamaBlockAttnSmoothLayerParallelOp(
                                      attention_mask,
                                      cache_key,
                                      cache_value,
+                                     norm_blank_offset,
+                                     inputRmsNormScale_tensor,
+                                     selfRmsNormScale_tensor,
+                                     selfQuantScale_tensor,
+                                     mlpQuantScale_tensor,
                                      g_llamaBlockAttnSmoothDecoderOp->token_offset_tensor_,
                                      block_tables,
                                      g_llamaBlockAttnSmoothDecoderOp->slot_mapping_tensor_,

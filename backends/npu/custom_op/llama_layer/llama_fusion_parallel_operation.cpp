@@ -99,11 +99,10 @@ atb::Status LlamaLayerFusionParallelOperation(const LlamaLayerFusionParallelPara
     // attention_mask: [max_bs, 1, max_len, max_len]
     // tokenoffset:[bs, 1]
     atb::infer::SelfAttentionParam selfAttentionKvCacheParam;
-    selfAttentionKvCacheParam.headDim = param.headDim;
     selfAttentionKvCacheParam.headNum = param.headNum;
     selfAttentionKvCacheParam.qkScale = param.qkScale;
     selfAttentionKvCacheParam.batchRunStatusEnable = param.batchRunStatusEnable;
-    selfAttentionKvCacheParam.coderType = (atb::infer::SelfAttentionParam::CoderType)param.coderType;
+    // selfAttentionKvCacheParam.coderType = (atb::infer::SelfAttentionParam::CoderType)param.coderType;
     selfAttentionKvCacheParam.isTriuMask = param.isTriuMask;
     atb::CreateOperation(selfAttentionKvCacheParam, &selfAttentionKvCacheNode.operation);
     if (param.batchRunStatusEnable) {

@@ -19,7 +19,7 @@
 #include "llamalayer_mlp_dequant_operation.h"
 #include "llama_linear_quant_parallel_operation.h"
 
-static const uint64_t IN_TENSOR_COUNT = 26;
+static const uint64_t IN_TENSOR_COUNT = 31;
 static const uint64_t OUT_TENSOR_COUNT = 1;
 static const uint64_t INTERMEDIATE_TENSOR_COUNT = 16;
 static const uint64_t NODE_COUNT = 15;
@@ -70,11 +70,9 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
     atb::infer::RmsNormParam inputNormParam;
     inputNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     inputNormParam.normParam.epsilon = param.rmsNormEps;
-    inputNormParam.normParam.quantInputScale = param.inputNormQuantInputScale;
-    inputNormParam.normParam.quantInputOffset = param.inputNormQuantInputOffset;
     inputNormParam.normParam.quantType = atb::infer::QUANT_INT8;
     atb::CreateOperation(inputNormParam, &inputNormNode.operation);
-    inputNormNode.inTensorIds = {IN_HIDDENSTATES_SMOOTH, IN_NORMWEIGHT_SMOOTH, IN_NORM_BLANK_BIAS_SMOOTH};
+    inputNormNode.inTensorIds = {IN_HIDDENSTATES_SMOOTH, IN_NORMWEIGHT_SMOOTH, IN_NORM_BLANK_BIAS_SMOOTH, IN_INPUT_RMSNORM_SCALE_SMOOTH, IN_NORM_BLANK_OFFSET_SMOOTH};
     inputNormNode.outTensorIds = {INTERMIDATE_INPUTNORMOUT_SMOOTH};
     inputNormNode.inTensorReshapeFuncs.resize(inputNormNode.inTensorIds.size());
     inputNormNode.inTensorReshapeFuncs.at(0) = [seqLenPtr](const atb::Dims &oldShape, atb::Dims &newShape) {
@@ -115,7 +113,7 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
     CreateOperation(reshapeCacheParm, &reshapeAndCacheNode.operation);
     reshapeAndCacheNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDK_SMOOTH, INTERMIDATE_MIXEDV_SMOOTH,
                                         IN_CACHE_K_SMOOTH, IN_CACHE_V_SMOOTH, IN_SLOTS_SMOOTH};
-    reshapeAndCacheNode.outTensorIds = {};
+    reshapeAndCacheNode.outTensorIds = {IN_CACHE_K_SMOOTH, IN_CACHE_V_SMOOTH};
     reshapeAndCacheNode.inTensorReshapeFuncs.resize(reshapeAndCacheNode.inTensorIds.size());
     reshapeAndCacheNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {
         reshapeHeads(oldShape, newShape, param.headNum);
@@ -137,11 +135,10 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
 
     if (param.isPrefill) {
         atb::infer::SelfAttentionParam faEnParam;
-        faEnParam.headDim = param.headDim;
         faEnParam.headNum = param.headNum;
         faEnParam.qkScale = param.qkScale;
         faEnParam.kvHeadNum = param.headNum;
-        faEnParam.isEncoder = true; // use encoder when decoder is pagedAttention
+        faEnParam.calcType = atb::infer::SelfAttentionParam::CalcType::PA_ENCODER;
         faEnParam.maskType = atb::infer::SelfAttentionParam::MASK_TYPE_NORM;
         faEnParam.isTriuMask = 1;
         CreateOperation(faEnParam, &attentionNode.operation);
@@ -163,6 +160,8 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
         paDeParam.headNum = param.headNum;
         paDeParam.qkScale = param.qkScale;
         paDeParam.kvHeadNum = param.headNum;
+		paDeParam.maskType = atb::infer::PagedAttentionParam::UNDEFINED;
+		paDeParam.batchRunStatusEnable = true;
         CreateOperation(paDeParam, &attentionNode.operation);
         attentionNode.inTensorIds = {INTERMIDATE_POSITIONEMBEDQ_SMOOTH, IN_CACHE_K_SMOOTH, IN_CACHE_V_SMOOTH,
                                      IN_BLOCK_TABLES_SMOOTH, IN_SEQLEN_SMOOTH, IN_BATCH_STATUS_SMOOTH};
@@ -229,11 +228,9 @@ atb::Status LlamaBlockAttnSmoothParallelOperation(const LlamaBlockAttnSmoothPara
     atb::infer::RmsNormParam selfNormParam;
     selfNormParam.layerType = atb::infer::RmsNormParam::RmsNormType::RMS_NORM_NORM;
     selfNormParam.normParam.epsilon = param.rmsNormEps;
-    selfNormParam.normParam.quantInputScale = param.selfNormQuantInputScale;
-    selfNormParam.normParam.quantInputOffset = param.selfNormQuantInputOffset;
     selfNormParam.normParam.quantType = atb::infer::QUANT_INT8;
     atb::CreateOperation(selfNormParam, &selfNormNode.operation);
-    selfNormNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT_SMOOTH, IN_SELFOUTNORMWEIGHT_SMOOTH, IN_SELFOUTNORM_BLANK_BIAS_SMOOTH};
+    selfNormNode.inTensorIds = {INTERMIDATE_SELFRESIDUALADDOUT_SMOOTH, IN_SELFOUTNORMWEIGHT_SMOOTH, IN_SELFOUTNORM_BLANK_BIAS_SMOOTH, IN_SELF_RMSNORM_SCALE_SMOOTH, IN_NORM_BLANK_OFFSET_SMOOTH};
     selfNormNode.outTensorIds = {INTERMIDATE_SELFNORMOUT_SMOOTH};
 
     LlamaMlpDequantParam llamaMlpDequantParam;

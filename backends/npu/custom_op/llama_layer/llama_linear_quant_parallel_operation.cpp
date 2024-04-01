@@ -44,7 +44,8 @@ atb::Status CreateLlamaLinearQuantParallelOperation(const llamaLinearQuantParall
     atb::Node &allReduceNode = opGraph.nodes.at(nodeId++);
     // atb::Node &dequantAddNode = opGraph.nodes.at(nodeId++);
 
-    atb::infer::LinearQuantParam linearQuantParam;
+    atb::infer::LinearParam linearQuantParam;
+    linearQuantParam.linearType = atb::infer::LinearType::LINEAR_INT8INT8_INT32_FP16;
     linearQuantParam.transposeA = false;
     linearQuantParam.transposeB = !param.transWeight;
     linearQuantParam.hasBias = false;

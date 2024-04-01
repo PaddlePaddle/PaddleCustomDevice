@@ -167,7 +167,7 @@ function card_test() {
            echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
            echo FLAGS_selected_npus=${logical_card_sequence}
            echo "================"
-           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list env FLAGS_selected_npus=${logical_card_sequence} ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
+           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
         fi
     done
     wait; # wait for all subshells to finish

@@ -145,7 +145,7 @@ function card_test() {
     tmpfile_rand=`date +%s%N`
     NUM_PROC=$[NPU_DEVICE_COUNT/$cardnumber]
     logical_card_sequence=($(generate_logical_card_sequence $cardnumber))
-
+    set -x
     for (( i = 0; i < $NUM_PROC; i++ )); do
         npu_list=()
         for (( j = 0; j < cardnumber; j++ )); do
@@ -155,7 +155,7 @@ function card_test() {
                     npu_list="$npu_list,${numbers_array[$[i*cardnumber+j]]}"
             fi
         done
-        tmpfile=$tmp_dir/$tmpfile_rand"_"$i
+        tmpfile=$tmp_dir/$tmpfile_rand"_"$ix
         if [[ $cardnumber == $CUDA_DEVICE_COUNT ]]; then
            echo "================"
            echo ASCEND_RT_VISIBLE_DEVICE=$npu_list

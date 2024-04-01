@@ -20,14 +20,14 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void PnormKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 float porder,
-                 int axis,
-                 float epsilon,
-                 bool keepdim,
-                 bool asvector,
-                 phi::DenseTensor* out) {
+void AclopPnormKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      float porder,
+                      int axis,
+                      float epsilon,
+                      bool keepdim,
+                      bool asvector,
+                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto xdim = x.dims();
@@ -83,6 +83,63 @@ void PnormKernel(const Context& dev_ctx,
                     {*out},
                     {{"power", 1 / porder}, {"scale", 1.0f}, {"shift", 0.0f}});
     power_runner2.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void AclnnPnormKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      float porder,
+                      int axis,
+                      float epsilon,
+                      bool keepdim,
+                      bool asvector,
+                      phi::DenseTensor* out) {
+  phi::Scalar p = static_cast<float>(porder);
+  auto axis_v = std::vector<int64_t>({axis});
+  if (asvector) {
+    out->Resize(phi::make_ddim({x.numel()}));
+  }
+  dev_ctx.template Alloc<T>(out);
+  // compute output shape
+  std::vector<int> out_shape;
+  auto in_dims = x.dims();
+  auto vec_in_dims = phi::vectorize<int>(in_dims);
+  int dim_v = axis < 0 ? in_dims.size() + axis : axis;
+  for (size_t i = 0; i < vec_in_dims.size(); ++i) {
+    if (i == dim_v) {
+      if (keepdim) {
+        out_shape.push_back(1);
+      }
+      continue;
+    }
+    out_shape.push_back(vec_in_dims[i]);
+  }
+  out->Resize(phi::make_ddim(out_shape));
+  EXEC_NPU_CMD(aclnnNorm, dev_ctx, x, p, axis_v, keepdim, *out);
+}
+
+template <typename T, typename Context>
+void PnormKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 float porder,
+                 int axis,
+                 float epsilon,
+                 bool keepdim,
+                 bool asvector,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnNorm,
+      (custom_kernel::AclopPnormKernel<T, Context>(
+          dev_ctx, x, porder, axis, epsilon, keepdim, asvector, out)));
+  dev_ctx.template Alloc<T>(out);
+  if (porder != 0.0 && porder != 1.0 && porder != 2.0 &&
+      porder != 3.0) {  // aclnnNorm only support porder equals 0, 1, 2, 3
+    custom_kernel::AclopPnormKernel<T, Context>(
+        dev_ctx, x, porder, axis, epsilon, keepdim, asvector, out);
+  } else {
+    custom_kernel::AclnnPnormKernel<T, Context>(
+        dev_ctx, x, porder, axis, epsilon, keepdim, asvector, out);
   }
 }
 

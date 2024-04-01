@@ -18,7 +18,10 @@
 #                   For Paddle CI
 #=================================================
 
-set -ex
+
+if [ -z ${PADDLE_BRANCH} ]; then
+    PADDLE_BRANCH="develop"
+fi
 
 CODE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/../" && pwd )"
 export CODE_ROOT
@@ -84,24 +87,20 @@ function show_ut_retry_result() {
 }
 
 function main() {
-    # skip paddlepaddle cpu install as mlu docker image already have cpu whl package installed
+    # skip paddlepaddle cpu install as npu docker image already have cpu whl package installed
 
-    # custom_mlu build and install
-    export MLU_VISIBLE_DEVICES=0,1
-    export PADDLE_MLU_ALLOW_TF32=0
-    export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
+    # custom_npu build and install
     cd ${CODE_ROOT}
-    git submodule update --init
     bash tools/compile.sh
     if [[ "$?" != "0" ]];then
         exit 7;
     fi
     cd ${CODE_ROOT}/build
-    pip install dist/*.whl --force-reinstall
+    pip install dist/*.whl
 
     # get changed ut and kernels
     set +e
-    changed_uts=$(git diff --name-only develop | grep "backends/mlu/tests/unittests")
+    changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")
     changed_ut_list=()
     if [ ${#changed_uts[*]} -gt 0 ]; then 
         for line in ${changed_uts[@]} ;
@@ -114,10 +113,9 @@ function main() {
 
     # transform changed kernels to changed ut
     set +e
-    changed_kernels=$(git diff --name-only develop | grep "backends/mlu/kernels")
+    changed_kernels=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/kernels")
     set +x
     all_ut_lists=$(ls "${CODE_ROOT}/tests/unittests")
-    set -x
     if [ ${#changed_kernels[*]} -gt 0 ]; then 
         for line in ${changed_kernels[@]} ;
             do
@@ -135,35 +133,41 @@ function main() {
     set -e
     # read disable ut list
     IFS=$'\n'
-    disable_ut_mlu=$(cat "${CODE_ROOT}/tools/disable_ut_mlu")
+    if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+    elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b")
+    else
+      echo "Please make sure Ascend 910A or 910B NPUs exists!"
+      exit 1
+    fi
     disable_ut_list=''
     while read -r line; do
         res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
         if [ $res -eq 0 ]; then
             disable_ut_list+="^"${line}"$|"
         else
-            echo "Found ${line} code changed, ignore ut list disabled in disable_ut_mlu"
+            echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
         fi
-    done <<< "$disable_ut_mlu";
-    disable_ut_list+="^disable_ut_mlu$"
+    done <<< "$disable_ut_npu";
+    disable_ut_list+="^disable_ut_npu$"
     echo "disable_ut_list=${disable_ut_list}"
 
     # run ut
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-
     set +e
-    
+
     NUM_PROC=8
     EXIT_CODE=0
     pids=()
     for (( i = 0; i < $NUM_PROC; i++ )); do
-        mlu_list="$((i*2)),$((i*2+1))"
-        (env MLU_VISIBLE_DEVICES=$mlu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
+        npu_list="$((i*2)),$((i*2+1))"
+        (env ASCEND_RT_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
         pids+=($!)
     done
-    
+
     for pid in "${pids[@]}"; do
         wait $pid
         status=$?
@@ -171,11 +175,11 @@ function main() {
             EXIT_CODE=8
         fi
     done
-    
+
     set -e
     collect_failed_tests
 
-    # add unit test retry for MLU
+    # add unit test retry for NPU
     rm -f $tmp_dir/*
     exec_times=0
     retry_unittests_record=''
@@ -257,6 +261,10 @@ function main() {
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
     fi
+    if [[ "${WITH_COVERAGE:-OFF}" == "ON" ]];then
+        bash ${CODE_ROOT}/tools/coverage/coverage_process.sh
+    fi
+
 }
 
 main $@

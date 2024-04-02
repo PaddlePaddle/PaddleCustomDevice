@@ -96,21 +96,6 @@ function caught_error() {
     done
 }
 
-function generate_logical_card_sequence() {
-    local n=$1
-    local sequence=()
-
-    for ((i=0; i<n; i++)); do
-        if [[ $i -eq 0 ]];then
-            sequence=$i
-        else
-            sequence+=",$i"
-        fi
-    done
-
-    # 返回数组
-    echo "${sequence}"
-}
 
 function card_test() {
     set -m
@@ -144,8 +129,6 @@ function card_test() {
     trap 'caught_error' CHLD
     tmpfile_rand=`date +%s%N`
     NUM_PROC=$[NPU_DEVICE_COUNT/$cardnumber]
-    logical_card_sequence=($(generate_logical_card_sequence $cardnumber))
-    set -x
     for (( i = 0; i < $NUM_PROC; i++ )); do
         npu_list=()
         for (( j = 0; j < cardnumber; j++ )); do

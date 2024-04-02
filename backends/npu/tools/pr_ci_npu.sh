@@ -157,7 +157,27 @@ function main() {
     ut_total_startTime_s=`date +%s`
     tmpfile_rand=`date +%s%N`
     tmpfile=$tmp_dir/$tmpfile_rand
-    ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
+    
+    set -x
+    NUM_PROC=14
+    EXIT_CODE=0
+    pids=()
+    for (( i = 0; i < $NUM_PROC; i++ )); do
+        npu_list="$((i*2)),$((i*2+1))"
+        (env ASCEND_RT_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC --output-on-failure -E "($disable_ut_list)" -j1 | tee -a $tmpfile; test ${PIPESTATUS[0]} -eq 0)&
+        pids+=($!)
+    done
+
+    for pid in "${pids[@]}"; do
+        wait $pid
+        status=$?
+        if [ $status -ne 0 ]; then
+            EXIT_CODE=8
+        fi
+    done
+
+    set +x
+    
     collect_failed_tests
 
     # add unit test retry for NPU
@@ -241,9 +261,6 @@ function main() {
     echo "TestCases Total Time: $[ $ut_total_endTime_s - $ut_total_startTime_s ]s"
     if [[ "$EXIT_CODE" != "0" ]];then
         show_ut_retry_result
-    fi
-    if [[ "${WITH_COVERAGE:-OFF}" == "ON" ]];then
-        bash ${CODE_ROOT}/tools/coverage/coverage_process.sh
     fi
 
 }

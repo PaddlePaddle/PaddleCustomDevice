@@ -754,10 +754,10 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
             return y.numpy()
 
         x = np.random.randn(*shape).astype("float32")
-        y1 = compute(x, False, False, False) # train, use batch_mean, close npu_storage
-        y2 = compute(x, False, False, True) # train, use batch_mean, open npu_storage
-        y3 = compute(x, True, True, False) # test, use batch_mean, close npu_storage
-        y4 = compute(x, True, True, True) # test, use batch_mean, open npu_storage
+        y1 = compute(x, False, False, False)
+        y2 = compute(x, False, False, True)
+        y3 = compute(x, True, True, False)
+        y4 = compute(x, True, True, True)
         np.testing.assert_allclose(y1, y2, rtol=1e-05)
         np.testing.assert_allclose(y3, y4, rtol=1e-05)
         np.testing.assert_allclose(y1, y3, rtol=1e-05)
@@ -809,18 +809,18 @@ class TestBatchNormChannelLast(unittest.TestCase):
     def setUp(self):
         set_flags({"FLAGS_npu_storage_format": False})
 
-    # def test_1d(self):
-    #     with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
-    #         x = paddle.randn([2, 6, 4])
-    #         net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
-    #         net2 = paddle.nn.BatchNorm1D(4)
-    #         net2.weight = net1.weight
-    #         net2.bias = net1.bias
-    #         y1 = net1(x)
-    #         channel_first_x = paddle.transpose(x, [0, 2, 1])
-    #         y2 = net2(channel_first_x)
-    #         y2 = paddle.transpose(y2, [0, 2, 1])
-    #         np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07)
+    def test_1d(self):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x = paddle.randn([2, 6, 4])
+            net1 = paddle.nn.BatchNorm1D(4, data_format="NLC")
+            net2 = paddle.nn.BatchNorm1D(4)
+            net2.weight = net1.weight
+            net2.bias = net1.bias
+            y1 = net1(x)
+            channel_first_x = paddle.transpose(x, [0, 2, 1])
+            y2 = net2(channel_first_x)
+            y2 = paddle.transpose(y2, [0, 2, 1])
+            np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-05, atol=1e-07)
 
     def test_2d(self):
         with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
@@ -842,25 +842,25 @@ class TestBatchNormChannelLast(unittest.TestCase):
                 atol=1e-07,
             )
 
-    # def test_3d(self):
-    #     with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
-    #         x_np = np.random.randn(2, 6, 6, 6, 4).astype("float32")
-    #         channel_first_x_np = np.transpose(x_np, (0, 4, 1, 2, 3))
-    #         # net1 - NDHWC
-    #         net1 = paddle.nn.BatchNorm3D(4, data_format="NDHWC")
-    #         y1 = net1(paddle.to_tensor(x_np))
-    #         # net2 - NCDHW
-    #         net2 = paddle.nn.BatchNorm3D(4)
-    #         net2.weight = net1.weight
-    #         net2.bias = net1.bias
-    #         y2 = net2(paddle.to_tensor(channel_first_x_np))
-    #         # compare
-    #         np.testing.assert_allclose(
-    #             y1.numpy(),
-    #             np.transpose(y2.numpy(), (0, 2, 3, 4, 1)),
-    #             rtol=1e-05,
-    #             atol=1e-07,
-    #         )
+    def test_3d(self):
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x_np = np.random.randn(2, 6, 6, 6, 4).astype("float32")
+            channel_first_x_np = np.transpose(x_np, (0, 4, 1, 2, 3))
+            # net1 - NDHWC
+            net1 = paddle.nn.BatchNorm3D(4, data_format="NDHWC")
+            y1 = net1(paddle.to_tensor(x_np))
+            # net2 - NCDHW
+            net2 = paddle.nn.BatchNorm3D(4)
+            net2.weight = net1.weight
+            net2.bias = net1.bias
+            y2 = net2(paddle.to_tensor(channel_first_x_np))
+            # compare
+            np.testing.assert_allclose(
+                y1.numpy(),
+                np.transpose(y2.numpy(), (0, 2, 3, 4, 1)),
+                rtol=1e-05,
+                atol=1e-07,
+            )
 
 
 if __name__ == "__main__":

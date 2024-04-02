@@ -3,7 +3,6 @@ test_batch_norm_op_npu
 test_check_nan_inf_op_npu
 test_conv2d_op_npu
 test_conv3d_op_npu
-test_conv3d_op_npu
 test_eye_op_npu
 test_elementwise_sub_op_npu
 test_index_sample_op_npu
@@ -14,6 +13,5 @@ test_rnn_op_npu
 test_zero_dim_tensor_npu
 test_grid_sample_op_npu
 test_linspace_op_npu
-test_kldiv_loss_op_npu
 test_einsum_op_npu
 test_fused_matmul_bias_op_npu

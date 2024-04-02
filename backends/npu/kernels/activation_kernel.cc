@@ -772,6 +772,27 @@ void SqrtGradAClop(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void SqrtGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& out,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnMuls,
+      (custom_kernel::SqrtGradAClop<T, Context>(dev_ctx, out, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  phi::DenseTensor x_tmp;
+  x_tmp.Resize(out.dims());
+  dev_ctx.template Alloc<T>(&x_tmp);
+  auto two_value = static_cast<T>(2.0);
+  aclDataType acl_data_type = ConvertToNpuDtype(out.dtype());
+  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
+  aclScalar* acl_scalar = aclCreateScalar(&two_value, acl_data_type);
+  EXEC_NPU_CMD(aclnnMuls, dev_ctx, out, acl_scalar, x_tmp);
+  EXEC_NPU_CMD(aclnnDiv, dev_ctx, dout, x_tmp, *dx);
+}
+
+template <typename T, typename Context>
 void AclopLogKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     phi::DenseTensor* out) {

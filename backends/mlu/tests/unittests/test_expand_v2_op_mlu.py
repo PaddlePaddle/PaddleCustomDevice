@@ -18,7 +18,8 @@ import unittest
 import numpy as np
 from tests.op_test import OpTest
 import paddle.base as base
-from paddle.base import Program, program_guard
+from paddle.framework import in_pir_mode
+from paddle.pir_utils import test_with_pir_api
 import paddle
 
 paddle.enable_static()
@@ -208,18 +209,22 @@ class TestExpandV2OpInt64_t(OpTest):
 
 
 class TestExpandV2Error(unittest.TestCase):
+    @test_with_pir_api
     def test_errors(self):
-        with program_guard(Program(), Program()):
-            x1 = base.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
-            )
+        with paddle.static.program_guard(
+            paddle.static.Program(), paddle.static.Program()
+        ):
             shape = [2, 2]
-            self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
-            x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="uint8")
-            self.assertRaises(TypeError, paddle.tensor.expand, x2, shape)
-            x3 = paddle.static.data(name="x3", shape=[-1, 4], dtype="bool")
-            x3.stop_gradient = False
-            self.assertRaises(ValueError, paddle.tensor.expand, x3, shape)
+            if not in_pir_mode():
+                x1 = base.create_lod_tensor(
+                    np.array([[-1]]), [[1]], paddle.CustomPlace("mlu", 0)
+                )
+                self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
+            x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="bool")
+            x2.stop_gradient = False
+            self.assertRaises(ValueError, paddle.tensor.expand, x2, shape)
+            x2.stop_gradient = True
+            self.assertRaises(TypeError, paddle.tensor.expand, x2, 1)
 
 
 # Test python API

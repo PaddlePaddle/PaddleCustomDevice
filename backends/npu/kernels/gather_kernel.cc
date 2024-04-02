@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void GatherKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::DenseTensor& index,
-                  const phi::Scalar& axis,
-                  phi::DenseTensor* out) {
+void AclopGatherKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& index,
+                       const phi::Scalar& axis,
+                       phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
   dev_ctx.template Alloc<T>(out);
   if (x.dtype() == phi::DataType::BOOL) {
@@ -53,6 +53,34 @@ void GatherKernel(const Context& dev_ctx,
         .AddInput(dev_ctx, std::vector<int32_t>({axis.to<int32_t>()}))
         .AddOutput(*out);
     runner.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void GatherKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& index,
+                  const phi::Scalar& axis,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnGatherV2,
+                   (custom_kernel::AclopGatherKernel<T, Context>(
+                       dev_ctx, x, index, axis, out)));
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(out);
+
+  int64_t dim = axis.to<int64_t>();
+
+  auto index_shape_vec = phi::vectorize(index.dims());
+  if (index_shape_vec.size() == 2 && index_shape_vec[1] == 1) {
+    const phi::DenseTensor* p_index = &index;
+    phi::DenseTensor tmp_tensor(index);
+    const auto index_dims = index.dims();
+    std::vector<int64_t> new_dim = {index_dims[0]};
+    tmp_tensor.Resize(phi::make_ddim(new_dim));
+    p_index = &tmp_tensor;
+    EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, x, dim, *p_index, *out);
+  } else {
+    EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, x, dim, index, *out);
   }
 }
 

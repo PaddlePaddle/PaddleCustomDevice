@@ -16,3 +16,4 @@ test_fused_matmul_bias_op_npu
 test_expand_v2_op_npu
 test_take_along_axis_op_npu
 test_elementwise_sub_op_npu_eager
+test_set_value_op_npu.py

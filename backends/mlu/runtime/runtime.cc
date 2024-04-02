@@ -28,6 +28,8 @@
 FLAGS_DEFINE_bool(mlu_reuse_event, true, "reuse_event");
 FLAGS_DEFINE_bool(mlu_runtime_debug, false, "runtime debug log");
 
+thread_local int g_current_device_id(-1);
+
 class EventPool {
  public:
   using Event = std::unique_ptr<CNRTEvent, std::function<void(CNRTEvent *)>>;
@@ -87,168 +89,105 @@ class EventPool {
   std::vector<PerDevicePool> pools_{};
 } g_event_pool;
 
+class AlignnedAllocator {
+ public:
+  explicit AlignnedAllocator(int dev_id) : device({dev_id}) {}
+  void *Alloc(const C_Device device, size_t size, size_t align) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    ProcessEvents();
+    void *p = nullptr;
+    HostAllocate(device, &p, align + size);
+    void *ret =
+        reinterpret_cast<void *>(reinterpret_cast<size_t>(p) + align -
+                                 (reinterpret_cast<size_t>(p) & (align - 1)));
+    recorded_events_[ret] = {p, nullptr};
+    return ret;
+  }
+
+  void Record(void *p, cnrtNotifier_t event) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    recorded_events_[p].second = event;
+  }
+
+  void ClearEvent() {
+    std::lock_guard<std::mutex> lock(mtx_);
+    for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
+      cnrtNotifier_t event = it->second.second;
+      if (!event) continue;
+      PADDLE_ENFORCE_MLU_SUCCESS(
+          cnrtWaitNotifier(reinterpret_cast<cnrtNotifier_t>(event)));
+      void *ptr = it->second.first;
+      HostDeallocate(nullptr, ptr, 0);
+      PADDLE_ENFORCE_MLU_SUCCESS(cnrtNotifierDestroy(event));
+      it = recorded_events_.erase(it);
+    }
+  }
+
+  void ProcessEvents() {
+    for (auto it = recorded_events_.begin(); it != recorded_events_.end();) {
+      cnrtNotifier_t event = it->second.second;
+      if (!event) continue;
+      auto status = QueryEvent(&device, reinterpret_cast<C_Event>(event));
+      if (status == C_SUCCESS) {
+        void *ptr = it->second.first;
+        HostDeallocate(nullptr, ptr, 0);
+        it = recorded_events_.erase(it);
+        DestroyEvent(&device, reinterpret_cast<C_Event>(event));
+      } else {
+        ++it;
+      }
+    }
+  }
+
+ private:
+  std::unordered_map<void *, std::pair<void *, cnrtNotifier_t>>
+      recorded_events_;
+  std::mutex mtx_;
+  C_Device_st device;
+};
+
+class AlignnedAllocatorList {
+ public:
+  explicit AlignnedAllocatorList(size_t device_count)
+      : allocator_list(device_count, nullptr) {}
+
+  void Init(size_t dev_id) {
+    allocator_list[dev_id] = new AlignnedAllocator(dev_id);
+  }
+
+  void Deinit(size_t dev_id) {
+    delete allocator_list[dev_id];
+    allocator_list[dev_id] = nullptr;
+  }
+
+  AlignnedAllocator *GetAllocator(size_t dev_id) {
+    return allocator_list[dev_id];
+  }
+
+ private:
+  std::vector<AlignnedAllocator *> allocator_list;
+};
+
+// static variables
 static std::vector<std::vector<EventPool::Event>> hold_event_vecs(
     get_devices_count());
-
+static AlignnedAllocatorList *global_allocator_list = nullptr;
 static std::mutex g_mutex;
 
-// Device
-C_Status Init() {
-  size_t dev_cnt = get_devices_count();
-  return C_SUCCESS;
-}
-
-C_Status Finalize() {
-  for (auto iter = hold_event_vecs.begin(); iter != hold_event_vecs.end();
-       iter++) {
-    iter->clear();
+// some help functions
+inline void check_uninitialized_thread(int dev_id) {
+  if (g_current_device_id == -1) {
+    C_Device_st device;
+    device.id = dev_id;
+    SetDevice(&device);
   }
-  hold_event_vecs.clear();
-  g_event_pool.empty_cache();
-  return C_SUCCESS;
 }
 
-C_Status InitDevice(const C_Device device) {
-  SetDevice(device);
-  return C_SUCCESS;
-}
-
-C_Status SetDevice(const C_Device device) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
-  return C_SUCCESS;
-}
-
-C_Status GetDevice(const C_Device device) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&(device->id)));
-  return C_SUCCESS;
-}
-
-C_Status SyncDevice(const C_Device device) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSyncDevice());
-  return C_SUCCESS;
-}
-
-C_Status GetDevicesCount(size_t *count) {
-  *count = get_devices_count();
-  return C_SUCCESS;
-}
-
-C_Status GetDevicesList(size_t *device) {
-  size_t count = get_devices_count();
-  for (size_t dev_id = 0; dev_id < count; dev_id++) {
-    device[dev_id] = dev_id;
+inline size_t get_current_device_id() {
+  if (g_current_device_id == -1) {
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtGetDevice(&g_current_device_id));
   }
-  return C_SUCCESS;
-}
-
-// Memory
-C_Status MemCpyH2D(const C_Device device,
-                   void *dst,
-                   const void *src,
-                   size_t size) {
-  if (dst == nullptr && size == 0) return C_SUCCESS;
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyHostToDev));
-  return C_SUCCESS;
-}
-
-C_Status MemCpyD2D(const C_Device device,
-                   void *dst,
-                   const void *src,
-                   size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyDevToDev));
-  return C_SUCCESS;
-}
-
-C_Status MemCpyD2H(const C_Device device,
-                   void *dst,
-                   const void *src,
-                   size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyDevToHost));
-  return C_SUCCESS;
-}
-
-C_Status AsyncMemCpyH2D(const C_Device device,
-                        C_Stream stream,
-                        void *dst,
-                        const void *src,
-                        size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
-                                             const_cast<void *>(src),
-                                             size,
-                                             GetQueue(stream),
-                                             cnrtMemcpyHostToDev));
-  return C_SUCCESS;
-}
-
-C_Status AsyncMemCpyD2D(const C_Device device,
-                        C_Stream stream,
-                        void *dst,
-                        const void *src,
-                        size_t size) {
-  VLOG(3) << "AsyncMemCpyD2D: from " << src << " to " << dst << " size " << size
-          << " stream " << stream;
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
-                                             const_cast<void *>(src),
-                                             size,
-                                             GetQueue(stream),
-                                             cnrtMemcpyDevToDev));
-  return C_SUCCESS;
-}
-
-C_Status AsyncMemCpyD2H(const C_Device device,
-                        C_Stream stream,
-                        void *dst,
-                        const void *src,
-                        size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
-                                             const_cast<void *>(src),
-                                             size,
-                                             GetQueue(stream),
-                                             cnrtMemcpyDevToHost));
-  return C_SUCCESS;
-}
-
-C_Status Allocate(const C_Device device, void **ptr, size_t size) {
-  SetDevice(device);
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMalloc(ptr, size));
-  return C_SUCCESS;
-}
-
-C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
-  SetDevice(device);
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtFree(ptr));
-  return C_SUCCESS;
-}
-
-C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-  SetDevice(device);
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtHostMalloc(ptr, size));
-  return C_SUCCESS;
-}
-
-C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtFreeHost(ptr));
-  return C_SUCCESS;
-}
-
-C_Status DeviceMemStats(const C_Device device,
-                        size_t *total_memory,
-                        size_t *free_memory) {
-  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemGetInfo(free_memory, total_memory));
-  return C_SUCCESS;
-}
-
-C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
-  *size = 512;
-  return C_SUCCESS;
-}
-
-C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
-  *size = 32;
-  return C_SUCCESS;
+  return g_current_device_id;
 }
 
 // Stream
@@ -460,6 +399,212 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
   return C_FAILED;
 }
 
+// Device
+C_Status Init() {
+  size_t dev_cnt = get_devices_count();
+  if (dev_cnt) {
+    global_allocator_list = new AlignnedAllocatorList(dev_cnt);
+  }
+  return C_SUCCESS;
+}
+
+C_Status InitDevice(const C_Device device) {
+  SetDevice(device);
+  if (global_allocator_list) {
+    global_allocator_list->Init(device->id);
+  }
+  return C_SUCCESS;
+}
+
+C_Status SetDevice(const C_Device device) {
+  static std::unordered_map<int, cnrtRoundingMode_t> ctx_map;
+  static std::mutex ctx_map_mutex;
+  if (g_current_device_id != device->id) { /* thread local */
+    std::lock_guard<std::mutex> lock(ctx_map_mutex);
+    LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+        << "[RUNTIME] SetDevice: " << device->id;
+    PADDLE_ENFORCE_MLU_SUCCESS(cnrtSetDevice(device->id));
+    g_current_device_id = device->id;
+  }
+  return C_SUCCESS;
+}
+
+C_Status GetDevice(const C_Device device) {
+  device->id = get_current_device_id();
+  return C_SUCCESS;
+}
+
+C_Status ReleaseDevice(const C_Device device) {
+  SetDevice(device);
+  if (global_allocator_list) {
+    global_allocator_list->Deinit(device->id);
+  }
+  return C_SUCCESS;
+}
+
+C_Status Finalize() {
+  if (global_allocator_list) {
+    delete global_allocator_list;
+    global_allocator_list = nullptr;
+  }
+  for (auto iter = hold_event_vecs.begin(); iter != hold_event_vecs.end();
+       iter++) {
+    iter->clear();
+  }
+  hold_event_vecs.clear();
+  g_event_pool.empty_cache();
+  return C_SUCCESS;
+}
+
+C_Status GetDevicesCount(size_t *count) {
+  *count = get_devices_count();
+  return C_SUCCESS;
+}
+
+C_Status GetDevicesList(size_t *device) {
+  size_t count = get_devices_count();
+  for (size_t dev_id = 0; dev_id < count; dev_id++) {
+    device[dev_id] = dev_id;
+  }
+  return C_SUCCESS;
+}
+
+C_Status SyncDevice(const C_Device device) {
+  LOG_IF(INFO, FLAGS_mlu_runtime_debug)
+      << "[RUNTIME] SyncDevice: device=" << device->id;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtSyncDevice());
+  return C_SUCCESS;
+}
+
+C_Status Allocate(const C_Device device, void **ptr, size_t size) {
+  SetDevice(device);
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMalloc(ptr, size));
+  return C_SUCCESS;
+}
+
+C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
+  SetDevice(device);
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtFree(ptr));
+  return C_SUCCESS;
+}
+
+C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
+  void *data = nullptr;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtHostMalloc(&data, size));
+  if (data) {
+    *ptr = data;
+    return C_SUCCESS;
+  } else {
+    *ptr = nullptr;
+  }
+  return C_FAILED;
+}
+
+C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtFreeHost(ptr));
+  return C_SUCCESS;
+}
+
+C_Status DeviceMemStats(const C_Device device,
+                        size_t *total_memory,
+                        size_t *free_memory) {
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemGetInfo(free_memory, total_memory));
+  return C_SUCCESS;
+}
+
+C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
+  *size = 512;
+  return C_SUCCESS;
+}
+
+C_Status ExtraPaddingSize(const C_Device device, size_t *size) {
+  *size = 32;
+  return C_SUCCESS;
+}
+
+// Memory
+C_Status MemCpyH2D(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size) {
+  if (dst == nullptr && size == 0) return C_SUCCESS;
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyHostToDev));
+  return C_SUCCESS;
+}
+
+C_Status MemCpyD2D(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size) {
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyDevToDev));
+  return C_SUCCESS;
+}
+
+C_Status MemCpyD2H(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size) {
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnrtMemcpy(dst, const_cast<void *>(src), size, cnrtMemcpyDevToHost));
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyH2D(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
+  PADDLE_ENFORCE(device != nullptr,
+                 phi::errors::InvalidArgument("device is nullptr!!!"));
+  if (device) {
+    check_uninitialized_thread(device->id);
+  }
+  auto allocator = global_allocator_list->GetAllocator(get_current_device_id());
+  void *tmp = allocator->Alloc(device, size, 64);
+  cnrtNotifier_t event;
+  CreateEvent(device, reinterpret_cast<C_Event *>(&event));
+  memcpy(tmp, src, size);
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
+                                             const_cast<void *>(tmp),
+                                             size,
+                                             GetQueue(stream),
+                                             cnrtMemcpyHostToDev));
+
+  RecordEvent(device, stream, reinterpret_cast<C_Event>(event));
+  allocator->Record(tmp, event);
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyD2D(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
+  VLOG(3) << "AsyncMemCpyD2D: from " << src << " to " << dst << " size " << size
+          << " stream " << stream;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
+                                             const_cast<void *>(src),
+                                             size,
+                                             GetQueue(stream),
+                                             cnrtMemcpyDevToDev));
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyD2H(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtMemcpyAsync(dst,
+                                             const_cast<void *>(src),
+                                             size,
+                                             GetQueue(stream),
+                                             cnrtMemcpyDevToHost));
+  return C_SUCCESS;
+}
+
 // CNCL
 namespace {
 
@@ -477,7 +622,7 @@ inline cnclDataType_t PDDataTypeToCnclDataType(C_DataType type) {
   } else if (type == C_DataType::UINT8) {
     return cnclUint8;
   } else if (type == C_DataType::INT64) {
-    return cnclInt32;
+    return cnclInt64;
   } else {
     LOG(ERROR) << "Datatype " << type << " in cncl is not supported.";
   }
@@ -550,10 +695,6 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-  PADDLE_ENFORCE_NE(data_type,
-                    C_DataType::INT64,
-                    phi::errors::InvalidArgument(
-                        "The dtype of cncl reduce shouldn't be int64."));
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllReduce(send_buf,
                                            recv_buf,
@@ -571,11 +712,6 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclBroadcast(buf,
                                            buf,
@@ -614,11 +750,6 @@ C_Status XcclAllGather(void *send_buf,
                        C_DataType data_type,
                        C_CCLComm comm,
                        C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclAllGather(send_buf,
                                            recv_buf,
@@ -636,10 +767,6 @@ C_Status XcclReduceScatter(void *send_buf,
                            C_CCLReduceOp op,
                            C_CCLComm comm,
                            C_Stream stream) {
-  PADDLE_ENFORCE_NE(data_type,
-                    C_DataType::INT64,
-                    phi::errors::InvalidArgument(
-                        "The dtype of cncl reduce shouldn't be int64."));
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(
       cnclReduceScatter(send_buf,
@@ -662,11 +789,6 @@ C_Status XcclSend(void *send_buf,
                   size_t dest_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclSend(send_buf,
                                       count,
@@ -683,11 +805,6 @@ C_Status XcclRecv(void *recv_buf,
                   size_t src_rank,
                   C_CCLComm comm,
                   C_Stream stream) {
-  if (data_type == C_DataType::INT64) {
-    // cncl does not support int64 dtype for now, use int32 as dtype and doulbe
-    // THE count.
-    count = count * 2;
-  }
   lastCommStream::Instance().Update(GetQueue(stream));
   PADDLE_ENFORCE_MLU_SUCCESS(cnclRecv(recv_buf,
                                       count,
@@ -811,6 +928,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->set_device = SetDevice;
   params->interface->get_device = GetDevice;
   params->interface->synchronize_device = SyncDevice;
+  params->interface->deinit_device = ReleaseDevice;
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;
 

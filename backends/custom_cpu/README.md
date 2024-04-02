@@ -9,14 +9,14 @@ Please refer to the following steps to compile, install and verify the custom de
 ```bash
 # 1. pull PaddlePaddle CPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-cpu:ubuntu18-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-aarch64-gcc84-py310
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-dev-cpu -v `pwd`:/workspace \
-       --network=host --shm-size=128G --workdir=/workspace \
-       --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
-       registry.baidubce.com/device/paddle-cpu:ubuntu18-$(uname -m)-gcc82 /bin/bash
+  --network=host --shm-size=128G --workdir=/workspace \
+  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310 /bin/bash
 
 # 3. clone the source code recursively along with Paddle source code
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice

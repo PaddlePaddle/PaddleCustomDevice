@@ -156,18 +156,16 @@ function card_test() {
             fi
         done
         tmpfile=$tmp_dir/$tmpfile_rand"_"$ix
-        if [[ $cardnumber == $CUDA_DEVICE_COUNT ]]; then
+        if [[ $cardnumber == $NPU_DEVICE_COUNT ]]; then
            echo "================"
-           echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
-           echo FLAGS_selected_npus=${logical_card_sequence}
+           echo ASCEND_RT_VISIBLE_DEVICES=$npu_list
            echo "================"
            (ctest -I $i,,$NUM_PROC -R "($testcases)" | tee $tmpfile;test ${PIPESTATUS[0] -eq 0}) &
         else
            echo "================"
-           echo ASCEND_RT_VISIBLE_DEVICE=$npu_list
-           echo FLAGS_selected_npus=${logical_card_sequence}
+           echo ASCEND_RT_VISIBLE_DEVICES=$npu_list
            echo "================"
-           (env ASCEND_RT_VISIBLE_DEVICE=$npu_list ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
+           (env ASCEND_RT_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
         fi
     done
     wait; # wait for all subshells to finish

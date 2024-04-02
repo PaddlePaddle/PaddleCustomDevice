@@ -294,6 +294,27 @@ void BatchNormKernel(const Context& dev_ctx,
                      phi::DenseTensor* saved_mean,
                      phi::DenseTensor* saved_variance,
                      phi::DenseTensor* reserve_space) {
+  if (FLAGS_npu_storage_format) {
+    custom_kernel::AclopBatchNormKernel<T, Context>(dev_ctx,
+                                                    x,
+                                                    running_mean,
+                                                    running_var,
+                                                    scale,
+                                                    bias,
+                                                    is_test,
+                                                    momentum,
+                                                    epsilon,
+                                                    data_layout_str,
+                                                    use_global_stats,
+                                                    trainable_stats,
+                                                    y,
+                                                    mean_out,
+                                                    variance_out,
+                                                    saved_mean,
+                                                    saved_variance,
+                                                    reserve_space);
+    return;
+  }
   DO_COMPATIBILITY(
       aclnnBatchNorm,
       (custom_kernel::AclopBatchNormKernel<T, Context>(dev_ctx,
@@ -755,6 +776,28 @@ void BatchNormGradKernel(
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
+  if (FLAGS_npu_storage_format) {
+    custom_kernel::AclopBatchNormGradKernel<T, Context>(dev_ctx,
+                                                        x,
+                                                        scale,
+                                                        bias,
+                                                        mean,
+                                                        variance,
+                                                        saved_mean,
+                                                        saved_variance,
+                                                        reserve_space,
+                                                        d_y,
+                                                        momentum,
+                                                        epsilon,
+                                                        data_layout_str,
+                                                        is_test,
+                                                        use_global_stats,
+                                                        trainable_statistics,
+                                                        d_x,
+                                                        d_scale,
+                                                        d_bias);
+    return;
+  }
   DO_COMPATIBILITY(
       aclnnBatchNormBackward,
       (custom_kernel::AclopBatchNormGradKernel<T, Context>(dev_ctx,
@@ -1116,6 +1159,21 @@ void BatchNormInferKernel(const Context& dev_ctx,
                           phi::DenseTensor* y,
                           phi::DenseTensor* mean_out,
                           phi::DenseTensor* variance_out) {
+  if (FLAGS_npu_storage_format) {
+    custom_kernel::AclopBatchNormInferKernel<T, Context>(dev_ctx,
+                                                         x,
+                                                         mean,
+                                                         variance,
+                                                         scale,
+                                                         bias,
+                                                         momentum,
+                                                         epsilon,
+                                                         data_layout_str,
+                                                         y,
+                                                         mean_out,
+                                                         variance_out);
+    return;
+  }
   DO_COMPATIBILITY(
       aclnnBatchNorm,
       (custom_kernel::AclopBatchNormInferKernel<T, Context>(dev_ctx,

@@ -24,9 +24,6 @@ paddle.enable_static()
 
 SEED = 2021
 
-import os
-print(os.getenv("ASCEND_RT_VISIBLE_DEVICE"))
-
 
 class TestAccuracy(OpTest):
     def setUp(self):

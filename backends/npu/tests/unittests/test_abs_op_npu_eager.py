@@ -25,9 +25,6 @@ from tests.op_test import (
     convert_uint16_to_float,
 )
 
-import os
-print(os.getenv("ASCEND_RT_VISIBLE_DEVICE"))
-
 
 class TestNPUAbsBF16(OpTest):
     def setUp(self):

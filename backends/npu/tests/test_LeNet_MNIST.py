@@ -26,8 +26,6 @@ import paddle.inference as paddle_infer
 
 EPOCH_NUM = 2
 BATCH_SIZE = 4096
-import os
-print(os.getenv("ASCEND_RT_VISIBLE_DEVICE"))
 
 
 def parse_args():

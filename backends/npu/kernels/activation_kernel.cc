@@ -793,9 +793,9 @@ void SqrtGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out) {
+void AclopLogKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -818,15 +818,54 @@ void LogKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& dout,
-                   phi::DenseTensor* dx) {
+void LogKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnLog, (custom_kernel::AclopLogKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  phi::DenseTensor one;
+  phi::DenseTensorMeta one_meta = {x.dtype(), x.dims()};
+  one.set_meta(one_meta);
+  dev_ctx.template Alloc<T>(&one);
+  EXEC_NPU_CMD(aclnnInplaceOne, dev_ctx, one);
+
+  phi::DenseTensor sub;
+  phi::DenseTensorMeta sub_meta = {x.dtype(), x.dims()};
+  sub.set_meta(sub_meta);
+  dev_ctx.template Alloc<T>(&sub);
+
+  aclDataType acl_data_type = ConvertToNpuDtype(x.dtype());
+  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
+  auto alpha_value = static_cast<T>(1.0);
+  aclScalar* alpha = aclCreateScalar(&alpha_value, acl_data_type);
+
+  EXEC_NPU_CMD(aclnnSub, dev_ctx, x, one, alpha, sub);
+  EXEC_NPU_CMD(aclnnLog1p, dev_ctx, sub, *out);
+}
+
+template <typename T, typename Context>
+void AclopLogGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& dout,
+                        phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
   const auto& runner = NpuOpRunner("DivNoNan", {dout, x}, {*dx}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void LogGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& dout,
+                   phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnLogGrad,
+      (custom_kernel::AclopLogGradKernel<T, Context>(dev_ctx, x, dout, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnDiv, dev_ctx, dout, x, *dx);
 }
 
 template <typename T, typename Context>

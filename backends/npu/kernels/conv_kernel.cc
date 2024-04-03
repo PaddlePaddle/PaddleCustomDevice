@@ -30,51 +30,6 @@ void TransposeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void AclopDepthwiseConv2dKernel(const Context& dev_ctx,
-                                const phi::DenseTensor& input,
-                                const phi::DenseTensor& transformed_filter,
-                                const std::vector<int>& stride,
-                                const std::vector<int>& padding,
-                                const std::vector<int>& dilation,
-                                const std::string& data_format,
-                                phi::DenseTensor* out,
-                                const bool& channel_last) {
-  auto stream = dev_ctx.stream();
-
-  std::vector<int> strides(4, 1);
-  std::vector<int> dilations(4, 1);
-
-  phi::DenseTensor input_tensor(input), output_tensor(*out);
-
-  if (channel_last) {
-    phi::DenseTensorMeta input_meta = {
-        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta output_meta = {
-        out->dtype(), out->dims(), phi::DataLayout::kNHWC};
-    input_tensor.set_meta(input_meta);
-    output_tensor.set_meta(output_meta);
-    strides[1] = stride[0];
-    strides[2] = stride[1];
-    dilations[1] = dilation[0];
-    dilations[2] = dilation[1];
-  } else {
-    strides[2] = stride[0];
-    strides[3] = stride[1];
-    dilations[2] = dilation[0];
-    dilations[3] = dilation[1];
-  }
-
-  const auto& runner = NpuOpRunner("DepthwiseConv2D",
-                                   {input_tensor, transformed_filter},
-                                   {output_tensor},
-                                   {{"strides", strides},
-                                    {"dilations", dilations},
-                                    {"pads", padding},
-                                    {"data_format", data_format}});
-  runner.Run(stream);
-}
-
-template <typename T, typename Context>
 void DepthwiseConv2dKernel(const Context& dev_ctx,
                            const phi::DenseTensor& input,
                            const phi::DenseTensor& filter,
@@ -107,6 +62,31 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   custom_kernel::UpdatePaddingAndDilation(
       &padding, &dilation, padding_algorithm, in_data_dims, stride, ksize);
 
+  std::vector<int> strides(4, 1);
+  std::vector<int> dilations(4, 1);
+
+  phi::DenseTensor input_tensor(input), output_tensor(*out);
+
+  if (channel_last) {
+    phi::DenseTensorMeta input_meta = {
+        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
+    phi::DenseTensorMeta output_meta = {
+        out->dtype(), out->dims(), phi::DataLayout::kNHWC};
+    input_tensor.set_meta(input_meta);
+    output_tensor.set_meta(output_meta);
+    strides[1] = stride[0];
+    strides[2] = stride[1];
+    dilations[1] = dilation[0];
+    dilations[2] = dilation[1];
+  } else {
+    strides[2] = stride[0];
+    strides[3] = stride[1];
+    dilations[2] = dilation[0];
+    dilations[3] = dilation[1];
+  }
+
+  auto stream = dev_ctx.stream();
+
   // Transform filter (n, 1, h, w) --> (1, n, h, w)
   phi::DenseTensor transformed_filter;
   phi::DenseTensorMeta meta = {
@@ -119,49 +99,14 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   custom_kernel::TransposeKernel<T, Context>(
       dev_ctx, filter, perm, &transformed_filter);
 
-  DO_COMPATIBILITY(
-      aclnnConvDepthwise2d,
-      (custom_kernel::AclopDepthwiseConv2dKernel<T, Context>(dev_ctx,
-                                                             input,
-                                                             transformed_filter,
-                                                             stride,
-                                                             padding,
-                                                             dilation,
-                                                             data_format,
-                                                             out,
-                                                             channel_last)));
-
-  phi::DenseTensor input_tensor(input), output_tensor(*out);
-
-  if (channel_last) {
-    phi::DenseTensorMeta input_meta = {
-        input.dtype(), input.dims(), phi::DataLayout::kNHWC};
-    phi::DenseTensorMeta output_meta = {
-        out->dtype(), out->dims(), phi::DataLayout::kNHWC};
-    input_tensor.set_meta(input_meta);
-    output_tensor.set_meta(output_meta);
-  }
-
-  phi::DenseTensor bias;
-  phi::DenseTensorMeta bias_meta = {input_tensor.dtype(), phi::make_ddim({1})};
-  bias.set_meta(bias_meta);
-
-  dev_ctx.template Alloc<T>(&bias);
-  custom_kernel::FillKernel<T, Context>(dev_ctx, bias, 0.f);
-
-  const int8_t cubeMathType = 0;
-
-  EXEC_NPU_CMD(aclnnConvDepthwise2d,
-               dev_ctx,
-               input_tensor,
-               transformed_filter,
-               ksize,
-               bias,
-               stride,
-               padding,
-               dilation,
-               output_tensor,
-               cubeMathType);
+  const auto& runner = NpuOpRunner("DepthwiseConv2D",
+                                   {input_tensor, transformed_filter},
+                                   {output_tensor},
+                                   {{"strides", strides},
+                                    {"dilations", dilations},
+                                    {"pads", padding},
+                                    {"data_format", data_format}});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>

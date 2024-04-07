@@ -341,6 +341,11 @@ static void AclnnMatmulBackward(const Context& dev_ctx,
     if (transpose_x) {
       // 如果需要reduce，先申请一个reduce前的临时tensor,不需要reduce时透传
       auto mew_shape = MatmulInferShape(y_temp, dout_temp, transpose_y, true);
+      // forward : x:[1,2,5] y:[3,2,8] x.T@y=out ->out:[3,5,8]
+      // backward: dx = y@out.T ->dx=[3,2,8]@[3,8,5]=[3,2,5]
+      // ->reduce_sum->(1,2,5) forward:x:[3,2,5] y:[3,2,8] x.T@y=out
+      // ->out:[3,5,8] backward:dx = y@out.T
+      // ->dx=[3,2,8]@[3,8,5]=[3,2,5]不需要reduce_sum
       reduce_dims = GetReduceDims(
           phi::vectorize(x_dims), phi::vectorize(y_dims), mew_shape);
       dx_tmp = MakeReduceTempOut<T, Context>(dev_ctx,
@@ -476,7 +481,7 @@ bool IsBaseFormat(const phi::DenseTensor& tensor) {
   return format == phi::DataLayout::NCHW || format == phi::DataLayout::NCDHW;
 }
 
-bool IsNotTransformedNZFormat(const phi::DenseTensor& x,
+bool NeedTransformed2NZFormat(const phi::DenseTensor& x,
                               const phi::DenseTensor& y) {
   auto isAligin = [&]() {
     return (!(static_cast<uint64_t>(x.dims()[0]) & 0x0000000F)) &&
@@ -620,11 +625,13 @@ static void MatMul(const Context& dev_ctx,
                    const bool transpose_x,
                    const bool transpose_y,
                    bool is_batch) {
-  if (IsNotTransformedNZFormat(X, Y)) {
-    MatMulForNotNZFormat<T>(
+  // 对于特定shape，转换成NZ私有格式可以提升性能
+  if (NeedTransformed2NZFormat(X, Y)) {
+    LOG_FIRST_N(WARNING, 1) << "current is in private foramt NZ matmul";
+    MatMulForNZFormat<T>(
         dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   } else {
-    MatMulForNZFormat<T>(
+    MatMulForNotNZFormat<T>(
         dev_ctx, stream, X, Y, out, transpose_x, transpose_y, is_batch);
   }
 }

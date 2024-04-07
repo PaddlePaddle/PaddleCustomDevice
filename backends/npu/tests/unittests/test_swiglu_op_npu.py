@@ -32,7 +32,6 @@ def swiglu_naive(x, y=None):
 class TestNPUSwigluFP16OnlyX(unittest.TestCase):
     def setUp(self):
         self.npu_place = paddle.CustomPlace("npu", 0)
-        self.cpu_place = paddle.CPUPlace()
         self.shape = (20, 512)
         self.init_dtype()
 
@@ -41,14 +40,14 @@ class TestNPUSwigluFP16OnlyX(unittest.TestCase):
 
     def check_result(self, golden_res, fused_res):
         if self.dtype == "float16":
-            rtol = 5e-3
-            atol = 51e-3
-        elif self.dtype == "bfloat16":
-            rtol = 8e-3
-            atol = 8e-3
-        elif self.dtype == "float32":
             rtol = 1e-3
             atol = 1e-3
+        elif self.dtype == "bfloat16":
+            rtol = 5e-3
+            atol = 5e-3
+        elif self.dtype == "float32":
+            rtol = 1e-5
+            atol = 1e-5
         else:
             self.assertTrue(
                 False,
@@ -105,14 +104,14 @@ class TestNPUSwigluFP16OnlyX(unittest.TestCase):
 class TestNPUSwigluFP16BothXY(TestNPUSwigluFP16OnlyX):
     def check_result(self, golden_res, fused_res):
         if self.dtype == "float16":
-            rtol = 5e-3
-            atol = 51e-3
-        elif self.dtype == "bfloat16":
-            rtol = 8e-3
-            atol = 8e-3
-        elif self.dtype == "float32":
             rtol = 1e-3
             atol = 1e-3
+        elif self.dtype == "bfloat16":
+            rtol = 5e-3
+            atol = 5e-3
+        elif self.dtype == "float32":
+            rtol = 1e-5
+            atol = 1e-5
         else:
             self.assertTrue(
                 False,
@@ -198,7 +197,6 @@ class TestNPUSwigluFP32BothXY(TestNPUSwigluFP16BothXY):
 class TestNPUSwigluFP16OnlyX3D(TestNPUSwigluFP16OnlyX):
     def setUp(self):
         self.npu_place = paddle.CustomPlace("npu", 0)
-        self.cpu_place = paddle.CPUPlace()
         self.shape = (2, 20, 512)
         self.init_dtype()
 
@@ -206,7 +204,6 @@ class TestNPUSwigluFP16OnlyX3D(TestNPUSwigluFP16OnlyX):
 class TestNPUSwigluFP16BothXY3D(TestNPUSwigluFP16BothXY):
     def setUp(self):
         self.npu_place = paddle.CustomPlace("npu", 0)
-        self.cpu_place = paddle.CPUPlace()
         self.shape = (2, 20, 512)
         self.init_dtype()
 

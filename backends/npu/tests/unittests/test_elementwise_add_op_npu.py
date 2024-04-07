@@ -133,6 +133,13 @@ class TestINT64ElementwiseAddOp(TestElementwiseAddOp):
         self.dtype = np.int64
 
 
+class TestElementwiseAddOp_1(TestElementwiseAddOp):
+    def init_input_output(self):
+        self.x = np.random.rand(1024, 8192).astype(self.dtype)
+        self.y = np.random.rand(1024, 8192).astype(self.dtype)
+        self.out = self.x + self.y
+
+
 @skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")
 class TestElementwiseAddOp_scalar(TestElementwiseAddOp):
     def init_input_output(self):

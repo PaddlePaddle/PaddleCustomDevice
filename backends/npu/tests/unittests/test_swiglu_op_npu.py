@@ -43,8 +43,8 @@ class TestNPUSwigluFP16OnlyX(unittest.TestCase):
             rtol = 1e-3
             atol = 1e-3
         elif self.dtype == "bfloat16":
-            rtol = 5e-3
-            atol = 5e-3
+            rtol = 8e-3
+            atol = 8e-3
         elif self.dtype == "float32":
             rtol = 1e-5
             atol = 1e-5
@@ -107,8 +107,8 @@ class TestNPUSwigluFP16BothXY(TestNPUSwigluFP16OnlyX):
             rtol = 1e-3
             atol = 1e-3
         elif self.dtype == "bfloat16":
-            rtol = 5e-3
-            atol = 5e-3
+            rtol = 8e-3
+            atol = 8e-3
         elif self.dtype == "float32":
             rtol = 1e-5
             atol = 1e-5

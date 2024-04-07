@@ -489,9 +489,13 @@ bool NeedTransformed2NZFormat(const phi::DenseTensor& x,
            (!(static_cast<uint64_t>(y.dims()[0]) & 0x0000000F)) &&
            (!(static_cast<uint64_t>(y.dims()[1]) & 0x0000000F));
   };
-  return x.dtype() != phi::DataType::FLOAT16 ||
-         y.dtype() != phi::DataType::FLOAT16 || !FLAGS_npu_storage_format ||
-         (isAligin() && IsBaseFormat(x) && IsBaseFormat(y));
+  // 满足条件才可以转成NZ提升性能：
+  // 1.必须要是fp16类型  2.必须开启私有格式  3.shape各维度必须是16倍数
+  auto need_flag =
+      (x.dtype() != phi::DataType::FLOAT16 ||
+       y.dtype() != phi::DataType::FLOAT16 || !FLAGS_npu_storage_format ||
+       (isAligin() && IsBaseFormat(x) && IsBaseFormat(y)));
+  return !need_flag;
 }
 
 template <typename T, typename Context>

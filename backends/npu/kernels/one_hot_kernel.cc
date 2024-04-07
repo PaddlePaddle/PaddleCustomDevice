@@ -74,6 +74,10 @@ void OneHotRawKernel(const Context& dev_ctx,
                      phi::DataType dtype,
                      bool allow_out_of_range,
                      phi::DenseTensor* out) {
+#if (CANN_VERSION_CODE < 800000)
+  custom_kernel::AclopOneHotRawKernel<T, Context>(
+      dev_ctx, x, depth_scalar, dtype, allow_out_of_range, out);
+#else
   DO_COMPATIBILITY(
       aclnnOneHot,
       (custom_kernel::AclopOneHotRawKernel<T, Context>(
@@ -124,6 +128,7 @@ void OneHotRawKernel(const Context& dev_ctx,
                  axis,
                  *out);
   }
+#endif
 }
 
 template <typename T, typename Context>

@@ -15,6 +15,15 @@
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
 
+inline bool is_npu_storage_format(const phi::DenseTensor& x) {
+  if (x.storage_properties_initialized()) {
+    auto npu_properties = x.storage_properties<phi::NPUStorageProperties>();
+    int64_t storage_format = npu_properties.storage_format;
+    return storage_format == 3;  // ACL_FORMAT_NC1HWC0
+  }
+  return false;
+}
+
 namespace custom_kernel {
 
 template <typename T, typename Context>
@@ -294,7 +303,7 @@ void BatchNormKernel(const Context& dev_ctx,
                      phi::DenseTensor* saved_mean,
                      phi::DenseTensor* saved_variance,
                      phi::DenseTensor* reserve_space) {
-  if (FLAGS_npu_storage_format) {
+  if (FLAGS_npu_storage_format || is_npu_storage_format(x)) {
     custom_kernel::AclopBatchNormKernel<T, Context>(dev_ctx,
                                                     x,
                                                     running_mean,
@@ -776,7 +785,7 @@ void BatchNormGradKernel(
     phi::DenseTensor* d_x,
     phi::DenseTensor* d_scale,
     phi::DenseTensor* d_bias) {
-  if (FLAGS_npu_storage_format) {
+  if (FLAGS_npu_storage_format || is_npu_storage_format(x)) {
     custom_kernel::AclopBatchNormGradKernel<T, Context>(dev_ctx,
                                                         x,
                                                         scale,
@@ -1159,7 +1168,7 @@ void BatchNormInferKernel(const Context& dev_ctx,
                           phi::DenseTensor* y,
                           phi::DenseTensor* mean_out,
                           phi::DenseTensor* variance_out) {
-  if (FLAGS_npu_storage_format) {
+  if (FLAGS_npu_storage_format || is_npu_storage_format(x)) {
     custom_kernel::AclopBatchNormInferKernel<T, Context>(dev_ctx,
                                                          x,
                                                          mean,

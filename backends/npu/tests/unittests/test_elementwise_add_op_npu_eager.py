@@ -32,8 +32,7 @@ class TestElementwiseAddBF16(OpTest):
         self.set_npu()
         self.op_type = "elementwise_add"
         self.place = paddle.CustomPlace("npu", 0)
-        self.shape_x = [5, 6, 2, 10]
-        self.shape_y = [5, 1, 2, 10]
+        self.init_input_shape()
         self.x = np.random.uniform(0.1, 1, self.shape_x).astype(np.float32)
         self.y = np.random.uniform(0.1, 1, self.shape_y).astype(np.float32)
         np_uint16_x = convert_float_to_uint16(self.x)
@@ -46,6 +45,10 @@ class TestElementwiseAddBF16(OpTest):
             "Y": OpTest.np_dtype_to_base_dtype(np_uint16_y),
         }
         self.outputs = {"Out": np_out}
+
+    def init_input_shape(self):
+        self.shape_x = [5, 6, 2, 10]
+        self.shape_y = [5, 1, 2, 10]
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -62,6 +65,12 @@ class TestElementwiseAddBF16(OpTest):
             "Out",
             max_relative_error=4e-3,
         )
+
+
+class TestElementwiseAddBF16_1(TestElementwiseAddBF16):
+    def init_input_shape(self):
+        self.shape_x = [8192]
+        self.shape_y = [8192]
 
 
 if __name__ == "__main__":

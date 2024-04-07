@@ -66,9 +66,9 @@ if [ "$cmake_error" != 0 ];then
 fi
 
 if [ $arch == 'x86_64' ]; then
-    make -j8;make_error=$?
+    make -j30;make_error=$?
 else
-    make TARGET=ARMV8 -j8;make_error=$?
+    make TARGET=ARMV8 -j30;make_error=$?
 fi
 
 if [ "$make_error" != 0 ];then

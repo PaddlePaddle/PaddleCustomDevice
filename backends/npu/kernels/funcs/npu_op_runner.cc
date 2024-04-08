@@ -332,6 +332,7 @@ const std::unordered_map<phi::DataType, size_t> dataTypeToByteSize = {
     {phi::DataType::FLOAT32, sizeof(float)},
     {phi::DataType::FLOAT16,
      sizeof(uint16_t)},  // 通常用 uint16_t 来表示 float16
+    {phi::DataType::INT64, sizeof(int64_t)},
     {phi::DataType::INT32, sizeof(int32_t)},
     {phi::DataType::INT8, sizeof(int8_t)},
     {phi::DataType::UINT8, sizeof(uint8_t)},
@@ -343,15 +344,15 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
   auto origin_format = ConvertToNpuFormat(tensor.layout());
   auto origin_dims = phi::vectorize(tensor.dims());
 
-  auto it = dataTypeToByteSize.find(tensor.dtype());
-  if (it != dataTypeToByteSize.end()) {
-    size_t byteSize = it->second;
-    origin_dims = phi::vectorize({
-        tensor.capacity() / byteSize,
-    });
-  } else {
-    // 如果是未知数据类型，直接使用 tensor.dims()
-    origin_dims = phi::vectorize(tensor.dims());
+  if (!tensor.meta().is_contiguous()) {
+    auto it = dataTypeToByteSize.find(tensor.dtype());
+    if (it != dataTypeToByteSize.end()) {
+      size_t byteSize = it->second;
+      std::cout << "calu size: " << tensor.capacity() / byteSize << std::endl;
+      origin_dims = phi::vectorize({
+          tensor.capacity() / byteSize,
+      });
+    }
   }
 
   auto origin_size = origin_dims.size();

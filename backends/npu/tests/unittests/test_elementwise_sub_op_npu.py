@@ -20,6 +20,7 @@ import numpy as np
 import paddle
 import paddle.base as base
 from tests.op_test import OpTest
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -87,6 +88,38 @@ class TestElementwiseSubOp(OpTest):
     #         'Out',
     #         no_grad_set=set("Y"),
     #         max_relative_error=0.006,)
+
+
+@check_run_big_shape_test()
+class TestElementwiseSubOpRank1(TestElementwiseSubOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [8192, 4000]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [8192, 1]).astype(self.dtype)
+        self.out = np.subtract(self.x, self.y)
+
+
+@check_run_big_shape_test()
+class TestElementwiseSubOpRank2(TestElementwiseSubOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [8192, 4000]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [8192, 1]).astype(self.dtype)
+        self.out = np.subtract(self.x, self.y)
+
+
+@check_run_big_shape_test()
+class TestElementwiseSubOpRank3(TestElementwiseSubOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        self.out = np.subtract(self.x, self.y)
+
+
+@check_run_big_shape_test()
+class TestElementwiseSubOpRank4(TestElementwiseSubOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [1]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [1]).astype(self.dtype)
+        self.out = np.subtract(self.x, self.y)
 
 
 class TestElementwiseSubOpInt32(TestElementwiseSubOp):

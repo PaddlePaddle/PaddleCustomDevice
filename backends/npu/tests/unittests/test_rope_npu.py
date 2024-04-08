@@ -21,7 +21,7 @@ import paddle
 from paddle.base import core
 from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
 
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 
 for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
@@ -42,13 +42,16 @@ def rope_naive(data, cos, sin):
 class TestNPUROPEFP32(unittest.TestCase):
     def setUp(self):
         self.place = paddle.CustomPlace("npu", 0)
+        self.init_shape()
+        self.init_dtype()
+
+    def init_shape(self):
         # (B,S,N,D)
         self.x_shape = (1, 64, 2, 64)
         # (1,S,1,D)
         self.cos_shape = (1, 64, 1, 64)
         # (1,S,1,D)
         self.sin_shape = (1, 64, 1, 64)
-        self.init_dtype()
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -132,6 +135,17 @@ class TestNPUROPEFP32(unittest.TestCase):
 class TestNPUROPEFP16(TestNPUROPEFP32):
     def init_dtype(self):
         self.dtype = "float16"
+
+
+@check_run_big_shape_test()
+class TestNPUROPERank1(TestNPUROPEFP32):
+    def init_shape(self):
+        # (B,S,N,D)
+        self.x_shape = (2, 4096, 8, 128)
+        # (1,S,1,D)
+        self.cos_shape = (1, 4096, 1, 128)
+        # (1,S,1,D)
+        self.sin_shape = (1, 4096, 1, 128)
 
 
 class TestNPUROPEBF16(TestNPUROPEFP32):

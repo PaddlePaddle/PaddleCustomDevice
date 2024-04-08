@@ -87,7 +87,10 @@ void OneHotRawKernel(const Context& dev_ctx,
   out->Resize(out_dims);
   auto out_shape_vec = phi::vectorize(out_dims);
 
-  dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<float>(out);
+  phi::DenseTensor transformed_out;
+  transformed_out.Resize(out->dims());
+  dev_ctx.template Alloc<T>(&transformed_out);
 
   int64_t axis = -1;
   phi::DenseTensor on_value_tensor, off_value_tensor;
@@ -109,7 +112,7 @@ void OneHotRawKernel(const Context& dev_ctx,
                  on_value_tensor,
                  off_value_tensor,
                  axis,
-                 *out);
+                 transformed_out);
   } else {
     phi::DenseTensor transformed_in;
     transformed_in.Resize(x.dims());
@@ -122,8 +125,10 @@ void OneHotRawKernel(const Context& dev_ctx,
                  on_value_tensor,
                  off_value_tensor,
                  axis,
-                 *out);
+                 transformed_out);
   }
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, transformed_out, phi::DataType::FLOAT32, out);
 }
 
 template <typename T, typename Context>

@@ -221,6 +221,7 @@ class TestNPUFABF16_GQA(TestNPUFAFP16):
         super().setUp()
         # (B,N,S,D)
         self.shape = (1, 8, 4096, 128)
+        self.num_keys = 1
 
     def init_dtype(self):
         self.dtype = "bfloat16"
@@ -229,8 +230,12 @@ class TestNPUFABF16_GQA(TestNPUFAFP16):
         np_query = np.random.randn(
             self.shape[0], self.shape[1], self.shape[2], self.shape[3]
         )
-        np_key = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
-        np_value = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        np_key = np.random.randn(
+            self.shape[0], self.num_keys, self.shape[2], self.shape[3]
+        )
+        np_value = np.random.randn(
+            self.shape[0], self.num_keys, self.shape[2], self.shape[3]
+        )
         mask = paddle.full(
             (self.shape[2], self.shape[2]), paddle.finfo(paddle.float16).min
         )
@@ -250,14 +255,46 @@ class TestNPUFAFP16_GQA(TestNPUFABF16_GQA):
         np_query = np.random.randn(
             self.shape[0], self.shape[1], self.shape[2], self.shape[3]
         )
-        np_key = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
-        np_value = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        np_key = np.random.randn(
+            self.shape[0], self.num_keys, self.shape[2], self.shape[3]
+        )
+        np_value = np.random.randn(
+            self.shape[0], self.num_keys, self.shape[2], self.shape[3]
+        )
         mask = paddle.full(
             (self.shape[2], self.shape[2]), paddle.finfo(paddle.float16).min
         )
         mask = paddle.triu(mask, diagonal=1)
         mask = mask.astype(paddle.bool)
         return np_query, np_key, np_value, mask
+
+
+class TestNPUFABF16_GQA_NK2(TestNPUFABF16_GQA):
+    def setUp(self):
+        super().setUp()
+        # (B,N,S,D)
+        self.num_keys = 2
+
+
+class TestNPUFAFP16_GQA_NK2(TestNPUFAFP16_GQA):
+    def setUp(self):
+        super().setUp()
+        # (B,N,S,D)
+        self.num_keys = 2
+
+
+class TestNPUFABF16_GQA_NK4(TestNPUFABF16_GQA):
+    def setUp(self):
+        super().setUp()
+        # (B,N,S,D)
+        self.num_keys = 4
+
+
+class TestNPUFAFP16_GQA_NK4(TestNPUFAFP16_GQA):
+    def setUp(self):
+        super().setUp()
+        # (B,N,S,D)
+        self.num_keys = 4
 
 
 if __name__ == "__main__":

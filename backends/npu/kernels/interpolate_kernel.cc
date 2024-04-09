@@ -534,6 +534,37 @@ void BilinearBwdNpu(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AclopNearestFwdNpu(const Context& dev_ctx,
+                        const phi::DenseTensor& input,
+                        const std::vector<int64_t>& out_shape,
+                        const bool align_corners,
+                        phi::DenseTensor* output) {
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  runner.SetType("ResizeNearestNeighborV2")
+      .AddInput(input)
+      .AddInput(dev_ctx, std::vector<int64_t>(out_shape))
+      .AddOutput(*output)
+      .AddAttr("align_corners", align_corners)
+      .AddAttr("half_pixel_centers", false);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void NearestFwdNpu(const Context& dev_ctx,
+                   const phi::DenseTensor& input,
+                   const std::vector<int64_t>& out_shape,
+                   const bool align_corners,
+                   phi::DenseTensor* output) {
+  DO_COMPATIBILITY(aclnnUpsampleNearest2d,
+                   (custom_kernel::AclopNearestFwdNpu<T, Context>(
+                       dev_ctx, input, out_shape, align_corners, output)));
+
+  EXEC_NPU_CMD(aclnnUpsampleNearest2d, dev_ctx, input, out_shape, *output);
+}
+
+template <typename T, typename Context>
 void InterpolateKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& x,
@@ -549,8 +580,6 @@ void InterpolateKernel(
     bool align_corners,
     int align_mode,
     phi::DenseTensor* out) {
-  auto stream = dev_ctx.stream();
-
   auto input = x;
   auto input_dims = input.dims();
   PADDLE_ENFORCE_EQ(
@@ -651,7 +680,7 @@ void InterpolateKernel(
     dim_out = {n, out_h, out_w, c};
   }
 
-  phi::DenseTensorMeta out_meta = {out->dtype(), dim_out};
+  phi::DenseTensorMeta out_meta = {out->dtype(), dim_out, data_layout};
   out->set_meta(out_meta);
   dev_ctx.template Alloc<T>(out);
 
@@ -663,14 +692,8 @@ void InterpolateKernel(
   // To-do(qili93): need to support bilineare, try ResizeD
   // Add bilineare by zhulei
   if ("nearest" == interp_method) {
-    NpuOpRunner runner;
-    runner.SetType("ResizeNearestNeighborV2")
-        .AddInput(input)
-        .AddInput(dev_ctx, std::vector<int32_t>{out_h, out_w})
-        .AddOutput(*out)
-        .AddAttr("align_corners", align_corners)
-        .AddAttr("half_pixel_centers", false);
-    runner.Run(stream);
+    std::vector<int64_t> out_shape = {out_h, out_w};
+    NearestFwdNpu<T, Context>(dev_ctx, input, out_shape, align_corners, out);
   } else if ("bilinear" == interp_method) {
     BilinearFwdNpu<T, Context>(dev_ctx,
                                &input,
@@ -681,6 +704,49 @@ void InterpolateKernel(
                                align_mode,
                                data_layout);
   }
+}
+
+template <typename T, typename Context>
+void AclopNearestBwdNpu(const Context& dev_ctx,
+                        const phi::DenseTensor& output_grad,
+                        const std::vector<int64_t>& in_shape,
+                        const bool align_corners,
+                        phi::DenseTensor* input_grad) {
+  auto stream = dev_ctx.stream();
+
+  NpuOpRunner runner;
+  runner.SetType("ResizeNearestNeighborV2Grad")
+      .AddInput(output_grad)
+      .AddInput(dev_ctx, std::vector<int64_t>(in_shape))
+      .AddOutput(*input_grad)
+      .AddAttr("align_corners", align_corners)
+      .AddAttr("half_pixel_centers", false);
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void NearestBwdNpu(const Context& dev_ctx,
+                   const phi::DenseTensor& output_grad,
+                   const std::vector<int64_t>& out_shape,
+                   const std::vector<int64_t>& in_shape,
+                   const double scales_h,
+                   const double scales_w,
+                   const bool align_corners,
+                   phi::DenseTensor* input_grad) {
+  DO_COMPATIBILITY(
+      aclnnUpsampleNearest2dBackward,
+      (custom_kernel::AclopNearestBwdNpu<T, Context>(
+          dev_ctx, output_grad, in_shape, align_corners, input_grad)));
+
+  std::vector<int64_t> input_dims = phi::vectorize<int64_t>(input_grad->dims());
+  EXEC_NPU_CMD(aclnnUpsampleNearest2dBackward,
+               dev_ctx,
+               output_grad,
+               out_shape,
+               input_dims,
+               scales_h,
+               scales_w,
+               *input_grad);
 }
 
 template <typename T, typename Context>
@@ -727,6 +793,9 @@ void InterpolateGradKernel(
         get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());
     out_h = out_size_data[0];
     out_w = out_size_data[1];
+
+    scale_h = static_cast<float>(out_h) / static_cast<float>(in_h);
+    scale_w = static_cast<float>(out_w) / static_cast<float>(in_w);
   } else {
     if (scale_tensor) {
       auto scale_data =
@@ -785,7 +854,7 @@ void InterpolateGradKernel(
     dim_grad = {n, in_h, in_w, c};
   }
 
-  phi::DenseTensorMeta input_grad_meta = {input.dtype(), dim_grad};
+  phi::DenseTensorMeta input_grad_meta = {input.dtype(), dim_grad, data_layout};
   input_grad->set_meta(input_grad_meta);
   dev_ctx.template Alloc<T>(input_grad);
 
@@ -796,14 +865,16 @@ void InterpolateGradKernel(
 
   // To-do(qili93): need to support bilineare, try ResizeGradD
   if ("nearest" == interp_method) {
-    NpuOpRunner runner;
-    runner.SetType("ResizeNearestNeighborV2Grad")
-        .AddInput(output_grad)
-        .AddInput(dev_ctx, std::vector<int32_t>{in_h, in_w})
-        .AddOutput(*input_grad)
-        .AddAttr("align_corners", align_corners)
-        .AddAttr("half_pixel_centers", false);
-    runner.Run(stream);
+    std::vector<int64_t> out_shape = {out_h, out_w};
+    std::vector<int64_t> in_shape = {in_h, in_w};
+    NearestBwdNpu<T, Context>(dev_ctx,
+                              output_grad,
+                              out_shape,
+                              in_shape,
+                              scale_h,
+                              scale_w,
+                              align_corners,
+                              input_grad);
   } else if ("bilinear" == interp_method) {
     BilinearBwdNpu<T, Context>(dev_ctx,
                                &output_grad,

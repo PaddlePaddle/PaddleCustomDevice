@@ -24,12 +24,12 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void OneHotRawKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::Scalar& depth_scalar,
-                     phi::DataType dtype,
-                     bool allow_out_of_range,
-                     phi::DenseTensor* out) {
+void AclopOneHotRawKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::Scalar& depth_scalar,
+                          phi::DataType dtype,
+                          bool allow_out_of_range,
+                          phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
 
   int depth = depth_scalar.to<int>();
@@ -65,6 +65,70 @@ void OneHotRawKernel(const Context& dev_ctx,
         .AddOutput(*out);
     runner.Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void OneHotRawKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::Scalar& depth_scalar,
+                     phi::DataType dtype,
+                     bool allow_out_of_range,
+                     phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnOneHot,
+      (custom_kernel::AclopOneHotRawKernel<T, Context>(
+          dev_ctx, x, depth_scalar, dtype, allow_out_of_range, out)));
+
+  auto stream = dev_ctx.stream();
+
+  int depth = depth_scalar.to<int>();
+  auto out_dims = out->dims();
+  out_dims[out_dims.size() - 1] = depth;
+  out->Resize(out_dims);
+  auto out_shape_vec = phi::vectorize(out_dims);
+
+  dev_ctx.template Alloc<float>(out);
+  phi::DenseTensor transformed_out;
+  transformed_out.Resize(out->dims());
+  dev_ctx.template Alloc<T>(&transformed_out);
+
+  int64_t axis = -1;
+  phi::DenseTensor on_value_tensor, off_value_tensor;
+  phi::DenseTensorMeta meta = {phi::DataType::INT64, {1}};
+  on_value_tensor.set_meta(meta);
+  off_value_tensor.set_meta(meta);
+  dev_ctx.template Alloc<int64_t>(&on_value_tensor);
+  dev_ctx.template Alloc<int64_t>(&off_value_tensor);
+  custom_kernel::FillNpuTensorWithConstant<T>(
+      &on_value_tensor, dev_ctx, static_cast<int64_t>(1));
+  custom_kernel::FillNpuTensorWithConstant<T>(
+      &off_value_tensor, dev_ctx, static_cast<int64_t>(0));
+
+  if (x.dtype() == phi::DataType::INT32) {
+    EXEC_NPU_CMD(aclnnOneHot,
+                 dev_ctx,
+                 x,
+                 depth,
+                 on_value_tensor,
+                 off_value_tensor,
+                 axis,
+                 transformed_out);
+  } else {
+    phi::DenseTensor transformed_in;
+    transformed_in.Resize(x.dims());
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::INT32, &transformed_in);
+    EXEC_NPU_CMD(aclnnOneHot,
+                 dev_ctx,
+                 transformed_in,
+                 depth,
+                 on_value_tensor,
+                 off_value_tensor,
+                 axis,
+                 transformed_out);
+  }
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, transformed_out, phi::DataType::FLOAT32, out);
 }
 
 template <typename T, typename Context>

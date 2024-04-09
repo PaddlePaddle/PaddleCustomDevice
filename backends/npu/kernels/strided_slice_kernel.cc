@@ -263,18 +263,26 @@ void StridedSliceCompute(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
 
   if (x.dtype() == phi::DataType::BOOL) {
-    const auto& runner = NpuOpRunner("StridedSliceD",
-                                     {x},
-                                     {*out},
-                                     {{"begin", starts_indices_vector},
-                                      {"end", ends_indices_vector},
-                                      {"strides", strides_indices_vector},
-                                      {"begin_mask", 0},
-                                      {"end_mask", 0},
-                                      {"ellipsis_mask", 0},
-                                      {"new_axis_mask", 0},
-                                      {"shrink_axis_mask", 0}});
-    runner.Run(stream);
+    std::vector<int64_t> axes_vec;
+    for (int i = 0; i < D; i++) {
+      axes_vec.push_back(i);
+    }
+    static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+    auto starts_acl = aclCreateIntArray(starts_indices_vector.data(),
+                                        starts_indices_vector.size());
+    auto ends_acl = aclCreateIntArray(ends_indices_vector.data(),
+                                      ends_indices_vector.size());
+    auto axes_acl = aclCreateIntArray(axes_vec.data(), axes_vec.size());
+    auto steps_acl = aclCreateIntArray(strides_indices_vector.data(),
+                                       strides_indices_vector.size());
+    EXEC_NPU_CMD(aclnnSliceV2,
+                 dev_ctx,
+                 x,
+                 starts_acl,
+                 ends_acl,
+                 axes_acl,
+                 steps_acl,
+                 *out);
   } else {
     NpuOpRunner runner;
     runner.SetType("StridedSlice")

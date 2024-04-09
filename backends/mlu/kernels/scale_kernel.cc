@@ -21,7 +21,7 @@ template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::Scalar& in_scale,
-                 float bias,
+                 const phi::Scalar& bias,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   // cnnl require input, scale, bias with same type. And all in device side.
@@ -42,7 +42,7 @@ void ScaleKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(&bias_tensor);
 
   MLUCnnlTensorDesc bias_desc(bias_tensor);
-  T new_bias = static_cast<T>(bias);
+  T new_bias = bias.to<T>();
   MLUCnnl::Fill(dev_ctx,
                 CNNL_POINTER_MODE_HOST,
                 &new_bias,

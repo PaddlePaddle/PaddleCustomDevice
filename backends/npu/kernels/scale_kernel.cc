@@ -18,19 +18,28 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void MultiplyKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AddKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const phi::DenseTensor& y,
+               phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::Scalar& in_scale,
-                 const phi::Scalar& in_bias,
+                 float bias,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
-  auto bias = in_bias.to<float>();
-  auto stream = dev_ctx.stream();
-  float power = 1.0;
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
-  dev_ctx.template Alloc<T>(out);
+
   if (std::isinf(scale) || std::isnan(scale)) {
     FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
     return;
@@ -39,47 +48,17 @@ void ScaleKernel(const Context& dev_ctx,
     bias *= scale;
   }
 
-  NPUAttributeMap attrs = {{"power", power}, {"scale", scale}, {"shift", bias}};
+  phi::DenseTensor scale_tensor;
+  scale_tensor.Resize(phi::make_ddim({1}));
+  FillNpuTensorWithConstant<float>(&scale_tensor, dev_ctx, scale);
 
-  auto op_func1 = [](const std::vector<phi::DenseTensor>& inputs,
-                     const std::vector<phi::DenseTensor>& outputs,
-                     const NPUAttributeMap& attrs,
-                     const phi::CustomContext& dev_ctx) {
-    const auto& muls_runner = NpuOpRunner(
-        "Muls", {inputs[0]}, {outputs[0]}, {{"value", attrs.at("scale")}});
-    muls_runner.Run(dev_ctx.stream());
+  phi::DenseTensor bias_tensor;
+  bias_tensor.Resize(phi::make_ddim({1}));
+  FillNpuTensorWithConstant<float>(&bias_tensor, dev_ctx, bias);
 
-    const auto& adds_runner = NpuOpRunner(
-        "Adds", {outputs[0]}, {outputs[0]}, {{"value", attrs.at("shift")}});
-    adds_runner.Run(dev_ctx.stream());
-  };
+  custom_kernel::MultiplyKernel<T, Context>(dev_ctx, x, scale_tensor, out);
 
-  auto op_func2 = [](const std::vector<phi::DenseTensor>& inputs,
-                     const std::vector<phi::DenseTensor>& outputs,
-                     const NPUAttributeMap& attrs,
-                     const phi::CustomContext& dev_ctx) {
-    const auto& power_runner =
-        NpuOpRunner("Power", {inputs[0]}, {outputs[0]}, attrs);
-    power_runner.Run(dev_ctx.stream());
-  };
-
-  if (x.dtype() == phi::DataType::INT32 || x.dtype() == phi::DataType::INT64) {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func1,
-                             {phi::DataType::INT32},
-                             {phi::DataType::INT32});
-  } else {
-    NpuOpRunner::TypeAdapter({x},
-                             {*out},
-                             attrs,
-                             dev_ctx,
-                             op_func2,
-                             {phi::DataType::FLOAT32},
-                             {phi::DataType::FLOAT32});
-  }
+  custom_kernel::AddKernel<T, Context>(dev_ctx, *out, bias_tensor, out);
 }
 
 }  // namespace custom_kernel

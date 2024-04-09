@@ -87,6 +87,10 @@ void BatchNormKernel(const Context& dev_ctx,
 
   if (FLAGS_npu_storage_format &&
       x_dims.size() == 4) {  // TODO(qili93): add 3D support
+    LOG_FIRST_N(WARNING, 1)
+        << "NPU private formats are no longer supported,"
+           "which may cause accuracy problems, Please execute"
+           "'export FLAGS_npu_storage_format=0' in your environment.";
     AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, y);
   } else {
     dev_ctx.template Alloc<T>(y);

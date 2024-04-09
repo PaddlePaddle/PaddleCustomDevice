@@ -49,12 +49,12 @@ void RollKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void RollGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x UNUSED,
-                    const phi::DenseTensor& out_grad,
-                    const phi::IntArray& shifts,
-                    const std::vector<int64_t>& axis,
-                    phi::DenseTensor* x_grad) {
+void AclopRollGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x UNUSED,
+                         const phi::DenseTensor& out_grad,
+                         const phi::IntArray& shifts,
+                         const std::vector<int64_t>& axis,
+                         phi::DenseTensor* x_grad) {
   auto stream = dev_ctx.stream();
   std::vector<int64_t> shifts_data = shifts.GetData();
   dev_ctx.template Alloc<T>(x_grad);
@@ -70,6 +70,37 @@ void RollGradKernel(const Context& dev_ctx,
   const auto& runner =
       NpuOpRunner("RollV2", {out_grad, shifts_v, axis_v}, {*x_grad}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AclnnRollGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x UNUSED,
+                         const phi::DenseTensor& out_grad,
+                         const phi::IntArray& shifts,
+                         const std::vector<int64_t>& axis,
+                         phi::DenseTensor* x_grad) {
+  std::vector<int64_t> shifts_data = shifts.GetData();
+  dev_ctx.template Alloc<T>(x_grad);
+
+  for (int i = 0; i < shifts_data.size(); ++i) {
+    shifts_data[i] = 0 - shifts_data[i];
+  }
+  EXEC_NPU_CMD(aclnnRoll, dev_ctx, out_grad, shifts_data, axis, *x_grad);
+}
+
+template <typename T, typename Context>
+void RollGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x UNUSED,
+                    const phi::DenseTensor& out_grad,
+                    const phi::IntArray& shifts,
+                    const std::vector<int64_t>& axis,
+                    phi::DenseTensor* x_grad) {
+  DO_COMPATIBILITY(aclnnRoll,
+                   (custom_kernel::AclnnRollGradKernel<T, Context>(
+                       dev_ctx, x, out_grad, shifts, axis, x_grad)));
+  dev_ctx.template Alloc<T>(x_grad);
+  custom_kernel::AclnnRollGradKernel<T, Context>(
+      dev_ctx, x, out_grad, shifts, axis, x_grad);
 }
 
 }  // namespace custom_kernel

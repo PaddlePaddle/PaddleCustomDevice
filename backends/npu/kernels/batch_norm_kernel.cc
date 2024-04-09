@@ -516,46 +516,48 @@ void BatchNormKernel(const Context& dev_ctx,
         dev_ctx, transformed_y, perm, &y_tensor);
   }
 
-  // CANN mean_out/var_out and paddlepaddle-cpu mean_out/var_out are
-  // defferent.
-  auto stream = dev_ctx.stream();
-  const auto& mean_muls_runner =
-      NpuOpRunner("Muls",
-                  {tmp_running_mean},
-                  {*mean_out},
-                  {{"value", static_cast<float>(momentum)}});
-  mean_muls_runner.Run(stream);
-  const auto& mean_axpy_runner =
-      NpuOpRunner("Axpy",
-                  {*mean_out, *saved_mean},
-                  {*mean_out},
-                  {{"alpha", static_cast<float>(1 - momentum)}});
-  mean_axpy_runner.Run(stream);
-  const auto& var_muls_runner =
-      NpuOpRunner("Muls",
-                  {tmp_running_var},
-                  {*variance_out},
-                  {{"value", static_cast<float>(momentum)}});
-  var_muls_runner.Run(stream);
-  const auto& var_axpy_runner =
-      NpuOpRunner("Axpy",
-                  {*variance_out, *saved_variance},
-                  {*variance_out},
-                  {{"alpha", static_cast<float>(1 - momentum)}});
-  var_axpy_runner.Run(stream);
+  if (training) {
+    // CANN mean_out/var_out and paddlepaddle-cpu mean_out/var_out are
+    // defferent.
+    auto stream = dev_ctx.stream();
+    const auto& mean_muls_runner =
+        NpuOpRunner("Muls",
+                    {tmp_running_mean},
+                    {*mean_out},
+                    {{"value", static_cast<float>(momentum)}});
+    mean_muls_runner.Run(stream);
+    const auto& mean_axpy_runner =
+        NpuOpRunner("Axpy",
+                    {*mean_out, *saved_mean},
+                    {*mean_out},
+                    {{"alpha", static_cast<float>(1 - momentum)}});
+    mean_axpy_runner.Run(stream);
+    const auto& var_muls_runner =
+        NpuOpRunner("Muls",
+                    {tmp_running_var},
+                    {*variance_out},
+                    {{"value", static_cast<float>(momentum)}});
+    var_muls_runner.Run(stream);
+    const auto& var_axpy_runner =
+        NpuOpRunner("Axpy",
+                    {*variance_out, *saved_variance},
+                    {*variance_out},
+                    {{"alpha", static_cast<float>(1 - momentum)}});
+    var_axpy_runner.Run(stream);
 
-  const auto& adds_runner =
-      NpuOpRunner("Adds",
-                  {*saved_variance},
-                  {*saved_variance},
-                  {{"value", static_cast<float>(epsilon)}});
-  adds_runner.Run(stream);
-  const auto& inv_runner =
-      NpuOpRunner("Inv", {*saved_variance}, {*saved_variance}, {});
-  inv_runner.Run(stream);
-  const auto& sqrt_ruuner =
-      NpuOpRunner("Sqrt", {*saved_variance}, {*saved_variance}, {});
-  sqrt_ruuner.Run(stream);
+    const auto& adds_runner =
+        NpuOpRunner("Adds",
+                    {*saved_variance},
+                    {*saved_variance},
+                    {{"value", static_cast<float>(epsilon)}});
+    adds_runner.Run(stream);
+    const auto& inv_runner =
+        NpuOpRunner("Inv", {*saved_variance}, {*saved_variance}, {});
+    inv_runner.Run(stream);
+    const auto& sqrt_ruuner =
+        NpuOpRunner("Sqrt", {*saved_variance}, {*saved_variance}, {});
+    sqrt_ruuner.Run(stream);
+  }
 }
 
 template <typename T, typename Context>

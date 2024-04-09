@@ -19,10 +19,10 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void IndexSelectNPUKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
-                               const phi::DenseTensor& index,
-                               int dim,
-                               phi::DenseTensor* output) {
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& index,
+                          int dim,
+                          phi::DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
 
   auto stream = dev_ctx.stream();

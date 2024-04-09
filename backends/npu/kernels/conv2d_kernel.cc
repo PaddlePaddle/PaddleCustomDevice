@@ -30,10 +30,6 @@ void Conv2dKernel(const Context& dev_ctx,
                   const std::string& data_format,
                   phi::DenseTensor* output) {
   if (FLAGS_npu_storage_format) {
-    LOG_FIRST_N(WARNING, 1)
-        << "NPU private formats are no longer supported,"
-           "which may cause accuracy problems, Please execute"
-           "'export FLAGS_npu_storage_format=0' in your environment.";
     AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, output);
   } else {
     dev_ctx.template Alloc<T>(output);

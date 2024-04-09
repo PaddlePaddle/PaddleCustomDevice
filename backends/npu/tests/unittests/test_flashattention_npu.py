@@ -216,6 +216,50 @@ class TestNPUFABF16_WithMask(TestNPUFAFP16_WithMask):
         self.dtype = "bfloat16"
 
 
+class TestNPUFABF16_GQA(TestNPUFAFP16):
+    def setUp(self):
+        super().setUp()
+        # (B,N,S,D)
+        self.shape = (1, 8, 4096, 128)
+
+    def init_dtype(self):
+        self.dtype = "bfloat16"
+
+    def gen_input(self):
+        np_query = np.random.randn(
+            self.shape[0], self.shape[1], self.shape[2], self.shape[3]
+        )
+        np_key = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        np_value = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        mask = paddle.full(
+            (self.shape[2], self.shape[2]), paddle.finfo(paddle.float16).min
+        )
+        mask = paddle.triu(mask, diagonal=1)
+        mask = mask.astype(paddle.bool)
+        np_uint16_query = convert_float_to_uint16(np_query)
+        np_uint16_key = convert_float_to_uint16(np_key)
+        np_uint16_value = convert_float_to_uint16(np_value)
+        return np_uint16_query, np_uint16_key, np_uint16_value, mask
+
+
+class TestNPUFAFP16_GQA(TestNPUFABF16_GQA):
+    def init_dtype(self):
+        self.dtype = "float16"
+
+    def gen_input(self):
+        np_query = np.random.randn(
+            self.shape[0], self.shape[1], self.shape[2], self.shape[3]
+        )
+        np_key = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        np_value = np.random.randn(self.shape[0], 1, self.shape[2], self.shape[3])
+        mask = paddle.full(
+            (self.shape[2], self.shape[2]), paddle.finfo(paddle.float16).min
+        )
+        mask = paddle.triu(mask, diagonal=1)
+        mask = mask.astype(paddle.bool)
+        return np_query, np_key, np_value, mask
+
+
 if __name__ == "__main__":
     np.random.seed(2024)
     unittest.main()

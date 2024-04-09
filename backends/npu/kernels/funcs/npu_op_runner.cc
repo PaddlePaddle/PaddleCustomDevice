@@ -348,7 +348,6 @@ aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
     auto it = dataTypeToByteSize.find(tensor.dtype());
     if (it != dataTypeToByteSize.end()) {
       size_t byteSize = it->second;
-      std::cout << "calu size: " << tensor.capacity() / byteSize << std::endl;
       origin_dims = phi::vectorize({
           tensor.capacity() / byteSize,
       });

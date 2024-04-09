@@ -18,28 +18,6 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void TransposeKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const std::vector<int>& axis,
-                     phi::DenseTensor* out);
-
-template <typename T, typename Context>
-phi::DenseTensor TransposeInput(const Context& dev_ctx,
-                                phi::DenseTensor input) {
-  phi::DenseTensor transed_input;
-  int64_t input_shape_size = input.dims().size();
-  std::vector<int> input_axis, input_shape;
-  for (int64_t i = 0; i < input_shape_size; i++) {
-    input_axis.push_back(input_shape_size - i - 1);
-    input_shape.push_back(input.dims()[input_shape_size - i - 1]);
-  }
-  transed_input.Resize(phi::make_ddim(input_shape));
-  custom_kernel::TransposeKernel<T, Context>(
-      dev_ctx, input, input_axis, &transed_input);
-  return transed_input;
-}
-
-template <typename T, typename Context>
 void FusedGemmEpilogueGradKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& x,
@@ -56,50 +34,76 @@ void FusedGemmEpilogueGradKernel(
   dev_ctx.template Alloc<T>(y_grad);
   dev_ctx.template Alloc<T>(bias_grad);
 
+  float alpha = 1.0;
+  float beta = 0.0;
   int8_t cube_math_type = 0;
   phi::IntArray axis = {0};
   bool keep_dim = false;
   auto dst_dtype = ConvertToNpuDtype(out_grad.dtype());
 
-  phi::DenseTensor transed_x, transed_y, transed_grad;
+  int64_t trans_a1, trans_b1, trans_a2, trans_b2;
+  phi::DenseTensor bias;
+  phi::DenseTensorMeta bias_meta = {out_grad.dtype(), {1}};
+  bias.set_meta(bias_meta);
+  FillNpuTensorWithConstant<T>(&bias, dev_ctx, static_cast<T>(0));
+  phi::DenseTensor x_grad_input_0, x_grad_input_1, y_grad_input_0,
+      y_grad_input_1;
 
   if (trans_x) {
-    transed_grad = TransposeInput<T, Context>(dev_ctx, out_grad);
+    x_grad_input_0 = y;
+    x_grad_input_1 = out_grad;
+    trans_b1 = 1;
     if (trans_y) {
-      transed_x = TransposeInput<T, Context>(dev_ctx, x);
-      transed_y = TransposeInput<T, Context>(dev_ctx, y);
-      EXEC_NPU_CMD(aclnnMatmul,
-                   dev_ctx,
-                   transed_y,
-                   transed_grad,
-                   *x_grad,
-                   cube_math_type);
-      EXEC_NPU_CMD(aclnnMatmul,
-                   dev_ctx,
-                   transed_grad,
-                   transed_x,
-                   *y_grad,
-                   cube_math_type);
+      trans_a1 = 1;
+      trans_a2 = 1;
+      trans_b2 = 1;
+      y_grad_input_0 = out_grad;
+      y_grad_input_1 = x;
     } else {
-      EXEC_NPU_CMD(
-          aclnnMatmul, dev_ctx, y, transed_grad, *x_grad, cube_math_type);
-      EXEC_NPU_CMD(aclnnMatmul, dev_ctx, x, out_grad, *y_grad, cube_math_type);
+      trans_a1 = 0;
+      trans_a2 = 0;
+      trans_b2 = 0;
+      y_grad_input_0 = x;
+      y_grad_input_1 = out_grad;
     }
   } else {
+    x_grad_input_0 = out_grad;
+    x_grad_input_1 = y;
+    trans_a1 = 0;
+    trans_a2 = 1;
+    trans_b2 = 0;
     if (trans_y) {
-      transed_grad = TransposeInput<T, Context>(dev_ctx, out_grad);
-      EXEC_NPU_CMD(aclnnMatmul, dev_ctx, out_grad, y, *x_grad, cube_math_type);
-      EXEC_NPU_CMD(
-          aclnnMatmul, dev_ctx, transed_grad, x, *y_grad, cube_math_type);
+      trans_b1 = 0;
+      y_grad_input_0 = out_grad;
+      y_grad_input_1 = x;
     } else {
-      transed_x = TransposeInput<T, Context>(dev_ctx, x);
-      transed_y = TransposeInput<T, Context>(dev_ctx, y);
-      EXEC_NPU_CMD(
-          aclnnMatmul, dev_ctx, out_grad, transed_y, *x_grad, cube_math_type);
-      EXEC_NPU_CMD(
-          aclnnMatmul, dev_ctx, transed_x, out_grad, *y_grad, cube_math_type);
+      trans_b1 = 1;
+      y_grad_input_0 = x;
+      y_grad_input_1 = out_grad;
     }
   }
+  EXEC_NPU_CMD(aclnnGemm,
+               dev_ctx,
+               x_grad_input_0,
+               x_grad_input_1,
+               bias,
+               alpha,
+               beta,
+               trans_a1,
+               trans_b1,
+               *x_grad,
+               cube_math_type);
+  EXEC_NPU_CMD(aclnnGemm,
+               dev_ctx,
+               y_grad_input_0,
+               y_grad_input_1,
+               bias,
+               alpha,
+               beta,
+               trans_a2,
+               trans_b2,
+               *y_grad,
+               cube_math_type);
 
   EXEC_NPU_CMD(
       aclnnReduceSum, dev_ctx, out_grad, axis, keep_dim, dst_dtype, *bias_grad);

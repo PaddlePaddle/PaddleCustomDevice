@@ -46,6 +46,7 @@ FLAGS_DEFINE_bool(
     npu_storage_format,
     false,
     "Enable NPU Storage Format for Ascend910 performance improvement.");
+FLAGS_DEFINE_bool(npu_jit_compile, true, "enable npu jit compile");
 
 NpuOpRunner::NpuOpRunner() {}
 
@@ -607,8 +608,6 @@ bool NpuOpRunner::GetFloatStatus(aclrtStream stream) {
 }
 
 void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
-  static bool isAclEnableJit = false;
-
   PADDLE_ENFORCE_NOT_NULL(
       stream,
       phi::errors::External("Stream should not be null, please check."));
@@ -617,10 +616,16 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
           << GetOpDescString(input_descs_, "Input")
           << GetOpDescString(output_descs_, "Output");
 
-  if (!isAclEnableJit) {
-    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
-    isAclEnableJit = true;
-  }
+  static std::once_flag jit_compile_flag;
+  std::call_once(jit_compile_flag, [&]() {
+    if (FLAGS_npu_jit_compile) {
+      aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    } else {
+      aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+    }
+  });
+  SetDeterministic();
+
   aclError ret;
   // Ensure that the Gil has been released before running
   // aclopCompileAndExecute.

@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void RollKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::IntArray& shifts,
-                const std::vector<int64_t>& axis,
-                phi::DenseTensor* out) {
+void AclopRollKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::IntArray& shifts,
+                     const std::vector<int64_t>& axis,
+                     phi::DenseTensor* out) {
   auto stream = dev_ctx.stream();
   auto shifts_data = shifts.GetData();
   dev_ctx.template Alloc<T>(out);
@@ -33,6 +33,19 @@ void RollKernel(const Context& dev_ctx,
 
   const auto& runner = NpuOpRunner("RollV2", {x, shifts_v, axis_v}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void RollKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::IntArray& shifts,
+                const std::vector<int64_t>& axis,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnRoll,
+                   (custom_kernel::AclopRollKernel<T, Context>(
+                       dev_ctx, x, shifts, axis, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnRoll, dev_ctx, x, shifts, axis, *out);
 }
 
 template <typename T, typename Context>

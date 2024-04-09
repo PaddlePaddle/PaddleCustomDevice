@@ -18,9 +18,21 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void NonZeroKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& condition,
-                   phi::DenseTensor* out) {
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void TransposeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AclopNonZeroKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& condition,
+                        phi::DenseTensor* out) {
   auto dims = condition.dims();
   const int rank = dims.size();
 
@@ -83,6 +95,76 @@ void NonZeroKernel(const Context& dev_ctx,
   out->set_meta(out_meta);
   NpuOpRunner runner{"Where", {condition}, {*out}};
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void NonZeroKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& condition,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnNonZero,
+      (custom_kernel::AclopNonZeroKernel<T, Context>(dev_ctx, condition, out)));
+  auto dims = condition.dims();
+  const int rank = dims.size();
+
+  // Run Cast and ReduceSum to get 0 dim of Out
+  phi::DenseTensor booled_cond;
+  if (condition.dtype() != phi::DataType::BOOL) {
+    booled_cond.Resize(dims);
+    // dev_ctx.template Alloc<bool>(&booled_cond);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, condition, phi::DataType::BOOL, &booled_cond);
+  } else {
+    booled_cond = condition;
+  }
+
+  phi::DenseTensor casted_cond;
+  casted_cond.Resize(dims);
+  // dev_ctx.template Alloc<float>(&casted_cond);
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, booled_cond, phi::DataType::FLOAT32, &casted_cond);
+
+  phi::DenseTensor sumed_true_num;
+  sumed_true_num.Resize({1});
+  dev_ctx.template Alloc<float>(&sumed_true_num);
+
+  std::vector<int64_t> axes_vec;
+  for (int i = 0; i < dims.size(); ++i) {
+    axes_vec.push_back(i);
+  }
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  auto axes_vec_acl = aclCreateIntArray(axes_vec.data(), axes_vec.size());
+  bool keep_dim = false;
+  int aclFloat32 = ConvertToNpuDtype(phi::DataType::FLOAT32);
+  EXEC_NPU_CMD(aclnnReduceSum,
+               dev_ctx,
+               casted_cond,
+               axes_vec_acl,
+               keep_dim,
+               aclFloat32,
+               sumed_true_num);
+  phi::DenseTensor local_true_num;
+  TensorCopy(dev_ctx, sumed_true_num, true, &local_true_num, phi::CPUPlace());
+  int true_num = static_cast<int32_t>(*local_true_num.data<float>());
+  out->Resize(phi::make_ddim({true_num, rank}));
+  dev_ctx.template Alloc<int64_t>(out);
+
+  if (true_num == 0) {
+    return;
+  }
+
+  phi::DenseTensor transformed_out;
+  transformed_out.Resize(phi::make_ddim({rank, true_num}));
+  dev_ctx.template Alloc<int64_t>(&transformed_out);
+
+  EXEC_NPU_CMD(aclnnNonzeroV2, dev_ctx, condition, transformed_out);
+
+  // Transform (rank, true_num) --> (true_num, rank)
+  phi::DenseTensorMeta out_meta = {out->dtype(), out->dims(), out->layout()};
+  out->set_meta(out_meta);
+  std::vector<int> perm = {1, 0};
+  custom_kernel::TransposeKernel<T, Context>(
+      dev_ctx, transformed_out, perm, out);
 }
 
 }  // namespace custom_kernel

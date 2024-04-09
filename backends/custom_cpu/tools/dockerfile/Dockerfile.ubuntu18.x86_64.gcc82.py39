@@ -85,13 +85,14 @@ RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/ref
     make -j16 > /dev/null && make install > /dev/null && \
     cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
-# ccache 3.7.9
-RUN wget -q --no-check-certificate https://paddle-ci.gz.bcebos.com/ccache-3.7.9.tar.gz && \
-    tar xf ccache-3.7.9.tar.gz && mkdir /usr/local/ccache-3.7.9 && cd ccache-3.7.9 && \
-    ./configure -prefix=/usr/local/ccache-3.7.9 > /dev/null && \
-    make -j16 > /dev/null && make install > /dev/null && \ 
-    cd .. && rm -rf ccache-3.7.9 && rm -rf ccache-3.7.9.tar.gz && \
-    ln -s /usr/local/ccache-3.7.9/bin/ccache /usr/local/bin/ccache
+# ccache 4.8.2
+RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-4.8.2.tar.gz && \
+    tar xf ccache-4.8.2.tar.gz && mkdir /usr/local/ccache-4.8.2 && cd ccache-4.8.2 && \
+    mkdir build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/ccache-4.8.2 ..  > /dev/null && \
+    make -j16 > /dev/null && make install > /dev/null && \
+    cd ../../ && rm -rf ccache-4.8.2.tar.gz && rm -rf ccache-4.8.2 && \
+    ln -s /usr/local/ccache-4.8.2/bin/ccache /usr/local/bin/ccache
 
 # Configure OpenSSH server. c.f. https://docs.docker.com/engine/examples/running_ssh_service
 RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \

@@ -886,7 +886,7 @@ void LogGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
   DO_COMPATIBILITY(
-      aclnnLogGrad,
+      aclnnDiv,
       (custom_kernel::AclopLogGradKernel<T, Context>(dev_ctx, x, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
   EXEC_NPU_CMD(aclnnDiv, dev_ctx, dout, x, *dx);

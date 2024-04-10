@@ -272,28 +272,24 @@ class TestNPUFAFP16_GQA(TestNPUFABF16_GQA):
 class TestNPUFABF16_GQA_NK2(TestNPUFABF16_GQA):
     def setUp(self):
         super().setUp()
-        # (B,N,S,D)
         self.num_keys = 2
 
 
 class TestNPUFAFP16_GQA_NK2(TestNPUFAFP16_GQA):
     def setUp(self):
         super().setUp()
-        # (B,N,S,D)
         self.num_keys = 2
 
 
 class TestNPUFABF16_GQA_NK4(TestNPUFABF16_GQA):
     def setUp(self):
         super().setUp()
-        # (B,N,S,D)
         self.num_keys = 4
 
 
 class TestNPUFAFP16_GQA_NK4(TestNPUFAFP16_GQA):
     def setUp(self):
         super().setUp()
-        # (B,N,S,D)
         self.num_keys = 4
 
 

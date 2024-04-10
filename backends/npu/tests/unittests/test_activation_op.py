@@ -458,6 +458,11 @@ class TestLog(TestActivation):
         self.check_grad_with_place(self.place, ["X"], "Out", check_dygraph=True)
 
 
+class TestLogRank(TestLog):
+    def init_shape(self):
+        self.shape = [8192]
+
+
 class TestLogDouble(TestLog):
     def init_dtype(self):
         self.dtype = np.double

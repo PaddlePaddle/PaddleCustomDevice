@@ -61,10 +61,10 @@ if(WITH_TESTING)
   list(APPEND third_party_deps extern_gtest)
 endif()
 
-if(WITH_MKLDNN AND NOT WITH_ARM)
-  check_update_submodule(mkldnn)
-  include(external/mkldnn) # mkldnn
-  list(APPEND third_party_deps extern_mkldnn)
+if(WITH_MKL AND NOT WITH_ARM)
+  check_update_submodule(onednn)
+  include(external/onednn) # onednn
+  list(APPEND third_party_deps extern_onednn)
 endif()
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})

@@ -165,32 +165,18 @@ void Conv2dTransposeGradKernel(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   if (dfilter) {
     dev_ctx.template Alloc<T>(dfilter);
-    // Conv2DBackpropFilterD only support fp32 output, so we need cast the
-    // output when the out dtype is fp16.
-    phi::DenseTensor dfilter_tmp;
-    if (dfilter->dtype() == phi::DataType::FLOAT16) {
-      dfilter_tmp.Resize(dfilter->dims());
-      dev_ctx.template Alloc<float>(&dfilter_tmp);
-    } else {
-      dfilter_tmp = *dfilter;
-    }
-    const auto& runner =
-        NpuOpRunner("Conv2DBackpropFilterD",
-                    {output_grad_tensor, input_tensor},
-                    {dfilter_tmp},
-                    {{"filter_size", phi::vectorize<int>(filter_dims)},
-                     {"strides", strides_vec},
-                     {"pads", paddings},
-                     {"dilations", dilations_vec},
-                     {"groups", groups},
-                     {"data_format", data_format}});
-    runner.Run(stream);
-    dev_ctx.Wait();
-    if (dfilter->dtype() == phi::DataType::FLOAT16) {
-      const auto& cast_runner = NpuOpRunner(
-          "Cast", {dfilter_tmp}, {*dfilter}, {{"dst_type", ACL_FLOAT16}});
-      cast_runner.Run(stream);
-    }
+    NpuOpRunner runner_filter;
+    runner_filter.SetType("Conv2DBackpropFilter")
+        .AddInput(output_grad_tensor)
+        .AddInput(dev_ctx, phi::vectorize<int>(filter_dims))
+        .AddInput(input_tensor)
+        .AddOutput(*dfilter)
+        .AddAttrs({{"strides", strides_vec}})
+        .AddAttrs({{"pads", paddings}})
+        .AddAttrs({{"dilations", dilations_vec}})
+        .AddAttrs({{"groups", groups}})
+        .AddAttrs({{"data_format", data_format}})
+        .Run(stream);
   }
   if (dx) {
     dev_ctx.template Alloc<T>(dx);

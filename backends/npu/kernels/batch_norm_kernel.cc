@@ -973,7 +973,8 @@ void BatchNormGradKernel(
   }
 
   double epsilon_d = epsilon;
-  bool training = true;
+  bool test_mode = is_test && (!trainable_statistics);
+  bool training = !test_mode && !use_global_stats;
   std::array<bool, 3> grad_input_mask{false};
   if (d_x) {
     grad_input_mask[0] = true;

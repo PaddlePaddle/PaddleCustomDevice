@@ -125,6 +125,13 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 message(STATUS "Git commit id is: ${GIT_HASH}")
 
+execute_process(
+  COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_op
+  OUTPUT_VARIABLE CUSTOM_OP_GIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+message(STATUS "Custom op git commit id is: ${CUSTOM_OP_GIT_HASH}")
+
 # configure setup.py
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)

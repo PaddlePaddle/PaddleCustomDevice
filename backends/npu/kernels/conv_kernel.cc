@@ -164,7 +164,7 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   }
 
   DO_COMPATIBILITY(
-      aclnnConvDepthwise2d,
+      aclnnConvolution,
       (custom_kernel::AclopDepthwiseConv2dKernel<T, Context>(dev_ctx,
                                                              input,
                                                              filter,
@@ -191,18 +191,22 @@ void DepthwiseConv2dKernel(const Context& dev_ctx,
   std::vector<int64_t> stride_(stride.begin(), stride.end());
   std::vector<int64_t> padding_ = {padding[0], padding[2]};
   std::vector<int64_t> dilation_(dilation.begin(), dilation.end());
+  bool transposed = false;
   std::vector<int64_t> output_padding = {0, 0};
+  int64_t groups_ = groups;
   int8_t cubeMathType = 0;
 
-  EXEC_NPU_CMD(aclnnConvDepthwise2d,
+  EXEC_NPU_CMD(aclnnConvolution,
                dev_ctx,
                input_tensor,
                filter,
-               ksize_,
                bias_tensor,
                stride_,
                padding_,
                dilation_,
+               transposed,
+               output_padding,
+               groups_,
                output_tensor,
                cubeMathType);
 }

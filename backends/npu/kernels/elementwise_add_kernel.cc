@@ -111,13 +111,13 @@ void AddKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AddGradKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   const phi::DenseTensor& y,
-                   const phi::DenseTensor& dout,
-                   int axis,
-                   phi::DenseTensor* dx,
-                   phi::DenseTensor* dy) {
+void AddGradAclop(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& y,
+                  const phi::DenseTensor& dout,
+                  int axis,
+                  phi::DenseTensor* dx,
+                  phi::DenseTensor* dy) {
   auto stream = dev_ctx.stream();
 
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
@@ -196,6 +196,76 @@ void AddGradKernel(const Context& dev_ctx,
         runner.AddOutput(tmp);
         runner.AddAttr("keep_dims", false);
         runner.Run(stream);
+      }
+    } else {
+      TensorCopy(dev_ctx, dout, false, dy);
+    }
+  }
+}
+
+template <typename T, typename Context>
+void AddGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const phi::DenseTensor& y,
+                   const phi::DenseTensor& dout,
+                   int axis,
+                   phi::DenseTensor* dx,
+                   phi::DenseTensor* dy) {
+  DO_COMPATIBILITY(aclnnReduceSum,
+                   (custom_kernel::AddGradAclop<T, Context>(
+                       dev_ctx, x, y, dout, axis, dx, dy)));
+  axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
+  if (dx) {
+    dev_ctx.template Alloc<T>(dx);
+    if (dx->dims() != dout.dims()) {
+      std::vector<int64_t> dst_dims_vec;
+      std::vector<int64_t> reduce_axes;
+      auto src_dims = dx->dims();
+      auto dout_dims = dout.dims();
+      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
+      for (int ax = 0; ax < dout_dims.size(); ++ax) {
+        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
+            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
+          reduce_axes.push_back(ax);
+        } else {
+          dst_dims_vec.push_back(dout_dims[ax]);
+        }
+      }
+      if (!reduce_axes.empty()) {
+        phi::DenseTensor tmp(*dx);
+        tmp.Resize(phi::make_ddim(dst_dims_vec));
+        bool keep_dims = false;
+        auto dtype = ConvertToNpuDtype(dx->dtype());
+        EXEC_NPU_CMD(
+            aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
+      }
+    } else {
+      TensorCopy(dev_ctx, dout, false, dx);
+    }
+  }
+  if (dy) {
+    dev_ctx.template Alloc<T>(dy);
+    if (dy->dims() != dout.dims()) {
+      std::vector<int64_t> dst_dims_vec;
+      std::vector<int64_t> reduce_axes;
+      auto src_dims = dy->dims();
+      auto dout_dims = dout.dims();
+      int src_axis = (src_dims.size() < dout_dims.size() ? axis : 0);
+      for (int ax = 0; ax < dout_dims.size(); ++ax) {
+        if ((ax < src_axis || ax >= src_axis + src_dims.size()) ||
+            (dout_dims[ax] > 1 && src_dims[ax - src_axis] == 1)) {
+          reduce_axes.push_back(ax);
+        } else {
+          dst_dims_vec.push_back(dout_dims[ax]);
+        }
+      }
+      if (!reduce_axes.empty()) {
+        phi::DenseTensor tmp(*dy);
+        tmp.Resize(phi::make_ddim(dst_dims_vec));
+        bool keep_dims = false;
+        auto dtype = ConvertToNpuDtype(dy->dtype());
+        EXEC_NPU_CMD(
+            aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
       }
     } else {
       TensorCopy(dev_ctx, dout, false, dy);

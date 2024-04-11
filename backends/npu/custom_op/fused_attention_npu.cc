@@ -164,6 +164,17 @@ std::vector<paddle::Tensor> npu_flash_attention(
       get_pair(fixed_seed_offset, *dev_ctx, is_test);
   int64_t seed = seed_offset.first;
   int64_t offset = seed_offset.second;
+  // seed_tensor
+  std::shared_ptr<phi::DenseTensor> seed_tensor =
+      std::make_shared<phi::DenseTensor>();
+  seed_tensor->Resize({1});
+  (*dev_ctx).Alloc(seed_tensor.get(), phi::DataType::INT64);
+  // offset_tensor
+  std::shared_ptr<phi::DenseTensor> offset_tensor =
+      std::make_shared<phi::DenseTensor>();
+  offset_tensor->Resize({1});
+  (*dev_ctx).Alloc(offset_tensor.get(), phi::DataType::INT64);
+
   if (is_test) {
     VLOG(3) << "You are in the inference phase and do not need to drop it.";
   }
@@ -226,6 +237,10 @@ std::vector<paddle::Tensor> npu_flash_attention(
       dropmask->Resize({numels / 8});
       (*dev_ctx).Alloc(dropmask.get(), phi::DataType::UINT8);
       if (get_dropout_status(keep_prob) == DropOutStatus::DROPOUT_NORMAL) {
+        custom_kernel::FillNpuTensorWithConstant(
+            seed_tensor.get(), *dev_ctx, seed);
+        custom_kernel::FillNpuTensorWithConstant(
+            offset_tensor.get(), *dev_ctx, offset);
         EXEC_NPU_CMD(aclnnDropoutGenMask,
                      *dev_ctx,
                      length_shape,
@@ -266,21 +281,6 @@ std::vector<paddle::Tensor> npu_flash_attention(
       std::make_shared<phi::DenseTensor>();
   softmax_out->Resize({1});
   (*dev_ctx).Alloc(softmax_out.get(), query_tensor.dtype());
-
-  // seed_tensor
-  std::shared_ptr<phi::DenseTensor> seed_tensor =
-      std::make_shared<phi::DenseTensor>();
-  seed_tensor->Resize({1});
-  (*dev_ctx).Alloc(seed_tensor.get(), phi::DataType::INT64);
-  custom_kernel::FillNpuTensorWithConstant(seed_tensor.get(), *dev_ctx, seed);
-
-  // offset_tensor
-  std::shared_ptr<phi::DenseTensor> offset_tensor =
-      std::make_shared<phi::DenseTensor>();
-  offset_tensor->Resize({1});
-  (*dev_ctx).Alloc(offset_tensor.get(), phi::DataType::INT64);
-  custom_kernel::FillNpuTensorWithConstant(
-      offset_tensor.get(), *dev_ctx, offset);
 
   // numel_tensor
   std::shared_ptr<phi::DenseTensor> numel_tensor =
@@ -385,8 +385,6 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
   int64_t offset = 0;
   int64_t numel = 0;
 
-  seed = get_single(seed_tensor, *dev_ctx);
-  offset = get_single(offset_tensor, *dev_ctx);
   numel = get_single(numel_tensor, *dev_ctx);
   // drop_mask
   double keep_prob = 1 - dropout;
@@ -404,6 +402,8 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                  seed,
                  offset,
                  *dropmask);
+    seed = get_single(seed_tensor, *dev_ctx);
+    offset = get_single(offset_tensor, *dev_ctx);
   } else if (get_dropout_status(keep_prob) == DropOutStatus::DROPOUT_ALL) {
     dropmask->Resize({numel / 8});
     (*dev_ctx).Alloc(dropmask.get(), phi::DataType::UINT8);

@@ -136,7 +136,8 @@ std::vector<paddle::Tensor> npu_allgather_mm(
                  *out_gather_mm,
                  *out_gather);
 #else
-    assert("current cann version doed not support this kernel");
+    PADDLE_THROW(::phi::errors::Unimplemented(
+        "current cann version doed not support this kernel"));
 #endif
   } else {
     // custom写法要求 必须要输出两个tensor，此处虽然不用但也要申请内存
@@ -168,7 +169,8 @@ std::vector<paddle::Tensor> npu_allgather_mm(
                  *out_gather_mm,
                  out_gather_zerotensor);
 #else
-    assert("current cann version doed not support this kernel");
+    PADDLE_THROW(::phi::errors::Unimplemented(
+        "current cann version doed not support this kernel"));
 #endif
   }
   return {paddle::Tensor(out_gather_mm), paddle::Tensor(out_gather)};

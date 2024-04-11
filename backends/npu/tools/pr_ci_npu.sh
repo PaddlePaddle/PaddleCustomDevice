@@ -213,6 +213,7 @@ function main() {
       echo "Please make sure Ascend 910A or 910B NPUs exists!"
       exit 1
     fi
+    important_ut_npu=$(cat "${CODE_ROOT}/tools/important_ut_npu")
     disable_ut_list=''
     while read -r line; do
         res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
@@ -223,8 +224,12 @@ function main() {
         fi
     done <<< "$disable_ut_npu";
     disable_ut_list+="^disable_ut_npu$"
+    if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
+        disable_ut_list+="^important_ut_npu$"
+    if
     echo "disable_ut_list=${disable_ut_list}"
     IFS=$IFS_DEFAULT
+
     test_cases=$(ctest -N -V)
     while read -r line; do
         if [[ "$line" == "" ]]; then
@@ -244,6 +249,9 @@ function main() {
 
     # run ut
     ut_total_startTime_s=`date +%s`
+    if [ ${TEST_IMPORTANT:-OFF} == "ON" ]; then
+        single_card_tests="^$important_ut_npu$"
+    fi
     card_test ${single_card_tests} 1
     collect_failed_tests
 

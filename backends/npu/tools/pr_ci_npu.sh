@@ -226,7 +226,7 @@ function main() {
     disable_ut_list+="^disable_ut_npu$"
     if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
         disable_ut_list+="^important_ut_npu$"
-    if
+    fi
     echo "disable_ut_list=${disable_ut_list}"
     IFS=$IFS_DEFAULT
 

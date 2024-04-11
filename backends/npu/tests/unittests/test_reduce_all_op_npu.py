@@ -19,6 +19,7 @@ import numpy as np
 
 from tests.op_test import OpTest
 import paddle
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -78,6 +79,17 @@ class TestAllOpWithDim(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+
+@check_run_big_shape_test()
+class TestAllOpWithDim1(TestAllOpWithDim):
+    def setUp(self):
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "reduce_all"
+        self.python_api = paddle.all
+        self.inputs = {"X": np.random.randint(0, 2, (2, 1, 4096, 4096)).astype("bool")}
+        self.attrs = {"dim": (0, 1, 2, 3)}
+        self.outputs = {"Out": self.inputs["X"].all(axis=self.attrs["dim"])}
 
 
 class TestAll8DOpWithDim(OpTest):

@@ -239,29 +239,44 @@ function main() {
     
     echo "disable_ut_list=${disable_ut_list}"
     IFS=$IFS_DEFAULT
-
-    test_cases=$(ctest -N -V)
-    while read -r line; do
-        if [[ "$line" == "" ]]; then
-            continue
-        fi
-        matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
-        if [[ "$matchstr" == "" ]]; then
-            continue
-        fi
-        testcase=$(echo "$line"|grep -oEi "\w+$")
-        if [[ "$single_card_tests" == "" ]]; then
-            single_card_tests="^$testcase$"
-        else
-            single_card_tests="$single_card_tests|^$testcase$"
-        fi
-    done <<< "$test_cases";
+    if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
+        test_cases=$(ctest -N -V)
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
+            if [[ "$matchstr" == "" ]]; then
+                continue
+            fi
+            testcase=$(echo "$line"|grep -oEi "\w+$")
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$testcase$"
+            else
+                single_card_tests="$single_card_tests|^$testcase$"
+            fi
+        done <<< "$test_cases";
+    else
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
+            if [[ "$matchstr" == "" ]]; then
+                continue
+            fi
+            testcase=$(echo "$line"|grep -oEi "\w+$")
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$testcase$"
+            else
+                single_card_tests="$single_card_tests|^$testcase$"
+            fi
+        done <<< "$important_ut_npu";
+    fi
+    
 
     # run ut
     ut_total_startTime_s=`date +%s`
-    if [ ${TEST_IMPORTANT:-OFF} == "ON" ]; then
-        single_card_tests="^$important_ut_npu$"
-    fi
     card_test ${single_card_tests} 1
     collect_failed_tests
 

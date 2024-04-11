@@ -19,6 +19,39 @@
 #include "kernels/funcs/npu_op_runner.h"
 #include "paddle/extension.h"
 
+int64_t GetShapeSize(const std::vector<int64_t>& shape) {
+  int64_t shapeSize = 1;
+  for (auto i : shape) {
+    shapeSize *= i;
+  }
+  return shapeSize;
+}
+
+int CreateZeroDimAclTensor(const std::vector<float>& hostData,
+                           const std::vector<int64_t>& shape,
+                           void** deviceAddr,
+                           aclDataType dataType,
+                           aclTensor** tensor) {
+  auto size = GetShapeSize(shape) * 2;
+  // 计算连续tensor的strides
+  std::vector<int64_t> strides(shape.size(), 1);
+  for (int64_t i = shape.size() - 2; i >= 0; i--) {
+    strides[i] = shape[i + 1] * strides[i + 1];
+  }
+  static const auto aclCreateTensor = GET_OP_API_FUNC(aclCreateTensor);
+  // 调用aclCreateTensor接口创建aclTensor
+  *tensor = aclCreateTensor(shape.data(),
+                            shape.size(),
+                            dataType,
+                            strides.data(),
+                            0,
+                            aclFormat::ACL_FORMAT_ND,
+                            shape.data(),
+                            shape.size(),
+                            *deviceAddr);
+  return 0;
+}
+
 const phi::DDim get_output_size_gather_mm(const paddle::Tensor& x1,
                                           const paddle::Tensor& x2,
                                           int64_t world_size,
@@ -73,12 +106,6 @@ std::vector<paddle::Tensor> npu_allgather_mm(
 
   std::shared_ptr<phi::DenseTensor> out_gather =
       std::make_shared<phi::DenseTensor>();
-  if (gather_output) {
-    out_gather->Resize(out_gather_size);
-  } else {
-    out_gather->Resize({0});
-  }
-  dev_ctx->Alloc(out_gather.get(), x1.dtype());
 
   phi::DenseTensor* bias_real = nullptr;
   if (bias) {
@@ -91,20 +118,61 @@ std::vector<paddle::Tensor> npu_allgather_mm(
   auto x1_tensor = *(static_cast<const phi::DenseTensor*>(x1.impl().get()));
   auto x2_tensor = *(static_cast<const phi::DenseTensor*>(x2.impl().get()));
   char* hcom_ptr = const_cast<char*>(hcom.data());
+  aclTensor* out_gather_zerotensor = nullptr;
+  if (gather_output) {
+    out_gather->Resize(out_gather_size);
+    dev_ctx->Alloc(out_gather.get(), x1.dtype());
 #if (CANN_VERSION_CODE >= 700000)
-  int64_t stream_mode = ACL_STOP_ON_FAILURE;
-  EXEC_NPU_CMD(aclnnAllGatherMatmul,
-               *dev_ctx,
-               x1_tensor,
-               x2_tensor,
-               *bias_real,
-               hcom_ptr,
-               gather_index,
-               comm_turn,
-               stream_mode,
-               *out_gather_mm,
-               *out_gather);
+    int64_t stream_mode = ACL_STOP_ON_FAILURE;
+    EXEC_NPU_CMD(aclnnAllGatherMatmul,
+                 *dev_ctx,
+                 x1_tensor,
+                 x2_tensor,
+                 *bias_real,
+                 hcom_ptr,
+                 gather_index,
+                 comm_turn,
+                 stream_mode,
+                 *out_gather_mm,
+                 *out_gather);
+#else
+    PADDLE_THROW(::phi::errors::Unimplemented(
+        "current cann version doed not support this kernel"));
 #endif
+  } else {
+    // custom写法要求 必须要输出两个tensor，此处虽然不用但也要申请内存
+    out_gather->Resize({1});
+    dev_ctx->Alloc(out_gather.get(), x1.dtype());
+    // 这里随便给一个整数就行，方便计算，不会额外占用内存空间
+    std::vector<int64_t> selfShape = {4, 0};
+    std::vector<float> selfHostData = {0};
+    void* acl_tensor = nullptr;
+    auto datatype = x1_tensor.dtype();
+    auto acl_datatype = ConvertToNpuDtype(datatype);
+    // 此处直接调aclnn接口创建0维acltensor，在EXEC_NPU_CMD处透传
+    auto ret = CreateZeroDimAclTensor(selfHostData,
+                                      selfShape,
+                                      &acl_tensor,
+                                      acl_datatype,
+                                      &out_gather_zerotensor);
+#if (CANN_VERSION_CODE >= 700000)
+    int64_t stream_mode = ACL_STOP_ON_FAILURE;
+    EXEC_NPU_CMD(aclnnAllGatherMatmul,
+                 *dev_ctx,
+                 x1_tensor,
+                 x2_tensor,
+                 *bias_real,
+                 hcom_ptr,
+                 gather_index,
+                 comm_turn,
+                 stream_mode,
+                 *out_gather_mm,
+                 out_gather_zerotensor);
+#else
+    PADDLE_THROW(::phi::errors::Unimplemented(
+        "current cann version doed not support this kernel"));
+#endif
+  }
   return {paddle::Tensor(out_gather_mm), paddle::Tensor(out_gather)};
 }
 

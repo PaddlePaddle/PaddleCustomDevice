@@ -223,7 +223,7 @@ function main() {
             echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
         fi
     done <<< "$disable_ut_npu";
-    disable_ut_list+="^disable_ut_npu$"
+    disable_ut_list+="^disable_ut_npu$|"
 
     if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
         while read -r line; do

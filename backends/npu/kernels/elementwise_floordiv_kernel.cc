@@ -18,14 +18,26 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void FloorDivideKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& y,
-                       phi::DenseTensor* out) {
+void AclopFloorDivideKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& y,
+                            phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("FloorDiv", {x, y}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void FloorDivideKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnFloorDivide,
+      (custom_kernel::AclopFloorDivideKernel<T, Context>(dev_ctx, x, y, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnFloorDivide, dev_ctx, x, y, *out);
 }
 
 }  // namespace custom_kernel

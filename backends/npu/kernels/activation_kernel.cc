@@ -241,9 +241,9 @@ void SinKernel(const Context& dev_ctx,
 
 // Swish = x * sigmoid(beta * x)
 template <typename T, typename Context>
-void SwishKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 phi::DenseTensor* out) {
+void AclopSwishKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner =
@@ -252,10 +252,21 @@ void SwishKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SwishGradKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& x,
-                     const phi::DenseTensor& dout,
-                     phi::DenseTensor* dx) {
+void SwishKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSilu,
+      (custom_kernel::AclopSwishKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnSilu, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopSwishGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& dout,
+                          phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
@@ -297,6 +308,19 @@ void SwishGradKernel(const Context& dev_ctx,
   mul_runner2.Run(stream);
 }
 
+template <typename T, typename Context>
+void SwishGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(
+      aclnnSiluBackward,
+      (custom_kernel::AclopSwishGradKernel<T, Context>(dev_ctx, x, dout, dx)));
+
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnSiluBackward, dev_ctx, dout, x, *dx);
+}
+
 // Silu = x * sigmoid(x)
 template <typename T, typename Context>
 void AclopSiluKernel(const Context& dev_ctx,
@@ -325,7 +349,7 @@ void AclopSiluGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& out,
                          const phi::DenseTensor& dout,
                          phi::DenseTensor* dx) {
-  SwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
+  AclopSwishGradKernel<T, Context>(dev_ctx, x, dout, dx);
 }
 
 template <typename T, typename Context>
@@ -862,7 +886,7 @@ void LogGradKernel(const Context& dev_ctx,
                    const phi::DenseTensor& dout,
                    phi::DenseTensor* dx) {
   DO_COMPATIBILITY(
-      aclnnLogGrad,
+      aclnnDiv,
       (custom_kernel::AclopLogGradKernel<T, Context>(dev_ctx, x, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
   EXEC_NPU_CMD(aclnnDiv, dev_ctx, dout, x, *dx);

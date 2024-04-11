@@ -142,16 +142,10 @@ void MaskedSelectKernel(const Context& dev_ctx,
     sum_runner.AddAttr("keep_dims", false);
     sum_runner.Run(stream);
 
-    // wait for ReduceSum complete
-    dev_ctx.Wait();
     TensorToVector(dev_ctx, out_size, dev_ctx, &out_size_vec);
-    // wait for copy complete
-    dev_ctx.Wait();
   }
 
-  *out = custom_kernel::Slice(middle_out,
-                              static_cast<int64_t>(0),
-                              static_cast<int64_t>(out_size_vec[0]));
+  *out = middle_out.Resize({out_size_vec[0]});
 }
 
 template <typename T, typename Context>

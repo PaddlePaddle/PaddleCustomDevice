@@ -225,7 +225,7 @@ function main() {
     done <<< "$disable_ut_npu";
     disable_ut_list+="^disable_ut_npu$|"
 
-    if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
         while read -r line; do
             res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
             if [ $res -eq 0 ]; then
@@ -239,7 +239,7 @@ function main() {
     
     echo "disable_ut_list=${disable_ut_list}"
     IFS=$IFS_DEFAULT
-    if [ ${TEST_IMPORTANT:-OFF} == "OFF" ]; then
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
         test_cases=$(ctest -N -V)
         while read -r line; do
             if [[ "$line" == "" ]]; then

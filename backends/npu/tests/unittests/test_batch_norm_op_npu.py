@@ -203,7 +203,7 @@ class TestBatchNormOpInference(unittest.TestCase):
         self.dtype = np.float32
         self.init_kernel_type()
         self.data_formats = ["NCHW", "NHWC"]
-        self.npu_storages = [True, False]
+        self.npu_storages = [False] # npu_storage_format is no longer needed
 
     def __assert_close(self, tensor, np_array, msg, atol=1e-4):
         self.assertTrue(np.allclose(np.array(tensor), np_array, atol=atol), msg)
@@ -332,7 +332,7 @@ class TestBatchNormOpTraining(unittest.TestCase):
         self.use_mkldnn = False
         self.fuse_with_relu = False
         self.data_formats = ["NCHW", "NHWC"]
-        self.npu_storages = [True, False]
+        self.npu_storages = [False] # npu_storage_format is no longer needed
         self.momentum = 0.9
         self.use_momentum_variable = False
         self.epsilon = 0.00001
@@ -754,10 +754,11 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
             return y.numpy()
 
         x = np.random.randn(*shape).astype("float32")
+        # npu_storage_format is no longer needed
         y1 = compute(x, False, False, False)
-        y2 = compute(x, False, False, True)
+        y2 = compute(x, False, False, False)
         y3 = compute(x, True, True, False)
-        y4 = compute(x, True, True, True)
+        y4 = compute(x, True, True, False)
         np.testing.assert_allclose(y1, y2, rtol=1e-05)
         np.testing.assert_allclose(y3, y4, rtol=1e-05)
         np.testing.assert_allclose(y1, y3, rtol=1e-05)
@@ -794,10 +795,11 @@ class TestDygraphBatchNormTrainableStats(unittest.TestCase):
             return r
 
         x = np.random.randn(*shape).astype("float32")
+        # npu_storage_format is no longer needed
         y1 = compute(x, False, False)
         y2 = compute(x, True, True)
-        y3 = compute_npu_storage(x, False, False)
-        y4 = compute_npu_storage(x, True, True)
+        y3 = compute(x, False, False)
+        y4 = compute(x, True, True)
 
         np.testing.assert_allclose(y1, y2, atol=1e-05)
         np.testing.assert_allclose(y3, y4, atol=1e-05)
@@ -861,6 +863,89 @@ class TestBatchNormChannelLast(unittest.TestCase):
                 rtol=1e-05,
                 atol=1e-07,
             )
+
+
+class TestBatchNormInferStats(unittest.TestCase):
+    """ 
+        Check mean and variance is fixed in inference mode.
+    """
+    def setUp(self):
+        set_flags({"FLAGS_npu_storage_format": False})
+        self.shape = [2, 4, 8, 8]
+        self.data_format = "NCHW"
+
+    def test_fix_fwd_stats(self):
+        import copy
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x = paddle.randn(self.shape)
+            bn = paddle.nn.BatchNorm2D(self.shape[1], data_format=self.data_format)
+            bn.eval()
+            mean_before, var_before = copy.deepcopy(bn._mean), copy.deepcopy(bn._variance)
+            y = bn(x)
+            mean_after, var_after = copy.deepcopy(bn._mean), copy.deepcopy(bn._variance)
+            
+        np.testing.assert_allclose(mean_before.numpy(), mean_after.numpy(), rtol=1e-05, atol=1e-07)
+        np.testing.assert_allclose(var_before.numpy(), var_after.numpy(), rtol=1e-05, atol=1e-07)
+
+
+class TestBatchNormFixGrad(unittest.TestCase):
+    """
+        Check gradient when weight/bias and mean/variance are fixed.
+    """
+    def setUp(self):
+        set_flags({"FLAGS_npu_storage_format": False})
+        self.shape = [2, 4, 8, 8]
+        self.data_format = "NCHW"
+        self.param_fixed = [False, True]
+        self.stats_fixed = [False, True]
+    
+    def check_grad_when_fixed(self, param_fixed=False, stats_fixed=False):
+        x = np.random.randn(*self.shape).astype(np.float32)
+        noise = np.random.randn(*self.shape).astype(np.float32)
+        x_grad_npu, x_grad_cpu = None, None
+        weight_grad_npu, weight_grad_cpu = None, None
+        bias_grad_npu, bias_grad_cpu = None, None
+        
+        with base.dygraph.guard(paddle.CustomPlace("npu", 0)):
+            x1 = paddle.to_tensor(x)
+            x1.stop_gradient = False
+            bn1 = paddle.nn.BatchNorm2D(self.shape[1], data_format=self.data_format)
+            if param_fixed: # freeze weight/bias
+                for p in bn1.parameters():
+                    p.stop_gradient = True
+            if stats_fixed: # freeze mean/variance
+                bn1.eval()
+            y1 = bn1(x1)
+            loss = (y1 + noise).mean().backward()
+            x_grad_npu = x1.grad
+            weight_grad_npu = bn1.weight.grad
+            bias_grad_npu = bn1.bias.grad
+        
+        with base.dygraph.guard(paddle.CPUPlace()):
+            x2 = paddle.to_tensor(x)
+            x2.stop_gradient = False
+            bn2 = paddle.nn.BatchNorm2D(self.shape[1], data_format=self.data_format)
+            if param_fixed: # freeze weight/bias
+                for p in bn2.parameters():
+                    p.stop_gradient = True
+            if stats_fixed: # freeze mean/variance
+                bn2.eval()
+            y2 = bn2(x2)
+            loss = (y2 + noise).mean().backward()
+            x_grad_cpu = x2.grad
+            weight_grad_cpu = bn2.weight.grad
+            bias_grad_cpu = bn2.bias.grad
+
+        np.testing.assert_allclose(x_grad_npu.numpy(), x_grad_cpu.numpy(), rtol=1e-05, atol=1e-07)
+        if not param_fixed: # no gradient for weight/bias whe param fixed
+            np.testing.assert_allclose(weight_grad_npu.numpy(), weight_grad_cpu.numpy(), rtol=1e-5, atol=1e-07)
+            np.testing.assert_allclose(bias_grad_npu.numpy(), bias_grad_cpu.numpy(), rtol=1e-5, atol=1e-07)
+
+    def test_grad(self):
+        for param_fixed in self.param_fixed:
+            for stats_fixed in self.stats_fixed:
+                self.check_grad_when_fixed(param_fixed, stats_fixed)
+        
 
 
 if __name__ == "__main__":

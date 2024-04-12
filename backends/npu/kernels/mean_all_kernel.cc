@@ -18,9 +18,22 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void MeanAllKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+void FullLikeKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& val,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void MultiplyKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AclopMeanAllKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        phi::DenseTensor* out) {
   auto rank = x.dims().size();
   auto out_dims = out->dims();
   dev_ctx.template Alloc<T>(out);
@@ -49,10 +62,41 @@ void MeanAllKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void MeanAllGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::DenseTensor& grad,
-                       phi::DenseTensor* x_grad) {
+void MeanAllKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnMeanV2,
+      (custom_kernel::AclopMeanAllKernel<T, Context>(dev_ctx, x, out)));
+
+  auto rank = x.dims().size();
+  auto out_dims = out->dims();
+  dev_ctx.template Alloc<T>(out);
+  if (rank == 0) {  // scalar
+    TensorCopy(dev_ctx, x, false, out);
+    out->Resize(out_dims);  // copy will reset the dims.
+    return;
+  }
+
+  std::vector<int64_t> reduce_dims(rank);
+  std::iota(reduce_dims.begin(), reduce_dims.end(), 0);
+
+  bool keep_dims = false;
+  bool noop_with_empty_axes = true;
+  EXEC_NPU_CMD(aclnnMeanV2,
+               dev_ctx,
+               x,
+               reduce_dims,
+               keep_dims,
+               noop_with_empty_axes,
+               *out);
+}
+
+template <typename T, typename Context>
+void AclopMeanAllGradKernel(const Context& dev_ctx,
+                            const phi::DenseTensor& x,
+                            const phi::DenseTensor& grad,
+                            phi::DenseTensor* x_grad) {
   auto stream = dev_ctx.stream();
 
   PADDLE_ENFORCE_EQ(
@@ -96,6 +140,50 @@ void MeanAllGradKernel(const Context& dev_ctx,
   // and mul grad
   const auto& runner_mul_2 = NpuOpRunner("Mul", {mean_ma, grad}, {*x_grad}, {});
   runner_mul_2.Run(stream);
+}
+
+template <typename T, typename Context>
+void MeanAllGradKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& grad,
+                       phi::DenseTensor* x_grad) {
+  PADDLE_ENFORCE_EQ(
+      grad.numel(),
+      1,
+      phi::errors::InvalidArgument(
+          "Mean Gradient Input phi::DenseTensor len should be 1. But "
+          "received Out@Grad's elements num is %d.",
+          grad.numel()));
+
+  dev_ctx.template Alloc<T>(x_grad);
+
+  // ones
+  phi::DenseTensor ones;
+  phi::DenseTensorMeta ones_meta = {grad.dtype(), x_grad->dims()};
+  ones.set_meta(ones_meta);
+  dev_ctx.template Alloc<T>(&ones);
+  FullLikeKernel(dev_ctx, *x_grad, phi::Scalar(1.0), grad.dtype(), &ones);
+
+  // means
+  phi::DenseTensor mean_tensor;
+  phi::DenseTensorMeta mean_meta = {grad.dtype(), {1}};
+  mean_tensor.set_meta(mean_meta);
+  dev_ctx.template Alloc<T>(&mean_tensor);
+  FillNpuTensorWithConstant<T>(
+      &mean_tensor,
+      dev_ctx,
+      static_cast<T>(1.0 / static_cast<float>(x_grad->numel())));
+
+  // means mul ones
+  phi::DenseTensor mean_ma;
+  phi::DenseTensorMeta mean_ma_meta = {grad.dtype(), x_grad->dims()};
+  mean_ma.set_meta(mean_ma_meta);
+  dev_ctx.template Alloc<T>(&mean_ma);
+
+  MultiplyKernel(dev_ctx, mean_tensor, ones, &mean_ma);
+
+  // and mul grad
+  MultiplyKernel(dev_ctx, mean_ma, grad, x_grad);
 }
 
 }  // namespace custom_kernel

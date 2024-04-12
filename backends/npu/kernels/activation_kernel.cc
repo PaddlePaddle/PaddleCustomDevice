@@ -1565,6 +1565,24 @@ void RoundGradKernel(const Context& dev_ctx,
   dx->Resize(dx_dims);
 }
 
+template <typename T, typename Context>
+void LogSigmoidKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnLogSigmoid, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void LogSigmoidGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& out,
+                          const phi::DenseTensor& dout,
+                          phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  phi::DenseTensor* buffer = nullptr;
+  EXEC_NPU_CMD(aclnnLogSigmoidBackward, dev_ctx, dout, out, buffer, *dx);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
@@ -2037,3 +2055,19 @@ PD_REGISTER_PLUGIN_KERNEL(round_grad,
                           float,
                           phi::dtype::float16,
                           double) {}
+
+PD_REGISTER_PLUGIN_KERNEL(logsigmoid,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogSigmoidKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(logsigmoid_grad,
+                          npu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogSigmoidGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

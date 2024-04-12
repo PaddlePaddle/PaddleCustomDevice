@@ -18,6 +18,7 @@ import numpy as np
 from tests.op_test import OpTest
 
 import paddle
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -90,6 +91,13 @@ class TestBitwiseAndInt8(TestBitwiseAnd):
         self.y_shape = [2, 3, 4, 5]
 
 
+@check_run_big_shape_test()
+class TestBitwiseAndInt8_1(TestBitwiseAndInt8):
+    def init_shape(self):
+        self.x_shape = [2, 1, 4096, 4096]
+        self.y_shape = [2, 1, 4096, 4096]
+
+
 class TestBitwiseAndInt16(TestBitwiseAnd):
     def init_dtype(self):
         self.dtype = np.int16
@@ -99,6 +107,13 @@ class TestBitwiseAndInt16(TestBitwiseAnd):
         self.y_shape = [4, 1]
 
 
+@check_run_big_shape_test()
+class TestBitwiseAndInt16_1(TestBitwiseAndInt16):
+    def init_shape(self):
+        self.x_shape = [2, 1, 4096, 4096]
+        self.y_shape = [2, 1, 4096, 4096]
+
+
 class TestBitwiseAndInt64(TestBitwiseAnd):
     def init_dtype(self):
         self.dtype = np.int64
@@ -106,6 +121,13 @@ class TestBitwiseAndInt64(TestBitwiseAnd):
     def init_shape(self):
         self.x_shape = [1, 4, 1]
         self.y_shape = [2, 3, 4, 5]
+
+
+@check_run_big_shape_test()
+class TestBitwiseAndInt64_1(TestBitwiseAndInt64):
+    def init_shape(self):
+        self.x_shape = [2, 1, 4096, 4096]
+        self.y_shape = [2, 1, 4096, 4096]
 
 
 class TestBitwiseAndBool(TestBitwiseAnd):
@@ -120,6 +142,13 @@ class TestBitwiseAndBool(TestBitwiseAnd):
 
         self.inputs = {"X": x, "Y": y}
         self.outputs = {"Out": out}
+
+
+@check_run_big_shape_test()
+class TestBitwiseAndBool_1(TestBitwiseAndBool):
+    def init_shape(self):
+        self.x_shape = [2, 1, 4096, 4096]
+        self.y_shape = [2, 1, 4096, 4096]
 
 
 # ----------------- TEST OP: BitwiseOr ------------------ #
@@ -372,12 +401,24 @@ class TestBitwiseNotUInt8(TestBitwiseNot):
         self.high = 100
 
 
+@check_run_big_shape_test()
+class TestBitwiseNotUInt8_1(TestBitwiseNotUInt8):
+    def init_shape(self):
+        self.x_shape = [4096, 4096]
+
+
 class TestBitwiseNotInt8(TestBitwiseNot):
     def init_dtype(self):
         self.dtype = np.int8
 
     def init_shape(self):
         self.x_shape = [4, 5]
+
+
+@check_run_big_shape_test()
+class TestBitwiseNotInt8_1(TestBitwiseNotInt8):
+    def init_shape(self):
+        self.x_shape = [4096, 4096]
 
 
 class TestBitwiseNotInt16(TestBitwiseNot):
@@ -388,12 +429,24 @@ class TestBitwiseNotInt16(TestBitwiseNot):
         self.x_shape = [2, 3, 4, 5]
 
 
+@check_run_big_shape_test()
+class TestBitwiseNotInt16_1(TestBitwiseNotInt16):
+    def init_shape(self):
+        self.x_shape = [4096, 4096]
+
+
 class TestBitwiseNotInt64(TestBitwiseNot):
     def init_dtype(self):
         self.dtype = np.int64
 
     def init_shape(self):
         self.x_shape = [1, 4, 1]
+
+
+@check_run_big_shape_test()
+class TestBitwiseNotInt64_1(TestBitwiseNotInt64):
+    def init_shape(self):
+        self.x_shape = [4096, 4096]
 
 
 class TestBitwiseNotBool(TestBitwiseNot):
@@ -407,6 +460,12 @@ class TestBitwiseNotBool(TestBitwiseNot):
 
         self.inputs = {"X": x}
         self.outputs = {"Out": out}
+
+
+@check_run_big_shape_test()
+class TestBitwiseNotBool_1(TestBitwiseNotBool):
+    def init_shape(self):
+        self.x_shape = [4096, 4096]
 
 
 if __name__ == "__main__":

@@ -19,32 +19,16 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void Conv2dKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& input,
-                  const phi::DenseTensor& filter,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
-                  const std::string& padding_algorithm,
-                  const std::vector<int>& dilations_t,
-                  int groups,
-                  const std::string& data_format,
-                  phi::DenseTensor* output) {
-  if (FLAGS_npu_storage_format) {
-    LOG_FIRST_N(WARNING, 1)
-        << "NPU private formats are no longer supported,"
-           "which may cause accuracy problems, Please execute"
-           "'export FLAGS_npu_storage_format=0' in your environment.";
-    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, output);
-  } else {
-    dev_ctx.template Alloc<T>(output);
-  }
-
-  auto strides = strides_t;
-  auto paddings = paddings_t;
-  auto dilations = dilations_t;
-
-  const bool channel_last = data_format == "NHWC";
-
+void AclopConv2dKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& input,
+                       const phi::DenseTensor& filter,
+                       const std::vector<int>& strides,
+                       const std::vector<int>& paddings,
+                       const std::vector<int>& dilations,
+                       int groups,
+                       const std::string& data_format,
+                       const bool channel_last,
+                       phi::DenseTensor* output) {
   PADDLE_ENFORCE_EQ(channel_last && FLAGS_npu_storage_format,
                     false,
                     phi::errors::InvalidArgument(
@@ -55,22 +39,11 @@ void Conv2dKernel(const Context& dev_ctx,
                         data_format,
                         FLAGS_npu_storage_format));
 
-  // update padding and dilation
-  auto in_dims = input.dims();
-  auto filter_dims = filter.dims();
-  phi::DDim in_data_dims;
-  phi::DDim filter_data_dims;
-
-  if (channel_last) {
-    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  if (FLAGS_npu_storage_format) {
+    AllocNPUTensor<T>(dev_ctx, ACL_FORMAT_NC1HWC0, output);
   } else {
-    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+    dev_ctx.template Alloc<T>(output);
   }
-  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
-
-  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
-  custom_kernel::UpdatePaddingAndDilation(
-      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
   std::vector<int> strides_vec(4, 1);
   std::vector<int> dilations_vec(4, 1);
@@ -112,22 +85,31 @@ void Conv2dKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void Conv2DGradKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& input,
-                      const phi::DenseTensor& filter,
-                      const phi::DenseTensor& output_grad,
-                      const std::vector<int>& strides_t,
-                      const std::vector<int>& paddings_t,
-                      const std::string& padding_algorithm,
-                      const std::vector<int>& dilations_t,
-                      int groups,
-                      const std::string& data_format,
-                      phi::DenseTensor* input_grad,
-                      phi::DenseTensor* filter_grad) {
+void Conv2dKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& input,
+                  const phi::DenseTensor& filter,
+                  const std::vector<int>& strides_t,
+                  const std::vector<int>& paddings_t,
+                  const std::string& padding_algorithm,
+                  const std::vector<int>& dilations_t,
+                  int groups,
+                  const std::string& data_format,
+                  phi::DenseTensor* output) {
   auto strides = strides_t;
   auto paddings = paddings_t;
   auto dilations = dilations_t;
+
   const bool channel_last = data_format == "NHWC";
+
+  PADDLE_ENFORCE_EQ(channel_last && FLAGS_npu_storage_format,
+                    false,
+                    phi::errors::InvalidArgument(
+                        "PaddlePaddle do not support NPU storage format when "
+                        "Conv2D in NHWC format, but got data_format [%s] and "
+                        "FLAGS_npu_storage_format [%d]. Please execute 'export "
+                        "FLAGS_npu_storage_format=0' in your environment.",
+                        data_format,
+                        FLAGS_npu_storage_format));
 
   // update padding and dilation
   auto in_dims = input.dims();
@@ -146,6 +128,110 @@ void Conv2DGradKernel(const Context& dev_ctx,
   custom_kernel::UpdatePaddingAndDilation(
       &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
+  if (paddings[0] != paddings[1] || paddings[2] != paddings[3]) {
+    VLOG(2) << "Fallback to AclopConv2dKernel due to asymmetric padding : {"
+            << paddings[0] << ", " << paddings[1] << ", " << paddings[2] << ", "
+            << paddings[3] << "}";
+    return custom_kernel::AclopConv2dKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        strides,
+                                                        paddings,
+                                                        dilations,
+                                                        groups,
+                                                        data_format,
+                                                        channel_last,
+                                                        output);
+  }
+
+  if (FLAGS_npu_storage_format) {
+    VLOG(2) << "Fallback to AclopConv2dKernel since `FLAGS_npu_storage_format` "
+            << "is ON.";
+    return custom_kernel::AclopConv2dKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        strides,
+                                                        paddings,
+                                                        dilations,
+                                                        groups,
+                                                        data_format,
+                                                        channel_last,
+                                                        output);
+  }
+
+  if (channel_last) {
+    VLOG(2) << "Fallback to AclopConv2dKernel since `data_format` is NHWC.";
+    return custom_kernel::AclopConv2dKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        strides,
+                                                        paddings,
+                                                        dilations,
+                                                        groups,
+                                                        data_format,
+                                                        channel_last,
+                                                        output);
+  }
+
+  DO_COMPATIBILITY(aclnnConvolution,
+                   (custom_kernel::AclopConv2dKernel<T, Context>(dev_ctx,
+                                                                 input,
+                                                                 filter,
+                                                                 strides,
+                                                                 paddings,
+                                                                 dilations,
+                                                                 groups,
+                                                                 data_format,
+                                                                 channel_last,
+                                                                 output)));
+
+  dev_ctx.template Alloc<T>(output);
+
+  phi::DenseTensor input_tensor(input), output_tensor(*output);
+
+  // prepare an zeros-filled bias tensor
+  phi::DenseTensor bias_tensor;
+  phi::DenseTensorMeta bias_meta = {input.dtype(),
+                                    phi::slice_ddim(filter_dims, 0, 1)};
+  bias_tensor.set_meta(bias_meta);
+  FillNpuTensorWithConstant<T>(&bias_tensor, dev_ctx, static_cast<T>(0));
+
+  std::vector<int64_t> stride_(strides.begin(), strides.end());
+  std::vector<int64_t> padding_ = {paddings[0], paddings[2]};
+  std::vector<int64_t> dilation_(dilations.begin(), dilations.end());
+  bool transposed = false;
+  std::vector<int64_t> output_padding = {0, 0};
+  int64_t groups_ = groups;
+  int8_t cubeMathType = 0;
+
+  EXEC_NPU_CMD(aclnnConvolution,
+               dev_ctx,
+               input_tensor,
+               filter,
+               bias_tensor,
+               stride_,
+               padding_,
+               dilation_,
+               transposed,
+               output_padding,
+               groups_,
+               output_tensor,
+               cubeMathType);
+}
+
+template <typename T, typename Context>
+void AclopConv2DGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& input,
+                           const phi::DenseTensor& filter,
+                           const phi::DenseTensor& output_grad,
+                           const std::vector<int>& strides,
+                           const std::vector<int>& paddings,
+                           const std::vector<int>& dilations,
+                           int groups,
+                           const std::string& data_format,
+                           const bool channel_last,
+                           phi::DenseTensor* input_grad,
+                           phi::DenseTensor* filter_grad) {
   std::vector<int> strides_vec(4, 1);
   std::vector<int> dilations_vec(4, 1);
 
@@ -218,6 +304,155 @@ void Conv2DGradKernel(const Context& dev_ctx,
         .AddAttrs({{"data_format", data_format}})
         .Run(stream);
   }
+}
+
+template <typename T, typename Context>
+void Conv2DGradKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& input,
+                      const phi::DenseTensor& filter,
+                      const phi::DenseTensor& output_grad,
+                      const std::vector<int>& strides_t,
+                      const std::vector<int>& paddings_t,
+                      const std::string& padding_algorithm,
+                      const std::vector<int>& dilations_t,
+                      int groups,
+                      const std::string& data_format,
+                      phi::DenseTensor* input_grad,
+                      phi::DenseTensor* filter_grad) {
+  auto strides = strides_t;
+  auto paddings = paddings_t;
+  auto dilations = dilations_t;
+  const bool channel_last = data_format == "NHWC";
+
+  // update padding and dilation
+  auto in_dims = input.dims();
+  auto filter_dims = filter.dims();
+  phi::DDim in_data_dims;
+  phi::DDim filter_data_dims;
+
+  if (channel_last) {
+    in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+  } else {
+    in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+  }
+  filter_data_dims = phi::slice_ddim(filter_dims, 2, in_dims.size());
+
+  std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
+  custom_kernel::UpdatePaddingAndDilation(
+      &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
+
+  if (paddings[0] != paddings[1] || paddings[2] != paddings[3]) {
+    VLOG(2) << "Fallback to AclopConv2DGradKernel due to asymmetric padding : {"
+            << paddings[0] << ", " << paddings[1] << ", " << paddings[2] << ", "
+            << paddings[3] << "}";
+    return custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                            input,
+                                                            filter,
+                                                            output_grad,
+                                                            strides,
+                                                            paddings,
+                                                            dilations,
+                                                            groups,
+                                                            data_format,
+                                                            channel_last,
+                                                            input_grad,
+                                                            filter_grad);
+  }
+
+  if (FLAGS_npu_storage_format) {
+    VLOG(2)
+        << "Fallback to AclopConv2DGradKernel since `FLAGS_npu_storage_format` "
+        << "is ON.";
+    return custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                            input,
+                                                            filter,
+                                                            output_grad,
+                                                            strides,
+                                                            paddings,
+                                                            dilations,
+                                                            groups,
+                                                            data_format,
+                                                            channel_last,
+                                                            input_grad,
+                                                            filter_grad);
+  }
+
+  if (channel_last) {
+    VLOG(2) << "Fallback to AclopConv2DGradKernel since `data_format` is NHWC.";
+    return custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                            input,
+                                                            filter,
+                                                            output_grad,
+                                                            strides,
+                                                            paddings,
+                                                            dilations,
+                                                            groups,
+                                                            data_format,
+                                                            channel_last,
+                                                            input_grad,
+                                                            filter_grad);
+  }
+
+  DO_COMPATIBILITY(
+      aclnnConvolutionBackward,
+      (custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        output_grad,
+                                                        strides,
+                                                        paddings,
+                                                        dilations,
+                                                        groups,
+                                                        data_format,
+                                                        channel_last,
+                                                        input_grad,
+                                                        filter_grad)));
+
+  phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
+
+  phi::DenseTensor filter_grad_tensor;
+  phi::DenseTensor input_grad_tensor;
+  phi::DenseTensor bias_grad_tensor;
+
+  if (filter_grad) {
+    dev_ctx.template Alloc<T>(filter_grad);
+    filter_grad_tensor = phi::DenseTensor(*filter_grad);
+  }
+
+  if (input_grad) {
+    dev_ctx.template Alloc<T>(input_grad);
+    input_grad_tensor = phi::DenseTensor(*input_grad);
+  }
+
+  std::vector<int64_t> bias_sizes =
+      phi::vectorize(phi::slice_ddim(filter_dims, 0, 1));
+  std::vector<int64_t> stride_(strides.begin(), strides.end());
+  std::vector<int64_t> padding_ = {paddings[0], paddings[2]};
+  std::vector<int64_t> dilation_(dilations.begin(), dilations.end());
+  bool transposed = false;
+  std::vector<int64_t> output_padding = {0, 0};
+  int64_t groups_ = groups;
+  std::array<bool, 3> output_mask = {
+      input_grad != nullptr, filter_grad != nullptr, false};
+  int8_t cubeMathType = 0;
+
+  EXEC_NPU_CMD(aclnnConvolutionBackward,
+               dev_ctx,
+               output_grad_tensor,
+               input_tensor,
+               filter,
+               bias_sizes,
+               stride_,
+               padding_,
+               dilation_,
+               transposed,
+               output_padding,
+               groups_,
+               output_mask,
+               cubeMathType,
+               input_grad_tensor,
+               filter_grad_tensor,
+               bias_grad_tensor);
 }
 
 }  // namespace custom_kernel

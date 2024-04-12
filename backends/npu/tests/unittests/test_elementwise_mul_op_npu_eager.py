@@ -78,6 +78,32 @@ class ElementwiseMulOpBF16(OpTest):
         pass
 
 
+class TestElementwiseMulOpBF16_1(ElementwiseMulOpBF16):
+    def init_input_output(self):
+        self.x = convert_float_to_uint16(
+            np.random.uniform(0.1, 1, [2, 4096, 1]).astype(self.dtype)
+        )
+        self.y = convert_float_to_uint16(
+            np.random.uniform(0.1, 1, [2, 4096, 1]).astype(self.dtype)
+        )
+        self.out = np.multiply(
+            convert_uint16_to_float(self.x), convert_uint16_to_float(self.y)
+        )
+
+
+class TestElementwiseMulOpBF16_2(ElementwiseMulOpBF16):
+    def init_input_output(self):
+        self.x = convert_float_to_uint16(
+            np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        )
+        self.y = convert_float_to_uint16(
+            np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        )
+        self.out = np.multiply(
+            convert_uint16_to_float(self.x), convert_uint16_to_float(self.y)
+        )
+
+
 class TestElementwiseMulOp_BF16_broadcast_0(ElementwiseMulOpBF16):
     def init_input_output(self):
         self.x = convert_float_to_uint16(np.random.rand(100, 2, 3).astype(self.dtype))

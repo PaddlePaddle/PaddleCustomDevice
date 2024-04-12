@@ -31,25 +31,36 @@ def create_test_class(op_type, typename, callback):
         def setUp(self):
             self.set_npu()
             self.place = paddle.CustomPlace("npu", 0)
+            self.op_type = op_type
+
+        def init_input_output(self, shape1, shape2):
             if typename == "bfloat16":
-                x = np.random.random(size=(10, 7)).astype(np.float32)
-                y = np.random.random(size=(10, 7)).astype(np.float32)
+                x = np.random.random(size=shape1).astype(np.float32)
+                y = np.random.random(size=shape2).astype(np.float32)
                 self.inputs = {
                     "X": convert_float_to_uint16(x),
                     "Y": convert_float_to_uint16(y),
                 }
             else:
-                x = np.random.random(size=(10, 7)).astype(typename)
-                y = np.random.random(size=(10, 7)).astype(typename)
+                x = np.random.random(size=shape1).astype(typename)
+                y = np.random.random(size=shape2).astype(typename)
                 self.inputs = {"X": x, "Y": y}
             out = callback(x, y)
             self.outputs = {"Out": out}
-            self.op_type = op_type
 
         def set_npu(self):
             self.__class__.use_custom_device = True
 
         def test_output(self):
+            self.init_input_output((10, 7), (10, 7))
+            self.check_output_with_place(place=self.place)
+
+        def test_output1(self):
+            self.init_input_output((8192,), (8192,))
+            self.check_output_with_place(place=self.place)
+
+        def test_output2(self):
+            self.init_input_output((2, 4096, 1), (2, 4096, 1))
             self.check_output_with_place(place=self.place)
 
         def test_errors(self):

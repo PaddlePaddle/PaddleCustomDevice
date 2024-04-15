@@ -329,11 +329,31 @@ std::vector<aclDataBuffer *> &NpuOpRunner::GetOutputBuffers() {
   return output_buffers_;
 }
 
+const std::unordered_map<phi::DataType, size_t> dataTypeToByteSize = {
+    {phi::DataType::FLOAT32, sizeof(float)},
+    {phi::DataType::FLOAT16,
+     sizeof(uint16_t)},  // 通常用 uint16_t 来表示 float16
+    {phi::DataType::INT64, sizeof(int64_t)},
+    {phi::DataType::INT32, sizeof(int32_t)},
+    {phi::DataType::INT8, sizeof(int8_t)},
+    {phi::DataType::UINT8, sizeof(uint8_t)},
+    {phi::DataType::BOOL, sizeof(bool)}};
+
 aclTensorDesc *NpuOpRunner::CreateTensorDesc(phi::DenseTensor tensor,
                                              aclMemType mem_type) {
   auto data_type = ConvertToNpuDtype(tensor.dtype());
   auto origin_format = ConvertToNpuFormat(tensor.layout());
   auto origin_dims = phi::vectorize(tensor.dims());
+
+  if (!tensor.meta().is_contiguous()) {
+    auto it = dataTypeToByteSize.find(tensor.dtype());
+    if (it != dataTypeToByteSize.end()) {
+      size_t byteSize = it->second;
+      origin_dims = phi::vectorize({
+          tensor.capacity() / byteSize,
+      });
+    }
+  }
 
   auto origin_size = origin_dims.size();
   bool is_scalar = tensor.dims().size() == 0;
@@ -604,6 +624,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
       aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
     }
   });
+  SetDeterministic();
 
   aclError ret;
   // Ensure that the Gil has been released before running

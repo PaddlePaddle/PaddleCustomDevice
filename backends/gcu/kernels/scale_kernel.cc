@@ -23,7 +23,7 @@ template <typename T, typename Context>
 void GcuScaleKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const phi::Scalar& in_scale,
-                    float bias,
+                    const phi::Scalar& in_bias,
                     bool bias_after_scale,
                     phi::DenseTensor* out) {
   if (UseScatterMemory()) {
@@ -35,7 +35,7 @@ void GcuScaleKernel(const Context& dev_ctx,
 
     phi::DenseTensor bias_tensor;
     bias_tensor.Resize(phi::make_ddim({}));
-    bias_tensor = full_like(dev_ctx, bias_tensor, bias);
+    bias_tensor = full_like(dev_ctx, bias_tensor, in_bias.to<float>());
 
     auto tmp_x = x;
     phi::DenseTensor tmp_out;
@@ -69,7 +69,8 @@ void GcuScaleKernel(const Context& dev_ctx,
 
     phi::DenseTensor bias_tensor;
     bias_tensor.Resize({1});
-    FillGcuTensorWithConstant<float>(&bias_tensor, dev_ctx, bias);
+    FillGcuTensorWithConstant<float>(
+        &bias_tensor, dev_ctx, in_bias.to<float>());
 
     TensorNameMap input_names;
     input_names["X"] = {"x"};
@@ -102,7 +103,7 @@ template <typename T, typename Context>
 void ScaleSrKernel(const Context& dev_ctx,
                    const phi::SelectedRows& x,
                    const phi::Scalar& scale,
-                   float bias,
+                   const phi::Scalar& bias,
                    bool bias_after_scale,
                    phi::SelectedRows* out) {
   // if (x.value().Holder() != out->value().Holder() ||

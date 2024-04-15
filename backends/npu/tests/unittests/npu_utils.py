@@ -59,3 +59,14 @@ def check_soc_version_and_dtype(func):
         )(func)(self)
 
     return wrapper
+
+
+def check_run_big_shape_test():
+    def wrapper(cls):
+        run_big_shape_test_flag = os.environ.get("FLAGS_npu_big_shape_test")
+        return unittest.skipIf(
+            not (run_big_shape_test_flag and run_big_shape_test_flag == "true"),
+            "skip big shape test.",
+        )(cls)
+
+    return wrapper

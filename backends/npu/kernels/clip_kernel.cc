@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ClipKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& min,
-                const phi::Scalar& max,
-                phi::DenseTensor* out) {
+void AclopClipKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::Scalar& min,
+                     const phi::Scalar& max,
+                     phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto max_ = max.to<T>();
@@ -72,12 +72,25 @@ void ClipKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ClipGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& dout,
-                    const phi::Scalar& min,
-                    const phi::Scalar& max,
-                    phi::DenseTensor* dx) {
+void ClipKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::Scalar& min,
+                const phi::Scalar& max,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnClamp,
+      (custom_kernel::AclopClipKernel<T, Context>(dev_ctx, x, min, max, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnClamp, dev_ctx, x, min, max, *out);
+}
+
+template <typename T, typename Context>
+void AclopClipGradKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& dout,
+                         const phi::Scalar& min,
+                         const phi::Scalar& max,
+                         phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   auto max_ = max.to<T>();
@@ -93,6 +106,20 @@ void ClipGradKernel(const Context& dev_ctx,
                   {*dx},
                   {{"min_val", min_val}, {"max_val", max_val}});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ClipGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    const phi::Scalar& min,
+                    const phi::Scalar& max,
+                    phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnHardtanhBackward,
+                   (custom_kernel::AclopClipGradKernel<T, Context>(
+                       dev_ctx, x, dout, min, max, dx)));
+  dev_ctx.template Alloc<T>(dx);
+  EXEC_NPU_CMD(aclnnHardtanhBackward, dev_ctx, dout, x, min, max, *dx);
 }
 
 }  // namespace custom_kernel

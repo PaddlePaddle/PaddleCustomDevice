@@ -23,9 +23,13 @@ void ReduceMean(const Context& dev_ctx,
                 phi::DenseTensor* y,
                 const std::vector<int>& dim,
                 bool keep_dims = true) {
-  const auto& runner = NpuOpRunner(
-      "ReduceMeanD", {*x}, {*y}, {{"axes", dim}, {"keep_dims", keep_dims}});
-  runner.Run(dev_ctx.stream());
+  NpuOpRunner runner;
+  runner.SetType("ReduceMean")
+      .AddInput(*x)
+      .AddInput(dev_ctx, std::move(dim))
+      .AddOutput(*y)
+      .AddAttrs({{"keep_dims", keep_dims}})
+      .Run(dev_ctx.stream());
 }
 
 template <typename Context>
@@ -34,9 +38,13 @@ void ReduceSum(const Context& dev_ctx,
                phi::DenseTensor* y,
                const std::vector<int>& dim,
                bool keep_dims = true) {
-  const auto& runner = NpuOpRunner(
-      "ReduceSumD", {*x}, {*y}, {{"axes", dim}, {"keep_dims", keep_dims}});
-  runner.Run(dev_ctx.stream());
+  NpuOpRunner runner;
+  runner.SetType("ReduceSum")
+      .AddInput(*x)
+      .AddInput(dev_ctx, std::move(dim))
+      .AddOutput(*y)
+      .AddAttrs({{"keep_dims", keep_dims}})
+      .Run(dev_ctx.stream());
 }
 
 template <typename Context>
@@ -96,10 +104,14 @@ void Adds(const Context& dev_ctx,
 template <typename Context>
 void Transpose(const Context& dev_ctx,
                const phi::DenseTensor* x,
-               const phi::DenseTensor* y,
+               phi::DenseTensor* y,
                const std::vector<int>& axis) {
-  const auto& runner = NpuOpRunner("TransposeD", {*x}, {*y}, {{"perm", axis}});
-  runner.Run(dev_ctx.stream());
+  NpuOpRunner runner;
+  runner.SetType("Transpose")
+      .AddInput(*x)
+      .AddInput(dev_ctx, std::move(axis))
+      .AddOutput(*y)
+      .Run(dev_ctx.stream());
 }
 
 template <typename Context>
@@ -253,7 +265,7 @@ void GroupNormKernel(const Context& dev_ctx,
   if (data_layout_data != phi::DataLayout::kNCHW) {
     phi::DenseTensor y_out;
     phi::DenseTensorMeta y_out_meta = {
-        y->dtype(), {y->dims()[0], y->dims()[1], y->dims()[2]}};
+        y->dtype(), {y->dims()[0], y->dims()[2], y->dims()[1]}};
     y_out.set_meta(y_out_meta);
     dev_ctx.template Alloc<T>(&y_out);
     Transpose<Context>(dev_ctx, y, &y_out, std::vector<int>{0, 2, 1});

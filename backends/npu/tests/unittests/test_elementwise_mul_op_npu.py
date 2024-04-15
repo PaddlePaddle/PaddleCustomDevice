@@ -30,8 +30,6 @@ class ElementwiseMulOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "elementwise_mul"
-        self.dtype = np.float32
-        self.axis = -1
         self.init_dtype()
         self.init_input_output()
         self.init_axis()
@@ -41,7 +39,8 @@ class ElementwiseMulOp(OpTest):
             "Y": OpTest.np_dtype_to_base_dtype(self.y),
         }
         self.outputs = {"Out": self.out}
-        self.attrs = {"axis": self.axis}
+        if hasattr(self, "axis"):
+            self.attrs = {"axis": self.axis}
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -61,10 +60,24 @@ class ElementwiseMulOp(OpTest):
         self.out = np.multiply(self.x, self.y)
 
     def init_dtype(self):
-        pass
+        self.dtype = np.float32
 
     def init_axis(self):
-        pass
+        self.axis = -1
+
+
+class TestElementwiseMulOp_1(ElementwiseMulOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [2, 4096, 1]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [2, 4096, 1]).astype(self.dtype)
+        self.out = np.multiply(self.x, self.y)
+
+
+class TestElementwiseMulOp_2(ElementwiseMulOp):
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        self.y = np.random.uniform(0.1, 1, [8192]).astype(self.dtype)
+        self.out = np.multiply(self.x, self.y)
 
 
 @skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")

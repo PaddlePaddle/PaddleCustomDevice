@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AllRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const std::vector<int64_t>& dims,
-                  bool keep_dim,
-                  bool reduce_all,
-                  phi::DenseTensor* out) {
+void AclopAllRawKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const std::vector<int64_t>& dims,
+                       bool keep_dim,
+                       bool reduce_all,
+                       phi::DenseTensor* out) {
   bool reduce_all_f = dims.size() == 0 ||
                       static_cast<int>(dims.size()) == x.dims().size() ||
                       reduce_all;
@@ -47,6 +47,29 @@ void AllRawKernel(const Context& dev_ctx,
       .AddOutput(*out)
       .AddAttr("keep_dims", keep_dim);
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AllRawKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const std::vector<int64_t>& dims,
+                  bool keep_dim,
+                  bool reduce_all,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnAll,
+                   (custom_kernel::AclopAllRawKernel<T, Context>(
+                       dev_ctx, x, dims, keep_dim, reduce_all, out)));
+  if (x.storage_properties_initialized()) {
+    custom_kernel::AclopAllRawKernel<T, Context>(
+        dev_ctx, x, dims, keep_dim, reduce_all, out);
+    return;
+  }
+  dev_ctx.template Alloc<T>(out);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
+  EXEC_NPU_CMD(aclnnAll, dev_ctx, x, dims, keep_dim, *out);
 }
 
 template <typename T, typename Context>

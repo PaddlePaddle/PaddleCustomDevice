@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 import paddle.base.core as core
 
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 from tests.op_test import (
     OpTest,
     convert_float_to_uint16,
@@ -35,25 +35,56 @@ SEED = 2021
 class TestCastBF16(OpTest):
     def setUp(self):
         self.set_npu()
+        self.init_dtype()
+        self.init_shape()
         self.op_type = "cast"
         self.place = paddle.CustomPlace("npu", 0)
 
-        ipt = np.random.random(size=[10, 10]) + 1
-        x = convert_float_to_uint16(ipt.astype("float32"))
+        ipt = np.random.random(size=self.shape) + 1
+        x = convert_float_to_uint16(ipt.astype(self.input_dtype))
         self.inputs = {"X": x}
-        self.outputs = {"Out": convert_uint16_to_float(x)}
+        self.outputs = {"Out": convert_uint16_to_float(x).astype(self.output_dtype)}
 
         self.attrs = {
-            "in_dtype": int(core.VarDesc.VarType.BF16),
-            "out_dtype": int(core.VarDesc.VarType.FP32),
+            "in_dtype": self.in_dtype,
+            "out_dtype": self.out_dtype,
         }
 
     def set_npu(self):
         self.__class__.use_custom_device = True
 
+    def init_shape(self):
+        self.shape = [10, 10]
+
+    def init_dtype(self):
+        self.input_dtype = "float32"
+        self.output_dtype = "float32"
+        self.in_dtype = int(core.VarDesc.VarType.BF16)
+        self.out_dtype = int(core.VarDesc.VarType.FP32)
+
     @check_soc_version
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+
+@check_run_big_shape_test()
+class TestCastBF16_1(TestCastBF16):
+    def init_shape(self):
+        self.shape = [2, 1, 4096, 4096]
+
+    def init_dtype(self):
+        self.input_dtype = "float32"
+        self.output_dtype = "bool"
+        self.in_dtype = int(core.VarDesc.VarType.BF16)
+        self.out_dtype = int(core.VarDesc.VarType.BOOL)
+
+
+class TestCastBF16_2(TestCastBF16_1):
+    def init_dtype(self):
+        self.input_dtype = "float32"
+        self.output_dtype = "float32"
+        self.in_dtype = int(core.VarDesc.VarType.BF16)
+        self.out_dtype = int(core.VarDesc.VarType.FP32)
 
 
 if __name__ == "__main__":

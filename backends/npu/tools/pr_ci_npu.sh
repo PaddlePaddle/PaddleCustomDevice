@@ -85,6 +85,78 @@ function show_ut_retry_result() {
         fi
     fi
 }
+EXIT_CODE=0;
+function caught_error() {
+ for job in `jobs -p`; do
+        # echo "PID => ${job}"
+        if ! wait ${job} ; then
+            echo "At least one test failed with exit code => $?" ;
+            EXIT_CODE=1;
+        fi
+    done
+}
+
+
+function card_test() {
+    set -m
+    ut_startTime_s=`date +%s`
+
+    testcases=$1
+    cardnumber=$2
+    parallel_level_base=${CTEST_PARALLEL_LEVEL:-1}
+
+    # get the NPU device count, XPU device count is one
+    ascend_rt_visible_devices=${ASCEND_RT_VISIBLE_DEVICES:-0}
+
+    if [[ $ascend_rt_visible_devices =~ ([0-9,]+) ]]; then
+        extracted_numbers="${BASH_REMATCH[1]}"
+        extracted_numbers="${extracted_numbers//,/ }"
+        numbers_array=($extracted_numbers)
+        NPU_DEVICE_COUNT=${#numbers_array[@]}
+        echo "The visible cards for the current task are: $extracted_numbers"
+        echo "card_nums: ${NPU_DEVICE_COUNT}"
+    fi
+
+    if (( $cardnumber == -1 ));then
+        cardnumber=$NPU_DEVICE_COUNT
+    fi
+
+
+    if [[ "$testcases" == "" ]]; then
+        return 0
+    fi
+
+    trap 'caught_error' CHLD
+    tmpfile_rand=`date +%s%N`
+    NUM_PROC=$[NPU_DEVICE_COUNT/$cardnumber]
+    for (( i = 0; i < $NUM_PROC; i++ )); do
+        npu_list=()
+        for (( j = 0; j < cardnumber; j++ )); do
+            if [ $j -eq 0 ]; then
+                    npu_list=("${numbers_array[$[i*cardnumber]]}")
+                else
+                    npu_list="$npu_list,${numbers_array[$[i*cardnumber+j]]}"
+            fi
+        done
+        tmpfile=$tmp_dir/$tmpfile_rand"_"$ix
+        if [[ $cardnumber == $NPU_DEVICE_COUNT ]]; then
+           echo "================"
+           echo ASCEND_RT_VISIBLE_DEVICES=$npu_list
+           echo "================"
+           (ctest -I $i,,$NUM_PROC -R "($testcases)" | tee $tmpfile;test ${PIPESTATUS[0] -eq 0}) &
+        else
+           echo "================"
+           echo ASCEND_RT_VISIBLE_DEVICES=$npu_list
+           echo "================"
+           (env ASCEND_RT_VISIBLE_DEVICES=$npu_list ctest -I $i,,$NUM_PROC -R "($testcases)" -E "($disable_ut_list)" --output-on-failure | tee $tmpfile; test "${PIPESTATUS[0]}" -eq 0) &
+        fi
+    done
+    wait; # wait for all subshells to finish
+    ut_endTime_s=`date +%s`
+    echo "Run TestCases Total Time: $[ $ut_endTime_s - $ut_startTime_s ]s"
+    set +m
+}
+
 
 function main() {
     # skip paddlepaddle cpu install as npu docker image already have cpu whl package installed
@@ -97,7 +169,6 @@ function main() {
     fi
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
-
     # get changed ut and kernels
     set +e
     changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")
@@ -132,15 +203,22 @@ function main() {
     echo "changed_ut_list=${changed_ut_list[@]}"
     set -e
     # read disable ut list
+    IFS_DEFAULT=$IFS
     IFS=$'\n'
     if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
-      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+        disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
     elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
-      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b")
+        wget https://sys-p0.bj.bcebos.com/prec/disable_ut_npu_910B 
+        if [ -f "disable_ut_npu_910B" ];then
+            disable_ut_npu=$(cat "disable_ut_npu_910B")
+        else
+            disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b_global")
+        fi
     else
       echo "Please make sure Ascend 910A or 910B NPUs exists!"
       exit 1
     fi
+    important_ut_npu=$(cat "${CODE_ROOT}/tools/important_ut_npu")
     disable_ut_list=''
     while read -r line; do
         res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
@@ -150,14 +228,56 @@ function main() {
             echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
         fi
     done <<< "$disable_ut_npu";
-    disable_ut_list+="^disable_ut_npu$"
+    disable_ut_list+="^disable_ut_npu$|"
+
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
+        while read -r line; do
+            res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
+            if [ $res -eq 0 ]; then
+                disable_ut_list+="^"${line}"$|"
+            else
+                echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
+            fi
+        done <<< "$important_ut_npu";
+        disable_ut_list+="^important_ut_npu$"
+    fi
+    
     echo "disable_ut_list=${disable_ut_list}"
+    IFS=$IFS_DEFAULT
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
+        test_cases=$(ctest -N -V)
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
+            if [[ "$matchstr" == "" ]]; then
+                continue
+            fi
+            testcase=$(echo "$line"|grep -oEi "\w+$")
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$testcase$"
+            else
+                single_card_tests="$single_card_tests|^$testcase$"
+            fi
+        done <<< "$test_cases";
+    else
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$line$"
+            else
+                single_card_tests="$single_card_tests|^$line$"
+            fi
+        done <<< "$important_ut_npu";
+    fi
+    
 
     # run ut
     ut_total_startTime_s=`date +%s`
-    tmpfile_rand=`date +%s%N`
-    tmpfile=$tmp_dir/$tmpfile_rand
-    ctest -E "($disable_ut_list)" --output-on-failure | tee $tmpfile;
+    card_test ${single_card_tests} 1
     collect_failed_tests
 
     # add unit test retry for NPU

@@ -266,15 +266,10 @@ function main() {
             if [[ "$line" == "" ]]; then
                 continue
             fi
-            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
-            if [[ "$matchstr" == "" ]]; then
-                continue
-            fi
-            testcase=$(echo "$line"|grep -oEi "\w+$")
             if [[ "$single_card_tests" == "" ]]; then
-                single_card_tests="^$testcase$"
+                single_card_tests="^$line$"
             else
-                single_card_tests="$single_card_tests|^$testcase$"
+                single_card_tests="$single_card_tests|^$line$"
             fi
         done <<< "$important_ut_npu";
     fi

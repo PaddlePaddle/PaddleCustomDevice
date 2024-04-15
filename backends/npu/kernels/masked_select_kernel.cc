@@ -25,6 +25,16 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void TopkKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::Scalar& k_scalar,
+                int axis,
+                bool largest,
+                bool sorted,
+                phi::DenseTensor* out,
+                phi::DenseTensor* indices);
+
+template <typename T, typename Context>
 void AclopMaskedSelectKernel(const Context& dev_ctx,
                              const phi::DenseTensor& x,
                              const phi::DenseTensor& mask,
@@ -181,32 +191,18 @@ void MaskedSelectGradKernel(const Context& dev_ctx,
 
   phi::DenseTensor topkv2_out;
   phi::DenseTensor indices;
-  topkv2_out.Resize({out_size_vec[0]});
-  indices.Resize({out_size_vec[0]});
-  dev_ctx.template Alloc<int32_t>(&topkv2_out);
-  dev_ctx.template Alloc<int32_t>(&indices);
   {
-    NpuOpRunner topkv2_runner;
-    topkv2_runner.SetType("TopKV2")
-        .AddInput(mask_int32)
-        .AddInput(out_size)
-        .AddOutput(topkv2_out)
-        .AddOutput(indices)
-        .AddAttr("sorted", false)
-        .AddAttr("dim", 0)
-        .AddAttr("largest", true)
-        .Run(stream);
+    phi::Scalar k = out_grad.numel();
+    int axis = 0;
+    bool largest = true;
+    bool sorted = false;
+    custom_kernel::TopkKernel<int32_t, Context>(
+        dev_ctx, mask_int32, k, axis, largest, sorted, &topkv2_out, &indices);
 
-    NpuOpRunner topkv2_runner2;
-    topkv2_runner2.SetType("TopKV2")
-        .AddInput(indices)
-        .AddInput(out_size)
-        .AddOutput(topkv2_out)
-        .AddOutput(indices)
-        .AddAttr("sorted", true)
-        .AddAttr("dim", 0)
-        .AddAttr("largest", false)
-        .Run(stream);
+    largest = false;
+    sorted = true;
+    custom_kernel::TopkKernel<int64_t, Context>(
+        dev_ctx, indices, k, axis, largest, sorted, &topkv2_out, &indices);
 
     topkv2_out.Resize({out_size_vec[0], 1});
     x_grad->Resize({x_grad->numel()});

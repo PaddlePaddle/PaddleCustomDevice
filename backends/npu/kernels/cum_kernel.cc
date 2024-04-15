@@ -99,6 +99,35 @@ void AclopCumsumKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+static void CumsumAclnnImp(const Tensor& input,
+                           Tensor* output,
+                           int64_t axis,
+                           const Context& dev_ctx) {
+  if (input.dtype() == phi::DataType::INT64) {
+    Tensor tmp_input;
+    tmp_input.Resize(input.dims());
+
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, input, tmp_input.dtype(), &tmp_input);
+
+    Tensor tmp_output;
+    tmp_output.Resize(output->dims());
+    dev_ctx.template Alloc<float>(&tmp_output);
+    auto dst_acl_dtype = ConvertToNpuDtype(tmp_input.dtype());
+
+    EXEC_NPU_CMD(
+        aclnnReduceSum, dev_ctx, tmp_input, axis, dst_acl_dtype, tmp_output);
+
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, tmp_output, output->dtype(), output);
+  } else {
+    auto dst_acl_dtype = ConvertToNpuDtype(input.dtype());
+
+    EXEC_NPU_CMD(aclnnReduceSum, dev_ctx, input, axis, dst_acl_dtype, *output);
+  }
+}
+
+template <typename T, typename Context>
 void CumsumKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::Scalar& axis_scalar,
@@ -107,10 +136,11 @@ void CumsumKernel(const Context& dev_ctx,
                   bool reverse,
                   phi::DenseTensor* out) {
   DO_COMPATIBILITY(
-      aclnnCumsumV2,
+      aclnnCumSum,
       (custom_kernel::AclopCumsumKernel<T, Context>(
           dev_ctx, x, axis_scalar, flatten, exclusive, reverse, out)));
   dev_ctx.template Alloc<T>(out);
+
   auto axis = axis_scalar.to<int64_t>();
 
   if (flatten) {
@@ -125,9 +155,9 @@ void CumsumKernel(const Context& dev_ctx,
     Tensor new_x(x);
     new_x.Resize(phi::make_ddim({x.numel()}));
 
-    EXEC_NPU_CMD(aclnnCumsumV2, dev_ctx, new_x, axis, exclusive, reverse, *out);
+    CumsumAclnnImp<T, Context>(new_x, out, axis, dev_ctx);
   } else {
-    EXEC_NPU_CMD(aclnnCumsumV2, dev_ctx, x, axis, exclusive, reverse, *out);
+    CumsumAclnnImp<T, Context>(x, out, axis, dev_ctx);
   }
 }
 

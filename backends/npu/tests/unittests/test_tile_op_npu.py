@@ -253,8 +253,8 @@ class TestTileOpDouble(unittest.TestCase):
         self.input = np.random.randint(10, size=(2, 10, 5)).astype("double")
         self.place = paddle.CustomPlace("npu", 0)
 
-    def functional(self):
-        input = paddle.to_tensor(self.input)
+    def functional(self, place):
+        input = paddle.to_tensor(self.input, place=place)
         input.stop_gradient = False
         out = paddle.tile(input, [2, 1, 4])
         grad = paddle.grad(
@@ -265,10 +265,10 @@ class TestTileOpDouble(unittest.TestCase):
     def test_npu(self):
         paddle.disable_static()
         place = paddle.CustomPlace("npu", 0)
-        out_npu, grad_npu = self.functional()
+        out_npu, grad_npu = self.functional(place)
 
         place = paddle.CPUPlace()
-        out_cpu, grad_cpu = self.functional()
+        out_cpu, grad_cpu = self.functional(place)
 
         np.testing.assert_allclose(out_npu, out_cpu)
         np.testing.assert_allclose(grad_npu, grad_cpu)

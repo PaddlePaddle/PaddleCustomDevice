@@ -18,9 +18,9 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopAddNKernel(const Context& dev_ctx,
-                     const std::vector<const phi::DenseTensor*>& x,
-                     phi::DenseTensor* out) {
+void AddNKernel(const Context& dev_ctx,
+                const std::vector<const phi::DenseTensor*>& x,
+                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -44,29 +44,6 @@ void AclopAddNKernel(const Context& dev_ctx,
   NpuOpRunner runner{"AddN", {inputs}, {*out}, {{"N", actual_n}}};
   runner.AddInputNames(names);
   runner.Run(stream);
-}
-
-template <typename T, typename Context>
-void AddNKernel(const Context& dev_ctx,
-                const std::vector<const phi::DenseTensor*>& x,
-                phi::DenseTensor* out) {
-  DO_COMPATIBILITY(
-      aclnnSum, (custom_kernel::AclopAddNKernel<T, Context>(dev_ctx, x, out)));
-
-  dev_ctx.template Alloc<T>(out);
-  int n = static_cast<int>(x.size());
-  if (n == 1) {
-    TensorCopy(dev_ctx, *x[0], false, out);
-    return;
-  }
-
-  std::vector<const phi::DenseTensor*> inputs;
-  for (int i = 0; i < n; ++i) {
-    if (x[i] && x[i]->numel() > 0) {
-      inputs.push_back(x[i]);
-    }
-  }
-  EXEC_NPU_CMD(aclnnSum, dev_ctx, inputs, *out);
 }
 
 }  // namespace custom_kernel

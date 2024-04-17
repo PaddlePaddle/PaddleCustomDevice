@@ -18,12 +18,18 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ScaleKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::Scalar& in_scale,
-                 const phi::Scalar& in_bias,
-                 bool bias_after_scale,
-                 phi::DenseTensor* out) {
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void AclopScaleKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::Scalar& in_scale,
+                      const phi::Scalar& in_bias,
+                      bool bias_after_scale,
+                      phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
   auto bias = in_bias.to<float>();
   auto stream = dev_ctx.stream();
@@ -80,6 +86,54 @@ void ScaleKernel(const Context& dev_ctx,
                              {phi::DataType::FLOAT32},
                              {phi::DataType::FLOAT32});
   }
+}
+
+template <typename T, typename Context>
+void ScaleKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::Scalar& in_scale,
+                 const phi::Scalar& in_bias,
+                 bool bias_after_scale,
+                 phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnMuls,
+                   (custom_kernel::AclopScaleKernel<T, Context>(
+                       dev_ctx, x, in_scale, in_bias, bias_after_scale, out)));
+
+  DO_COMPATIBILITY(aclnnAdds,
+                   (custom_kernel::AclopScaleKernel<T, Context>(
+                       dev_ctx, x, in_scale, in_bias, bias_after_scale, out)));
+
+  auto scale = in_scale.to<float>();
+  auto bias = in_bias.to<float>();
+  VLOG(4) << "scale:" << scale << ", bias:" << bias
+          << " ,bias_after_scale:" << bias_after_scale;
+
+  if (std::isinf(scale) || std::isnan(scale)) {
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
+    return;
+  }
+  if (!bias_after_scale) {
+    bias *= scale;
+  }
+
+  phi::Scalar scale_scalar = scale;
+  phi::Scalar bias_scalar = bias;
+  phi::Scalar alpha_scalar = 1.0f;
+
+  phi::DenseTensor mul_out;
+  phi::DenseTensor add_out;
+  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, out->dims()};
+
+  mul_out.set_meta(meta);
+  dev_ctx.template Alloc<float>(&mul_out);
+  EXEC_NPU_CMD(aclnnMuls, dev_ctx, x, scale_scalar, mul_out);
+
+  add_out.set_meta(meta);
+  dev_ctx.template Alloc<float>(&add_out);
+  EXEC_NPU_CMD(aclnnAdds, dev_ctx, mul_out, bias_scalar, alpha_scalar, add_out);
+
+  dev_ctx.template Alloc<T>(out);
+  custom_kernel::CastKernel<T, Context>(dev_ctx, add_out, out->dtype(), out);
 }
 
 }  // namespace custom_kernel

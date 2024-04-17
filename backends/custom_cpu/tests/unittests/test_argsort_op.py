@@ -356,6 +356,79 @@ class TestArgsort4(TestArgsort):
         self.axis = 1
 
 
+class TestStableArgsort(unittest.TestCase):
+    def init(self):
+        self.input_shape = [
+            30,
+        ]
+        self.axis = 0
+        self.data = np.array([100.0, 50.0, 10.0] * 10)
+
+    def setUp(self):
+        self.init()
+        if core.is_compiled_with_cuda():
+            self.place = core.CustomPlace("custom_cpu", 0)
+        else:
+            self.place = core.CustomPlace("custom_cpu", 0)
+
+    def test_api(self):
+        with base.program_guard(base.Program()):
+            input = paddle.static.data(
+                name="input", shape=self.input_shape, dtype="float64"
+            )
+
+            output = paddle.argsort(input, axis=self.axis, stable=True)
+            output2 = paddle.argsort(
+                input, axis=self.axis, descending=True, stable=True
+            )
+
+            exe = base.Executor(self.place)
+            result, result2 = exe.run(
+                feed={"input": self.data}, fetch_list=[output, output2]
+            )
+
+            np_result = np.argsort(self.data, axis=self.axis, kind="stable")
+            self.assertEqual((result == np_result).all(), True)
+
+            np_result2 = np.argsort(-self.data, axis=self.axis, kind="stable")
+            self.assertEqual((result2 == np_result2).all(), True)
+
+
+class TestStableArgsort2(TestStableArgsort):
+    def init(self):
+        self.input_shape = [30, 1]
+        self.data = np.array([100.0, 50.0, 10.0] * 10).reshape(self.input_shape)
+        self.axis = 0
+
+
+class TestStableArgsort3(TestStableArgsort):
+    def init(self):
+        self.input_shape = [1, 30]
+        self.data = np.array([100.0, 50.0, 10.0] * 10).reshape(self.input_shape)
+        self.axis = 1
+
+
+class TestStableArgsort4(TestStableArgsort):
+    def init(self):
+        self.input_shape = [40, 3, 4]
+        self.axis = 0
+        self.data = np.array(
+            [
+                [
+                    [100.0, 50.0, -10.0, 1.0],
+                    [0.0, 0.0, 1.0, 1.0],
+                    [100.0, 50.0, -10.0, 1.0],
+                ],
+                [
+                    [70.0, -30.0, 60.0, 100.0],
+                    [0.0, 0.0, 1.0, 1.0],
+                    [100.0, 50.0, -10.0, 1.0],
+                ],
+            ]
+            * 20
+        )
+
+
 class TestArgsortImperative(unittest.TestCase):
     def init(self):
         self.input_shape = [
@@ -421,6 +494,68 @@ class TestArgsortWithInputNaN(unittest.TestCase):
         out = paddle.argsort(var_x, axis=self.axis, descending=True)
         self.assertEqual((out.numpy() == np.array([1, 2, 3, 0])).all(), True)
         paddle.enable_static()
+
+
+class TestStableArgsortImperative(unittest.TestCase):
+    def setUp(self):
+        self.input_shape = [
+            30,
+        ]
+        self.axis = 0
+        self.input_data = np.array([100.0, 50.0, 10.0] * 10)
+
+    def setUp(self):
+        self.init()
+        if core.is_compiled_with_cuda():
+            self.place = core.CustomPlace("custom_cpu", 0)
+        else:
+            self.place = core.CustomPlace("custom_cpu", 0)
+
+    def test_api(self):
+        paddle.disable_static(self.place)
+        var_x = paddle.to_tensor(self.input_data)
+        out = paddle.argsort(var_x, axis=self.axis, stable=True)
+        expect = np.argsort(self.input_data, axis=self.axis, kind="stable")
+        self.assertEqual((expect == out.numpy()).all(), True)
+
+        out2 = paddle.argsort(var_x, axis=self.axis, descending=True, stable=True)
+        expect2 = np.argsort(-self.input_data, axis=self.axis, kind="stable")
+        self.assertEqual((expect2 == out2.numpy()).all(), True)
+
+        paddle.enable_static()
+
+
+class TestStableArgsortImperative2(TestStableArgsortImperative):
+    def init(self):
+        self.input_shape = [30, 1]
+        self.axis = 0
+
+
+class TestStableArgsortImperative3(TestStableArgsortImperative):
+    def init(self):
+        self.input_shape = [1, 30]
+        self.axis = 1
+
+
+class TestStableArgsortImperative4(TestStableArgsortImperative):
+    def init(self):
+        self.input_shape = [40, 3, 4]
+        self.axis = 0
+        self.data = np.array(
+            [
+                [
+                    [100.0, 50.0, -10.0, 1.0],
+                    [0.0, 0.0, 1.0, 1.0],
+                    [100.0, 50.0, -10.0, 1.0],
+                ],
+                [
+                    [70.0, -30.0, 60.0, 100.0],
+                    [0.0, 0.0, 1.0, 1.0],
+                    [100.0, 50.0, -10.0, 1.0],
+                ],
+            ]
+            * 20
+        )
 
 
 if __name__ == "__main__":

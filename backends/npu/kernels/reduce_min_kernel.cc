@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void MinRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::IntArray& axes,
-                  bool keep_dim,
-                  bool reduce_all,
-                  phi::DenseTensor* out) {
+void AclopMinRawKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::IntArray& axes,
+                       bool keep_dim,
+                       bool reduce_all,
+                       phi::DenseTensor* out) {
   auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
@@ -58,6 +58,29 @@ void MinRawKernel(const Context& dev_ctx,
   } else {
     const auto& runner = NpuOpRunner("ReduceMinD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
+  }
+}
+
+template <typename T, typename Context>
+void MinRawKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::IntArray& axes,
+                  bool keep_dim,
+                  bool reduce_all,
+                  phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnAmin,
+                   (custom_kernel::AclopMinRawKernel<T, Context>(
+                       dev_ctx, x, axes, keep_dim, reduce_all, out)));
+  dev_ctx.template Alloc<T>(out);
+
+  if (reduce_all) {
+    std::vector<int64_t> dim_vec;
+    for (int64_t i = 0; i < x.dims().size(); i++) {
+      dim_vec.push_back(i);
+    }
+    EXEC_NPU_CMD(aclnnAmin, dev_ctx, x, dim_vec, keep_dim, *out);
+  } else {
+    EXEC_NPU_CMD(aclnnAmin, dev_ctx, x, axes, keep_dim, *out);
   }
 }
 

@@ -83,9 +83,6 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
-  DO_COMPATIBILITY(aclnnSplit,
-                   (custom_kernel::AclopSplitKernel<T, Context>(
-                       dev_ctx, x, num_or_sections, axis_scalar, outs)));
   // need to infershape output
   auto sections = num_or_sections.GetData();
   int64_t axis = axis_scalar.to<int64_t>();
@@ -95,14 +92,22 @@ void SplitKernel(const Context& dev_ctx,
       // the ascend op "Split" will fail. So we change this situation
       // to SplitWithNum to resize outs.
       sections.size() == 1 && outs.size() == sections[0]) {
+    DO_COMPATIBILITY(aclnnSplitTensor,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
+
     uint64_t splitSections = x.dims()[axis] / sections[0];
-    std::vector<phi::DenseTensor> outputs;
+    std::vector<phi::DenseTensor*> outputs;
     for (size_t j = 0; j < outs.size(); ++j) {
       dev_ctx.template Alloc<T>(outs[j]);
-      outputs.push_back(*outs[j]);
+      outputs.push_back(outs[j]);
     }
     EXEC_NPU_CMD(aclnnSplitTensor, dev_ctx, x, splitSections, axis, outputs);
   } else {
+    DO_COMPATIBILITY(aclnnSplitWithSize,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
+
     std::vector<phi::MetaTensor> out_metas;
     out_metas.reserve(outs.size());
     std::vector<phi::MetaTensor*> out_metas_ptr;
@@ -117,10 +122,10 @@ void SplitKernel(const Context& dev_ctx,
       outs[i]->Resize(out_metas[i].dims());
     }
 
-    std::vector<phi::DenseTensor> outputs;
+    std::vector<phi::DenseTensor*> outputs;
     for (size_t j = 0; j < outs.size(); ++j) {
       dev_ctx.template Alloc<T>(outs[j]);
-      outputs.push_back(*outs[j]);
+      outputs.push_back(outs[j]);
     }
     static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
     auto sections_acl = aclCreateIntArray(sections.data(), sections.size());

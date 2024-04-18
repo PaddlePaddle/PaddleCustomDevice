@@ -244,6 +244,8 @@ void SumKernel(const Context& dev_ctx,
     keep_dim = true;
   }
 
+  aclrtStream stream = static_cast<aclrtStream>(dev_ctx.stream());
+
   if (x.dims().size() == 0) {
     custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), out);
     return;
@@ -257,6 +259,7 @@ void SumKernel(const Context& dev_ctx,
       cast_x = x;
     } else {
       cast_x.Resize(x.dims());
+      dev_ctx.template Alloc<float>(&cast_x);
 
       custom_kernel::CastKernel<T, Context>(
           dev_ctx, x, phi::DataType::FLOAT32, &cast_x);
@@ -270,6 +273,7 @@ void SumKernel(const Context& dev_ctx,
   } else {
     phi::DenseTensorMeta meta = {out->dtype(), x.dims()};
     cast_x.set_meta(meta);
+    dev_ctx.Alloc(&cast_x, cast_x.dtype());
 
     custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
 

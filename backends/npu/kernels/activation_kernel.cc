@@ -846,7 +846,7 @@ void LogKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
   DO_COMPATIBILITY(
-      aclnnLog1p, (custom_kernel::AclopLogKernel<T, Context>(dev_ctx, x, out)));
+      aclnnLog, (custom_kernel::AclopLogKernel<T, Context>(dev_ctx, x, out)));
   dev_ctx.template Alloc<T>(out);
   phi::DenseTensor one;
   phi::DenseTensorMeta one_meta = {x.dtype(), x.dims()};

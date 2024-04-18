@@ -23,11 +23,11 @@ void ConcatKernel(const Context& dev_ctx,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out);
 template <typename T, typename Context>
-void SplitWithNumKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        int num,
-                        const phi::Scalar& axis_scalar,
-                        std::vector<phi::DenseTensor*> outs);
+void SplitKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::IntArray& num_or_sections,
+                 const phi::Scalar& axis_scalar,
+                 std::vector<phi::DenseTensor*> outs);
 
 template <typename T, typename Context>
 void SwiGluKernel(const Context& dev_ctx,
@@ -111,13 +111,13 @@ void SwiGluGradKernel(const Context& dev_ctx,
       custom_kernel::ConcatKernel<T, Context>(
           dev_ctx, in_tensors, &concat_dim, &concat_xy);
       EXEC_NPU_CMD(aclnnSwiGluGrad, dev_ctx, dout, concat_xy, axis, dx_temp);
-      int num_or_sections = 2;
-      auto axis_scalar = phi::Scalar(dx_temp.dims().size() - 1);
+      auto num_or_sections = phi::IntArray({2});
+      auto axis_scalar = phi::Scalar(-1);
       if (dx && dy) {
         dev_ctx.template Alloc<T>(dx);
         dev_ctx.template Alloc<T>(dy);
         std::vector<phi::DenseTensor*> outs_d = {dx, dy};
-        custom_kernel::SplitWithNumKernel<T, Context>(
+        custom_kernel::SplitKernel<T, Context>(
             dev_ctx, dx_temp, num_or_sections, axis_scalar, outs_d);
       } else if (dx) {
         dev_ctx.template Alloc<T>(dx);
@@ -125,7 +125,7 @@ void SwiGluGradKernel(const Context& dev_ctx,
         dx_fill.Resize(dx->dims());
         dev_ctx.template Alloc<T>(&dx_fill);
         std::vector<phi::DenseTensor*> outs_d = {dx, &dx_fill};
-        custom_kernel::SplitWithNumKernel<T, Context>(
+        custom_kernel::SplitKernel<T, Context>(
             dev_ctx, dx_temp, num_or_sections, axis_scalar, outs_d);
       } else if (dy) {
         dev_ctx.template Alloc<T>(dy);
@@ -133,7 +133,7 @@ void SwiGluGradKernel(const Context& dev_ctx,
         dy_fill.Resize(dy->dims());
         dev_ctx.template Alloc<T>(&dy_fill);
         std::vector<phi::DenseTensor*> outs_d = {&dy_fill, dy};
-        custom_kernel::SplitWithNumKernel<T, Context>(
+        custom_kernel::SplitKernel<T, Context>(
             dev_ctx, dx_temp, num_or_sections, axis_scalar, outs_d);
       }
     }

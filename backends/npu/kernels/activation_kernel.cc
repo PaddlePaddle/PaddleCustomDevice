@@ -407,10 +407,7 @@ void ReluGradKernel(const Context& dev_ctx,
       aclnnThresholdBackward,
       (custom_kernel::AclopReluGradKernel<T, Context>(dev_ctx, out, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
-  aclDataType acl_data_type = ConvertToNpuDtype(out.dtype());
-  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
-  auto threshold_value = static_cast<T>(0.0);
-  aclScalar* threshold = aclCreateScalar(&threshold_value, acl_data_type);
+  phi::Scalar threshold = 0.0;
   EXEC_NPU_CMD(aclnnThresholdBackward, dev_ctx, dout, out, threshold, *dx);
 }
 

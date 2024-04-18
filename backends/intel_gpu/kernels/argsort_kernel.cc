@@ -78,7 +78,8 @@ void FullSort(int input_height,
               T* input,
               T* t_out,
               int64_t* t_indices,
-              bool descending) {
+              bool descending,
+              bool stable) {
   for (int i = 0; i < input_height; ++i) {
     std::vector<std::pair<T, int>> col_vec;
     col_vec.reserve(input_width);
@@ -91,20 +92,38 @@ void FullSort(int input_height,
         col_vec.push_back(std::pair<T, int>(input[i * input_width + j], j));
       }
     }
-    std::sort(col_vec.begin(),
-              col_vec.end(),
-              [&](const std::pair<T, int>& l, const std::pair<T, int>& r) {
-                if (descending)
-                  // TODO(Zhiwei35) comparison with NaN always evaluates to
-                  // false in fast floating point modes and need to enhance
-                  return (std::isnan(static_cast<double>(l.first)) &&
-                          !std::isnan(static_cast<double>(r.first))) ||
-                         (l.first > r.first);
-                else
-                  return (!std::isnan(static_cast<double>(l.first)) &&
-                          std::isnan(static_cast<double>(r.first))) ||
-                         (l.first < r.first);
-              });
+    if (stable) {
+      std::stable_sort(
+          col_vec.begin(),
+          col_vec.end(),
+          [&](const std::pair<T, int>& l, const std::pair<T, int>& r) {
+            if (descending)
+              // TODO(Zhiwei35) comparison with NaN always evaluates to
+              // false in fast floating point modes and need to enhance
+              return (std::isnan(static_cast<double>(l.first)) &&
+                      !std::isnan(static_cast<double>(r.first))) ||
+                     (l.first > r.first);
+            else
+              return (!std::isnan(static_cast<double>(l.first)) &&
+                      std::isnan(static_cast<double>(r.first))) ||
+                     (l.first < r.first);
+          });
+    } else {
+      std::sort(col_vec.begin(),
+                col_vec.end(),
+                [&](const std::pair<T, int>& l, const std::pair<T, int>& r) {
+                  if (descending)
+                    // TODO(Zhiwei35) comparison with NaN always evaluates to
+                    // false in fast floating point modes and need to enhance
+                    return (std::isnan(static_cast<double>(l.first)) &&
+                            !std::isnan(static_cast<double>(r.first))) ||
+                           (l.first > r.first);
+                  else
+                    return (!std::isnan(static_cast<double>(l.first)) &&
+                            std::isnan(static_cast<double>(r.first))) ||
+                           (l.first < r.first);
+                });
+    }
     for (int j = 0; j < input_width; ++j) {
       t_out[i * input_width + j] = col_vec[j].first;
       t_indices[i * input_width + j] = col_vec[j].second;
@@ -117,6 +136,7 @@ void ArgsortKernel(const phi::Context& dev_ctx,
                    const phi::DenseTensor& input,
                    int axis,
                    bool descending,
+                   bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
   auto in_dims = input.dims();
@@ -131,7 +151,8 @@ void ArgsortKernel(const phi::Context& dev_ctx,
 
   show_kernel("argsort in_dims=" << in_dims << " axis=" << axis << " type="
                                  << dnn_support::type2String<T>::name()
-                                 << " desc=" << descending);
+                                 << " desc=" << descending
+                                 << " stable=" << stable);
   // TODO(Zhiwei35): support argsort with dims >=3
   PD_CHECK(in_dims.size() < 3, "PoC Lenet/Mnist use case only");
   auto* q = static_cast<sycl::queue*>(const_cast<void*>(dev_ctx.stream()));
@@ -174,7 +195,8 @@ void ArgsortKernel(const phi::Context& dev_ctx,
                 cpu_input_data,
                 cpu_output_data,
                 cpu_ids_data,
-                descending);
+                descending,
+                stable);
   } else {
     // do cpu transpose
     std::vector<int64_t> trans;
@@ -223,7 +245,8 @@ void ArgsortKernel(const phi::Context& dev_ctx,
                 trans_input_data,
                 cpu_tmp_output_data,
                 cpu_tmp_ids_data,
-                descending);
+                descending,
+                stable);
 
     Transpose<int64_t>(
         dev_ctx, cpu_tmp_ids, trans, cpu_ids_data, cpu_ids_dims, cpu_ids_numel);

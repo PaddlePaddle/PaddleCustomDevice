@@ -64,8 +64,16 @@ void ArgsortKernel(const Context& dev_ctx,
                    const phi::DenseTensor& in,
                    int axis,
                    bool descending,
+                   bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
+  // TODO(NKNaN): use stable sorting algorithm when stable==true
+  PADDLE_ENFORCE_EQ(
+      stable,
+      false,
+      phi::errors::InvalidArgument(
+          "Stable argsort kernel on npu device has not been implemented."));
+
   // TODO(Aganlengzi): Sort may change the input data !
   // Here we make a deepcopy to workaround before it is fixed.
   if (in.dims().size() == 0) {

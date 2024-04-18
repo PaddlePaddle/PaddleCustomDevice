@@ -19,6 +19,13 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void GatherKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::DenseTensor& index,
+                  const phi::Scalar& axis,
+                  phi::DenseTensor* out);
+
+template <typename T, typename Context>
 struct InterpolateFunction {
  public:
   explicit InterpolateFunction(const Context& dev_ctx) : dev_ctx(dev_ctx) {
@@ -106,13 +113,8 @@ struct InterpolateFunction {
               const phi::DenseTensor* indices,
               const int axis,
               phi::DenseTensor* y) {
-    NpuOpRunner runner;
-    runner.SetType("GatherV2")
-        .AddInput(*x)
-        .AddInput(*indices)
-        .AddInput(dev_ctx, std::vector<int32_t>{axis})
-        .AddOutput(*y);
-    runner.Run(stream);
+    custom_kernel::GatherKernel<T, Context>(
+        dev_ctx, *x, *indices, phi::Scalar(axis), y);
   }
   void GatherGrad(const phi::DenseTensor* gy,
                   const phi::DenseTensor* indices,

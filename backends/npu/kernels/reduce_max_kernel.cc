@@ -18,12 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopMaxRawKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::IntArray& axes,
-                       bool keep_dim,
-                       bool reduce_all,
-                       phi::DenseTensor* out) {
+void MaxRawKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::IntArray& axes,
+                  bool keep_dim,
+                  bool reduce_all,
+                  phi::DenseTensor* out) {
   auto dims = axes.GetData();
   dev_ctx.template Alloc<T>(out);
 
@@ -58,29 +58,6 @@ void AclopMaxRawKernel(const Context& dev_ctx,
   } else {
     const auto& runner = NpuOpRunner("ReduceMaxD", {x}, {*out}, attr_input);
     runner.Run(dev_ctx.stream());
-  }
-}
-
-template <typename T, typename Context>
-void MaxRawKernel(const Context& dev_ctx,
-                  const phi::DenseTensor& x,
-                  const phi::IntArray& axes,
-                  bool keep_dim,
-                  bool reduce_all,
-                  phi::DenseTensor* out) {
-  DO_COMPATIBILITY(aclnnAmax,
-                   (custom_kernel::AclopMaxRawKernel<T, Context>(
-                       dev_ctx, x, axes, keep_dim, reduce_all, out)));
-  dev_ctx.template Alloc<T>(out);
-
-  if (reduce_all) {
-    std::vector<int64_t> dim_vec;
-    for (int64_t i = 0; i < x.dims().size(); i++) {
-      dim_vec.push_back(i);
-    }
-    EXEC_NPU_CMD(aclnnAmax, dev_ctx, x, dim_vec, keep_dim, *out);
-  } else {
-    EXEC_NPU_CMD(aclnnAmax, dev_ctx, x, axes, keep_dim, *out);
   }
 }
 

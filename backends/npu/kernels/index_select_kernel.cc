@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopIndexSelectNPUKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& x,
-                               const phi::DenseTensor& index,
-                               int dim,
-                               phi::DenseTensor* output) {
+void IndexSelectNPUKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& index,
+                          int dim,
+                          phi::DenseTensor* output) {
   dev_ctx.template Alloc<T>(output);
 
   auto stream = dev_ctx.stream();
@@ -60,21 +60,6 @@ void AclopIndexSelectNPUKernel(const Context& dev_ctx,
         .AddOutput(*output);
     runner.Run(stream);
   }
-}
-
-template <typename T, typename Context>
-void IndexSelectNPUKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const phi::DenseTensor& index,
-                          int dim,
-                          phi::DenseTensor* output) {
-  DO_COMPATIBILITY(aclnnIndexSelect,
-                   (custom_kernel::AclopIndexSelectNPUKernel<T, Context>(
-                       dev_ctx, x, index, dim, output)));
-
-  dev_ctx.template Alloc<T>(output);
-  int64_t dim_ = dim;
-  EXEC_NPU_CMD(aclnnIndexSelect, dev_ctx, x, dim_, index, *output);
 }
 
 template <typename T, typename Context>

@@ -18,14 +18,6 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SumKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const phi::IntArray& axes,
-               phi::DataType out_dtype,
-               bool keep_dim,
-               phi::DenseTensor* out);
-
-template <typename T, typename Context>
 void TileKernelImpl(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     std::vector<int64_t> repeat_times,
@@ -236,7 +228,7 @@ void TileGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& out_grad,
                     const phi::IntArray& repeat_times,
                     phi::DenseTensor* x_grad) {
-  DO_COMPATIBILITY(aclnnSliceV2,
+  DO_COMPATIBILITY(aclnnTileGrad,
                    (custom_kernel::AclopTileGradKernel<T, Context>(
                        dev_ctx, x, out_grad, repeat_times, x_grad)));
   auto x_dims = x.dims();
@@ -250,7 +242,6 @@ void TileGradKernel(const Context& dev_ctx,
     int64_t diff = repeat_times_data.size() - vec_x_dims.size();
     vec_x_dims.insert(vec_x_dims.begin(), diff, 1);
   }
-  x_grad->Resize(phi::make_ddim(vec_x_dims));
   // 1. reshape_dims_vec is the broadcast parameter.
   // 2. reduce_dims_vec is the dimension parameter to compute gradients. For
   //    each dimension expanded, the gradients should be summed to original
@@ -295,17 +286,25 @@ void TileGradKernel(const Context& dev_ctx,
                           "to %d, but the value received is %d.",
                           MAX_RANK_SUPPORTED,
                           dims));
+    dev_ctx.template Alloc<T>(x_grad);
+    int aclDtype = ConvertToNpuDtype(x_grad->dtype());
+    auto stream = dev_ctx.stream();
 
     if (out_grad.dtype() != phi::DataType::BOOL) {
       phi::DenseTensor dout(out_grad);
       dout.Resize(phi::make_ddim(reshape_dims_vec));
+      static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+      auto reduce_dims_vec_acl =
+          aclCreateIntArray(reduce_dims_vec.data(), reduce_dims_vec.size());
       bool keep_dim = false;
-      phi::IntArray reduce_dims_arry(reduce_dims_vec);
-      custom_kernel::SumKernel<T, Context>(
-          dev_ctx, dout, reduce_dims_arry, x_grad->dtype(), keep_dim, x_grad);
-      x_grad->Resize(x_dims);
+      EXEC_NPU_CMD(aclnnReduceSum,
+                   dev_ctx,
+                   dout,
+                   reduce_dims_vec_acl,
+                   keep_dim,
+                   aclDtype,
+                   *x_grad);
     } else {
-      dev_ctx.template Alloc<T>(x_grad);
       auto x_grad_dims = origin_x_dims;
       if (out_grad.dims().size() > origin_x_dims.size()) {
         int diff = out_grad.dims().size() - origin_x_dims.size();
@@ -330,7 +329,7 @@ void TileGradKernel(const Context& dev_ctx,
                    axes_acl,
                    steps_acl,
                    *x_grad);
-      x_grad->Resize(x_dims);
+      x_grad->Resize(phi::make_ddim(origin_x_dims));
     }
   }
 }

@@ -21,7 +21,7 @@ from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
 import paddle
 import paddle.base as base
 
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 
 class TestFill_API(unittest.TestCase):
@@ -39,7 +39,6 @@ class TestFill_API(unittest.TestCase):
 
             input_np.fill(self.value)
             input.fill_(self.value)
-            print(input)
 
             self.assertTrue(
                 (input == input_np).all(),
@@ -72,10 +71,69 @@ class TestFill_BF16API(unittest.TestCase):
             )
 
 
+class TestFill_BF16API_1(TestFill_BF16API):
+    def setUp(self):
+        self.dtype = "float32"
+        self.shape = [8192]
+        self.value = 6.0
+
+
+class TestFill_BF16API_2(TestFill_BF16API):
+    def setUp(self):
+        self.dtype = "float32"
+        self.shape = [2, 4096]
+        self.value = 6.0
+
+
+class TestFill_BF16API_3(TestFill_BF16API):
+    def setUp(self):
+        self.dtype = "float32"
+        self.shape = [2, 4096, 1]
+        self.value = 6.0
+
+
+@check_run_big_shape_test()
+class TestFill_BF16API_4(TestFill_BF16API):
+    def setUp(self):
+        self.dtype = "float32"
+        self.shape = [2, 1, 4096, 4096]
+        self.value = 6.0
+
+
 class TestFill_FP16API(TestFill_API):
     def setUp(self):
         self.dtype = "float16"
         self.shape = [9, 9]
+        self.value = 6.0
+
+
+@check_run_big_shape_test()
+class TestFill_FP16API_1(TestFill_FP16API):
+    def setUp(self):
+        self.dtype = "float16"
+        self.shape = [8192]
+        self.value = 6.0
+
+
+class TestFill_FP16API_2(TestFill_FP16API):
+    def setUp(self):
+        self.dtype = "float16"
+        self.shape = [2, 4096]
+        self.value = 6.0
+
+
+class TestFill_FP16API_3(TestFill_FP16API):
+    def setUp(self):
+        self.dtype = "float16"
+        self.shape = [2, 4096, 1]
+        self.value = 6.0
+
+
+@check_run_big_shape_test()
+class TestFill_FP16API_4(TestFill_FP16API):
+    def setUp(self):
+        self.dtype = "float16"
+        self.shape = [2, 1, 4096, 4096]
         self.value = 6.0
 
 

@@ -206,13 +206,19 @@ function main() {
     IFS_DEFAULT=$IFS
     IFS=$'\n'
     if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
-      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+        disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
     elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
-      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b")
+        wget https://sys-p0.bj.bcebos.com/prec/disable_ut_npu_910B 
+        if [ -f "disable_ut_npu_910B" ];then
+            disable_ut_npu=$(cat "disable_ut_npu_910B")
+        else
+            disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b_global")
+        fi
     else
       echo "Please make sure Ascend 910A or 910B NPUs exists!"
       exit 1
     fi
+    important_ut_npu=$(cat "${CODE_ROOT}/tools/important_ut_npu")
     disable_ut_list=''
     while read -r line; do
         res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
@@ -223,24 +229,52 @@ function main() {
         fi
     done <<< "$disable_ut_npu";
     disable_ut_list+="^disable_ut_npu$"
+
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
+        disable_ut_list+="|"
+        while read -r line; do
+            res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
+            if [ $res -eq 0 ]; then
+                disable_ut_list+="^"${line}"$|"
+            else
+                echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
+            fi
+        done <<< "$important_ut_npu";
+        disable_ut_list+="^important_ut_npu$"
+    fi
+    
     echo "disable_ut_list=${disable_ut_list}"
     IFS=$IFS_DEFAULT
-    test_cases=$(ctest -N -V)
-    while read -r line; do
-        if [[ "$line" == "" ]]; then
-            continue
-        fi
-        matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
-        if [[ "$matchstr" == "" ]]; then
-            continue
-        fi
-        testcase=$(echo "$line"|grep -oEi "\w+$")
-        if [[ "$single_card_tests" == "" ]]; then
-            single_card_tests="^$testcase$"
-        else
-            single_card_tests="$single_card_tests|^$testcase$"
-        fi
-    done <<< "$test_cases";
+    if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
+        test_cases=$(ctest -N -V)
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
+            if [[ "$matchstr" == "" ]]; then
+                continue
+            fi
+            testcase=$(echo "$line"|grep -oEi "\w+$")
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$testcase$"
+            else
+                single_card_tests="$single_card_tests|^$testcase$"
+            fi
+        done <<< "$test_cases";
+    else
+        while read -r line; do
+            if [[ "$line" == "" ]]; then
+                continue
+            fi
+            if [[ "$single_card_tests" == "" ]]; then
+                single_card_tests="^$line$"
+            else
+                single_card_tests="$single_card_tests|^$line$"
+            fi
+        done <<< "$important_ut_npu";
+    fi
+    
 
     # run ut
     ut_total_startTime_s=`date +%s`

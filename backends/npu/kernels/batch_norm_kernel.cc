@@ -492,6 +492,9 @@ void BatchNormKernel(const Context& dev_ctx,
   double this_factor = 1. - momentum;
   double epsilon_d = epsilon;
 
+  saved_mean->Resize(mean_out->dims());
+  saved_variance->Resize(mean_out->dims());
+
   EXEC_NPU_CMD(aclnnBatchNorm,
                dev_ctx,
                transformed_x,

@@ -19,6 +19,7 @@ import numpy as np
 from tests.op_test import OpTest, skip_check_grad_ci
 import paddle
 import paddle.base.core as core
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -36,6 +37,34 @@ class TestNPUReduceMaxOp(OpTest):
         self.init_dtype()
 
         self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
+        self.attrs = {"dim": [-1]}
+        self.outputs = {"Out": self.inputs["X"].max(axis=tuple(self.attrs["dim"]))}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("npu", 0)
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+
+@check_run_big_shape_test()
+@skip_check_grad_ci(
+    reason="reduce_max is discontinuous non-derivable function,"
+    " its gradient check is not supported by unittest framework."
+)
+class TestNPUReduceMaxOpRank(OpTest):
+    """Remove Max with subgradient from gradient check to confirm the success of CI."""
+
+    def setUp(self):
+        self.op_type = "reduce_max"
+        self.set_npu()
+        self.init_dtype()
+
+        self.inputs = {"X": np.random.random((8192, 4000)).astype(self.dtype)}
         self.attrs = {"dim": [-1]}
         self.outputs = {"Out": self.inputs["X"].max(axis=tuple(self.attrs["dim"]))}
 

@@ -18,7 +18,7 @@ import numpy as np
 import unittest
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 
 class TestNPUSplitOpBF16(OpTest):
@@ -64,6 +64,26 @@ class TestNPUSplitOpBF16(OpTest):
 
     def test_check_grad(self):
         pass
+
+
+@check_run_big_shape_test()
+class TestNPUSplitOpRank1(TestNPUSplitOpBF16):
+    def init_data(self):
+        self.x = np.random.random((2, 4096, 1, 1280)).astype(self.dtype)
+        self.axis = 1
+        self.sections = []
+        self.num = 1
+        self.indices_or_sections = 1
+
+
+@check_run_big_shape_test()
+class TestNPUSplitOpRank2(TestNPUSplitOpBF16):
+    def init_data(self):
+        self.x = np.random.random((8192, 7168)).astype(self.dtype)
+        self.axis = 1
+        self.sections = []
+        self.num = 1
+        self.indices_or_sections = 1
 
 
 if __name__ == "__main__":

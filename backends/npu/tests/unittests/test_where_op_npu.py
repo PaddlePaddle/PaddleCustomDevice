@@ -21,6 +21,7 @@ import paddle
 import paddle.base as base
 from paddle.base.backward import append_backward
 from tests.op_test import OpTest
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -61,6 +62,14 @@ class TestNPUWhereOp3(TestNPUWhereOp):
         self.x = np.random.uniform(-3, 5, (20, 2, 4)).astype("float64")
         self.y = np.random.uniform(-3, 5, (20, 2, 4)).astype("float64")
         self.cond = np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
+
+
+@check_run_big_shape_test()
+class TestNPUWhereOp4(TestNPUWhereOp):
+    def init_config(self):
+        self.x = np.random.uniform(-3, 5, (2, 4096, 1)).astype("float32")
+        self.y = np.random.uniform(-3, 5, (2, 4096, 1)).astype("float32")
+        self.cond = np.array(np.random.randint(2, size=(2, 4096, 1)), dtype=bool)
 
 
 class TestNPUWhereFp16(TestNPUWhereOp):

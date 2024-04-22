@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 paddle.enable_static()
 
@@ -30,15 +30,25 @@ class TestMeanOp(OpTest):
 
     def setUp(self):
         self.set_npu()
+        self.init_data()
         self.op_type = "reduce_mean"
-        self.inputs = {"X": np.random.random((5, 6, 10)).astype("float32")}
+        self.inputs = {"X": self.x}
         self.outputs = {"Out": self.inputs["X"].mean(axis=0)}
+
+    def init_data(self):
+        self.x = np.random.random((5, 6, 10)).astype("float32")
 
     def test_check_output(self):
         self.check_output_with_place(paddle.CustomPlace("npu", 0))
 
     def test_check_grad(self):
         self.check_grad_with_place(paddle.CustomPlace("npu", 0), ["X"], "Out")
+
+
+@check_run_big_shape_test()
+class TestMeanOpRank1(TestMeanOp):
+    def init_data(self):
+        self.x = np.random.random((2, 4096, 1)).astype("float32")
 
 
 class TestMeanOpFP16(OpTest):

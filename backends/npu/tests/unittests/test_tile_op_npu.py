@@ -248,24 +248,30 @@ class TestTileOpBool(OpTest):
 
 
 # Situation 7: input x is Double
-class TestTileOpDouble(OpTest):
+class TestTileOpDouble(unittest.TestCase):
     def setUp(self):
-        self.set_npu()
+        self.input = np.random.randint(10, size=(2, 10, 5)).astype("double")
         self.place = paddle.CustomPlace("npu", 0)
-        self.op_type = "tile"
-        self.inputs = {"X": np.random.randint(10, size=(2, 10, 5)).astype("double")}
-        self.attrs = {"repeat_times": [2, 1, 4]}
-        output = np.tile(self.inputs["X"], (2, 1, 4))
-        self.outputs = {"Out": output}
 
-    def set_npu(self):
-        self.__class__.use_custom_device = True
+    def functional(self, place):
+        input = paddle.to_tensor(self.input, place=place)
+        input.stop_gradient = False
+        out = paddle.tile(input, [2, 1, 4])
+        grad = paddle.grad(
+            outputs=[out], inputs=[input], create_graph=False, retain_graph=True
+        )[0]
+        return out.numpy(), grad.numpy()
 
-    def test_check_output(self):
-        self.check_output_with_place(self.place)
+    def test_npu(self):
+        paddle.disable_static()
+        place = paddle.CustomPlace("npu", 0)
+        out_npu, grad_npu = self.functional(place)
 
-    def test_check_grad(self):
-        self.check_grad_with_place(self.place, ["X"], ["Out"])
+        place = paddle.CPUPlace()
+        out_cpu, grad_cpu = self.functional(place)
+
+        np.testing.assert_allclose(out_npu, out_cpu)
+        np.testing.assert_allclose(grad_npu, grad_cpu)
 
 
 # Situation 8: input x is FP16

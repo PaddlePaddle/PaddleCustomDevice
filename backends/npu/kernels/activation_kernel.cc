@@ -404,11 +404,11 @@ void ReluGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& dout,
                     phi::DenseTensor* dx) {
   DO_COMPATIBILITY(
-      aclnnThresholdBackWard,
+      aclnnThresholdBackward,
       (custom_kernel::AclopReluGradKernel<T, Context>(dev_ctx, out, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
-  float threshold = 0.0;
-  EXEC_NPU_CMD(aclnnThresholdBackWard, dev_ctx, dout, out, threshold, *dx);
+  phi::Scalar threshold = 0.0;
+  EXEC_NPU_CMD(aclnnThresholdBackward, dev_ctx, dout, out, threshold, *dx);
 }
 
 template <typename T, typename Context>

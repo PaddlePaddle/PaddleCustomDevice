@@ -26,6 +26,16 @@ docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
   -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38 .
 docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
 
+# ubuntu20.gcc84-py39
+docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
+  --build-arg PY_VERSION=3.9 \
+  --build-arg http_proxy=${proxy} \
+  --build-arg https_proxy=${proxy} \
+  --build-arg ftp_proxy=${proxy} \
+  --build-arg no_proxy=bcebos.com,baidu-int.com \
+  -t registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py39 .
+docker push registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py39
+
 # ubuntu20.gcc84-py310
 docker build --network=host -f Dockerfile.ubuntu20.$(uname -m).gcc84 \
   --build-arg PY_VERSION=3.10 \

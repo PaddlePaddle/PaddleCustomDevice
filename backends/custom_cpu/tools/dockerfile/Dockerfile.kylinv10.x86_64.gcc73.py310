@@ -92,6 +92,12 @@ RUN sed -i "s/^#PermitRootLogin/PermitRootLogin/" /etc/ssh/sshd_config && \
     sed -i "s/^#RSAAuthentication/RSAAuthentication/" /etc/ssh/sshd_config && \
     sed -i "s/#UseDNS .*/UseDNS no/" /etc/ssh/sshd_config
 
+# generate core file
+RUN echo "ulimit -c unlimited" >> /etc/profile && \
+    echo "ulimit -c unlimited" >> /root/.bashrc && \
+    echo "kernel.core_pattern=core_%e_%p_%t" >>  /etc/sysctl.conf && \
+    echo "kernel.core_uses_pid=0" >>  /etc/sysctl.conf
+
 # yum clean
 RUN yum clean all && \
     rm -rf /var/cache/yum && \

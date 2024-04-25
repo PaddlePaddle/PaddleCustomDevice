@@ -25,10 +25,10 @@ include(generic)
 include(external/ascend)
 include_directories(${CMAKE_SOURCE_DIR})
 
-option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
 option(WITH_ATB "compile with ascend transformer boost" ON)
-option(WITH_ARM "compile with armv8 support" OFF)
+option(WITH_MKL "compile with mkl support" ON)
+option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_COVERAGE "Compile PaddlePaddle with code coverage" OFF)
 
@@ -66,7 +66,7 @@ list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_KERNEL_SRCS})
 
 # custom op with kernel
 file(
-  GLOB_RECURSE CUSTOM_OPERATOR_SRCS
+  GLOB_RECURSE CUSTOM_OPERATOR_SRCS FOLLOW_SYMLINKS
   RELATIVE ${CMAKE_SOURCE_DIR}
   custom_op/*.cc)
 message(STATUS "CUSTOM_OPERATOR_SRCS=${CUSTOM_OPERATOR_SRCS}")

@@ -16,6 +16,13 @@
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
 template <typename T, typename Context>
 void LogicalNotNPUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,

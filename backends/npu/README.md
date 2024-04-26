@@ -20,17 +20,17 @@ Please refer to the following steps to compile, install and verify the custom de
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
 # Ascend 910B - check with the output of 'lspci | grep d802'
-registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu20-x86_64-gcc84-py310
+registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu20-aarch64-gcc84-py310
 
 # 2. refer to the following commands to start docker container
-docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
-    --privileged --network=host --shm-size=128G \
+docker run -it --name paddle-npu-dev -v $(pwd):/work \
+    --privileged --network=host --shm-size=128G -w=/work \
     -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
     -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
-    registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu18-$(uname -m) /bin/bash
+    registry.baidubce.com/device/paddle-npu:cann80RC1-910B-ubuntu20-$(uname -m)-py310 /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice

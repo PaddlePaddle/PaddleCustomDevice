@@ -47,12 +47,12 @@ COPY ${ASCEND_KLS} /usr/local/Ascend/
 RUN chmod +x ${ASCEND_KLS} && ./${ASCEND_KLS} --install --quiet && rm -rf ${ASCEND_KLS}
 
 # Install Ascend Transformer Boost
-ARG ASCEND_ATB=Ascend-cann-atb_${CANN_VERSION}*.run
+ARG ASCEND_ATB=Ascend-mindie_*_linux-x86_64.run
 COPY ${ASCEND_ATB} /usr/local/Ascend/
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     chmod +x ${ASCEND_ATB} && ./${ASCEND_ATB} --install --quiet && rm -rf ${ASCEND_ATB}
-# update env for atb
-RUN echo "source /usr/local/Ascend/atb/set_env.sh" >> /root/.bashrc
+# update env for mindie
+RUN echo "source /usr/local/Ascend/mindie/set_env.sh" >> /root/.bashrc
 
 # install post process ops
 COPY code-share /usr/local/Ascend/code-share/

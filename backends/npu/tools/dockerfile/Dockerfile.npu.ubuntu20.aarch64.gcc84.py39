@@ -1,6 +1,6 @@
 # Docker Image for PaddlePaddle Ascend910 NPU
 
-FROM registry.baidubce.com/device/paddle-cpu:euleros-aarch64-gcc82-py310
+FROM registry.baidubce.com/device/paddle-cpu:ubuntu20-aarch64-gcc84-py39
 LABEL maintainer="PaddlePaddle Authors <paddle-dev@baidu.com>"
 
 # HwHiAiUser
@@ -20,7 +20,8 @@ ARG CANN_VERSION
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html
-RUN yum update -y && yum install -y unzip zlib-devel libffi-devel openssl-devel pciutils net-tools sqlite-devel lapack-devel gcc-gfortran
+RUN apt-get update -y && apt-get install -y zlib1g zlib1g-dev libsqlite3-dev openssl libssl-dev libffi-dev libbz2-dev \
+    libxslt1-dev unzip pciutils net-tools libblas-dev gfortran libblas3 liblapack-dev liblapack3 libopenblas-dev
 
 # install CANN requirement
 # https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/700alpha003/softwareinstall/instg/instg_0026.html
@@ -83,10 +84,7 @@ ENV PADDLE_XCCL_BACKEND=npu
 RUN rm -rf /usr/local/Ascend/driver
 
 # Clean
+RUN apt-get clean -y
 RUN pip cache purge
-RUN yum clean all && \
-    rm -rf /var/cache/yum && \
-    rm -rf /var/lib/yum/yumdb && \
-    rm -rf /var/lib/yum/history
 
 EXPOSE 22

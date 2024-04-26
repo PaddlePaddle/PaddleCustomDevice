@@ -17,13 +17,13 @@
 set -ex
 
 # Usage:
-# export CANN_VERSION=8.0.T2
+# export CANN_VERSION=8.0.RC1
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-8.0.T2} # default 8.0.T2
+CANN_VERSION=${1:-8.0.RC1} # default 8.0.RC1
 
-# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 802
-DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80T2
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 801
+DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80RC1
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # Download packages from https://www.hiascend.com/software/cann/community first
@@ -51,15 +51,37 @@ fi
 
 if [ ${CHIP_VERSION} == "910B" ]; then
   # ubuntu20-$(uname -m)-gcc84-py38
-  docker pull iregistry.baidu-int.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
+  docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
   docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py38 \
     --build-arg CANN_VERSION=${CANN_VERSION} \
     --build-arg http_proxy=${proxy} \
     --build-arg https_proxy=${proxy} \
     --build-arg ftp_proxy=${proxy} \
     --build-arg no_proxy=bcebos.com \
-    -t iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38 .
-  docker push iregistry.baidu-int.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38
+    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38 .
+  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py38
+
+  # ubuntu20-$(uname -m)-gcc84-py39
+  docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py39
+  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py39 \
+    --build-arg CANN_VERSION=${CANN_VERSION} \
+    --build-arg http_proxy=${proxy} \
+    --build-arg https_proxy=${proxy} \
+    --build-arg ftp_proxy=${proxy} \
+    --build-arg no_proxy=bcebos.com \
+    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py39 .
+  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py39
+
+  # ubuntu20-$(uname -m)-gcc84-py310
+  docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
+  docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py310 \
+    --build-arg CANN_VERSION=${CANN_VERSION} \
+    --build-arg http_proxy=${proxy} \
+    --build-arg https_proxy=${proxy} \
+    --build-arg ftp_proxy=${proxy} \
+    --build-arg no_proxy=bcebos.com \
+    -t registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py310 .
+  docker push registry.baidubce.com/device/paddle-npu:cann${DOCKER_VERSION}-${CHIP_VERSION}-ubuntu20-$(uname -m)-gcc84-py310
 fi
 
 # ubuntu18-$(uname -m)-gcc82-py39

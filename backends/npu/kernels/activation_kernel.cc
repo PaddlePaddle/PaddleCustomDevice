@@ -24,6 +24,39 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void ScaleKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::Scalar& in_scale,
+                 const phi::Scalar& in_bias,
+                 bool bias_after_scale,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void GreaterThanKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LessThanKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LogicalAndNPUKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void WhereKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& condition,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AclopCosKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     phi::DenseTensor* out) {
@@ -1175,12 +1208,12 @@ void HardSigmoidKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSigmoidGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& out,
-                           const phi::DenseTensor& dout,
-                           float slope,
-                           float offset,
-                           phi::DenseTensor* dx) {
+void AclopHardSigmoidGradKernel(const Context& dev_ctx,
+                                const phi::DenseTensor& out,
+                                const phi::DenseTensor& dout,
+                                float slope,
+                                float offset,
+                                phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   NPUAttributeMap attr_input = {{"alpha", slope}, {"beta", offset}};
@@ -1189,6 +1222,54 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
   const auto& runner_dx =
       NpuOpRunner("HardSigmoidGrad", {dout, out}, {*dx}, attr_input);
   runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSigmoidGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& out,
+                           const phi::DenseTensor& dout,
+                           float slope,
+                           float offset,
+                           phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  int max_ = 1;
+  int min_ = 0;
+  phi::DenseTensorMeta number_meta = {phi::DataType::INT32, out.dims()};
+
+  phi::DenseTensor max_tensor;
+  max_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<int>(&max_tensor, dev_ctx, max_);
+  max_tensor.Resize(out.dims());
+
+  phi::DenseTensor min_tensor;
+  min_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<int>(&min_tensor, dev_ctx, min_);
+  min_tensor.Resize(out.dims());
+
+  phi::DenseTensorMeta out_meta = {phi::DataType::BOOL, out.dims()};
+  phi::DenseTensor min_out;
+  min_out.set_meta(out_meta);
+  phi::DenseTensor max_out;
+  max_out.set_meta(out_meta);
+  phi::DenseTensor logical_out;
+  logical_out.set_meta(out_meta);
+
+  phi::DenseTensor dout_scale;
+  phi::DenseTensorMeta dout_scale_meta = {dout.dtype(), dout.dims()};
+  dout_scale.set_meta(dout_scale_meta);
+  dev_ctx.template Alloc<T>(&dout_scale);
+  phi::Scalar scale = slope;
+  phi::Scalar bias = 0;
+  custom_kernel::ScaleKernel<T, Context>(
+      dev_ctx, dout, scale, bias, false, &dout_scale);
+
+  custom_kernel::GreaterThanKernel<T, Context>(
+      dev_ctx, out, min_tensor, &min_out);
+  custom_kernel::LessThanKernel<T, Context>(dev_ctx, out, max_tensor, &max_out);
+  custom_kernel::LogicalAndNPUKernel<T, Context>(
+      dev_ctx, min_out, max_out, &logical_out);
+  custom_kernel::WhereKernel<T, Context>(
+      dev_ctx, logical_out, dout_scale, min_tensor, dx);
 }
 
 template <typename T, typename Context>

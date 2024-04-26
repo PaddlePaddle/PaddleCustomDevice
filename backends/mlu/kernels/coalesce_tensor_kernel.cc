@@ -253,20 +253,24 @@ void CoalesceTensorKernel(const Context &dev_ctx,
       input, &numel, size_of_dtype, dev_ctx.GetPlace(), use_align, align_size);
 
   // Alloc the continuous space
-  fused_output->Resize(phi::make_ddim({static_cast<int64_t>(numel)}));
-  dev_ctx.template Alloc<T>(fused_output);
-  void *fused_tensor_ptr = fused_output;
+  void *fused_tensor_ptr = dev_ctx.Alloc(
+      &fused_output->Resize(phi::make_ddim({static_cast<int64_t>(numel)})),
+      dtype);
   VLOG(10) << "Fused tensor addr " << fused_tensor_ptr;
 
   size_t offset = 0;
   if (copy_data) {
+    phi::VisitDataType(
+        dtype,
+        FillConstantVisitor<Context>(
+            dev_ctx, fused_output, static_cast<float>(0.0), dtype));
     for (size_t i = 0; i < input.size(); ++i) {
       size_t len = static_cast<size_t>(input[i]->numel());
       auto sub_tensor =
           custom_kernel::Slice(*fused_output,
                                static_cast<int64_t>(offset),
                                static_cast<int64_t>(offset + len));
-      TensorCopy(dev_ctx, *input[i], true, &sub_tensor);
+      TensorCopy(dev_ctx, *input[i], false, &sub_tensor);
 
       offset += use_align
                     ? custom_kernel::Alignment(

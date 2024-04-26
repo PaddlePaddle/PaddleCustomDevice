@@ -39,7 +39,7 @@ cp /usr/local/Ascend/driver/version.info ./
 # ubuntu20-$(uname -m)-gcc84-py38
 sed "s#<baseimg>#registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38#g" Dockerfile.npu.ubuntu20.gcc84 > Dockerfile.npu.ubuntu20.gcc84.py38
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py38
-docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py38 \
+docker build --network=host -f Dockerfile.npu.ubuntu20.gcc84.py38 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -52,7 +52,7 @@ rm -rf Dockerfile.npu.ubuntu20.gcc84.py38
 # ubuntu20-$(uname -m)-gcc84-py39
 sed "s#<baseimg>#registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py39#g" Dockerfile.npu.ubuntu20.gcc84 > Dockerfile.npu.ubuntu20.gcc84.py39
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py39
-docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py39 \
+docker build --network=host -f Dockerfile.npu.ubuntu20.gcc84.py39 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \
@@ -65,7 +65,7 @@ rm -rf Dockerfile.npu.ubuntu20.gcc84.py39
 # ubuntu20-$(uname -m)-gcc84-py310
 sed "s#<baseimg>#registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310#g" Dockerfile.npu.ubuntu20.gcc84 > Dockerfile.npu.ubuntu20.gcc84.py310
 docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
-docker build --network=host -f Dockerfile.npu.ubuntu20.$(uname -m).gcc84.py310 \
+docker build --network=host -f Dockerfile.npu.ubuntu20.gcc84.py310 \
   --build-arg CANN_VERSION=${CANN_VERSION} \
   --build-arg http_proxy=${proxy} \
   --build-arg https_proxy=${proxy} \

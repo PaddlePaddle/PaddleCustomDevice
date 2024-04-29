@@ -84,7 +84,7 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
     sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 CMD source ~/.bashrc
 
-# generate core file
+# /proc/sys/kernel/core_pattern
 RUN mkdir -p /var/core
 
 # Clean

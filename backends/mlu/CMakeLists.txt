@@ -56,6 +56,14 @@ if(WITH_PROFILE)
        runtime/process_cnpapi_data.cc)
 endif()
 
+# custom op with kernel
+file(
+  GLOB_RECURSE CUSTOM_OPERATOR_SRCS FOLLOW_SYMLINKS
+  RELATIVE ${CMAKE_SOURCE_DIR}
+  custom_op/*.cc)
+message(STATUS "CUSTOM_OPERATOR_SRCS=${CUSTOM_OPERATOR_SRCS}")
+list(APPEND CUSTOM_NPU_SRCS ${CUSTOM_OPERATOR_SRCS})
+
 # C++ infer lib need to compatiable with CXX11
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 if(ON_INFER)
@@ -101,6 +109,13 @@ execute_process(
   OUTPUT_VARIABLE GIT_HASH
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 message(STATUS "Git commit id is: ${GIT_HASH}")
+
+execute_process(
+  COMMAND git rev-parse HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_op
+  OUTPUT_VARIABLE CUSTOM_OP_GIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+message(STATUS "Custom op git commit id is: ${CUSTOM_OP_GIT_HASH}")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)

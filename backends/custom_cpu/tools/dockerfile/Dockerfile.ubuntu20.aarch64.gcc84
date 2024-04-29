@@ -87,6 +87,9 @@ CMD source ~/.bashrc
 # https://github.com/keras-team/keras-tuner/issues/317
 ENV LD_PRELOAD=/usr/local/lib/python${PY_VERSION}/dist-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0:/lib/aarch64-linux-gnu/libGLdispatch.so.0
 
+# generate core file
+RUN mkdir -p /var/core
+
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge

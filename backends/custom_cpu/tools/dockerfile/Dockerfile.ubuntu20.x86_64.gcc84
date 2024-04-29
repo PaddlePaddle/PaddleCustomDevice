@@ -84,6 +84,9 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
     sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
 CMD source ~/.bashrc
 
+# generate core file
+RUN mkdir -p /var/core
+
 # Clean
 RUN apt-get clean -y
 RUN pip cache purge

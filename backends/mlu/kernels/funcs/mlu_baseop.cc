@@ -1165,12 +1165,12 @@ NormalizeDesc::~NormalizeDesc() {
                                  const void* start,
                                  const void* end,
                                  const void* step,
-                                 const cnnlDataType_t output_dtype,
+                                 const cnnlTensorDescriptor_t output_desc,
                                  void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlArange(handle, start, end, step, output_dtype, output));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlArange_v2(
+      handle, CNNL_COMPUTATION_FAST, start, step, output_desc, output));
 }
 
 /* static */ void MLUCnnl::Roll(const Context& ctx,

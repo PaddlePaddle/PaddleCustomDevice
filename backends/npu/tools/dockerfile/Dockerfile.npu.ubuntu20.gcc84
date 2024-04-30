@@ -48,7 +48,7 @@ COPY ${ASCEND_KLS} /usr/local/Ascend/
 RUN chmod +x ${ASCEND_KLS} && ./${ASCEND_KLS} --install --quiet && rm -rf ${ASCEND_KLS}
 
 # Install Ascend Transformer Boost
-ARG ASCEND_ATB=Ascend-mindie_*_linux-*.run
+ARG ASCEND_ATB=Ascend-mindie*linux*.run
 COPY ${ASCEND_ATB} /usr/local/Ascend/
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     chmod +x ${ASCEND_ATB} && ./${ASCEND_ATB} --install --quiet && rm -rf ${ASCEND_ATB}

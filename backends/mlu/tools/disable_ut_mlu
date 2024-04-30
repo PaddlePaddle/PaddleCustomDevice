@@ -9,3 +9,5 @@ test_set_value_op_mlu
 test_dygraph_sharding_stage_3
 test_compare_op_mlu
 test_bilinear_interp_v2_op_mlu
+test_kldiv_loss_op_mlu
+test_flash_attention_op_mlu

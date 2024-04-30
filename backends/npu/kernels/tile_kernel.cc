@@ -346,7 +346,8 @@ PD_REGISTER_PLUGIN_KERNEL(tile,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tile_grad,
                           npu,
@@ -357,4 +358,5 @@ PD_REGISTER_PLUGIN_KERNEL(tile_grad,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16
+                          phi::dtype::bfloat16) {}

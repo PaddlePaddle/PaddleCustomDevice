@@ -47,4 +47,5 @@ PD_REGISTER_PLUGIN_KERNEL(npu_identity,
                           int,
                           int64_t,
                           bool,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16
+                          phi::dtype::bfloat16) {}

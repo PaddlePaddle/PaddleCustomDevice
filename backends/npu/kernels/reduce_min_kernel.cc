@@ -106,6 +106,7 @@ PD_REGISTER_PLUGIN_KERNEL(min_raw,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}
 
 PD_REGISTER_PLUGIN_KERNEL(min,
@@ -115,4 +116,5 @@ PD_REGISTER_PLUGIN_KERNEL(min,
                           int32_t,
                           int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}

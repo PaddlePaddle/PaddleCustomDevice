@@ -44,6 +44,26 @@ void GetSize(T start, T end, T step, int64_t* size) {
               : std::ceil(std::abs((end - start) / step));
 }
 
+void GetSize(phi::dtype::float16 start,
+             phi::dtype::float16 end,
+             phi::dtype::float16 step,
+             int64_t* size) {
+  PADDLE_ENFORCE_NE(static_cast<float>(step),
+                    0,
+                    phi::errors::InvalidArgument("The step of range op should "
+                                                 "not be 0."));
+  if (static_cast<float>(start) < static_cast<float>(end)) {
+    PADDLE_ENFORCE_GT(
+        static_cast<float>(step),
+        0,
+        phi::errors::InvalidArgument(
+            "The step should be greater than 0 while start < end."));
+  }
+  *size =
+      std::ceil(std::abs((static_cast<float>(end) - static_cast<float>(start)) /
+                         static_cast<float>(step)));
+}
+
 template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
                         const phi::DenseTensor& start_t,
@@ -116,6 +136,7 @@ void ArangeKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnArange,
                    (custom_kernel::AclopArangeKernel<T, Context>(
                        dev_ctx, start, end, step, out)));
+  dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnArange, dev_ctx, start, end, step, *out);
 }
 
@@ -127,6 +148,7 @@ PD_REGISTER_PLUGIN_KERNEL(arange_tensor,
                           custom_kernel::ArangeTensorKernel,
                           int,
                           int64_t,
+                          phi::dtype::float16,
                           float,
                           double) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
@@ -140,5 +162,6 @@ PD_REGISTER_PLUGIN_KERNEL(arange,
                           custom_kernel::ArangeKernel,
                           int,
                           int64_t,
+                          phi::dtype::float16,
                           float,
                           double) {}

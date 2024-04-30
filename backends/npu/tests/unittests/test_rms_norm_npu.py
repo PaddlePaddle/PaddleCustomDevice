@@ -20,6 +20,7 @@ import numpy as np
 import paddle
 from paddle.base import core
 from tests.op_test import convert_float_to_uint16
+from npu_utils import check_run_big_shape_test
 
 from npu_utils import check_soc_version
 
@@ -126,6 +127,13 @@ class TestNPURMSNormFP32(unittest.TestCase):
 class TestNPURMSNormFP16(TestNPURMSNormFP32):
     def init_dtype(self):
         self.dtype = "float16"
+
+
+@check_run_big_shape_test()
+class TestNPURMSNormRank1(TestNPURMSNormFP32):
+    def init_shape(self):
+        self.x_shape = (1024, 8192)
+        self.gamma_shape = (8192,)
 
 
 class TestNPURMSNormBF16(TestNPURMSNormFP32):

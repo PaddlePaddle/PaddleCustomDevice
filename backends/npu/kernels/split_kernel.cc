@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopSplitKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::IntArray& num_or_sections,
-                      const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+void SplitKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::IntArray& num_or_sections,
+                 const phi::Scalar& axis_scalar,
+                 std::vector<phi::DenseTensor*> outs) {
   // need to infershape output
   auto sections = num_or_sections.GetData();
   int axis = axis_scalar.to<int>();
@@ -74,57 +74,6 @@ void AclopSplitKernel(const Context& dev_ctx,
         .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
     auto stream = dev_ctx.stream();
     runner.Run(stream);
-  }
-}
-
-template <typename T, typename Context>
-void SplitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::IntArray& num_or_sections,
-                 const phi::Scalar& axis_scalar,
-                 std::vector<phi::DenseTensor*> outs) {
-  DO_COMPATIBILITY(aclnnSplit,
-                   (custom_kernel::AclopSplitKernel<T, Context>(
-                       dev_ctx, x, num_or_sections, axis_scalar, outs)));
-  // need to infershape output
-  auto sections = num_or_sections.GetData();
-  int64_t axis = axis_scalar.to<int64_t>();
-
-  if (!num_or_sections.FromTensor() && !axis_scalar.FromTensor() &&
-      // when the outs.size() does not match to the sections[0],
-      // the ascend op "Split" will fail. So we change this situation
-      // to SplitWithNum to resize outs.
-      sections.size() == 1 && outs.size() == sections[0]) {
-    uint64_t splitSections = x.dims()[axis] / sections[0];
-    std::vector<phi::DenseTensor> outputs;
-    for (size_t j = 0; j < outs.size(); ++j) {
-      dev_ctx.template Alloc<T>(outs[j]);
-      outputs.push_back(*outs[j]);
-    }
-    EXEC_NPU_CMD(aclnnSplitTensor, dev_ctx, x, splitSections, axis, outputs);
-  } else {
-    std::vector<phi::MetaTensor> out_metas;
-    out_metas.reserve(outs.size());
-    std::vector<phi::MetaTensor*> out_metas_ptr;
-    for (size_t i = 0; i < outs.size(); ++i) {
-      out_metas.push_back(outs[i]);
-      out_metas_ptr.push_back(&out_metas.back());
-    }
-
-    phi::SplitInferMeta(x, num_or_sections, axis_scalar, out_metas_ptr);
-
-    for (size_t i = 0; i < out_metas.size(); ++i) {
-      outs[i]->Resize(out_metas[i].dims());
-    }
-
-    std::vector<phi::DenseTensor> outputs;
-    for (size_t j = 0; j < outs.size(); ++j) {
-      dev_ctx.template Alloc<T>(outs[j]);
-      outputs.push_back(*outs[j]);
-    }
-    static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
-    auto sections_acl = aclCreateIntArray(sections.data(), sections.size());
-    EXEC_NPU_CMD(aclnnSplitWithSize, dev_ctx, x, sections_acl, axis, outputs);
   }
 }
 

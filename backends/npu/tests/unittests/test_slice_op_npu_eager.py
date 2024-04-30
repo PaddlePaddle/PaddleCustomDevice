@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 import paddle
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 SEED = 2021
 EPOCH = 100
@@ -70,6 +70,18 @@ class TestSliceOpBF16Tensor(OpTest):
         self.check_grad_with_place(
             self.place, ["Input"], "Out", max_relative_error=0.004
         )
+
+
+@check_run_big_shape_test()
+class TestTestSliceOpBF16Rank(TestSliceOpBF16Tensor):
+    def config(self):
+        np_input = np.random.random([8192, 8192]).astype("float32")
+        self.input = convert_float_to_uint16(np_input)
+        self.starts = np.array([0]).astype("int32")
+        self.ends = np.array([1]).astype("int32")
+        self.axes = [1]
+        self.infer_flags = [-1]
+        self.out = convert_uint16_to_float(self.input)[:, 0:1]
 
 
 if __name__ == "__main__":

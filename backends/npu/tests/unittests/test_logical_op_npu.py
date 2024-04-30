@@ -42,6 +42,7 @@ TEST_META_SHAPE_DATA = {
     "Axis1InLargerDim": {"x_shape": [1, 4, 5], "y_shape": [2, 3, 1, 5]},
     "EqualDim1": {"x_shape": [10, 7], "y_shape": [10, 7]},
     "EqualDim2": {"x_shape": [1, 1, 4, 5], "y_shape": [2, 3, 1, 5]},
+    "EqualDim3": {"x_shape": [8192], "y_shape": [8192]},
 }
 
 TEST_META_WRONG_SHAPE_DATA = {

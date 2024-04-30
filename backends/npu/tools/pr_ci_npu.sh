@@ -228,9 +228,10 @@ function main() {
             echo "Found ${line} code changed, ignore ut list disabled in disable_ut_npu"
         fi
     done <<< "$disable_ut_npu";
-    disable_ut_list+="^disable_ut_npu$|"
+    disable_ut_list+="^disable_ut_npu$"
 
     if [ "${TEST_IMPORTANT:-OFF}" == "OFF" ]; then
+        disable_ut_list+="|"
         while read -r line; do
             res=$(echo "${changed_ut_list[@]}" | grep "${line}" | wc -l)
             if [ $res -eq 0 ]; then
@@ -266,15 +267,10 @@ function main() {
             if [[ "$line" == "" ]]; then
                 continue
             fi
-            matchstr=$(echo $line|grep -oEi 'Test[ \t]+#') || true
-            if [[ "$matchstr" == "" ]]; then
-                continue
-            fi
-            testcase=$(echo "$line"|grep -oEi "\w+$")
             if [[ "$single_card_tests" == "" ]]; then
-                single_card_tests="^$testcase$"
+                single_card_tests="^$line$"
             else
-                single_card_tests="$single_card_tests|^$testcase$"
+                single_card_tests="$single_card_tests|^$line$"
             fi
         done <<< "$important_ut_npu";
     fi

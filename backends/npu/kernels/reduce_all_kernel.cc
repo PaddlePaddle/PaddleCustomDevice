@@ -17,6 +17,22 @@
 
 namespace custom_kernel {
 
+std::vector<int64_t> GetDimToReduce(const phi::DenseTensor& x,
+                                    const std::vector<int64_t>& dims,
+                                    bool reduce_all) {
+  bool reduce_all_f = dims.size() == 0 ||
+                      static_cast<int>(dims.size()) == x.dims().size() ||
+                      reduce_all;
+  std::vector<int64_t> dims_vec = dims;
+  if (reduce_all_f) {
+    dims_vec.clear();
+    for (size_t i = 0; i < x.dims().size(); ++i) {
+      dims_vec.push_back(static_cast<int64_t>(i));
+    }
+  }
+  return dims_vec;
+}
+
 template <typename T, typename Context>
 void AclopAllRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
@@ -24,21 +40,12 @@ void AclopAllRawKernel(const Context& dev_ctx,
                        bool keep_dim,
                        bool reduce_all,
                        phi::DenseTensor* out) {
-  bool reduce_all_f = dims.size() == 0 ||
-                      static_cast<int>(dims.size()) == x.dims().size() ||
-                      reduce_all;
-  std::vector<int64_t> dims_vec = dims;
   dev_ctx.template Alloc<T>(out);
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, x, true, out);
     return;
   }
-  if (reduce_all_f) {
-    dims_vec.clear();
-    for (size_t i = 0; i < x.dims().size(); ++i) {
-      dims_vec.push_back(static_cast<int64_t>(i));
-    }
-  }
+  std::vector<int64_t> dims_vec = GetDimToReduce(x, dims, reduce_all);
   auto stream = dev_ctx.stream();
   NpuOpRunner runner;
   runner.SetType("ReduceAll")
@@ -69,7 +76,8 @@ void AllRawKernel(const Context& dev_ctx,
     TensorCopy(dev_ctx, x, true, out);
     return;
   }
-  EXEC_NPU_CMD(aclnnAll, dev_ctx, x, dims, keep_dim, *out);
+  std::vector<int64_t> dims_vec = GetDimToReduce(x, dims, reduce_all);
+  EXEC_NPU_CMD(aclnnAll, dev_ctx, x, dims_vec, keep_dim, *out);
 }
 
 template <typename T, typename Context>

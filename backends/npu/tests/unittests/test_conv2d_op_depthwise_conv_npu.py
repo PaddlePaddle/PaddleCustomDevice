@@ -176,10 +176,6 @@ def create_test_fp16_class(parent):
     globals()[cls_name] = TestFp16Case
 
 
-# TODO(Aganlengzi)
-@unittest.skipIf(
-    True, "CANN5.0.4 Issue: https://gitee.com/Ascend/modelzoo/issues/I4TBLP"
-)
 class TestDepthwiseConvNPU(OpTest):
     def setUp(self):
         self.set_npu()
@@ -335,10 +331,6 @@ class TestDepthwiseConvNPU4(TestDepthwiseConvNPU):
         self.filter_size = [12, f_c, 3, 3]
 
 
-# TODO(Aganlengzi)
-@unittest.skipIf(
-    True, "CANN5.0.4 Issue: https://gitee.com/Ascend/modelzoo/issues/I4TBLP"
-)
 class TestDepthwiseConvNPU_Padding(OpTest):
     def setUp(self):
         self.op_type = "depthwise_conv2d"

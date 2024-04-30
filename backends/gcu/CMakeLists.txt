@@ -43,9 +43,9 @@ include_directories(${CMAKE_SOURCE_DIR})
 include_directories(/opt/tops/include)
 
 set(OUTPUT_PADDLE_PACKAGE_VERSION "${PADDLE_VERSION}.${PACKAGE_VERSION}")
-option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
+option(WITH_MKL "compile with mkl support" ON)
 option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 

@@ -16,6 +16,13 @@
 #include "kernels/funcs/npu_op_runner.h"
 
 namespace custom_kernel {
+
+template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
 template <typename T, typename Context>
 void LogicalNotNPUKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
@@ -65,10 +72,10 @@ void LogicalOrNPUKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogicalAndNPUKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
-                         const phi::DenseTensor& y,
-                         phi::DenseTensor* out) {
+void AclopLogicalAndNPUKernel(const Context& dev_ctx,
+                              const phi::DenseTensor& x,
+                              const phi::DenseTensor& y,
+                              phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
@@ -87,6 +94,26 @@ void LogicalAndNPUKernel(const Context& dev_ctx,
                            {phi::DataType::BOOL, phi::DataType::BOOL},
                            {phi::DataType::BOOL});
 }
+
+template <typename T, typename Context>
+void LogicalAndNPUKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnLogicalAnd,
+                   (custom_kernel::AclopLogicalAndNPUKernel<T, Context>(
+                       dev_ctx, x, y, out)));
+
+  dev_ctx.template Alloc<bool>(out);
+  phi::DenseTensor transformed_out;
+  transformed_out.Resize(out->dims());
+  dev_ctx.template Alloc<T>(&transformed_out);
+
+  EXEC_NPU_CMD(aclnnLogicalAnd, dev_ctx, x, y, transformed_out);
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, transformed_out, phi::DataType::BOOL, out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(logical_not,

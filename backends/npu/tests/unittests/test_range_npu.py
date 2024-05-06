@@ -93,5 +93,17 @@ class TestInt64RangeOpCase2(TestRangeOp):
         self.case = (-1, -10, -2)
 
 
+class TestFp16RangeOpCase1(TestRangeOp):
+    def init_config(self):
+        self.dtype = np.float32
+        self.case = (0, 1, 0.2)
+
+
+class TestFp16RangeOpCase2(TestRangeOp):
+    def init_config(self):
+        self.dtype = np.float32
+        self.case = (0, 5, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

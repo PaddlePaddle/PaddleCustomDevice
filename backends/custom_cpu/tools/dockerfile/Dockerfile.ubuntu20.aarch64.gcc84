@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y software-properties-common && add-apt-r
 RUN apt-get update && apt-get install -y curl wget vim git unzip unrar tar ntp xz-utils libssl-dev bzip2 gzip make automake \
     coreutils language-pack-zh-hans libsm6 libxext6 libxrender-dev libgl1-mesa-glx libsqlite3-dev libopenblas-dev liblapack3 \
     bison libjpeg-dev zlib1g zlib1g-dev swig locales net-tools libtool numactl libnuma-dev liblzma-dev libbz2-dev libblas-dev \
-    openssl openssh-server libffi-dev pciutils libblas3 liblapack-dev default-jre libgcc-s1 gcc g++ gfortran gdb
+    openssl openssh-server libffi-dev pciutils libblas3 liblapack-dev libzstd-dev default-jre libgcc-s1 gcc g++ gfortran gdb
 
 # add bash envs
 COPY root/ /root/
@@ -69,14 +69,18 @@ RUN wget -q --no-check-certificate https://github.com/NixOS/patchelf/archive/ref
     make -j16 > /dev/null && make install > /dev/null && \
     cd .. && rm -rf patchelf-0.14.5 && rm -rf 0.14.5.tar.gz
 
-# ccache 4.8.2
-RUN wget -q https://paddle-ci.gz.bcebos.com/ccache-4.8.2.tar.gz && \
-    tar xf ccache-4.8.2.tar.gz && mkdir /usr/local/ccache-4.8.2 && cd ccache-4.8.2 && \
+# ccache 4.6.3
+RUN wget -q https://github.com/ccache/ccache/releases/download/v4.6.3/ccache-4.6.3.tar.gz && \
+    tar xf ccache-4.6.3.tar.gz && mkdir /usr/local/ccache-4.6.3 && cd ccache-4.6.3 && \
     mkdir build && cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/ccache-4.8.2 ..  > /dev/null && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DREDIS_STORAGE_BACKEND=OFF \
+    -DCMAKE_INSTALL_PREFIX=/usr/local/ccache-4.6.3 ..  > /dev/null && \
     make -j16 > /dev/null && make install > /dev/null && \
-    cd ../../ && rm -rf ccache-4.8.2.tar.gz && rm -rf ccache-4.8.2 && \
-    ln -s /usr/local/ccache-4.8.2/bin/ccache /usr/local/bin/ccache
+    cd ../../ && rm -rf ccache-4.6.3.tar.gz && rm -rf ccache-4.6.3 && \
+    ln -s /usr/local/ccache-4.6.3/bin/ccache /usr/local/bin/ccache
+ENV CCACHE_MAXSIZE=80G \
+    CCACHE_LIMIT_MULTIPLE=0.8 \
+    CCACHE_SLOPPINESS=clang_index_store,time_macros,include_file_mtime
 
 # Configure OpenSSH server. c.f. https://docs.docker.com/engine/examples/running_ssh_service
 RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
@@ -85,7 +89,10 @@ RUN mkdir /var/run/sshd && echo 'root:root' | chpasswd && \
 CMD source ~/.bashrc
 
 # https://github.com/keras-team/keras-tuner/issues/317
-ENV LD_PRELOAD=/usr/local/lib/python${PY_VERSION}/dist-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0
+ENV LD_PRELOAD=/usr/local/lib/python${PY_VERSION}/dist-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0:/lib/aarch64-linux-gnu/libGLdispatch.so.0
+
+# /proc/sys/kernel/core_pattern
+RUN mkdir -p /var/core
 
 # Clean
 RUN apt-get clean -y

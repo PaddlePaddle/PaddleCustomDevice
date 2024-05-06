@@ -415,7 +415,7 @@ void AdamwKernel(const Context& dev_ctx,
     return;
   }
 
-  if (!skip_update_ && with_decay) {
+  if (!skip_update_) {
     phi::DenseTensor one;
     phi::DenseTensor decay;
     phi::DenseTensor tmp;
@@ -430,6 +430,10 @@ void AdamwKernel(const Context& dev_ctx,
 
     FillNpuTensorWithConstant<MPDType>(
         &one, dev_ctx, static_cast<MPDType>(1.0f));
+
+    if (!with_decay) {
+      coeff = 0.0f;
+    }
     NPUAttributeMap attr_input = {{"value", coeff}};
 
     auto stream = dev_ctx.stream();

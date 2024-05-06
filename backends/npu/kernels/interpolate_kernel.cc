@@ -106,13 +106,7 @@ struct InterpolateFunction {
               const phi::DenseTensor* indices,
               const int axis,
               phi::DenseTensor* y) {
-    NpuOpRunner runner;
-    runner.SetType("GatherV2")
-        .AddInput(*x)
-        .AddInput(*indices)
-        .AddInput(dev_ctx, std::vector<int32_t>{axis})
-        .AddOutput(*y);
-    runner.Run(stream);
+    EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, *x, axis, *indices, *y);
   }
   void GatherGrad(const phi::DenseTensor* gy,
                   const phi::DenseTensor* indices,
@@ -412,9 +406,13 @@ void BilinearFwdNpu(const Context& dev_ctx,
   out_x4.Resize({4, outdim[0], outdim[1], outdim[2], outdim[3]});
   dev_ctx.template Alloc<T>(&out_x4);
   phi::DenseTensor input_gather_h0_w0 = custom_kernel::Slice(out_x4, 0, 1);
+  input_gather_h0_w0.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h0_w1 = custom_kernel::Slice(out_x4, 1, 2);
+  input_gather_h0_w1.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h1_w0 = custom_kernel::Slice(out_x4, 2, 3);
+  input_gather_h1_w0.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h1_w1 = custom_kernel::Slice(out_x4, 3, 4);
+  input_gather_h1_w1.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   F.Gather(&input_gather_h0, &w0, axis_w, &input_gather_h0_w0);
   F.Gather(&input_gather_h0, &w1, axis_w, &input_gather_h0_w1);
   F.Gather(&input_gather_h1, &w0, axis_w, &input_gather_h1_w0);

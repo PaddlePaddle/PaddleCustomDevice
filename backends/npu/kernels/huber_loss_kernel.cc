@@ -99,7 +99,43 @@ void HuberLossSmoothL1Loss(const Context& dev_ctx,
                            float delta,
                            phi::DenseTensor* z) {
   z->Resize(x->dims());
-  SmoothL1LossKernel<T, Context>(dev_ctx, x, y, delta, z);
+  custom_kernel::SmoothL1LossKernel<T, Context>(dev_ctx, x, y, delta, z);
+}
+
+template <typename T, typename Context>
+void AclopSmoothL1LossGrad(const Context& dev_ctx,
+                           const phi::DenseTensor* pred,
+                           const phi::DenseTensor* lab,
+                           const phi::DenseTensor* dout,
+                           float sigma,
+                           phi::DenseTensor* grad) {
+  dev_ctx.template Alloc<T>(grad);
+  const auto& runner = NpuOpRunner(
+      "SmoothL1LossGrad", {*pred, *lab, *dout}, {*grad}, {{"sigma", sigma}});
+  runner.Run(dev_ctx.stream());
+}
+
+template <typename T, typename Context>
+void SmoothL1LossGrad(const Context& dev_ctx,
+                      const phi::DenseTensor* pred,
+                      const phi::DenseTensor* lab,
+                      const phi::DenseTensor* dout,
+                      float sigma,
+                      phi::DenseTensor* grad) {
+  DO_COMPATIBILITY(aclnnSmoothL1LossBackward,
+                   (custom_kernel::AclopSmoothL1LossGrad<T, Context>(
+                       dev_ctx, pred, lab, dout, sigma, grad)));
+
+  dev_ctx.template Alloc<T>(grad);
+  int64_t reduction = 0;  // none
+  EXEC_NPU_CMD(aclnnSmoothL1LossBackward,
+               dev_ctx,
+               *dout,
+               *pred,
+               *lab,
+               reduction,
+               sigma,
+               *grad);
 }
 
 template <typename T, typename Context>
@@ -110,10 +146,8 @@ void HuberLossSmoothL1LossGrad(const Context& dev_ctx,
                                float sigma,
                                phi::DenseTensor* grad) {
   grad->Resize(pred->dims());
-  dev_ctx.template Alloc<T>(grad);
-  const auto& runner = NpuOpRunner(
-      "SmoothL1LossGrad", {*pred, *lab, *dout}, {*grad}, {{"sigma", sigma}});
-  runner.Run(dev_ctx.stream());
+  custom_kernel::SmoothL1LossGrad<T, Context>(
+      dev_ctx, pred, lab, dout, sigma, grad);
 }
 
 template <typename T, typename Context>
@@ -137,8 +171,6 @@ void HuberLossGradKernel(const Context& dev_ctx,
                          float delta,
                          phi::DenseTensor* dx,
                          phi::DenseTensor* dy) {
-  auto stream = dev_ctx.stream();
-
   phi::DenseTensor t_grad_rd;
   if (dx || dy) {
     phi::DenseTensor t_zero;

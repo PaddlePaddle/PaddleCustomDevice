@@ -48,10 +48,10 @@ void LogicalNotNPUKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogicalOrNPUKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        phi::DenseTensor* out) {
+void AclopLogicalOrNPUKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
 
   auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
@@ -69,6 +69,27 @@ void LogicalOrNPUKernel(const Context& dev_ctx,
                            op_func,
                            {phi::DataType::BOOL, phi::DataType::BOOL},
                            {phi::DataType::BOOL});
+}
+
+template <typename T, typename Context>
+void LogicalOrNPUKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnLogicalOr,
+      (custom_kernel::AclopLogicalOrNPUKernel<T, Context>(dev_ctx, x, y, out)));
+
+  dev_ctx.template Alloc<bool>(out);
+
+  phi::DenseTensor transformed_out;
+  transformed_out.Resize(out->dims());
+  dev_ctx.template Alloc<T>(&transformed_out);
+
+  EXEC_NPU_CMD(aclnnLogicalOr, dev_ctx, x, y, transformed_out);
+
+  custom_kernel::CastKernel<T, Context>(
+      dev_ctx, transformed_out, phi::DataType::BOOL, out);
 }
 
 template <typename T, typename Context>

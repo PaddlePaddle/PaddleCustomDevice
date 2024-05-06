@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AnyKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               const std::vector<int64_t>& dims,
-               bool keep_dim,
-               phi::DenseTensor* out) {
+void AclopAnyKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const std::vector<int64_t>& dims,
+                    bool keep_dim,
+                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   if (x.dims().size() == 0) {
     TensorCopy(dev_ctx, x, true, out);
@@ -49,6 +49,24 @@ void AnyKernel(const Context& dev_ctx,
       .AddAttr("keep_dims", keep_dim);
   auto stream = dev_ctx.stream();
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void AnyKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const std::vector<int64_t>& dims,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnAny,
+                   (custom_kernel::AclopAnyKernel<T, Context>(
+                       dev_ctx, x, dims, keep_dim, out)));
+  dev_ctx.template Alloc<T>(out);
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, true, out);
+    return;
+  }
+  phi::IntArray dim_arr(dims);
+  EXEC_NPU_CMD(aclnnAny, dev_ctx, x, dim_arr, keep_dim, *out);
 }
 
 }  // namespace custom_kernel

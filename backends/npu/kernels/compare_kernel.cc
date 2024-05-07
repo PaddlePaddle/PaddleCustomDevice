@@ -132,11 +132,11 @@ void NotEqualKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LessEqualRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        int axis,
-                        phi::DenseTensor* out) {
+void AclopLessEqualRawKernel(const Context& dev_ctx,
+                             const phi::DenseTensor& x,
+                             const phi::DenseTensor& y,
+                             int axis,
+                             phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
   if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
     auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
@@ -158,6 +158,35 @@ void LessEqualRawKernel(const Context& dev_ctx,
     auto stream = dev_ctx.stream();
     const auto& runner = NpuOpRunner("LessEqual", {x, y}, {*out}, {});
     runner.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void LessEqualRawKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        int axis,
+                        phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnLeTensor,
+                   (custom_kernel::AclopLessEqualRawKernel<T, Context>(
+                       dev_ctx, x, y, axis, out)));
+  dev_ctx.template Alloc<bool>(out);
+  if (x.dtype() == phi::DataType::BOOL || y.dtype() == phi::DataType::BOOL) {
+    phi::DenseTensor x_int;
+    phi::DenseTensorMeta x_meta = {phi::DataType::UINT8, x.dims()};
+    x_int.set_meta(x_meta);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, x, phi::DataType::UINT8, &x_int);
+
+    // cast y to UINT8
+    phi::DenseTensor y_int;
+    phi::DenseTensorMeta y_meta = {phi::DataType::UINT8, y.dims()};
+    y_int.set_meta(y_meta);
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, y, phi::DataType::UINT8, &y_int);
+    EXEC_NPU_CMD(aclnnLeTensor, dev_ctx, x_int, y_int, *out);
+  } else {
+    EXEC_NPU_CMD(aclnnLeTensor, dev_ctx, x, y, *out);
   }
 }
 

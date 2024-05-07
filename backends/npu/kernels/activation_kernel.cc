@@ -1968,12 +1968,12 @@ PD_REGISTER_PLUGIN_KERNEL(hardsigmoid,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::HardSigmoidGradKernel,
-                          float,
-                          phi::dtype::float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
+//                           npu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::HardSigmoidGradKernel,
+//                           float,
+//                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,

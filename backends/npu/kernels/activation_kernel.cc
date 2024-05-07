@@ -1580,12 +1580,34 @@ void HardshrinkGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ReciprocalKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+void AclopReciprocalKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Reciprocal", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ReciprocalKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnReciprocal,
+      (custom_kernel::AclopReciprocalKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnReciprocal, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopReciprocalGradKernel(const Context& dev_ctx,
+                               const phi::DenseTensor& out,
+                               const phi::DenseTensor& dout,
+                               phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
 }
 
@@ -1594,10 +1616,20 @@ void ReciprocalGradKernel(const Context& dev_ctx,
                           const phi::DenseTensor& out,
                           const phi::DenseTensor& dout,
                           phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnMul,
+                   (custom_kernel::AclopReciprocalGradKernel<T, Context>(
+                       dev_ctx, out, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
-  runner.Run(stream);
+  phi::DenseTensor out_tmp;
+  out_tmp.Resize(out.dims());
+  dev_ctx.template Alloc<T>(&out_tmp);
+  auto neg_one_value = static_cast<T>(-1.0);
+  aclDataType acl_data_type = ConvertToNpuDtype(out.dtype());
+  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
+  aclScalar* acl_scalar_one = aclCreateScalar(&neg_one_value, acl_data_type);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, out, out, out_tmp);
+  EXEC_NPU_CMD(aclnnMuls, dev_ctx, out_tmp, acl_scalar_one, out_tmp);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, out_tmp, *dx);
 }
 
 template <typename T, typename Context>

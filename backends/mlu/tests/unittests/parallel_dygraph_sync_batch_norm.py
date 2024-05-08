@@ -16,7 +16,6 @@ import numpy as np
 from test_dist_base import TestParallelDyGraphRunnerBase, runtime_main
 
 import paddle
-from paddle import base
 from paddle.nn import Conv2D, SyncBatchNorm
 
 
@@ -75,7 +74,7 @@ class TestSyncBatchNorm(TestParallelDyGraphRunnerBase):
             batch_size=32,
             drop_last=True,
         )
-        opt = base.optimizer.Adam(learning_rate=1e-3, parameter_list=model.parameters())
+        opt = paddle.optimizer.Adam(learning_rate=1e-3, parameters=model.parameters())
         return model, train_reader, opt
 
     def run_one_loop(self, model, opt, data):

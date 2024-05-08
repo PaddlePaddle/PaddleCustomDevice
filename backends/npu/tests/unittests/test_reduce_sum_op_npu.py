@@ -19,6 +19,7 @@ import unittest
 import numpy as np
 import paddle
 from tests.op_test import OpTest
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 SEED = 2021
@@ -86,6 +87,13 @@ class TestReduceSumOp5D(TestReduceSum):
     def initTestCase(self):
         self.shape = (1, 2, 5, 6, 10)
         self.axis = (-1, -2)
+
+
+@check_run_big_shape_test()
+class TestReduceSumOpRank1(TestReduceSum):
+    def initTestCase(self):
+        self.shape = (2, 4096, 1)
+        self.axis = (0,)
 
 
 class TestKeepDimReduce(TestReduceSum):

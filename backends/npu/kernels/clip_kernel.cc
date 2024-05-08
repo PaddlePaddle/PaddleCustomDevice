@@ -18,6 +18,31 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void GreaterEqualKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LessEqualKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& y,
+                     phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LogicalAndNPUKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void WhereKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& condition,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AclopClipKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::Scalar& min,
@@ -115,11 +140,48 @@ void ClipGradKernel(const Context& dev_ctx,
                     const phi::Scalar& min,
                     const phi::Scalar& max,
                     phi::DenseTensor* dx) {
-  DO_COMPATIBILITY(aclnnHardtanhBackward,
-                   (custom_kernel::AclopClipGradKernel<T, Context>(
-                       dev_ctx, x, dout, min, max, dx)));
+  // The underlying TBE implementation of the hartanh contains the operation
+  // of multiplying max and x. The default value of max is the maximum  value
+  // of float32. The product of max and x will cause overflow.
+  // Therefore, the where logic and small operator are used for combination.
+
   dev_ctx.template Alloc<T>(dx);
-  EXEC_NPU_CMD(aclnnHardtanhBackward, dev_ctx, dout, x, min, max, *dx);
+  auto max_ = max.to<T>();
+  auto min_ = min.to<T>();
+  phi::DenseTensorMeta number_meta = {x.dtype(), x.dims()};
+
+  phi::DenseTensor max_tensor;
+  max_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<T>(&max_tensor, dev_ctx, max_);
+  max_tensor.Resize(x.dims());
+
+  phi::DenseTensor min_tensor;
+  min_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<T>(&min_tensor, dev_ctx, min_);
+  min_tensor.Resize(x.dims());
+
+  int zero_ = 0;
+  phi::DenseTensorMeta zero_meta = {phi::DataType::INT32, x.dims()};
+  phi::DenseTensor zero_tensor;
+  zero_tensor.set_meta(zero_meta);
+  FillNpuTensorWithConstant<int>(&zero_tensor, dev_ctx, zero_);
+  zero_tensor.Resize(x.dims());
+
+  phi::DenseTensorMeta out_meta = {phi::DataType::BOOL, x.dims()};
+  phi::DenseTensor min_out;
+  min_out.set_meta(out_meta);
+  phi::DenseTensor max_out;
+  max_out.set_meta(out_meta);
+  phi::DenseTensor logical_out;
+  logical_out.set_meta(out_meta);
+
+  custom_kernel::GreaterEqualKernel<T, Context>(
+      dev_ctx, x, min_tensor, &min_out);
+  custom_kernel::LessEqualKernel<T, Context>(dev_ctx, x, max_tensor, &max_out);
+  custom_kernel::LogicalAndNPUKernel<T, Context>(
+      dev_ctx, min_out, max_out, &logical_out);
+  custom_kernel::WhereKernel<T, Context>(
+      dev_ctx, logical_out, dout, zero_tensor, dx);
 }
 
 }  // namespace custom_kernel

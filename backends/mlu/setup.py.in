@@ -13,6 +13,7 @@ full_version  = '@PADDLE_VERSION@'
 git_commit_id = '@GIT_HASH@'
 cntoolkit_version  = '@CNTOOLKIT_VERSION@'
 cnnl_version  = '@CNNL_VERSION@'
+cnnl_extra_version = '@CNNL_EXTRA_VERSION@'
 cncl_version  = '@CNCL_VERSION@'
 mluops_version  = '@MLUOPS_VERSION@'
 
@@ -43,6 +44,7 @@ def version():
     print('commit:', git_commit_id)
     print('cntoolkit:', cntoolkit_version)
     print('cnnl:', cnnl_version)
+    print('cnnl_extra:', cnnl_extra_version)
     print('cncl:', cncl_version)
     print('mluops:', mluops_version)
 '''

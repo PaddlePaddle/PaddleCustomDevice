@@ -24,6 +24,39 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void ScaleKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::Scalar& in_scale,
+                 const phi::Scalar& in_bias,
+                 bool bias_after_scale,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void GreaterThanKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& x,
+                       const phi::DenseTensor& y,
+                       phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LessThanKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void LogicalAndNPUKernel(const Context& dev_ctx,
+                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& y,
+                         phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void WhereKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& condition,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AclopCosKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     phi::DenseTensor* out) {
@@ -404,11 +437,11 @@ void ReluGradKernel(const Context& dev_ctx,
                     const phi::DenseTensor& dout,
                     phi::DenseTensor* dx) {
   DO_COMPATIBILITY(
-      aclnnThresholdBackWard,
+      aclnnThresholdBackward,
       (custom_kernel::AclopReluGradKernel<T, Context>(dev_ctx, out, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
-  float threshold = 0.0;
-  EXEC_NPU_CMD(aclnnThresholdBackWard, dev_ctx, dout, out, threshold, *dx);
+  phi::Scalar threshold = 0.0;
+  EXEC_NPU_CMD(aclnnThresholdBackward, dev_ctx, dout, out, threshold, *dx);
 }
 
 template <typename T, typename Context>
@@ -846,7 +879,7 @@ void LogKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                phi::DenseTensor* out) {
   DO_COMPATIBILITY(
-      aclnnLog, (custom_kernel::AclopLogKernel<T, Context>(dev_ctx, x, out)));
+      aclnnLog1p, (custom_kernel::AclopLogKernel<T, Context>(dev_ctx, x, out)));
   dev_ctx.template Alloc<T>(out);
   phi::DenseTensor one;
   phi::DenseTensorMeta one_meta = {x.dtype(), x.dims()};
@@ -1175,12 +1208,12 @@ void HardSigmoidKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void HardSigmoidGradKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& out,
-                           const phi::DenseTensor& dout,
-                           float slope,
-                           float offset,
-                           phi::DenseTensor* dx) {
+void AclopHardSigmoidGradKernel(const Context& dev_ctx,
+                                const phi::DenseTensor& out,
+                                const phi::DenseTensor& dout,
+                                float slope,
+                                float offset,
+                                phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
 
   NPUAttributeMap attr_input = {{"alpha", slope}, {"beta", offset}};
@@ -1189,6 +1222,54 @@ void HardSigmoidGradKernel(const Context& dev_ctx,
   const auto& runner_dx =
       NpuOpRunner("HardSigmoidGrad", {dout, out}, {*dx}, attr_input);
   runner_dx.Run(stream);
+}
+
+template <typename T, typename Context>
+void HardSigmoidGradKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& out,
+                           const phi::DenseTensor& dout,
+                           float slope,
+                           float offset,
+                           phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  int max_ = 1;
+  int min_ = 0;
+  phi::DenseTensorMeta number_meta = {phi::DataType::INT32, out.dims()};
+
+  phi::DenseTensor max_tensor;
+  max_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<int>(&max_tensor, dev_ctx, max_);
+  max_tensor.Resize(out.dims());
+
+  phi::DenseTensor min_tensor;
+  min_tensor.set_meta(number_meta);
+  FillNpuTensorWithConstant<int>(&min_tensor, dev_ctx, min_);
+  min_tensor.Resize(out.dims());
+
+  phi::DenseTensorMeta out_meta = {phi::DataType::BOOL, out.dims()};
+  phi::DenseTensor min_out;
+  min_out.set_meta(out_meta);
+  phi::DenseTensor max_out;
+  max_out.set_meta(out_meta);
+  phi::DenseTensor logical_out;
+  logical_out.set_meta(out_meta);
+
+  phi::DenseTensor dout_scale;
+  phi::DenseTensorMeta dout_scale_meta = {dout.dtype(), dout.dims()};
+  dout_scale.set_meta(dout_scale_meta);
+  dev_ctx.template Alloc<T>(&dout_scale);
+  phi::Scalar scale = slope;
+  phi::Scalar bias = 0;
+  custom_kernel::ScaleKernel<T, Context>(
+      dev_ctx, dout, scale, bias, false, &dout_scale);
+
+  custom_kernel::GreaterThanKernel<T, Context>(
+      dev_ctx, out, min_tensor, &min_out);
+  custom_kernel::LessThanKernel<T, Context>(dev_ctx, out, max_tensor, &max_out);
+  custom_kernel::LogicalAndNPUKernel<T, Context>(
+      dev_ctx, min_out, max_out, &logical_out);
+  custom_kernel::WhereKernel<T, Context>(
+      dev_ctx, logical_out, dout_scale, min_tensor, dx);
 }
 
 template <typename T, typename Context>
@@ -1499,12 +1580,34 @@ void HardshrinkGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ReciprocalKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      phi::DenseTensor* out) {
+void AclopReciprocalKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
   const auto& runner = NpuOpRunner("Reciprocal", {x}, {*out}, {});
+  runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void ReciprocalKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnReciprocal,
+      (custom_kernel::AclopReciprocalKernel<T, Context>(dev_ctx, x, out)));
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(aclnnReciprocal, dev_ctx, x, *out);
+}
+
+template <typename T, typename Context>
+void AclopReciprocalGradKernel(const Context& dev_ctx,
+                               const phi::DenseTensor& out,
+                               const phi::DenseTensor& dout,
+                               phi::DenseTensor* dx) {
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+  const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
   runner.Run(stream);
 }
 
@@ -1513,10 +1616,20 @@ void ReciprocalGradKernel(const Context& dev_ctx,
                           const phi::DenseTensor& out,
                           const phi::DenseTensor& dout,
                           phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnMul,
+                   (custom_kernel::AclopReciprocalGradKernel<T, Context>(
+                       dev_ctx, out, dout, dx)));
   dev_ctx.template Alloc<T>(dx);
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("ReciprocalGrad", {out, dout}, {*dx}, {});
-  runner.Run(stream);
+  phi::DenseTensor out_tmp;
+  out_tmp.Resize(out.dims());
+  dev_ctx.template Alloc<T>(&out_tmp);
+  auto neg_one_value = static_cast<T>(-1.0);
+  aclDataType acl_data_type = ConvertToNpuDtype(out.dtype());
+  static const auto aclCreateScalar = GET_OP_API_FUNC(aclCreateScalar);
+  aclScalar* acl_scalar_one = aclCreateScalar(&neg_one_value, acl_data_type);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, out, out, out_tmp);
+  EXEC_NPU_CMD(aclnnMuls, dev_ctx, out_tmp, acl_scalar_one, out_tmp);
+  EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, out_tmp, *dx);
 }
 
 template <typename T, typename Context>
@@ -1887,12 +2000,12 @@ PD_REGISTER_PLUGIN_KERNEL(hardsigmoid,
                           float,
                           phi::dtype::float16) {}
 
-PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
-                          npu,
-                          ALL_LAYOUT,
-                          custom_kernel::HardSigmoidGradKernel,
-                          float,
-                          phi::dtype::float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(hardsigmoid_grad,
+//                           npu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::HardSigmoidGradKernel,
+//                           float,
+//                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           npu,

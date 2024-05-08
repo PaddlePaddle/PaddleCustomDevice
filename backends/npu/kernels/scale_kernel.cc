@@ -105,6 +105,7 @@ void ScaleKernel(const Context& dev_ctx,
 
   auto scale = in_scale.to<float>();
   auto bias = in_bias.to<float>();
+  float alpha = 1.0;
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
 
@@ -112,30 +113,63 @@ void ScaleKernel(const Context& dev_ctx,
     FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
     return;
   }
+
   if (!bias_after_scale) {
     bias *= scale;
   }
 
+  std::cout << "scale" << scale << std::endl;
+  std::cout << "Type of scale: " << typeid(scale).name() << std::endl;
+  std::cout << "bias" << bias << std::endl;
+  std::cout << "Type of bias: " << typeid(bias).name() << std::endl;
+
   phi::Scalar scale_scalar = scale;
   phi::Scalar bias_scalar = bias;
-  phi::Scalar alpha_scalar = 1.0f;
+  phi::Scalar alpha_scalar = alpha;
 
-  phi::DenseTensor mul_out;
-  phi::DenseTensor add_out;
-  phi::DenseTensorMeta meta = {phi::DataType::FLOAT32, out->dims()};
+  if (x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::INT32) {
+    phi::DenseTensor cast_x;
+    if (x.dtype() == phi::DataType::INT32) {
+      cast_x = x;
+    } else {
+      cast_x.Resize(x.dims());
+      dev_ctx.Alloc(&cast_x, phi::DataType::INT32);
+      custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
+    }
 
-  mul_out.set_meta(meta);
-  dev_ctx.template Alloc<float>(&mul_out);
-  EXEC_NPU_CMD(aclnnMuls, dev_ctx, x, scale_scalar, mul_out);
+    phi::DenseTensor mid_out;
+    mid_out.Resize(out->dims());
+    dev_ctx.Alloc(&mid_out, phi::DataType::FLOAT32);
 
-  add_out.set_meta(meta);
-  dev_ctx.template Alloc<float>(&add_out);
-  EXEC_NPU_CMD(aclnnAdds, dev_ctx, mul_out, bias_scalar, alpha_scalar, add_out);
+    EXEC_NPU_CMD(aclnnMuls, dev_ctx, cast_x, scale_scalar, mid_out);
+    EXEC_NPU_CMD(
+        aclnnAdds, dev_ctx, mid_out, bias_scalar, alpha_scalar, mid_out);
 
-  dev_ctx.template Alloc<T>(out);
-  custom_kernel::CastKernel<T, Context>(dev_ctx, add_out, out->dtype(), out);
+    dev_ctx.template Alloc<T>(out);
+    custom_kernel::CastKernel<T, Context>(dev_ctx, mid_out, out->dtype(), out);
+
+  } else {
+    phi::DenseTensor cast_x;
+    if (x.dtype() == phi::DataType::FLOAT32) {
+      cast_x = x;
+    } else {
+      cast_x.Resize(x.dims());
+      dev_ctx.Alloc(&cast_x, phi::DataType::FLOAT32);
+      custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
+    }
+
+    phi::DenseTensor mid_out;
+    mid_out.Resize(out->dims());
+    dev_ctx.Alloc(&mid_out, phi::DataType::FLOAT32);
+
+    EXEC_NPU_CMD(aclnnMuls, dev_ctx, cast_x, scale_scalar, mid_out);
+    EXEC_NPU_CMD(
+        aclnnAdds, dev_ctx, mid_out, bias_scalar, alpha_scalar, mid_out);
+
+    dev_ctx.template Alloc<T>(out);
+    custom_kernel::CastKernel<T, Context>(dev_ctx, mid_out, out->dtype(), out);
+  }
 }
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scale,

@@ -272,13 +272,12 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
     default:
       format = ACL_FORMAT_ND;
   }
+  auto origin_dims = phi::vectorize(at_tensor.dims());
+  auto origin_strides = phi::vectorize(at_tensor.strides());
 
   if (origin_dims.size() == 0) {
     origin_dims = phi::vectorize(phi::make_ddim({1}));
   }
-  
-  auto origin_dims = phi::vectorize(at_tensor.dims());
-  auto origin_strides = phi::vectorize(at_tensor.strides());
 
   auto acl_tensor = aclCreateTensor(origin_dims.data(),
                                     origin_dims.size(),

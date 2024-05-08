@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import json
 import ssl
 import unittest
 import subprocess
@@ -23,7 +23,7 @@ from paddle import _C_ops
 import urllib.request
 import zipfile as zipper
 
-from tests.op_test import OpTest, convert_uint16_to_float
+from tests.op_test import OpTest, convert_uint16_to_float, convert_float_to_uint16
 from npu_utils import check_run_big_shape_test
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -32,6 +32,14 @@ device = "npu"
 paddle.set_device(device)
 
 ZIP_NAME = "test_tensor"
+
+dtype_map = {
+    "DT_BF16": np.uint16,
+    "FLOAT": np.float32,
+    "FLOAT16": np.float16,
+    "BOOL": np.bool_,
+    "INT64": np.int64,
+}
 
 
 def download_data(zipname="test_tensor"):
@@ -49,9 +57,6 @@ def delete_data(zipname="test_tensor"):
 
 
 def get_tensor(case_name, filenames=None):
-    if filenames is None:
-        filenames = ["result_tensor.npy", "tensor1.npy", "tensor2.npy"]
-
     dir_ = ZIP_NAME + "/" + case_name + "/"
     res = []
     for file in filenames:
@@ -59,7 +64,7 @@ def get_tensor(case_name, filenames=None):
     return res
 
 
-def do_compare(case_name, npu_res, gpu_res):
+def do_compare(case_name, npu_res, gpu_res, rtol=1e-4, atol=1e-4):
     if npu_res.dtype == np.bool_:
         result = np.equal(npu_res, gpu_res)
         if result.all() is False:
@@ -68,41 +73,25 @@ def do_compare(case_name, npu_res, gpu_res):
         np.testing.assert_allclose(
             convert_uint16_to_float(npu_res),
             convert_uint16_to_float(gpu_res),
-            rtol=1e-4,
-            atol=1e-4,
+            rtol=rtol,
+            atol=atol,
         )
     else:
-        np.testing.assert_allclose(npu_res, gpu_res, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(npu_res, gpu_res, rtol=rtol, atol=atol)
 
 
 @check_run_big_shape_test()
 class TestBigShape(OpTest):
     @classmethod
-    def make_cases_json(cls):
-        path = ZIP_NAME
-        cls.case_json = {}
-        for root, dirs, files in os.walk(path):
-            for dir in dirs:
-                if not dir.startswith("case_"):
-                    continue
-                op_name = dir[dir.index("_") + 1 : dir.rfind("_")]
-                case_id = int(dir[dir.rfind("_") + 1 :])
-                files = os.listdir(os.path.join(root, dir))
-
-                item = {
-                    "case_id": case_id,
-                    "input_count": len([i for i in files if i.startswith("tensor")]),
-                }
-                if op_name in cls.case_json:
-                    cls.case_json[op_name].append(item)
-                else:
-                    cls.case_json[op_name] = [item]
+    def load_json(cls):
+        with open("big_shape_cases.json", "r") as f:
+            cls.case_json = json.load(f)
 
     @classmethod
     def setUpClass(cls):
         super(TestBigShape, cls).setUpClass()
         download_data(ZIP_NAME)
-        cls.make_cases_json()
+        cls.load_json()
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -172,19 +161,9 @@ class TestBigShape(OpTest):
         res = paddle.exp(input_0)
         return res.numpy()
 
-    def _matmul_func(self, case_id, data0, data1):
+    def _matmul_func(self, case_id, data0, data1, transpose_x, transpose_y):
         input_0 = paddle.to_tensor(data0)
         input_1 = paddle.to_tensor(data1)
-        if case_id in [0, 1, 2, 3, 4]:
-            transpose_x = True
-            transpose_y = False
-        elif case_id in [5]:
-            transpose_x = False
-            transpose_y = True
-        else:
-            transpose_x = False
-            transpose_y = False
-
         res = paddle.matmul(input_0, input_1, transpose_x, transpose_y)
         return res.numpy()
 
@@ -224,12 +203,15 @@ class TestBigShape(OpTest):
         res = paddle.where(input_0, x=input_1, y=input_2)
         return res.numpy()
 
-    def get_input_and_gpu_output(self, op_name, case, case_name):
-        input_count = case["input_count"]
+    def get_input_and_gpu_output(self, op_name, case, case_name, index):
+        input_count = len(case["input_shapes"])
         if op_name == "silu":
-            gpu_output_names = ["result_tensor0.npy", "result_tensor1.npy"]
+            gpu_output_names = [
+                f"result_tensor_{index}_0.npy",
+                f"result_tensor_{index}_1.npy",
+            ]
         else:
-            gpu_output_names = ["result_tensor.npy"]
+            gpu_output_names = [f"result_tensor_{index}.npy"]
         filenames = [f"tensor{i}.npy" for i in range(input_count)] + gpu_output_names
         files = get_tensor(case_name, filenames)
         inputs = files[:input_count]
@@ -239,22 +221,41 @@ class TestBigShape(OpTest):
     def run_and_compare(self, op_name, case):
         case_id = case["case_id"]
         case_name = f"case_{op_name}_{case_id}"
+        dtypes = [[dtype_map[j] for j in i] for i in case["dtypes"]]
 
-        gpu_res, input_tensors = self.get_input_and_gpu_output(op_name, case, case_name)
+        for index, dtype_list in enumerate(dtypes):
+            print(f"Run Case: {op_name}({case_id}) {dtype_list}")
+            gpu_res, input_tensors = self.get_input_and_gpu_output(
+                op_name, case, case_name, index
+            )
+            cast_to_bf16 = np.uint16 in dtype_list
+            if cast_to_bf16:
+                for i, input_tensor in enumerate(input_tensors):
+                    if dtype_list[i] != np.uint16:
+                        continue
+                    input_tensors[i] = convert_float_to_uint16(input_tensor)
+                rtol = 4e-3
+                atol = 4e-3
+            else:
+                rtol = 1e-4
+                atol = 1e-4
+            func = self.op_func_map.get(op_name)
+            if op_name == "concat":
+                npu_res = func(input_tensors)
+            elif op_name == "matmul":
+                npu_res = func(
+                    case_id, *input_tensors, case["transpose_x"], case["transpose_y"]
+                )
+                rtol = 8e-3 if cast_to_bf16 else 3e-4
+                atol = 8e-3 if cast_to_bf16 else 3e-4
+            else:
+                npu_res = func(*input_tensors)
 
-        func = self.op_func_map.get(op_name)
-        if op_name == "concat":
-            npu_res = func(input_tensors)
-        elif op_name == "matmul":
-            npu_res = func(case_id, *input_tensors)
-        else:
-            npu_res = func(*input_tensors)
-
-        if len(gpu_res) > 1:
-            for i in range(len(gpu_res)):
-                do_compare(case_name, npu_res[i], gpu_res[i])
-        else:
-            do_compare(case_name, npu_res, gpu_res[0])
+            if len(gpu_res) > 1:
+                for i in range(len(gpu_res)):
+                    do_compare(case_name, npu_res[i], gpu_res[i], rtol, atol)
+            else:
+                do_compare(case_name, npu_res, gpu_res[0], rtol, atol)
 
     def _run_test(self, op_name):
         cases = self.case_json[op_name]

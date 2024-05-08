@@ -22,6 +22,7 @@ void ArgsortKernel(const Context& dev_ctx,
                    const phi::DenseTensor& in,
                    int axis,
                    bool descending,
+                   bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
   const auto& sorted = true;
@@ -83,6 +84,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& out_grad,
                        int axis,
                        bool descending,
+                       bool stable,
                        phi::DenseTensor* in_grad) {
   dev_ctx.template Alloc<T>(in_grad);
 

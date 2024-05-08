@@ -17,6 +17,7 @@ import unittest
 import numpy as np
 import paddle
 from tests.op_test import OpTest
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 SEED = 2021
@@ -104,6 +105,91 @@ class TestAdam(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-5)
+
+
+@check_run_big_shape_test()
+class TestAdamRank1(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.init_shape()
+        self.place = paddle.CustomPlace("npu", 0)
+        self.op_type = "adam"
+        param = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        grad = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        moment1 = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
+        # The second moment is positive
+        moment2 = np.random.random(self.shape).astype(self.dtype)
+
+        learning_rate = 0.004
+        beta1 = 0.78
+        beta2 = 0.836
+        epsilon = 1e-4
+        beta1_pow = beta1**10
+        beta2_pow = beta2**10
+
+        self.inputs = {
+            "Param": param,
+            "Grad": grad,
+            "Moment1": moment1,
+            "Moment2": moment2,
+            "LearningRate": np.array([learning_rate]).astype(self.dtype),
+            "Beta1Pow": np.array([beta1_pow]).astype(self.dtype),
+            "Beta2Pow": np.array([beta2_pow]).astype(self.dtype),
+        }
+
+        self.attrs = {"epsilon": epsilon, "beta1": beta1, "beta2": beta2}
+
+        param_out, moment1_out, moment2_out = adam_step(self.inputs, self.attrs)
+
+        self.outputs = {
+            "Moment1Out": moment1_out,
+            "Moment2Out": moment2_out,
+            "ParamOut": param_out,
+            "Beta1PowOut": np.array([beta1_pow]).astype("float32") * beta1,
+            "Beta2PowOut": np.array([beta2_pow]).astype("float32") * beta2,
+        }
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def init_shape(self):
+        self.shape = (4000, 8192)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-5)
+
+
+@check_run_big_shape_test()
+class TestAdamRank2(TestAdamRank1):
+    def init_shape(self):
+        self.shape = (8192, 1280)
+
+
+@check_run_big_shape_test()
+class TestAdamRank3(TestAdamRank1):
+    def init_shape(self):
+        self.shape = (1024, 8192)
+
+
+@check_run_big_shape_test()
+class TestAdamRank4(TestAdamRank1):
+    def init_shape(self):
+        self.shape = (8192, 7168)
+
+
+@check_run_big_shape_test()
+class TestAdamRank5(TestAdamRank1):
+    def init_shape(self):
+        self.shape = (3584, 8192)
+
+
+@check_run_big_shape_test()
+class TestAdamRank6(TestAdamRank1):
+    def init_shape(self):
+        self.shape = (8192, 4000)
 
 
 class TestAdamWithEpsilonTensor(OpTest):

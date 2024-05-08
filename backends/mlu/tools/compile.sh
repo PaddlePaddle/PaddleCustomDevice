@@ -24,10 +24,10 @@ cd ${SOURCE_ROOT}/build
 
 arch=$(uname -i)
 if [ $arch == 'x86_64' ]; then
-    WITH_MKLDNN=ON
+    WITH_MKL=ON
     WITH_ARM=OFF
 else
-    WITH_MKLDNN=OFF
+    WITH_MKL=OFF
     WITH_ARM=ON
 fi
 
@@ -37,7 +37,7 @@ Configuring cmake in build ...
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release}
     -DWITH_KERNELS=${WITH_KERNELS:-ON}
     -DWITH_TESTING=${WITH_TESTING:-ON}
-    -DWITH_MKLDNN=${WITH_MKLDNN}
+    -DWITH_MKL=${WITH_MKL}
     -DWITH_ARM=${WITH_ARM}
     -DON_INFER=${ON_INFER:-OFF}
 ========================================
@@ -48,7 +48,7 @@ cmake .. \
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release} \
     -DWITH_KERNELS=${WITH_KERNELS:-ON} \
     -DWITH_TESTING=${WITH_TESTING:-ON} \
-    -DWITH_MKLDNN=${WITH_MKLDNN:-ON} \
+    -DWITH_MKL=${WITH_MKL:-ON} \
     -DWITH_ARM=${WITH_ARM:-OFF} \
     -DON_INFER=${ON_INFER:-OFF} \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON;cmake_error=$?

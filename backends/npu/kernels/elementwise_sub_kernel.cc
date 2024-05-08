@@ -107,14 +107,14 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
       tmp_dout = &reduced_dout;
     }
 
-    // stage 2
-    axes.clear();
-    for (auto i = 0; i < dx->dims().size(); ++i) {
-      if (dx->dims()[i] == 1) {
-        axes.push_back(i);
-      }
-    }
     if (axes.size() != 0) {
+      // stage 2
+      axes.clear();
+      for (auto i = 0; i < dx->dims().size(); ++i) {
+        if (dx->dims()[i] == 1) {
+          axes.push_back(i);
+        }
+      }
       phi::DenseTensor axes_t1;
       axes_t1.Resize({axes.size()});
       dev_ctx.template Alloc<int>(&axes_t1);
@@ -160,15 +160,15 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
       tmp_dout = &reduced_dout;
     }
 
-    // stage 2
-    axes.clear();
     phi::DenseTensor* tmp_dy = tmp_dout;
-    for (auto i = 0; i < dy->dims().size(); ++i) {
-      if (dy->dims()[i] == 1) {
-        axes.push_back(i);
-      }
-    }
     if (axes.size() != 0) {
+      // stage 2
+      axes.clear();
+      for (auto i = 0; i < dy->dims().size(); ++i) {
+        if (dy->dims()[i] == 1) {
+          axes.push_back(i);
+        }
+      }
       phi::DenseTensorMeta reduced_dy_meta = {dy->dtype(), dy->dims()};
       reduced_dy.set_meta(reduced_dy_meta);
       dev_ctx.template Alloc<T>(&reduced_dy);
@@ -252,14 +252,14 @@ void SubtractGradKernel(const Context& dev_ctx,
       tmp_dout = &reduced_dout;
     }
 
-    // stage 2
-    axes.clear();
-    for (auto i = 0; i < dx->dims().size(); ++i) {
-      if (dx->dims()[i] == 1) {
-        axes.push_back(i);
-      }
-    }
     if (axes.size() != 0) {
+      // stage 2
+      axes.clear();
+      for (auto i = 0; i < dx->dims().size(); ++i) {
+        if (dx->dims()[i] == 1) {
+          axes.push_back(i);
+        }
+      }
       phi::DenseTensor axes_t1;
       axes_t1.Resize({axes.size()});
       dev_ctx.template Alloc<int>(&axes_t1);
@@ -309,15 +309,15 @@ void SubtractGradKernel(const Context& dev_ctx,
       tmp_dout = &reduced_dout;
     }
 
-    // stage 2
-    axes.clear();
     phi::DenseTensor* tmp_dy = tmp_dout;
-    for (auto i = 0; i < dy->dims().size(); ++i) {
-      if (dy->dims()[i] == 1) {
-        axes.push_back(i);
-      }
-    }
     if (axes.size() != 0) {
+      // stage 2
+      axes.clear();
+      for (auto i = 0; i < dy->dims().size(); ++i) {
+        if (dy->dims()[i] == 1) {
+          axes.push_back(i);
+        }
+      }
       phi::DenseTensorMeta reduced_dy_meta = {dy->dtype(), dy->dims()};
       reduced_dy.set_meta(reduced_dy_meta);
       dev_ctx.template Alloc<T>(&reduced_dy);

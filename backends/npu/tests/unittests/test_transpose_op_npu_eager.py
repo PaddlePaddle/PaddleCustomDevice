@@ -19,7 +19,7 @@ import unittest
 from tests.op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 
-from npu_utils import check_soc_version
+from npu_utils import check_soc_version, check_run_big_shape_test
 
 
 class TestTransposeOp(OpTest):
@@ -57,6 +57,20 @@ class TestTransposeOp(OpTest):
     @check_soc_version
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
+
+
+@check_run_big_shape_test()
+class TestTransposeOpRank1(TestTransposeOp):
+    def init_shape_axis(self):
+        self.shape = (3584, 8192)
+        self.axis = (1, 0)
+
+
+@check_run_big_shape_test()
+class TestTransposeOpRank2(TestTransposeOp):
+    def init_shape_axis(self):
+        self.shape = (1024, 8192)
+        self.axis = (1, 0)
 
 
 if __name__ == "__main__":

@@ -244,7 +244,8 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
   if (aclCreateTensor == nullptr) {
     return nullptr;
   }
-if (!at_tensor.initialized()) {
+
+  if (at_tensor.numel() == 0 && (at_tensor.dims().size() < 0)) {
     return nullptr;
   }
   auto at_tensor_dtype = at_tensor.dtype();
@@ -271,13 +272,13 @@ if (!at_tensor.initialized()) {
     default:
       format = ACL_FORMAT_ND;
   }
+  auto origin_dims = phi::vectorize(at_tensor.dims());
+  auto origin_strides = phi::vectorize(at_tensor.strides());
 
   if (origin_dims.size() == 0) {
     origin_dims = phi::vectorize(phi::make_ddim({1}));
   }
-  
-  auto origin_dims = phi::vectorize(at_tensor.dims());
-  auto origin_strides = phi::vectorize(at_tensor.strides());
+
   auto acl_tensor = aclCreateTensor(origin_dims.data(),
                                     origin_dims.size(),
                                     acl_data_type,
@@ -306,17 +307,6 @@ inline aclTensorList *ConvertType(
   return acl_tensor_list;
 }
 
-
-inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
-  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
-  if (aclCreateIntArray == nullptr) {
-    return nullptr;
-  }
-  auto array = aclCreateIntArray(at_array.data(), at_array.size());
-  return array;
-}
-
-
 inline aclTensorList *ConvertType(
   const std::vector<phi::DenseTensor*> &phi_tensor_list) {
   static const auto aclCreateTensorList = GET_OP_API_FUNC(aclCreateTensorList);
@@ -331,6 +321,15 @@ inline aclTensorList *ConvertType(
   auto acl_tensor_list = aclCreateTensorList(tensor_list.data(),
                                              tensor_list.size());
   return acl_tensor_list;
+}
+
+inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
+  static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
+  if (aclCreateIntArray == nullptr) {
+    return nullptr;
+  }
+  auto array = aclCreateIntArray(at_array.data(), at_array.size());
+  return array;
 }
 
 inline aclIntArray *ConvertType(const phi::IntArray &phi_array) {

@@ -18,9 +18,9 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void MeanAllKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& x,
-                   phi::DenseTensor* out) {
+void AclopMeanAllKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        phi::DenseTensor* out) {
   auto rank = x.dims().size();
   auto out_dims = out->dims();
   dev_ctx.template Alloc<T>(out);
@@ -46,6 +46,40 @@ void MeanAllKernel(const Context& dev_ctx,
       .AddAttr("keep_dims", false)
       .AddAttr("noop_with_empty_axes", true)
       .Run(stream);
+}
+
+template <typename T, typename Context>
+void MeanAllKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnMeanV2,
+      (custom_kernel::AclopMeanAllKernel<T, Context>(dev_ctx, x, out)));
+
+  auto rank = x.dims().size();
+  auto out_dims = out->dims();
+  dev_ctx.template Alloc<T>(out);
+  if (rank == 0) {  // scalar
+    TensorCopy(dev_ctx, x, false, out);
+    out->Resize(out_dims);  // copy will reset the dims.
+    return;
+  }
+
+  std::vector<int64_t> reduce_dims;
+  reduce_dims.reserve(rank);
+  for (decltype(rank) i = 0; i < rank; ++i) {
+    reduce_dims.push_back(i);
+  }
+
+  bool keep_dim = false;
+  bool noop_with_empty_dims = true;
+  EXEC_NPU_CMD(aclnnMeanV2,
+               dev_ctx,
+               x,
+               reduce_dims,
+               keep_dim,
+               noop_with_empty_dims,
+               *out);
 }
 
 template <typename T, typename Context>

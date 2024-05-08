@@ -271,6 +271,11 @@ if (!at_tensor.initialized()) {
     default:
       format = ACL_FORMAT_ND;
   }
+
+  if (origin_dims.size() == 0) {
+    origin_dims = phi::vectorize(phi::make_ddim({1}));
+  }
+  
   auto origin_dims = phi::vectorize(at_tensor.dims());
   auto origin_strides = phi::vectorize(at_tensor.strides());
   auto acl_tensor = aclCreateTensor(origin_dims.data(),
@@ -279,7 +284,7 @@ if (!at_tensor.initialized()) {
                                     origin_strides.data(),
                                     0,
                                     format,
-                                    origin_dims.data(),
+                                    storageDims.data(),
                                     storageDims.size(),
                                     const_cast<void*>(at_tensor.data()));
   return acl_tensor;

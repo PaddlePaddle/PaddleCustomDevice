@@ -272,6 +272,11 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
     default:
       format = ACL_FORMAT_ND;
   }
+
+  if (origin_dims.size() == 0) {
+    origin_dims = phi::vectorize(phi::make_ddim({1}));
+  }
+  
   auto origin_dims = phi::vectorize(at_tensor.dims());
   auto origin_strides = phi::vectorize(at_tensor.strides());
 
@@ -281,7 +286,7 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
                                     origin_strides.data(),
                                     0,
                                     format,
-                                    origin_dims.data(),
+                                    storageDims.data(),
                                     storageDims.size(),
                                     const_cast<void*>(at_tensor.data()));
   return acl_tensor;

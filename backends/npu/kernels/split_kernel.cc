@@ -83,12 +83,11 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
-  DO_COMPATIBILITY(aclnnSplitWithSize,
-                   (custom_kernel::AclopSplitKernel<T, Context>(
-                       dev_ctx, x, num_or_sections, axis_scalar, outs)));
-
   auto sections = num_or_sections.GetData();
   int64_t axis = axis_scalar.to<int64_t>();
+  if (axis < 0) {
+    axis = x.dims().size() + axis;
+  }
 
   std::vector<phi::DenseTensor*> outputs;
   for (size_t j = 0; j < outs.size(); ++j) {
@@ -96,24 +95,38 @@ void SplitKernel(const Context& dev_ctx,
     outputs.push_back(outs[j]);
   }
 
-  std::vector<int64_t> sections_;
-  int all = x.dims()[axis];
-  int sum = 0;
-  int minusOneIndex = -1;
+  if (!num_or_sections.FromTensor() && !axis_scalar.FromTensor() &&
+      sections.size() == 1 && outs.size() == sections[0]) {
+    DO_COMPATIBILITY(aclnnSplitTensor,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
 
-  for (int i = 0; i < sections.size(); ++i) {
-    sections_.push_back(sections[i]);
-    if (sections_[i] == -1) {
-      minusOneIndex = i;
-    } else {
-      sum += sections_[i];
+    uint64_t splitSections = x.dims()[axis] / sections[0];
+    EXEC_NPU_CMD(aclnnSplitTensor, dev_ctx, x, splitSections, axis, outputs);
+  } else {
+    DO_COMPATIBILITY(aclnnSplitWithSize,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
+
+    std::vector<int64_t> sections_;
+    int sum = 0;
+    int minusOneIndex = -1;
+    int all = x.dims()[axis];
+
+    for (int i = 0; i < sections.size(); ++i) {
+      sections_.push_back(sections[i]);
+      if (sections_[i] == -1) {
+        minusOneIndex = i;
+      } else {
+        sum += sections_[i];
+      }
     }
-  }
-  if (minusOneIndex != -1) {
-    sections_[minusOneIndex] = all - sum;
-  }
+    if (minusOneIndex != -1) {
+      sections_[minusOneIndex] = all - sum;
+    }
 
-  EXEC_NPU_CMD(aclnnSplitWithSize, dev_ctx, x, sections_, axis, outputs);
+    EXEC_NPU_CMD(aclnnSplitWithSize, dev_ctx, x, sections_, axis, outputs);
+  }
 }
 
 template <typename T, typename Context>

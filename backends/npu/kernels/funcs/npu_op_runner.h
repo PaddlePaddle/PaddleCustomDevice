@@ -281,7 +281,7 @@ inline aclTensor* ConvertType(const phi::DenseTensor& at_tensor) {
                                     origin_strides.data(),
                                     0,
                                     format,
-                                    storageDims.data(),
+                                    origin_dims.data(),
                                     storageDims.size(),
                                     const_cast<void*>(at_tensor.data()));
   return acl_tensor;

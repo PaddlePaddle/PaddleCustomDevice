@@ -16,6 +16,9 @@
 
 set -ex
 
+# set default version
+export PADDLE_VERSION=2.6.1
+
 SOURCE_ROOT="$( cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 
 # prepare build directory

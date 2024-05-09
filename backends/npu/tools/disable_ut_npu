@@ -6,3 +6,9 @@ test_dygraph_sharding_stage_3
 test_zero_dim_tensor_npu
 test_elementwise_sub_op_npu
 test_index_sample_op_npu
+test_activation_op
+test_batch_norm_op_npu
+test_elu_op_npu
+test_eye_op_npu
+test_hard_swish_op_npu
+test_squared_l2_norm_op_npu

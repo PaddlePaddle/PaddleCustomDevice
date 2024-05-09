@@ -12,14 +12,21 @@
 | CANN版本 | [CANN 7.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
 | 驱动版本 | [23.0.2](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
 
-**注意**：昇腾910B芯片的支持请切换到 [develop](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/README_cn.md) 分支进行编译安装。
+**注意**：[release/2.6](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.6/backends/npu/README_cn.md) 分支仅支持『昇腾910』芯片，如需『昇腾910B』芯片的支持请切换到 [develop](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/README_cn.md) 分支进行编译安装。查看芯片类似请参考如下命令：
+
+```bash
+# 系统环境下运行如下命令，如果有设备列表输出，则表示当前为『昇腾910』芯片
+lspci | grep d801
+
+# 系统环境下运行如下命令，如果有设备列表输出，则表示当前为『昇腾910B』芯片
+lspci | grep d802
+```
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-# 昇腾910芯片 - 系统环境下查看 lspci | grep d801 是否有输出
 docker pull registry.baidubce.com/device/paddle-npu:cann701-ubuntu20-x86_64-gcc84-py39
 docker pull registry.baidubce.com/device/paddle-npu:cann701-ubuntu20-aarch64-gcc84-py39
 
@@ -53,11 +60,10 @@ pip install paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/linux/mkl
 export WITH_TESTING=OFF
 
 # 4) 执行编译脚本 - submodule 在编译时会按需下载
-export PADDLE_VERSION=2.6.1 # 指定版本号，否则默认0.0.0
 bash tools/compile.sh
 
 # 5) 编译产出在 build/dist 路径下，使用 pip 安装
-pip install build/dist/paddle_custom_npu-2.6.1-cp39-cp39-linux_*.whl
+pip install build/dist/paddle_custom_npu*.whl
 ```
 
 ### 基础功能检查

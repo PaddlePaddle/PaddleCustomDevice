@@ -4,33 +4,47 @@ English | [简体中文](./README_cn.md)
 
 Please refer to the following steps to compile, install and verify the custom device implementation for Ascend NPU.
 
-## Prepare environment and source code
+## Ascend NPU System Requirements
 
-> Note: [CANN 6.0.1](https://www.hiascend.com/software/cann/community-history?id=6.0.1.alpha001) is supported.
+| Type | Version     |
+| --------- | -------- |
+| Chip | Ascend 910 |
+| CANN | [CANN 7.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
+| Driver | [23.0.2](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
+
+**Note**：[release/2.6](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.6/backends/npu/README_cn.md) branch only supports 'Ascend910' chip, please swith to [develop](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/README_cn.md) branch if you want to use 'Ascend910B' chip. Please refer to the flollowing commands to check chip version:
+
+```bash
+# check if the chip version is 'Ascend910'
+lspci | grep d801
+
+# check if the chip version is 'Ascend910B'
+lspci | grep d802
+```
+
+## Prepare environment and source code
 
 ```bash
 # 1. pull PaddlePaddle Ascend NPU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-x86_64-gcc82
-docker pull registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-aarch64-gcc82
+docker pull registry.baidubce.com/device/paddle-npu:cann701-ubuntu20-x86_64-gcc84-py39
+docker pull registry.baidubce.com/device/paddle-npu:cann701-ubuntu20-aarch64-gcc84-py39
 
 # 2. refer to the following commands to start docker container
-docker run -it --name paddle-npu-dev -v `pwd`:/workspace \
-       --workdir=/workspace --pids-limit 409600 \
-       --privileged --network=host --shm-size=128G \
-       -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-       -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
-       -v /usr/local/dcmi:/usr/local/dcmi \
-       registry.baidubce.com/device/paddle-npu:cann601-ubuntu18-$(uname -m)-gcc82 /bin/bash
+docker run -it --name paddle-npu-dev -v $(pwd):/work \
+    --privileged --network=host --shm-size=128G -w=/work \
+    -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+    -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
+    -v /usr/local/dcmi:/usr/local/dcmi \
+    -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
+    registry.baidubce.com/device/paddle-npu:cann701-ubuntu20-$(uname -m)-gcc84-py39 /bin/bash
 
 # 3. clone the source code
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice -b release/2.6
 cd PaddleCustomDevice
 ```
 
 ## PaddlePaddle Installation and Verification
-
-> Note: PaddlePaddle Python WHL package supports both training and inference, while ONLY PaddleInference Python API is supported. Please refer to next section if PaddleInference C++ API is needed.
 
 ### Source Code Compile
 
@@ -40,9 +54,8 @@ cd backends/npu
 
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
-# you may download and install the PaddlePaddle CPU 2.6.0 whl package with links below
-https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_x86_64.whl
-https://paddle-device.bj.bcebos.com/2.6.0/cpu/paddlepaddle-2.6.0-cp39-cp39-linux_aarch64.whl
+# you may download and install the PaddlePaddle CPU 2.6.1 whl package with links below
+pip install paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -59,136 +72,55 @@ pip install build/dist/paddle_custom_npu*.whl
 ```bash
 # 1. list available custom backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-# expected output
+# output as following
 ['npu']
 
 # 2. check installed custom npu version
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
-# expected output
-version: 2.6.0
-commit: d354e1ba347612fe68447e8530d3cd1a0f8aaba9
-cann: 6.0.1
+# output as following
+version: 2.6.1
+commit: 79cd4ebe805a9a3c6bc7817a7ec2e1fee32ebe8e
+cann: 7.0.1
 
-# 3. demo for training, evaluation and inference
+# 3. health check
+python -c "import paddle; paddle.utils.run_check()"
+# output as following
+Running verify PaddlePaddle program ...
+PaddlePaddle works well on 1 npu.
+PaddlePaddle works well on 8 npus.
+PaddlePaddle is installed successfully! Let's start deep learning with PaddlePaddle now.
+```
+
+## Train and Inference Demo
+
+```bash
+# demo for training, evaluation and inference
 python tests/test_LeNet_MNIST.py
-# expected output - training
-Epoch [1/2], Iter [01/14], reader_cost: 2.27062 s, batch_cost: 14.45539 s, ips: 283.35449 samples/s, eta: 0:06:44
-Epoch [1/2], Iter [02/14], reader_cost: 1.13547 s, batch_cost: 7.23942 s, ips: 565.79091 samples/s, eta: 0:03:15
+
+# training output as following
+Epoch [1/2], Iter [01/14], reader_cost: 2.81928 s, batch_cost: 97.57224 s, ips: 41.97915 samples/s, eta: 0:45:32
+Epoch [1/2], Iter [02/14], reader_cost: 1.41005 s, batch_cost: 48.79607 s, ips: 83.94119 samples/s, eta: 0:21:57
 ... ...
-Epoch [2/2], Iter [10/14], reader_cost: 0.24073 s, batch_cost: 0.26355 s, ips: 15541.84990 samples/s, eta: 0:00:01
-Epoch [2/2], Iter [11/14], reader_cost: 0.21886 s, batch_cost: 0.24141 s, ips: 16967.21446 samples/s, eta: 0:00:00
-Epoch [2/2], Iter [12/14], reader_cost: 0.20063 s, batch_cost: 0.22291 s, ips: 18374.78776 samples/s, eta: 0:00:00
-Epoch [2/2], Iter [13/14], reader_cost: 0.18521 s, batch_cost: 0.20728 s, ips: 19760.84536 samples/s, eta: 0:00:00
-Epoch [2/2], Iter [14/14], reader_cost: 0.17199 s, batch_cost: 0.19436 s, ips: 21074.31905 samples/s, eta: 0:00:00
-Epoch ID: 2, Epoch time: 3.68077 s, reader_cost: 2.40789 s, batch_cost: 2.72104 s, avg ips: 15579.36234 samples/s
-Eval - Epoch ID: 2, Top1 accurary:: 0.86450, Top5 accurary:: 0.99023
-# expected output - inference
-I0418 16:45:47.717545 85550 interpretercore.cc:267] New Executor is Running.
-I0418 16:45:47.788849 85550 analysis_predictor.cc:1414] CustomDevice is enabled
---- Running analysis [ir_graph_build_pass]
-I0418 16:45:47.790328 85550 executor.cc:186] Old Executor is Running.
---- Running analysis [ir_analysis_pass]
-I0418 16:45:47.792423 85550 ir_analysis_pass.cc:53] argument has no fuse statis
---- Running analysis [ir_params_sync_among_devices_pass]
-I0418 16:45:47.792572 85550 ir_params_sync_among_devices_pass.cc:142] Sync params from CPU to CustomDevicenpu/0
+Epoch [2/2], Iter [14/14], reader_cost: 0.29687 s, batch_cost: 0.31025 s, ips: 13202.09133 samples/s, eta: 0:00:00
+Epoch ID: 2, Epoch time: 4.88396 s, reader_cost: 4.15624 s, batch_cost: 4.34355 s, avg ips: 11741.29245 samples/s
+Eval - Epoch ID: 2, Top1 accurary:: 0.86462, Top5 accurary:: 0.99133
+
+# inference output as following
+I0509 12:13:58.880553  9291 program_interpreter.cc:212] New Executor is Running.
+I0509 12:13:58.911787  9291 analysis_predictor.cc:1658] CustomDevice is enabled
+... ...
+I0509 12:13:58.913389  9291 ir_params_sync_among_devices_pass.cc:144] Sync params from CPU to npu:0
 --- Running analysis [adjust_cudnn_workspace_size_pass]
 --- Running analysis [inference_op_replace_pass]
 --- Running analysis [ir_graph_to_program_pass]
-I0418 16:45:47.880336 85550 analysis_predictor.cc:1565] ======= optimize end =======
-I0418 16:45:47.880510 85550 naive_executor.cc:151] ---  skip [feed], feed -> inputs
-I0418 16:45:47.881462 85550 naive_executor.cc:151] ---  skip [linear_5.tmp_1], fetch -> fetch
+I0509 12:13:58.917276  9291 analysis_predictor.cc:1838] ======= optimize end =======
+I0509 12:13:58.917372  9291 naive_executor.cc:200] ---  skip [feed], feed -> inputs
+I0509 12:13:58.917668  9291 naive_executor.cc:200] ---  skip [save_infer_model/scale_0.tmp_0], fetch -> fetch
 Output data size is 10
 Output data shape is (1, 10)
 ```
 
-## PaddleInference C++ Installation and Verification
-
-### PaddleInference C++ Source Compile
-
-> Note: the official released PaddleInference C++ package do not support custom device, please follow the steps below to source compile PaddleInference C++ package.
-
-```bash
-# 1. got to Paddle source code directory
-cd PaddleCustomDevice/Paddle
-
-# 2. prepare build directory
-mkdir build && cd build
-
-# 3.1 build command for X86_64
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=OFF
-make -j8
-
-# 3.2 build command for aarch64
-cmake .. -DPY_VERSION=3.9 -DPYTHON_EXECUTABLE=`which python3` -DWITH_CUSTOM_DEVICE=ON \
-         -DWITH_TESTING=OFF -DON_INFER=ON -DWITH_DISTRIBUTE=ON -DWITH_ARM=ON
-make TARGET=ARMV8 -j8
-
-# 4) PaddleInference C++ package will be generated into build/paddle_inference_install_dir directory
-```
-
-### Ascend NPU Inference Source Compile
-```bash
-# 1. go to ascend npu directory
-cd backends/npu
-
-# 2. compile options, the PADDLE_INFERENCE_LIB_DIR is the path of Paddle Inference C++ package
-# generated in the previous step, i.e. build/paddle_inference_install_dir directory
-export ON_INFER=ON # whether to enable C++ inference, default is OFF
-export PADDLE_INFERENCE_LIB_DIR=/path/to/Paddle/build/paddle_inference_install_dir
-
-# 3. execute compile script
-bash tools/compile.sh
-
-# 4. Specify CUSTOM_DEVICE_ROOT to the folder of libpaddle-custom-npu.so
-export CUSTOM_DEVICE_ROOT=/path/to/PaddleCustomDevice/backends/npu/build
-```
-
-### Ascend NPU Inference Verification
-
-```bash
-# 1. clone Paddle-Inference-Demo source code
-git clone https://github.com/PaddlePaddle/Paddle-Inference-Demo.git
-
-# 2. Copy the PaddleInference C++ package to Paddle-Inference-Demo/c++/lib
-cp -r PaddleCustomDevice/Paddle/build/paddle_inference_install_dir Paddle-Inference-Demo/c++/lib/paddle_inference
-# directory structure of Paddle-Inference-Demo/c++/lib as following after copy
-Paddle-Inference-Demo/c++/lib/
-├── CMakeLists.txt
-└── paddle_inference
-    ├── CMakeCache.txt
-    ├── paddle
-    ├── third_party
-    └── version.txt
-
-# 3. go to resnet50 demo directory, and download inference model
-cd Paddle-Inference-Demo/c++/cpu/resnet50/
-wget https://paddle-inference-dist.bj.bcebos.com/Paddle-Inference-Demo/resnet50.tgz
-tar xzf resnet50.tgz
-
-# 4. Modify resnet50_test.cc, use config.EnableCustomDevice("npu", 0) to replace config.EnableUseGpu(100, 0)
-
-# 5. Modify compile.sh based on the version.txt in PaddleInfernce C++ package
-WITH_MKL=ON  # Turn OFF if aarch64
-WITH_GPU=OFF
-WITH_ARM=OFF # Turn ON if aarch64
-
-# 6. execute compile script, and executable binary resnet50_test will be generated into build directory
-./compile.sh
-
-# 7. execute inference test
-./build/resnet50_test --model_file resnet50/inference.pdmodel --params_file resnet50/inference.pdiparams
-# expected output
-# I0525 11:07:28.354579 40116 resnet50_test.cc:76] run avg time is 713.049 ms
-# I0525 11:07:28.354732 40116 resnet50_test.cc:113] 0 : 8.76171e-29
-# I0525 11:07:28.354772 40116 resnet50_test.cc:113] 100 : 8.76171e-29
-# ... ...
-# I0525 11:07:28.354880 40116 resnet50_test.cc:113] 800 : 3.85244e-25
-# I0525 11:07:28.354895 40116 resnet50_test.cc:113] 900 : 8.76171e-29
-```
-
 ## Environment Variables
-
 
 | Subject     | Variable Name       | Type   | Description    | Default Value |
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |

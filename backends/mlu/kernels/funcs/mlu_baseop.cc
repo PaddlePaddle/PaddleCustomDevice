@@ -1764,6 +1764,10 @@ NormalizeDesc::~NormalizeDesc() {
   const int alpha2_int = static_cast<const int>(alpha2_float);
   const int beta_int = static_cast<const int>(beta_float);
 
+  const int64_t alpha1_int64 = static_cast<const int64_t>(alpha1_float);
+  const int64_t alpha2_int64 = static_cast<const int64_t>(alpha2_float);
+  const int64_t beta_int64 = static_cast<const int64_t>(beta_float);
+
   const void* alpha1_ptr = static_cast<const void*>(&alpha1_float);
   const void* alpha2_ptr = static_cast<const void*>(&alpha2_float);
   const void* beta_ptr = static_cast<const void*>(&beta_float);
@@ -1774,10 +1778,14 @@ NormalizeDesc::~NormalizeDesc() {
   bool is_dt_float = (dtype == CNNL_DTYPE_FLOAT || dtype == CNNL_DTYPE_HALF);
 
   //  if datatype is not float, we set alpha and beta to be int
-  if (!is_dt_float) {
+  if (!is_dt_float && dtype == CNNL_DTYPE_INT32) {
     alpha1_ptr = static_cast<const void*>(&alpha1_int);
     alpha2_ptr = static_cast<const void*>(&alpha2_int);
     beta_ptr = static_cast<const void*>(&beta_int);
+  } else if (!is_dt_float && dtype == CNNL_DTYPE_INT64) {
+    alpha1_ptr = static_cast<const void*>(&alpha1_int64);
+    alpha2_ptr = static_cast<const void*>(&alpha2_int64);
+    beta_ptr = static_cast<const void*>(&beta_int64);
   }
 
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetOpTensorWorkspaceSize(

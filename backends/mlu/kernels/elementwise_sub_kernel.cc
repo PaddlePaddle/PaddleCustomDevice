@@ -129,6 +129,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
                           ALL_LAYOUT,
                           custom_kernel::SubtractRawKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 
@@ -137,6 +138,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           ALL_LAYOUT,
                           custom_kernel::SubtractKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 

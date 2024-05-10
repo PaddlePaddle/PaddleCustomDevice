@@ -12,7 +12,7 @@
 | CANN版本 | [CANN 7.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
 | 驱动版本 | [23.0.2](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
 
-**注意**：[release/2.6](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.6/backends/npu/README_cn.md) 分支仅支持『昇腾910』芯片，如需『昇腾910B』芯片的支持请切换到 [develop](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/README_cn.md) 分支进行编译安装。查看芯片类似请参考如下命令：
+**注意**：[release/2.6](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.6/backends/npu/README_cn.md) 分支仅支持『昇腾910』芯片，如需『昇腾910B』芯片的支持请切换到 [develop](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/README_cn.md) 分支。查看芯片类型请参考如下命令：
 
 ```bash
 # 系统环境下运行如下命令，如果有设备列表输出，则表示当前为『昇腾910』芯片

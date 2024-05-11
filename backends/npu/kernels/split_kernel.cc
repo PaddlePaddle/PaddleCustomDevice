@@ -121,10 +121,10 @@ void SplitKernel(const Context& dev_ctx,
         sum += sections_[i];
       }
     }
+    
     if (minusOneIndex != -1) {
       sections_[minusOneIndex] = all - sum;
     }
-
     EXEC_NPU_CMD(aclnnSplitWithSize, dev_ctx, x, sections_, axis, outputs);
   }
 }

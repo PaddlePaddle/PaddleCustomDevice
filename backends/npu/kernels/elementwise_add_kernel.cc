@@ -14,7 +14,6 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
-#include "paddle/phi/kernels/funcs/tensor_formatter.h"
 
 namespace custom_kernel {
 

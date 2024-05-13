@@ -215,7 +215,15 @@ void SubtractGradKernel(const Context& dev_ctx,
   // Then, out = x - y  =>  dx = dout, dy = -dout
   // And, the shape of dy can be computed by two stages reduce,
   // 1. [2, 3, 5] => [3, 5], ReduceSumD on axis = 0, keep_dims = false.
-  // 2. [3, 5] => [1, 5], ReduceSumD on axis = 0, keep_dims = true.
+  // 2. [3, 5] => [1, 5], ReduceSumD on axis = 0, keep_dims = true.'
+
+  // aclnnReduceSum will change the dout after calculating dx
+  // so we copy dout for later dy calculation
+  phi::DenseTensor douty;
+  phi::DenseTensorMeta douty_meta = {dout.dtype(), dout.dims()};
+  douty.set_meta(douty_meta);
+  dev_ctx.template Alloc<T>(&douty);
+  TensorCopy(dev_ctx, dout, false, &douty);
 
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
@@ -264,11 +272,17 @@ void SubtractGradKernel(const Context& dev_ctx,
       axes_t1.Resize({axes.size()});
       dev_ctx.template Alloc<int>(&axes_t1);
       custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
+      phi::DenseTensor tmp;
+      phi::DenseTensorMeta tmp_meta = {dx->dtype(), dx->dims()};
+      tmp.set_meta(tmp_meta);
+      dev_ctx.template Alloc<T>(&tmp);
       keep_dim = true;
       auto dtype = ConvertToNpuDtype(dx->dtype());
       auto axis = phi::IntArray(axes);
       EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, *tmp_dout, axis, keep_dim, dtype, *dx);
+          aclnnReduceSum, dev_ctx, *tmp_dout, axis, keep_dim, dtype, tmp);
+      tmp.Resize(dx->dims());
+      TensorCopy(dev_ctx, tmp, false, dx);
     } else {
       TensorCopy(dev_ctx, *tmp_dout, false, dx);
     }
@@ -282,7 +296,7 @@ void SubtractGradKernel(const Context& dev_ctx,
     for (auto i = 0; i < reduce_ndim; ++i) {
       axes.push_back(i);
     }
-    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&douty);
     phi::DenseTensor reduced_dy;
     phi::DenseTensor reduced_dout;
 
@@ -305,7 +319,7 @@ void SubtractGradKernel(const Context& dev_ctx,
       auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
       auto axis = phi::IntArray(reduced_dout_dims);
       EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
+          aclnnReduceSum, dev_ctx, douty, axis, keep_dim, dtype, reduced_dout);
       tmp_dout = &reduced_dout;
     }
 

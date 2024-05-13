@@ -681,6 +681,47 @@ class TestAddAPIWithNPUStroageFormat(unittest.TestCase):
         )
         paddle.enable_static()
 
+class TestElementWiseAddGradOp_broadcast(unittest.TestCase):
+    def setUp(self):
+        self.shape_reduce = [3, 1]
+        self.shape_normal = [3, 2]
+        self.reduce_tensor = np.random.random(self.shape_reduce).astype(np.float32)
+        self.normal_tensor = np.random.random(self.shape_normal).astype(np.float32)
+        self.place = paddle.CustomPlace("npu", 0)
+    
+    def test_broadcast_grad(self):
+        # broadcast x
+        self.check_broadcast_grad(self.reduce_tensor, self.normal_tensor)
+        # broadcast y
+        self.check_broadcast_grad(self.normal_tensor, self.reduce_tensor)
+
+    def check_broadcast_grad(self, x_np, y_np):
+        paddle.disable_static(self.place)
+
+        paddle.set_device("npu")
+        x = paddle.to_tensor(x_np)
+        y = paddle.to_tensor(y_np)
+        x.stop_gradient = False
+        y.stop_gradient = False
+        loss = (x + y).sum()
+        loss.backward()
+        x_grad_npu = x.grad.cpu().numpy()
+        y_grad_npu = y.grad.cpu().numpy()
+
+        paddle.set_device("cpu")
+        x = paddle.to_tensor(x_np)
+        y = paddle.to_tensor(y_np)
+        x.stop_gradient = False
+        y.stop_gradient = False
+        loss = (x + y).sum()
+        loss.backward()
+        x_grad_cpu = x.grad.cpu().numpy()
+        y_grad_cpu = y.grad.cpu().numpy()
+        
+        paddle.enable_static()
+        np.testing.assert_allclose(x_grad_npu, x_grad_npu, rtol=1e-06)
+        np.testing.assert_allclose(y_grad_npu, y_grad_cpu, rtol=1e-06)
+
 
 if __name__ == "__main__":
     unittest.main()

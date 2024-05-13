@@ -681,6 +681,7 @@ class TestAddAPIWithNPUStroageFormat(unittest.TestCase):
         )
         paddle.enable_static()
 
+
 class TestElementWiseAddGradOp_broadcast(unittest.TestCase):
     def setUp(self):
         self.shape_reduce = [3, 1]
@@ -688,7 +689,7 @@ class TestElementWiseAddGradOp_broadcast(unittest.TestCase):
         self.reduce_tensor = np.random.random(self.shape_reduce).astype(np.float32)
         self.normal_tensor = np.random.random(self.shape_normal).astype(np.float32)
         self.place = paddle.CustomPlace("npu", 0)
-    
+
     def test_broadcast_grad(self):
         # broadcast x
         self.check_broadcast_grad(self.reduce_tensor, self.normal_tensor)
@@ -717,7 +718,7 @@ class TestElementWiseAddGradOp_broadcast(unittest.TestCase):
         loss.backward()
         x_grad_cpu = x.grad.cpu().numpy()
         y_grad_cpu = y.grad.cpu().numpy()
-        
+
         paddle.enable_static()
         np.testing.assert_allclose(x_grad_npu, x_grad_npu, rtol=1e-06)
         np.testing.assert_allclose(y_grad_npu, y_grad_cpu, rtol=1e-06)

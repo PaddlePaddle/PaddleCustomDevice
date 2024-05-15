@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
@@ -22,35 +22,39 @@ void LabelSmoothKernel(const Context& dev_ctx,
                        const paddle::optional<phi::DenseTensor>& dist,
                        float epsilon,
                        phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("label_smooth");
   if (dist) {
     PADDLE_THROW(
         phi::errors::Unimplemented("GCU doesn't support dist label smooth"));
   }
 
   dev_ctx.template Alloc<T>(out);
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
+    GcuAttributeMap attrs;
+    attrs["epsilon"] = epsilon;
 
-  GcuAttributeMap attrs;
-  attrs["epsilon"] = epsilon;
-
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "label_smooth",
-            dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "label_smooth",
+              dev_ctx);
+  }
 }
 }  // namespace custom_kernel
 

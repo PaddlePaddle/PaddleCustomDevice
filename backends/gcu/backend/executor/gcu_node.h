@@ -40,7 +40,7 @@ struct GcuNode {
   std::ostream& operator<<(std::ostream& out) {
     out << "dims: " << dims.to_str()
         << " dtype: " << phi::DataTypeToString(dtype)
-        << " layout: " << phi::DataLayoutToString(layout);
+        << " layout: " << common::DataLayoutToString(layout);
     return out;
   }
 
@@ -48,7 +48,7 @@ struct GcuNode {
     std::ostringstream os;
     os << "dims: " << dims.to_str()
        << " dtype: " << phi::DataTypeToString(dtype)
-       << " layout: " << phi::DataLayoutToString(layout);
+       << " layout: " << common::DataLayoutToString(layout);
     return os.str();
   }
 

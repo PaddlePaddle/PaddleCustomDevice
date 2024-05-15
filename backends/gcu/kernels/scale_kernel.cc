@@ -12,55 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
-#include "paddle/phi/core/dense_tensor.h"
 
 namespace custom_kernel {
+namespace {
+// topsaten binary not support int tensor and float scale/bais now
+const std::unordered_map<phi::DataType, phi::DataType> kBinaryDtypeTrans = {
+    {phi::DataType::INT64, phi::DataType::FLOAT32},
+    {phi::DataType::INT32, phi::DataType::FLOAT32},
+    {phi::DataType::FLOAT64, phi::DataType::FLOAT32},
+};
+}  // namespace
 
 template <typename T, typename Context>
-void GcuScaleKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::Scalar& in_scale,
-                    const phi::Scalar& in_bias,
-                    bool bias_after_scale,
-                    phi::DenseTensor* out) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "scale", scale);
-
-    phi::DenseTensor scale_tensor;
-    scale_tensor.Resize(phi::make_ddim({}));
-    scale_tensor = full_like(dev_ctx, scale_tensor, in_scale.to<float>());
-
-    phi::DenseTensor bias_tensor;
-    bias_tensor.Resize(phi::make_ddim({}));
-    bias_tensor = full_like(dev_ctx, bias_tensor, in_bias.to<float>());
-
-    auto tmp_x = x;
-    phi::DenseTensor tmp_out;
-    if (tmp_x.dtype() == phi::DataType::INT64) {
-      tmp_x = cast(dev_ctx, tmp_x, phi::DataType::INT32);
+void ScaleKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::Scalar& in_scale,
+                 const phi::Scalar& in_bias,
+                 bool bias_after_scale,
+                 phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("scale");
+  dev_ctx.template Alloc<T>(out);
+  if (LaunchAOTKernel()) {
+    auto input_scale = in_scale;
+    if (in_scale.dtype() == phi::DataType::FLOAT64) {
+      input_scale = phi::Scalar(static_cast<float>(in_scale.to<double>()));
     }
-
+    auto input_bias = in_bias;
+    if (in_scale.dtype() == phi::DataType::FLOAT64) {
+      input_bias = phi::Scalar(static_cast<float>(in_bias.to<double>()));
+    }
+    phi::DenseTensor input_x =
+        MaybeCreateOrTrans(dev_ctx, x, kBinaryDtypeTrans);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans(dev_ctx, *out, kBinaryDtypeTrans, false);
     if (bias_after_scale) {
       // Out = scale ∗ X + bias
-      auto mul_out = mul_compute(dev_ctx, scale_tensor, tmp_x);
-      tmp_out = add_compute(dev_ctx, mul_out, bias_tensor);
+      LAUNCH_TOPSATENOP(
+          topsatenAdd, dev_ctx, output, input_bias, input_x, input_scale);
     } else {
       // Out = scale ∗ (X + bias)
-      auto add_out = add_compute(dev_ctx, tmp_x, bias_tensor);
-      tmp_out = mul_compute(dev_ctx, add_out, scale_tensor);
+      auto tmp_scalar = phi::Scalar(1.0f);
+      phi::DenseTensor tmp_out = TensorEmpty(dev_ctx, output.meta());
+      LAUNCH_TOPSATENOP(
+          topsatenAdd, dev_ctx, tmp_out, input_x, input_bias, tmp_scalar);
+      LAUNCH_TOPSATENOP(topsatenMul, dev_ctx, output, input_scale, tmp_out);
     }
-    if (out->dtype() != tmp_out.dtype()) {
-      tmp_out = cast(dev_ctx, tmp_out, out->dtype());
-    }
-    if (out->dims() != tmp_out.dims()) {
-      tmp_out = reshape(dev_ctx, tmp_out, phi::vectorize(out->dims()));
-    }
-    *out = tmp_out;
-    PADDLE_GCU_KERNEL_END("scale", scale);
-  } else {
+    MaybeTransResult(dev_ctx, output, out);
+
+  } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(out);
     phi::DenseTensor scale_tensor;
     scale_tensor.Resize({1});
@@ -99,42 +100,13 @@ void GcuScaleKernel(const Context& dev_ctx,
   }
 }
 
-template <typename T, typename Context>
-void ScaleSrKernel(const Context& dev_ctx,
-                   const phi::SelectedRows& x,
-                   const phi::Scalar& scale,
-                   const phi::Scalar& bias,
-                   bool bias_after_scale,
-                   phi::SelectedRows* out) {
-  // if (x.value().Holder() != out->value().Holder() ||
-  if (x.value().data() != out->value().data()) {
-    out->set_rows(x.rows());
-    out->set_height(x.height());
-  }
-  GcuScaleKernel<T, Context>(
-      dev_ctx, x.value(), scale, bias, bias_after_scale, out->mutable_value());
-}
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scale,
                           gcu,
                           ALL_LAYOUT,
-                          custom_kernel::GcuScaleKernel,
+                          custom_kernel::ScaleKernel,
                           phi::dtype::float16,
                           float,
                           int,
                           int64_t) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(scale_sr,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::ScaleSrKernel,
-//                           float,
-//                           double,
-//                           phi::dtype::float16,
-//                           uint8_t,
-//                           int8_t,
-//                           int16_t,
-//                           int,
-//                           int64_t) {}

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 static void StridedSliceOutDims(const std::vector<int64_t>& starts,
@@ -176,110 +175,12 @@ void StridedSliceKernel(const Context& dev_ctx,
                         const phi::IntArray& ends,
                         const phi::IntArray& strides,
                         phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("strided_slice");
   dev_ctx.template Alloc<T>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "strided_slice", strided_slice);
-
-    std::vector<int64_t> starts_data = starts.GetData();
-    std::vector<int64_t> ends_data = ends.GetData();
-    std::vector<int64_t> strides_data = strides.GetData();
-    const int64_t input_rank = x.dims().size();
-    std::vector<int> infer_flags(axes.size(), 1);
-    std::vector<int> decrease_axis;
-
-    // out dims calculation
-    std::vector<int64_t> out_dims_vector(input_rank, -1);
-    StridedSliceOutDims(starts_data,
-                        ends_data,
-                        strides_data,
-                        axes,
-                        infer_flags,
-                        x.dims(),
-                        decrease_axis,
-                        out_dims_vector.data(),
-                        axes.size(),
-                        false);
-
-    // check whether need to reverse (false: stride > 0; true: stride < 0)
-    std::vector<int> reverse_vector(axes.size(), 0);
-    StridedSliceFunctor(starts_data.data(),
-                        ends_data.data(),
-                        strides_data.data(),
-                        axes.data(),
-                        reverse_vector.data(),
-                        x.dims(),
-                        infer_flags,
-                        decrease_axis,
-                        axes.size());
-
-    auto tmp_x = x;
-    auto tmp_out = EmptyTensor(dev_ctx, out->meta());
-    if (x.dtype() == phi::DataType::INT64) {
-      tmp_x = cast(dev_ctx, x, phi::DataType::INT32);
-      tmp_out = EmptyTensor(dev_ctx, phi::DataType::INT32, out->dims());
-    }
-
-    tmp_out = slice(dev_ctx,
-                    tmp_x,
-                    vector_s64(axes),
-                    starts_data,
-                    ends_data,
-                    strides_data,
-                    tmp_out);
-
-    bool need_reverse = false;
-    for (size_t axis = 0; axis < axes.size(); axis++) {
-      if (reverse_vector[axis] == 1) {
-        need_reverse = true;
-        break;
-      }
-    }
-    if (need_reverse) {
-      std::vector<int64_t> reverse_axis_vector;
-      for (size_t axis = 0; axis < axes.size(); axis++) {
-        if (reverse_vector[axis] == 1) {
-          reverse_axis_vector.push_back(axes[axis]);
-        }
-      }
-      tmp_out = reverse(dev_ctx, tmp_out, reverse_axis_vector);
-    }
-
-    auto out_dims_origin = out_dims_vector;
-    if (decrease_axis.size() > 0) {
-      std::vector<int64_t> new_out_shape;
-      for (size_t i = 0; i < decrease_axis.size(); ++i) {
-        PADDLE_ENFORCE_EQ(
-            out_dims_vector[decrease_axis[i]],
-            1,
-            phi::errors::InvalidArgument(
-                "the size of decrease dimension should be 1, but received %d.",
-                out_dims_vector[decrease_axis[i]]));
-        out_dims_origin[decrease_axis[i]] = 0;
-      }
-
-      for (size_t i = 0; i < out_dims_origin.size(); ++i) {
-        if (out_dims_origin[i] != 0) {
-          new_out_shape.push_back(out_dims_origin[i]);
-        }
-      }
-      if (new_out_shape.size() == 0) {
-        new_out_shape.push_back(1);
-      }
-      out_dims_origin = new_out_shape;
-    }
-    if (decrease_axis.size() > 0) {
-      tmp_out = reshape(dev_ctx, tmp_out, out_dims_origin);
-    }
-
-    if (x.dtype() == phi::DataType::INT64) {
-      cast(dev_ctx, tmp_out, phi::DataType::INT64, out);
-    } else {
-      TensorCopy(dev_ctx, tmp_out, false, out);
-    }
-
-    PADDLE_GCU_KERNEL_END("strided_slice", strided_slice);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names["Input"] = {"x"};
 
@@ -325,43 +226,48 @@ void StridedSliceGradKernel(const Context& dev_ctx,
                             const phi::IntArray& ends,
                             const phi::IntArray& strides,
                             DenseTensor* x_grad) {
+  PADDLE_GCU_KERNEL_TRACE("strided_slice_grad");
   dev_ctx.template Alloc<T>(x_grad);
 
-  TensorNameMap input_names;
-  input_names["Input"] = {"x"};
-  input_names[GradVarName("Out")] = {"out_grad"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Input"] = {"x"};
+    input_names[GradVarName("Out")] = {"out_grad"};
 
-  TensorValueMap inputs;
-  inputs["Input"] = {const_cast<DenseTensor*>(&x)};
-  inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&out_grad)};
+    TensorValueMap inputs;
+    inputs["Input"] = {const_cast<DenseTensor*>(&x)};
+    inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&out_grad)};
 
-  TensorNameMap output_names;
-  output_names[GradVarName("X")] = {"x_grad"};
+    TensorNameMap output_names;
+    output_names[GradVarName("X")] = {"x_grad"};
 
-  TensorValueMap outputs;
-  outputs[GradVarName("X")] = {x_grad};
+    TensorValueMap outputs;
+    outputs[GradVarName("X")] = {x_grad};
 
-  std::vector<int> infer_flags(axes.size(), 1);
-  std::vector<int> decrease_axis;
-  std::vector<int> starts_list = GetIntList(starts.GetData());
-  std::vector<int> ends_list = GetIntList(ends.GetData());
-  std::vector<int> strides_list = GetIntList(strides.GetData());
+    std::vector<int> infer_flags(axes.size(), 1);
+    std::vector<int> decrease_axis;
+    std::vector<int> starts_list = GetIntList(starts.GetData());
+    std::vector<int> ends_list = GetIntList(ends.GetData());
+    std::vector<int> strides_list = GetIntList(strides.GetData());
 
-  GcuAttributeMap attrs;
-  attrs["starts"] = starts_list;
-  attrs["ends"] = ends_list;
-  attrs["strides"] = strides_list;
-  attrs["axes"] = axes;
-  attrs["infer_flags"] = infer_flags;
-  attrs["decrease_axis"] = decrease_axis;
+    GcuAttributeMap attrs;
+    attrs["starts"] = starts_list;
+    attrs["ends"] = ends_list;
+    attrs["strides"] = strides_list;
+    attrs["axes"] = axes;
+    attrs["infer_flags"] = infer_flags;
+    attrs["decrease_axis"] = decrease_axis;
 
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "strided_slice_grad",
-            dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "strided_slice_grad",
+              dev_ctx);
+  }
 }
 }  // namespace custom_kernel
 

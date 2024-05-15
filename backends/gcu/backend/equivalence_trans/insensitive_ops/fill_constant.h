@@ -34,7 +34,7 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
 
   std::vector<int64_t> shape;
   auto shape_attr = op->GetAttr("shape");
-  if (phi::enforce::demangle(shape_attr.type().name()) ==
+  if (common::demangle(shape_attr.type().name()) ==
       "std::vector<int, std::allocator<int> >") {
     auto origin_shape =
         PADDLE_GET_CONST(std::vector<int>, op->GetAttr("shape"));
@@ -76,7 +76,7 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(gcu_builder,
   auto input = *(map_inputs["Input"].at(0));
   std::vector<int64_t> shape;
   auto shape_attr = op->GetAttr("shape");
-  if (phi::enforce::demangle(shape_attr.type().name()) ==
+  if (common::demangle(shape_attr.type().name()) ==
       "std::vector<int, std::allocator<int> >") {
     auto origin_shape =
         PADDLE_GET_CONST(std::vector<int>, op->GetAttr("shape"));

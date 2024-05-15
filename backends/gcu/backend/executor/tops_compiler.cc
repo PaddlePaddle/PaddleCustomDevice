@@ -15,10 +15,11 @@ limitations under the License. */
 #include "backend/executor/tops_compiler.h"
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
-#include "common/common.h"
+#include "common/utils.h"
 #include "gcu/tops_graph_compiler/tops_graph_compiler.h"
 #include "gcu/tops_graph_compiler/tops_graph_compiler_option.h"
 
@@ -46,9 +47,7 @@ std::vector<std::string> GetTopsCompileOptions() {
   std::vector<std::string> opts;
 
   auto target_name = custom_kernel::GetTargetName();
-  std::string hlir_options =
-      "hlir-training-pipeline{tensor-split=true op-key=pavo "
-      "dynamic-shape=false}";
+  std::string hlir_options = "tops-hlir-pipeline";
 
   // add target options
   int options_len = 1024;            // NOLINT

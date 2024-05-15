@@ -37,7 +37,6 @@ void MemcpyKernel(const Context& dev_ctx,
     PADDLE_THROW(phi::errors::Unimplemented(
         "memcpy dst_place_type: %d is not supported yet.", dst_place_type));
   }
-  dev_ctx.Wait();
 }
 
 template <typename T, typename Context>
@@ -46,7 +45,6 @@ void MemcpyH2DKernel(const Context& dev_ctx,
                      int dst_place_type,
                      phi::DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out, dev_ctx.GetPlace());
-  dev_ctx.Wait();
 }
 
 // used in new executor, for memory copy from device to host
@@ -56,7 +54,6 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      int dst_place_type,
                      phi::DenseTensor* out) {
   TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
-  dev_ctx.Wait();
 }
 
 template <typename T, typename Context>

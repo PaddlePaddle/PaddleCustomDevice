@@ -61,26 +61,14 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
 
   GcuOp dy = builder::Select(pred, delta_op, residual) * dout;
   dy = builder::Select(pred_neg, -dy, dy);
-
   std::string output_names_attr;
   auto output_name_map = op->Outputs();
-  GcuOp result;
-
-  if (output_name_map.count("X@GRAD") != 0 &&
-      output_name_map["X@GRAD"].size() != 0) {
-    output_names_attr += output_name_map["X@GRAD"].at(0);
-    result = builder::Tuple({dx});
-  }
-
+  output_names_attr += output_name_map["X@GRAD"].at(0) + ";";
+  auto result = builder::Tuple({dx});
   if (output_name_map.count("Y@GRAD") != 0 &&
       output_name_map["Y@GRAD"].size() != 0) {
-    if (output_names_attr.empty()) {
-      output_names_attr += output_name_map["Y@GRAD"].at(0);
-      result = builder::Tuple({dy});
-    } else {
-      output_names_attr += ";" + output_name_map["Y@GRAD"].at(0);
-      result = builder::Tuple({dx, dy});
-    }
+    output_names_attr += ";" + output_name_map["Y@GRAD"][0];
+    result = builder::Tuple({dx, dy});
   }
   result.SetAttribute(kAttrOpOutVarName,
                       builder::Attribute(output_names_attr.c_str()));

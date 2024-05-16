@@ -14,8 +14,18 @@
 
 #pragma once
 
+#include "common/gcu_funcs.h"
+#include "common/utils.h"
+#include "kernels/funcs/common_ops.h"
 #include "paddle/phi/common/data_type.h"
-#include "runtime/runtime.h"
+
+#define THROW_AOT_UNIMPLEMENTED()                                            \
+  PADDLE_THROW(phi::errors::Unimplemented("AOT kernel is unimplemented: %s", \
+                                          __FUNCTION__))
+
+#define THROW_JIT_UNIMPLEMENTED()                                            \
+  PADDLE_THROW(phi::errors::Unimplemented("JIT kernel is unimplemented: %s", \
+                                          __FUNCTION__))
 
 namespace custom_kernel {
 using DenseTensor = phi::DenseTensor;

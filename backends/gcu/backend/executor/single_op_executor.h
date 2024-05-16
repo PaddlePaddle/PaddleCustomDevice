@@ -21,8 +21,6 @@ limitations under the License. */
 #include <vector>
 
 #include "backend/executor/gcu_node.h"
-#include "gcu/hlir/dispatch.h"
-#include "gcu/hlir/types.h"
 #include "paddle/phi/backends/custom/custom_context.h"
 #include "paddle/phi/core/dense_tensor.h"
 
@@ -40,7 +38,6 @@ class SingleOpGcuExecutor {
                       const std::vector<GcuNode>& input_nodes,
                       const std::vector<GcuNode>& output_nodes);
   SingleOpGcuExecutor(const std::string& op_type,
-                      hlir::HlirDispatch* dispatch,
                       const std::vector<GcuNode>& input_nodes,
                       const std::vector<GcuNode>& output_nodes);
   SingleOpGcuExecutor() = delete;
@@ -52,12 +49,10 @@ class SingleOpGcuExecutor {
                 const std::vector<LoDTensor*>& inputs,
                 const std::vector<LoDTensor*>& outputs,
                 bool tensor_split);
-  bool IsDispatch() const { return dispatch_ != nullptr; }
 
  private:
   const std::string op_type_;
   topsExecutable_t tops_exec_ = nullptr;
-  std::shared_ptr<hlir::HlirDispatch> dispatch_ = nullptr;
   std::vector<GcuNode> input_nodes_;
   std::vector<GcuNode> output_nodes_;
 };

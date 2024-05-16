@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
@@ -33,35 +32,10 @@ void MomentumKernel(const Context& dev_ctx,
                     phi::DenseTensor* param_out,
                     phi::DenseTensor* velocity_out,
                     phi::DenseTensor* master_param_out) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "momentum", momentum);
-    phi::DenseTensor tmp_grad = grad;
-    if (regularization_method == "l2_decay") {
-      auto regular_coeff_op = full_like(dev_ctx, param, regularization_coeff);
-      auto regular_param = mul_compute(dev_ctx, param, regular_coeff_op);
-      tmp_grad = add_compute(dev_ctx, tmp_grad, regular_param);
-    } else if (regularization_method.size() != 0) {
-      PADDLE_THROW(
-          phi::errors::InvalidArgument("GCU Not support regularization"));
-    }
-    auto mu_op = full_like(dev_ctx, velocity, mu_f);
-
-    *velocity_out =
-        add_compute(dev_ctx, mul_compute(dev_ctx, mu_op, velocity), tmp_grad);
-
-    if (use_nesterov) {
-      // param_out = param - (tmp_grad + mu_op * velocity_out) * learning_rate;
-      auto tmp = mul_compute(dev_ctx, mu_op, *velocity_out);
-      tmp = add_compute(dev_ctx, tmp_grad, tmp);
-      tmp = mul_compute(dev_ctx, tmp, learning_rate);
-      *param_out = sub_compute(dev_ctx, param, tmp);
-    } else {
-      // param_out = param - learning_rate * velocity_out;
-      auto tmp = mul_compute(dev_ctx, learning_rate, *velocity_out);
-      *param_out = sub_compute(dev_ctx, param, tmp);
-    }
-    PADDLE_GCU_KERNEL_END("momentum", momentum);
-  } else {
+  PADDLE_GCU_KERNEL_TRACE("momentum");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(param_out);
     dev_ctx.template Alloc<T>(velocity_out);
 

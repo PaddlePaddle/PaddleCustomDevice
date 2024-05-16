@@ -5,6 +5,54 @@ from setuptools import setup, Distribution
 packages = []
 package_data = {}
 
+def write_custom_op_api_py(init_file='python/paddle_custom_device/gcu/ops/__init__.py',
+                           op_file='python/paddle_custom_device/gcu/ops/custom_ops.py',
+                           lib_name='python/paddle_custom_device/libpaddle-custom-gcu.so'):
+    import os
+    os.environ['CUSTOM_DEVICE_ROOT']=''
+    import sys
+    import paddle
+    op_names = paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(lib_name)
+    api_content = [paddle.utils.cpp_extension.extension_utils._custom_api_content(op_name) for op_name in op_names]
+    dirname = os.path.dirname(init_file)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    op_name_strs = '\n\n__all__ = [\n'
+    for op_name in op_names:
+        op_name_strs += '    \'' + op_name + '\',\n'
+    op_name_strs += ']\n'
+    with open(init_file, 'w') as f_init:
+        f_init.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
+        f_init.write('''from .custom_ops import *  # noqa: F403''')
+        f_init.write(op_name_strs)
+        f_init.write('''
+
+def run_once(f):
+    def wrapper(*args, **kwargs):
+        if not wrapper.has_run:
+            wrapper.has_run = True
+            return f(*args, **kwargs)
+    wrapper.has_run = False
+    return wrapper
+
+
+@run_once
+def load_lib():
+    import paddle
+    import os
+    for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
+        if lib.endswith(".so"):
+            paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
+                lib
+            )
+
+load_lib()
+
+''')
+    with open(op_file, 'w') as f:
+        f.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
+        f.write('\n\n'.join(api_content))
+        f.write('# ====== End of file ======\n')
 
 def write_version_py(filename='python/paddle_custom_device/gcu/__init__.py'):
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
@@ -65,6 +113,7 @@ class BinaryDistribution(Distribution):
 
 
 def main():
+    write_custom_op_api_py()
     write_version_py()
     write_init_py()
 
@@ -81,7 +130,9 @@ def main():
         license='Apache Software License',
         packages= [
             'paddle_custom_device',
-            'paddle_custom_device.gcu'
+            'paddle_custom_device.gcu',
+            'paddle_custom_device.gcu.ops',
+            'paddle_custom_device.gcu.passes'
         ],
         include_package_data=True,
         package_data = {

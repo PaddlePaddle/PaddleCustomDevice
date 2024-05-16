@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/common.h"
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 #include "paddle/phi/kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SliceRawKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const std::vector<int64_t>& axes_t,
-                    const phi::IntArray& starts_array,
-                    const phi::IntArray& ends_array,
-                    const std::vector<int64_t>& infer_flags,
-                    const std::vector<int64_t>& decrease_axis,
-                    phi::DenseTensor* out) {
-  if (UseScatterMemory()) {
+void SliceKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const std::vector<int64_t>& axes_t,
+                 const phi::IntArray& starts_array,
+                 const phi::IntArray& ends_array,
+                 const std::vector<int64_t>& infer_flags,
+                 const std::vector<int64_t>& decrease_axis,
+                 phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("slice");
+  if (LaunchAOTKernel()) {
     auto axes = axes_t;
     auto starts = starts_array.GetData();
     auto ends = ends_array.GetData();
@@ -44,13 +43,12 @@ void SliceRawKernel(const Context& dev_ctx,
         axes.size(),
         phi::errors::InvalidArgument(
             "The size of ends must be equal to the size of axes."));
-    PADDLE_GCU_KERNEL_START(dev_ctx, "slice", slice);
 
     auto in_dims = x.dims();
     auto out_dims = out->dims();
     auto slice_dims = out_dims;
 
-    // 2.1 Infer output dims
+    // Infer output dims
     for (size_t i = 0; i < axes.size(); ++i) {
       // when start == -1 && end == start+1
       if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
@@ -69,32 +67,32 @@ void SliceRawKernel(const Context& dev_ctx,
 
     out->Resize(slice_dims);
     dev_ctx.template Alloc<T>(out);
+    if (out->data() == x.data()) {
+      *out = TensorEmpty(dev_ctx, out->meta());
+    }
 
     auto rank = x.dims().size();
-    std::vector<int64_t> strides(rank, 1);
-    if (out->data() == x.data()) {
-      auto tmp = EmptyTensor(dev_ctx, out->meta());
-      dev_ctx.template Alloc(&tmp, tmp.dtype());
-      *out = tmp;
-    }
+    std::vector<int64_t> steps(rank, 1);
 
-    auto tmp_x = x;
-    auto tmp_out = *out;
-    if (x.dtype() == phi::DataType::INT64) {
-      tmp_x = cast(dev_ctx, x, phi::DataType::INT32);
-      tmp_out = EmptyTensor(dev_ctx, phi::DataType::INT32, out->dims());
-    }
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor output_tmp =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    auto alpha = phi::Scalar(1.0f);
+    auto beta = phi::Scalar(0.0f);
+    LAUNCH_TOPSOP(topsopSlice,
+                  dev_ctx,
+                  output_tmp,
+                  input_x,
+                  starts,
+                  ends,
+                  axes_t,
+                  steps,
+                  alpha,
+                  beta);
+    MaybeTransResult(dev_ctx, output_tmp, out);
+    out->Resize(out_dims);
 
-    slice(dev_ctx, tmp_x, axes_t, starts, ends, strides, tmp_out);
-
-    if (x.dtype() == phi::DataType::INT64) {
-      cast(dev_ctx, tmp_out, phi::DataType::INT64, out);
-    }
-
-    *out = reshape(dev_ctx, *out, phi::vectorize(out_dims));
-
-    PADDLE_GCU_KERNEL_END("slice", slice);
-  } else {
+  } else {  // kernel impl base on JIT
     std::vector<int> axes(axes_t.begin(), axes_t.end());
     auto starts_int = starts_array.GetData();
     auto ends_int = ends_array.GetData();
@@ -141,15 +139,16 @@ void SliceRawKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void SliceGradRawKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& out_grad,
-                        const std::vector<int64_t>& axes_t,
-                        const phi::IntArray& starts_array,
-                        const phi::IntArray& ends_array,
-                        const std::vector<int64_t>& infer_flags,
-                        const std::vector<int64_t>& decrease_axis,
-                        phi::DenseTensor* x_grad) {
+void SliceGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::DenseTensor& out_grad,
+                     const std::vector<int64_t>& axes_t,
+                     const phi::IntArray& starts_array,
+                     const phi::IntArray& ends_array,
+                     const std::vector<int64_t>& infer_flags,
+                     const std::vector<int64_t>& decrease_axis,
+                     phi::DenseTensor* x_grad) {
+  PADDLE_GCU_KERNEL_TRACE("slice_grad");
   std::vector<int> axes(axes_t.begin(), axes_t.end());
   auto starts_int = starts_array.GetData();
   auto ends_int = ends_array.GetData();
@@ -159,79 +158,58 @@ void SliceGradRawKernel(const Context& dev_ctx,
 
   dev_ctx.template Alloc<T>(x_grad);
 
-  TensorNameMap input_names;
-  input_names["Input"] = {"x"};
-  input_names[GradVarName("Out")] = {"out_grad"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Input"] = {"x"};
+    input_names[GradVarName("Out")] = {"out_grad"};
 
-  TensorValueMap inputs;
-  inputs["Input"] = {const_cast<DenseTensor*>(&x)};
-  inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&out_grad)};
+    TensorValueMap inputs;
+    inputs["Input"] = {const_cast<DenseTensor*>(&x)};
+    inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&out_grad)};
 
-  TensorNameMap output_names;
-  TensorValueMap outputs;
+    TensorNameMap output_names;
+    TensorValueMap outputs;
 
-  output_names[GradVarName("Input")] = {"x_grad"};
-  outputs[GradVarName("Input")] = {x_grad};
+    output_names[GradVarName("Input")] = {"x_grad"};
+    outputs[GradVarName("Input")] = {x_grad};
 
-  GcuAttributeMap attrs;
-  attrs["axes"] = axes;
-  attrs["starts"] = starts;
-  attrs["ends"] = ends;
-  attrs["infer_flags"] =
-      std::vector<int>(infer_flags.begin(), infer_flags.end());
-  attrs["decrease_axis"] =
-      std::vector<int>(decrease_axis.begin(), decrease_axis.end());
+    GcuAttributeMap attrs;
+    attrs["axes"] = axes;
+    attrs["starts"] = starts;
+    attrs["ends"] = ends;
+    attrs["infer_flags"] =
+        std::vector<int>(infer_flags.begin(), infer_flags.end());
+    attrs["decrease_axis"] =
+        std::vector<int>(decrease_axis.begin(), decrease_axis.end());
 
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "slice_grad", dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "slice_grad",
+              dev_ctx);
+  }
 }
-
-template <typename T, typename Context>
-void SliceArrayKernel(const Context& dev_ctx,
-                      const phi::TensorArray& input,
-                      const phi::IntArray& starts,
-                      const phi::IntArray& ends,
-                      phi::TensorArray* out) {}
-
-template <typename T, typename Context>
-void SliceArrayDenseKernel(const Context& dev_ctx,
-                           const phi::TensorArray& input,
-                           const phi::IntArray& starts,
-                           phi::DenseTensor* out) {}
-
-template <typename T, typename Context>
-void SliceArrayGradKernel(const Context& dev_ctx,
-                          const phi::TensorArray& input,
-                          const phi::TensorArray& out_grad,
-                          const phi::IntArray& starts,
-                          const phi::IntArray& ends,
-                          phi::TensorArray* input_grad) {}
-
-template <typename T, typename Context>
-void SliceArrayDenseGradKernel(const Context& dev_ctx,
-                               const phi::TensorArray& input,
-                               const phi::DenseTensor& out_grad,
-                               const phi::IntArray& starts,
-                               phi::TensorArray* input_grad) {}
 
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(slice,
                           gcu,
                           ALL_LAYOUT,
-                          custom_kernel::SliceRawKernel,
+                          custom_kernel::SliceKernel,
                           phi::dtype::float16,
                           float,
                           double,
-                          int16_t,
                           int32_t,
-                          int64_t,
-                          bool) {}
+                          int64_t) {}
 
 PD_REGISTER_PLUGIN_KERNEL(slice_grad,
                           gcu,
                           ALL_LAYOUT,
-                          custom_kernel::SliceGradRawKernel,
+                          custom_kernel::SliceGradKernel,
                           phi::dtype::float16,
                           float,
                           double,
@@ -239,51 +217,3 @@ PD_REGISTER_PLUGIN_KERNEL(slice_grad,
                           int32_t,
                           int64_t,
                           bool) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(slice_array,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::SliceArrayKernel,
-//                           phi::dtype::float16,
-//                           float,
-//                           double,
-//                           int16_t,
-//                           int32_t,
-//                           int64_t,
-//                           bool) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(slice_array_dense,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::SliceArrayDenseKernel,
-//                           phi::dtype::float16,
-//                           float,
-//                           double,
-//                           int16_t,
-//                           int32_t,
-//                           int64_t,
-//                           bool) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(slice_array_grad,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::SliceArrayGradKernel,
-//                           phi::dtype::float16,
-//                           float,
-//                           double,
-//                           int16_t,
-//                           int32_t,
-//                           int64_t,
-//                           bool) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(slice_array_dense_grad,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::SliceArrayDenseGradKernel,
-//                           phi::dtype::float16,
-//                           float,
-//                           double,
-//                           int16_t,
-//                           int32_t,
-//                           int64_t,
-//                           bool) {}

@@ -12,39 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/unary_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_name_list.h"
-#include "kernels/funcs/gcu_op_runner.h"
-#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
+template <typename T, typename Context>
+void BitwiseAndKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("bitwise_and");
+  dev_ctx.template Alloc<T>(out);
+  if (LaunchAOTKernel()) {
+    LAUNCH_TOPSATENOP(topsatenBitwiseAnd, dev_ctx, *out, x, y);
 
-// #define DEFINE_BITWISE_KERNEL(op_type)                     \
-//   template <typename T, typename Context>                  \
-//   void Bitwise##op_type##Kernel(const Context& dev_ctx,    \
-//                                 const phi::DenseTensor& x, \
-//                                 const phi::DenseTensor& y, \
-//                                 phi::DenseTensor* out) {   \
-//     dev_ctx.template Alloc<T>(out);                        \
-//   }
-
-// DEFINE_BITWISE_KERNEL(AND)
-// DEFINE_BITWISE_KERNEL(OR)
-// DEFINE_BITWISE_KERNEL(XOR)
-// #undef DEFINE_BITWISE_KERNEL
+  } else {  // kernel impl base on JIT
+    THROW_JIT_UNIMPLEMENTED();
+  }
+}
 
 template <typename T, typename Context>
-void BitwiseNOTKernel(const Context& dev_ctx,
+void BitwiseNotKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("bitwise_not");
   dev_ctx.template Alloc<T>(out);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "bitwise_not", bitwise_not);
-    bitwise_not_compute(
-        static_cast<const phi::CustomContext&>(dev_ctx), x, out);
-    PADDLE_GCU_KERNEL_END("bitwise_not", bitwise_not);
-  } else {
+  if (LaunchAOTKernel()) {
+    LAUNCH_TOPSATENOP(topsatenBitwiseNot, dev_ctx, *out, x);
+
+  } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(out);
 
     TensorNameMap input_names;
@@ -72,42 +68,8 @@ void BitwiseNOTKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-// PD_REGISTER_PLUGIN_KERNEL(bitwise_and,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::BitwiseANDKernel,
-//                           bool,
-//                           uint8_t,
-//                           int8_t,
-//                           int16_t,
-//                           int) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    bitwise_and, gcu, ALL_LAYOUT, custom_kernel::BitwiseAndKernel, bool, int) {}
 
-// PD_REGISTER_PLUGIN_KERNEL(bitwise_or,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::BitwiseORKernel,
-//                           bool,
-//                           uint8_t,
-//                           int8_t,
-//                           int16_t,
-//                           int) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(bitwise_xor,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::BitwiseXORKernel,
-//                           bool,
-//                           uint8_t,
-//                           int8_t,
-//                           int16_t,
-//                           int) {}
-
-PD_REGISTER_PLUGIN_KERNEL(bitwise_not,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::BitwiseNOTKernel,
-                          bool,
-                          uint8_t,
-                          int8_t,
-                          int16_t,
-                          int) {}
+PD_REGISTER_PLUGIN_KERNEL(
+    bitwise_not, gcu, ALL_LAYOUT, custom_kernel::BitwiseNotKernel, bool, int) {}

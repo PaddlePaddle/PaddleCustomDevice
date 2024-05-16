@@ -12,51 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/common.h"
-#include "common/utils.h"
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_name_list.h"
-#include "kernels/funcs/gcu_op_runner.h"
 #include "paddle/phi/kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
+template <typename T, typename Context>
+extern void ScatterKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& index,
+                          const phi::DenseTensor& updates,
+                          bool overwrite,
+                          phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void SetValueKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::IntArray& starts,
-                    const phi::IntArray& ends,
-                    const phi::IntArray& steps,
-                    const std::vector<int64_t>& axes,
-                    const std::vector<int64_t>& decrease_axes,
-                    const std::vector<int64_t>& none_axes,
-                    const std::vector<int64_t>& shape,
-                    const std::vector<phi::Scalar>& values,
-                    phi::DenseTensor* out) {
-  std::vector<T> assgin_values;
-  assgin_values.reserve(values.size());
-  for (const auto& val : values) {
-    assgin_values.push_back(val.to<T>());
-  }
-  phi::DenseTensor value_tensor;
-  value_tensor.Resize(phi::make_ddim(shape));
-  TensorFromVector(dev_ctx, assgin_values, dev_ctx, &value_tensor);
-  value_tensor.Resize(phi::make_ddim(shape));
-
-  // auto in_dims = x.dims();
-  // auto out_dims_arr = phi::vectorize(in_dims);
-  // out_dims_arr.push_back(1);
-  // out->Resize(phi::make_ddim(out_dims_arr));
-  // dev_ctx.template Alloc<T>(out);
-
+void SetTensorValueKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& value,
+                          const phi::IntArray& starts,
+                          const phi::IntArray& ends,
+                          const phi::IntArray& steps,
+                          const std::vector<int64_t>& axes,
+                          const std::vector<int64_t>& decrease_axes,
+                          const std::vector<int64_t>& none_axes,
+                          phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("set_value_with_tensor");
   dev_ctx.template Alloc<T>(out);
 
-  if (UseScatterMemory() && x.dtype() != phi::DataType::BOOL) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "set_value", set_value);
-    const int rank = x.dims().size();
-
+  if (LaunchAOTKernel()) {
     auto in_dims = x.dims();
+    const int rank = in_dims.size();
+
     std::vector<int64_t> starts_local = starts.GetData();
     std::vector<int64_t> ends_local = ends.GetData();
     std::vector<int64_t> steps_local = steps.GetData();
@@ -71,7 +57,8 @@ void SetValueKernel(const Context& dev_ctx,
     if (!none_axes.empty()) {
       std::vector<int64_t> slice_dims_with_none;
 
-      size_t none_axes_cur = 0, decrease_axes_cur = 0;
+      size_t none_axes_cur = 0;
+      size_t decrease_axes_cur = 0;
       for (int i = 0; i < slice_dims.size(); ++i) {
         while (none_axes_cur < none_axes.size() &&
                none_axes[none_axes_cur] <= i) {
@@ -111,7 +98,7 @@ void SetValueKernel(const Context& dev_ctx,
 
     // get index shape.
     int64_t stride_step = phi::product(in_dims);
-    std::vector<int32_t> index_indices(1, 0);
+    std::vector<int32_t, PinnedAllocatorForSTL<int32_t>> index_indices(1, 0);
     for (size_t i = 0; i < strides_indices.size(); ++i) {
       auto index_size = index_indices.size();
       stride_step /= in_dims[i];
@@ -141,8 +128,7 @@ void SetValueKernel(const Context& dev_ctx,
 
     // check index size.
     if (index_indices.size() == 0) {
-      TensorCopy(dev_ctx, x, true, out);
-      PADDLE_GCU_KERNEL_END("set_value", set_value);
+      TensorCopy(dev_ctx, x, false, out);
       return;
     }
 
@@ -155,115 +141,72 @@ void SetValueKernel(const Context& dev_ctx,
     auto slice_dims_for_assign_v = phi::vectorize(slice_dims_for_assign);
     PADDLE_ENFORCE_GE(
         slice_dims_for_assign_v.size(),
-        shape.size(),
+        value.dims().size(),
         phi::errors::InvalidArgument(
             "OP(set_value) error: the rank of slice_dims_for_assign_v must "
             "larger than or equal the rank of value shape. "));
 
     // Processing value_tensor data.
+    phi::DenseTensor value_tensor(value);
     if (slice_dims_for_assign_v != phi::vectorize(value_tensor.dims()) &&
         value_tensor.numel() == 1) {
       std::vector<int64_t> broadcast_shape = {
           static_cast<int64_t>(index_tensor.numel())};
-      value_tensor = broadcast_to(dev_ctx, value_tensor, broadcast_shape);
+      value_tensor = Broadcast(dev_ctx, value_tensor, broadcast_shape);
     }
 
     std::vector<int64_t> reshape_shape = {static_cast<int64_t>(x.numel())};
-    auto reshape_x = reshape(dev_ctx, x, reshape_shape);
-    std::vector<int64_t> input_sizes = phi::vectorize(reshape_x.dims());
-    std::vector<int64_t> updates_sizes = phi::vectorize(value_tensor.dims());
-    std::vector<int64_t> index_sizes = phi::vectorize(index_tensor.dims());
+    phi::DenseTensor reshape_x = ReshapeWithoutCopy(x, reshape_shape);
+    phi::DenseTensor reshape_updates =
+        ReshapeWithoutCopy(value_tensor, {value_tensor.numel()});
+    phi::DenseTensor reshape_out = ReshapeWithoutCopy(*out, reshape_shape);
 
-    int64_t num_index_dims = 1;
-    int64_t num_indices = index_sizes.size();
+    custom_kernel::ScatterKernel<T, Context>(
+        dev_ctx, reshape_x, index_tensor, reshape_updates, true, &reshape_out);
+    *out = ReshapeWithoutCopy(reshape_out, phi::vectorize(in_dims));
 
-    // Degenerate case: nothing to update. Return the buffer unchanged.
-    if (num_indices == 0) {
-      PADDLE_ENFORCE(false,
-                     phi::errors::InvalidArgument(
-                         "There is an error in the data here !!!"));
-    }
+  } else {  // kernel impl base on JIT
+    THROW_JIT_UNIMPLEMENTED();
+  }
+}
 
-    // If any of the indexed dimensions are zero in the buffer,
-    // the update cannotsucceed since it updates a slice of size 1.
-    for (int64_t i = 0; i < num_index_dims; ++i) {
-      PADDLE_ENFORCE(input_sizes.at(i) != 0,
-                     phi::errors::InvalidArgument(
-                         "Scatter dimension ", i, " is zero !!!"));
-    }
+template <typename T, typename Context>
+void SetValueKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::IntArray& starts,
+                    const phi::IntArray& ends,
+                    const phi::IntArray& steps,
+                    const std::vector<int64_t>& axes,
+                    const std::vector<int64_t>& decrease_axes,
+                    const std::vector<int64_t>& none_axes,
+                    const std::vector<int64_t>& shape,
+                    const std::vector<phi::Scalar>& values,
+                    phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("set_value");
+  std::vector<T, PinnedAllocatorForSTL<T>> assgin_values;
+  assgin_values.reserve(values.size());
+  for (const auto& val : values) {
+    assgin_values.push_back(val.to<T>());
+  }
+  phi::DenseTensor value_tensor;
+  value_tensor.Resize(phi::make_ddim(shape));
+  TensorFromVector(dev_ctx, assgin_values, dev_ctx, &value_tensor);
+  value_tensor.Resize(phi::make_ddim(shape));
 
-    int64_t updates_rank = updates_sizes.size();
-    int64_t buffer_rank = input_sizes.size();
-    int64_t num_window_dims_in_updates = buffer_rank - num_index_dims;
+  if (LaunchAOTKernel()) {
+    custom_kernel::SetTensorValueKernel<T, Context>(dev_ctx,
+                                                    x,
+                                                    value_tensor,
+                                                    starts,
+                                                    ends,
+                                                    steps,
+                                                    axes,
+                                                    decrease_axes,
+                                                    none_axes,
+                                                    out);
 
-    std::vector<int64_t> update_window_dims_vec = {};
-    if (updates_rank > 0) {
-      for (int64_t i = (updates_rank - num_window_dims_in_updates);
-           i < updates_rank;
-           ++i) {
-        update_window_dims_vec.push_back(i);
-      }
-    }
-
-    std::vector<int64_t> inserted_window_dims_vec = {};
-    for (int64_t i = 0; i < num_index_dims; ++i) {
-      inserted_window_dims_vec.push_back(i);
-    }
-
-    hlir::Metadata scatter_dimension_numbers;
-    auto dims =
-        HlirShape(inserted_window_dims_vec,
-                  {static_cast<int64_t>(inserted_window_dims_vec.size())});
-    auto update_window_dims =
-        HlirShape(update_window_dims_vec,
-                  {static_cast<int64_t>(update_window_dims_vec.size())});
-    int64_t index_vector_dim = index_sizes.size();
-    scatter_dimension_numbers.setValue("index_vector_dim", index_vector_dim);
-    scatter_dimension_numbers.setValue("update_window_dims",
-                                       update_window_dims);
-    scatter_dimension_numbers.setValue("inserted_window_dims", dims);
-    scatter_dimension_numbers.setValue("scatter_dims_to_operand_dims", dims);
-
-    // hlir::DispatchParam params;
-    hlir::DispatchParam params;
-    params.metadata.setValue("scatter_dimension_numbers",
-                             scatter_dimension_numbers);
-    params.metadata.setValue("indices_are_sorted", false);
-    params.metadata.setValue("unique_indices", true);
-    params.stream = static_cast<topsStream_t>(dev_ctx.stream());
-
-    phi::DenseTensor tmp_out;
-    tmp_out.Resize(reshape_x.dims());
-    dev_ctx.Alloc(&tmp_out, out->dtype());
-
-    // hlir::DispatchParam params;
-    auto scatter_new_gcu = GetHlirTensor(reshape_x);
-    auto indices_gcu = GetHlirTensor(index_tensor);
-    auto data_gcu = GetHlirTensor(value_tensor);
-    auto scatter_out_gcu = GetHlirTensor(tmp_out);
-    params.inputs = {scatter_new_gcu, indices_gcu, data_gcu};
-    params.outputs = {scatter_out_gcu};
-    params.metadata.setValue("kScatterComputeKind", int64_t(0));
-    AOTOPS_DEBUG(kScatter, params);
-    GCUOPS_TRACE_START(scatter);
-    auto func_ptr = GetOpFuncPtr(kScatter, params);
-    if (func_ptr) {
-      auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
-      PADDLE_ENFORCE(
-          pass, phi::errors::InvalidArgument("dispatch %s failed!", kScatter));
-    } else {
-      PADDLE_ENFORCE(
-          false,
-          phi::errors::InvalidArgument("not find aot func for %s", kScatter));
-    }
-    FreeDispatchParam(params);
-    GCUOPS_TRACE_END(scatter);
-    GcuOpStreamSync(dev_ctx);
-
-    *out = reshape(dev_ctx, tmp_out, phi::vectorize(x.dims()));
-
-    PADDLE_GCU_KERNEL_END("set_value", set_value);
-  } else {
+  } else {  // kernel impl base on JIT
+    dev_ctx.template Alloc<T>(out);
     TensorNameMap input_names;
     input_names["Input"] = {"x"};
     input_names["ValueTensor"] = {"value_tensor"};
@@ -304,13 +247,22 @@ void SetValueKernel(const Context& dev_ctx,
 
   // out->Resize(in_dims);
 }
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(set_value,
                           gcu,
                           ALL_LAYOUT,
                           custom_kernel::SetValueKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::SetTensorValueKernel,
                           float,
                           double,
                           int,

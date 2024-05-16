@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -22,18 +21,10 @@ template <typename T, typename Context>
 void MeanAllKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "mean_all", mean_all);
-    auto input_shape = phi::vectorize(x.dims());
-    bool keepdims = false;
-    int64_t dim = static_cast<int64_t>(input_shape.size());
-    std::vector<int64_t> axis;
-    for (int64_t i = 0; i < dim; i++) {
-      axis.emplace_back(i);
-    }
-    *out = reduce_mean_compute(dev_ctx, x, false, axis);
-    PADDLE_GCU_KERNEL_END("mean_all", mean_all);
-  } else {
+  PADDLE_GCU_KERNEL_TRACE("mean_all");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(out);
 
     TensorNameMap input_names;
@@ -60,39 +51,10 @@ void MeanAllGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& grad,
                        phi::DenseTensor* x_grad) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "mean_all_grad", mean_all_grad);
-    int64_t dim = x.dims().size();
-    std::vector<int64_t> axis;
-    for (int64_t i = 0; i < dim; i++) {
-      axis.emplace_back(i);
-    }
-    auto output_size = grad.numel();
-    if (output_size == 0) {
-      output_size = 1;
-    }
-    auto input_size = x.numel();
-    if (input_size == 0) {
-      input_size = 1;
-    }
-    float reduced_size = static_cast<float>(input_size / output_size);
-    float reciprocal = 1.0 / reduced_size;
-    auto derivative = full_like(dev_ctx, grad, reciprocal);
-    auto tmp_grad = mul_compute(dev_ctx, grad, derivative);
-    auto output_rank = grad.dims().size();
-    std::vector<int64_t> broadcast_dims;
-    int iter = 0;
-    for (int64_t i = 0; i < output_rank; ++i) {
-      if (i == axis[iter]) {
-        ++iter;
-      } else {
-        broadcast_dims.emplace_back(i);
-      }
-    }
-    *x_grad = broadcast_in_dim(
-        dev_ctx, tmp_grad, phi::vectorize(x.dims()), broadcast_dims);
-    PADDLE_GCU_KERNEL_END("mean_all_grad", mean_all_grad);
-  } else {
+  PADDLE_GCU_KERNEL_TRACE("mean_all_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     dev_ctx.template Alloc<T>(x_grad);
 
     TensorNameMap input_names;

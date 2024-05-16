@@ -88,6 +88,14 @@ class FusedBlhaGlobalVar {
 
   void *get_ffn2_deq_offset() { return g_ffn2_deq_offset->data(); }
 
+  atb_layers::OperationRunner *get_encoder_runner(int64_t idx) {
+    return &g_encoder_runners[idx];
+  }
+
+  atb_layers::OperationRunner *get_decoder_runner(int64_t idx) {
+    return &g_decoder_runners[idx];
+  }
+
   // async d2h + sync + async h2d
   void update_seqlens_encoder(const phi::CustomContext &dev_ctx,
                               const paddle::Tensor &seqlen);
@@ -167,6 +175,8 @@ class FusedBlhaGlobalVar {
   std::shared_ptr<phi::DenseTensor> g_out_deq_offset{nullptr};
   std::shared_ptr<phi::DenseTensor> g_ffn1_deq_offset{nullptr};
   std::shared_ptr<phi::DenseTensor> g_ffn2_deq_offset{nullptr};
+  std::unordered_map<int64_t, atb_layers::OperationRunner> g_encoder_runners;
+  std::unordered_map<int64_t, atb_layers::OperationRunner> g_decoder_runners;
 };
 
 #endif

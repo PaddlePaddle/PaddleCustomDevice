@@ -97,82 +97,6 @@ void AclopSliceRawKernel(const Context& dev_ctx,
     }
   }
 
-  template <typename T, typename Context>
-  void SliceRawKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const std::vector<int64_t>& axes_t,
-                      const phi::IntArray& starts_array,
-                      const phi::IntArray& ends_array,
-                      const std::vector<int64_t>& infer_flags,
-                      const std::vector<int64_t>& decrease_axis,
-                      phi::DenseTensor* out) {
-    DO_COMPATIBILITY(
-        aclnnSliceV2,
-        (custom_kernel::AclopSliceRawKernel<T, Context>(dev_ctx,
-                                                        x,
-                                                        axes_t,
-                                                        starts_array,
-                                                        ends_array,
-                                                        infer_flags,
-                                                        decrease_axis,
-                                                        out)));
-
-    std::vector<int> axes(axes_t.begin(), axes_t.end());
-    auto starts_int = starts_array.GetData();
-    auto ends_int = ends_array.GetData();
-    std::vector<int> starts(starts_int.begin(), starts_int.end());
-    std::vector<int> ends(ends_int.begin(), ends_int.end());
-
-    PADDLE_ENFORCE_EQ(
-        starts.size(),
-        axes.size(),
-        phi::errors::InvalidArgument(
-            "The size of starts must be equal to the size of axes."));
-    PADDLE_ENFORCE_EQ(
-        ends.size(),
-        axes.size(),
-        phi::errors::InvalidArgument(
-            "The size of ends must be equal to the size of axes."));
-
-    // Infer output dims
-    const auto& in_dims = x.dims();
-    auto out_dims = out->dims();
-    auto slice_dims = out_dims;
-
-    for (size_t i = 0; i < axes.size(); ++i) {
-      // when start == -1 && end == start+1
-      if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
-        auto ret =
-            std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
-        if (ret != decrease_axis.end()) {
-          ends[i] = in_dims[axes[i]];
-        }
-      }
-    }
-
-    std::vector<int> offsets(in_dims.size());
-    std::vector<int> size(in_dims.size());
-    custom_kernel::UpdateAttr(in_dims, axes, starts, ends, &offsets, &size);
-
-    out_dims = out->dims();
-    out->Resize(phi::make_ddim(size));
-    std::vector<int64_t> steps;
-    for (int i = 0; i < out->dims().size(); i++) {
-      steps.push_back(1.0);
-    }
-
-    dev_ctx.template Alloc<T>(out);
-    EXEC_NPU_CMD(aclnnSliceV2,
-                 dev_ctx,
-                 x,
-                 starts_array,
-                 ends_array,
-                 axes_t,
-                 steps,
-                 *out);
-    out->Resize(out_dims);
-  }
-
   custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
   slice_dims = custom_kernel::GetSliceDims<int>(
       in_dims, axes, starts, ends, nullptr, nullptr);
@@ -194,6 +118,74 @@ void AclopSliceRawKernel(const Context& dev_ctx,
       .AddInput(dev_ctx, std::move(size))
       .AddOutput(*out)
       .Run(stream);
+}
+
+template <typename T, typename Context>
+void SliceRawKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const std::vector<int64_t>& axes_t,
+                    const phi::IntArray& starts_array,
+                    const phi::IntArray& ends_array,
+                    const std::vector<int64_t>& infer_flags,
+                    const std::vector<int64_t>& decrease_axis,
+                    phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnSliceV2,
+      (custom_kernel::AclopSliceRawKernel<T, Context>(dev_ctx,
+                                                      x,
+                                                      axes_t,
+                                                      starts_array,
+                                                      ends_array,
+                                                      infer_flags,
+                                                      decrease_axis,
+                                                      out)));
+
+  std::vector<int> axes(axes_t.begin(), axes_t.end());
+  auto starts_int = starts_array.GetData();
+  auto ends_int = ends_array.GetData();
+  std::vector<int> starts(starts_int.begin(), starts_int.end());
+  std::vector<int> ends(ends_int.begin(), ends_int.end());
+
+  PADDLE_ENFORCE_EQ(
+      starts.size(),
+      axes.size(),
+      phi::errors::InvalidArgument(
+          "The size of starts must be equal to the size of axes."));
+  PADDLE_ENFORCE_EQ(ends.size(),
+                    axes.size(),
+                    phi::errors::InvalidArgument(
+                        "The size of ends must be equal to the size of axes."));
+
+  // Infer output dims
+  const auto& in_dims = x.dims();
+  auto out_dims = out->dims();
+  auto slice_dims = out_dims;
+
+  for (size_t i = 0; i < axes.size(); ++i) {
+    // when start == -1 && end == start+1
+    if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
+      auto ret = std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
+      if (ret != decrease_axis.end()) {
+        ends[i] = in_dims[axes[i]];
+      }
+    }
+  }
+
+  std::vector<int> offsets(in_dims.size());
+  std::vector<int> size(in_dims.size());
+  custom_kernel::UpdateAttr(in_dims, axes, starts, ends, &offsets, &size);
+
+  out_dims = out->dims();
+  out->Resize(phi::make_ddim(size));
+  std::vector<int64_t> steps;
+  for (int i = 0; i < out->dims().size(); i++) {
+    steps.push_back(1.0);
+  }
+
+  dev_ctx.template Alloc<T>(out);
+  EXEC_NPU_CMD(
+      aclnnSliceV2, dev_ctx, x, starts_array, ends_array, axes_t, steps, *out);
+  out->Resize(out_dims);
 }
 
 template <typename T, typename Context>

@@ -53,6 +53,8 @@ std::vector<paddle::DataType> LMHeadInferDType(
   return {x};
 }
 
+static atb_layers::OperationRunner g_FusedLmHeadLayerRunner;
+
 std::vector<paddle::Tensor> LMHeadOp(
     const paddle::Tensor& x,  // [bs, max_seqlen, emb_dim]
     const paddle::Tensor& norm_weight,
@@ -81,21 +83,24 @@ std::vector<paddle::Tensor> LMHeadOp(
   paddle::Tensor out(place);
   init_tensor(dev_ctx, out_dtype, out_shape, &out);
 
-  atb_layers::FusedLmHeadLayerParam param;
-  param.epsilon = epsilon;
-  param.trans_weight = trans_weight;
-  param.rank = rank;
-  param.nranks = nranks;
-  param.root = root;
-  param.comm = nullptr;
+  if (g_FusedLmHeadLayerRunner.is_initialized()) {
+    g_FusedLmHeadLayerRunner.reset_variant_pack();
+  } else {
+    atb_layers::FusedLmHeadLayerParam param;
+    param.epsilon = epsilon;
+    param.trans_weight = trans_weight;
+    param.rank = rank;
+    param.nranks = nranks;
+    param.root = root;
+    param.comm = nullptr;
+    g_FusedLmHeadLayerRunner.create(param);
+  }
 
-  atb_layers::OperationRunner runner;
-  runner.create(param);
-  runner.bind_input(x);
-  runner.bind_input(norm_weight);
-  runner.bind_input(linear_weight);
-  runner.bind_output(&out);
-  runner.run(dev_ctx);
+  g_FusedLmHeadLayerRunner.bind_input(x);
+  g_FusedLmHeadLayerRunner.bind_input(norm_weight);
+  g_FusedLmHeadLayerRunner.bind_input(linear_weight);
+  g_FusedLmHeadLayerRunner.bind_output(&out);
+  g_FusedLmHeadLayerRunner.run(dev_ctx);
   return {out};
 }
 

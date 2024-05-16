@@ -42,6 +42,7 @@ def addPasses(pass_builder, model_type, quant_type):
         register_pass(pass_builder, "llama_fuse_attention_smooth_quant_layer")
         register_pass(pass_builder, "llama_fuse_lm_head_with_slice")
         register_pass(pass_builder, "llama_fuse_lm_head")
+        register_pass(pass_builder, "llama_fuse_get_padding_offset")
     elif model_type == "llama":
         register_pass(pass_builder, "remove_residual_in_fused_bias_residual_layernorm")
         register_pass(pass_builder, "remove_residual_in_rms_norm")
@@ -50,5 +51,6 @@ def addPasses(pass_builder, model_type, quant_type):
         register_pass(pass_builder, "llama_fuse_attention_layer")
         register_pass(pass_builder, "llama_fuse_lm_head_with_slice")
         register_pass(pass_builder, "llama_fuse_lm_head")
+        register_pass(pass_builder, "llama_fuse_get_padding_offset")
     else:
         print("NPU pass not support")

@@ -118,11 +118,6 @@ void ScaleKernel(const Context& dev_ctx,
     bias *= scale;
   }
 
-  std::cout << "scale" << scale << std::endl;
-  std::cout << "Type of scale: " << typeid(scale).name() << std::endl;
-  std::cout << "bias" << bias << std::endl;
-  std::cout << "Type of bias: " << typeid(bias).name() << std::endl;
-
   phi::Scalar scale_scalar = scale;
   phi::Scalar bias_scalar = bias;
   phi::Scalar alpha_scalar = alpha;

@@ -506,6 +506,27 @@ def llama_fuse_lm_head():
 
 
 @ir.RegisterPass
+def llama_fuse_get_padding_offset():
+    def pattern(input_ids, seq_lens_this_time):
+        scale = ir.PassDesc.OP.scale(X=seq_lens_this_time)
+        cumsum = ir.PassDesc.OP.cumsum(X=scale)
+        reduce_sum = ir.PassDesc.OP.reduce_sum(X=seq_lens_this_time)
+        results = ir.PassDesc.OP.get_padding_offset_v2(
+            cum_offsets=cumsum,
+            input_ids=input_ids,
+            seq_len=seq_lens_this_time,
+            token_num=reduce_sum,
+        )
+        return results.Output("x_remove_padding")
+
+    def replace(input_ids, seq_lens_this_time):
+        results = ir.PassDesc.OP.remove_padding(x=input_ids, seqlen=seq_lens_this_time)
+        return results
+
+    return pattern, replace
+
+
+@ir.RegisterPass
 def llama_fuse_attention_smooth_quant_layer_begin():
     def pattern(
         input_ids,

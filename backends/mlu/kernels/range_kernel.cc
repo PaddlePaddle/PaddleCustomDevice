@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/mlu_baseop.h"
-#include "kernels/funcs/mlu_funcs.h"
+#include "kernels/funcs/range_op.h"
 
 namespace custom_kernel {
 
@@ -23,34 +22,36 @@ void ArangeTensorKernel(const Context& dev_ctx,
                         const phi::DenseTensor& end_t,
                         const phi::DenseTensor& step_t,
                         phi::DenseTensor* out) {
-  phi::DenseTensor n;
-  n.Resize(start_t.dims());
-  T* n_data = dev_ctx.template HostAlloc<T>(&n);
+  T* h_start_ptr = nullptr;
+  T* h_end_ptr = nullptr;
+  T* h_step_ptr = nullptr;
 
-  TensorCopy(dev_ctx, start_t, true, &n, phi::CPUPlace());
-  T start = n_data[0];
-
-  TensorCopy(dev_ctx, end_t, true, &n, phi::CPUPlace());
-  T end = n_data[0];
-
-  TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
-  T step = n_data[0];
-
-  int64_t size = 0;
-  GetSize(start, end, step, &size);
-
-  out->Resize(phi::make_ddim({size}));
-  dev_ctx.template Alloc<T>(out);
-
-  std::vector<T> odata;
-  T value = start;
-  for (int64_t i = 0; i < size; ++i) {
-    odata.push_back(value);
-    value += step;
+  if (start_t.place().GetType() == phi::AllocationType::CPU) {  // tensor at CPU
+    h_start_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&start_t)));
+    h_end_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&end_t)));
+    h_step_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&step_t)));
+  } else {
+    phi::DenseTensor n;
+    n.Resize(start_t.dims());
+    T* n_data = dev_ctx.template HostAlloc<T>(&n);
+    TensorCopy(dev_ctx, start_t, true, &n, phi::CPUPlace());
+    h_start_ptr = new T(n_data[0]);
+    TensorCopy(dev_ctx, end_t, true, &n, phi::CPUPlace());
+    h_end_ptr = new T(n_data[0]);
+    TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
+    h_step_ptr = new T(n_data[0]);
   }
 
-  TensorFromVector(dev_ctx, odata, dev_ctx, out);
-  dev_ctx.Wait();
+  T start_value = h_start_ptr[0];
+  T end_value = h_end_ptr[0];
+  T step_value = h_step_ptr[0];
+
+  ArangeRawKernel<T>(dev_ctx, start_value, end_value, step_value, out);
+  if (start_t.place().GetType() != phi::AllocationType::CPU) {
+    delete h_start_ptr;
+    delete h_end_ptr;
+    delete h_step_ptr;
+  }
 }
 
 template <typename T, typename Context>
@@ -63,20 +64,7 @@ void ArangeKernel(const Context& dev_ctx,
   T end_value = end.to<T>();
   T step_value = step.to<T>();
 
-  int64_t size = 0;
-  GetSize(start_value, end_value, step_value, &size);
-
-  out->Resize(phi::make_ddim({size}));
-  dev_ctx.template Alloc<T>(out);
-
-  std::vector<T> odata;
-  T value = start_value;
-  for (int64_t i = 0; i < size; ++i) {
-    odata.push_back(value);
-    value += step_value;
-  }
-
-  TensorFromVector(dev_ctx, odata, dev_ctx, out);
+  ArangeRawKernel<T>(dev_ctx, start_value, end_value, step_value, out);
 }
 
 }  // namespace custom_kernel

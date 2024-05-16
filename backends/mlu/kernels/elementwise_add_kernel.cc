@@ -115,6 +115,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddRawKernel,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 
@@ -122,6 +123,7 @@ PD_REGISTER_PLUGIN_KERNEL(add,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::AddKernel,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 

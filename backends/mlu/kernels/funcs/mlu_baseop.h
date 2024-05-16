@@ -1088,7 +1088,7 @@ class MLUCnnl {
                     const void* start,
                     const void* end,
                     const void* step,
-                    const cnnlDataType_t output_dtype,
+                    const cnnlTensorDescriptor_t output_desc,
                     void* output);
 
   static void Roll(const Context& ctx,

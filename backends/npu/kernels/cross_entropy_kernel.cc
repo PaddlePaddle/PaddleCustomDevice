@@ -17,6 +17,25 @@ limitations under the License. */
 #include "kernels/funcs/string_helper.h"
 namespace custom_kernel {
 
+template <typename T, typename Context>
+void EqualKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void WhereKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& condition,
+                 const phi::DenseTensor& x,
+                 const phi::DenseTensor& y,
+                 phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void TransposeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out);
+
 template <typename T>
 T TolerableValue(const T& x) {
   const T kApproInf = 1e20;
@@ -148,7 +167,7 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     phi::Copy<Context>(dev_ctx, logits, dev_ctx.GetPlace(), false, softmax);
   }
   // Use NPU IR
-  if (!soft_label && labels.numel() == n && ignore_index == -100) {
+  if (!soft_label && labels.dims()[use_axis] == 1 && use_softmax) {
     PADDLE_ENFORCE_EQ(soft_label,
                       false,
                       phi::errors::Unimplemented(
@@ -156,31 +175,116 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
                           "the npu kernel of softmax_with_cross_entropy."));
 
     PADDLE_ENFORCE_EQ(
-        labels.numel(),
-        n,
+        labels.dims()[use_axis],
+        1,
         phi::errors::Unimplemented(
-            "The size of labels should be equal to phi::funcs::SizeToAxis of "
-            "logits,"
+            "The size of labels of axis should be 1"
             "but got size of labels is %d and phi::funcs::SizeToAxis is %d.",
-            labels.numel(),
-            n));
+            labels.dims()[use_axis]));
 
-    phi::DenseTensor logits_2d(logits), labels_1d(labels), loss_1d(*loss);
-    logits_2d.Resize({n, d});
+    PADDLE_ENFORCE_EQ(use_softmax,
+                      true,
+                      phi::errors::Unimplemented(
+                          "use_softmax=false is not supported in "
+                          "the npu kernel of softmax_with_cross_entropy."));
+
+    phi::DenseTensor logits_2d(logits), labels_1d(labels), loss_1d(*loss),
+        transformed_logits;
+    auto dims = labels.dims();
+    // transpose
+    std::vector<int> perm;
+    std::vector<int> perm_shape;
+    for (int i = 0; i < rank; i++) {
+      if (i != use_axis) {
+        perm.push_back(i);
+      }
+    }
+    perm.push_back(use_axis);
+    for (int i = 0; i < rank; i++) {
+      perm_shape.push_back(logits_dims[perm[i]]);
+    }
+    transformed_logits.Resize(phi::make_ddim(perm_shape));
+    dev_ctx.template Alloc<T>(&transformed_logits);
+    custom_kernel::TransposeKernel<T, Context>(
+        dev_ctx, logits_2d, perm, &transformed_logits);
+
+    transformed_logits.Resize({logits.numel() / axis_dim, axis_dim});
     labels_1d.Resize({labels.numel()});
-    loss_1d.Resize({n});
+    loss_1d.Resize({labels.numel()});
 
     // SparseSoftmaxCrossEntropyWithLogits
     phi::DenseTensor backprop_2d;
-    phi::DenseTensorMeta meta = {logits.dtype(), {n, d}};
+    phi::DenseTensorMeta meta = {logits.dtype(),
+                                 {logits.numel() / axis_dim, axis_dim}};
     backprop_2d.set_meta(meta);
     dev_ctx.template Alloc<T>(&backprop_2d);
-
     const auto& runner_s = NpuOpRunner("SparseSoftmaxCrossEntropyWithLogits",
-                                       {logits_2d, labels_1d},
+                                       {transformed_logits, labels_1d},
                                        {loss_1d, backprop_2d},
                                        {});
     runner_s.Run(stream);
+
+    // deal with ignore_index
+    phi::DenseTensor ignore_index_tensor;
+    ignore_index_tensor.Resize(labels_1d.dims());
+    FillNpuTensorWithConstant<int>(&ignore_index_tensor, dev_ctx, ignore_index);
+    ignore_index_tensor.Resize(labels_1d.dims());
+    phi::DenseTensorMeta out_meta = {phi::DataType::BOOL, labels_1d.dims()};
+    phi::DenseTensor mid_out;
+    mid_out.set_meta(out_meta);
+    custom_kernel::EqualKernel<T, Context>(
+        dev_ctx, labels_1d, ignore_index_tensor, &mid_out);
+    int zero_ = 0;
+    phi::DenseTensorMeta zero_meta = {phi::DataType::INT32, loss_1d.dims()};
+    phi::DenseTensor zero_tensor;
+    zero_tensor.set_meta(zero_meta);
+    FillNpuTensorWithConstant<int>(&zero_tensor, dev_ctx, zero_);
+    zero_tensor.Resize(loss_1d.dims());
+    custom_kernel::WhereKernel<T, Context>(
+        dev_ctx, mid_out, zero_tensor, loss_1d, &loss_1d);
+    loss_1d.Resize(dims);
+  } else if (use_softmax) {
+    phi::DenseTensor loss_1d(*loss), transformed_logits, transformed_lables;
+    auto dims = labels.dims();
+    dims[use_axis] = 1;
+
+    // transpose
+    std::vector<int> perm;
+    std::vector<int> perm_shape;
+    for (int i = 0; i < rank; i++) {
+      if (i != use_axis) {
+        perm.push_back(i);
+      }
+    }
+    perm.push_back(use_axis);
+    for (int i = 0; i < rank; i++) {
+      perm_shape.push_back(logits_dims[perm[i]]);
+    }
+    transformed_logits.Resize(phi::make_ddim(perm_shape));
+    transformed_lables.Resize(phi::make_ddim(perm_shape));
+    dev_ctx.template Alloc<T>(&transformed_logits);
+    dev_ctx.template Alloc<T>(&transformed_lables);
+    custom_kernel::TransposeKernel<T, Context>(
+        dev_ctx, logits, perm, &transformed_logits);
+    custom_kernel::TransposeKernel<T, Context>(
+        dev_ctx, labels, perm, &transformed_lables);
+
+    transformed_logits.Resize({logits.numel() / axis_dim, axis_dim});
+    transformed_lables.Resize({labels.numel() / axis_dim, axis_dim});
+    loss_1d.Resize({logits.numel() / axis_dim});
+
+    // SoftmaxCrossEntropyWithLogits
+    phi::DenseTensor backprop_2d;
+    phi::DenseTensorMeta meta = {logits.dtype(),
+                                 {logits.numel() / axis_dim, axis_dim}};
+    backprop_2d.set_meta(meta);
+    dev_ctx.template Alloc<T>(&backprop_2d);
+    const auto& runner_s = NpuOpRunner("SoftmaxCrossEntropyWithLogits",
+                                       {transformed_logits, transformed_lables},
+                                       {loss_1d, backprop_2d},
+                                       {});
+    runner_s.Run(stream);
+    loss_1d.Resize(dims);
   } else {
     if (labels.numel() != n) {
       VLOG(4) << "The size of labels should be equal to phi::funcs::SizeToAxis "

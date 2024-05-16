@@ -168,6 +168,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
                           ALL_LAYOUT,
                           custom_kernel::MultiplyRawKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 
@@ -176,6 +177,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           ALL_LAYOUT,
                           custom_kernel::MultiplyKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}
 

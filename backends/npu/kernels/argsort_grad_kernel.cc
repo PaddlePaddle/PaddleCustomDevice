@@ -93,6 +93,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& out_grad,
                        int axis,
                        bool descending,
+                       bool stable,
                        phi::DenseTensor* in_grad) {
   auto stream = dev_ctx.stream();
   auto in_dims = indices.dims();

@@ -24,8 +24,16 @@ void ArgsortKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    bool descending,
+                   bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
+  // TODO(NKNaN): use stable sorting algorithm when stable==true
+  PADDLE_ENFORCE_EQ(
+      stable,
+      false,
+      phi::errors::InvalidArgument(
+          "Stable argsort kernel on gcu device has not been implemented."));
+
   dev_ctx.template Alloc<T>(output);
   dev_ctx.template Alloc<int64_t>(indices);
 
@@ -58,6 +66,7 @@ void ArgsortGradKernel(const Context& dev_ctx,
                        const phi::DenseTensor& out_grad,
                        int axis,
                        bool descending,
+                       bool stable,
                        phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
 

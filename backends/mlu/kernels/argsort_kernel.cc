@@ -25,6 +25,13 @@ void ArgsortKernel(const Context& dev_ctx,
                    bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
+  // TODO(NKNaN): use stable sorting algorithm when stable==true
+  PADDLE_ENFORCE_EQ(
+      stable,
+      false,
+      phi::errors::InvalidArgument(
+          "Stable argsort kernel on mlu device has not been implemented."));
+
   const auto& sorted = true;
   // axis < 0, cacluate the real axis
   if (axis < 0) {

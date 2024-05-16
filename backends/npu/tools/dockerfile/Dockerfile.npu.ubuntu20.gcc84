@@ -48,12 +48,12 @@ COPY ${ASCEND_KLS} /usr/local/Ascend/
 RUN chmod +x ${ASCEND_KLS} && ./${ASCEND_KLS} --install --quiet && rm -rf ${ASCEND_KLS}
 
 # Install Ascend Transformer Boost
-ARG ASCEND_ATB=Ascend-mindie*linux*.run
+ARG ASCEND_ATB=Ascend-mindie-atb*linux*_abi1.run
 COPY ${ASCEND_ATB} /usr/local/Ascend/
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     chmod +x ${ASCEND_ATB} && ./${ASCEND_ATB} --install --quiet && rm -rf ${ASCEND_ATB}
 # update env for mindie
-RUN echo "source /usr/local/Ascend/mindie/set_env.sh" >> /root/.bashrc
+RUN echo "source /usr/local/Ascend/atb/set_env.sh" >> /root/.bashrc
 
 # install post process ops
 COPY code-share /usr/local/Ascend/code-share/
@@ -79,6 +79,9 @@ ENV FLAGS_npu_storage_format=0
 ENV FLAGS_use_stride_kernel=0
 ENV FLAGS_allocator_strategy=naive_best_fit
 ENV PADDLE_XCCL_BACKEND=npu
+
+# environment for ATB
+ENV ATB_MATMUL_SHUFFLE_K_ENABLE=0
 
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver

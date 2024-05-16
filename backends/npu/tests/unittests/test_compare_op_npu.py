@@ -115,14 +115,19 @@ def create_test_class(op_type, typename, callback):
                 return
             paddle.disable_static()
             paddle.set_device("npu:0")
-            y = np.random.random(size=(10, 7)).astype("int32")
+            # y = np.random.random(size=(10, 7)).astype("int32")
+            y = np.random.random(size=(10, 7)).astype("float32")
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
             else:
                 x = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)
-            x = paddle.to_tensor(x, dtype=typename)
-            y = paddle.to_tensor(y, dtype="float32")
+            if typename in {"float16", "float32", "bool", "int32"}:
+                x = paddle.to_tensor(x, dtype="float32")
+            elif typename == "int64":
+                x = paddle.to_tensor(x, dtype="float64")
+            # x = paddle.to_tensor(x, dtype=typename)
+            y = paddle.to_tensor(y, dtype=x.dtype)
             op = eval("paddle.%s" % (self.op_type))
             out = op(x, y)
             self.assertEqual((out.numpy() == real_result).all(), True)

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/elementwise_ops.h"
-#include "kernels/funcs/gcu_op_runner.h"
+#include "common/gcu_op_runner.h"
+#include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
 
@@ -21,37 +21,11 @@ template <typename T, typename Context>
 void AddNKernel(const Context& dev_ctx,
                 const std::vector<const phi::DenseTensor*>& x,
                 phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("add_n");
   dev_ctx.template Alloc<T>(out);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "add_n", add_n);
-    int n = static_cast<int>(x.size());
-    if (n == 1) {
-      TensorCopy(dev_ctx, *x[0], false, out);
-      return;
-    }
-
-    phi::DenseTensor tensor_x = *(x.at(0));
-    phi::DenseTensor tensor_y = *(x.at(1));
-    add_compute(static_cast<const phi::CustomContext&>(dev_ctx),
-                tensor_x,
-                tensor_y,
-                out);
-    for (size_t i = 2; i < x.size(); i++) {
-      tensor_x = *(x.at(i));  // x
-      tensor_y = *out;        // y
-
-      phi::DenseTensor tmp_tensor;
-      tmp_tensor.Resize(out->dims());
-      dev_ctx.template Alloc(&tmp_tensor, out->dtype());
-      *out = tmp_tensor;  // new out
-
-      add_compute(static_cast<const phi::CustomContext&>(dev_ctx),
-                  tensor_x,
-                  tensor_y,
-                  out);
-    }
-    PADDLE_GCU_KERNEL_END("add_n", add_n);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     TensorValueMap inputs;
     std::vector<std::string> names;

@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/common.h"
-#include "common/utils.h"
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_name_list.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
+
 template <typename T, typename Context>
 void OneHotKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::Scalar& num_classes_s,
                   phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("one_hot");
   int depth = num_classes_s.to<int>();
   auto out_dims = out->dims();
   if (out_dims.size() > 0 && out_dims[out_dims.size() - 1] == -1) {
@@ -33,17 +31,9 @@ void OneHotKernel(const Context& dev_ctx,
   }
   dev_ctx.template Alloc<float>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "one_hot_v2", one_hot_v2);
-
-    auto x_int32 = x;
-    if (x.dtype() == phi::DataType::INT64)
-      x_int32 = cast(dev_ctx, x, phi::DataType::INT32);
-
-    one_hot(dev_ctx, x_int32, x_int32.dims().size(), depth, *out);
-
-    PADDLE_GCU_KERNEL_END("one_hot_v2", one_hot_v2);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names["X"] = {"x"};
 
@@ -69,9 +59,47 @@ void OneHotKernel(const Context& dev_ctx,
               dev_ctx);
   }
 }
+
+template <typename T, typename Context>
+void OneHotV2Kernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& num_classes_s,
+                    phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("one_hot_v2");
+  custom_kernel::OneHotKernel<T, Context>(dev_ctx, x, num_classes_s, out);
+}
+
+template <typename T, typename Context>
+void OneHotRawKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::Scalar& num_classes_s,
+                     phi::DataType dtype,
+                     bool allow_out_of_range UNUSED,
+                     phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("one_hot_raw");
+  custom_kernel::OneHotKernel<T, Context>(dev_ctx, x, num_classes_s, out);
+}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(
     one_hot, gcu, ALL_LAYOUT, custom_kernel::OneHotKernel, int32_t, int64_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(one_hot_v2,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::OneHotV2Kernel,
+                          int32_t,
+                          int64_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(one_hot_raw,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::OneHotRawKernel,
+                          int32_t,
+                          int64_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

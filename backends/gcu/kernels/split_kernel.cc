@@ -12,40 +12,105 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
+namespace {
+std::vector<int64_t> CalSections(const std::vector<int64_t>& input_shape,
+                                 int axis,
+                                 const std::vector<int64_t>& origin_sections) {
+  std::vector<int64_t> sections(origin_sections);
+
+  int64_t unknown_dim_index = -1;
+  int64_t num_of_unknown_dim = 0;
+  int64_t sum_of_known_dims = 0;
+
+  for (size_t i = 0; i < sections.size(); ++i) {
+    if (sections[i] == -1) {
+      num_of_unknown_dim++;
+      unknown_dim_index = i;
+    } else {
+      sum_of_known_dims += sections[i];
+    }
+  }
+
+  if (num_of_unknown_dim == 0) {
+    return sections;
+  }
+
+  PADDLE_ENFORCE_EQ(
+      num_of_unknown_dim,
+      1,
+      phi::errors::InvalidArgument("Split noly support at "
+                                   "most 1 unknown dim, but got: %ld",
+                                   num_of_unknown_dim));
+  sections[unknown_dim_index] = input_shape[axis] - sum_of_known_dims;
+  return sections;
+}
+}  // namespace
+
 template <typename T, typename Context>
 void SplitKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "split_with_num", split_with_num);
-    for (size_t i = 0; i < outs.size(); ++i) {
-      if (outs[i]->initialized()) {
-        auto gcu_memory = GetGcuMemory(*outs[i], false);
-        std::vector<int64_t> dims = gcu_memory->dims;
-        std::vector<int64_t> tensor_dims = phi::vectorize(outs[i]->dims());
-        if (tensor_dims.empty()) {
-          tensor_dims = {1};
-        }
-        if (dims != tensor_dims) {
-          auto tmp = EmptyTensor(dev_ctx, outs[i]->meta());
-          dev_ctx.template Alloc(&tmp, tmp.dtype());
-          *outs[i] = tmp;
-        }
-      } else {
-        dev_ctx.template Alloc<T>(outs[i]);
-      }
+  PADDLE_GCU_KERNEL_TRACE("split");
+  auto origin_sections = num_or_sections.GetData();
+  PADDLE_ENFORCE_GT(
+      origin_sections.size(),
+      0,
+      phi::errors::InvalidArgument("Split should set num_or_sections."));
+
+  if (LaunchAOTKernel()) {
+    int axis = axis_scalar.to<int>();
+    const auto& input_shape = phi::vectorize(x.dims());
+    if (axis < 0) {
+      axis += input_shape.size();
     }
-    split(
-        dev_ctx, x, axis_scalar.to<int>(), 0, num_or_sections.GetData(), outs);
-    PADDLE_GCU_KERNEL_END("split_with_num", split_with_num);
-  } else {
+    auto sections = CalSections(input_shape, axis, origin_sections);
+    PADDLE_ENFORCE_EQ(outs.size(),
+                      sections.size(),
+                      phi::errors::InvalidArgument(
+                          "out size %zu should equal to sections size %zu.",
+                          outs.size(),
+                          sections.size()));
+
+    int64_t start = 0;
+    int64_t end = 0;
+    auto alpha = phi::Scalar(1.0f);
+    auto beta = phi::Scalar(0.0f);
+    std::vector<int64_t> axes = {axis};
+    std::vector<int64_t> steps = {1};
+
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    std::vector<phi::DenseTensor> outputs;
+    for (size_t i = 0; i < outs.size(); ++i) {
+      dev_ctx.template Alloc<T>(outs[i]);
+      outputs.emplace_back(
+          MaybeCreateOrTrans64To32bits(dev_ctx, *(outs[i]), false));
+    }
+
+    for (size_t i = 0; i < sections.size(); ++i) {
+      start += (i == 0) ? 0 : sections[i - 1];
+      end += sections[i];
+      std::vector<int64_t> starts = {start};
+      std::vector<int64_t> ends = {end};
+      LAUNCH_TOPSOP(topsopSlice,
+                    dev_ctx,
+                    outputs[i],
+                    input_x,
+                    starts,
+                    ends,
+                    axes,
+                    steps,
+                    alpha,
+                    beta);
+      MaybeTransResult(dev_ctx, outputs[i], outs[i]);
+    }
+
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names["X"] = {"x"};
     TensorValueMap inputs;
@@ -60,15 +125,7 @@ void SplitKernel(const Context& dev_ctx,
     for (size_t i = 0; i < outs.size(); ++i) {
       dev_ctx.template Alloc<T>(outs[i]);
       names.emplace_back(std::string("out") + std::to_string(i));
-
-      if (UseScatterMemory()) {
-        phi::DenseTensor* tmp_tensor = new phi::DenseTensor();
-        tmp_tensor->Resize(outs[i]->dims());
-        dev_ctx.template Alloc(tmp_tensor, outs[i]->dtype());
-        values.emplace_back(tmp_tensor);
-      } else {
-        values.emplace_back(outs[i]);
-      }
+      values.emplace_back(outs[i]);
     }
     output_names["Out"] = names;
     outputs["Out"] = values;
@@ -82,13 +139,6 @@ void SplitKernel(const Context& dev_ctx,
 
     GcuRunner(
         input_names, inputs, output_names, outputs, attrs, "split", dev_ctx);
-
-    if (UseScatterMemory()) {
-      for (size_t i = 0; i < outs.size(); ++i) {
-        *(outs[i]) = *(values[i]);
-        delete values[i];
-      }
-    }
   }
 }
 
@@ -98,12 +148,11 @@ void SplitWithNumKernel(const Context& dev_ctx,
                         int num,
                         const phi::Scalar& axis_scalar,
                         std::vector<phi::DenseTensor*> outs) {
+  PADDLE_GCU_KERNEL_TRACE("split_with_num");
   int axis_value = axis_scalar.to<int>();
   auto input_axis_dim = x.dims().at(axis_value);
-  std::vector<int64_t> sections_vec;
-  for (int i = 0; i < num; ++i) {
-    sections_vec.push_back(input_axis_dim / num);
-  }
+  std::vector<int64_t> sections_vec =
+      std::vector<int64_t>(num, input_axis_dim / num);
   phi::IntArray sections(sections_vec);
   custom_kernel::SplitKernel<T, Context>(
       dev_ctx, x, sections, axis_scalar, outs);

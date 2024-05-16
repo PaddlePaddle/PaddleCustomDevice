@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/gcu_op_runner.h"
+#include "common/gcu_op_runner.h"
+#include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
 
@@ -193,31 +194,36 @@ void AdamKernel(const Context& dev_ctx,
                 phi::DenseTensor* beta1_pow_out,
                 phi::DenseTensor* beta2_pow_out,
                 phi::DenseTensor* master_param_out) {
-  GcuAttributeMap attrs;
-  attrs["beta1"] = beta1_in.to<float>();
-  attrs["beta2"] = beta2_in.to<float>();
-  attrs["epsilon"] = epsilon_in.to<float>();
-  attrs["use_global_beta_pow"] = use_global_beta_pow;
+  PADDLE_GCU_KERNEL_TRACE("adam");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    GcuAttributeMap attrs;
+    attrs["beta1"] = beta1_in.to<float>();
+    attrs["beta2"] = beta2_in.to<float>();
+    attrs["epsilon"] = epsilon_in.to<float>();
+    attrs["use_global_beta_pow"] = use_global_beta_pow;
 
-  AdamBaseKernel<T, Context>(dev_ctx,
-                             param,
-                             grad,
-                             learning_rate,
-                             moment1,
-                             moment2,
-                             beta1_pow_in,
-                             beta2_pow_in,
-                             master_param,
-                             skip_update,
-                             attrs,
-                             use_global_beta_pow,
-                             param_out,
-                             moment1_out,
-                             moment2_out,
-                             beta1_pow_out,
-                             beta2_pow_out,
-                             master_param_out,
-                             "adam");
+    AdamBaseKernel<T, Context>(dev_ctx,
+                               param,
+                               grad,
+                               learning_rate,
+                               moment1,
+                               moment2,
+                               beta1_pow_in,
+                               beta2_pow_in,
+                               master_param,
+                               skip_update,
+                               attrs,
+                               use_global_beta_pow,
+                               param_out,
+                               moment1_out,
+                               moment2_out,
+                               beta1_pow_out,
+                               beta2_pow_out,
+                               master_param_out,
+                               "adam");
+  }
 }
 
 template <typename T, typename Context>
@@ -247,34 +253,39 @@ void AdamwKernel(const Context& dev_ctx,
                  phi::DenseTensor* beta1_pow_out,
                  phi::DenseTensor* beta2_pow_out,
                  phi::DenseTensor* master_param_out) {
-  GcuAttributeMap attrs;
-  attrs["beta1"] = beta1_in.to<float>();
-  attrs["beta2"] = beta2_in.to<float>();
-  attrs["epsilon"] = epsilon_in.to<float>();
-  attrs["use_global_beta_pow"] = use_global_beta_pow;
-  attrs["lr_ratio"] = lr_ratio;
-  attrs["coeff"] = coeff;
-  attrs["with_decay"] = with_decay;
+  PADDLE_GCU_KERNEL_TRACE("adamw");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    GcuAttributeMap attrs;
+    attrs["beta1"] = beta1_in.to<float>();
+    attrs["beta2"] = beta2_in.to<float>();
+    attrs["epsilon"] = epsilon_in.to<float>();
+    attrs["use_global_beta_pow"] = use_global_beta_pow;
+    attrs["lr_ratio"] = lr_ratio;
+    attrs["coeff"] = coeff;
+    attrs["with_decay"] = with_decay;
 
-  AdamBaseKernel<T, Context>(dev_ctx,
-                             param,
-                             grad,
-                             learning_rate,
-                             moment1,
-                             moment2,
-                             beta1_pow_in,
-                             beta2_pow_in,
-                             master_param,
-                             skip_update,
-                             attrs,
-                             use_global_beta_pow,
-                             param_out,
-                             moment1_out,
-                             moment2_out,
-                             beta1_pow_out,
-                             beta2_pow_out,
-                             master_param_out,
-                             "adamw");
+    AdamBaseKernel<T, Context>(dev_ctx,
+                               param,
+                               grad,
+                               learning_rate,
+                               moment1,
+                               moment2,
+                               beta1_pow_in,
+                               beta2_pow_in,
+                               master_param,
+                               skip_update,
+                               attrs,
+                               use_global_beta_pow,
+                               param_out,
+                               moment1_out,
+                               moment2_out,
+                               beta1_pow_out,
+                               beta2_pow_out,
+                               master_param_out,
+                               "adamw");
+  }
 }
 
 }  // namespace custom_kernel

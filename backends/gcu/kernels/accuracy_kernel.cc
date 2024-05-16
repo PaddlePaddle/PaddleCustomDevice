@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
-#include "paddle/phi/common/type_traits.h"
 
 namespace custom_kernel {
 
@@ -26,32 +25,38 @@ void AccuracyRawKernel(const Context& dev_ctx,
                        phi::DenseTensor* accuracy,
                        phi::DenseTensor* correct,
                        phi::DenseTensor* total) {
+  PADDLE_GCU_KERNEL_TRACE("accuracy");
   dev_ctx.template Alloc<float>(accuracy);
   dev_ctx.template Alloc<int>(correct);
   dev_ctx.template Alloc<int>(total);
 
-  TensorNameMap input_names;
-  input_names["Out"] = {"out"};
-  input_names["Indices"] = {"indices"};
-  input_names["Label"] = {"label"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
 
-  TensorValueMap inputs;
-  inputs["Out"] = {const_cast<DenseTensor*>(&out)};
-  inputs["Indices"] = {const_cast<DenseTensor*>(&indices)};
-  inputs["Label"] = {const_cast<DenseTensor*>(&label)};
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Out"] = {"out"};
+    input_names["Indices"] = {"indices"};
+    input_names["Label"] = {"label"};
 
-  TensorNameMap output_names;
-  output_names["Accuracy"] = {"accuracy"};
-  output_names["Correct"] = {"correct"};
-  output_names["Total"] = {"total"};
+    TensorValueMap inputs;
+    inputs["Out"] = {const_cast<DenseTensor*>(&out)};
+    inputs["Indices"] = {const_cast<DenseTensor*>(&indices)};
+    inputs["Label"] = {const_cast<DenseTensor*>(&label)};
 
-  TensorValueMap outputs;
-  outputs["Accuracy"] = {accuracy};
-  outputs["Correct"] = {correct};
-  outputs["Total"] = {total};
+    TensorNameMap output_names;
+    output_names["Accuracy"] = {"accuracy"};
+    output_names["Correct"] = {"correct"};
+    output_names["Total"] = {"total"};
 
-  GcuRunner(
-      input_names, inputs, output_names, outputs, {}, "accuracy", dev_ctx);
+    TensorValueMap outputs;
+    outputs["Accuracy"] = {accuracy};
+    outputs["Correct"] = {correct};
+    outputs["Total"] = {total};
+
+    GcuRunner(
+        input_names, inputs, output_names, outputs, {}, "accuracy", dev_ctx);
+  }
 }
 
 }  // namespace custom_kernel

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -26,6 +25,7 @@ void ExpandAsKernel(const Context& dev_ctx,
                     const paddle::optional<phi::DenseTensor>& y,
                     const std::vector<int>& target_shape,
                     phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("expand_as");
   auto rank = x.dims().size();
   auto target_rank = target_shape.size();
   PADDLE_ENFORCE_GE(target_rank,
@@ -72,14 +72,9 @@ void ExpandAsKernel(const Context& dev_ctx,
               target_shape[i]));
     }
   }
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "expand_as", expand_as);
-    *out =
-        expand(dev_ctx,
-               x,
-               std::vector<int64_t>(target_shape.begin(), target_shape.end()));
-    PADDLE_GCU_KERNEL_END("expand_as", expand_as);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     phi::DDim out_dims = phi::make_ddim(target_shape);
 
     out->Resize(out_dims);

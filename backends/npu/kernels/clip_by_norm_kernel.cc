@@ -18,12 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void ClipByNormKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      float max_norm,
-                      phi::DenseTensor* out) {
+void AclopNormKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     phi::DenseTensor* x_norm) {
   auto stream = dev_ctx.stream();
-  dev_ctx.template Alloc<T>(out);
+
   PADDLE_ENFORCE_NOT_NULL(&x,
                           phi::errors::InvalidArgument(
                               "Input(X) of ClipByNormOp should not be null. "
@@ -42,12 +41,71 @@ void ClipByNormKernel(const Context& dev_ctx,
   square_sum_runner.Run(stream);
 
   // sqrt
+  dev_ctx.template Alloc<T>(x_norm);
+  const auto& x_norm_runner = NpuOpRunner("Sqrt", {square_sum}, {*x_norm}, {});
+  x_norm_runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void NormKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* x_norm) {
+  DO_COMPATIBILITY(
+      aclnnNorm,
+      (custom_kernel::AclopNormKernel<T, Context>(dev_ctx, x, x_norm)));
+
+  dev_ctx.template Alloc<T>(x_norm);
+
+  phi::Scalar p = 2.0f;
+  const auto& x_dims = x.dims();
+  std::vector<int64_t> axis;
+  for (int64_t i = 0; i < x_dims.size(); ++i) {
+    axis.push_back(i);
+  }
+  bool keepdim = false;
+  EXEC_NPU_CMD(aclnnNorm, dev_ctx, x, p, axis, keepdim, *x_norm);
+}
+
+template <typename T, typename Context>
+void AclopMulsKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const float scaling,
+                     phi::DenseTensor* out) {
+  auto stream = dev_ctx.stream();
+  dev_ctx.template Alloc<T>(out);
+
+  const auto& muls_runner =
+      NpuOpRunner("Muls", {x}, {*out}, {{"value", scaling}});
+  muls_runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void MulsKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const float scaling,
+                phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnMuls,
+      (custom_kernel::AclopMulsKernel<T, Context>(dev_ctx, x, scaling, out)));
+  dev_ctx.template Alloc<T>(out);
+  phi::Scalar scaling_ = scaling;
+  EXEC_NPU_CMD(aclnnMuls, dev_ctx, x, scaling_, *out);
+}
+
+template <typename T, typename Context>
+void ClipByNormKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      float max_norm,
+                      phi::DenseTensor* out) {
+  PADDLE_ENFORCE_NOT_NULL(&x,
+                          phi::errors::InvalidArgument(
+                              "Input(X) of ClipByNormOp should not be null. "
+                              "Please check if it is created correctly."));
+
   phi::DenseTensor x_norm;
   phi::DenseTensorMeta x_norm_meta = {x.dtype(), phi::DDim({1})};
   x_norm.set_meta(x_norm_meta);
-  dev_ctx.template Alloc<T>(&x_norm);
-  const auto& x_norm_runner = NpuOpRunner("Sqrt", {square_sum}, {x_norm}, {});
-  x_norm_runner.Run(stream);
+  NormKernel<T, Context>(dev_ctx, x, &x_norm);
   dev_ctx.Wait();
 
   phi::DenseTensor x_norm_t;
@@ -65,9 +123,7 @@ void ClipByNormKernel(const Context& dev_ctx,
                        ? static_cast<float>(1e-6)
                        : static_cast<float>(0);
     float scaling = max_norm / (x_norm_v + epsilon);
-    const auto& muls_runner =
-        NpuOpRunner("Muls", {x}, {*out}, {{"value", scaling}});
-    muls_runner.Run(stream);
+    MulsKernel<T, Context>(dev_ctx, x, scaling, out);
   }
 }
 

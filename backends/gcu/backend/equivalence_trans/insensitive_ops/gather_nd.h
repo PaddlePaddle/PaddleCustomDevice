@@ -92,6 +92,7 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
   }
 
   GcuOp data_op = builder::ZerosLike(data);
+
   GcuOp result_op = builder::ScatterND(data_op, indices, dout_op);
   return std::make_shared<GcuOp>(result_op);
 }

@@ -27,7 +27,8 @@ python -m pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl
 
 # 3) 编译，编译时会按需下载submodule
 mkdir -p build && cd build
-cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+export PADDLE_CUSTOM_PATH=`python -c "import re, paddle; print(re.compile('/__init__.py.*').sub('',paddle.__file__))"`
+cmake .. -DWITH_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPY_VERSION=3.9
 make -j $(nproc)
 
 # 4) 编译产出在build/dist路径下，使用pip安装

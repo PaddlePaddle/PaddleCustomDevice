@@ -44,9 +44,15 @@ set_property(TARGET acl_op_compiler PROPERTY IMPORTED_LOCATION
                                              ${acl_op_compiler_lib})
 
 # ascend transorformer boost
-set(ascend_atb_lib ${ASCEND_DIR}/atb/latest/atb/lib/libatb.so)
-set(ascend_ops_lib ${ASCEND_DIR}/atb/latest/atb/lib/libasdops.so)
-set(ATB_INC_DIR ${ASCEND_DIR}/atb/latest/atb/include)
+if(DEFINED ENV{ATB_HOME_PATH})
+  set(ATB_HOME_DIR $ENV{ATB_HOME_PATH})
+else()
+  set(ATB_HOME_DIR ${ASCEND_DIR}/mindie/latest/mindie-rt/mindie-atb/atb)
+endif()
+
+set(ascend_atb_lib ${ATB_HOME_DIR}/lib/libatb.so)
+set(ascend_ops_lib ${ATB_HOME_DIR}/lib/libasdops.so)
+set(ATB_INC_DIR ${ATB_HOME_DIR}/include)
 message(STATUS "ATB_INC_DIR ${ATB_INC_DIR}")
 include_directories(${ATB_INC_DIR})
 

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -72,6 +71,8 @@ void UnsqueezeInferKernel(const Context& dev_ctx,
                           const phi::DenseTensor& x,
                           const phi::IntArray& axes,
                           phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("unsqueeze_infer");
+  VLOG(6) << "[HOST_KERNEL] Impl on host for unsqueeze_infer";
   auto x_dims = x.dims();
   auto out_dims = out->dims();
 
@@ -80,19 +81,8 @@ void UnsqueezeInferKernel(const Context& dev_ctx,
   }
   out->Resize(out_dims);
   dev_ctx.template Alloc<T>(out);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "unsqueeze_infer", unsqueeze_infer);
-    if (out->data() == x.data()) {
-      auto tmp = EmptyTensor(dev_ctx, out->meta());
-      dev_ctx.template Alloc(&tmp, tmp.dtype());
-      *out = tmp;
-    }
-    reshape(dev_ctx, x, *out);
-    PADDLE_GCU_KERNEL_END("unsqueeze_infer", unsqueeze_infer);
-  } else {
-    custom_kernel::TensorCopy(dev_ctx, x, false, out);
-    out->Resize(out_dims);  // copy will reset the dims.
-  }
+  custom_kernel::TensorCopy(dev_ctx, x, false, out);
+  out->Resize(out_dims);  // copy will reset the dims.
 }
 
 template <typename T, typename Context>
@@ -101,6 +91,8 @@ void UnsqueezeKernel(const Context& dev_ctx,
                      const phi::IntArray& axes,
                      phi::DenseTensor* out,
                      phi::DenseTensor* xshape) {
+  PADDLE_GCU_KERNEL_TRACE("unsqueeze");
+  VLOG(6) << "[HOST_KERNEL] Impl on host for unsqueeze";
   custom_kernel::UnsqueezeInferKernel<T, Context>(dev_ctx, x, axes, out);
 }
 
@@ -109,23 +101,14 @@ void UnsqueezeGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x_shape,
                          const phi::DenseTensor& dout,
                          phi::DenseTensor* dx) {
+  PADDLE_GCU_KERNEL_TRACE("unsqueeze_grad");
+  VLOG(6) << "[HOST_KERNEL] Impl on host for unsqueeze_grad";
   auto xshape_dims = x_shape.dims();
   auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());
 
   dev_ctx.template Alloc<T>(dx);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "unsqueeze_grad", unsqueeze_grad);
-    if (dx->data() == dout.data()) {
-      auto tmp = EmptyTensor(dev_ctx, dx->meta());
-      dev_ctx.template Alloc(&tmp, tmp.dtype());
-      *dx = tmp;
-    }
-    reshape(dev_ctx, dout, *dx);
-    PADDLE_GCU_KERNEL_END("unsqueeze_grad", unsqueeze_grad);
-  } else {
-    custom_kernel::TensorCopy(dev_ctx, dout, false, dx);
-    dx->Resize(x_dims);
-  }
+  custom_kernel::TensorCopy(dev_ctx, dout, false, dx);
+  dx->Resize(x_dims);
 }
 
 }  // namespace custom_kernel

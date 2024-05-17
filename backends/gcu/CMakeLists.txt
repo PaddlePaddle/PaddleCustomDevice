@@ -20,6 +20,7 @@ set(CUSTOM_GCU_NAME "paddle-custom-gcu")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_DEBUG CMAKE_MODULE_PATH is: ${CMAKE_MODULE_PATH}")
 
+set(TOPS_RELEASE_VERSION 3.1.0)
 if((NOT DEFINED PACKAGE_VERSION)
    OR ("${PACKAGE_VERSION}" STREQUAL "")
    OR ("${PACKAGE_VERSION}" STREQUAL "123.456"))
@@ -30,8 +31,14 @@ if((NOT DEFINED PACKAGE_VERSION)
     OUTPUT_VARIABLE GIT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   message(STATUS "git hash: ${GIT_HASH}")
-  set(PACKAGE_VERSION ${GIT_HASH})
+  set(GIT_HASH ".${GIT_HASH}")
+else()
+  set(GIT_HASH "")
+  set(TOPS_RELEASE_VERSION ${PACKAGE_VERSION})
 endif()
+set(PACKAGE_VERSION ${GIT_HASH}-${TOPS_RELEASE_VERSION})
+
+message(STATUS "tops release version: ${TOPS_RELEASE_VERSION}")
 message(STATUS "package version: ${PACKAGE_VERSION}")
 
 include(paddle)
@@ -42,10 +49,10 @@ include(external/gcu)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(/opt/tops/include)
 
-set(OUTPUT_PADDLE_PACKAGE_VERSION "${PADDLE_VERSION}.${PACKAGE_VERSION}")
-option(WITH_MKLDNN "compile with MKLDNN support" ON)
+set(OUTPUT_PADDLE_PACKAGE_VERSION ${PADDLE_VERSION}${PACKAGE_VERSION})
 option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
+option(WITH_MKL "compile with mkl support" ON)
 option(WITH_ARM "compile with arm support" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 
@@ -75,8 +82,26 @@ if(WITH_KERNELS)
   file(
     GLOB_RECURSE CUSTOM_KERNEL_SRCS
     RELATIVE ${CMAKE_SOURCE_DIR}
-    kernels/*.cc backend/*.cc common/*.cc)
+    kernels/*.cc)
   list(APPEND CUSTOM_GCU_SRCS ${CUSTOM_KERNEL_SRCS})
+  file(
+    GLOB_RECURSE GCU_KERNEL_DEPENDS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    backend/*.cc common/*.cc)
+  # build static library
+  set(GCU_DEPENDS_NAME "gcu-kernels-depend")
+  add_library(${GCU_DEPENDS_NAME} STATIC ${GCU_KERNEL_DEPENDS})
+  set_target_properties(${GCU_DEPENDS_NAME} PROPERTIES CXX_VISIBILITY_PRESET
+                                                       hidden)
+  target_compile_options(${GCU_DEPENDS_NAME} PUBLIC -fPIC)
+  add_dependencies(${GCU_DEPENDS_NAME} third_party)
+
+  # custom op with kernel
+  file(
+    GLOB_RECURSE CUSTOM_CUSTOM_OP_SRCS
+    RELATIVE ${CMAKE_SOURCE_DIR}
+    custom_op/*.cc)
+  list(APPEND CUSTOM_GCU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 endif()
 
 if(ON_INFER)
@@ -86,6 +111,13 @@ endif()
 # build shared library
 add_library(${CUSTOM_GCU_NAME} SHARED ${CUSTOM_GCU_SRCS})
 target_link_libraries(${CUSTOM_GCU_NAME} PRIVATE ${GCU_LIBS})
+if(WITH_KERNELS)
+  target_link_libraries(${CUSTOM_GCU_NAME} PRIVATE ${GCU_DEPENDS_NAME})
+  target_link_libraries(
+    ${CUSTOM_GCU_NAME}
+    PRIVATE -Wl,--whole-archive ${TOPSOP_LIB_DIR}/libtopsop.a
+            -Wl,--no-whole-archive)
+endif()
 if(TOPS_MODULE_SOURCE_DIR)
   target_include_directories(${CUSTOM_GCU_NAME}
                              PRIVATE ${TOPS_MODULE_SOURCE_DIR}/usr/include)
@@ -106,7 +138,15 @@ else()
   find_package(PythonInterp ${PY_VERSION} REQUIRED)
   find_package(PythonLibs ${PY_VERSION} REQUIRED)
   include_directories(${PYTHON_INCLUDE_DIR})
+  string(REPLACE "." "" PY_VERSION_NO_DOT ${PY_VERSION})
 endif()
+
+# export paddle_gcu interface with version map
+set_property(TARGET ${CUSTOM_GCU_NAME}
+             PROPERTY LINK_DEPENDS ${CMAKE_SOURCE_DIR}/paddle_gcu_export.map)
+target_link_options(
+  ${CUSTOM_GCU_NAME} PRIVATE
+  -Wl,--version-script=${CMAKE_SOURCE_DIR}/paddle_gcu_export.map)
 
 # testing
 if(WITH_TESTING)
@@ -135,10 +175,9 @@ message(STATUS "CMAKE_DEBUG Git commit id is: ${GIT_HASH}")
 message(STATUS "CMAKE_DEBUG CUSTOM_GCU_SRCS is: ${CUSTOM_GCU_SRCS}")
 message(STATUS "CMAKE_DEBUG GCU_LIBS is: ${GCU_LIBS}")
 
-# packing wheel package
 add_custom_command(
-  TARGET ${CUSTOM_GCU_NAME}
-  POST_BUILD
+  OUTPUT
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib${CUSTOM_GCU_NAME}.so
   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
   COMMAND ${CMAKE_COMMAND} -E make_directory
@@ -147,13 +186,37 @@ add_custom_command(
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${CUSTOM_GCU_NAME}.so
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-  COMMENT "Creating custom device directories------>>>")
+  COMMENT "Creating custom device directories------>>>"
+  DEPENDS ${CUSTOM_GCU_NAME})
+add_custom_target(
+  CUSTOM_GCU_NAME_shared_lib_copy ALL
+  DEPENDS
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib${CUSTOM_GCU_NAME}.so
+)
 
+set(whl_file
+    "${CMAKE_BINARY_DIR}/dist/paddle_custom_gcu-${OUTPUT_PADDLE_PACKAGE_VERSION}-cp${PY_VERSION_NO_DOT}-cp${PY_VERSION_NO_DOT}-linux_x86_64.whl"
+)
+set(_passes_target_dir
+    "${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes")
+file(MAKE_DIRECTORY ${_passes_target_dir})
+file(GLOB passes_srcs "${CMAKE_SOURCE_DIR}/passes/*")
+foreach(passes_src IN LISTS passes_srcs)
+  get_filename_component(passes_file_name ${passes_src} NAME)
+  add_custom_command(
+    OUTPUT ${_passes_target_dir}/${passes_file_name}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${passes_src}
+            ${_passes_target_dir}
+    DEPENDS ${passes_src})
+  list(APPEND passes_bin_files_list "${_passes_target_dir}/${passes_file_name}")
+endforeach()
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
-  COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
-  DEPENDS ${CUSTOM_GCU_NAME}
+  OUTPUT ${whl_file}
+  COMMAND ${Python_EXECUTABLE} ${CMAKE_BINARY_DIR}/setup.py bdist_wheel
+  # COMMAND rename 's/_${TOPS_RELEASE_VERSION}/-${TOPS_RELEASE_VERSION}/g'
+  # ${CMAKE_CURRENT_BINARY_DIR}/dist/*.whl
+  DEPENDS ${CUSTOM_GCU_NAME} CUSTOM_GCU_NAME_shared_lib_copy
+          ${CMAKE_BINARY_DIR}/setup.py ${passes_bin_files_list}
   COMMENT "Packing whl packages------>>>")
 
-add_custom_target(python_package ALL
-                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)
+add_custom_target(python_package ALL DEPENDS ${whl_file})

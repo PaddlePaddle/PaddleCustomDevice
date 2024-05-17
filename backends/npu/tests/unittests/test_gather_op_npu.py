@@ -20,6 +20,7 @@ import numpy as np
 import paddle
 import paddle.base as base
 from tests.op_test import OpTest
+from npu_utils import check_run_big_shape_test
 
 paddle.enable_static()
 SEED = 2021
@@ -117,6 +118,18 @@ class TestCase4(TestGatherOp):
 
     def test_check_grad(self):
         pass
+
+
+@check_run_big_shape_test()
+class TestCase5(TestGatherOp):
+    def config(self):
+        """
+        For one dimension input
+        """
+        self.x_shape = [4000, 8192]
+        self.x_type = "float32"
+        self.index = [1, 3, 5]
+        self.index_type = "int32"
 
 
 class API_TestGather(unittest.TestCase):

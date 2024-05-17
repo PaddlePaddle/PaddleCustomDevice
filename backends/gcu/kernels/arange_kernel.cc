@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/gcu_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
+#include "common/gcu_op_runner.h"
+#include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
 
@@ -45,11 +45,69 @@ void GetSize(T start, T end, T step, int64_t* size) {
 }
 
 template <typename T, typename Context>
+void ArangeKernel(const Context& dev_ctx,
+                  const phi::Scalar& start,
+                  const phi::Scalar& end,
+                  const phi::Scalar& step,
+                  phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("arange");
+  //   VLOG(6) << "[HOST_KERNEL] Impl on host for arange";
+  T start_value = start.to<T>();
+  T end_value = end.to<T>();
+  T step_value = step.to<T>();
+  int64_t size = 0;
+  GetSize(start_value, end_value, step_value, &size);
+  out->Resize(phi::make_ddim({size}));
+  dev_ctx.template Alloc<T>(out);
+
+  phi::DenseTensor output_t =
+      MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+
+  topsatenTensor output = CreateTopsatenTensor(output_t);
+  topsatenScalar_t start_s = ScalarToTopsatenScalar(start);
+  topsatenScalar_t end_s = ScalarToTopsatenScalar(end);
+  topsatenScalar_t step_s = ScalarToTopsatenScalar(step);
+  topsatenDataType_t d_type = DataTypeToTopsatenDataType(output_t.dtype());
+  topsatenLayoutType_t layout = TOPSATEN_LAYOUT_STRIDED;
+  // pinMemory only support false
+  bool use_pin_mem = false;
+  auto stream = static_cast<topsStream_t>(dev_ctx.stream());
+  ATEN_OP_CALL_MAYBE_SYNC(
+      topsaten::topsatenArange(
+          output, start_s, end_s, step_s, d_type, layout, use_pin_mem, stream),
+      dev_ctx);
+  MaybeTransResult(dev_ctx, output_t, out);
+
+  //   VLOG(6) << "[HOST_KERNEL] Impl on host for arange";
+  //   T start_value = start.to<T>();
+  //   T end_value = end.to<T>();
+  //   T step_value = step.to<T>();
+
+  //   int64_t size = 0;
+  //   GetSize(start_value, end_value, step_value, &size);
+
+  //   out->Resize(phi::make_ddim({size}));
+  //   dev_ctx.template Alloc<T>(out);
+
+  //   std::vector<T, PinnedAllocatorForSTL<T>> odata;
+  //   T value = start_value;
+  //   for (int64_t i = 0; i < size; ++i) {
+  //     odata.push_back(value);
+  //     value += step_value;
+  //   }
+
+  //   TensorFromVector(dev_ctx, odata, dev_ctx, out);
+  //   dev_ctx.Wait();
+}
+
+template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
                         const phi::DenseTensor& start_t,
                         const phi::DenseTensor& end_t,
                         const phi::DenseTensor& step_t,
                         phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("arange_tensor");
+  //   VLOG(6) << "[HOST_KERNEL] Impl on host for arange_tensor";
   phi::DenseTensor n;
   n.Resize(start_t.dims());
   T* n_data = dev_ctx.template HostAlloc<T>(&n);
@@ -63,48 +121,24 @@ void ArangeTensorKernel(const Context& dev_ctx,
   TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
   T step = n_data[0];
 
-  int64_t size = 0;
-  GetSize(start, end, step, &size);
+  custom_kernel::ArangeKernel<T, Context>(
+      dev_ctx, phi::Scalar(start), phi::Scalar(end), phi::Scalar(step), out);
 
-  out->Resize(phi::make_ddim({size}));
-  dev_ctx.template Alloc<T>(out);
+  //   int64_t size = 0;
+  //   GetSize(start, end, step, &size);
 
-  std::vector<T> odata;
-  T value = start;
-  for (int64_t i = 0; i < size; ++i) {
-    odata.push_back(value);
-    value += step;
-  }
+  //   out->Resize(phi::make_ddim({size}));
+  //   dev_ctx.template Alloc<T>(out);
 
-  TensorFromVector(dev_ctx, odata, dev_ctx, out);
-  dev_ctx.Wait();
-}
+  //   std::vector<T, PinnedAllocatorForSTL<T>> odata;
+  //   T value = start;
+  //   for (int64_t i = 0; i < size; ++i) {
+  //     odata.push_back(value);
+  //     value += step;
+  //   }
 
-template <typename T, typename Context>
-void ArangeKernel(const Context& dev_ctx,
-                  const phi::Scalar& start,
-                  const phi::Scalar& end,
-                  const phi::Scalar& step,
-                  phi::DenseTensor* out) {
-  T start_value = start.to<T>();
-  T end_value = end.to<T>();
-  T step_value = step.to<T>();
-
-  int64_t size = 0;
-  GetSize(start_value, end_value, step_value, &size);
-
-  out->Resize(phi::make_ddim({size}));
-  dev_ctx.template Alloc<T>(out);
-
-  std::vector<T> odata;
-  T value = start_value;
-  for (int64_t i = 0; i < size; ++i) {
-    odata.push_back(value);
-    value += step_value;
-  }
-
-  TensorFromVector(dev_ctx, odata, dev_ctx, out);
-  dev_ctx.Wait();
+  //   TensorFromVector(dev_ctx, odata, dev_ctx, out);
+  //   dev_ctx.Wait();
 }
 
 }  // namespace custom_kernel

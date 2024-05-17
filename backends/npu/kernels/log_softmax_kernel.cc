@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void LogSoftmaxKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      int axis,
-                      phi::DenseTensor* out) {
+void AclopLogSoftmaxKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& x,
+                           int axis,
+                           phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -43,11 +43,38 @@ void LogSoftmaxKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void LogSoftmaxGradKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& out,
-                          const phi::DenseTensor& dout,
-                          int axis,
-                          phi::DenseTensor* dx) {
+void LogSoftmaxKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      int axis,
+                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(aclnnLogSoftmax,
+                   (custom_kernel::AclopLogSoftmaxKernel<T, Context>(
+                       dev_ctx, x, axis, out)));
+
+  dev_ctx.template Alloc<T>(out);
+
+  const int rank = x.dims().size();
+  axis = CanonicalAxis(axis, rank);
+
+  if (rank == 0) {
+    auto out_dim = out->dims();
+    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(0));
+    out->Resize(out_dim);
+    return;
+  }
+
+  if (x.numel() != 0) {
+    int64_t axis_ = static_cast<int64_t>(axis);
+    EXEC_NPU_CMD(aclnnLogSoftmax, dev_ctx, x, axis_, *out);
+  }
+}
+
+template <typename T, typename Context>
+void AclopLogSoftmaxGradKernel(const Context& dev_ctx,
+                               const phi::DenseTensor& out,
+                               const phi::DenseTensor& dout,
+                               int axis,
+                               phi::DenseTensor* dx) {
   dev_ctx.template Alloc<T>(dx);
   auto stream = dev_ctx.stream();
 
@@ -67,6 +94,33 @@ void LogSoftmaxGradKernel(const Context& dev_ctx,
                                      {*dx},
                                      {{"axis", std::vector<int>{axis}}});
     runner.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void LogSoftmaxGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& out,
+                          const phi::DenseTensor& dout,
+                          int axis,
+                          phi::DenseTensor* dx) {
+  DO_COMPATIBILITY(aclnnLogSoftmaxBackward,
+                   (custom_kernel::AclopLogSoftmaxGradKernel<T, Context>(
+                       dev_ctx, out, dout, axis, dx)));
+  dev_ctx.template Alloc<T>(dx);
+
+  const int rank = dout.dims().size();
+  axis = CanonicalAxis(axis, rank);
+
+  if (rank == 0) {
+    auto dx_dim = dx->dims();
+    FillNpuTensorWithConstant<T>(dx, dev_ctx, static_cast<T>(0));
+    dx->Resize(dx_dim);
+    return;
+  }
+
+  if (dout.numel() != 0) {
+    int64_t axis_ = static_cast<int64_t>(axis);
+    EXEC_NPU_CMD(aclnnLogSoftmaxBackward, dev_ctx, dout, out, axis_, *dx);
   }
 }
 

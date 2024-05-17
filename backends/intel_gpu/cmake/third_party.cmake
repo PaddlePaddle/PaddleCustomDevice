@@ -37,9 +37,9 @@ if(WITH_TESTING)
   list(APPEND third_party_deps extern_gtest)
 endif()
 
-if(WITH_MKLDNN AND NOT WITH_ARM)
-  include(external/mkldnn) # download, build, install mkldnn
-  list(APPEND third_party_deps extern_mkldnn)
+if(WITH_MKL AND NOT WITH_ARM)
+  include(external/onednn) # download, build, install mkldnn
+  list(APPEND third_party_deps extern_onednn)
 endif()
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})

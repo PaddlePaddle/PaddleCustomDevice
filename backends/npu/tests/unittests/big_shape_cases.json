@@ -1,0 +1,1195 @@
+{
+  "add": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          1024,
+          8192
+        ],
+        [
+          1024,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          2,
+          1,
+          4096,
+          4096
+        ],
+        [
+          2,
+          1,
+          4096,
+          4096
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 2,
+      "input_shapes": [
+        [
+          3584,
+          8192
+        ],
+        [
+          3584,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 3,
+      "input_shapes": [
+        [
+          4000,
+          8192
+        ],
+        [
+          4000,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 4,
+      "input_shapes": [
+        [
+          8192,
+          1280
+        ],
+        [
+          8192,
+          1280
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 5,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 6,
+      "input_shapes": [
+        [
+          8192,
+          7168
+        ],
+        [
+          8192,
+          7168
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "clip": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [],
+        []
+      ],
+      "dtypes": [
+        [
+          "FLOAT",
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "concat": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          4096,
+          1,
+          1024
+        ],
+        [
+          2,
+          4096,
+          1,
+          128
+        ],
+        [
+          2,
+          4096,
+          1,
+          128
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          8192,
+          3584
+        ],
+        [
+          8192,
+          3584
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "divide": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          8192,
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "equal": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          1,
+          4096,
+          4096
+        ],
+        [
+          2,
+          1,
+          4096,
+          4096
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "exp": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "matmul": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          4096,
+          8192
+        ],
+        [
+          2,
+          4096,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": true,
+      "transpose_y": false
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          8192,
+          1024
+        ],
+        [
+          8192,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": true,
+      "transpose_y": false
+    },
+    {
+      "case_id": 2,
+      "input_shapes": [
+        [
+          8192,
+          1280
+        ],
+        [
+          8192,
+          1280
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": true,
+      "transpose_y": false
+    },
+    {
+      "case_id": 3,
+      "input_shapes": [
+        [
+          8192,
+          3584
+        ],
+        [
+          8192,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": true,
+      "transpose_y": false
+    },
+    {
+      "case_id": 4,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": true,
+      "transpose_y": false
+    },
+    {
+      "case_id": 5,
+      "input_shapes": [
+        [
+          8192,
+          7168
+        ],
+        [
+          8192,
+          7168
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": false,
+      "transpose_y": true
+    },
+    {
+      "case_id": 6,
+      "input_shapes": [
+        [
+          8192,
+          8192
+        ],
+        [
+          8192,
+          1280
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": false,
+      "transpose_y": false
+    },
+    {
+      "case_id": 7,
+      "input_shapes": [
+        [
+          8192,
+          8192
+        ],
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": false,
+      "transpose_y": false
+    },
+    {
+      "case_id": 8,
+      "input_shapes": [
+        [
+          8192,
+          8192
+        ],
+        [
+          8192,
+          7168
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ],
+      "transpose_x": false,
+      "transpose_y": false
+    }
+  ],
+  "multiply": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          1024,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          3584,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 2,
+      "input_shapes": [
+        [
+          4000,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 3,
+      "input_shapes": [
+        [
+          8192,
+          1
+        ],
+        [
+          8192,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 4,
+      "input_shapes": [
+        [
+          8192,
+          1280
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 5,
+      "input_shapes": [
+        [
+          8192,
+          3584
+        ],
+        [
+          8192,
+          3584
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 6,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 7,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          8192,
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 8,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 9,
+      "input_shapes": [
+        [
+          8192,
+          7168
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 10,
+      "input_shapes": [
+        [
+          8192,
+          8192
+        ],
+        [
+          8192,
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 11,
+      "input_shapes": [
+        [
+          4000,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 12,
+      "input_shapes": [
+        [
+          8192,
+          1280
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 13,
+      "input_shapes": [
+        [
+          1024,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 14,
+      "input_shapes": [
+        [
+          8192,
+          7168
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 15,
+      "input_shapes": [
+        [
+          3584,
+          8192
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 16,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "silu": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          8192,
+          3584
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "squared_l2_norm": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          4000,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          8192,
+          1280
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 2,
+      "input_shapes": [
+        [
+          1024,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 3,
+      "input_shapes": [
+        [
+          8192,
+          7168
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 4,
+      "input_shapes": [
+        [
+          3584,
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 5,
+      "input_shapes": [
+        [
+          8192
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    },
+    {
+      "case_id": 6,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "sum": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          8192,
+          4000
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "INT64"
+        ],
+        [
+          "FLOAT",
+          "INT64"
+        ]
+      ]
+    },
+    {
+      "case_id": 1,
+      "input_shapes": [
+        [
+          8192,
+          4000
+        ],
+        [
+          1
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16",
+          "INT64"
+        ],
+        [
+          "FLOAT",
+          "INT64"
+        ]
+      ]
+    }
+  ],
+  "tril": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          4096,
+          4096
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "triu": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          1,
+          4096,
+          4096
+        ]
+      ],
+      "dtypes": [
+        [
+          "DT_BF16"
+        ],
+        [
+          "FLOAT"
+        ]
+      ]
+    }
+  ],
+  "where": [
+    {
+      "case_id": 0,
+      "input_shapes": [
+        [
+          2,
+          1,
+          4096,
+          4096
+        ],
+        [
+          2,
+          1,
+          4096,
+          4096
+        ],
+        [
+          2,
+          1,
+          4096,
+          4096
+        ]
+      ],
+      "dtypes": [
+        [
+          "BOOL",
+          "DT_BF16",
+          "DT_BF16"
+        ],
+        [
+          "BOOL",
+          "FLOAT",
+          "FLOAT"
+        ]
+      ]
+    }
+  ]
+}

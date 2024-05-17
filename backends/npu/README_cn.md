@@ -8,30 +8,29 @@
 
 | 芯片类型  | CANN版本     |
 | --------- | -------- |
-| 芯片类型 | 昇腾910A、昇腾910B |
-| CANN版本 | [CANN 8.0.T2](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
-| 驱动版本 | [23.0.1](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
+| 芯片类型 | 昇腾910B |
+| CANN版本 | [CANN 8.0.RC1](https://support.huawei.com/enterprise/zh/ascend-computing/cann-pid-251168373/software) |
+| 驱动版本 | [23.0.3](https://support.huawei.com/enterprise/zh/ascend-computing/ascend-hdk-pid-252764743/software) |
+
+**注意**：昇腾910A芯片的支持请切换到 [release/2.6](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/release/2.6/backends/npu/README_cn.md) 分支进行编译安装。
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-# 昇腾910A芯片 - 系统环境下查看 lspci | grep d801 是否有输出
-registry.baidubce.com/device/paddle-npu:cann80T2-910A-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann80T2-910A-ubuntu18-aarch64
 # 昇腾910B芯片 - 系统环境下查看 lspci | grep d802 是否有输出
-registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-x86_64
-registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-aarch64
+registry.baidubce.com/device/paddle-npu:cann80RC1-ubuntu20-x86_64-gcc84-py310
+registry.baidubce.com/device/paddle-npu:cann80RC1-ubuntu20-aarch64-gcc84-py310
 
 # 2) 参考如下命令启动容器，ASCEND_RT_VISIBLE_DEVICES 指定可见的 NPU 卡号
-docker run -it --name paddle-dev -v `pwd`:/work -w=/work \
-    --privileged --network=host --shm-size=128G \
+docker run -it --name paddle-npu-dev -v $(pwd):/work \
+    --privileged --network=host --shm-size=128G -w=/work \
     -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
     -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi \
     -v /usr/local/dcmi:/usr/local/dcmi \
     -e ASCEND_RT_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" \
-    registry.baidubce.com/device/paddle-npu:cann80T2-910B-ubuntu18-$(uname -m) /bin/bash
+    registry.baidubce.com/device/paddle-npu:cann80RC1-ubuntu20-$(uname -m)-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -72,8 +71,8 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.npu.version()"
 # 预期得到如下输出结果
 version: 0.0.0
-commit: 75ee24202649770d11860b52d9b06366b9358a2f
-cann: 7.0.0
+commit: 9bfc65a7f11072699d0c5af160cf7597720531ea
+cann: 8.0.RC1
 
 # 3. 飞桨健康检查
 python -c "import paddle; paddle.utils.run_check()"
@@ -91,12 +90,12 @@ PaddlePaddle is installed successfully! Let's start deep learning with PaddlePad
 python tests/test_LeNet_MNIST.py
 
 # 预期得到如下输出结果 - 训练输出
-Epoch [1/2], Iter [01/14], reader_cost: 1.00473 s, batch_cost: 74.52487 s, ips: 54.96152 samples/s, eta: 0:34:46
-Epoch [1/2], Iter [02/14], reader_cost: 0.50253 s, batch_cost: 37.26772 s, ips: 109.90745 samples/s, eta: 0:16:46
+Epoch [1/2], Iter [01/14], reader_cost: 0.89279 s, batch_cost: 42.20599 s, ips: 97.04784 samples/s, eta: 0:19:41
+Epoch [1/2], Iter [02/14], reader_cost: 0.44657 s, batch_cost: 21.10753 s, ips: 194.05393 samples/s, eta: 0:09:29
 ... ...
-Epoch [2/2], Iter [14/14], reader_cost: 0.10162 s, batch_cost: 0.10956 s, ips: 37384.97312 samples/s, eta: 0:00:00
-Epoch ID: 2, Epoch time: 1.79473 s, reader_cost: 1.42272 s, batch_cost: 1.53388 s, avg ips: 31951.29112 samples/s
-Eval - Epoch ID: 2, Top1 accurary:: 0.85315, Top5 accurary:: 0.98914
+Epoch [2/2], Iter [14/14], reader_cost: 0.07168 s, batch_cost: 0.08018 s, ips: 51086.10163 samples/s, eta: 0:00:00
+Epoch ID: 2, Epoch time: 1.36502 s, reader_cost: 1.00354 s, batch_cost: 1.12250 s, avg ips: 42009.72047 samples/s
+Eval - Epoch ID: 2, Top1 accurary:: 0.81091, Top5 accurary:: 0.99036
 
 # 预期得到如下输出结果 - 推理输出
 I0103 19:11:34.570551 43520 program_interpreter.cc:214] New Executor is Running.

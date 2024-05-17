@@ -18,15 +18,32 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void SubtractKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& y,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void MulsKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const float scaling,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void FullLikeKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& val,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void HuberLossSub(const Context& dev_ctx,
                   const phi::DenseTensor* x,
                   const phi::DenseTensor* y,
                   phi::DenseTensor* z) {
   //  Calculate z = x - y
   z->Resize(x->dims());
-  dev_ctx.template Alloc<T>(z);
-  const auto& runner = NpuOpRunner("Sub", {*x, *y}, {*z}, {});
-  runner.Run(dev_ctx.stream());
+  custom_kernel::SubtractKernel<T, Context>(dev_ctx, *x, *y, z);
 }
 
 template <typename T, typename Context>
@@ -36,9 +53,7 @@ void HuberLossMuls(const Context& dev_ctx,
                    phi::DenseTensor* y) {
   //  Calculate y = x + scale
   y->Resize(x->dims());
-  dev_ctx.template Alloc<T>(y);
-  const auto& runner = NpuOpRunner("Muls", {*x}, {*y}, {{"value", scalar}});
-  runner.Run(dev_ctx.stream());
+  custom_kernel::MulsKernel<T, Context>(dev_ctx, *x, scalar, y);
 }
 
 template <typename T, typename Context>
@@ -46,9 +61,35 @@ void HuberLossZerosLike(const Context& dev_ctx,
                         const phi::DenseTensor* x,
                         phi::DenseTensor* y) {
   y->Resize(x->dims());
-  dev_ctx.template Alloc<T>(y);
-  const auto& runner = NpuOpRunner("ZerosLike", {*x}, {*y}, {});
+  phi::Scalar zeros = static_cast<T>(0);
+  custom_kernel::FullLikeKernel<T, Context>(dev_ctx, *x, zeros, x->dtype(), y);
+}
+
+template <typename T, typename Context>
+void AclopSmoothL1LossKernel(const Context& dev_ctx,
+                             const phi::DenseTensor* x,
+                             const phi::DenseTensor* y,
+                             float delta,
+                             phi::DenseTensor* z) {
+  dev_ctx.template Alloc<T>(z);
+  const auto& runner =
+      NpuOpRunner("SmoothL1Loss", {*x, *y}, {*z}, {{"sigma", delta}});
   runner.Run(dev_ctx.stream());
+}
+
+template <typename T, typename Context>
+void SmoothL1LossKernel(const Context& dev_ctx,
+                        const phi::DenseTensor* x,
+                        const phi::DenseTensor* y,
+                        float delta,
+                        phi::DenseTensor* z) {
+  DO_COMPATIBILITY(aclnnSmoothL1Loss,
+                   (custom_kernel::AclopSmoothL1LossKernel<T, Context>(
+                       dev_ctx, x, y, delta, z)));
+
+  dev_ctx.template Alloc<T>(z);
+  int64_t reduction = 0;  // none
+  EXEC_NPU_CMD(aclnnSmoothL1Loss, dev_ctx, *x, *y, reduction, delta, *z);
 }
 
 template <typename T, typename Context>
@@ -58,10 +99,43 @@ void HuberLossSmoothL1Loss(const Context& dev_ctx,
                            float delta,
                            phi::DenseTensor* z) {
   z->Resize(x->dims());
-  dev_ctx.template Alloc<T>(z);
-  const auto& runner =
-      NpuOpRunner("SmoothL1Loss", {*x, *y}, {*z}, {{"sigma", delta}});
+  custom_kernel::SmoothL1LossKernel<T, Context>(dev_ctx, x, y, delta, z);
+}
+
+template <typename T, typename Context>
+void AclopSmoothL1LossGrad(const Context& dev_ctx,
+                           const phi::DenseTensor* pred,
+                           const phi::DenseTensor* lab,
+                           const phi::DenseTensor* dout,
+                           float sigma,
+                           phi::DenseTensor* grad) {
+  dev_ctx.template Alloc<T>(grad);
+  const auto& runner = NpuOpRunner(
+      "SmoothL1LossGrad", {*pred, *lab, *dout}, {*grad}, {{"sigma", sigma}});
   runner.Run(dev_ctx.stream());
+}
+
+template <typename T, typename Context>
+void SmoothL1LossGrad(const Context& dev_ctx,
+                      const phi::DenseTensor* pred,
+                      const phi::DenseTensor* lab,
+                      const phi::DenseTensor* dout,
+                      float sigma,
+                      phi::DenseTensor* grad) {
+  DO_COMPATIBILITY(aclnnSmoothL1LossBackward,
+                   (custom_kernel::AclopSmoothL1LossGrad<T, Context>(
+                       dev_ctx, pred, lab, dout, sigma, grad)));
+
+  dev_ctx.template Alloc<T>(grad);
+  int64_t reduction = 0;  // none
+  EXEC_NPU_CMD(aclnnSmoothL1LossBackward,
+               dev_ctx,
+               *dout,
+               *pred,
+               *lab,
+               reduction,
+               sigma,
+               *grad);
 }
 
 template <typename T, typename Context>
@@ -72,10 +146,8 @@ void HuberLossSmoothL1LossGrad(const Context& dev_ctx,
                                float sigma,
                                phi::DenseTensor* grad) {
   grad->Resize(pred->dims());
-  dev_ctx.template Alloc<T>(grad);
-  const auto& runner = NpuOpRunner(
-      "SmoothL1LossGrad", {*pred, *lab, *dout}, {*grad}, {{"sigma", sigma}});
-  runner.Run(dev_ctx.stream());
+  custom_kernel::SmoothL1LossGrad<T, Context>(
+      dev_ctx, pred, lab, dout, sigma, grad);
 }
 
 template <typename T, typename Context>
@@ -99,8 +171,6 @@ void HuberLossGradKernel(const Context& dev_ctx,
                          float delta,
                          phi::DenseTensor* dx,
                          phi::DenseTensor* dy) {
-  auto stream = dev_ctx.stream();
-
   phi::DenseTensor t_grad_rd;
   if (dx || dy) {
     phi::DenseTensor t_zero;

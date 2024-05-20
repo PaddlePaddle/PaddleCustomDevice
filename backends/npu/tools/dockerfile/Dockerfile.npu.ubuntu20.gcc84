@@ -81,9 +81,6 @@ ENV FLAGS_use_stride_kernel=0
 ENV FLAGS_allocator_strategy=naive_best_fit
 ENV PADDLE_XCCL_BACKEND=npu
 
-# environment for ATB
-ENV ATB_MATMUL_SHUFFLE_K_ENABLE=0
-
 # map this foler in docker run
 RUN rm -rf /usr/local/Ascend/driver
 

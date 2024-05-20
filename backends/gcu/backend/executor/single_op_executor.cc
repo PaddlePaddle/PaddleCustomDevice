@@ -28,9 +28,8 @@ limitations under the License. */
 #include <utility>
 
 #include "backend/executor/tops_compiler.h"
-#include "common/common.h"
+#include "common/gcu_funcs.h"
 #include "common/utils.h"
-#include "kernels/funcs/gcu_funcs.h"
 #include "runtime/runtime.h"
 
 namespace backend {
@@ -53,19 +52,15 @@ SingleOpGcuExecutor::SingleOpGcuExecutor(
 
 SingleOpGcuExecutor::SingleOpGcuExecutor(
     const std::string& op_type,
-    hlir::HlirDispatch* dispatch,
     const std::vector<GcuNode>& input_nodes,
     const std::vector<GcuNode>& output_nodes)
-    : dispatch_(std::shared_ptr<hlir::HlirDispatch>(dispatch)),
-      op_type_(op_type) {
-  PADDLE_ENFORCE_NOT_NULL(
-      dispatch, phi::errors::InvalidArgument("Expect dispatch is not null."));
+    : op_type_(op_type) {
   input_nodes_ = input_nodes;
   output_nodes_ = output_nodes;
 }
 
 void SingleOpGcuExecutor::ReleaseResource() {
-  if (!UseScatterMemory() && tops_exec_ != nullptr) {
+  if (tops_exec_ != nullptr) {
     RT_CHECK(topsDestroyExecutable(tops_exec_));
     tops_exec_ = nullptr;
   }
@@ -155,39 +150,20 @@ void SingleOpGcuExecutor::RunGcuOp(const phi::CustomContext* device_context,
   static int32_t exec_count = 0;
   auto start_time = custom_kernel::GetCurrentTimestap();
 
-  if (IsDispatch()) {
-    PADDLE_GCU_TRACE_START(EXEC, exec);
-    VLOG(6) << "run with dispatch, op type: " << op_type_;
-    hlir::DispatchParam params;
-    params.stream = tops_stream;
-    custom_kernel::BuildDispatchParam(real_inputs, real_outputs, params);
-    AOTOPS_DEBUG(op_type_, params);
-    std::string compile_options =
-        std::string("hlir-training-pipeline{dispatch-jit=true tensor-split=") +
-        (tensor_split ? "true" : "false") + " op-key=pavo dynamic-shape=false}";
-    PADDLE_GCU_TRACE_START(DISPATCH, op_type_);
-    dispatch_.get()->dispatch(params, compile_options.c_str());
-    PADDLE_GCU_TRACE_END(DISPATCH, op_type_);
-    custom_kernel::FreeDispatchParam(params);
-    custom_kernel::GcuOpStreamSync(*device_context);
-    PADDLE_GCU_TRACE_END(EXEC, exec);
-  } else {
-    RT_CHECK(topsLaunchExecutable(tops_exec_,
-                                  nullptr,
-                                  dev_inputs.data(),
-                                  dev_inputs.size(),
-                                  nullptr,
-                                  nullptr,
-                                  dev_outputs.data(),
-                                  dev_outputs.size(),
-                                  nullptr,
-                                  nullptr,
-                                  tops_stream));
-    RT_CHECK(topsStreamSynchronize(tops_stream));
-  }
+  RT_CHECK(topsLaunchExecutable(tops_exec_,
+                                nullptr,
+                                dev_inputs.data(),
+                                dev_inputs.size(),
+                                nullptr,
+                                nullptr,
+                                dev_outputs.data(),
+                                dev_outputs.size(),
+                                nullptr,
+                                nullptr,
+                                tops_stream));
 
   if (VLOG_IS_ON(6)) {
-    auto time_cost = custom_kernel::GetTimeCostMs(
+    auto time_cost = custom_kernel::GetTimeCostInMs(
         start_time, custom_kernel::GetCurrentTimestap());
     total_time_cost += time_cost;
 

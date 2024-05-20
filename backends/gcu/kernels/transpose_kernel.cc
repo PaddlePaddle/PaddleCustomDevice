@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -23,13 +22,14 @@ void TransposeKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const std::vector<int>& axis,
                      phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "transpose", transpose);
-    std::vector<int64_t> perm(axis.begin(), axis.end());
-    transpose(dev_ctx, x, *out, perm);
-    PADDLE_GCU_KERNEL_END("transpose", transpose);
-  } else {
+  PADDLE_GCU_KERNEL_TRACE("transpose");
+  if (LaunchAOTKernel()) {
+    std::vector<int64_t> in_axis(axis.begin(), axis.end());
+    *out = custom_kernel::Transpose(dev_ctx, x, in_axis);
+
+  } else {  // kernel impl base on JIT
+    dev_ctx.template Alloc<T>(out);
+
     TensorNameMap input_names;
     input_names["X"] = {"x"};
 
@@ -60,16 +60,11 @@ void TransposeGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& dout,
                          const std::vector<int>& axis,
                          phi::DenseTensor* dx) {
+  PADDLE_GCU_KERNEL_TRACE("transpose_grad");
   dev_ctx.template Alloc<T>(dx);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "transpose_grad", transpose_grad);
-    std::vector<int64_t> reversed_permutation(axis.begin(), axis.end());
-    for (size_t i = 0; i < axis.size(); ++i) {
-      reversed_permutation[axis[i]] = i;
-    }
-    transpose(dev_ctx, dout, *dx, reversed_permutation);
-    PADDLE_GCU_KERNEL_END("transpose_grad", transpose_grad);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names[GradVarName("Out")] = {"dout"};
 
@@ -102,11 +97,7 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           ALL_LAYOUT,
                           custom_kernel::TransposeKernel,
                           int,
-                          int64_t,
-                          uint8_t,
-                          int8_t,
                           float,
-                          double,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,

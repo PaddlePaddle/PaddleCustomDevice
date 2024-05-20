@@ -262,7 +262,6 @@ void FusedBlhaGlobalVar::update_rope_encoder(const phi::CustomContext &dev_ctx,
   uint64_t seqlens_size = g_seqlens_encoder.size;
   for (auto i = 0; i < seqlens_size; ++i) {
     if (seqlens[i] > 0) {
-      in_offset = i * max_seqlen * head_dim;
       out_offset += numel;
       numel = seqlens[i] * head_dim;
       AsyncMemCpyD2D(
@@ -317,7 +316,7 @@ void FusedBlhaGlobalVar::update_rope_decoder(const phi::CustomContext &dev_ctx,
   uint64_t seqlens_size = g_seqlens_decoder.size;
   for (auto i = 0; i < seqlens_size; ++i) {
     if (seqlens[i] > 0) {
-      in_offset = (i * max_seqlen + seqlens[i] - 1) * head_dim;
+      in_offset = (seqlens[i] - 1) * head_dim;
       out_offset += numel;
       numel = head_dim;
       AsyncMemCpyD2D(

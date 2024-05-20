@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License
 
-function(py_test_modules TARGET_NAME)
+function(py_test_modules TARGET_NAME RUN_JIT_KERNELS)
   set(options SERIAL)
   set(oneValueArgs "")
   set(multiValueArgs MODULES DEPS ENVS)
@@ -25,8 +25,9 @@ function(py_test_modules TARGET_NAME)
       ${CMAKE_COMMAND} -E env
       CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
       PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
-      ${py_test_modules_ENVS} python ${PYTHON_SOURCE_DIR}/tools/test_runner.py
-      ${py_test_modules_MODULES}
+      PADDLE_GCU_USE_JIT_KERNELS_ONLY=${RUN_JIT_KERNELS}
+      FLAGS_use_stride_kernel=false ${py_test_modules_ENVS} python
+      ${PYTHON_SOURCE_DIR}/tools/test_runner.py ${py_test_modules_MODULES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
   if(py_test_modules_SERIAL)
@@ -35,3 +36,5 @@ function(py_test_modules TARGET_NAME)
 endfunction()
 
 add_subdirectory(unittests)
+# add_subdirectory(unittests_jit)
+add_subdirectory(fuse_pass)

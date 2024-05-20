@@ -21,9 +21,9 @@ limitations under the License. */
 #include <vector>
 
 #include "backend/register/register.h"
+#include "paddle/common/macros.h"
 #include "paddle/phi/core/ddim.h"
 #include "paddle/phi/core/enforce.h"
-#include "paddle/phi/core/errors.h"
 
 namespace backend {
 const char* const kInstanceNorm = "instance_norm";

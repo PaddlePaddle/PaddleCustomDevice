@@ -1,0 +1,61 @@
+PADDLE_GCU_1.0 {
+    global:
+        extern "C++" {
+            *phi::*;
+        };
+
+        *TouchKernelSymbolFor_*_gcu_ALL*;
+
+        InitPlugin;
+        Init;
+        Finalize;
+        InitDevice;
+        SetDevice;
+        GetDevice;
+        DeInitDevice;
+
+        CreateStream;
+        DestroyStream;
+        AddCallback;
+
+        CreateEvent;
+        RecordEvent;
+        DestroyEvent;
+
+        SyncDevice;
+        SyncStream;
+        SyncEvent;
+        StreamWaitEvent;
+
+        Allocate;
+        Deallocate;
+        HostAllocate;
+        HostDeallocate;
+        MemCpyH2D;
+        MemCpyD2H;
+        MemCpyD2D;
+        AsyncMemCpyH2D;
+        AsyncMemCpyD2H;
+        AsyncMemCpyD2D;
+
+        GetDevicesCount;
+        GetDevicesList;
+        DeviceMinChunkSize;
+        DeviceMaxChunkSize;
+        ExtraPaddingSize;
+
+        XcclGetUniqueIdSize;
+        XcclGetUniqueId;
+        XcclCommInitRank;
+        XcclDestroyComm;
+        XcclAllReduce;
+        XcclBroadcast;
+        XcclReduce;
+        XcclAllGather;
+        XcclReduceScatter;
+        XcclGroupStart;
+        XcclGroupEnd;
+        XcclSend;
+        XcclRecv;
+    local: *;
+};

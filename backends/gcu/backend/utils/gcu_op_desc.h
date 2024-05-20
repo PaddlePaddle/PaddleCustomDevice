@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "backend/utils/types.h"
+#include "paddle/common/macros.h"
 #include "paddle/phi/core/enforce.h"
-#include "paddle/phi/core/macros.h"
 
 namespace backend {
 

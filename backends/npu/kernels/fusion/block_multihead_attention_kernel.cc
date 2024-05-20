@@ -44,6 +44,8 @@ void BlockMultiheadAttentionKernel(
     const paddle::optional<phi::DenseTensor>& qkv_bias,
     const paddle::optional<phi::DenseTensor>& out_shift,
     const paddle::optional<phi::DenseTensor>& out_smooth,
+    const paddle::optional<phi::DenseTensor>& max_enc_len_this_time,
+    const paddle::optional<phi::DenseTensor>& max_dec_len_this_time,
     int max_seq_len,
     int block_size,
     bool use_neox_style,
@@ -67,4 +69,7 @@ PD_REGISTER_PLUGIN_KERNEL(block_multihead_attention,
                           ALL_LAYOUT,
                           custom_kernel::BlockMultiheadAttentionKernel,
                           phi::float16,
-                          int32_t) {}
+                          int32_t) {
+  kernel->InputAt(24).SetBackend(phi::Backend::CPU);
+  kernel->InputAt(25).SetBackend(phi::Backend::CPU);
+}

@@ -171,12 +171,18 @@ void SliceRawKernel(const Context& dev_ctx,
     }
   }
 
+  custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
+  slice_dims = custom_kernel::GetSliceDims<int>(
+      in_dims, axes, starts, ends, nullptr, nullptr);
+  out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
+  out->Resize(out_dims);
+
   std::vector<int> offsets(in_dims.size());
   std::vector<int> size(in_dims.size());
   custom_kernel::UpdateAttr(in_dims, axes, starts, ends, &offsets, &size);
-
   out_dims = out->dims();
   out->Resize(phi::make_ddim(size));
+
   std::vector<int64_t> steps;
   for (int i = 0; i < out->dims().size(); i++) {
     steps.push_back(1.0);
@@ -185,7 +191,9 @@ void SliceRawKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(
       aclnnSliceV2, dev_ctx, x, starts_array, ends_array, axes_t, steps, *out);
-  out->Resize(out_dims);
+  if (out->dims().size() != out_dims.size()) {
+    out->Resize(out_dims);
+  }
 }
 
 template <typename T, typename Context>

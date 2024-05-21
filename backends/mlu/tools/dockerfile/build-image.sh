@@ -31,7 +31,7 @@ CNNL_EXTRA_VERSION=${7:-1.8.1-1} # default 1.8.1-1
 if [ $(uname -i) == 'x86_64' ]; then
   # ubuntu20-$(uname -m)-gcc84-py310
   docker pull registry.baidubce.com/device/paddle-cpu:ubuntu20-$(uname -m)-gcc84-py310
-  docker build --network=host -f Dockerfile.mlu.ubuntu20.$(uname -m).gcc84.py310 \
+  docker build --network=host -f Dockerfile.mlu.ubuntu20.gcc84.py310 \
        --build-arg CNTOOLKIT_VERSION=${CNTOOLKIT_VERSION} \
        --build-arg CNNL_VERSION=${CNNL_VERSION} \
        --build-arg CNNL_EXTRA_VERSION=${CNNL_EXTRA_VERSION} \
@@ -42,17 +42,17 @@ if [ $(uname -i) == 'x86_64' ]; then
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:ubuntu20-$(uname -m)-gcc84-py310 .
-  docker push registry.baidubce.com/device/paddle-mlu:ubuntu20-$(uname -m)-gcc84-py310
+       -t registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310 .
+  docker push registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310
 else
   # kylinv10-$(uname -m)-gcc82-py310
   docker pull registry.baidubce.com/device/paddle-cpu:kylinv10-$(uname -m)-gcc82-py310
-  docker build --network=host -f Dockerfile.mlu.kylinv10.$(uname -m).gcc82 \
+  docker build --network=host -f Dockerfile.mlu.kylinv10.gcc82 \
        --build-arg FTP_USER=${FTP_USER} \
        --build-arg FTP_PASSWORD=${FTP_PASSWORD} \
        --build-arg http_proxy=${proxy} \
        --build-arg https_proxy=${proxy} \
        --build-arg no_proxy=bcebos.com \
-       -t registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310 .
-  docker push registry.baidubce.com/device/paddle-mlu:kylinv10-$(uname -m)-gcc82-py310
+       -t registry.baidubce.com/device/paddle-mlu:kylinv10-gcc82-py310 .
+  docker push registry.baidubce.com/device/paddle-mlu:kylinv10-gcc82-py310
 fi

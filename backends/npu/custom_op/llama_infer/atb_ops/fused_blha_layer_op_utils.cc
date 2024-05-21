@@ -262,7 +262,6 @@ void FusedBlhaGlobalVar::update_rope_encoder(const phi::CustomContext &dev_ctx,
   uint64_t seqlens_size = g_seqlens_encoder.size;
   for (auto i = 0; i < seqlens_size; ++i) {
     if (seqlens[i] > 0) {
-      in_offset = i * max_seqlen * head_dim;
       out_offset += numel;
       numel = seqlens[i] * head_dim;
       AsyncMemCpyD2D(
@@ -317,7 +316,7 @@ void FusedBlhaGlobalVar::update_rope_decoder(const phi::CustomContext &dev_ctx,
   uint64_t seqlens_size = g_seqlens_decoder.size;
   for (auto i = 0; i < seqlens_size; ++i) {
     if (seqlens[i] > 0) {
-      in_offset = (i * max_seqlen + seqlens[i] - 1) * head_dim;
+      in_offset = (seqlens[i] - 1) * head_dim;
       out_offset += numel;
       numel = head_dim;
       AsyncMemCpyD2D(
@@ -469,9 +468,9 @@ void FusedBlhaGlobalVar::update_mask(const phi::CustomContext &dev_ctx,
     tmp_mask.Resize({max_seq_len, max_seq_len});
     custom_kernel::ScaleKernel<phi::float16>(
         dev_ctx, tril_ones_tensor, 1.0f, -1.0f, true, &tmp_mask);
-
+    // use 50000 to avoid overflow
     custom_kernel::ScaleKernel<phi::float16>(
-        dev_ctx, tmp_mask, 1000000.0f, 0.0f, true, g_mask.get());
+        dev_ctx, tmp_mask, 50000.0f, 0.0f, true, g_mask.get());
   }
 }
 

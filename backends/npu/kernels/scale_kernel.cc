@@ -37,10 +37,6 @@ void AclopScaleKernel(const Context& dev_ctx,
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
   dev_ctx.template Alloc<T>(out);
-  if (std::isinf(scale) || std::isnan(scale)) {
-    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    return;
-  }
   if (!bias_after_scale) {
     bias *= scale;
   }
@@ -109,19 +105,9 @@ void ScaleKernel(const Context& dev_ctx,
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
 
-  if (std::isinf(scale) || std::isnan(scale)) {
-    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    return;
-  }
-
   if (!bias_after_scale) {
     bias *= scale;
   }
-
-  std::cout << "scale" << scale << std::endl;
-  std::cout << "Type of scale: " << typeid(scale).name() << std::endl;
-  std::cout << "bias" << bias << std::endl;
-  std::cout << "Type of bias: " << typeid(bias).name() << std::endl;
 
   phi::Scalar scale_scalar = scale;
   phi::Scalar bias_scalar = bias;

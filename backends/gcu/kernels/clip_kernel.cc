@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/common.h"
-#include "common/utils.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_name_list.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -26,36 +23,12 @@ void ClipKernel(const Context& dev_ctx,
                 const phi::Scalar& min,
                 const phi::Scalar& max,
                 phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("clip");
   dev_ctx.template Alloc<T>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "clip", clip);
-    auto input_gcu = GetHlirTensor(x);
-    auto out_gcu = GetHlirTensor(*out);
-    hlir::DispatchParam params;
-    params.inputs = {input_gcu};
-    params.outputs = {out_gcu};
-    params.metadata.setValue("min", min.to<double>());
-    params.metadata.setValue("max", max.to<double>());
-    params.stream = static_cast<topsStream_t>(dev_ctx.stream());
-    AOTOPS_DEBUG(kClampScalar, params);
-    GCUOPS_TRACE_START(clamp);
-    auto func_ptr = GetOpFuncPtr(kClampScalar, params);
-    if (func_ptr) {
-      auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
-      PADDLE_ENFORCE(
-          pass,
-          phi::errors::InvalidArgument("dispatch %s failed!", kClampScalar));
-    } else {
-      PADDLE_ENFORCE(false,
-                     phi::errors::InvalidArgument("not find aot func for %s",
-                                                  kClampScalar));
-    }
-    FreeDispatchParam(params);
-    GCUOPS_TRACE_END(clamp);
-    GcuOpStreamSync(dev_ctx);
-    PADDLE_GCU_KERNEL_END("clip", clip);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     auto max_ = max.to<T>();
     auto min_ = min.to<T>();
 
@@ -95,31 +68,40 @@ void ClipGradKernel(const Context& dev_ctx,
                     const phi::Scalar& min,
                     const phi::Scalar& max,
                     phi::DenseTensor* dx) {
+  PADDLE_GCU_KERNEL_TRACE("clip_grad");
   dev_ctx.template Alloc<T>(dx);
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    auto max_ = max.to<T>();
+    auto min_ = min.to<T>();
 
-  auto max_ = max.to<T>();
-  auto min_ = min.to<T>();
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
+    input_names[GradVarName("Out")] = {"dout"};
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
-  input_names[GradVarName("Out")] = {"dout"};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
-  inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
+    TensorNameMap output_names;
+    output_names[GradVarName("X")] = {"dx"};
 
-  TensorNameMap output_names;
-  output_names[GradVarName("X")] = {"dx"};
+    TensorValueMap outputs;
+    outputs[GradVarName("X")] = {dx};
 
-  TensorValueMap outputs;
-  outputs[GradVarName("X")] = {dx};
+    GcuAttributeMap attrs;
+    attrs["min"] = static_cast<float>(min_);
+    attrs["max"] = static_cast<float>(max_);
 
-  GcuAttributeMap attrs;
-  attrs["min"] = static_cast<float>(min_);
-  attrs["max"] = static_cast<float>(max_);
-
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "clip_grad", dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "clip_grad",
+              dev_ctx);
+  }
 }
 
 }  // namespace custom_kernel
@@ -129,6 +111,7 @@ PD_REGISTER_PLUGIN_KERNEL(clip,
                           ALL_LAYOUT,
                           custom_kernel::ClipKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}
@@ -138,6 +121,7 @@ PD_REGISTER_PLUGIN_KERNEL(clip_grad,
                           ALL_LAYOUT,
                           custom_kernel::ClipGradKernel,
                           int,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           double) {}

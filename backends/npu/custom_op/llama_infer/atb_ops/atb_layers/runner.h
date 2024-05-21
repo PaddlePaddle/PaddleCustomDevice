@@ -30,85 +30,59 @@ struct to_acl_dtype<int8_t> {
   static const aclDataType value() { return ACL_INT8; }
 };
 
+class TaskQueue {
+ public:
+  static TaskQueue& Instance(int dev_id);
+
+  uint64_t GetTaskId() { return task_id_; }
+
+  explicit TaskQueue(int dev_id);
+
+  ~TaskQueue();
+
+  void Stop();
+
+  void Commit(std::packaged_task<void(void)>&& task);
+
+  void Wait();
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable cond_;
+  std::list<std::packaged_task<void(void)>> task_list_;
+  std::thread thread_;
+  uint64_t task_id_{0};
+  bool is_running_{true};
+};
+
 class OperationRunner {
  public:
   OperationRunner() {}
 
-  ~OperationRunner() {
-    if (operation_) {
-      ATB_CHECK(atb::DestroyOperation(operation_));
-    }
-  }
+  bool is_initialized() const { return operation_ != nullptr; }
 
   template <typename OpParam>
   void create(const OpParam& param) {
     ATB_CHECK(atb::CreateOperation(param, &operation_));
   }
 
+  void reset_variant_pack();
+
   void bind_input(const void* src,
                   const phi::DataType& dtype,
-                  const std::vector<int64_t>& dims) {
-    variant_pack_.inTensors.resize(in_tensor_num_ + 1);
-    atb::Tensor& atb_tensor = variant_pack_.inTensors[in_tensor_num_++];
-    atb_tensor.desc.format = ACL_FORMAT_ND;
-    atb_tensor.desc.shape.dimNum = dims.size();
-    for (auto i = 0; i < dims.size(); ++i) {
-      atb_tensor.desc.shape.dims[i] = dims[i];
-    }
-    atb_tensor.desc.dtype = ConvertToNpuDtype(dtype);
-    atb_tensor.dataSize = atb::Utils::GetTensorSize(atb_tensor);
-    atb_tensor.hostData = nullptr;
-    atb_tensor.deviceData = const_cast<void*>(src);
-  }
+                  const std::vector<int64_t>& dims);
 
   void bind_host_input(const void* src,
                        const phi::DataType& dtype,
-                       const std::vector<int64_t>& dims) {
-    variant_pack_.inTensors.resize(in_tensor_num_ + 1);
-    atb::Tensor& atb_tensor = variant_pack_.inTensors[in_tensor_num_++];
-    atb_tensor.desc.format = ACL_FORMAT_ND;
-    atb_tensor.desc.shape.dimNum = dims.size();
-    for (auto i = 0; i < dims.size(); ++i) {
-      atb_tensor.desc.shape.dims[i] = dims[i];
-    }
-    atb_tensor.desc.dtype = ConvertToNpuDtype(dtype);
-    atb_tensor.dataSize = atb::Utils::GetTensorSize(atb_tensor);
-    atb_tensor.deviceData = nullptr;
-    atb_tensor.hostData = const_cast<void*>(src);
-  }
+                       const std::vector<int64_t>& dims);
 
   void bind_input(const void* src,
                   const void* host_src,
                   const phi::DataType& dtype,
-                  const std::vector<int64_t>& dims) {
-    variant_pack_.inTensors.resize(in_tensor_num_ + 1);
-    atb::Tensor& atb_tensor = variant_pack_.inTensors[in_tensor_num_++];
-    atb_tensor.desc.format = ACL_FORMAT_ND;
-    atb_tensor.desc.shape.dimNum = dims.size();
-    for (auto i = 0; i < dims.size(); ++i) {
-      atb_tensor.desc.shape.dims[i] = dims[i];
-    }
-    atb_tensor.desc.dtype = ConvertToNpuDtype(dtype);
-    atb_tensor.dataSize = atb::Utils::GetTensorSize(atb_tensor);
-    atb_tensor.hostData = const_cast<void*>(host_src);
-    atb_tensor.deviceData = const_cast<void*>(src);
-  }
+                  const std::vector<int64_t>& dims);
 
   void bind_input(const phi::DenseTensor& src,
-                  const std::vector<int64_t>& dims = {}) {
-    bool is_cpu_tensor = src.place().GetType() == phi::AllocationType::CPU;
-    std::vector<int64_t> new_dims;
-    if (dims.size() == 0) {
-      new_dims = phi::vectorize<int64_t>(src.dims());
-    } else {
-      new_dims = dims;
-    }
-    if (is_cpu_tensor) {
-      bind_host_input(src.data(), src.dtype(), new_dims);
-    } else {
-      bind_input(src.data(), src.dtype(), new_dims);
-    }
-  }
+                  const std::vector<int64_t>& dims = {});
 
   template <typename T>
   void bind_input() {
@@ -123,42 +97,14 @@ class OperationRunner {
 
   void bind_input(const phi::DenseTensor& src,
                   const phi::DenseTensor& host_src,
-                  const std::vector<int64_t>& dims = {}) {
-    std::vector<int64_t> new_dims;
-    if (dims.size() == 0) {
-      new_dims = phi::vectorize<int64_t>(src.dims());
-    } else {
-      new_dims = dims;
-    }
-    bind_input(src.data(), host_src.data(), src.dtype(), new_dims);
-  }
+                  const std::vector<int64_t>& dims = {});
 
   void bind_output(const void* src,
                    const phi::DataType& dtype,
-                   const std::vector<int64_t>& dims) {
-    variant_pack_.outTensors.resize(out_tensor_num_ + 1);
-    atb::Tensor& atb_tensor = variant_pack_.outTensors[out_tensor_num_++];
-    atb_tensor.desc.format = ACL_FORMAT_ND;
-    atb_tensor.desc.shape.dimNum = dims.size();
-    for (auto i = 0; i < dims.size(); ++i) {
-      atb_tensor.desc.shape.dims[i] = dims[i];
-    }
-    atb_tensor.desc.dtype = ConvertToNpuDtype(dtype);
-    atb_tensor.dataSize = atb::Utils::GetTensorSize(atb_tensor);
-    atb_tensor.hostData = nullptr;
-    atb_tensor.deviceData = const_cast<void*>(src);
-  }
+                   const std::vector<int64_t>& dims);
 
   void bind_output(phi::DenseTensor* src,
-                   const std::vector<int64_t>& dims = {}) {
-    std::vector<int64_t> new_dims;
-    if (dims.size() == 0) {
-      new_dims = phi::vectorize<int64_t>(src->dims());
-    } else {
-      new_dims = dims;
-    }
-    bind_output(src->data(), src->dtype(), new_dims);
-  }
+                   const std::vector<int64_t>& dims = {});
 
   void bind_input(const paddle::Tensor& src,
                   const std::vector<int64_t>& dims = {}) {
@@ -177,51 +123,24 @@ class OperationRunner {
     bind_output(static_cast<phi::DenseTensor*>(src->impl().get()), dims);
   }
 
-  void run(const phi::CustomContext& dev_ctx) {
-    auto ctx = get_context(dev_ctx);
-    uint8_t* workspace = nullptr;
-    uint64_t workspace_size;
-    ATB_CHECK(operation_->Setup(variant_pack_, workspace_size, ctx));
-    if (workspace_size > 0) {
-      workspace = get_workspace(dev_ctx, workspace_size);
-    }
-    ATB_CHECK(
-        operation_->Execute(variant_pack_, workspace, workspace_size, ctx));
-  }
+  void setup(const phi::CustomContext& dev_ctx);
+
+  void execute(const phi::CustomContext& dev_ctx);
+
+  void run(const phi::CustomContext& dev_ctx);
 
  private:
-  atb::Context* get_context(const phi::CustomContext& dev_ctx) {
-    static std::unordered_map<void*, atb::Context*> m;
-
-    void* stream =
-        const_cast<void*>(reinterpret_cast<const void*>(dev_ctx.stream()));
-    if (m.find(stream) == m.end()) {
-      ATB_CHECK(atb::CreateContext(&m[stream]));
-      ATB_CHECK(m[stream]->SetExecuteStream(reinterpret_cast<void*>(stream)));
-    }
-    return m[stream];
-  }
-
+  atb::Context* get_context(const phi::CustomContext& dev_ctx);
   uint8_t* get_workspace(const phi::CustomContext& dev_ctx,
-                         uint64_t workspace_size) {
-    static phi::DenseTensor tmp;
-    if (workspace_size > tmp.numel()) {
-      dev_ctx.Wait();
-      tmp.Resize({workspace_size});
-      dev_ctx.template Alloc<uint8_t>(&tmp);
-      LOG(INFO) << "alloc workspace size: " << tmp.numel();
-    }
-    if (tmp.numel() == 0) {
-      return nullptr;
-    }
-    return tmp.data<uint8_t>();
-  }
+                         uint64_t workspace_size);
 
  private:
   atb::Operation* operation_ = nullptr;
   atb::VariantPack variant_pack_;
   uint64_t in_tensor_num_ = 0;
   uint64_t out_tensor_num_ = 0;
+  uint8_t* workspace_ = nullptr;
+  uint64_t workspace_size_ = 0;
 };
 
 }  // namespace atb_layers

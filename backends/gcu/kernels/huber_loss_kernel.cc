@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -24,32 +24,42 @@ void HuberLossKernel(const Context& dev_ctx,
                      float delta,
                      phi::DenseTensor* out,
                      phi::DenseTensor* residual) {
-  out->Resize(input.dims());
-  residual->Resize(label.dims());
-  dev_ctx.template Alloc<T>(out);
-  dev_ctx.template Alloc<T>(residual);
+  PADDLE_GCU_KERNEL_TRACE("huber_loss");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    out->Resize(input.dims());
+    residual->Resize(label.dims());
+    dev_ctx.template Alloc<T>(out);
+    dev_ctx.template Alloc<T>(residual);
 
-  TensorNameMap input_names;
-  input_names["X"] = {"input"};
-  input_names["Y"] = {"label"};
+    TensorNameMap input_names;
+    input_names["X"] = {"input"};
+    input_names["Y"] = {"label"};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&input)};
-  inputs["Y"] = {const_cast<DenseTensor*>(&label)};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&input)};
+    inputs["Y"] = {const_cast<DenseTensor*>(&label)};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
-  output_names["Residual"] = {"residual"};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
+    output_names["Residual"] = {"residual"};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
-  outputs["Residual"] = {residual};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
+    outputs["Residual"] = {residual};
 
-  GcuAttributeMap attrs;
-  attrs["delta"] = delta;
+    GcuAttributeMap attrs;
+    attrs["delta"] = delta;
 
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "huber_loss", dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "huber_loss",
+              dev_ctx);
+  }
 }
 
 template <typename T, typename Context>
@@ -59,37 +69,42 @@ void HuberLossGradKernel(const Context& dev_ctx,
                          float delta,
                          phi::DenseTensor* dx,
                          phi::DenseTensor* dy) {
-  TensorNameMap input_names;
-  input_names["Residual"] = {"residual"};
-  input_names[GradVarName("Out")] = {"dout"};
+  PADDLE_GCU_KERNEL_TRACE("huber_loss_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Residual"] = {"residual"};
+    input_names[GradVarName("Out")] = {"dout"};
 
-  TensorValueMap inputs;
-  inputs["Residual"] = {const_cast<DenseTensor*>(&residual)};
-  inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
+    TensorValueMap inputs;
+    inputs["Residual"] = {const_cast<DenseTensor*>(&residual)};
+    inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
 
-  TensorNameMap output_names;
-  TensorValueMap outputs;
-  if (dx) {
-    dev_ctx.template Alloc<T>(dx);
-    output_names[GradVarName("X")] = {"dx"};
-    outputs[GradVarName("X")] = {dx};
+    TensorNameMap output_names;
+    TensorValueMap outputs;
+    if (dx) {
+      dev_ctx.template Alloc<T>(dx);
+      output_names[GradVarName("X")] = {"dx"};
+      outputs[GradVarName("X")] = {dx};
+    }
+    if (dy) {
+      dev_ctx.template Alloc<T>(dy);
+      output_names[GradVarName("Y")] = {"dy"};
+      outputs[GradVarName("Y")] = {dy};
+    }
+
+    GcuAttributeMap attrs;
+    attrs["delta"] = delta;
+
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "huber_loss_grad",
+              dev_ctx);
   }
-  if (dy) {
-    dev_ctx.template Alloc<T>(dy);
-    output_names[GradVarName("Y")] = {"dy"};
-    outputs[GradVarName("Y")] = {dy};
-  }
-
-  GcuAttributeMap attrs;
-  attrs["delta"] = delta;
-
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "huber_loss_grad",
-            dev_ctx);
 }
 
 }  // namespace custom_kernel

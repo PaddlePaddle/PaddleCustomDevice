@@ -20,6 +20,7 @@ constexpr int32_t kFusedBlckAttnLayerBegin = 1;
 constexpr int32_t kFusedBlckAttnLayerEnd = 2;
 
 static bool first_or_second_flag = false;
+static int layer_id = 0;
 
 void FusedBlockAttnLayerOpPrefillStage(
     const phi::CustomContext &dev_ctx,
@@ -77,32 +78,37 @@ void FusedBlockAttnLayerOpPrefillStage(
   void *second_out_data =
       FusedBlhaGlobalVar::Instance().get_out_encoder()->second->data();
 
-  atb_layers::FusedBlhaLayerParam param;
-  param.epsilon = epsilon;
-  param.rope_neox = false;
-  param.trans_qkv_weight = trans_qkv;
-  param.trans_out_weight = trans_out_linear;
-  param.trans_ffn1_weight = trans_ffn1;
-  param.trans_ffn2_weight = trans_ffn2;
-  param.scale = 1.0f;
-  param.head_num = head_num;
-  param.kv_head_num = kv_head_num;
-  param.head_dim = head_dim;
-  param.is_prefill = true;
-  param.use_matmul_int8 = use_matmul_int8;
-  param.qkv_quant_scale = qkv_quant_scale * 127.0f;
-  param.out_quant_scale = out_linear_quant_scale * 127.0f;
-  param.ffn1_quant_scale = ffn1_quant_scale * 127.0f;
-  param.ffn2_quant_scale = ffn2_quant_scale * 127.0f;
-  param.use_smooth_quant = use_smooth_quant;
-  param.cache_kv_int8 = false;
-  param.rank = 0;
-  param.nranks = 1;
-  param.root = 0;
-  param.comm = nullptr;
+  auto &runner = *FusedBlhaGlobalVar::Instance().get_encoder_runner(layer_id);
 
-  atb_layers::OperationRunner runner;
-  runner.create(param);
+  if (runner.is_initialized()) {
+    runner.reset_variant_pack();
+  } else {
+    atb_layers::FusedBlhaLayerParam param;
+    param.epsilon = epsilon;
+    param.rope_neox = false;
+    param.trans_qkv_weight = trans_qkv;
+    param.trans_out_weight = trans_out_linear;
+    param.trans_ffn1_weight = trans_ffn1;
+    param.trans_ffn2_weight = trans_ffn2;
+    param.scale = 1.0f;
+    param.head_num = head_num;
+    param.kv_head_num = kv_head_num;
+    param.head_dim = head_dim;
+    param.is_prefill = true;
+    param.use_matmul_int8 = use_matmul_int8;
+    param.qkv_quant_scale = qkv_quant_scale * 127.0f;
+    param.out_quant_scale = out_linear_quant_scale * 127.0f;
+    param.ffn1_quant_scale = ffn1_quant_scale * 127.0f;
+    param.ffn2_quant_scale = ffn2_quant_scale * 127.0f;
+    param.use_smooth_quant = use_smooth_quant;
+    param.cache_kv_int8 = false;
+    param.rank = 0;
+    param.nranks = 1;
+    param.root = 0;
+    param.comm = nullptr;
+    runner.create(param);
+  }
+
   if (first_or_second_flag) {
     runner.bind_input(
         second_out_data, phi::DataType::FLOAT16, {ntokens, emb_dim});
@@ -164,7 +170,10 @@ void FusedBlockAttnLayerOpPrefillStage(
     runner.bind_output(
         second_out_data, phi::DataType::FLOAT16, {ntokens, emb_dim});
   }
-  runner.run(dev_ctx);
+  runner.setup(dev_ctx);
+  atb_layers::TaskQueue::Instance(dev_ctx.GetPlace().GetDeviceId())
+      .Commit(std::move(
+          std::packaged_task<void(void)>([&] { runner.execute(dev_ctx); })));
 }
 
 void FusedBLockAttnLayerOpDecodingStage(
@@ -225,32 +234,37 @@ void FusedBLockAttnLayerOpDecodingStage(
   void *second_out_data =
       FusedBlhaGlobalVar::Instance().get_out_decoder()->second->data();
 
-  atb_layers::FusedBlhaLayerParam param;
-  param.epsilon = epsilon;
-  param.rope_neox = false;
-  param.trans_qkv_weight = trans_qkv;
-  param.trans_out_weight = trans_out_linear;
-  param.trans_ffn1_weight = trans_ffn1;
-  param.trans_ffn2_weight = trans_ffn2;
-  param.scale = 1.0f;
-  param.head_num = head_num;
-  param.kv_head_num = kv_head_num;
-  param.head_dim = head_dim;
-  param.is_prefill = false;
-  param.use_matmul_int8 = use_matmul_int8;
-  param.qkv_quant_scale = qkv_quant_scale * 127.0f;
-  param.out_quant_scale = out_linear_quant_scale * 127.0f;
-  param.ffn1_quant_scale = ffn1_quant_scale * 127.0f;
-  param.ffn2_quant_scale = ffn2_quant_scale * 127.0f;
-  param.use_smooth_quant = use_smooth_quant;
-  param.cache_kv_int8 = false;
-  param.rank = 0;
-  param.nranks = 1;
-  param.root = 0;
-  param.comm = nullptr;
+  auto &runner = *FusedBlhaGlobalVar::Instance().get_decoder_runner(layer_id);
 
-  atb_layers::OperationRunner runner;
-  runner.create(param);
+  if (runner.is_initialized()) {
+    runner.reset_variant_pack();
+  } else {
+    atb_layers::FusedBlhaLayerParam param;
+    param.epsilon = epsilon;
+    param.rope_neox = false;
+    param.trans_qkv_weight = trans_qkv;
+    param.trans_out_weight = trans_out_linear;
+    param.trans_ffn1_weight = trans_ffn1;
+    param.trans_ffn2_weight = trans_ffn2;
+    param.scale = 1.0f;
+    param.head_num = head_num;
+    param.kv_head_num = kv_head_num;
+    param.head_dim = head_dim;
+    param.is_prefill = false;
+    param.use_matmul_int8 = use_matmul_int8;
+    param.qkv_quant_scale = qkv_quant_scale * 127.0f;
+    param.out_quant_scale = out_linear_quant_scale * 127.0f;
+    param.ffn1_quant_scale = ffn1_quant_scale * 127.0f;
+    param.ffn2_quant_scale = ffn2_quant_scale * 127.0f;
+    param.use_smooth_quant = use_smooth_quant;
+    param.cache_kv_int8 = false;
+    param.rank = 0;
+    param.nranks = 1;
+    param.root = 0;
+    param.comm = nullptr;
+    runner.create(param);
+  }
+
   if (first_or_second_flag) {
     runner.bind_input(
         second_out_data, phi::DataType::FLOAT16, {ntokens, emb_dim});
@@ -312,7 +326,10 @@ void FusedBLockAttnLayerOpDecodingStage(
     runner.bind_output(
         second_out_data, phi::DataType::FLOAT16, {ntokens, emb_dim});
   }
-  runner.run(dev_ctx);
+  runner.setup(dev_ctx);
+  atb_layers::TaskQueue::Instance(dev_ctx.GetPlace().GetDeviceId())
+      .Commit(std::move(
+          std::packaged_task<void(void)>([&] { runner.execute(dev_ctx); })));
 }
 
 std::vector<paddle::Tensor> FusedBlockAttnLayerOp(
@@ -410,8 +427,10 @@ std::vector<paddle::Tensor> FusedBlockAttnLayerOp(
     }
 
     first_or_second_flag = false;
+    layer_id = 0;
   } else {
     first_or_second_flag = !first_or_second_flag;
+    layer_id++;
   }
 
   auto ntokens_encoder =
@@ -495,6 +514,8 @@ std::vector<paddle::Tensor> FusedBlockAttnLayerOp(
 
   paddle::Tensor out(place);
   if (flag == kFusedBlckAttnLayerEnd) {
+    atb_layers::TaskQueue::Instance(dev_ctx.GetPlace().GetDeviceId()).Wait();
+
     init_tensor(dev_ctx, phi::DataType::FLOAT16, {batch_size, emb_dim}, &out);
     FusedBlhaGlobalVar::Instance().update_out_encoder(
         dev_ctx, first_or_second_flag, &out);

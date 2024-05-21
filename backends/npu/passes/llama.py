@@ -59,6 +59,25 @@ def remove_residual_in_fused_bias_residual_layernorm():
 
 
 @ir.RegisterPass
+def remove_blha_get_max_len():
+    def pattern(seq_lens_encoder, seq_lens_decoder, batch_size):
+        blha_get_max_len = ir.PassDesc.OP.blha_get_max_len(
+            seq_lens_encoder=seq_lens_encoder,
+            seq_lens_decoder=seq_lens_decoder,
+            batch_size=batch_size,
+        )
+        return (
+            blha_get_max_len.Output("max_enc_len_this_time")[0],
+            blha_get_max_len.Output("max_dec_len_this_time")[0],
+        )
+
+    def replace(seq_lens_encoder, seq_lens_decoder, batch_size):
+        return seq_lens_encoder, seq_lens_decoder
+
+    return pattern, replace
+
+
+@ir.RegisterPass
 def llama_fuse_attention_layer():
     def pattern(
         hidden_state,
@@ -501,6 +520,27 @@ def llama_fuse_lm_head():
         lm_head.SetAttr("root", 0)
         lm_head.SetAttr("ring_id", 0)
         return lm_head
+
+    return pattern, replace
+
+
+@ir.RegisterPass
+def llama_fuse_get_padding_offset():
+    def pattern(input_ids, seq_lens_this_time):
+        scale = ir.PassDesc.OP.scale(X=seq_lens_this_time)
+        cumsum = ir.PassDesc.OP.cumsum(X=scale)
+        reduce_sum = ir.PassDesc.OP.reduce_sum(X=seq_lens_this_time)
+        results = ir.PassDesc.OP.get_padding_offset_v2(
+            cum_offsets=cumsum,
+            input_ids=input_ids,
+            seq_len=seq_lens_this_time,
+            token_num=reduce_sum,
+        )
+        return results.Output("x_remove_padding")
+
+    def replace(input_ids, seq_lens_this_time):
+        results = ir.PassDesc.OP.remove_padding(x=input_ids, seqlen=seq_lens_this_time)
+        return results
 
     return pattern, replace
 

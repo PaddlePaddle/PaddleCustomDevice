@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
@@ -24,34 +24,39 @@ void GridSampleKernel(const Context& dev_ctx,
                       const std::string& padding_mode,
                       bool align_corners,
                       phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  PADDLE_GCU_KERNEL_TRACE("grid_sample");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    dev_ctx.template Alloc<T>(out);
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
-  input_names["Grid"] = {"grid"};
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
+    input_names["Grid"] = {"grid"};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
-  inputs["Grid"] = {const_cast<DenseTensor*>(&grid)};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    inputs["Grid"] = {const_cast<DenseTensor*>(&grid)};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
 
-  GcuAttributeMap attrs;
-  attrs["mode"] = mode;
-  attrs["padding_mode"] = padding_mode;
-  attrs["align_corners"] = align_corners;
+    GcuAttributeMap attrs;
+    attrs["mode"] = mode;
+    attrs["padding_mode"] = padding_mode;
+    attrs["align_corners"] = align_corners;
 
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "grid_sampler",
-            dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "grid_sampler",
+              dev_ctx);
+  }
 }
 }  // namespace custom_kernel
 

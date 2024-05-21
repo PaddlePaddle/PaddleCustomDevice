@@ -45,14 +45,26 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(gcu_builder,
 
   int64_t out_h = PADDLE_GET_CONST(int, op->GetAttr("out_h"));
   int64_t out_w = PADDLE_GET_CONST(int, op->GetAttr("out_w"));
+
+  builder::Op out_hw_op, scale_op;
   if (map_inputs.count("SizeTensor") != 0) {
-    out_h = map_inputs["SizeTensor"].at(0)->GetConstData<int32_t>().at(0);
-    out_w = map_inputs["SizeTensor"].at(0)->GetConstData<int32_t>().at(1);
+    out_hw_op = *(map_inputs["SizeTensor"].at(0));
   } else if (map_inputs.count("OutSize") != 0) {
-    out_h = map_inputs["OutSize"].at(0)->GetConstData<int32_t>().at(0);
-    out_w = map_inputs["OutSize"].at(0)->GetConstData<int32_t>().at(1);
+    out_hw_op = *(map_inputs["OutSize"].at(0));
   } else if (map_inputs.count("Scale") != 0) {
-    builder::Op scale_op = *(map_inputs["Scale"].at(0));
+    scale_op = *(map_inputs["Scale"].at(0));
+  } else {
+    auto scale = PADDLE_GET_CONST(std::vector<float>, op->GetAttr("scale"));
+    if (scale.size() > 1) {
+      out_h = static_cast<int64_t>(input_shape[1] * scale[0]);
+      out_w = static_cast<int64_t>(input_shape[2] * scale[1]);
+    }
+  }
+
+  if (out_hw_op.IsValid() && out_hw_op.IsConstant()) {
+    out_h = out_hw_op.GetConstData<int32_t>().at(0);
+    out_w = out_hw_op.GetConstData<int32_t>().at(1);
+  } else if (scale_op.IsValid() && scale_op.IsConstant()) {
     if (scale_op.GetType().GetSize() > 1) {
       float scale_h = scale_op.GetConstData<int64_t>()[0];
       float scale_w = scale_op.GetConstData<int64_t>()[1];
@@ -63,23 +75,33 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(gcu_builder,
       out_h = static_cast<int64_t>(input_shape[1] * scale);
       out_w = static_cast<int64_t>(input_shape[2] * scale);
     }
-  } else {
-    auto scale = PADDLE_GET_CONST(std::vector<float>, op->GetAttr("scale"));
-    if (scale.size() > 1) {
-      out_h = static_cast<int64_t>(input_shape[1] * scale[0]);
-      out_w = static_cast<int64_t>(input_shape[2] * scale[1]);
-    }
   }
 
-  std::vector<int64_t> output_shape = {
-      input_shape[0], out_h, out_w, input_shape[3]};
-  builder::Type sizes_type{{4}, builder::PrimitiveType::S64()};
-  auto sizes = builder::Const(
-      gcu_builder, static_cast<void *>(output_shape.data()), sizes_type);
-
-  auto ptype = input.GetType().GetPrimitiveType();
-  builder::Type empty_type{{0}, ptype};
-  builder::Op scales = builder::Const(gcu_builder, nullptr, empty_type);
+  builder::Op sizes, scales;
+  if (out_h > 0 && out_w > 0) {
+    std::vector<int64_t> output_shape = {
+        input_shape[0], out_h, out_w, input_shape[3]};
+    builder::Type sizes_type{{4}, builder::PrimitiveType::S64()};
+    sizes = builder::Const(gcu_builder, output_shape, sizes_type);
+    scales = builder::Empty(gcu_builder, builder::PrimitiveType::F32());
+  } else if (out_hw_op.IsValid()) {
+    scales = builder::Empty(gcu_builder, builder::PrimitiveType::F32());
+    auto type = builder::Type({1}, out_hw_op.GetType().GetPrimitiveType());
+    auto n_op = builder::Const(gcu_builder, input_shape[0], type);
+    auto c_op = builder::Const(gcu_builder, input_shape[3], type);
+    sizes = builder::Concatenate({n_op, out_hw_op, c_op}, 0);
+  } else if (scale_op.IsValid()) {
+    sizes = builder::Empty(gcu_builder, builder::PrimitiveType::S64());
+    auto type = builder::Type({1}, scale_op.GetType().GetPrimitiveType());
+    auto n_scale_op = builder::Const(gcu_builder, 1.0, type);
+    auto c_scale_op = builder::Const(gcu_builder, 1.0, type);
+    if (scale_op.GetType().GetSize() > 1) {
+      scales = builder::Concatenate({n_scale_op, scale_op, c_scale_op}, 0);
+    } else {
+      scales =
+          builder::Concatenate({n_scale_op, scale_op, scale_op, c_scale_op}, 0);
+    }
+  }
 
   std::vector<float> roi_val{1};
   builder::Type roi_type(builder::PrimitiveType::S64());

@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
+#include "kernels/funcs/common_ops.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename Context>
@@ -24,16 +25,12 @@ void GetSeed(const Context& dev_ctx,
              int* seed_out) {
   if (seed_tensor) {
     phi::DenseTensor cpu_tensor;
-    TensorCopy(dev_ctx, seed_tensor.get(), true, &cpu_tensor);
+    TensorCopy(
+        dev_ctx, seed_tensor.get(), true, &cpu_tensor, phi::CustomPlace());
     std::memcpy(seed_out, cpu_tensor.data(), sizeof(int));
-  } else if (!fix_seed) {
-    // use cpu engine to generate a seed for npu.
-    auto offset = 0;
-    auto& engine = *dev_ctx.GetGenerator()->GetCPUEngine();
-    *seed_out = static_cast<int>(engine());
-  } else {
-    *seed_out = seed;
+    return;
   }
+  *seed_out = fix_seed ? seed : 0;
 }
 
 template <typename T, typename Context>
@@ -47,35 +44,62 @@ void DropoutKernel(const Context& dev_ctx,
                    bool fix_seed,
                    phi::DenseTensor* out,
                    phi::DenseTensor* mask) {
+  PADDLE_GCU_KERNEL_TRACE("dropout");
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<uint8_t>(mask);
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
+  if (LaunchAOTKernel()) {
+    if (mode != "upscale_in_train") {
+      PADDLE_THROW(phi::errors::Unimplemented(
+          "Only support mode='upscale_in_train' in dropout so far as now."));
+    }
+    auto dropout_prob = p.to<double>();
+    int seed_data = 0;
+    GetSeed<Context>(dev_ctx, seed_tensor, seed, fix_seed, &seed_data);
+    auto generator =
+        std::pair<uint64_t, uint64_t>(static_cast<uint64_t>(seed_data), 0);
+    auto tmp_out = std::make_shared<phi::DenseTensor>();
+    tmp_out->set_meta(out->meta());
+    dev_ctx.template Alloc<T>(tmp_out.get());
+    LAUNCH_TOPSATENOP(topsatenNativeDropout,
+                      dev_ctx,
+                      *out,
+                      *tmp_out,
+                      x,
+                      dropout_prob,
+                      !is_test,
+                      generator);
+    if (!is_test) {
+      custom_kernel::Cast(dev_ctx, *tmp_out, mask->dtype(), mask);
+    }
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
-  output_names["Mask"] = {"mask"};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
+    output_names["Mask"] = {"mask"};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
-  outputs["Mask"] = {mask};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
+    outputs["Mask"] = {mask};
 
-  auto dropout_prob = p.to<float>();
-  int seed_data = 0;
-  GetSeed<Context>(dev_ctx, seed_tensor, seed, fix_seed, &seed_data);
+    auto dropout_prob = p.to<float>();
+    int seed_data = 0;
+    GetSeed<Context>(dev_ctx, seed_tensor, seed, fix_seed, &seed_data);
 
-  GcuAttributeMap attrs;
-  attrs["dropout_prob"] = dropout_prob;
-  attrs["dropout_implementation"] = mode;
-  attrs["seed"] = seed_data;
-  attrs["is_test"] = is_test;
+    GcuAttributeMap attrs;
+    attrs["dropout_prob"] = dropout_prob;
+    attrs["dropout_implementation"] = mode;
+    attrs["seed"] = seed_data;
+    attrs["is_test"] = is_test;
 
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "dropout", dev_ctx);
+    GcuRunner(
+        input_names, inputs, output_names, outputs, attrs, "dropout", dev_ctx);
+  }
 }
 
 template <typename T, typename Context>
@@ -86,36 +110,41 @@ void DropoutGradKernel(const Context& dev_ctx,
                        bool is_test,
                        const std::string& mode,
                        phi::DenseTensor* dx) {
+  PADDLE_GCU_KERNEL_TRACE("dropout_grad");
   dev_ctx.template Alloc<T>(dx);
 
-  TensorNameMap input_names;
-  input_names["Mask"] = {"mask"};
-  input_names[GradVarName("Out")] = {"dout"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Mask"] = {"mask"};
+    input_names[GradVarName("Out")] = {"dout"};
 
-  TensorValueMap inputs;
-  inputs["Mask"] = {const_cast<DenseTensor*>(&mask)};
-  inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
+    TensorValueMap inputs;
+    inputs["Mask"] = {const_cast<DenseTensor*>(&mask)};
+    inputs[GradVarName("Out")] = {const_cast<DenseTensor*>(&dout)};
 
-  TensorNameMap output_names;
-  output_names[GradVarName("X")] = {"dx"};
+    TensorNameMap output_names;
+    output_names[GradVarName("X")] = {"dx"};
 
-  TensorValueMap outputs;
-  outputs[GradVarName("X")] = {dx};
+    TensorValueMap outputs;
+    outputs[GradVarName("X")] = {dx};
 
-  auto dropout_prob = p.to<float>();
+    auto dropout_prob = p.to<float>();
 
-  GcuAttributeMap attrs;
-  attrs["dropout_prob"] = dropout_prob;
-  attrs["is_test"] = is_test;
-  attrs["dropout_implementation"] = mode;
+    GcuAttributeMap attrs;
+    attrs["dropout_prob"] = dropout_prob;
+    attrs["is_test"] = is_test;
+    attrs["dropout_implementation"] = mode;
 
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "dropout_grad",
-            dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "dropout_grad",
+              dev_ctx);
+  }
 }
 }  // namespace custom_kernel
 

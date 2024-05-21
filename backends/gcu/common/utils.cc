@@ -14,34 +14,132 @@
 
 #include "common/utils.h"
 
+#include <gcu/driver/device_manager.h>
+#include <gcu/umd/device_ids.h>
+
 #include <string>
 #include <vector>
 
-#include "backend/utils/utils.h"
-#include "runtime/runtime.h"
-
 namespace custom_kernel {
+namespace {
+const int64_t kMicrosToMillis = 1000;
+enum class ChipType {
+  LEO,
+  PAVO,
+  PAVO_1C,
+  DORADO,
+  DORADO_2C,
+  DORADO_3PG,
+  LIBRA,
+  SCORPIO,
+  UNKNOW,
+};
 
-std::string HLIRTensorToString(const std::vector<hlir::Tensor*>& tensors,
-                               bool is_inputs) {
-  const auto numel = tensors.size();
-  std::stringstream ss;
-  hlir::Tensor* tensor = nullptr;
-  const std::string name = is_inputs ? "input_" : "output_";
-  for (size_t i = 0; i < numel; i++) {
-    tensor = tensors[i];
-    ss << "tensor " << name << i << ": {\n";
-    ss << "  mem_handle: {\n" << DumpHbm(tensor->mem_handle);
-    ss << "  }\n";
-    ss << "  bytes_size: " << tensor->bytes_size << "\n";
-    ss << "  element_type: " << tensor->element_type << "\n";
-    ss << "  dimensions: " << backend::VectorToString(tensor->dimensions)
-       << "\n";
-    ss << "  strides: " << backend::VectorToString(tensor->strides) << "\n";
-    ss << "  layouts: " << backend::VectorToString(tensor->layout) << "\n";
-    ss << "}\n";
+ChipType ParseChipType() {
+  ChipType type = ChipType::UNKNOW;
+  if (dtu::driver::DeviceManager::instance()->IsDorado()) {
+    type = ChipType::DORADO;
+    if (dtu::driver::DeviceManager::instance()->device_info().clusters_num ==
+        2) {
+      type = ChipType::DORADO_2C;
+    } else {
+      VLOG(1) << "[WARN] Paddle now only suport dorado_2c in dorado platform!";
+    }
+  } else if (dtu::driver::DeviceManager::instance()->IsScorpio()) {
+    type = ChipType::SCORPIO;
+  } else if (dtu::driver::DeviceManager::instance()->IsPavo()) {
+    type = ChipType::PAVO;
   }
-  return ss.str();
+  PADDLE_ENFORCE_NE(
+      type,
+      ChipType::UNKNOW,
+      phi::errors::Unavailable("unknown chip type is not support!"));
+  return type;
 }
 
+static std::string GetChipTypeStr(ChipType type) {
+  switch (type) {
+    case ChipType::LEO:
+      return "leo";
+    case ChipType::PAVO:
+      return "pavo";
+    case ChipType::PAVO_1C:
+      return "pavo_1c";
+    case ChipType::DORADO:
+      return "dorado";
+    case ChipType::DORADO_2C:
+      return "dorado_2c";
+    case ChipType::DORADO_3PG:
+      return "dorado_3pg";
+    case ChipType::LIBRA:
+      return "libra";
+    case ChipType::SCORPIO:
+      return "scorpio";
+    default:
+      return "unknown";
+  }
+}
+}  // namespace
+
+std::string GetTargetName() { return GetChipTypeStr(ParseChipType()); }
+
+int64_t GetCurrentTimestap() {
+  struct timeval tv;
+  int ret = gettimeofday(&tv, nullptr);
+  if (ret != 0) {
+    VLOG(6) << "Func gettimeofday may failed, ret:" << ret;
+    return 0;
+  }
+  int64_t totalUsec = tv.tv_usec + tv.tv_sec * 1000000;
+  return totalUsec;
+}
+
+double GetTimeCostInMs(int64_t start_time, int64_t end_time) {
+  return ((static_cast<double>(end_time) - static_cast<double>(start_time)) /
+          static_cast<double>(kMicrosToMillis));
+}
+
+std::vector<int32_t> LayoutToVector(phi::DataLayout layout) {
+  if (layout == phi::DataLayout::NHWC) {
+    return {0, 2, 3, 1};
+  } else if (layout == phi::DataLayout::NCHW) {
+    return {0, 1, 2, 3};
+  } else {
+    phi::errors::Fatal("unsupport layout %s",
+                       common::DataLayoutToString(layout).c_str());
+    return {};
+  }
+}
+
+phi::DataLayout VectorToLayout(const std::vector<int32_t>& layout) {
+  static std::vector<int32_t> nhwc = {0, 2, 3, 1};
+  static std::vector<int32_t> nchw = {0, 1, 2, 3};
+  if (layout == nhwc) {
+    return phi::DataLayout::NHWC;
+  } else if (layout == nchw) {
+    return phi::DataLayout::NCHW;
+  } else {
+    phi::errors::Fatal("unsupport layout %s",
+                       custom_kernel::VectorToStr<int32_t>(layout).c_str());
+    return phi::DataLayout::UNDEFINED;
+  }
+}
+
+bool LaunchAOTKernel(const phi::DataType& dtype,
+                     const std::unordered_set<phi::DataType>& supported_types) {
+  static const char* use_jit_env = std::getenv(env::kUseJitKernels);
+  static bool use_jit_only =
+      (use_jit_env != nullptr && std::string(use_jit_env) == "true");
+  // just for log
+  static bool launch_jit_only = ((VLOG(0) << "Kernels launch in JIT ONLY mode:"
+                                          << (use_jit_only ? "true" : "false")),
+                                 (use_jit_only));
+  if (launch_jit_only) {
+    return false;
+  }
+  if (supported_types.empty()) {
+    return true;
+  }
+  return (supported_types.count(dtype) > 0);
+}
 }  // namespace custom_kernel

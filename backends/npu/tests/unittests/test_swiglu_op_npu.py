@@ -200,12 +200,21 @@ class TestNPUSwigluFP16OnlyX3D(TestNPUSwigluFP16OnlyX):
         self.shape = (2, 20, 512)
         self.init_dtype()
 
+    def gen_input(self):
+        x = np.random.randn(self.shape[0], self.shape[1], self.shape[1])
+        return x
+
 
 class TestNPUSwigluFP16BothXY3D(TestNPUSwigluFP16BothXY):
     def setUp(self):
         self.npu_place = paddle.CustomPlace("npu", 0)
         self.shape = (2, 20, 512)
         self.init_dtype()
+
+    def gen_input(self):
+        x = np.random.randn(self.shape[0], self.shape[1], self.shape[2])
+        y = np.random.randn(self.shape[0], self.shape[1], self.shape[2])
+        return x, y
 
 
 class TestNPUSwigluBF16OnlyX3D(TestNPUSwigluFP16OnlyX3D):

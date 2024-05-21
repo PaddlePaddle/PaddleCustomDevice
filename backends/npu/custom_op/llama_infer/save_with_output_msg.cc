@@ -38,7 +38,8 @@ void SaveOutMmsg(const paddle::Tensor& x,
   static int msgid = msgget(key, IPC_CREAT | 0666);
 
   msg_sed.mtype = 1;
-  bool not_need_stop_data = not_need_stop.data<bool>()[0];
+  auto not_need_stop_cpu = not_need_stop.copy_to(paddle::CPUPlace(), true);
+  bool not_need_stop_data = not_need_stop_cpu.data<bool>()[0];
   msg_sed.mtext[0] = not_need_stop_data ? 1 : -1;
   int bsz = x.shape()[0];
   msg_sed.mtext[1] = bsz;

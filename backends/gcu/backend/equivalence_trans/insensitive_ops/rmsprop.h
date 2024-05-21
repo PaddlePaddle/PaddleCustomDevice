@@ -17,7 +17,7 @@ limitations under the License. */
 #include <memory>
 #include <string>
 
-#include "kernels/funcs/gcu_op_runner.h"
+#include "common/gcu_op_runner.h"
 
 namespace backend {
 const char *const kRMSProp = "rmsprop";

@@ -2901,8 +2901,13 @@ NormalizeDesc::~NormalizeDesc() {
     void* dv) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
   size_t workspace_size = 0;
-  cnnlGetFlashAttentionBackwardWorkspaceSize(
-      handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
+  cnnlGetFlashAttentionBackwardWorkspaceSize_v2(handle,
+                                                flash_atten_desc,
+                                                q_desc,
+                                                k_desc,
+                                                v_desc,
+                                                csq_desc,
+                                                &workspace_size);
   Tensor workspace;
   workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);

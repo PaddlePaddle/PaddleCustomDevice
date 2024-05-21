@@ -22,11 +22,11 @@ set -ex
 
 FTP_USER=${1} # Please contact Cambricon technicians to obtain username and password
 FTP_PASSWORD=${2}
-CNTOOLKIT_VERSION=${3:-3.8.4-1} # default 3.8.4
-CNNL_VERSION=${4:-1.23.2-1} # default 1.23.2
-CNCL_VERSION=${5:-1.14.0-1} # default 1.14.0
-MLUOPS_VERSION=${6:-0.11.0-1} # default 0.11.0
-CNNL_EXTRA_VERSION=${7:-1.6.1-1} # default 1.6.1-1
+CNTOOLKIT_VERSION=${3:-3.10.2-1} # default 3.10.2
+CNNL_VERSION=${4:-1.25.1-1} # default 1.25.1
+CNCL_VERSION=${5:-1.16.0-1} # default 1.16.0
+MLUOPS_VERSION=${6:-1.1.1-1} # default 1.1.1
+CNNL_EXTRA_VERSION=${7:-1.8.1-1} # default 1.8.1-1
 
 if [ $(uname -i) == 'x86_64' ]; then
   # ubuntu20-$(uname -m)-gcc84-py310

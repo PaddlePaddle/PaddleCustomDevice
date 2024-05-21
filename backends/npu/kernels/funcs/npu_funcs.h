@@ -454,7 +454,6 @@ inline void NpuElementWiseOpBroadcast(const Context& dev_ctx,
                                       phi::DenseTensor* transformed_y) {
   int x_axis, y_axis;
   phi::DDim dst_dims;
-  
   NpuElementWiseHelper(x, y, axis, &x_axis, &y_axis, &dst_dims);
   NpuBroadcast<T>(dev_ctx, x, x_axis, dst_dims, transformed_x);
   NpuBroadcast<T>(dev_ctx, y, y_axis, dst_dims, transformed_y);

@@ -125,6 +125,7 @@ def create_test_class(op_type, typename, callback):
             y = paddle.to_tensor(y, dtype="float32")
             op = eval("paddle.%s" % (self.op_type))
             out = op(x, y)
+
             self.assertEqual((out.numpy() == real_result).all(), True)
 
         def test_broadcast_api_1(self):

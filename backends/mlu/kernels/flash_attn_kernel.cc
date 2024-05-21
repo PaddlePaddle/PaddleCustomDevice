@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
+#include "kernels/funcs/range_op.h"
 
 namespace custom_kernel {
 
@@ -210,9 +211,9 @@ void FlashAttnKernel(
 
   phi::DenseTensor cu_seqlens_q;
   phi::DenseTensor cu_seqlens_k;
-  ArangeNullKernel<int32_t, Context>(
+  ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_q, seqlen_q, &cu_seqlens_q);
-  ArangeNullKernel<int32_t, Context>(
+  ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_k, seqlen_k, &cu_seqlens_k);
 
   FlashAttnUnpaddedMLUKernel<T, Context>(ctx,
@@ -423,9 +424,9 @@ void FlashAttnGradKernel(const Context& ctx,
 
   phi::DenseTensor cu_seqlens_q;
   phi::DenseTensor cu_seqlens_k;
-  ArangeNullKernel<int32_t, Context>(
+  ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_q, seqlen_q, &cu_seqlens_q);
-  ArangeNullKernel<int32_t, Context>(
+  ArangeRawKernel<int32_t, Context>(
       ctx, 0, (batch_size + 1) * seqlen_k, seqlen_k, &cu_seqlens_k);
 
   FlashAttnUnpaddedGradKernel<T, Context>(ctx,

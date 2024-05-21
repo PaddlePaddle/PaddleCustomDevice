@@ -13,12 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/common.h"
-#include "common/utils.h"
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_name_list.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -29,136 +25,122 @@ void ScatterKernel(const Context& dev_ctx,
                    const phi::DenseTensor& updates,
                    bool overwrite,
                    phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("scatter");
   dev_ctx.template Alloc<T>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "scatter", scatter);
-    std::vector<int64_t> input_sizes = phi::vectorize(x.dims());
-    std::vector<int64_t> updates_sizes = phi::vectorize(updates.dims());
-    std::vector<int64_t> index_sizes = phi::vectorize(index.dims());
+  if (LaunchAOTKernel()) {
+    std::vector<int64_t> input_shape = phi::vectorize(x.dims());
+    std::vector<int64_t> updates_shape = phi::vectorize(updates.dims());
+    std::vector<int64_t> index_shape = phi::vectorize(index.dims());
 
     int64_t num_index_dims = 1;
-    int64_t num_indices = index_sizes.size();
+    int64_t num_indices = index_shape.size();
 
-    // Degenerate case: nothing to update. Return the buffer unchanged.
     if (num_indices == 0) {
-      PADDLE_ENFORCE(false,
-                     phi::errors::InvalidArgument(
-                         "There is an error in the data here !!!"));
+      PADDLE_THROW(
+          phi::errors::InvalidArgument("num_indices should greater than 0."));
     }
 
-    // If any of the indexed dimensions are zero in the buffer,
+    // If any of the indexed dimensions are zero in the input shape,
     // the update cannotsucceed since it updates a slice of size 1.
     for (int64_t i = 0; i < num_index_dims; ++i) {
-      PADDLE_ENFORCE(input_sizes.at(i) != 0,
-                     phi::errors::InvalidArgument(
-                         "Scatter dimension ", i, " is zero !!!"));
+      PADDLE_ENFORCE(
+          input_shape.at(i) != 0,
+          phi::errors::InvalidArgument("Scatter dimension ", i, " is zero."));
     }
 
-    int64_t updates_rank = updates_sizes.size();
-    int64_t buffer_rank = input_sizes.size();
-    int64_t num_window_dims_in_updates = buffer_rank - num_index_dims;
+    int64_t updates_rank = updates_shape.size();
+    int64_t input_rank = input_shape.size();
+    int64_t num_window_dims_in_updates = input_rank - num_index_dims;
 
-    std::vector<int64_t> update_window_dims_vec = {};
+    // * @param computation: Computation to be used for combining the existing
+    //                       values in the input array and the updates
+    //                       during scatter.
+    topsopScatterComputationType_t computation_type =
+        TOPSOP_SCATTER_COMP_UPDATE;
+
+    // * @param index_vector_dim: The dimension in indices that contains the
+    //                            starting indices.
+    int64_t index_vector_dim = index_shape.size();
+
+    // * @param update_window_dims: The set of dimensions in updates shape that
+    //                              are window dimensions.
+    std::vector<int64_t> update_window_dims;
     if (updates_rank > 0) {
       for (int64_t i = (updates_rank - num_window_dims_in_updates);
            i < updates_rank;
            ++i) {
-        update_window_dims_vec.push_back(i);
+        update_window_dims.push_back(i);
       }
     }
 
-    std::vector<int64_t> inserted_window_dims_vec = {};
+    // * @param inserted_window_dims: The set of window dimensions that must be
+    //                                inserted into updates shape.
+    std::vector<int64_t> inserted_window_dims;
     for (int64_t i = 0; i < num_index_dims; ++i) {
-      inserted_window_dims_vec.push_back(i);
+      inserted_window_dims.push_back(i);
     }
 
-    phi::DenseTensor tmp_copy_x = x;
+    // * @param scatter_dims_to_operand_dims: A dimensions map from the scatter
+    //                                        indices to the operand index
+    //                                        space.
+    std::vector<int64_t> scatter_dims_to_operand_dims = inserted_window_dims;
 
-    hlir::Metadata scatter_dimension_numbers;
-    auto dims =
-        HlirShape(inserted_window_dims_vec,
-                  {static_cast<int64_t>(inserted_window_dims_vec.size())});
-    auto update_window_dims =
-        HlirShape(update_window_dims_vec,
-                  {static_cast<int64_t>(update_window_dims_vec.size())});
-    int64_t index_vector_dim = index_sizes.size();
-    scatter_dimension_numbers.setValue("index_vector_dim", index_vector_dim);
-    scatter_dimension_numbers.setValue("update_window_dims",
-                                       update_window_dims);
-    scatter_dimension_numbers.setValue("inserted_window_dims", dims);
-    scatter_dimension_numbers.setValue("scatter_dims_to_operand_dims", dims);
+    // * @param indices_are_sorted: Whether the indices are guaranteed to be
+    //                              sorted by the caller.
+    bool indices_are_sorted = false;
 
-    // hlir::DispatchParam params;
-    hlir::DispatchParam params;
-    params.metadata.setValue("scatter_dimension_numbers",
-                             scatter_dimension_numbers);
-    params.metadata.setValue("indices_are_sorted", false);
-    params.metadata.setValue("unique_indices", true);
-    params.stream = static_cast<topsStream_t>(dev_ctx.stream());
+    // * @param unique_indices: Whether the indices are guaranteed to be unique
+    //                          by the caller.
+    bool unique_indices = true;
 
-    int64_t compute_kind = /*update*/ int64_t(0);
+    phi::DenseTensor input_index = MaybeCreateOrTrans64To32bits(dev_ctx, index);
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor input_updates =
+        MaybeCreateOrTrans64To32bits(dev_ctx, updates);
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+
+    phi::DenseTensor tmp_copy_x = input_x;
     if (!overwrite) {
-      compute_kind = /*add*/ int64_t(1);
+      auto zero_updates = TensorZeros(dev_ctx, input_updates.meta());
+      phi::DenseTensor tmp_out = TensorEmpty(dev_ctx, output.meta());
 
-      auto zero_updates = zeros_like(dev_ctx, updates);
-      phi::DenseTensor tmp_out;
-      tmp_out.Resize(out->dims());
-      dev_ctx.Alloc(&tmp_out, out->dtype());
+      LAUNCH_TOPSOP(topsopScatter,
+                    dev_ctx,
+                    tmp_out,
+                    input_x,
+                    input_index,
+                    zero_updates,
+                    computation_type,
+                    index_vector_dim,
+                    update_window_dims,
+                    inserted_window_dims,
+                    scatter_dims_to_operand_dims,
+                    indices_are_sorted,
+                    unique_indices);
 
-      auto scatter_ref_gcu = GetHlirTensor(x);
-      auto indices_gcu = GetHlirTensor(index);
-      auto zero_updates_gcu = GetHlirTensor(zero_updates);
-      auto tmp_out_gcu = GetHlirTensor(tmp_out);
-
-      // hlir::DispatchParam params;
-      params.inputs = {scatter_ref_gcu, indices_gcu, zero_updates_gcu};
-      params.outputs = {tmp_out_gcu};
-      params.metadata.setValue("kScatterComputeKind", /*update*/ int64_t(0));
-      AOTOPS_DEBUG(kScatter, params);
-      GCUOPS_TRACE_START(scatter);
-      auto func_ptr = GetOpFuncPtr(kScatter, params);
-      if (func_ptr) {
-        auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
-        PADDLE_ENFORCE(
-            pass,
-            phi::errors::InvalidArgument("dispatch %s failed!", kScatter));
-      } else {
-        PADDLE_ENFORCE(
-            false,
-            phi::errors::InvalidArgument("not find aot func for %s", kScatter));
-      }
-      GCUOPS_TRACE_END(scatter);
-      GcuOpStreamSync(dev_ctx);
+      computation_type = TOPSOP_SCATTER_COMP_ADD;
       tmp_copy_x = tmp_out;
     }
 
-    // hlir::DispatchParam params;
-    auto scatter_new_gcu = GetHlirTensor(tmp_copy_x);
-    auto indices_gcu = GetHlirTensor(index);
-    auto data_gcu = GetHlirTensor(updates);
-    auto scatter_out_gcu = GetHlirTensor(*out);
-    params.inputs = {scatter_new_gcu, indices_gcu, data_gcu};
-    params.outputs = {scatter_out_gcu};
-    params.metadata.setValue("kScatterComputeKind", compute_kind);
-    AOTOPS_DEBUG(kScatter, params);
-    GCUOPS_TRACE_START(scatter);
-    auto func_ptr = GetOpFuncPtr(kScatter, params);
-    if (func_ptr) {
-      auto pass = hlir::HlirDispatch::dispatch(func_ptr, params);
-      PADDLE_ENFORCE(
-          pass, phi::errors::InvalidArgument("dispatch %s failed!", kScatter));
-    } else {
-      PADDLE_ENFORCE(
-          false,
-          phi::errors::InvalidArgument("not find aot func for %s", kScatter));
-    }
-    FreeDispatchParam(params);
-    GCUOPS_TRACE_END(scatter);
-    GcuOpStreamSync(dev_ctx);
+    LAUNCH_TOPSOP(topsopScatter,
+                  dev_ctx,
+                  output,
+                  tmp_copy_x,
+                  input_index,
+                  input_updates,
+                  computation_type,
+                  index_vector_dim,
+                  update_window_dims,
+                  inserted_window_dims,
+                  scatter_dims_to_operand_dims,
+                  indices_are_sorted,
+                  unique_indices);
 
-    PADDLE_GCU_KERNEL_END("scatter", scatter);
-  } else {
+    MaybeTransResult(dev_ctx, output, out);
+
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names["X"] = {"x"};
     input_names["Ids"] = {"index"};
@@ -182,16 +164,6 @@ void ScatterKernel(const Context& dev_ctx,
         input_names, inputs, output_names, outputs, attrs, "scatter", dev_ctx);
   }
 }
-
-template <typename T, typename Context>
-void ScatterGradKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& index,
-                       const phi::DenseTensor& updates,
-                       const phi::DenseTensor& out_grad,
-                       bool overwrite,
-                       phi::DenseTensor* x_grad,
-                       phi::DenseTensor* updates_grad) {}
-
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scatter,
@@ -202,12 +174,3 @@ PD_REGISTER_PLUGIN_KERNEL(scatter,
                           int64_t,
                           int,
                           phi::dtype::float16) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(scatter_grad,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::ScatterGradKernel,
-//                           float,
-//                           int64_t,
-//                           int,
-//                           phi::dtype::float16) {}

@@ -14,9 +14,11 @@
 
 #pragma once
 #include <tops/tops_ext.h>
+#include <topsaten/topsaten.h>
 
 #include <string>
 
+#include "kernels/topsflame/include/topsop/topsop_define.h"
 #include "paddle/phi/extension.h"
 
 #define RT_DISALLOW_COPY_AND_ASSIGN(TypeName)     \
@@ -37,64 +39,140 @@
 
 #define RT_CHECK(func) CHECK_COMMON(func, topsSuccess)
 #define ECCL_CHECK(func) CHECK_COMMON(func, ecclSuccess)
+#define TOPSATEN_CHECK(func) CHECK_COMMON(func, TOPSATEN_STATUS_SUCCESS)
+#define TOPSOP_CHECK(func) CHECK_COMMON(func, TOPSOP_STATUS_SUCCESS)
 
-class GcuDeviceGuard {
- public:
-  explicit GcuDeviceGuard(int device) {
-    RT_CHECK(topsGetDevice(&device_));
-    if (device_ != device) {
-      RT_CHECK(topsSetDevice(device));
-      reset_device_ = true;
-    }
-  }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  ~GcuDeviceGuard() {
-    if (reset_device_) {
-      RT_CHECK(topsSetDevice(device_));
-    }
-  }
+void InitPlugin(CustomRuntimeParams *params);
 
-  GcuDeviceGuard() = delete;
-  RT_DISALLOW_COPY_AND_ASSIGN(GcuDeviceGuard);
+C_Status Init();
+C_Status Finalize();
+C_Status InitDevice(const C_Device device);
+C_Status SetDevice(const C_Device device);
+C_Status GetDevice(const C_Device device);
+C_Status DeInitDevice(const C_Device device);
 
- private:
-  int device_;
-  bool reset_device_ = false;
-};
+C_Status CreateStream(const C_Device device, C_Stream *stream);
+C_Status DestroyStream(const C_Device device, C_Stream stream);
+C_Status AddCallback(const C_Device device,
+                     C_Stream stream,
+                     C_Callback callback,
+                     void *user_data);
 
-void DeAllocScatter(void *ptr);
+C_Status CreateEvent(const C_Device device, C_Event *event);
+C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event);
+C_Status DestroyEvent(const C_Device device, C_Event event);
 
-static bool UseScatterMemory() {
-  static bool use_scatter_memory =
-      (std::getenv("ENFLAME_ENABLE_PT_JIT_AOT_MIXED") != nullptr &&
-       std::getenv("FLAGS_use_system_allocator") != nullptr)
-          ? (std::string(std::getenv("ENFLAME_ENABLE_PT_JIT_AOT_MIXED")) ==
-                 "true" &&
-             std::string(std::getenv("FLAGS_use_system_allocator")) == "true")
-          : false;
-  return use_scatter_memory;
-}
+C_Status SyncDevice(const C_Device device);
+C_Status SyncStream(const C_Device device, C_Stream stream);
+C_Status SyncEvent(const C_Device device, C_Event event);
+C_Status StreamWaitEvent(const C_Device device, C_Stream stream, C_Event event);
 
+C_Status Allocate(const C_Device device, void **ptr, size_t size);
+C_Status Deallocate(const C_Device device, void *ptr, size_t size);
+C_Status HostAllocate(const C_Device device, void **ptr, size_t size);
+C_Status HostDeallocate(const C_Device device, void *ptr, size_t size);
+C_Status MemCpyH2D(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size);
+C_Status MemCpyD2H(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size);
+C_Status MemCpyD2D(const C_Device device,
+                   void *dst,
+                   const void *src,
+                   size_t size);
 C_Status AsyncMemCpyH2D(const C_Device device,
                         C_Stream stream,
                         void *dst,
                         const void *src,
                         size_t size);
-
 C_Status AsyncMemCpyD2H(const C_Device device,
                         C_Stream stream,
                         void *dst,
                         const void *src,
                         size_t size);
-
 C_Status AsyncMemCpyD2D(const C_Device device,
                         C_Stream stream,
                         void *dst,
                         const void *src,
                         size_t size);
 
-std::string DumpHbm(void *ptr);
+C_Status GetDevicesCount(size_t *count);
+C_Status GetDevicesList(size_t *device);
+C_Status DeviceMinChunkSize(const C_Device device, size_t *size);
+C_Status DeviceMaxChunkSize(const C_Device device, size_t *size);
+C_Status ExtraPaddingSize(const C_Device device, size_t *size);
 
-C_Status InitResource(const int32_t device_id);
+C_Status XcclGetUniqueIdSize(size_t *size);
+C_Status XcclGetUniqueId(C_CCLRootId *unique_id);
+C_Status XcclCommInitRank(size_t nranks,
+                          C_CCLRootId *unique_id,
+                          size_t rank,
+                          C_CCLComm *comm);
+C_Status XcclDestroyComm(C_CCLComm comm);
+C_Status XcclAllReduce(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLReduceOp op,
+                       C_CCLComm comm,
+                       C_Stream stream);
+C_Status XcclBroadcast(void *buf,
+                       size_t count,
+                       C_DataType data_type,
+                       size_t root,
+                       C_CCLComm comm,
+                       C_Stream stream);
+C_Status XcclReduce(void *send_buf,
+                    void *recv_buf,
+                    size_t count,
+                    C_DataType data_type,
+                    C_CCLReduceOp op,
+                    size_t root,
+                    C_CCLComm comm,
+                    C_Stream stream);
+C_Status XcclAllGather(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLComm comm,
+                       C_Stream stream);
+C_Status XcclReduceScatter(void *send_buf,
+                           void *recv_buf,
+                           size_t count,
+                           C_DataType data_type,
+                           C_CCLReduceOp op,
+                           C_CCLComm comm,
+                           C_Stream stream);
+C_Status XcclGroupStart();
+C_Status XcclGroupEnd();
+C_Status XcclSend(void *send_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t dest_rank,
+                  C_CCLComm comm,
+                  C_Stream stream);
+C_Status XcclRecv(void *recv_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t src_rank,
+                  C_CCLComm comm,
+                  C_Stream stream);
 
-void FinalizeResource();
+C_Status PinnedAllocate(void **ptr, size_t size);
+
+C_Status PinnedDeallocate(void *ptr, size_t size);
+
+void OpsInitialize();
+
+void OpsFinalize();
+
+#ifdef __cplusplus
+} /* extern "c" */
+#endif

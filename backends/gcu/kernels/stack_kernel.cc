@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -23,16 +22,27 @@ void StackKernel(const Context& dev_ctx,
                  const std::vector<const phi::DenseTensor*>& x,
                  int axis,
                  phi::DenseTensor* y) {
+  PADDLE_GCU_KERNEL_TRACE("stack");
   dev_ctx.template Alloc<T>(y);
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "stack", stack);
-    std::vector<phi::DenseTensor> inputs;
-    for (auto& input : x) {
-      inputs.push_back(*(const_cast<phi::DenseTensor*>(input)));
+  if (LaunchAOTKernel()) {
+    auto out_tensor = CreateTopsatenTensor(*y);
+
+    std::vector<topsatenTensor> in_tensors;
+    for (const auto& in : x) {
+      in_tensors.emplace_back(CreateTopsatenTensor(*in));
     }
-    stack(dev_ctx, inputs, axis, *y);
-    PADDLE_GCU_KERNEL_END("stack", stack);
-  } else {
+    int64_t dim = static_cast<int64_t>(axis);
+    if (dim < 0 && !x.empty()) {
+      dim += x[0]->dims().size() + 1;
+    }
+    auto stream = static_cast<topsStream_t>(dev_ctx.stream());
+    VLOG(3) << "StackKernel, use topsatenStack, input size:"
+            << in_tensors.size() << ", axis:" << dim << ", stream: " << stream;
+
+    ATEN_OP_CALL_MAYBE_SYNC(
+        topsaten::topsatenStack(out_tensor, in_tensors, dim, stream), dev_ctx);
+
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     TensorValueMap inputs;
     std::vector<std::string> names;
@@ -65,32 +75,42 @@ void StackGradKernel(const Context& dev_ctx,
                      const phi::DenseTensor& dy,
                      int axis,
                      std::vector<phi::DenseTensor*> dx) {
-  TensorNameMap input_names;
-  TensorValueMap inputs;
+  PADDLE_GCU_KERNEL_TRACE("stack_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    TensorValueMap inputs;
 
-  input_names[GradVarName("Y")] = {"dy"};
-  inputs[GradVarName("Y")] = {const_cast<DenseTensor*>(&dy)};
+    input_names[GradVarName("Y")] = {"dy"};
+    inputs[GradVarName("Y")] = {const_cast<DenseTensor*>(&dy)};
 
-  TensorNameMap output_names;
-  TensorValueMap outputs;
+    TensorNameMap output_names;
+    TensorValueMap outputs;
 
-  std::vector<std::string> names;
-  names.reserve(dx.size());
-  std::vector<phi::DenseTensor*> values;
-  values.reserve(dx.size());
-  for (size_t i = 0; i < dx.size(); ++i) {
-    dev_ctx.template Alloc<T>(dx[i]);
-    names.emplace_back(std::string("x_grad_") + std::to_string(i));
-    values.emplace_back(dx[i]);
+    std::vector<std::string> names;
+    names.reserve(dx.size());
+    std::vector<phi::DenseTensor*> values;
+    values.reserve(dx.size());
+    for (size_t i = 0; i < dx.size(); ++i) {
+      dev_ctx.template Alloc<T>(dx[i]);
+      names.emplace_back(std::string("x_grad_") + std::to_string(i));
+      values.emplace_back(dx[i]);
+    }
+    output_names[GradVarName("X")] = names;
+    outputs[GradVarName("X")] = values;
+
+    GcuAttributeMap attrs;
+    attrs["axis"] = axis;
+
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "stack_grad",
+              dev_ctx);
   }
-  output_names[GradVarName("X")] = names;
-  outputs[GradVarName("X")] = values;
-
-  GcuAttributeMap attrs;
-  attrs["axis"] = axis;
-
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "stack_grad", dev_ctx);
 }
 
 }  // namespace custom_kernel
@@ -100,9 +120,8 @@ PD_REGISTER_PLUGIN_KERNEL(stack,
                           ALL_LAYOUT,
                           custom_kernel::StackKernel,
                           int,
-                          int64_t,
                           float,
-                          double) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(stack_grad,
                           gcu,

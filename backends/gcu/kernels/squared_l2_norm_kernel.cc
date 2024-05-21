@@ -12,37 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
 void SquaredL2NormKernel(const Context& dev_ctx,
                          const phi::DenseTensor& x,
                          phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("squared_l2_norm");
   dev_ctx.template Alloc<T>(out);
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
 
-  GcuAttributeMap attrs;
+    GcuAttributeMap attrs;
 
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "squared_l2_norm",
-            dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "squared_l2_norm",
+              dev_ctx);
+  }
 }
 }  // namespace custom_kernel
 

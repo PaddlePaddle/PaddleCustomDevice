@@ -17,6 +17,11 @@
 #include "kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
+template <typename T, typename Context>
+void TransposeKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<int>& axis,
+                     phi::DenseTensor* out);
 
 template <typename T, typename Context>
 struct InterpolateFunction {
@@ -106,13 +111,32 @@ struct InterpolateFunction {
               const phi::DenseTensor* indices,
               const int axis,
               phi::DenseTensor* y) {
-    NpuOpRunner runner;
-    runner.SetType("GatherV2")
-        .AddInput(*x)
-        .AddInput(*indices)
-        .AddInput(dev_ctx, std::vector<int32_t>{axis})
-        .AddOutput(*y);
-    runner.Run(stream);
+    EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, *x, axis, *indices, *y);
+  }
+  void GatherWithTrans(const phi::DenseTensor* x,
+                       const phi::DenseTensor* indices,
+                       const int axis,
+                       phi::DenseTensor* y) {
+    // x: n, c, h, w
+    PD_CHECK(axis == 3, "axis must be 3 for nchw input");
+    auto x_dims = x->dims();
+    auto y_dims = y->dims();
+    phi::DenseTensor trans_x;
+    trans_x.Resize({x_dims[0], x_dims[1], x_dims[3], x_dims[2]});
+    std::vector<int> perm = {0, 1, 3, 2};
+
+    // 1. transpose nchw -> ncwh
+    custom_kernel::TransposeKernel<T, Context>(dev_ctx, *x, perm, &trans_x);
+
+    // 2. gather ncwh
+    phi::DenseTensor trans_y;
+    trans_y.Resize({y_dims[0], y_dims[1], y_dims[3], y_dims[2]});
+    dev_ctx.template Alloc<T>(&trans_y);
+    int axis_gather = axis - 1;
+    Gather(&trans_x, indices, axis_gather, &trans_y);
+
+    // 3. tranpose ncwh -> nchw
+    custom_kernel::TransposeKernel<T, Context>(dev_ctx, trans_y, perm, y);
   }
   void GatherGrad(const phi::DenseTensor* gy,
                   const phi::DenseTensor* indices,
@@ -412,13 +436,24 @@ void BilinearFwdNpu(const Context& dev_ctx,
   out_x4.Resize({4, outdim[0], outdim[1], outdim[2], outdim[3]});
   dev_ctx.template Alloc<T>(&out_x4);
   phi::DenseTensor input_gather_h0_w0 = custom_kernel::Slice(out_x4, 0, 1);
+  input_gather_h0_w0.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h0_w1 = custom_kernel::Slice(out_x4, 1, 2);
+  input_gather_h0_w1.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h1_w0 = custom_kernel::Slice(out_x4, 2, 3);
+  input_gather_h1_w0.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
   phi::DenseTensor input_gather_h1_w1 = custom_kernel::Slice(out_x4, 3, 4);
-  F.Gather(&input_gather_h0, &w0, axis_w, &input_gather_h0_w0);
-  F.Gather(&input_gather_h0, &w1, axis_w, &input_gather_h0_w1);
-  F.Gather(&input_gather_h1, &w0, axis_w, &input_gather_h1_w0);
-  F.Gather(&input_gather_h1, &w1, axis_w, &input_gather_h1_w1);
+  input_gather_h1_w1.Resize({outdim[0], outdim[1], outdim[2], outdim[3]});
+  if (axis_w == 3) {  // nchw, gather along the last axis;
+    F.GatherWithTrans(&input_gather_h0, &w0, axis_w, &input_gather_h0_w0);
+    F.GatherWithTrans(&input_gather_h0, &w1, axis_w, &input_gather_h0_w1);
+    F.GatherWithTrans(&input_gather_h1, &w0, axis_w, &input_gather_h1_w0);
+    F.GatherWithTrans(&input_gather_h1, &w1, axis_w, &input_gather_h1_w1);
+  } else {
+    F.Gather(&input_gather_h0, &w0, axis_w, &input_gather_h0_w0);
+    F.Gather(&input_gather_h0, &w1, axis_w, &input_gather_h0_w1);
+    F.Gather(&input_gather_h1, &w0, axis_w, &input_gather_h1_w0);
+    F.Gather(&input_gather_h1, &w1, axis_w, &input_gather_h1_w1);
+  }
   F.Mul(&input_gather_h0_w0, &coef_w0, &input_gather_h0_w0);
   F.Mul(&input_gather_h0_w1, &coef_w1, &input_gather_h0_w1);
   F.Mul(&input_gather_h1_w0, &coef_w0, &input_gather_h1_w0);

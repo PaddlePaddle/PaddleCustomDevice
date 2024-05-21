@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -23,20 +22,37 @@ void ConcatKernel(const Context& dev_ctx,
                   const std::vector<const phi::DenseTensor*>& ins,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("concat");
   dev_ctx.template Alloc<T>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "concat", concat);
+  if (LaunchAOTKernel()) {
+    std::vector<phi::DenseTensor> input_tensors;
+    for (const auto& in : ins) {
+      input_tensors.emplace_back(MaybeCreateOrTrans64To32bits(dev_ctx, *in));
+    }
+    phi::DenseTensor output =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
 
-    std::vector<phi::DenseTensor> ins_tensor;
-    for (auto in : ins) ins_tensor.emplace_back(*in);
-    concat(static_cast<const phi::CustomContext&>(dev_ctx),
-           ins_tensor,
-           axis_scalar.to<int64_t>(),
-           *out);
+    auto out_tensor = CreateTopsatenTensor(output);
 
-    PADDLE_GCU_KERNEL_END("concat", concat);
-  } else {
+    std::vector<topsatenTensor> in_tensors;
+    for (const auto& tensor : input_tensors) {
+      in_tensors.emplace_back(CreateTopsatenTensor(tensor));
+    }
+    int64_t dim = axis_scalar.to<int64_t>();
+    if (dim < 0 && !ins.empty()) {
+      dim += ins[0]->dims().size();
+    }
+    auto stream = static_cast<topsStream_t>(dev_ctx.stream());
+    VLOG(3) << "ConcatKernel, use topsatenCat, input size:" << in_tensors.size()
+            << ", axis:" << dim << ", stream: " << stream;
+
+    ATEN_OP_CALL_MAYBE_SYNC(
+        topsaten::topsatenCat(out_tensor, in_tensors, dim, stream), dev_ctx);
+
+    MaybeTransResult(dev_ctx, output, out);
+
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     TensorValueMap inputs;
     std::vector<std::string> names;
@@ -70,24 +86,10 @@ void ConcatGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& dout,
                       const phi::Scalar& axis_scalar,
                       std::vector<phi::DenseTensor*> outs) {
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "concat_grad", concat_grad);
-
-    auto axis = axis_scalar.to<int>();
-    const int64_t rank = dout.dims().size();
-    if (axis < 0) axis += rank;
-    std::vector<int64_t> sections;
-    for (auto in : ins) sections.push_back(in->dims()[axis]);
-    auto splits = split(dev_ctx, dout, axis, 0, sections);
-    for (size_t i = 0; i < outs.size(); ++i) {
-      if (outs[i] != nullptr) {
-        dev_ctx.template Alloc<T>(outs[i]);
-        TensorCopy(dev_ctx, splits[i], false, outs[i]);
-      }
-    }
-
-    PADDLE_GCU_KERNEL_END("concat_grad", concat_grad);
-  } else {
+  PADDLE_GCU_KERNEL_TRACE("concat_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     TensorValueMap inputs;
     {

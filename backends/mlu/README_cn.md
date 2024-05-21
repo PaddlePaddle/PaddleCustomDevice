@@ -8,12 +8,11 @@
 
 | 模块名称  | 版本     |
 | --------- | -------- |
-| cntoolkit | 3.8.4-1  |
-| cnnl      | 1.23.2-1 |
-| cnnlextra | 1.6.1-1  |
-| cncl      | 1.14.0-1 |
-| mluops    | 0.11.0-1 |
-
+| cntoolkit | 3.10.2-1  |
+| cnnl      | 1.25.1-1 |
+| cnnlextra | 1.8.1-1  |
+| cncl      | 1.16.0-1 |
+| mluops    | 1.1.1-1 |
 ## 环境准备与源码同步
 
 ```bash
@@ -68,12 +67,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # 预期得到如下输出结果
 version: 0.0.0
-commit: 5c29d8a4bfd742081ec3b457e02e276f738ef786
-cntoolkit: 3.8.4
-cnnl: 1.23.2
-cnnlextra: 1.6.1
-cncl: 1.14.0
-mluops: 0.11.0
+commit: 83dfe3de33f0a915fb189161568fc3804b5f9c1b
+cntoolkit: 3.10.2
+cnnl: 1.25.1
+cnnlextra: 1.8.1
+cncl: 1.16.0
+mluops: 1.1.1
 
 # 3) 运行简单模型训练、评估和推理任务
 python tests/test_LeNet_MNIST.py

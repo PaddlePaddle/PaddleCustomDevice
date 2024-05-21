@@ -33,12 +33,8 @@ void UpdateInputes(const paddle::Tensor& stop_flags,
           stop_flags.place()));
   auto stream = static_cast<aclrtStream>(dev_ctx->stream());
 
-  auto not_need_stop_npu = not_need_stop.copy_to(stop_flags.place(), false);
-
   auto stop_flags_tensor =
       static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
-  auto not_need_stop_tensor =
-      static_cast<const phi::DenseTensor*>(not_need_stop_npu.impl().get());
   auto seq_lens_this_time_tensor =
       static_cast<const phi::DenseTensor*>(seq_lens_this_time.impl().get());
   auto seq_lens_encoder_tensor =
@@ -54,28 +50,54 @@ void UpdateInputes(const paddle::Tensor& stop_flags,
   auto is_block_step_tensor =
       static_cast<const phi::DenseTensor*>(is_block_step.impl().get());
 
-  const auto& runner = NpuOpRunner("UpdateInputs",
-                                   {*stop_flags_tensor,
-                                    *not_need_stop_tensor,
-                                    *seq_lens_this_time_tensor,
-                                    *seq_lens_encoder_tensor,
-                                    *seq_lens_decoder_tensor,
-                                    *input_ids_tensor,
-                                    *stop_nums_tensor,
-                                    *next_tokens_tensor,
-                                    *is_block_step_tensor},
-                                   {*not_need_stop_tensor,
-                                    *seq_lens_this_time_tensor,
-                                    *seq_lens_encoder_tensor,
-                                    *seq_lens_decoder_tensor,
-                                    *input_ids_tensor},
-                                   {});
-  runner.Run(stream);
-
-  auto not_need_stop_cpu =
-      not_need_stop_npu.copy_to(not_need_stop.place(), true);
-  bool* not_need_stop_data = const_cast<bool*>(not_need_stop.data<bool>());
-  not_need_stop_data[0] = not_need_stop_cpu.data<bool>()[0];
+  bool not_need_stop_on_host =
+      not_need_stop.place().GetType() == phi::AllocationType::CPU;
+  if (not_need_stop_on_host) {
+    auto not_need_stop_npu = not_need_stop.copy_to(stop_flags.place(), false);
+    auto not_need_stop_tensor =
+        static_cast<const phi::DenseTensor*>(not_need_stop_npu.impl().get());
+    const auto& runner = NpuOpRunner("UpdateInputs",
+                                     {*stop_flags_tensor,
+                                      *not_need_stop_tensor,
+                                      *seq_lens_this_time_tensor,
+                                      *seq_lens_encoder_tensor,
+                                      *seq_lens_decoder_tensor,
+                                      *input_ids_tensor,
+                                      *stop_nums_tensor,
+                                      *next_tokens_tensor,
+                                      *is_block_step_tensor},
+                                     {*not_need_stop_tensor,
+                                      *seq_lens_this_time_tensor,
+                                      *seq_lens_encoder_tensor,
+                                      *seq_lens_decoder_tensor,
+                                      *input_ids_tensor},
+                                     {});
+    runner.Run(stream);
+    auto not_need_stop_cpu =
+        not_need_stop_npu.copy_to(not_need_stop.place(), true);
+    bool* not_need_stop_data = const_cast<bool*>(not_need_stop.data<bool>());
+    not_need_stop_data[0] = not_need_stop_cpu.data<bool>()[0];
+  } else {
+    auto not_need_stop_tensor =
+        static_cast<const phi::DenseTensor*>(not_need_stop.impl().get());
+    const auto& runner = NpuOpRunner("UpdateInputs",
+                                     {*stop_flags_tensor,
+                                      *not_need_stop_tensor,
+                                      *seq_lens_this_time_tensor,
+                                      *seq_lens_encoder_tensor,
+                                      *seq_lens_decoder_tensor,
+                                      *input_ids_tensor,
+                                      *stop_nums_tensor,
+                                      *next_tokens_tensor,
+                                      *is_block_step_tensor},
+                                     {*not_need_stop_tensor,
+                                      *seq_lens_this_time_tensor,
+                                      *seq_lens_encoder_tensor,
+                                      *seq_lens_decoder_tensor,
+                                      *input_ids_tensor},
+                                     {});
+    runner.Run(stream);
+  }
 }
 
 PD_BUILD_OP(update_inputs)

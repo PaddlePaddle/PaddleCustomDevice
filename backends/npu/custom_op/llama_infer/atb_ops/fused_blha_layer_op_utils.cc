@@ -468,9 +468,9 @@ void FusedBlhaGlobalVar::update_mask(const phi::CustomContext &dev_ctx,
     tmp_mask.Resize({max_seq_len, max_seq_len});
     custom_kernel::ScaleKernel<phi::float16>(
         dev_ctx, tril_ones_tensor, 1.0f, -1.0f, true, &tmp_mask);
-
+    // use 50000 to avoid overflow
     custom_kernel::ScaleKernel<phi::float16>(
-        dev_ctx, tmp_mask, 1000000.0f, 0.0f, true, g_mask.get());
+        dev_ctx, tmp_mask, 50000.0f, 0.0f, true, g_mask.get());
   }
 }
 

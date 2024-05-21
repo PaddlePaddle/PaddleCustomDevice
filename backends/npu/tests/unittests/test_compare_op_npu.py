@@ -121,7 +121,7 @@ def create_test_class(op_type, typename, callback):
             else:
                 x = np.random.random(size=(10, 7)).astype(typename)
             real_result = callback(x, y)
-            x = paddle.to_tensor(x, dtype=typename)
+            x = paddle.to_tensor(x, dtype=typename).cast("float32")
             y = paddle.to_tensor(y, dtype="float32")
             op = eval("paddle.%s" % (self.op_type))
             out = op(x, y)

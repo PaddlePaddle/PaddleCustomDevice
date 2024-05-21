@@ -42,6 +42,7 @@ def attention_naive(q, k, v, mask=None):
     s = paddle.scale(s, scale)
     if isinstance(mask, paddle.Tensor):
         mask_scale = paddle.to_tensor([-60000], dtype=q.dtype)
+        mask = mask.cast('float32')
         mask = mask.multiply(mask_scale)
         s = s + mask
     p = F.softmax(s)

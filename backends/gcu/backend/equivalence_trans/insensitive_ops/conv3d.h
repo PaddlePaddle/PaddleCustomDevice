@@ -21,8 +21,8 @@ limitations under the License. */
 #include <vector>
 
 #include "backend/register/register.h"
+#include "paddle/common/macros.h"
 #include "paddle/phi/core/ddim.h"
-#include "paddle/phi/core/errors.h"
 #include "paddle/phi/kernels/cpu/conv_util.h"
 
 namespace backend {

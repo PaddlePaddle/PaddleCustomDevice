@@ -444,27 +444,4 @@ void GetSize(T start, T end, T step, int64_t* size) {
               : std::ceil(std::abs((end - start) / step));
 }
 
-template <typename T, typename Context>
-void ArangeNullKernel(const Context& dev_ctx,
-                      const T start_value,
-                      const T end_value,
-                      const T step_value,
-                      phi::DenseTensor* out) {
-  int64_t size = 0;
-  GetSize(start_value, end_value, step_value, &size);
-  out->Resize(phi::make_ddim({size}));
-
-  dev_ctx.template Alloc<T>(out);
-
-  std::vector<T> odata;
-  T value = start_value;
-  for (int64_t i = 0; i < size; ++i) {
-    odata.push_back(value);
-    value += step_value;
-  }
-
-  TensorFromVector(dev_ctx, odata, dev_ctx, out);
-  dev_ctx.Wait();
-}
-
 }  // namespace custom_kernel

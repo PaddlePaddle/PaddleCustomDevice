@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
 void MeshgridKernel(const Context& dev_ctx,
                     const std::vector<const phi::DenseTensor*>& ins,
                     std::vector<phi::DenseTensor*> outs) {
+  PADDLE_GCU_KERNEL_TRACE("meshgrid");
   PADDLE_ENFORCE_EQ(
       (ins.size() > 1) && (ins.size() < 7),
       true,
@@ -36,28 +36,9 @@ void MeshgridKernel(const Context& dev_ctx,
           ins.size(),
           outs.size()));
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "meshgrid", meshgrid);
-    std::vector<int64_t> target_shape;
-    for (auto& input : ins) {
-      if (input->dims().size() == 0)
-        target_shape.emplace_back(1);
-      else
-        target_shape.emplace_back(input->dims().at(0));
-    }
-
-    std::vector<int64_t> broadcast_dims;
-    for (size_t i = 0; i < ins.size(); ++i) {
-      if (ins.at(i)->dims().size() == 0) {
-        broadcast_dims = {};
-      } else {
-        broadcast_dims = {static_cast<int64_t>(i)};
-      }
-      *(outs[i]) =
-          broadcast_in_dim(dev_ctx, *(ins.at(i)), target_shape, broadcast_dims);
-    }
-    PADDLE_GCU_KERNEL_END("meshgrid", meshgrid);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     std::vector<std::string> in_names;
     in_names.reserve(ins.size());
     std::vector<phi::DenseTensor*> in_tensors;

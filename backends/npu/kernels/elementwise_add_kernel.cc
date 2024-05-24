@@ -188,7 +188,7 @@ void AclopAddGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dx);
+        phi::DenseTensor tmp;
         tmp.Resize(phi::make_ddim(dst_dims_vec));
         NpuOpRunner runner;
         runner.SetType("ReduceSum");
@@ -233,15 +233,18 @@ void AddGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp(*dy);
+        phi::DenseTensor tmp;
         tmp.Resize(phi::make_ddim(dst_dims_vec));
+        dev_ctx.template Alloc<T>(&tmp);
         bool keep_dims = false;
         auto dtype = ConvertToNpuDtype(dy->dtype());
         EXEC_NPU_CMD(
-            aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
+            aclnnReduceSum, dev_ctx, douty, reduce_axes, keep_dims, dtype, tmp);
+        tmp.Resize(dy->dims());
+        TensorCopy(dev_ctx, tmp, false, dy);
       }
     } else {
-      TensorCopy(dev_ctx, dout, false, dy);
+      TensorCopy(dev_ctx, douty, false, dy);
     }
   }
   if (dx) {

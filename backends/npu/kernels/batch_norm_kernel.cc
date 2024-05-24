@@ -469,6 +469,8 @@ void BatchNormKernel(const Context& dev_ctx,
   phi::DenseTensor tmp_running_mean, tmp_running_var;
   tmp_running_mean.Resize(mean_out->dims());
   tmp_running_var.Resize(variance_out->dims());
+  saved_mean->Resize(mean_out->dims());
+  saved_variance->Resize(variance_out->dims());
 
   if (FLAGS_npu_storage_format &&
       x_dims.size() == 4) {  // TODO(qili93): add 3D support
@@ -491,9 +493,6 @@ void BatchNormKernel(const Context& dev_ctx,
 
   double this_factor = 1. - momentum;
   double epsilon_d = epsilon;
-
-  saved_mean->Resize(mean_out->dims());
-  saved_variance->Resize(mean_out->dims());
 
   EXEC_NPU_CMD(aclnnBatchNorm,
                dev_ctx,

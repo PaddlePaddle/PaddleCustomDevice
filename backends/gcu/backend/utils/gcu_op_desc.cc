@@ -18,8 +18,8 @@
 
 #include "backend/utils/types.h"
 #include "glog/logging.h"
+#include "paddle/common/macros.h"
 #include "paddle/phi/common/complex.h"
-#include "paddle/phi/core/errors.h"
 #include "paddle/utils/blank.h"
 
 namespace backend {

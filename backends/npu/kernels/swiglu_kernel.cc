@@ -58,7 +58,7 @@ void SwiGluKernel(const Context& dev_ctx,
 
     std::vector<const phi::DenseTensor*> in_tensors{&x, &y_tensor};
     custom_kernel::ConcatKernel<T, Context>(
-        dev_ctx, in_tensors, &concat_dim, &concat_xy);
+        dev_ctx, in_tensors, concat_dim, &concat_xy);
     EXEC_NPU_CMD(aclnnSwiGlu, dev_ctx, concat_xy, axis, *out);
 
   } else {
@@ -109,7 +109,7 @@ void SwiGluGradKernel(const Context& dev_ctx,
 
       std::vector<const phi::DenseTensor*> in_tensors{&x, &y_tensor};
       custom_kernel::ConcatKernel<T, Context>(
-          dev_ctx, in_tensors, &concat_dim, &concat_xy);
+          dev_ctx, in_tensors, concat_dim, &concat_xy);
       EXEC_NPU_CMD(aclnnSwiGluGrad, dev_ctx, dout, concat_xy, axis, dx_temp);
       auto num_or_sections = phi::IntArray({2});
       auto axis_scalar = phi::Scalar(-1);

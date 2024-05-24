@@ -215,7 +215,7 @@ void SubtractGradKernel(const Context& dev_ctx,
     for (auto i = 0; i < reduce_ndim; ++i) {
       axes.push_back(i);
     }
-    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&douty);
     phi::DenseTensor reduced_dy;
     phi::DenseTensor reduced_dout;
 
@@ -238,7 +238,7 @@ void SubtractGradKernel(const Context& dev_ctx,
       auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
       auto axis = phi::IntArray(reduced_dout_dims);
       EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
+          aclnnReduceSum, dev_ctx, douty, axis, keep_dim, dtype, reduced_dout);
       tmp_dout = &reduced_dout;
     }
 

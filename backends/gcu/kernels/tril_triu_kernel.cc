@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
@@ -78,8 +78,13 @@ void TrilTriuKernel(const Context& ctx,
                     int diagonal,
                     bool lower,
                     phi::DenseTensor* out) {
-  custom_kernel::TrilTriuCommon<T, Context>(
-      "tril_triu", ctx, x, diagonal, lower, out);
+  PADDLE_GCU_KERNEL_TRACE("tril_triu");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuCommon<T, Context>(
+        "tril_triu", ctx, x, diagonal, lower, out);
+  }
 }
 
 template <typename T, typename Context>
@@ -88,8 +93,13 @@ void TrilTriuGradKernel(const Context& ctx,
                         int diagonal,
                         bool lower,
                         phi::DenseTensor* x_grad) {
-  custom_kernel::TrilTriuGradCommon<T, Context>(
-      "tril_triu_grad", ctx, out_grad, diagonal, lower, x_grad);
+  PADDLE_GCU_KERNEL_TRACE("tril_triu_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuGradCommon<T, Context>(
+        "tril_triu_grad", ctx, out_grad, diagonal, lower, x_grad);
+  }
 }
 
 template <typename T, typename Context>
@@ -97,8 +107,15 @@ void TrilKernel(const Context& ctx,
                 const phi::DenseTensor& x,
                 int diagonal,
                 phi::DenseTensor* out) {
-  custom_kernel::TrilTriuCommon<T, Context>(
-      "tril", ctx, x, diagonal, true, out);
+  PADDLE_GCU_KERNEL_TRACE("tril");
+  if (LaunchAOTKernel()) {
+    ctx.template Alloc<T>(out);
+    LAUNCH_TOPSATENOP(topsatenTril, ctx, *out, x, diagonal);
+
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuCommon<T, Context>(
+        "tril", ctx, x, diagonal, true, out);
+  }
 }
 
 template <typename T, typename Context>
@@ -106,8 +123,13 @@ void TrilGradKernel(const Context& ctx,
                     const phi::DenseTensor& out_grad,
                     int diagonal,
                     phi::DenseTensor* x_grad) {
-  custom_kernel::TrilTriuGradCommon<T, Context>(
-      "tril_grad", ctx, out_grad, diagonal, true, x_grad);
+  PADDLE_GCU_KERNEL_TRACE("tril_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuGradCommon<T, Context>(
+        "tril_grad", ctx, out_grad, diagonal, true, x_grad);
+  }
 }
 
 template <typename T, typename Context>
@@ -115,8 +137,15 @@ void TriuKernel(const Context& ctx,
                 const phi::DenseTensor& x,
                 int diagonal,
                 phi::DenseTensor* out) {
-  custom_kernel::TrilTriuCommon<T, Context>(
-      "triu", ctx, x, diagonal, false, out);
+  PADDLE_GCU_KERNEL_TRACE("triu");
+  if (LaunchAOTKernel()) {
+    ctx.template Alloc<T>(out);
+    LAUNCH_TOPSATENOP(topsatenTriu, ctx, *out, x, diagonal);
+
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuCommon<T, Context>(
+        "triu", ctx, x, diagonal, false, out);
+  }
 }
 
 template <typename T, typename Context>
@@ -124,8 +153,13 @@ void TriuGradKernel(const Context& ctx,
                     const phi::DenseTensor& out_grad,
                     int diagonal,
                     phi::DenseTensor* x_grad) {
-  custom_kernel::TrilTriuGradCommon<T, Context>(
-      "triu_grad", ctx, out_grad, diagonal, false, x_grad);
+  PADDLE_GCU_KERNEL_TRACE("triu_grad");
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    custom_kernel::TrilTriuGradCommon<T, Context>(
+        "triu_grad", ctx, out_grad, diagonal, false, x_grad);
+  }
 }
 }  // namespace custom_kernel
 
@@ -156,7 +190,6 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           bool,
                           float,
                           int,
-                          int64_t,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_grad,
@@ -176,7 +209,6 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
                           bool,
                           float,
                           int,
-                          int64_t,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu_grad,

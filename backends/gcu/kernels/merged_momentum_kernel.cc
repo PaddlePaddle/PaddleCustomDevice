@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 static void CheckInputs(
@@ -112,6 +112,7 @@ void MergedMomentumKernel(
     std::vector<phi::DenseTensor*> param_out,
     std::vector<phi::DenseTensor*> velocity_out,
     std::vector<phi::DenseTensor*> master_param_out) {
+  PADDLE_GCU_KERNEL_TRACE("merged_momentum");
   CheckInputs(param,
               grad,
               velocity,
@@ -121,102 +122,109 @@ void MergedMomentumKernel(
               param_out,
               velocity_out);
 
-  size_t param_num = param.size();
-  TensorNameMap input_names;
-  TensorValueMap inputs;
-  TensorNameMap output_names;
-  TensorValueMap outputs;
-  input_names["Param"].reserve(param_num);
-  input_names["Grad"].reserve(param_num);
-  input_names["Velocity"].reserve(param_num);
-  input_names["LearningRate"].reserve(param_num);
-  inputs["Param"].reserve(param_num);
-  inputs["Grad"].reserve(param_num);
-  inputs["Velocity"].reserve(param_num);
-  inputs["LearningRate"].reserve(param_num);
-  output_names["VelocityOut"].reserve(param_num);
-  output_names["ParamOut"].reserve(param_num);
-  outputs["VelocityOut"].reserve(param_num);
-  outputs["ParamOut"].reserve(param_num);
-  std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
-  std::vector<std::shared_ptr<phi::DenseTensor>> velocity_outs_tmp;
-  param_outs_tmp.reserve(param_num);
-  velocity_outs_tmp.reserve(param_num);
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    size_t param_num = param.size();
+    TensorNameMap input_names;
+    TensorValueMap inputs;
+    TensorNameMap output_names;
+    TensorValueMap outputs;
+    input_names["Param"].reserve(param_num);
+    input_names["Grad"].reserve(param_num);
+    input_names["Velocity"].reserve(param_num);
+    input_names["LearningRate"].reserve(param_num);
+    inputs["Param"].reserve(param_num);
+    inputs["Grad"].reserve(param_num);
+    inputs["Velocity"].reserve(param_num);
+    inputs["LearningRate"].reserve(param_num);
+    output_names["VelocityOut"].reserve(param_num);
+    output_names["ParamOut"].reserve(param_num);
+    outputs["VelocityOut"].reserve(param_num);
+    outputs["ParamOut"].reserve(param_num);
+    std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
+    std::vector<std::shared_ptr<phi::DenseTensor>> velocity_outs_tmp;
+    param_outs_tmp.reserve(param_num);
+    velocity_outs_tmp.reserve(param_num);
 
-  for (size_t i = 0; i < param_num; ++i) {
-    input_names["Param"].emplace_back(std::string("param") + std::to_string(i));
-    input_names["Grad"].emplace_back(std::string("grad") + std::to_string(i));
-    input_names["Velocity"].emplace_back(std::string("velocity") +
-                                         std::to_string(i));
-    input_names["LearningRate"].emplace_back(std::string("learning_rate") +
-                                             std::to_string(i));
+    for (size_t i = 0; i < param_num; ++i) {
+      input_names["Param"].emplace_back(std::string("param") +
+                                        std::to_string(i));
+      input_names["Grad"].emplace_back(std::string("grad") + std::to_string(i));
+      input_names["Velocity"].emplace_back(std::string("velocity") +
+                                           std::to_string(i));
+      input_names["LearningRate"].emplace_back(std::string("learning_rate") +
+                                               std::to_string(i));
 
-    inputs["Param"].emplace_back(const_cast<DenseTensor*>(param[i]));
-    inputs["Grad"].emplace_back(const_cast<DenseTensor*>(grad[i]));
-    inputs["Velocity"].emplace_back(const_cast<DenseTensor*>(velocity[i]));
-    size_t lr_idx = (learning_rate.size() == 1) ? 0 : i;
-    inputs["LearningRate"].emplace_back(
-        const_cast<DenseTensor*>(learning_rate[lr_idx]));
+      inputs["Param"].emplace_back(const_cast<DenseTensor*>(param[i]));
+      inputs["Grad"].emplace_back(const_cast<DenseTensor*>(grad[i]));
+      inputs["Velocity"].emplace_back(const_cast<DenseTensor*>(velocity[i]));
+      size_t lr_idx = (learning_rate.size() == 1) ? 0 : i;
+      inputs["LearningRate"].emplace_back(
+          const_cast<DenseTensor*>(learning_rate[lr_idx]));
 
-    output_names["ParamOut"].emplace_back(std::string("param_out") +
-                                          std::to_string(i));
-    output_names["VelocityOut"].emplace_back(std::string("velocity_out") +
-                                             std::to_string(i));
+      output_names["ParamOut"].emplace_back(std::string("param_out") +
+                                            std::to_string(i));
+      output_names["VelocityOut"].emplace_back(std::string("velocity_out") +
+                                               std::to_string(i));
 
-    auto param_out_tmp = std::make_shared<phi::DenseTensor>();
-    param_out_tmp->set_meta(param_out[i]->meta());
-    dev_ctx.template Alloc<T>(param_out_tmp.get());
-    param_outs_tmp.emplace_back(param_out_tmp);
+      auto param_out_tmp = std::make_shared<phi::DenseTensor>();
+      param_out_tmp->set_meta(param_out[i]->meta());
+      dev_ctx.template Alloc<T>(param_out_tmp.get());
+      param_outs_tmp.emplace_back(param_out_tmp);
 
-    auto velocity_out_tmp = std::make_shared<phi::DenseTensor>();
-    velocity_out_tmp->set_meta(velocity_out[i]->meta());
-    dev_ctx.template Alloc<T>(velocity_out_tmp.get());
-    velocity_outs_tmp.emplace_back(velocity_out_tmp);
+      auto velocity_out_tmp = std::make_shared<phi::DenseTensor>();
+      velocity_out_tmp->set_meta(velocity_out[i]->meta());
+      dev_ctx.template Alloc<T>(velocity_out_tmp.get());
+      velocity_outs_tmp.emplace_back(velocity_out_tmp);
 
-    outputs["ParamOut"].emplace_back(param_out_tmp.get());
-    outputs["VelocityOut"].emplace_back(velocity_out_tmp.get());
-  }
-
-  auto regularization_methods =
-      (regularization_method.size() == 1)
-          ? std::vector<std::string>(param_num, regularization_method[0])
-          : regularization_method;
-  auto regularization_coeffs =
-      (regularization_coeff.size() == 1)
-          ? std::vector<float>(param_num, regularization_coeff[0])
-          : regularization_coeff;
-
-  GcuAttributeMap attrs;
-  attrs["mu"] = mu;
-  attrs["use_nesterov"] = use_nesterov;
-  attrs["regularization_method"] = regularization_methods;
-  attrs["regularization_coeff"] = regularization_coeffs;
-
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "merged_momentum",
-            dev_ctx);
-
-  for (size_t i = 0; i < param_num; ++i) {
-    dev_ctx.template Alloc<T>(param_out[i]);
-    dev_ctx.template Alloc<T>(velocity_out[i]);
-
-    TensorCopy(dev_ctx, *(param_outs_tmp[i]), false, param_out[i]);
-    TensorCopy(dev_ctx, *(velocity_outs_tmp[i]), false, velocity_out[i]);
-
-    // if param and param_out is not same, we need to do copy.
-    if (param_out[i]->data<T>() != param[i]->data<T>()) {
-      TensorCopy(
-          dev_ctx, *(param_out[i]), false, const_cast<DenseTensor*>(param[i]));
+      outputs["ParamOut"].emplace_back(param_out_tmp.get());
+      outputs["VelocityOut"].emplace_back(velocity_out_tmp.get());
     }
-    if (velocity_out[i]->data<T>() != velocity[i]->data<T>()) {
-      TensorCopy(dev_ctx,
-                 *(velocity_out[i]),
-                 false,
-                 const_cast<DenseTensor*>(velocity[i]));
+
+    auto regularization_methods =
+        (regularization_method.size() == 1)
+            ? std::vector<std::string>(param_num, regularization_method[0])
+            : regularization_method;
+    auto regularization_coeffs =
+        (regularization_coeff.size() == 1)
+            ? std::vector<float>(param_num, regularization_coeff[0])
+            : regularization_coeff;
+
+    GcuAttributeMap attrs;
+    attrs["mu"] = mu;
+    attrs["use_nesterov"] = use_nesterov;
+    attrs["regularization_method"] = regularization_methods;
+    attrs["regularization_coeff"] = regularization_coeffs;
+
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "merged_momentum",
+              dev_ctx);
+
+    for (size_t i = 0; i < param_num; ++i) {
+      dev_ctx.template Alloc<T>(param_out[i]);
+      dev_ctx.template Alloc<T>(velocity_out[i]);
+
+      TensorCopy(dev_ctx, *(param_outs_tmp[i]), false, param_out[i]);
+      TensorCopy(dev_ctx, *(velocity_outs_tmp[i]), false, velocity_out[i]);
+
+      // if param and param_out is not same, we need to do copy.
+      if (param_out[i]->data<T>() != param[i]->data<T>()) {
+        TensorCopy(dev_ctx,
+                   *(param_out[i]),
+                   false,
+                   const_cast<DenseTensor*>(param[i]));
+      }
+      if (velocity_out[i]->data<T>() != velocity[i]->data<T>()) {
+        TensorCopy(dev_ctx,
+                   *(velocity_out[i]),
+                   false,
+                   const_cast<DenseTensor*>(velocity[i]));
+      }
     }
   }
 }

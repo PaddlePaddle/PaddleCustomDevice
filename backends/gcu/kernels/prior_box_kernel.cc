@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -33,39 +33,49 @@ void PriorBoxKernel(const Context& dev_ctx,
                     bool min_max_aspect_ratios_order,
                     phi::DenseTensor* out,
                     phi::DenseTensor* var) {
+  PADDLE_GCU_KERNEL_TRACE("prior_box");
   dev_ctx.template Alloc<T>(out);
   dev_ctx.template Alloc<T>(var);
 
-  TensorNameMap input_names;
-  input_names["Input"] = {"input"};
-  input_names["Image"] = {"image"};
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["Input"] = {"input"};
+    input_names["Image"] = {"image"};
 
-  TensorValueMap inputs;
-  inputs["Input"] = {const_cast<DenseTensor*>(&input)};
-  inputs["Image"] = {const_cast<DenseTensor*>(&image)};
+    TensorValueMap inputs;
+    inputs["Input"] = {const_cast<DenseTensor*>(&input)};
+    inputs["Image"] = {const_cast<DenseTensor*>(&image)};
 
-  TensorNameMap output_names;
-  output_names["Boxes"] = {"out"};
-  output_names["Variances"] = {"var"};
+    TensorNameMap output_names;
+    output_names["Boxes"] = {"out"};
+    output_names["Variances"] = {"var"};
 
-  TensorValueMap outputs;
-  outputs["Boxes"] = {out};
-  outputs["Variances"] = {var};
+    TensorValueMap outputs;
+    outputs["Boxes"] = {out};
+    outputs["Variances"] = {var};
 
-  GcuAttributeMap attrs;
-  attrs["min_sizes"] = min_sizes;
-  attrs["max_sizes"] = max_sizes;
-  attrs["aspect_ratios"] = aspect_ratios;
-  attrs["variances"] = variances;
-  attrs["flip"] = flip;
-  attrs["clip"] = clip;
-  attrs["step_w"] = step_w;
-  attrs["step_h"] = step_h;
-  attrs["offset"] = offset;
-  attrs["min_max_aspect_ratios_order"] = min_max_aspect_ratios_order;
+    GcuAttributeMap attrs;
+    attrs["min_sizes"] = min_sizes;
+    attrs["max_sizes"] = max_sizes;
+    attrs["aspect_ratios"] = aspect_ratios;
+    attrs["variances"] = variances;
+    attrs["flip"] = flip;
+    attrs["clip"] = clip;
+    attrs["step_w"] = step_w;
+    attrs["step_h"] = step_h;
+    attrs["offset"] = offset;
+    attrs["min_max_aspect_ratios_order"] = min_max_aspect_ratios_order;
 
-  GcuRunner(
-      input_names, inputs, output_names, outputs, attrs, "prior_box", dev_ctx);
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "prior_box",
+              dev_ctx);
+  }
 }
 
 }  // namespace custom_kernel

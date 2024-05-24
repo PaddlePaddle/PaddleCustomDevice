@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -22,34 +22,39 @@ void TileKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 const phi::IntArray& repeat_times,
                 phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("tile");
   dev_ctx.template Alloc<T>(out);
 
-  TensorNameMap input_names;
-  input_names["X"] = {"x"};
+  if (LaunchAOTKernel()) {
+    phi::DenseTensor input_x = MaybeCreateOrTrans64To32bits(dev_ctx, x);
+    phi::DenseTensor output_z =
+        MaybeCreateOrTrans64To32bits(dev_ctx, *out, false);
+    auto repeat_times_data = repeat_times.GetData();
+    LAUNCH_TOPSATENOP(
+        topsatenTile, dev_ctx, output_z, input_x, repeat_times_data);
+    MaybeTransResult(dev_ctx, output_z, out);
+  } else {  // kernel impl base on JIT
+    TensorNameMap input_names;
+    input_names["X"] = {"x"};
 
-  TensorValueMap inputs;
-  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+    TensorValueMap inputs;
+    inputs["X"] = {const_cast<DenseTensor*>(&x)};
 
-  TensorNameMap output_names;
-  output_names["Out"] = {"out"};
+    TensorNameMap output_names;
+    output_names["Out"] = {"out"};
 
-  TensorValueMap outputs;
-  outputs["Out"] = {out};
+    TensorValueMap outputs;
+    outputs["Out"] = {out};
 
-  GcuAttributeMap attrs;
-  auto repeat_times_data = repeat_times.GetData();
-  attrs["repeat_times"] =
-      std::vector<int>(repeat_times_data.begin(), repeat_times_data.end());
+    GcuAttributeMap attrs;
+    auto repeat_times_data = repeat_times.GetData();
+    attrs["repeat_times"] =
+        std::vector<int>(repeat_times_data.begin(), repeat_times_data.end());
 
-  GcuRunner(input_names, inputs, output_names, outputs, attrs, "tile", dev_ctx);
+    GcuRunner(
+        input_names, inputs, output_names, outputs, attrs, "tile", dev_ctx);
+  }
 }
-
-template <typename T, typename Context>
-void TileGradKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    const phi::DenseTensor& out_grad,
-                    const phi::IntArray& repeat_times,
-                    phi::DenseTensor* x_grad) {}
 
 }  // namespace custom_kernel
 
@@ -63,14 +68,3 @@ PD_REGISTER_PLUGIN_KERNEL(tile,
                           int,
                           int64_t,
                           phi::dtype::float16) {}
-
-// PD_REGISTER_PLUGIN_KERNEL(tile_grad,
-//                           gcu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::TileGradKernel,
-//                           bool,
-//                           float,
-//                           double,
-//                           int,
-//                           int64_t,
-//                           phi::dtype::float16) {}

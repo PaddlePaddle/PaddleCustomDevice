@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/common_ops/common_ops.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 
@@ -23,14 +22,48 @@ void ExpandKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::IntArray& shape,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  PADDLE_GCU_KERNEL_TRACE("expand");
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "expand", expand);
+  if (LaunchAOTKernel()) {
+    // LAUNCH_TOPSATENOP(topsatenExpand, dev_ctx, *out, x, shape);
+
+    auto input_shape = phi::vectorize(x.dims());
     std::vector<int64_t> expand_shape = shape.GetData();
-    *out = expand(dev_ctx, x, expand_shape);
-    PADDLE_GCU_KERNEL_END("expand", expand);
-  } else {
+    PADDLE_ENFORCE_GE(
+        expand_shape.size(),
+        input_shape.size(),
+        phi::errors::InvalidArgument(
+            "ExpandKernel check shape failed, input_shape:%s, expand_shape:%s",
+            VectorToStr<int64_t>(input_shape).c_str(),
+            VectorToStr<int64_t>(expand_shape).c_str()));
+
+    std::vector<int64_t> result_shape;
+    const int64_t dims_diff = expand_shape.size() - input_shape.size();
+    for (int64_t i = 0; i < dims_diff; ++i) {
+      result_shape.emplace_back(expand_shape[i]);
+    }
+    for (int64_t i = 0; i < static_cast<int64_t>(input_shape.size()); ++i) {
+      int64_t dim = expand_shape[dims_diff + i];
+      if (dim < input_shape[i]) {
+        result_shape.emplace_back(input_shape[i]);
+      } else {
+        result_shape.emplace_back(dim);
+      }
+    }
+    PADDLE_ENFORCE_EQ(
+        out->dims(),
+        phi::make_ddim(result_shape),
+        phi::errors::InvalidArgument(
+            "ExpandKernel check dims failed, expect %s, but get %s",
+            out->dims().to_str().c_str(),
+            VectorToStr<int64_t>(result_shape).c_str()));
+    VLOG(3) << "ExpandKernel:" << VectorToStr<int64_t>(result_shape)
+            << ", out:" << out->dims();
+    dev_ctx.template Alloc<T>(out);
+    Broadcast(dev_ctx, x, out);
+
+  } else {  // kernel impl base on JIT
+    dev_ctx.template Alloc<T>(out);
     TensorNameMap input_names;
     input_names["X"] = {"x"};
 

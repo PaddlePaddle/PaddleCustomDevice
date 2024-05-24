@@ -12,23 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/utils.h"
+#include "common/gcu_op_runner.h"
 #include "kernels/funcs/gcu_kernel_funcs.h"
-#include "kernels/funcs/gcu_op_runner.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
 void NumelKernel(const Context& dev_ctx,
                  const phi::DenseTensor& input,
                  phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("numel");
   dev_ctx.template Alloc<int64_t>(out);
 
-  if (UseScatterMemory()) {
-    PADDLE_GCU_KERNEL_START(dev_ctx, "numel", numel);
-    custom_kernel::TensorFromValue(dev_ctx, input.numel(), dev_ctx, out);
-    dev_ctx.Wait();
-    PADDLE_GCU_KERNEL_END("numel", numel);
-  } else {
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
     TensorNameMap input_names;
     input_names["Input"] = {"input"};
 

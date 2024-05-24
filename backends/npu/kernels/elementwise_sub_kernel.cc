@@ -355,7 +355,7 @@ void SubtractGradKernel(const Context& dev_ctx,
     }
 
     // stage 3, negative
-    custom_kernel::NegKernel<T, Context>(dev_ctx, *tmp_dy, dy);
+    EXEC_NPU_CMD(aclnnNeg, dev_ctx, *tmp_dy, *dy);
   }
 }
 

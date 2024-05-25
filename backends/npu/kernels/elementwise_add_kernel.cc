@@ -233,18 +233,15 @@ void AddGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp;
+        phi::DenseTensor tmp(*dy);
         tmp.Resize(phi::make_ddim(dst_dims_vec));
-        dev_ctx.template Alloc<T>(&tmp);
         bool keep_dims = false;
         auto dtype = ConvertToNpuDtype(dy->dtype());
         EXEC_NPU_CMD(
-            aclnnReduceSum, dev_ctx, douty, reduce_axes, keep_dims, dtype, tmp);
-        tmp.Resize(dy->dims());
-        TensorCopy(dev_ctx, tmp, false, dy);
+            aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
       }
     } else {
-      TensorCopy(dev_ctx, douty, false, dy);
+      TensorCopy(dev_ctx, dout, false, dy);
     }
   }
   if (dx) {

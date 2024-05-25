@@ -35,7 +35,7 @@ typedef void (*AddTensorAddrToCachedList)(void *addr);
 void add_param_to_buf(const phi::DenseTensor &at_tensor) {
   static const auto addTensorAddrToCachedListAddr =
       GetOpApiFuncAddr("AddTensorAddrToCachedList");
-      
+
   AddTensorAddrToCachedList addTensorAddrToCachedListFunc =
       reinterpret_cast<AddTensorAddrToCachedList>(
           addTensorAddrToCachedListAddr);
@@ -114,9 +114,9 @@ void add_param_to_buf(const phi::IntArray &phi_array) {
                 static_cast<int64_t>(temp_array.size() * sizeof(int64_t)));
 }
 
-void add_param_to_buf(const std::vector<phi::DenseTensor*> &phi_tensor_list) {
+void add_param_to_buf(const std::vector<phi::DenseTensor *> &phi_tensor_list) {
   for (size_t i = 0; i < phi_tensor_list.size(); i++) {
-      add_param_to_buf(phi_tensor_list[i]);
+    add_param_to_buf(phi_tensor_list[i]);
   }
   auto counter = phi_tensor_list.size();
   MEMCPY_TO_BUF(&counter, sizeof(counter));

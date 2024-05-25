@@ -476,7 +476,7 @@ template <typename... Args> bool hit_cache(const phi::CustomContext& dev_ctx, \
   Args &&...args) {
   std::cout << "aclnn_api: " << aclnn_api << " " << std::endl;
   if (isInBlacklist(aclnn_api)) {
-      return false; // 如果匹配，直接返回false
+      return false;
   }
   static const auto ptaGetExecCacheAddr = GetOpApiFuncAddr("PTAGetExecCache");
   static const auto initPTACacheThreadLocalAddr =

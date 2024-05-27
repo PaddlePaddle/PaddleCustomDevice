@@ -471,6 +471,7 @@ static std::unordered_set<std::string> blacklist = {
   "aclnnDropoutGenMask",
   "aclnnDropoutDoMask",
   "aclnnInplaceFillDiagonal",
+  "aclnnCast",
 };
 
 inline bool isInBlacklist(const std::string& aclnn_api) {

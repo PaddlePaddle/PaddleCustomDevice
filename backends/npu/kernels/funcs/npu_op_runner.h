@@ -464,9 +464,15 @@ inline void UnInitCacheThreadLocal() {
 static std::unordered_set<std::string> blacklist = {
   "aclnnMatmul",
   "aclnnInplaceFillScalar",
+  "aclnnStack",
+  "aclnnExpand",
+  "aclnnPowTensorScalar",
+  "aclnnMuls",
+  "aclnnDropoutGenMask",
+  "aclnnDropoutDoMask",
+  "aclnnInplaceFillDiagonal",
 };
 
-// 检查aclnn_api是否在黑名单中
 inline bool isInBlacklist(const std::string& aclnn_api) {
   return blacklist.find(aclnn_api) != blacklist.end();
 }
@@ -474,7 +480,6 @@ inline bool isInBlacklist(const std::string& aclnn_api) {
 template <typename... Args> bool hit_cache(const phi::CustomContext& dev_ctx, \
   aclrtStream acl_stream, const char *aclnn_api, void *phrase2,               \
   Args &&...args) {
-  std::cout << "aclnn_api: " << aclnn_api << " " << std::endl;
   if (isInBlacklist(aclnn_api)) {
       return false;
   }
@@ -550,7 +555,6 @@ template <typename... Args> bool hit_cache(const phi::CustomContext& dev_ctx, \
       reinterpret_cast<UnInitHugeMemThreadLocal>(unInitMemAddr);          \
     if (hit_cache(dev_ctx, acl_stream, #aclnn_api,                        \
                   opApiFuncAddr, __VA_ARGS__)) {                          \
-      std::cout << "hit cache !!!" << std::endl;                          \
       break;                                                              \
     }                                                                     \
     if (initMemFunc) {                                                    \

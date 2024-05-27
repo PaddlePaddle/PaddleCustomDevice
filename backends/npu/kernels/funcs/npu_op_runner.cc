@@ -58,16 +58,9 @@ void add_param_to_buf(const phi::DenseTensor &at_tensor) {
   MEMCPY_TO_BUF(origin_strides.data(),
                 static_cast<int64_t>(origin_strides.size() * sizeof(int64_t)));
   // offset
-  // auto so = at_tensor.storage_offset();
-  // auto so = 0;
-  // MEMCPY_TO_BUF(&so, sizeof(so));
   // storage shape
   aclDataType acl_data_type = ConvertToNpuDtype(st);
 
-  // std::vector<int64_t> storageDims(dimNum - 1);
-  // if (acl_data_type != ACL_STRING) {
-  //   storageDims.push_back(at_tensor.numel() * sizeof(at_tensor_dtype));
-  // }
   std::vector<int64_t> storageDims(5);
   if (acl_data_type != ACL_STRING) {
     storageDims.push_back(at_tensor.numel() * sizeof(st));

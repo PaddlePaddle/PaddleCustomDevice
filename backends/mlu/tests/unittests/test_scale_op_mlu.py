@@ -148,6 +148,14 @@ class TestScaleFp16Op(TestScaleOp):
         self.check_output_with_place(self.place, atol=0.002)
 
 
+class TestScaleINT64Op(TestScaleOp):
+    def init_dtype_type(self):
+        self.dtype = np.int64
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=0.002)
+
+
 class TestScaleApiStatic(unittest.TestCase):
     def _executed_api(self, x, scale=1.0, bias=0.0):
         return paddle.scale(x, scale, bias)

@@ -39,8 +39,6 @@ COPY Ascend-cann-toolkit_${CANN_VERSION}_linux-*.run /usr/local/Ascend/
 RUN chmod +x Ascend-cann-toolkit_${CANN_VERSION}_linux-*.run && \
     ./Ascend-cann-toolkit_${CANN_VERSION}_linux-*.run --install --quiet && \
     rm -rf Ascend-cann-toolkit_${CANN_VERSION}_linux-*.run
-# fix bug in CANN 8.0.RC1
-RUN sed -i '205s/self.dim_3/self.ub_per_reser_number * self.dim_3/' /usr/local/Ascend/ascend-toolkit/8.0.RC1/opp/built-in/op_impl/ai_core/tbe/impl/dynamic/rotary_mul_grad.py
 # udpate envs for toolkit
 RUN echo "source /usr/local/Ascend/ascend-toolkit/set_env.sh" >> /root/.bashrc
 

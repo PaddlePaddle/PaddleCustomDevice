@@ -208,6 +208,12 @@ void MultiplyGradKernel(const Context& dev_ctx,
   if (dx) {
     phi::DenseTensor trans_y;
     NpuBroadcast<T>(dev_ctx, &y, y_axis, dst_dims, &trans_y);
+    // For inplace strategy, dx will be stored in addr of dout, which makes
+    // the result of dy wrong.
+    if (dx->IsSharedWith(dout)) {
+      dx->clear();
+      dx->Resize(x.dims());
+    }
     if (dx->dims() == dout.dims()) {
       dev_ctx.template Alloc<T>(dx);
       EXEC_NPU_CMD(aclnnMul, dev_ctx, dout, trans_y, *dx);

@@ -298,10 +298,9 @@ class TestRecompute(unittest.TestCase):
         pos.stop_gradient = False
 
         kwargs = {"pos": pos, "use_reentrant": True}
-        with self.assertRaises(ValueError):
-            loss_ref, param_ref, grad_ref = run_model(
-                recompute_block=[2], recompute_kwargs=kwargs
-            )
+        loss_ref, param_ref, grad_ref = run_model(
+            recompute_block=[2], recompute_kwargs=kwargs
+        )
 
         kwargs = {"pos": pos, "use_reentrant": False}
         loss_ref, param_ref, grad_ref = run_model(

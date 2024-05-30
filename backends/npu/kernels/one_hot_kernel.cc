@@ -85,7 +85,6 @@ void OneHotRawKernel(const Context& dev_ctx,
   auto out_dims = out->dims();
   out_dims[out_dims.size() - 1] = depth;
   out->Resize(out_dims);
-  auto out_shape_vec = phi::vectorize(out_dims);
 
   dev_ctx.template Alloc<float>(out);
   phi::DenseTensor transformed_out;
@@ -136,9 +135,6 @@ void OneHotKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::Scalar& num_classes_s,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  auto stream = dev_ctx.stream();
-
   custom_kernel::OneHotRawKernel<T, Context>(
       dev_ctx, x, num_classes_s, phi::DataType::FLOAT32, false, out);
 }

@@ -18,13 +18,38 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void AclopLabelSmoothMuls(const Context& place,
+                          const phi::DenseTensor* in,
+                          float val,
+                          phi::DenseTensor* out) {
+  out->Resize(in->dims());
+  place.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("Muls", {*in}, {*out}, {{"value", val}});
+  runner.Run(place.stream());
+}
+
+template <typename T, typename Context>
 void LabelSmoothMuls(const Context& place,
                      const phi::DenseTensor* in,
                      float val,
                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnMuls,
+      (custom_kernel::AclopLabelSmoothMuls<T, Context>(place, in, val, out)));
   out->Resize(in->dims());
   place.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner("Muls", {*in}, {*out}, {{"value", val}});
+  phi::Scalar value(val);
+  EXEC_NPU_CMD(aclnnMuls, place, *in, value, *out);
+}
+
+template <typename T, typename Context>
+void AclopLabelSmoothAdds(const Context& place,
+                          const phi::DenseTensor* in,
+                          float val,
+                          phi::DenseTensor* out) {
+  out->Resize(in->dims());
+  place.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("Adds", {*in}, {*out}, {{"value", val}});
   runner.Run(place.stream());
 }
 
@@ -33,9 +58,23 @@ void LabelSmoothAdds(const Context& place,
                      const phi::DenseTensor* in,
                      float val,
                      phi::DenseTensor* out) {
+  DO_COMPATIBILITY(
+      aclnnAdds,
+      (custom_kernel::AclopLabelSmoothAdds<T, Context>(place, in, val, out)));
   out->Resize(in->dims());
   place.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner("Adds", {*in}, {*out}, {{"value", val}});
+  phi::Scalar value(val);
+  phi::Scalar alpha(1.0f);
+  EXEC_NPU_CMD(aclnnAdds, place, *in, value, alpha, *out);
+}
+
+template <typename T, typename Context>
+void AclopLabelSmoothAddBroadCast(const Context& place,
+                                  const phi::DenseTensor* in1,
+                                  const phi::DenseTensor* in2,
+                                  phi::DenseTensor* out) {
+  place.template Alloc<T>(out);
+  const auto& runner = NpuOpRunner("AddV2", {*in1, *in2}, {*out}, {});
   runner.Run(place.stream());
 }
 
@@ -44,9 +83,20 @@ void LabelSmoothAddBroadCast(const Context& place,
                              const phi::DenseTensor* in1,
                              const phi::DenseTensor* in2,
                              phi::DenseTensor* out) {
-  place.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner("AddV2", {*in1, *in2}, {*out}, {});
-  runner.Run(place.stream());
+  DO_COMPATIBILITY(aclnnAdd,
+                   (custom_kernel::AclopLabelSmoothAddBroadCast<T, Context>(
+                       place, in1, in2, out)));
+
+  phi::Scalar alpha = 1;
+  if (in1->dtype() == phi::DataType::FLOAT32 &&
+      (in2->dtype() == phi::DataType::BFLOAT16 ||
+       in2->dtype() == phi::DataType::FLOAT16)) {
+    place.template Alloc<float>(out);
+  } else {
+    place.template Alloc<T>(out);
+  }
+
+  EXEC_NPU_CMD(aclnnAdd, place, *in1, *in2, alpha, *out);
 }
 
 template <typename T, typename Context>

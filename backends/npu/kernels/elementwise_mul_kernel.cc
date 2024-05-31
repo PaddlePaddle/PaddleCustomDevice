@@ -39,8 +39,12 @@ static void ReduceDims(const Context& dev_ctx,
     }
   }
   dev_ctx.template Alloc<T>(out);
-  const auto& runner = NpuOpRunner(
-      "ReduceSumD", {in}, {*out}, {{"axes", axes}, {"keep_dims", false}});
+  NpuOpRunner runner;
+  runner.SetType("ReduceSum");
+  runner.AddInput(in);
+  runner.AddInput(dev_ctx, std::move(axes));
+  runner.AddOutput(*out);
+  runner.AddAttr("keep_dims", false);
   runner.Run(stream);
 }
 

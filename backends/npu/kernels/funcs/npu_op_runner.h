@@ -463,15 +463,7 @@ inline void UnInitCacheThreadLocal() {
 
 static std::unordered_set<std::string> blacklist = {
   "aclnnMatmul",
-  "aclnnInplaceFillScalar",
-  "aclnnStack",
-  "aclnnExpand",
-  "aclnnPowTensorScalar",
   "aclnnMuls",
-  "aclnnDropoutGenMask",
-  "aclnnDropoutDoMask",
-  "aclnnInplaceFillDiagonal",
-  "aclnnCast",
 };
 
 inline bool isInBlacklist(const std::string& aclnn_api) {
@@ -587,6 +579,7 @@ template <typename... Args> bool hit_cache(const phi::CustomContext& dev_ctx, \
     if (releaseMemFunc) {                                                 \
       releaseMemFunc(nullptr, false);                                     \
     }                                                                     \
+    UnInitCacheThreadLocal();
   } while (false)
 
 #define DO_COMPATIBILITY(aclnn_api, originCallExpression)                 \

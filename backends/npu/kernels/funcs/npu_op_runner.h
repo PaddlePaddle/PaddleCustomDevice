@@ -579,7 +579,7 @@ template <typename... Args> bool hit_cache(const phi::CustomContext& dev_ctx, \
     if (releaseMemFunc) {                                                 \
       releaseMemFunc(nullptr, false);                                     \
     }                                                                     \
-    UnInitCacheThreadLocal();
+    UnInitCacheThreadLocal();                                             \
   } while (false)
 
 #define DO_COMPATIBILITY(aclnn_api, originCallExpression)                 \

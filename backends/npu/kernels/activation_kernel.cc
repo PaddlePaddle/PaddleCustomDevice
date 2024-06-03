@@ -655,10 +655,12 @@ void PowGradKernel(const Context& dev_ctx,
     factor_bc_tensor.set_meta(factor_bc_tensor_meta);
     dev_ctx.template Alloc<T>(&factor_bc_tensor);
     if (factor_bc_tensor.numel() > 1) {
-      const auto& runner_bc = NpuOpRunner("FillD",
-                                          {factor_tensor},
-                                          {factor_bc_tensor},
-                                          {{"dims", phi::vectorize(x_dims)}});
+      phi::DenseTensor tmp_dims_tensor;
+      TensorFromVector(dev_ctx, phi::vectorize(x_dims), dev_ctx, &tmp_dims_tensor);
+      const auto& runner_bc = NpuOpRunner("Fill",
+                                          {tmp_dims_tensor, factor_tensor},
+                                          {factor_bc_tensor});
+
       runner_bc.Run(stream);
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.

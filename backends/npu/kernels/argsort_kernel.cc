@@ -60,12 +60,13 @@ static void CastToFP32(const phi::CustomContext& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ArgsortKernel(const Context& dev_ctx,
-                   const phi::DenseTensor& in,
-                   int axis,
-                   bool descending,
-                   phi::DenseTensor* output,
-                   phi::DenseTensor* indices) {
+void AclopArgsortKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& in,
+                        int axis,
+                        bool descending,
+                        bool stable,
+                        phi::DenseTensor* output,
+                        phi::DenseTensor* indices) {
   // TODO(Aganlengzi): Sort may change the input data !
   // Here we make a deepcopy to workaround before it is fixed.
   if (in.dims().size() == 0) {
@@ -214,6 +215,39 @@ void ArgsortKernel(const Context& dev_ctx,
   }
 
   CastToInt64(dev_ctx, stream, indices_tmp, indices);
+}
+
+template <typename T, typename Context>
+void ArgsortKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& in,
+                   int axis,
+                   bool descending,
+                   bool stable,
+                   phi::DenseTensor* output,
+                   phi::DenseTensor* indices) {
+  DO_COMPATIBILITY(
+      aclnnSort,
+      (custom_kernel::AclopArgsortKernel<T, Context>(
+          dev_ctx, in, axis, descending, stable, output, indices)));
+
+  // TODO(Aganlengzi): Sort may change the input data !
+  // Here we make a deepcopy to workaround before it is fixed.
+  if (in.dims().size() == 0) {
+    dev_ctx.template Alloc<T>(output);
+    TensorCopy(dev_ctx, in, false, output);
+    dev_ctx.template Alloc<int64_t>(indices);
+    FillNpuTensorWithConstant<int64_t>(
+        indices, dev_ctx, static_cast<int64_t>(0));
+    indices->Resize(phi::make_ddim({}));
+    return;
+  }
+
+  int64_t dim = axis;
+  dev_ctx.template Alloc<int64_t>(indices);
+  dev_ctx.template Alloc<T>(output);
+  // bool stable = true;
+  EXEC_NPU_CMD(
+      aclnnSort, dev_ctx, in, stable, dim, descending, *output, *indices);
 }
 
 }  // namespace custom_kernel

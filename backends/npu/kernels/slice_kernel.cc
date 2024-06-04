@@ -93,7 +93,15 @@ void SliceRawKernel(const Context& dev_ctx,
   custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
   slice_dims = custom_kernel::GetSliceDims<int>(
       in_dims, axes, starts, ends, nullptr, nullptr);
-  out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
+
+  auto out_dims_vec = phi::vectorize(out_dims);
+  bool is_zero_dim_tensor = std::all_of(out_dims_vec.begin(),
+                                        out_dims_vec.end(),
+                                        [](auto dim) { return dim == 0; });
+  if (!is_zero_dim_tensor)
+    out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
+  else
+    out_dims = phi::make_ddim(out_dims_vec);
   out->Resize(out_dims);
 
   dev_ctx.template Alloc<T>(out);

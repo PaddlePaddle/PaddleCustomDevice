@@ -72,7 +72,7 @@ void MaskedSelectKernel(const Context& dev_ctx,
   out->Resize(phi::make_ddim({out_size_vec[0]}));
   dev_ctx.template Alloc<T>(out);
 
-  const auto& runner = NpuOpRunner("MaskedSelect", {x, mask}, {*out}, {});
+  const auto& runner = NpuOpRunner("MaskedSelectV2", {x, mask}, {*out}, {});
   runner.Run(stream);
 }
 

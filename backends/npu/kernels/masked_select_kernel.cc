@@ -72,8 +72,22 @@ void MaskedSelectKernel(const Context& dev_ctx,
   out->Resize(phi::make_ddim({out_size_vec[0]}));
   dev_ctx.template Alloc<T>(out);
 
-  const auto& runner = NpuOpRunner("MaskedSelect", {x, mask}, {*out}, {});
-  runner.Run(stream);
+  auto x_dims_vec = phi::vectorize(x.dims());
+  bool is_zero_dim_tensor = std::all_of(
+      x_dims_vec.begin(), x_dims_vec.end(), [](auto dim) { return dim == 0; });
+  NpuOpRunner runner;
+  if (!is_zero_dim_tensor)
+    runner.SetType("MaskedSelect")
+        .AddInput(x)
+        .AddInput(mask)
+        .AddOutput(*out)
+        .Run(stream);
+  else
+    runner.SetType("MaskedSelectV2")
+        .AddInput(x)
+        .AddInput(mask)
+        .AddOutput(*out)
+        .Run(stream);
 }
 
 template <typename T, typename Context>

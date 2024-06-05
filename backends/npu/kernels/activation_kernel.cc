@@ -656,10 +656,10 @@ void PowGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(&factor_bc_tensor);
     if (factor_bc_tensor.numel() > 1) {
       phi::DenseTensor tmp_dims_tensor;
-      TensorFromVector(dev_ctx, phi::vectorize(x_dims), dev_ctx, &tmp_dims_tensor);
-      const auto& runner_bc = NpuOpRunner("Fill",
-                                          {tmp_dims_tensor, factor_tensor},
-                                          {factor_bc_tensor});
+      TensorFromVector(
+          dev_ctx, phi::vectorize(x_dims), dev_ctx, &tmp_dims_tensor);
+      const auto& runner_bc = NpuOpRunner(
+          "Fill", {tmp_dims_tensor, factor_tensor}, {factor_bc_tensor});
 
       runner_bc.Run(stream);
     } else {
@@ -848,11 +848,11 @@ void HardSwishKernel(const Context& dev_ctx,
     tensor_scale.set_meta(meta_x);
     dev_ctx.template Alloc<T>(&tensor_scale);
     if (tensor_scale.numel() > 1) {
-      const auto& runner_fill =
-          NpuOpRunner("FillD",
-                      {tensor_scale_tmp},
-                      {tensor_scale},
-                      {{"dims", phi::vectorize(x.dims())}});
+      phi::DenseTensor tmp_x_dims_tensor;
+      TensorFromVector(
+          dev_ctx, phi::vectorize(x.dims()), dev_ctx, &tmp_x_dims_tensor);
+      const auto& runner_fill = NpuOpRunner(
+          "Fill", {tmp_x_dims_tensor, tensor_scale_tmp}, {tensor_scale});
       runner_fill.Run(stream);
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.
@@ -933,11 +933,13 @@ void HardSwishGradKernel(const Context& dev_ctx,
     tensor_threshold.set_meta(meta_x);
     dev_ctx.template Alloc<T>(&tensor_threshold);
     if (tensor_threshold.numel() > 1) {
+      phi::DenseTensor tmp_x_dims_tensor;
+      TensorFromVector(
+          dev_ctx, phi::vectorize(x.dims()), dev_ctx, &tmp_x_dims_tensor);
       const auto& runner_fill =
-          NpuOpRunner("FillD",
-                      {tensor_threshold_tmp},
-                      {tensor_threshold},
-                      {{"dims", phi::vectorize(x.dims())}});
+          NpuOpRunner("Fill",
+                      {tmp_x_dims_tensor, tensor_threshold_tmp},
+                      {tensor_threshold});
       runner_fill.Run(stream);
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.

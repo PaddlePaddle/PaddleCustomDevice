@@ -9,4 +9,3 @@ test_activation_op
 test_batch_norm_op_npu
 test_elu_op_npu
 test_eye_op_npu
-test_squared_l2_norm_op_npu

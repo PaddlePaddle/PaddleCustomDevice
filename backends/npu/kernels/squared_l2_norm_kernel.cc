@@ -50,11 +50,14 @@ void SquaredL2NormGradKernel(const Context& dev_ctx,
   phi::DenseTensorMeta broadcasted_meta = {x_grad->dtype(), x_grad->dims()};
   broadcasted_out_grad.set_meta(broadcasted_meta);
   dev_ctx.template Alloc<T>(&broadcasted_out_grad);
-  const auto& broadcast_runner =
-      NpuOpRunner("BroadcastToD",
-                  {out_grad},
-                  {broadcasted_out_grad},
-                  {{"shape", phi::vectorize(x_grad->dims())}});
+  phi::DenseTensor x_grad_tmp_dims_tensor;
+  TensorFromVector(dev_ctx,
+                   phi::vectorize(x_grad->dims()),
+                   dev_ctx,
+                   &x_grad_tmp_dims_tensor);
+  const auto& broadcast_runner = NpuOpRunner("BroadcastTo",
+                                             {out_grad, x_grad_tmp_dims_tensor},
+                                             {broadcasted_out_grad});
   broadcast_runner.Run(stream);
   // mul x
   phi::DenseTensor tmp_x_grad;

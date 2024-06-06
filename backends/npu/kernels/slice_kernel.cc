@@ -151,11 +151,10 @@ void SliceRawKernel(const Context& dev_ctx,
       axes.size(),
       phi::errors::InvalidArgument(
           "The size of starts must be equal to the size of axes."));
-  PADDLE_ENFORCE_EQ(
-      ends.size(),
-      axes.size(),
-      phi::errors::InvalidArgument(
-          "The size of ends must be equal to the size of axes."));
+  PADDLE_ENFORCE_EQ(ends.size(),
+                    axes.size(),
+                    phi::errors::InvalidArgument(
+                        "The size of ends must be equal to the size of axes."));
 
   // Infer output dims
   const auto& in_dims = x.dims();
@@ -165,8 +164,7 @@ void SliceRawKernel(const Context& dev_ctx,
   for (size_t i = 0; i < axes.size(); ++i) {
     // when start == -1 && end == start+1
     if (starts[i] == -1 && ends[i] == 0 && infer_flags[i] == -1) {
-      auto ret =
-          std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
+      auto ret = std::find(decrease_axis.begin(), decrease_axis.end(), axes[i]);
       if (ret != decrease_axis.end()) {
         ends[i] = in_dims[axes[i]];
       }

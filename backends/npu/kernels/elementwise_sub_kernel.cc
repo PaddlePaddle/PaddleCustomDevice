@@ -1,3 +1,4 @@
+
 // Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +19,9 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopNegKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& x,
-                    phi::DenseTensor* out);
+void NegKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out);
 
 template <typename T, typename Context>
 void SubtractRawKernel(const Context& dev_ctx,
@@ -74,6 +75,58 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
   // 1. [2, 3, 5] => [3, 5], ReduceSumD on axis = 0, keep_dims = false.
   // 2. [3, 5] => [1, 5], ReduceSumD on axis = 0, keep_dims = true.
 
+  if (dx) {
+    dev_ctx.template Alloc<T>(dx);
+    // For dx
+    // stage 1
+    auto reduce_ndim = dout.dims().size() - dx->dims().size();
+    std::vector<int> axes;
+    for (auto i = 0; i < reduce_ndim; ++i) {
+      axes.push_back(i);
+    }
+    phi::DenseTensor axes_t;
+    axes_t.Resize({axes.size()});
+    dev_ctx.template Alloc<int>(&axes_t);
+    custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t);
+
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
+    phi::DenseTensor reduced_dout;
+    if (axes.size() != 0) {
+      std::vector<int64_t> reduced_dout_dims;
+      for (auto i = reduce_ndim; i < dout.dims().size(); ++i) {
+        reduced_dout_dims.push_back(dout.dims()[i]);
+      }
+
+      phi::DenseTensorMeta reduced_dout_meta = {
+          dx->dtype(), phi::make_ddim(reduced_dout_dims)};
+      reduced_dout.set_meta(reduced_dout_meta);
+      dev_ctx.template Alloc<T>(&reduced_dout);
+
+      const auto& sum_runner = NpuOpRunner(
+          "ReduceSum", {dout, axes_t}, {reduced_dout}, {{"keep_dims", false}});
+      sum_runner.Run(stream, true);
+      tmp_dout = &reduced_dout;
+    }
+
+    // stage 2
+    axes.clear();
+    for (auto i = 0; i < dx->dims().size(); ++i) {
+      if (dx->dims()[i] == 1) {
+        axes.push_back(i);
+      }
+    }
+    if (axes.size() != 0) {
+      phi::DenseTensor axes_t1;
+      axes_t1.Resize({axes.size()});
+      dev_ctx.template Alloc<int>(&axes_t1);
+      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
+      const auto& sum_runner = NpuOpRunner(
+          "ReduceSum", {*tmp_dout, axes_t1}, {*dx}, {{"keep_dims", true}});
+      sum_runner.Run(stream, true);
+    } else {
+      TensorCopy(dev_ctx, *tmp_dout, false, dx);
+    }
+  }
   if (dy) {
     dev_ctx.template Alloc<T>(dy);
     // For dy
@@ -135,7 +188,7 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
     }
 
     // stage 3, negative
-    custom_kernel::AclopNegKernel<T, Context>(dev_ctx, *tmp_dy, dy);
+    custom_kernel::NegKernel<T, Context>(dev_ctx, *tmp_dy, dy);
   }
 }
 
@@ -192,9 +245,11 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dout.set_meta(reduced_dout_meta);
       dev_ctx.template Alloc<T>(&reduced_dout);
 
-      const auto& sum_runner = NpuOpRunner(
-          "ReduceSum", {dout, axes_t}, {reduced_dout}, {{"keep_dims", false}});
-      sum_runner.Run(stream, true);
+      keep_dim = false;
+      auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
+      auto axis = phi::IntArray(axes);
+      EXEC_NPU_CMD(
+          aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
       tmp_dout = &reduced_dout;
     }
 
@@ -227,22 +282,6 @@ void SubtractGradKernel(const Context& dev_ctx,
       TensorCopy(dev_ctx, *tmp_dout, false, dx);
     }
   }
-}
-
-template <typename T, typename Context>
-void SubtractGradKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& x,
-                        const phi::DenseTensor& y,
-                        const phi::DenseTensor& dout,
-                        int axis,
-                        phi::DenseTensor* dx,
-                        phi::DenseTensor* dy) {
-  DO_COMPATIBILITY(aclnnReduceSum,
-                   (custom_kernel::AclopSubtractGradKernel<T, Context>(
-                       dev_ctx, x, y, dout, axis, dx, dy)));
-  auto stream = dev_ctx.stream();
-  bool keep_dim;
-
   if (dy) {
     dev_ctx.template Alloc<T>(dy);
     // For dy
@@ -312,63 +351,6 @@ void SubtractGradKernel(const Context& dev_ctx,
 
     // stage 3, negative
     EXEC_NPU_CMD(aclnnNeg, dev_ctx, *tmp_dy, *dy);
-  }
-  if (dx) {
-    dev_ctx.template Alloc<T>(dx);
-    // dev_ctx.template Alloc<T>(dout);
-    // For dx
-    // stage 1
-    auto reduce_ndim = dout.dims().size() - dx->dims().size();
-    std::vector<int> axes;
-    for (auto i = 0; i < reduce_ndim; ++i) {
-      axes.push_back(i);
-    }
-    phi::DenseTensor axes_t;
-    axes_t.Resize({axes.size()});
-    dev_ctx.template Alloc<int>(&axes_t);
-    custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t);
-
-    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
-    phi::DenseTensor reduced_dout;
-    if (axes.size() != 0) {
-      std::vector<int64_t> reduced_dout_dims;
-      for (auto i = reduce_ndim; i < dout.dims().size(); ++i) {
-        reduced_dout_dims.push_back(dout.dims()[i]);
-      }
-
-      phi::DenseTensorMeta reduced_dout_meta = {
-          dx->dtype(), phi::make_ddim(reduced_dout_dims)};
-      reduced_dout.set_meta(reduced_dout_meta);
-      dev_ctx.template Alloc<T>(&reduced_dout);
-
-      keep_dim = false;
-      auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
-      auto axis = phi::IntArray(axes);
-      EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
-      tmp_dout = &reduced_dout;
-    }
-
-    // stage 2
-    axes.clear();
-    for (auto i = 0; i < dx->dims().size(); ++i) {
-      if (dx->dims()[i] == 1) {
-        axes.push_back(i);
-      }
-    }
-    if (axes.size() != 0) {
-      phi::DenseTensor axes_t1;
-      axes_t1.Resize({axes.size()});
-      dev_ctx.template Alloc<int>(&axes_t1);
-      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
-      keep_dim = true;
-      auto dtype = ConvertToNpuDtype(dx->dtype());
-      auto axis = phi::IntArray(axes);
-      EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, *tmp_dout, axis, keep_dim, dtype, *dx);
-    } else {
-      TensorCopy(dev_ctx, *tmp_dout, false, dx);
-    }
   }
 }
 

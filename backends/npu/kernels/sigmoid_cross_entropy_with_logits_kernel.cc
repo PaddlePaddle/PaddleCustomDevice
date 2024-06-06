@@ -45,20 +45,31 @@ void SigmoidCrossEntropyWithLogitsKernel(
     int ignore_index,
     phi::DenseTensor* out) {
   CheckAttrs(normalize, ignore_index);
-  if (pos_weight.get_ptr() == nullptr) {
-    dev_ctx.template Alloc<T>(out);
-    auto stream = dev_ctx.stream();
 
-    const auto& runner =
-        NpuOpRunner("SigmoidCrossEntropyWithLogits", {x, label}, {*out}, {});
-    runner.Run(stream);
+  std::string reduction = "none";
+  phi::DenseTensor weight_tensor;
+  phi::DenseTensor pos_weight_tensor;
+  phi::DenseTensorMeta weight_tensor_meta = {phi::DataType::FLOAT32, x.dims()};
+  weight_tensor.set_meta(weight_tensor_meta);
+  FillNpuTensorWithConstant<float>(&weight_tensor, dev_ctx, 1.0);
+  weight_tensor.Resize(x.dims());
+
+  if (pos_weight.get_ptr() == nullptr) {
+    pos_weight_tensor.set_meta(weight_tensor_meta);
+    FillNpuTensorWithConstant<float>(&pos_weight_tensor, dev_ctx, 1.0);
+    pos_weight_tensor.Resize(x.dims());
   } else {
-    // TODO(duanyanhui): add support for pos_weight with
-    // SigmoidCrossEntropyWithLogitsV2. Manually fill weight tensor with 1 will
-    // get the output filled with 0. Skip the case when pos_weight not equal to
-    // nullptr currently.
-    PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
+    pos_weight_tensor = *pos_weight.get_ptr();
   }
+
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner = NpuOpRunner("SigmoidCrossEntropyWithLogitsV2",
+                                   {x, label, weight_tensor, pos_weight_tensor},
+                                   {*out},
+                                   {{"reduction", reduction}});
+  runner.Run(stream);
 }
 
 template <typename T, typename Context>
@@ -72,18 +83,32 @@ void SigmoidCrossEntropyWithLogitsGradKernel(
     int ignore_index,
     phi::DenseTensor* dx) {
   CheckAttrs(normalize, ignore_index);
-  if (pos_weight.get_ptr() == nullptr) {
-    dev_ctx.template Alloc<T>(dx);
-    auto stream = dev_ctx.stream();
 
-    const auto& runner_dx = NpuOpRunner(
-        "SigmoidCrossEntropyWithLogitsGrad", {x, label, dout}, {*dx}, {});
-    runner_dx.Run(stream);
+  std::string reduction = "none";
+  phi::DenseTensor weight_tensor;
+  phi::DenseTensor pos_weight_tensor;
+  phi::DenseTensorMeta weight_tensor_meta = {phi::DataType::FLOAT32, x.dims()};
+  weight_tensor.set_meta(weight_tensor_meta);
+  FillNpuTensorWithConstant<float>(&weight_tensor, dev_ctx, 1.0);
+  weight_tensor.Resize(x.dims());
+
+  if (pos_weight.get_ptr() == nullptr) {
+    pos_weight_tensor.set_meta(weight_tensor_meta);
+    FillNpuTensorWithConstant<float>(&pos_weight_tensor, dev_ctx, 1.0);
+    pos_weight_tensor.Resize(x.dims());
   } else {
-    // TODO(duanyanhui): add support for pos_weight with
-    // SigmoidCrossEntropyWithLogitsGradV2.
-    PADDLE_THROW(phi::errors::Unimplemented("pos_weight is not supported."));
+    pos_weight_tensor = *pos_weight.get_ptr();
   }
+
+  dev_ctx.template Alloc<T>(dx);
+  auto stream = dev_ctx.stream();
+
+  const auto& runner =
+      NpuOpRunner("SigmoidCrossEntropyWithLogitsGradV2",
+                  {x, label, dout, weight_tensor, pos_weight_tensor},
+                  {*dx},
+                  {{"reduction", reduction}});
+  runner.Run(stream);
 }
 
 }  // namespace custom_kernel

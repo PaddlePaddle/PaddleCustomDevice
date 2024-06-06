@@ -18,18 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void CastKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                phi::DataType dtype,
-                phi::DenseTensor* out);
-
-template <typename T, typename Context>
-void AclopScaleKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::Scalar& in_scale,
-                      const phi::Scalar& in_bias,
-                      bool bias_after_scale,
-                      phi::DenseTensor* out) {
+void ScaleKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::Scalar& in_scale,
+                 const phi::Scalar& in_bias,
+                 bool bias_after_scale,
+                 phi::DenseTensor* out) {
   auto scale = in_scale.to<float>();
   auto bias = in_bias.to<float>();
   auto stream = dev_ctx.stream();
@@ -37,10 +31,6 @@ void AclopScaleKernel(const Context& dev_ctx,
   VLOG(4) << "scale:" << scale << ", bias:" << bias
           << " ,bias_after_scale:" << bias_after_scale;
   dev_ctx.template Alloc<T>(out);
-  if (std::isinf(scale) || std::isnan(scale)) {
-    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    return;
-  }
   if (!bias_after_scale) {
     bias *= scale;
   }
@@ -88,83 +78,6 @@ void AclopScaleKernel(const Context& dev_ctx,
   }
 }
 
-template <typename T, typename Context>
-void ScaleKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::Scalar& in_scale,
-                 const phi::Scalar& in_bias,
-                 bool bias_after_scale,
-                 phi::DenseTensor* out) {
-  DO_COMPATIBILITY(aclnnMuls,
-                   (custom_kernel::AclopScaleKernel<T, Context>(
-                       dev_ctx, x, in_scale, in_bias, bias_after_scale, out)));
-
-  DO_COMPATIBILITY(aclnnAdds,
-                   (custom_kernel::AclopScaleKernel<T, Context>(
-                       dev_ctx, x, in_scale, in_bias, bias_after_scale, out)));
-
-  auto scale = in_scale.to<float>();
-  auto bias = in_bias.to<float>();
-  float alpha = 1.0;
-  VLOG(4) << "scale:" << scale << ", bias:" << bias
-          << " ,bias_after_scale:" << bias_after_scale;
-
-  if (std::isinf(scale) || std::isnan(scale)) {
-    FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(scale));
-    return;
-  }
-
-  if (!bias_after_scale) {
-    bias *= scale;
-  }
-
-  phi::Scalar scale_scalar = scale;
-  phi::Scalar bias_scalar = bias;
-  phi::Scalar alpha_scalar = alpha;
-
-  if (x.dtype() == phi::DataType::INT64 || x.dtype() == phi::DataType::INT32) {
-    phi::DenseTensor cast_x;
-    if (x.dtype() == phi::DataType::INT32) {
-      cast_x = x;
-    } else {
-      cast_x.Resize(x.dims());
-      dev_ctx.Alloc(&cast_x, phi::DataType::INT32);
-      custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
-    }
-
-    phi::DenseTensor mid_out;
-    mid_out.Resize(out->dims());
-    dev_ctx.Alloc(&mid_out, phi::DataType::FLOAT32);
-
-    EXEC_NPU_CMD(aclnnMuls, dev_ctx, cast_x, scale_scalar, mid_out);
-    EXEC_NPU_CMD(
-        aclnnAdds, dev_ctx, mid_out, bias_scalar, alpha_scalar, mid_out);
-
-    dev_ctx.template Alloc<T>(out);
-    custom_kernel::CastKernel<T, Context>(dev_ctx, mid_out, out->dtype(), out);
-
-  } else {
-    phi::DenseTensor cast_x;
-    if (x.dtype() == phi::DataType::FLOAT32) {
-      cast_x = x;
-    } else {
-      cast_x.Resize(x.dims());
-      dev_ctx.Alloc(&cast_x, phi::DataType::FLOAT32);
-      custom_kernel::CastKernel<T, Context>(dev_ctx, x, out->dtype(), &cast_x);
-    }
-
-    phi::DenseTensor mid_out;
-    mid_out.Resize(out->dims());
-    dev_ctx.Alloc(&mid_out, phi::DataType::FLOAT32);
-
-    EXEC_NPU_CMD(aclnnMuls, dev_ctx, cast_x, scale_scalar, mid_out);
-    EXEC_NPU_CMD(
-        aclnnAdds, dev_ctx, mid_out, bias_scalar, alpha_scalar, mid_out);
-
-    dev_ctx.template Alloc<T>(out);
-    custom_kernel::CastKernel<T, Context>(dev_ctx, mid_out, out->dtype(), out);
-  }
-}
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(scale,

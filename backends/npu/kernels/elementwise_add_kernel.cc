@@ -214,13 +214,6 @@ void AddGradKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnReduceSum,
                    (custom_kernel::AddGradAclop<T, Context>(
                        dev_ctx, x, y, dout, axis, dx, dy)));
-  // aclnnReduceSum will change the dout after calculating dx
-  // so we copy dout for later dy calculation
-  phi::DenseTensor douty;
-  phi::DenseTensorMeta douty_meta = {dout.dtype(), dout.dims()};
-  douty.set_meta(douty_meta);
-  dev_ctx.template Alloc<T>(&douty);
-  TensorCopy(dev_ctx, dout, false, &douty);
   axis = (axis == -1 ? std::abs(x.dims().size() - y.dims().size()) : axis);
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
@@ -239,15 +232,19 @@ void AddGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp;
+        // For inplace strategy, dx will be stored in addr of dout, which makes
+        // the result of dy wrong.
+        if (dx->IsSharedWith(dout)) {
+          dx->clear();
+          dx->Resize(x.dims());
+          dev_ctx.template Alloc<T>(dx);
+        }
+        phi::DenseTensor tmp(*dx);
         tmp.Resize(phi::make_ddim(dst_dims_vec));
-        dev_ctx.template Alloc<T>(&tmp);
         bool keep_dims = false;
         auto dtype = ConvertToNpuDtype(dx->dtype());
         EXEC_NPU_CMD(
             aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
-        tmp.Resize(dx->dims());
-        TensorCopy(dev_ctx, tmp, false, dx);
       }
     } else {
       TensorCopy(dev_ctx, dout, false, dx);
@@ -270,18 +267,15 @@ void AddGradKernel(const Context& dev_ctx,
         }
       }
       if (!reduce_axes.empty()) {
-        phi::DenseTensor tmp;
+        phi::DenseTensor tmp(*dy);
         tmp.Resize(phi::make_ddim(dst_dims_vec));
-        dev_ctx.template Alloc<T>(&tmp);
         bool keep_dims = false;
         auto dtype = ConvertToNpuDtype(dy->dtype());
         EXEC_NPU_CMD(
-            aclnnReduceSum, dev_ctx, douty, reduce_axes, keep_dims, dtype, tmp);
-        tmp.Resize(dy->dims());
-        TensorCopy(dev_ctx, tmp, false, dy);
+            aclnnReduceSum, dev_ctx, dout, reduce_axes, keep_dims, dtype, tmp);
       }
     } else {
-      TensorCopy(dev_ctx, douty, false, dy);
+      TensorCopy(dev_ctx, dout, false, dy);
     }
   }
 }

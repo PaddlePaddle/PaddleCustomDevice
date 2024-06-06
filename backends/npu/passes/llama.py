@@ -59,6 +59,25 @@ def remove_residual_in_fused_bias_residual_layernorm():
 
 
 @ir.RegisterPass
+def remove_blha_get_max_len():
+    def pattern(seq_lens_encoder, seq_lens_decoder, batch_size):
+        blha_get_max_len = ir.PassDesc.OP.blha_get_max_len(
+            seq_lens_encoder=seq_lens_encoder,
+            seq_lens_decoder=seq_lens_decoder,
+            batch_size=batch_size,
+        )
+        return (
+            blha_get_max_len.Output("max_enc_len_this_time")[0],
+            blha_get_max_len.Output("max_dec_len_this_time")[0],
+        )
+
+    def replace(seq_lens_encoder, seq_lens_decoder, batch_size):
+        return seq_lens_encoder, seq_lens_decoder
+
+    return pattern, replace
+
+
+@ir.RegisterPass
 def llama_fuse_attention_layer():
     def pattern(
         hidden_state,

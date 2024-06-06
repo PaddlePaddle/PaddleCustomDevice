@@ -37,6 +37,7 @@ def addPasses(pass_builder, model_type, quant_type):
     if model_type == "llama" and quant_type == "a8w8":
         register_pass(pass_builder, "remove_residual_in_fused_bias_residual_layernorm")
         register_pass(pass_builder, "remove_residual_in_rms_norm")
+        register_pass(pass_builder, "remove_blha_get_max_len")
         register_pass(pass_builder, "llama_fuse_attention_smooth_quant_layer_begin")
         register_pass(pass_builder, "llama_fuse_attention_smooth_quant_layer_end")
         register_pass(pass_builder, "llama_fuse_attention_smooth_quant_layer")
@@ -46,6 +47,7 @@ def addPasses(pass_builder, model_type, quant_type):
     elif model_type == "llama":
         register_pass(pass_builder, "remove_residual_in_fused_bias_residual_layernorm")
         register_pass(pass_builder, "remove_residual_in_rms_norm")
+        register_pass(pass_builder, "remove_blha_get_max_len")
         register_pass(pass_builder, "llama_fuse_attention_layer_begin")
         register_pass(pass_builder, "llama_fuse_attention_layer_end")
         register_pass(pass_builder, "llama_fuse_attention_layer")

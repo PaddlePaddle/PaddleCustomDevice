@@ -34,23 +34,35 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
             "mean": 0.0,
             "std": 1.0,
             "seed": 10,
+            "a": -2.0,
+            "b": 2.0,
         }
         self.outputs = ["Out"]
 
     def test_cpu(self):
-        self.gaussian_random_test(place=base.CPUPlace())
-        self.gaussian_random_test_eager(place=base.CPUPlace())
+        self.gaussian_random_test(
+            place=base.CPUPlace(), dtype=core.VarDesc.VarType.FP32
+        )
+        self.gaussian_random_test_eager(
+            place=base.CPUPlace(), dtype=core.VarDesc.VarType.FP32
+        )
 
     def test_mlu(self):
         if core.is_compiled_with_custom_device("mlu"):
-            self.gaussian_random_test(place=paddle.CustomPlace("mlu", 0))
+            self.gaussian_random_test(
+                place=paddle.CustomPlace("mlu", 0), dtype=core.VarDesc.VarType.FP32
+            )
 
-    def gaussian_random_test(self, place):
+    def gaussian_random_test(self, place, dtype):
 
         program = base.Program()
         block = program.global_block()
         vout = block.create_var(name="Out")
-        op = block.append_op(type=self.op_type, outputs={"Out": vout}, attrs=self.attrs)
+        op = block.append_op(
+            type=self.op_type,
+            outputs={"Out": vout},
+            attrs={**self.attrs, "dtype": dtype},
+        )
 
         op.desc.infer_var_type(block.desc)
         op.desc.infer_shape(block.desc)
@@ -67,7 +79,7 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
 
     # TruncatedNormal.__call__ has no return value, so here call _C_ops api
     # directly
-    def gaussian_random_test_eager(self, place):
+    def gaussian_random_test_eager(self, place, dtype):
         with base.dygraph.guard(place):
             with base.dygraph.base.guard():
                 out = paddle._C_ops.truncated_gaussian_random(
@@ -75,7 +87,9 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
                     self.attrs["mean"],
                     self.attrs["std"],
                     self.attrs["seed"],
-                    core.VarDesc.VarType.FP32,
+                    self.attrs["a"],
+                    self.attrs["b"],
+                    dtype,
                     place,
                 )
                 self.assertAlmostEqual(numpy.mean(out.numpy()), 0.0, delta=0.1)

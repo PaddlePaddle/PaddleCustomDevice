@@ -48,12 +48,15 @@ COPY ${ASCEND_KLS} /usr/local/Ascend/
 RUN chmod +x ${ASCEND_KLS} && ./${ASCEND_KLS} --install --quiet && rm -rf ${ASCEND_KLS}
 
 # Install Ascend Transformer Boost
-ARG ASCEND_ATB=Ascend-mindie*linux*.run
+ARG ASCEND_ATB=Ascend-mindie-atb*linux*_abi1.run
 COPY ${ASCEND_ATB} /usr/local/Ascend/
 RUN . /usr/local/Ascend/ascend-toolkit/set_env.sh && \
     chmod +x ${ASCEND_ATB} && ./${ASCEND_ATB} --install --quiet && rm -rf ${ASCEND_ATB}
-# update env for mindie
-RUN echo "source /usr/local/Ascend/mindie/set_env.sh" >> /root/.bashrc
+# fix accuracy to turn off memory optim and cache by default
+RUN sed -i "s/ATB_OPSRUNNER_SETUP_CACHE_ENABLE=[0-9]/ATB_OPSRUNNER_SETUP_CACHE_ENABLE=0/g" /usr/local/Ascend/atb/set_env.sh && \
+    sed -i "s/ATB_WORKSPACE_MEM_ALLOC_GLOBAL=[0-9]/ATB_WORKSPACE_MEM_ALLOC_GLOBAL=0/g" /usr/local/Ascend/atb/set_env.sh && \
+    sed -i "s/ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=[0-9]/ATB_WORKSPACE_MEM_ALLOC_ALG_TYPE=0/g" /usr/local/Ascend/atb/set_env.sh && \
+    echo "source /usr/local/Ascend/atb/set_env.sh" >> /root/.bashrc
 
 # install post process ops
 COPY code-share /usr/local/Ascend/code-share/

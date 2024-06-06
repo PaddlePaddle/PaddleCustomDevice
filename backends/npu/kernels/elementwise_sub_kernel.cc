@@ -137,6 +137,33 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
     // stage 3, negative
     custom_kernel::AclopNegKernel<T, Context>(dev_ctx, *tmp_dy, dy);
   }
+}
+
+template <typename T, typename Context>
+void SubtractGradKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        const phi::DenseTensor& y,
+                        const phi::DenseTensor& dout,
+                        int axis,
+                        phi::DenseTensor* dx,
+                        phi::DenseTensor* dy) {
+  DO_COMPATIBILITY(aclnnReduceSum,
+                   (custom_kernel::AclopSubtractGradKernel<T, Context>(
+                       dev_ctx, x, y, dout, axis, dx, dy)));
+  auto stream = dev_ctx.stream();
+  bool keep_dim;
+
+  // NOTE(zhiqiu): It seems npu Sub follow the broadcast sematics with
+  // default axis=-1?
+  // So, the sub_grad should do reduce if needed.
+  // For example, the shape of each variable in elementwise_sub:
+  // x, dx: [2, 3, 5]
+  // y, dy: [1, 5]
+  // out, dout: [2, 3, 5]
+  // Then, out = x - y  =>  dx = dout, dy = -dout
+  // And, the shape of dy can be computed by two stages reduce,
+  // 1. [2, 3, 5] => [3, 5], ReduceSumD on axis = 0, keep_dims = false.
+  // 2. [3, 5] => [1, 5], ReduceSumD on axis = 0, keep_dims = true.'
 
   if (dx) {
     dev_ctx.template Alloc<T>(dx);
@@ -183,9 +210,19 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
       axes_t1.Resize({axes.size()});
       dev_ctx.template Alloc<int>(&axes_t1);
       custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
-      const auto& sum_runner = NpuOpRunner(
-          "ReduceSum", {*tmp_dout, axes_t1}, {*dx}, {{"keep_dims", true}});
-      sum_runner.Run(stream, true);
+      // For inplace strategy, dx will be stored in addr of dout, which makes
+      // the result of dy wrong.
+      if (dx->IsSharedWith(dout)) {
+        dx->clear();
+        dx->Resize(x.dims());
+        dev_ctx.template Alloc<T>(dx);
+      }
+      phi::DenseTensor tmp(*dx);
+      keep_dim = true;
+      auto dtype = ConvertToNpuDtype(dx->dtype());
+      auto axis = phi::IntArray(axes);
+      EXEC_NPU_CMD(
+          aclnnReduceSum, dev_ctx, *tmp_dout, axis, keep_dim, dtype, tmp);
     } else {
       TensorCopy(dev_ctx, *tmp_dout, false, dx);
     }
@@ -215,7 +252,7 @@ void SubtractGradKernel(const Context& dev_ctx,
     for (auto i = 0; i < reduce_ndim; ++i) {
       axes.push_back(i);
     }
-    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&douty);
+    phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
     phi::DenseTensor reduced_dy;
     phi::DenseTensor reduced_dout;
 
@@ -238,7 +275,7 @@ void SubtractGradKernel(const Context& dev_ctx,
       auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
       auto axis = phi::IntArray(reduced_dout_dims);
       EXEC_NPU_CMD(
-          aclnnReduceSum, dev_ctx, douty, axis, keep_dim, dtype, reduced_dout);
+          aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
       tmp_dout = &reduced_dout;
     }
 

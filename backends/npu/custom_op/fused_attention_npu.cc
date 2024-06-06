@@ -148,7 +148,7 @@ std::vector<paddle::Tensor> npu_flash_attention(
            "The value tensor dtype must be bfloat16 or float16 , but got ",
            value_dtype);
 
-  const int32_t head_num = query_tensor_dims[2];
+  const int64_t head_num = query_tensor_dims[2];
   const double scale = 1.0f / std::sqrt(query_tensor_dims[3]);
 
   void* realShiftOptional = nullptr;
@@ -369,7 +369,7 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
            "The dropout value must be in range of [0, 1], but got ",
            dropout);
 
-  const int32_t head_num = query_tensor_dims[2];
+  const int64_t head_num = query_tensor_dims[2];
   const double scale = 1.0f / std::sqrt(query_tensor_dims[3]);
 
   void* realShiftOptional = nullptr;
@@ -394,6 +394,8 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
 
   if (get_dropout_status(keep_prob) == DropOutStatus::DROPOUT_NORMAL) {
     dropmask->Resize({numel / 8});
+    seed = get_single(seed_tensor, *dev_ctx);
+    offset = get_single(offset_tensor, *dev_ctx);
     (*dev_ctx).Alloc(dropmask.get(), phi::DataType::UINT8);
     EXEC_NPU_CMD(aclnnDropoutGenMask,
                  *dev_ctx,
@@ -402,8 +404,6 @@ std::vector<paddle::Tensor> npu_flash_attention_grad(
                  seed,
                  offset,
                  *dropmask);
-    seed = get_single(seed_tensor, *dev_ctx);
-    offset = get_single(offset_tensor, *dev_ctx);
   } else if (get_dropout_status(keep_prob) == DropOutStatus::DROPOUT_ALL) {
     dropmask->Resize({numel / 8});
     (*dev_ctx).Alloc(dropmask.get(), phi::DataType::UINT8);

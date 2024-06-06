@@ -44,7 +44,18 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
   std::vector<int64_t> slice_size(data_shape);
 
   std::vector<int64_t> out_shape(data_shape);
-  out_shape[axis] = indices_shape[0];
+  auto index_rank = indices_shape.size();
+  if (index_rank == 0) {
+    out_shape.erase(out_shape.begin() + axis);
+  } else if (index_rank == 1) {
+    out_shape[axis] = indices_shape[0];
+  } else {
+    PADDLE_ENFORCE_LE(index_rank,
+                      1,
+                      phi::errors::InvalidArgument(
+                          "index rank should <= 1, but got index shape: %s",
+                          VectorToString(indices_shape)));
+  }
 
   builder::Type scalar_type(out_shape, data.GetType().GetPrimitiveType());
   for (int64_t i = 0; i < axis; i++) {
@@ -79,6 +90,15 @@ IMPLEMT_EQUIVALENCE_TRANS_FUNC(
   } else {
     axis = axis < 0 ? axis + data.GetType().GetShape().size() : axis;
   }
+
+  // unsqueeze out_grad to aot when index is scalar
+  auto index_rank = index.GetType().GetShape().size();
+  if (index_rank == 0) {
+    std::vector<int64_t> tmp_dims = source.GetType().GetShape();
+    tmp_dims.insert(tmp_dims.begin() + axis, 1);
+    source = builder::Reshape(source, tmp_dims);
+  }
+
   // create buffer
   auto input = builder::ZerosLike(data);
   // create scatter params

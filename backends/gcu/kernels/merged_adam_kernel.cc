@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/gcu_op_runner.h"
+#include "common/gcu_op_runner.h"
+#include "kernels/funcs/gcu_kernel_funcs.h"
 
 namespace custom_kernel {
 static void CheckInputs(
@@ -146,6 +147,7 @@ void MergedAdamKernel(
     std::vector<phi::DenseTensor*> beta1_pow_out,
     std::vector<phi::DenseTensor*> beta2_pow_out,
     std::vector<phi::DenseTensor*> master_param_out) {
+  PADDLE_GCU_KERNEL_TRACE("merged_adam");
   CheckInputs(param,
               grad,
               learning_rate,
@@ -159,197 +161,204 @@ void MergedAdamKernel(
               beta1_pow_out,
               beta2_pow_out);
 
-  size_t param_num = param.size();
+  if (LaunchAOTKernel()) {
+    THROW_AOT_UNIMPLEMENTED();
+  } else {  // kernel impl base on JIT
+    size_t param_num = param.size();
 
-  // beta1_pow and beta2_pow may on CPU and not transform place.
-  std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_gcu;
-  if (beta1_pow[0]->place().GetType() == phi::AllocationType::CPU) {
+    // beta1_pow and beta2_pow may on CPU and not transform place.
+    std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_gcu;
+    if (beta1_pow[0]->place().GetType() == phi::AllocationType::CPU) {
+      for (size_t i = 0; i < param_num; ++i) {
+        auto beta1_pow_tmp = std::make_shared<phi::DenseTensor>();
+        T beta1 = *(beta1_pow[i]->data<T>());
+        beta1_pow_tmp->Resize({1});
+        dev_ctx.template Alloc<T>(beta1_pow_tmp.get());
+        FillGcuTensorWithConstant<T>(beta1_pow_tmp.get(), dev_ctx, beta1);
+        beta1_pow_gcu.emplace_back(beta1_pow_tmp);
+      }
+    }
+
+    std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_gcu;
+    if (beta2_pow[0]->place().GetType() == phi::AllocationType::CPU) {
+      for (size_t i = 0; i < param_num; ++i) {
+        auto beta2_pow_tmp = std::make_shared<phi::DenseTensor>();
+        T beta2 = *(beta2_pow[i]->data<T>());
+        beta2_pow_tmp->Resize({1});
+        dev_ctx.template Alloc<T>(beta2_pow_tmp.get());
+        FillGcuTensorWithConstant<T>(beta2_pow_tmp.get(), dev_ctx, beta2);
+        beta2_pow_gcu.emplace_back(beta2_pow_tmp);
+      }
+    }
+
+    TensorNameMap input_names;
+    TensorValueMap inputs;
+    TensorNameMap output_names;
+    TensorValueMap outputs;
+    input_names["Param"].reserve(param_num);
+    input_names["Grad"].reserve(param_num);
+    input_names["LearningRate"].reserve(param_num);
+    input_names["Moment1"].reserve(param_num);
+    input_names["Moment2"].reserve(param_num);
+    input_names["Beta1Pow"].reserve(param_num);
+    input_names["Beta2Pow"].reserve(param_num);
+    inputs["Param"].reserve(param_num);
+    inputs["Grad"].reserve(param_num);
+    inputs["LearningRate"].reserve(param_num);
+    inputs["Moment1"].reserve(param_num);
+    inputs["Moment2"].reserve(param_num);
+    inputs["Beta1Pow"].reserve(param_num);
+    inputs["Beta2Pow"].reserve(param_num);
+
+    output_names["ParamOut"].reserve(param_num);
+    output_names["Moment1Out"].reserve(param_num);
+    output_names["Moment2Out"].reserve(param_num);
+    output_names["Beta1PowOut"].reserve(param_num);
+    output_names["Beta2PowOut"].reserve(param_num);
+    outputs["ParamOut"].reserve(param_num);
+    outputs["Moment1Out"].reserve(param_num);
+    outputs["Moment2Out"].reserve(param_num);
+    outputs["Beta1PowOut"].reserve(param_num);
+    outputs["Beta2PowOut"].reserve(param_num);
+
+    std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
+    std::vector<std::shared_ptr<phi::DenseTensor>> moment1_outs_tmp;
+    std::vector<std::shared_ptr<phi::DenseTensor>> moment2_outs_tmp;
+    std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_outs_tmp;
+    std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_outs_tmp;
+    param_outs_tmp.reserve(param_num);
+    moment1_outs_tmp.reserve(param_num);
+    moment2_outs_tmp.reserve(param_num);
+    beta1_pow_outs_tmp.reserve(param_num);
+    beta2_pow_outs_tmp.reserve(param_num);
+
     for (size_t i = 0; i < param_num; ++i) {
-      auto beta1_pow_tmp = std::make_shared<phi::DenseTensor>();
-      T beta1 = *(beta1_pow[i]->data<T>());
-      beta1_pow_tmp->Resize({1});
-      dev_ctx.template Alloc<T>(beta1_pow_tmp.get());
-      FillGcuTensorWithConstant<T>(beta1_pow_tmp.get(), dev_ctx, beta1);
-      beta1_pow_gcu.emplace_back(beta1_pow_tmp);
-    }
-  }
-
-  std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_gcu;
-  if (beta2_pow[0]->place().GetType() == phi::AllocationType::CPU) {
-    for (size_t i = 0; i < param_num; ++i) {
-      auto beta2_pow_tmp = std::make_shared<phi::DenseTensor>();
-      T beta2 = *(beta2_pow[i]->data<T>());
-      beta2_pow_tmp->Resize({1});
-      dev_ctx.template Alloc<T>(beta2_pow_tmp.get());
-      FillGcuTensorWithConstant<T>(beta2_pow_tmp.get(), dev_ctx, beta2);
-      beta2_pow_gcu.emplace_back(beta2_pow_tmp);
-    }
-  }
-
-  TensorNameMap input_names;
-  TensorValueMap inputs;
-  TensorNameMap output_names;
-  TensorValueMap outputs;
-  input_names["Param"].reserve(param_num);
-  input_names["Grad"].reserve(param_num);
-  input_names["LearningRate"].reserve(param_num);
-  input_names["Moment1"].reserve(param_num);
-  input_names["Moment2"].reserve(param_num);
-  input_names["Beta1Pow"].reserve(param_num);
-  input_names["Beta2Pow"].reserve(param_num);
-  inputs["Param"].reserve(param_num);
-  inputs["Grad"].reserve(param_num);
-  inputs["LearningRate"].reserve(param_num);
-  inputs["Moment1"].reserve(param_num);
-  inputs["Moment2"].reserve(param_num);
-  inputs["Beta1Pow"].reserve(param_num);
-  inputs["Beta2Pow"].reserve(param_num);
-
-  output_names["ParamOut"].reserve(param_num);
-  output_names["Moment1Out"].reserve(param_num);
-  output_names["Moment2Out"].reserve(param_num);
-  output_names["Beta1PowOut"].reserve(param_num);
-  output_names["Beta2PowOut"].reserve(param_num);
-  outputs["ParamOut"].reserve(param_num);
-  outputs["Moment1Out"].reserve(param_num);
-  outputs["Moment2Out"].reserve(param_num);
-  outputs["Beta1PowOut"].reserve(param_num);
-  outputs["Beta2PowOut"].reserve(param_num);
-
-  std::vector<std::shared_ptr<phi::DenseTensor>> param_outs_tmp;
-  std::vector<std::shared_ptr<phi::DenseTensor>> moment1_outs_tmp;
-  std::vector<std::shared_ptr<phi::DenseTensor>> moment2_outs_tmp;
-  std::vector<std::shared_ptr<phi::DenseTensor>> beta1_pow_outs_tmp;
-  std::vector<std::shared_ptr<phi::DenseTensor>> beta2_pow_outs_tmp;
-  param_outs_tmp.reserve(param_num);
-  moment1_outs_tmp.reserve(param_num);
-  moment2_outs_tmp.reserve(param_num);
-  beta1_pow_outs_tmp.reserve(param_num);
-  beta2_pow_outs_tmp.reserve(param_num);
-
-  for (size_t i = 0; i < param_num; ++i) {
-    input_names["Param"].emplace_back(std::string("param") + std::to_string(i));
-    input_names["Grad"].emplace_back(std::string("grad") + std::to_string(i));
-    input_names["LearningRate"].emplace_back(std::string("learning_rate") +
-                                             std::to_string(i));
-    input_names["Moment1"].emplace_back(std::string("moment1_in") +
+      input_names["Param"].emplace_back(std::string("param") +
                                         std::to_string(i));
-    input_names["Moment2"].emplace_back(std::string("moment2_in") +
-                                        std::to_string(i));
-    input_names["Beta1Pow"].emplace_back(std::string("beta1_pow") +
-                                         std::to_string(i));
-    input_names["Beta2Pow"].emplace_back(std::string("beta2_pow") +
-                                         std::to_string(i));
-
-    inputs["Param"].emplace_back(const_cast<DenseTensor*>(param[i]));
-    inputs["Grad"].emplace_back(const_cast<DenseTensor*>(grad[i]));
-    size_t lr_idx = (learning_rate.size() == 1) ? 0 : i;
-    inputs["LearningRate"].emplace_back(
-        const_cast<DenseTensor*>(learning_rate[lr_idx]));
-    inputs["Moment1"].emplace_back(const_cast<DenseTensor*>(moment1[i]));
-    inputs["Moment2"].emplace_back(const_cast<DenseTensor*>(moment2[i]));
-    if (beta1_pow_gcu.empty()) {
-      inputs["Beta1Pow"].emplace_back(const_cast<DenseTensor*>(beta1_pow[i]));
-    } else {
-      inputs["Beta1Pow"].emplace_back(beta1_pow_gcu[i].get());
-    }
-    if (beta2_pow_gcu.empty()) {
-      inputs["Beta2Pow"].emplace_back(const_cast<DenseTensor*>(beta2_pow[i]));
-    } else {
-      inputs["Beta2Pow"].emplace_back(beta2_pow_gcu[i].get());
-    }
-
-    output_names["ParamOut"].emplace_back(std::string("param_out") +
+      input_names["Grad"].emplace_back(std::string("grad") + std::to_string(i));
+      input_names["LearningRate"].emplace_back(std::string("learning_rate") +
+                                               std::to_string(i));
+      input_names["Moment1"].emplace_back(std::string("moment1_in") +
                                           std::to_string(i));
-    output_names["Moment1Out"].emplace_back(std::string("moment1_out") +
+      input_names["Moment2"].emplace_back(std::string("moment2_in") +
+                                          std::to_string(i));
+      input_names["Beta1Pow"].emplace_back(std::string("beta1_pow") +
+                                           std::to_string(i));
+      input_names["Beta2Pow"].emplace_back(std::string("beta2_pow") +
+                                           std::to_string(i));
+
+      inputs["Param"].emplace_back(const_cast<DenseTensor*>(param[i]));
+      inputs["Grad"].emplace_back(const_cast<DenseTensor*>(grad[i]));
+      size_t lr_idx = (learning_rate.size() == 1) ? 0 : i;
+      inputs["LearningRate"].emplace_back(
+          const_cast<DenseTensor*>(learning_rate[lr_idx]));
+      inputs["Moment1"].emplace_back(const_cast<DenseTensor*>(moment1[i]));
+      inputs["Moment2"].emplace_back(const_cast<DenseTensor*>(moment2[i]));
+      if (beta1_pow_gcu.empty()) {
+        inputs["Beta1Pow"].emplace_back(const_cast<DenseTensor*>(beta1_pow[i]));
+      } else {
+        inputs["Beta1Pow"].emplace_back(beta1_pow_gcu[i].get());
+      }
+      if (beta2_pow_gcu.empty()) {
+        inputs["Beta2Pow"].emplace_back(const_cast<DenseTensor*>(beta2_pow[i]));
+      } else {
+        inputs["Beta2Pow"].emplace_back(beta2_pow_gcu[i].get());
+      }
+
+      output_names["ParamOut"].emplace_back(std::string("param_out") +
                                             std::to_string(i));
-    output_names["Moment2Out"].emplace_back(std::string("moment2_out") +
-                                            std::to_string(i));
-    output_names["Beta1PowOut"].emplace_back(std::string("beta1_pow_out") +
-                                             std::to_string(i));
-    output_names["Beta2PowOut"].emplace_back(std::string("beta2_pow_out") +
-                                             std::to_string(i));
+      output_names["Moment1Out"].emplace_back(std::string("moment1_out") +
+                                              std::to_string(i));
+      output_names["Moment2Out"].emplace_back(std::string("moment2_out") +
+                                              std::to_string(i));
+      output_names["Beta1PowOut"].emplace_back(std::string("beta1_pow_out") +
+                                               std::to_string(i));
+      output_names["Beta2PowOut"].emplace_back(std::string("beta2_pow_out") +
+                                               std::to_string(i));
 
-    auto param_out_tmp = std::make_shared<phi::DenseTensor>();
-    param_out_tmp->set_meta(param_out[i]->meta());
-    dev_ctx.template Alloc<T>(param_out_tmp.get());
-    param_outs_tmp.emplace_back(param_out_tmp);
+      auto param_out_tmp = std::make_shared<phi::DenseTensor>();
+      param_out_tmp->set_meta(param_out[i]->meta());
+      dev_ctx.template Alloc<T>(param_out_tmp.get());
+      param_outs_tmp.emplace_back(param_out_tmp);
 
-    auto moment1_out_tmp = std::make_shared<phi::DenseTensor>();
-    moment1_out_tmp->set_meta(moment1_out[i]->meta());
-    dev_ctx.template Alloc<T>(moment1_out_tmp.get());
-    moment1_outs_tmp.emplace_back(moment1_out_tmp);
+      auto moment1_out_tmp = std::make_shared<phi::DenseTensor>();
+      moment1_out_tmp->set_meta(moment1_out[i]->meta());
+      dev_ctx.template Alloc<T>(moment1_out_tmp.get());
+      moment1_outs_tmp.emplace_back(moment1_out_tmp);
 
-    auto moment2_out_tmp = std::make_shared<phi::DenseTensor>();
-    moment2_out_tmp->set_meta(moment2_out[i]->meta());
-    dev_ctx.template Alloc<T>(moment2_out_tmp.get());
-    moment2_outs_tmp.emplace_back(moment2_out_tmp);
+      auto moment2_out_tmp = std::make_shared<phi::DenseTensor>();
+      moment2_out_tmp->set_meta(moment2_out[i]->meta());
+      dev_ctx.template Alloc<T>(moment2_out_tmp.get());
+      moment2_outs_tmp.emplace_back(moment2_out_tmp);
 
-    auto beta1_pow_out_tmp = std::make_shared<phi::DenseTensor>();
-    beta1_pow_out_tmp->set_meta(beta1_pow_out[i]->meta());
-    dev_ctx.template Alloc<T>(beta1_pow_out_tmp.get());
-    beta1_pow_outs_tmp.emplace_back(beta1_pow_out_tmp);
+      auto beta1_pow_out_tmp = std::make_shared<phi::DenseTensor>();
+      beta1_pow_out_tmp->set_meta(beta1_pow_out[i]->meta());
+      dev_ctx.template Alloc<T>(beta1_pow_out_tmp.get());
+      beta1_pow_outs_tmp.emplace_back(beta1_pow_out_tmp);
 
-    auto beta2_pow_out_tmp = std::make_shared<phi::DenseTensor>();
-    beta2_pow_out_tmp->set_meta(beta2_pow_out[i]->meta());
-    dev_ctx.template Alloc<T>(beta2_pow_out_tmp.get());
-    beta2_pow_outs_tmp.emplace_back(beta2_pow_out_tmp);
+      auto beta2_pow_out_tmp = std::make_shared<phi::DenseTensor>();
+      beta2_pow_out_tmp->set_meta(beta2_pow_out[i]->meta());
+      dev_ctx.template Alloc<T>(beta2_pow_out_tmp.get());
+      beta2_pow_outs_tmp.emplace_back(beta2_pow_out_tmp);
 
-    outputs["ParamOut"].emplace_back(param_out_tmp.get());
-    outputs["Moment1Out"].emplace_back(moment1_out_tmp.get());
-    outputs["Moment2Out"].emplace_back(moment2_out_tmp.get());
-    outputs["Beta1PowOut"].emplace_back(beta1_pow_out_tmp.get());
-    outputs["Beta2PowOut"].emplace_back(beta2_pow_out_tmp.get());
-  }
-
-  GcuAttributeMap attrs;
-  attrs["beta1"] = beta1.to<float>();
-  attrs["beta2"] = beta2.to<float>();
-  attrs["epsilon"] = epsilon.to<float>();
-  attrs["multi_precision"] = multi_precision;
-  attrs["use_global_beta_pow"] = use_global_beta_pow;
-
-  GcuRunner(input_names,
-            inputs,
-            output_names,
-            outputs,
-            attrs,
-            "merged_adam",
-            dev_ctx,
-            false);
-
-  for (size_t i = 0; i < param_num; ++i) {
-    dev_ctx.template Alloc<T>(param_out[i]);
-    dev_ctx.template Alloc<T>(moment1_out[i]);
-    dev_ctx.template Alloc<T>(moment2_out[i]);
-
-    TensorCopy(dev_ctx, *(param_outs_tmp[i]), false, param_out[i]);
-    TensorCopy(dev_ctx, *(moment1_outs_tmp[i]), false, moment1_out[i]);
-    TensorCopy(dev_ctx, *(moment2_outs_tmp[i]), false, moment2_out[i]);
-
-    if (!use_global_beta_pow) {
-      dev_ctx.template Alloc<T>(beta1_pow_out[i]);
-      dev_ctx.template Alloc<T>(beta2_pow_out[i]);
-      TensorCopy(dev_ctx, *(beta1_pow_outs_tmp[i]), false, beta1_pow_out[i]);
-      TensorCopy(dev_ctx, *(beta2_pow_outs_tmp[i]), false, beta2_pow_out[i]);
+      outputs["ParamOut"].emplace_back(param_out_tmp.get());
+      outputs["Moment1Out"].emplace_back(moment1_out_tmp.get());
+      outputs["Moment2Out"].emplace_back(moment2_out_tmp.get());
+      outputs["Beta1PowOut"].emplace_back(beta1_pow_out_tmp.get());
+      outputs["Beta2PowOut"].emplace_back(beta2_pow_out_tmp.get());
     }
 
-    // if param and param_out is not same, we need to do copy.
-    if (param_out[i]->data<T>() != param[i]->data<T>()) {
-      TensorCopy(
-          dev_ctx, *(param_out[i]), false, const_cast<DenseTensor*>(param[i]));
-    }
-    if (moment1_out[i]->data<T>() != moment1[i]->data<T>()) {
-      TensorCopy(dev_ctx,
-                 *(moment1_out[i]),
-                 false,
-                 const_cast<DenseTensor*>(moment1[i]));
-    }
-    if (moment2_out[i]->data<T>() != moment2[i]->data<T>()) {
-      TensorCopy(dev_ctx,
-                 *(moment2_out[i]),
-                 false,
-                 const_cast<DenseTensor*>(moment2[i]));
+    GcuAttributeMap attrs;
+    attrs["beta1"] = beta1.to<float>();
+    attrs["beta2"] = beta2.to<float>();
+    attrs["epsilon"] = epsilon.to<float>();
+    attrs["multi_precision"] = multi_precision;
+    attrs["use_global_beta_pow"] = use_global_beta_pow;
+
+    GcuRunner(input_names,
+              inputs,
+              output_names,
+              outputs,
+              attrs,
+              "merged_adam",
+              dev_ctx,
+              false);
+
+    for (size_t i = 0; i < param_num; ++i) {
+      dev_ctx.template Alloc<T>(param_out[i]);
+      dev_ctx.template Alloc<T>(moment1_out[i]);
+      dev_ctx.template Alloc<T>(moment2_out[i]);
+
+      TensorCopy(dev_ctx, *(param_outs_tmp[i]), false, param_out[i]);
+      TensorCopy(dev_ctx, *(moment1_outs_tmp[i]), false, moment1_out[i]);
+      TensorCopy(dev_ctx, *(moment2_outs_tmp[i]), false, moment2_out[i]);
+
+      if (!use_global_beta_pow) {
+        dev_ctx.template Alloc<T>(beta1_pow_out[i]);
+        dev_ctx.template Alloc<T>(beta2_pow_out[i]);
+        TensorCopy(dev_ctx, *(beta1_pow_outs_tmp[i]), false, beta1_pow_out[i]);
+        TensorCopy(dev_ctx, *(beta2_pow_outs_tmp[i]), false, beta2_pow_out[i]);
+      }
+
+      // if param and param_out is not same, we need to do copy.
+      if (param_out[i]->data<T>() != param[i]->data<T>()) {
+        TensorCopy(dev_ctx,
+                   *(param_out[i]),
+                   false,
+                   const_cast<DenseTensor*>(param[i]));
+      }
+      if (moment1_out[i]->data<T>() != moment1[i]->data<T>()) {
+        TensorCopy(dev_ctx,
+                   *(moment1_out[i]),
+                   false,
+                   const_cast<DenseTensor*>(moment1[i]));
+      }
+      if (moment2_out[i]->data<T>() != moment2[i]->data<T>()) {
+        TensorCopy(dev_ctx,
+                   *(moment2_out[i]),
+                   false,
+                   const_cast<DenseTensor*>(moment2[i]));
+      }
     }
   }
 }

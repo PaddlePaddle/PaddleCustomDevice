@@ -47,7 +47,7 @@ set_property(TARGET acl_op_compiler PROPERTY IMPORTED_LOCATION
 if(DEFINED ENV{ATB_HOME_PATH})
   set(ATB_HOME_DIR $ENV{ATB_HOME_PATH})
 else()
-  set(ATB_HOME_DIR ${ASCEND_DIR}/mindie/latest/mindie-rt/mindie-atb/atb)
+  set(ATB_HOME_DIR ${ASCEND_DIR}/atb/latest/atb)
 endif()
 
 set(ascend_atb_lib ${ATB_HOME_DIR}/lib/libatb.so)

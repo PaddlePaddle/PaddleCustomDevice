@@ -24,6 +24,12 @@ void ConcatKernel(const Context& dev_ctx,
                   phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void GatherNdKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& index,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void IndexSampleGather(const Context& dev_ctx,
                        const phi::DenseTensor* index,
                        const phi::DenseTensor* input,
@@ -150,12 +156,20 @@ void IndexSampleGather(const Context& dev_ctx,
     TensorFromVector(dev_ctx, gather_index_vec, dev_ctx, &gather_index);
     gather_index.Resize({batch_size, index_length, 2});
 
-    NpuOpRunner runner;
-    runner.SetType("GatherNd")
-        .AddInput(*input)
-        .AddInput(gather_index)
-        .AddOutput(*out);
-    runner.Run(dev_ctx.stream());
+    auto dtype = input->dtype();
+    if (dtype == phi::DataType::FLOAT32) {
+      custom_kernel::GatherNdKernel<float, Context>(
+          dev_ctx, *input, gather_index, out);
+    } else if (dtype == phi::DataType::INT32) {
+      custom_kernel::GatherNdKernel<int32_t, Context>(
+          dev_ctx, *input, gather_index, out);
+    } else if (dtype == phi::DataType::INT64) {
+      custom_kernel::GatherNdKernel<int64_t, Context>(
+          dev_ctx, *input, gather_index, out);
+    } else if (dtype == phi::DataType::FLOAT16) {
+      custom_kernel::GatherNdKernel<phi::dtype::float16, Context>(
+          dev_ctx, *input, gather_index, out);
+    }
   }
 }
 

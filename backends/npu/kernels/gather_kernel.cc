@@ -118,11 +118,8 @@ void GatherGradKernel(const Context& dev_ctx,
   zeroslike_xout.Resize(x.dims());
 
   // step3: scatter(x_grad)
-  const auto& runner_scatter = NpuOpRunner("TensorScatterUpdate",
-                                           {zeroslike_xout, *p_index, out_grad},
-                                           {*x_grad},
-                                           {});
-  runner_scatter.Run(stream);
+  EXEC_NPU_CMD(
+      aclnnScatterNd, dev_ctx, zeroslike_xout, *p_index, out_grad, *x_grad);
 }
 
 }  // namespace custom_kernel

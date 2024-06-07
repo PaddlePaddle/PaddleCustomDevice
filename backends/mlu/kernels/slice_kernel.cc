@@ -340,6 +340,7 @@ PD_REGISTER_PLUGIN_KERNEL(slice,
                           phi::dtype::float16,
                           float,
                           double,
+                          uint8_t,
                           int32_t,
                           int64_t,
                           bool) {}

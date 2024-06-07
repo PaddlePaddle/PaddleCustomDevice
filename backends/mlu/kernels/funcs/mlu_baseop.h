@@ -2346,6 +2346,25 @@ class MLUCnnl {
                                const cnnlTensorDescriptor_t grads_image_desc,
                                void* grads_image);
 
+  static void RotaryEmbedding(const Context& ctx,
+                              bool conj,
+                              const cnnlTensorDescriptor_t x1_desc,
+                              const void* x1,
+                              const cnnlTensorDescriptor_t x2_desc,
+                              const void* x2,
+                              const cnnlTensorDescriptor_t cos_desc,
+                              const void* cos,
+                              const cnnlTensorDescriptor_t sin_desc,
+                              const void* sin,
+                              const cnnlTensorDescriptor_t freqs_desc,
+                              const void* freqs,
+                              const cnnlTensorDescriptor_t cu_seqlens_desc,
+                              const void* cu_seqlens,
+                              const cnnlTensorDescriptor_t out1_desc,
+                              void* out1,
+                              const cnnlTensorDescriptor_t out2_desc,
+                              void* out2);
+
   static void GridSample(const Context& ctx,
                          const cnnlGridSampleDescriptor_t grid_sample_desc,
                          const cnnlTensorDescriptor_t input_desc,

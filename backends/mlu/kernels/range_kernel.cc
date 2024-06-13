@@ -16,6 +16,21 @@
 
 namespace custom_kernel {
 
+template <typename T>
+T GetValue(const phi::DenseTensor* x) {
+  T value = static_cast<T>(0);
+  if (x->place().GetType() != phi::AllocationType::CPU) {
+    phi::DenseTensor cpu_x{};
+    phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+    phi::DeviceContext* dev_ctx = pool.Get(x->place());
+    phi::Copy(*dev_ctx, *x, phi::CPUPlace(), true, &cpu_x);
+    value = cpu_x.data<T>()[0];
+  } else {
+    value = x->data<T>()[0];
+  }
+  return value;
+}
+
 template <typename T, typename Context>
 void ArangeTensorKernel(const Context& dev_ctx,
                         const phi::DenseTensor& start_t,
@@ -25,11 +40,11 @@ void ArangeTensorKernel(const Context& dev_ctx,
   T* h_start_ptr = nullptr;
   T* h_end_ptr = nullptr;
   T* h_step_ptr = nullptr;
-
+  T start_value, end_value, step_value;
   if (start_t.place().GetType() == phi::AllocationType::CPU) {  // tensor at CPU
-    h_start_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&start_t)));
-    h_end_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&end_t)));
-    h_step_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&step_t)));
+    start_value = GetValue<T, Context>(dev_ctx, start_t);
+    end_value = GetValue<T, Context>(dev_ctx, end_t);
+    step_value = GetValue<T, Context>(dev_ctx, step_t);
   } else {
     phi::DenseTensor n;
     n.Resize(start_t.dims());
@@ -40,11 +55,10 @@ void ArangeTensorKernel(const Context& dev_ctx,
     h_end_ptr = new T(n_data[0]);
     TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
     h_step_ptr = new T(n_data[0]);
+    start_value = h_start_ptr[0];
+    end_value = h_end_ptr[0];
+    step_value = h_step_ptr[0];
   }
-
-  T start_value = h_start_ptr[0];
-  T end_value = h_end_ptr[0];
-  T step_value = h_step_ptr[0];
 
   ArangeRawKernel<T>(dev_ctx, start_value, end_value, step_value, out);
   if (start_t.place().GetType() != phi::AllocationType::CPU) {

@@ -18,10 +18,10 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void GatherNdKernel(const Context &dev_ctx,
-                    const phi::DenseTensor &x,
-                    const phi::DenseTensor &index,
-                    phi::DenseTensor *out) {
+void AclopGatherNdKernel(const Context &dev_ctx,
+                         const phi::DenseTensor &x,
+                         const phi::DenseTensor &index,
+                         phi::DenseTensor *out) {
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
 
@@ -64,6 +64,59 @@ void GatherNdKernel(const Context &dev_ctx,
 
   const auto &runner = NpuOpRunner("GatherNd", {x, index}, {*out}, {});
   runner.Run(stream);
+}
+
+template <typename T, typename Context>
+void GatherNdKernel(const Context &dev_ctx,
+                    const phi::DenseTensor &x,
+                    const phi::DenseTensor &index,
+                    phi::DenseTensor *out) {
+  DO_COMPATIBILITY(
+      aclnnGatherNd,
+      (custom_kernel::AclopGatherNdKernel<T, Context>(dev_ctx, x, index, out)));
+
+  dev_ctx.template Alloc<T>(out);
+  auto stream = dev_ctx.stream();
+
+  if (x.numel() == 0) return;
+
+  if (index.numel() == 0) {
+    int diff = out->dims().size() - x.dims().size();
+    if (diff == 0) {
+      TensorCopy(dev_ctx, x, false, out);
+    } else {
+      std::vector<int64_t> new_dims(diff, 1);
+      for (size_t i = 0; i < x.dims().size(); ++i) {
+        new_dims.emplace_back(x.dims()[i]);
+      }
+
+      phi::DenseTensor x_tmp(x);
+      x_tmp.Resize(phi::make_ddim(new_dims));
+
+      NpuOpRunner runner;
+      runner.SetType("BroadcastTo")
+          .AddInput(x_tmp)
+          .AddInput(dev_ctx, phi::vectorize(out->dims()))
+          .AddOutput(*out);
+      runner.Run(stream);
+    }
+    return;
+  }
+
+  const auto &index_type = index.dtype();
+  bool index_type_match =
+      index_type == phi::DataType::INT32 || index_type == phi::DataType::INT64;
+  PADDLE_ENFORCE_EQ(
+      index_type_match,
+      true,
+      phi::errors::InvalidArgument("Index holds the wrong type, it holds [%s],"
+                                   "but desires to be [%s] or [%s]",
+                                   index_type,
+                                   phi::DataType::INT32,
+                                   phi::DataType::INT64));
+
+  bool negativeIndexSupport = false;
+  EXEC_NPU_CMD(aclnnGatherNd, dev_ctx, x, index, negativeIndexSupport, *out);
 }
 
 template <typename T, typename Context>
@@ -134,6 +187,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather_nd,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdKernel,
                           int64_t,
+                          int32_t,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
@@ -143,6 +197,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather_nd_grad,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdGradKernel,
                           int64_t,
+                          int32_t,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void GatherNdKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& index,
+                    phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void ScatterNdAddKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& index,
@@ -90,9 +96,9 @@ void ScatterNdAddGradKernel(const Context& dev_ctx,
   }
   if (updates_grad) {
     dev_ctx.template Alloc<T>(updates_grad);
-    const auto& runner =
-        NpuOpRunner("GatherNd", {out_grad, index}, {*updates_grad}, {});
-    runner.Run(dev_ctx.stream());
+
+    custom_kernel::GatherNdKernel<T, Context>(
+        dev_ctx, out_grad, index, updates_grad);
   }
 }
 

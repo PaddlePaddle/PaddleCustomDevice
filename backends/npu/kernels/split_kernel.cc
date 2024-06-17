@@ -83,6 +83,11 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
+  if (!FLAGS_npu_split_aclnn) {
+    return custom_kernel::AclopSplitKernel<T, Context>(
+        dev_ctx, x, num_or_sections, axis_scalar, out);
+  }
+
   auto sections = num_or_sections.GetData();
   int64_t axis = axis_scalar.to<int64_t>();
   if (axis < 0) {

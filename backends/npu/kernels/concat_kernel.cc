@@ -145,11 +145,11 @@ void ConcatKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void ConcatGradKernel(const Context& dev_ctx,
-                      const std::vector<const phi::DenseTensor*>& ins,
-                      const phi::DenseTensor& dout,
-                      const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+void AclopConcatGradKernel(const Context& dev_ctx,
+                           const std::vector<const phi::DenseTensor*>& ins,
+                           const phi::DenseTensor& dout,
+                           const phi::Scalar& axis_scalar,
+                           std::vector<phi::DenseTensor*> outs) {
   auto stream = dev_ctx.stream();
 
   int axis = axis_scalar.to<int>();
@@ -186,6 +186,54 @@ void ConcatGradKernel(const Context& dev_ctx,
   }
 }
 
+template <typename T, typename Context>
+void ConcatGradKernel(const Context& dev_ctx,
+                      const std::vector<const phi::DenseTensor*>& ins,
+                      const phi::DenseTensor& dout,
+                      const phi::Scalar& axis_scalar,
+                      std::vector<phi::DenseTensor*> outs) {
+  DO_COMPATIBILITY(aclnnSliceV2,
+                   (custom_kernel::AclopConcatGradKernel<T, Context>(
+                       dev_ctx, ins, dout, axis_scalar, outs)));
+  auto stream = dev_ctx.stream();
+
+  int axis = axis_scalar.to<int>();
+  axis = ComputeAxis(static_cast<int64_t>(axis),
+                     static_cast<int64_t>(ins[0]->dims().size()));
+
+  std::vector<int64_t> axes_t;
+  axes_t.push_back(axis);
+
+  int offset = 0;
+  for (size_t j = 0; j < outs.size(); ++j) {
+    if (outs[j] && outs[j]->numel() != 0UL) {
+      dev_ctx.template Alloc<T>(outs[j]);
+
+      std::vector<int64_t> starts_array;
+      starts_array.push_back(offset);
+      std::vector<int64_t> ends_array;
+      ends_array.push_back(ins[j]->dims()[axis] + offset);
+
+      std::vector<int64_t> steps;
+      for (int i = 0; i < outs[j]->dims().size(); i++) {
+        steps.push_back(1.0);
+      }
+
+      EXEC_NPU_CMD(aclnnSliceV2,
+                   dev_ctx,
+                   dout,
+                   starts_array,
+                   ends_array,
+                   axes_t,
+                   steps,
+                   *outs[j]);
+    }
+    if (ins[j]->numel() != 0UL) {
+      offset += ins[j]->dims()[axis];
+    }
+  }
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(concat,
@@ -207,6 +255,5 @@ PD_REGISTER_PLUGIN_KERNEL(concat_grad,
                           int,
                           int64_t,
                           float,
-                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

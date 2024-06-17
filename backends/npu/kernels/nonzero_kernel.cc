@@ -155,6 +155,7 @@ void NonZeroKernel(const Context& dev_ctx,
   out->Resize(phi::make_ddim({true_num, rank}));
 
   if (true_num == 0) {
+    dev_ctx.template Alloc<int64_t>(out);
     return;
   }
 

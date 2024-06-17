@@ -75,9 +75,13 @@ struct InterpolateFunction {
                  phi::DenseTensor* y,
                  const std::vector<int>& dim,
                  bool keep_dims = true) {
-    const auto& runner = NpuOpRunner(
-        "ReduceSumD", {*x}, {*y}, {{"axes", dim}, {"keep_dims", keep_dims}});
-    runner.Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("ReduceSum")
+        .AddInput(*x)
+        .AddInput(dev_ctx, std::move(dim))
+        .AddOutput(*y)
+        .AddAttrs({{"keep_dims", keep_dims}})
+        .Run(dev_ctx.stream());
   }
   void Add(const phi::DenseTensor* x,
            const phi::DenseTensor* y,
@@ -157,37 +161,42 @@ struct InterpolateFunction {
     phi::DenseTensor gy_t;
     gy_t.Resize(y_new_shape);
     dev_ctx.template Alloc<T>(&gy_t);
-    Transpose(gy, &gy_t, axis_swap);
+    Transpose(dev_ctx, gy, &gy_t, axis_swap);
+
     //  2  scatter
     auto x_new_shape = gx->dims();
     auto xt = x_new_shape[axis];
     x_new_shape[axis] = x_new_shape[0];
     x_new_shape[0] = xt;
-    phi::DenseTensor gx_zero, gx_t;
+    phi::DenseTensor gx_zero;
     gx_zero.Resize(x_new_shape);
-    gx_t.Resize(x_new_shape);
     dev_ctx.template Alloc<T>(&gx_zero);
-    dev_ctx.template Alloc<T>(&gx_t);
     FillNpuTensorWithConstant<T>(&gx_zero, dev_ctx, static_cast<T>(0));
     gx_zero.Resize(x_new_shape);
-    Scatter(&gx_zero, indices, &gy_t, &gx_t);
+    Scatter(dev_ctx, &gx_zero, indices, &gy_t, &gx_zero);
+
     //  3  gx swapaxis: axis, 0
-    Transpose(&gx_t, gx, axis_swap);
+    Transpose(dev_ctx, &gx_zero, gx, axis_swap);
   }
-  void Scatter(const phi::DenseTensor* x,
+  void Scatter(const Context& dev_ctx,
+               const phi::DenseTensor* x,
                const phi::DenseTensor* index,
                const phi::DenseTensor* updates,
                phi::DenseTensor* y) {
     const auto& runner =
-        NpuOpRunner("TensorScatterAdd", {*x, *index, *updates}, {*y}, {});
+        NpuOpRunner("ScatterNdAdd", {*x, *index, *updates}, {*y}, {});
     runner.Run(stream);
   }
-  void Transpose(const phi::DenseTensor* x,
+  void Transpose(const Context& dev_ctx,
+                 const phi::DenseTensor* x,
                  phi::DenseTensor* y,
                  const std::vector<int>& axis) {
-    const auto& runner =
-        NpuOpRunner("TransposeD", {*x}, {*y}, {{"perm", axis}});
-    runner.Run(stream);
+    NpuOpRunner runner;
+    runner.SetType("Transpose")
+        .AddInput(*x)
+        .AddInput(dev_ctx, std::move(axis))
+        .AddOutput(*y)
+        .Run(dev_ctx.stream());
   }
   void Muls(const phi::DenseTensor* x, float scalar, phi::DenseTensor* y) {
     const auto& runner = NpuOpRunner("Muls", {*x}, {*y}, {{"value", scalar}});
@@ -351,6 +360,32 @@ void BilinearParamTensorCompute(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void BilinearFwdAclnn(const Context& dev_ctx,
+                      const phi::DenseTensor* input,
+                      phi::DenseTensor* output,
+                      const float scale_h,
+                      const float scale_w,
+                      const bool align_corners,
+                      const int align_mode,
+                      const phi::DataLayout& data_layout) {
+  auto outdim = output->dims();
+  double h = 1;
+  double w = 1;
+  std::vector<int64_t> outsize;
+  for (int i = 2; i < outdim.size(); i++) {
+    outsize.push_back(outdim[i]);
+  }
+  EXEC_NPU_CMD(aclnnUpsampleBilinear2d,
+               dev_ctx,
+               *input,
+               outsize,
+               align_corners,
+               h,
+               w,
+               *output);
+}
+
+template <typename T, typename Context>
 void BilinearFwdNpu(const Context& dev_ctx,
                     const phi::DenseTensor* input,
                     phi::DenseTensor* output,
@@ -359,10 +394,59 @@ void BilinearFwdNpu(const Context& dev_ctx,
                     const bool align_corners,
                     const int align_mode,
                     const phi::DataLayout& data_layout) {
-  InterpolateFunction<T, Context> F(dev_ctx);
-  auto place = dev_ctx.GetPlace();
   auto outdim = output->dims();
   auto indim = input->dims();
+
+  if (data_layout == phi::DataLayout::NCHW) {
+    int indim_h = indim[2];
+    int indim_w = indim[3];
+    int outdim_h = outdim[2];
+    int outdim_w = outdim[3];
+
+    bool aclnn_flag = false;
+    if (scale_h == -1 && scale_w == -1) {
+      aclnn_flag = true;
+    } else if (static_cast<float>(outdim_h) / static_cast<float>(indim_h) ==
+                   scale_h &&
+               static_cast<float>(outdim_w) / static_cast<float>(indim_w) ==
+                   scale_w) {
+      aclnn_flag = true;
+    }
+
+    if (align_corners == true) {
+      return custom_kernel::BilinearFwdAclnn<T, Context>(dev_ctx,
+                                                         input,
+                                                         output,
+                                                         scale_h,
+                                                         scale_w,
+                                                         align_corners,
+                                                         align_mode,
+                                                         data_layout);
+    } else if (aclnn_flag && align_mode == 0) {
+      if (outdim_h != 1 && outdim_w != 1) {
+        return custom_kernel::BilinearFwdAclnn<T, Context>(dev_ctx,
+                                                           input,
+                                                           output,
+                                                           scale_h,
+                                                           scale_w,
+                                                           align_corners,
+                                                           align_mode,
+                                                           data_layout);
+      } else if (outdim_h == 1 && outdim_w == 1) {
+        return custom_kernel::BilinearFwdAclnn<T, Context>(dev_ctx,
+                                                           input,
+                                                           output,
+                                                           scale_h,
+                                                           scale_w,
+                                                           true,
+                                                           align_mode,
+                                                           data_layout);
+      }
+    }
+  }
+
+  InterpolateFunction<T, Context> F(dev_ctx);
+  auto place = dev_ctx.GetPlace();
 
   int axis_h, axis_w;
   int out_h, out_w, in_h, in_w;
@@ -462,6 +546,40 @@ void BilinearFwdNpu(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void BilinearBwdAclnn(const Context& dev_ctx,
+                      const phi::DenseTensor* gout,
+                      phi::DenseTensor* gin,
+                      const float scale_h,
+                      const float scale_w,
+                      const bool align_corners,
+                      const int align_mode,
+                      const phi::DataLayout& data_layout) {
+  auto indim = gin->dims();
+  auto outdim = gout->dims();
+  double h = 1;
+  double w = 1;
+
+  std::vector<int64_t> outputsize;
+  for (int i = 2; i < outdim.size(); i++) {
+    outputsize.push_back(outdim[i]);
+  }
+  std::vector<int64_t> inputsize;
+  for (int i = 0; i < indim.size(); i++) {
+    inputsize.push_back(indim[i]);
+  }
+  // dev_ctx.template Alloc<T>(gin);
+  EXEC_NPU_CMD(aclnnUpsampleBilinear2dBackward,
+               dev_ctx,
+               *gout,
+               outputsize,
+               inputsize,
+               align_corners,
+               h,
+               w,
+               *gin);
+}
+
+template <typename T, typename Context>
 void BilinearBwdNpu(const Context& dev_ctx,
                     const phi::DenseTensor* gout,
                     phi::DenseTensor* gin,
@@ -470,10 +588,59 @@ void BilinearBwdNpu(const Context& dev_ctx,
                     const bool align_corners,
                     const int align_mode,
                     const phi::DataLayout& data_layout) {
-  InterpolateFunction<T, Context> F(dev_ctx);
-  auto place = dev_ctx.GetPlace();
   auto outdim = gout->dims();
   auto indim = gin->dims();
+
+  if (data_layout == phi::DataLayout::NCHW) {
+    int indim_h = indim[2];
+    int indim_w = indim[3];
+    int outdim_h = outdim[2];
+    int outdim_w = outdim[3];
+
+    bool aclnn_flag = false;
+    if (scale_h == -1 && scale_w == -1) {
+      aclnn_flag = true;
+    } else if (static_cast<float>(outdim_h) / static_cast<float>(indim_h) ==
+                   scale_h &&
+               static_cast<float>(outdim_w) / static_cast<float>(indim_w) ==
+                   scale_w) {
+      aclnn_flag = true;
+    }
+
+    if (align_corners == true) {
+      return custom_kernel::BilinearBwdAclnn<T, Context>(dev_ctx,
+                                                         gout,
+                                                         gin,
+                                                         scale_h,
+                                                         scale_w,
+                                                         align_corners,
+                                                         align_mode,
+                                                         data_layout);
+    } else if (aclnn_flag && align_mode == 0) {
+      if (outdim_h != 1 && outdim_w != 1) {
+        return custom_kernel::BilinearBwdAclnn<T, Context>(dev_ctx,
+                                                           gout,
+                                                           gin,
+                                                           scale_h,
+                                                           scale_w,
+                                                           align_corners,
+                                                           align_mode,
+                                                           data_layout);
+      } else if (outdim_h == 1 && outdim_w == 1) {
+        return custom_kernel::BilinearBwdAclnn<T, Context>(dev_ctx,
+                                                           gout,
+                                                           gin,
+                                                           scale_h,
+                                                           scale_w,
+                                                           true,
+                                                           align_mode,
+                                                           data_layout);
+      }
+    }
+  }
+
+  InterpolateFunction<T, Context> F(dev_ctx);
+  auto place = dev_ctx.GetPlace();
 
   int axis_h, axis_w;
   int out_h, out_w, in_h, in_w;

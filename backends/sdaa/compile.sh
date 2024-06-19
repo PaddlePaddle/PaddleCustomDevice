@@ -16,19 +16,23 @@
 set +x
 set -e
 
-# 1. checkout Paddle to commit b065877d
+# 1. download and unzip extend op
+wget -nc -q --no-check-certificate https://gitee.com/tecorigin/sdcops/raw/develop/extend_a086ddb_1.4.0b0.tar.gz
+tar -zxf ./extend_*.tar.gz -C /opt/tecoai/
+
+# 2. checkout Paddle to commit b065877d
 old_path=${PWD}
 cd $old_path/../../Paddle/
 git checkout b065877d
 cd $old_path
 
-# 2. Prepare build directory
+# 3. Prepare build directory
 build_dir=$old_path/build
 rm -rf $build_dir
 mkdir -p $build_dir
 cd $build_dir
 
-# 3. Configure options
+# 4. Configure options
 export WITH_TESTING=ON
 export SDAA_ROOT=/opt/tecoai # no default path
 export SDPTI_ROOT=/opt/tecoai # no default path
@@ -39,12 +43,12 @@ export TCCL_ROOT=/opt/tecoai # no default path
 export TECODNN_CUSTOM_ROOT=/opt/tecoai # no default path
 export PADDLE_SOURCE_DIR=$old_path/../../Paddle # default is "../../Paddle", required if WITH_TESTING is ON
 
-# 4. CMake command
+# 5. CMake command
 cmake .. -DNATIVE_SDAA=ON \
   -DPython_EXECUTABLE=`which python3` \
   -DWITH_TESTING=${WITH_TESTING} \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_VERBOSE_MAKEFILE=ON
 
-# 5. Make command
+# 6. Make command
 make -j

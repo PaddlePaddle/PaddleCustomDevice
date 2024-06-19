@@ -18,6 +18,7 @@ PaddleCustomDevice has supported the following backends:
 - [PaddlePaddle Custom Device Implementaion for Apple MPS](backends/mps/README.md)
 - [PaddlePaddle Custom Device Implementaion for Biren GPU](backends/biren_gpu/README.md)
 - [PaddlePaddle Custom Device Implementaion for Enflame GCU](backends/gcu/README.md)
+- [PaddlePaddle Custom Device Implementaion for Tecorigin SDAA](backends/sdaa/README.md)
 
 ## Copyright and License
 PaddleCustomDevice is provided under the [Apache-2.0 license](LICENSE).

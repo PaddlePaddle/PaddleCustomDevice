@@ -149,10 +149,6 @@ add_custom_command(
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
-  # COMMAND ${CMAKE_COMMAND} -E make_directory
-  # ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/sdaa COMMAND
-  # ${CMAKE_COMMAND} -E make_directory
-  # ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/sdaa/sdaa_ext
   COMMAND
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_SOURCE_DIR}/sdaa_ext/python/__init__.py

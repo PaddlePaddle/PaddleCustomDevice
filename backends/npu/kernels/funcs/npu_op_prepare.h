@@ -26,6 +26,8 @@
  * Note: Enable NPU Storage Format for Ascend910 performance improvement.
  */
 DECLARE_bool(npu_storage_format);
+DECLARE_bool(npu_scale_aclnn);
+DECLARE_bool(npu_split_aclnn);
 
 namespace custom_kernel {
 

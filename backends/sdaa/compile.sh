@@ -19,6 +19,7 @@ set -e
 # 1. download and unzip extend op
 wget -nc -q --no-check-certificate https://gitee.com/tecorigin/sdcops/raw/develop/extend_a086ddb_1.4.0b0.tar.gz
 tar -zxf ./extend_*.tar.gz -C /opt/tecoai/
+rm -rf extend_*.tar.gz
 
 # 2. checkout Paddle to commit b065877d
 old_path=${PWD}

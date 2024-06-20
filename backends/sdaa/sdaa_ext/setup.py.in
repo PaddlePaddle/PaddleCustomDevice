@@ -1,0 +1,189 @@
+from paddle.utils.cpp_extension import CppExtension, setup
+import fnmatch
+import json
+import os
+import re
+import subprocess
+from setuptools import Command
+from setuptools.command.install import install as InstallCommandBase
+from setuptools.command.install_lib import install_lib
+
+include_dirs = [
+    '${CMAKE_CURRENT_SOURCE_DIR}',
+    '${PADDLE_INC_DIR}',
+    '${PADDLE_INC_DIR}third_party',
+    '${TECODNN_INC}',
+    '${TBLAS_INC}',
+    '${TECODNN_CUSTOM_INC}',
+    '${CMAKE_SOURCE_DIR}',
+    '${EXTEND_OP_INC}',
+    '${CMAKE_BINARY_DIR}/third_party/install/gflags/include',
+    '${CMAKE_BINARY_DIR}/third_party/install/glog/include',
+    '${CMAKE_BINARY_DIR}/third_party/install/mkldnn/include',
+    '${SDPTI_INC}',
+    '${SDAA_INC}',
+    '${TCCL_INC}',
+    '${TABULATE_PATH}',
+    '${CMAKE_BINARY_DIR}',
+    '${CUSTOM_SDAA_C_OPS_INC}',
+]
+library_dirs = [
+    '${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib/',
+    '${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/',
+    '${EXTEND_OP_PATH}lib/',
+    '${TECODNN_PATH}/lib/',
+    '${TBLAS_PATH}/lib/',
+    '${TCCL_PATH}/lib64/',
+    '${TECODNN_CUSTOM_PATH}/lib/',
+    '${CUSTOM_SDAA_C_OPS_LIB}'
+]
+libraries = [
+    ':libpaddle-custom-sdaa.so',
+    ':libsdcops.so',
+    ':libtecodnn.so',
+    ':libtecoblas.so',
+    ':libtecodnn_ext.so',
+    ':libtccl.so',
+    '${SDAA_LIB}',
+    ':libcustomsdaacops.a'
+]
+
+def find_files(pattern, root, recursive=False):
+    for dirpath, _, files in os.walk(root):
+        for filename in fnmatch.filter(files, pattern):
+            yield os.path.join(dirpath, filename)
+        if not recursive:
+            break
+
+
+def get_sdaaext_source_files(path):
+    if not os.path.exists(path):
+        raise Exception(f"invalid path {path}")
+
+    all_files = set()
+
+    for root, _, files in os.walk(path, followlinks=True):
+        for file in files:
+            if not file.endswith(".cc") and not file.endswith(".c"):
+                continue
+
+            file = os.path.join(root, file)
+            all_files.add(file)
+
+    return list(all_files)
+
+
+extra_compile_args = ['-Wall', '-g', '-DPADDLE_WITH_CUSTOM_DEVICE', '-O3']
+if "${WITH_SW}" == "ON":
+    extra_compile_args.append('-DPADDLE_WITH_SW')
+
+if "${WITH_PADDLE_INFO}" == "ON":
+  extra_compile_args.append('-DPADDLE_COMMIT_ID=\"${PADDLE_COMMIT_ID}\"')
+  extra_compile_args.append('-DPADDLE_FULL_VERSION="${PADDLE_FULL_VERSION}"')
+
+sources_file = ['${CMAKE_CURRENT_SOURCE_DIR}/tools/version/query.cc'] + get_sdaaext_source_files('${CMAKE_CURRENT_SOURCE_DIR}/sdaa_ext')
+headers = list(find_files('*.h', '${CMAKE_CURRENT_SOURCE_DIR}/external'))
+
+def get_header_install_dir(header):
+    if re.search('glog', header):
+        install_dir = re.sub('@CMAKE_CURRENT_SOURCE_DIR@/build/third_party/install/glog/include/', '', header)
+    elif re.search('gflags', header):
+        install_dir = re.sub('@CMAKE_CURRENT_SOURCE_DIR@/build/third_party/install/gflags/include/', '', header)
+    elif re.search('sdcops.h', header):
+        install_dir = re.sub('@CMAKE_CURRENT_BINARY_DIR@/', '', header)
+    else:
+        install_dir = re.sub('@CMAKE_CURRENT_SOURCE_DIR@/', '', header)
+    return install_dir
+
+
+class InstallCommand(InstallCommandBase):
+    def finalize_options(self):
+        ret = InstallCommandBase.finalize_options(self)
+        self.install_lib = self.install_platlib
+        self.install_headers = os.path.join(self.install_platlib, 'include')
+        return ret
+
+
+class InstallHeaders(Command):
+    """Override how headers are copied.
+    """
+    description = 'install C/C++ header files'
+
+    user_options = [('install-dir=', 'd',
+                     'directory to install header files to'),
+                    ('force', 'f',
+                     'force installation (overwrite existing files)'),
+                   ]
+
+    boolean_options = ['force']
+
+    def initialize_options(self):
+        self.install_dir = None
+        self.force = 0
+        self.outfiles = []
+
+    def finalize_options(self):
+        self.set_undefined_options('install',
+                                   ('install_headers', 'install_dir'),
+                                   ('force', 'force'))
+
+    def run(self):
+        hdrs = self.distribution.headers
+        if not hdrs:
+            return
+        self.mkpath(self.install_dir)
+        for header in hdrs:
+            install_dir = get_header_install_dir(header)
+            install_dir = os.path.join(
+                self.install_dir, os.path.dirname(install_dir)
+            )
+            if not os.path.exists(install_dir):
+                self.mkpath(install_dir)
+            (out, _) = self.copy_file(header, install_dir)
+            self.outfiles.append(out)
+
+    def get_inputs(self):
+        return self.distribution.headers or []
+
+    def get_outputs(self):
+        return self.outfiles
+
+
+# class Installlib is rewritten to add header files to .egg/paddle_sdaa
+class InstallLib(install_lib):
+    def run(self):
+        self.build()
+        outfiles = self.install()
+        hrds = self.distribution.headers
+        if not hrds:
+            return
+        for header in hrds:
+            install_dir = get_header_install_dir(header)
+            install_dir = os.path.join(
+                self.install_dir, 'include', os.path.dirname(install_dir)
+            )
+            if not os.path.exists(install_dir):
+                self.mkpath(install_dir)
+            self.copy_file(header, install_dir)
+        if outfiles is not None:
+            # always compile, in case we have any extension stubs to deal with
+            self.byte_compile(outfiles)
+
+
+setup(
+    name='sdaa_ext',
+    ext_modules=CppExtension(
+        sources=sources_file,
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        libraries=libraries,
+        extra_compile_args=extra_compile_args,
+        extra_link_args=[f"-Wl,-rpath,{':'.join(library_dirs)},--enable-new-dtags"]
+    ),
+    headers=headers,
+    cmdclass={
+        'install_headers': InstallHeaders,
+        'install': InstallCommand,
+        'install_lib': InstallLib,
+    }
+)

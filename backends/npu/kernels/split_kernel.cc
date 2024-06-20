@@ -83,6 +83,7 @@ void SplitKernel(const Context& dev_ctx,
                  const phi::IntArray& num_or_sections,
                  const phi::Scalar& axis_scalar,
                  std::vector<phi::DenseTensor*> outs) {
+  // control with environment variables
   if (!FLAGS_npu_split_aclnn) {
     return custom_kernel::AclopSplitKernel<T, Context>(
         dev_ctx, x, num_or_sections, axis_scalar, outs);

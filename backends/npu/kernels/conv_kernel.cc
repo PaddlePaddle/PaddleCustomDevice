@@ -336,6 +336,21 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
   custom_kernel::UpdatePaddingAndDilation(
       &padding, &dilation, padding_algorithm, in_data_dims, stride, ksize);
 
+  DO_COMPATIBILITY(
+      aclnnConvolutionBackward,
+      (custom_kernel::AclopDepthwiseConv2dGradKernel<T, Context>(dev_ctx,
+                                                                 input,
+                                                                 filter,
+                                                                 out_grad,
+                                                                 stride,
+                                                                 padding,
+                                                                 groups,
+                                                                 dilation,
+                                                                 data_format,
+                                                                 channel_last,
+                                                                 input_grad,
+                                                                 filter_grad)));
+
   if (padding[0] != padding[1] || padding[2] != padding[3]) {
     VLOG(2) << "Fallback to AclopDepthwiseConv2dGradKernel due to asymmetric "
                "padding: {"
@@ -391,34 +406,30 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
         filter_grad);
   }
 
-  DO_COMPATIBILITY(
-      aclnnConvolutionBackward,
-      (custom_kernel::AclopDepthwiseConv2dGradKernel<T, Context>(dev_ctx,
-                                                                 input,
-                                                                 filter,
-                                                                 out_grad,
-                                                                 stride,
-                                                                 padding,
-                                                                 groups,
-                                                                 dilation,
-                                                                 data_format,
-                                                                 channel_last,
-                                                                 input_grad,
-                                                                 filter_grad)));
-
   phi::DenseTensor input_tensor(input), output_grad_tensor(out_grad);
 
   phi::DenseTensor filter_grad_tensor;
   phi::DenseTensor input_grad_tensor;
   phi::DenseTensor bias_grad_tensor;
+
   if (filter_grad) {
     dev_ctx.template Alloc<T>(filter_grad);
     filter_grad_tensor = phi::DenseTensor(*filter_grad);
   }
+
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);
     input_grad_tensor = phi::DenseTensor(*input_grad);
+  } else {
+    phi::DenseTensorMeta input_grad_meta = {input.dtype(), input.dims()};
+    input_grad_tensor.set_meta(input_grad_meta);
+    dev_ctx.template Alloc<T>(&input_grad_tensor);
   }
+
+  phi::DenseTensorMeta bias_grad_meta = {input.dtype(),
+                                         phi::make_ddim({input.dims()[0]})};
+  bias_grad_tensor.set_meta(bias_grad_meta);
+  dev_ctx.template Alloc<T>(&bias_grad_tensor);
 
   std::vector<int64_t> bias_sizes =
       phi::vectorize(phi::slice_ddim(filter_dims, 0, 1));

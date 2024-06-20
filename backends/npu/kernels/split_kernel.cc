@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void SplitKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 const phi::IntArray& num_or_sections,
-                 const phi::Scalar& axis_scalar,
-                 std::vector<phi::DenseTensor*> outs) {
+void AclopSplitKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::IntArray& num_or_sections,
+                      const phi::Scalar& axis_scalar,
+                      std::vector<phi::DenseTensor*> outs) {
   // need to infershape output
   auto sections = num_or_sections.GetData();
   int axis = axis_scalar.to<int>();
@@ -74,6 +74,64 @@ void SplitKernel(const Context& dev_ctx,
         .AddAttrs({{"num_split", static_cast<int32_t>(sections.size())}});
     auto stream = dev_ctx.stream();
     runner.Run(stream);
+  }
+}
+
+template <typename T, typename Context>
+void SplitKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::IntArray& num_or_sections,
+                 const phi::Scalar& axis_scalar,
+                 std::vector<phi::DenseTensor*> outs) {
+  // control with environment variables
+  if (!FLAGS_npu_split_aclnn) {
+    return custom_kernel::AclopSplitKernel<T, Context>(
+        dev_ctx, x, num_or_sections, axis_scalar, outs);
+  }
+
+  auto sections = num_or_sections.GetData();
+  int64_t axis = axis_scalar.to<int64_t>();
+  if (axis < 0) {
+    axis = x.dims().size() + axis;
+  }
+
+  std::vector<phi::DenseTensor*> outputs;
+  for (size_t j = 0; j < outs.size(); ++j) {
+    dev_ctx.template Alloc<T>(outs[j]);
+    outputs.push_back(outs[j]);
+  }
+
+  if (!num_or_sections.FromTensor() && !axis_scalar.FromTensor() &&
+      sections.size() == 1 && outs.size() == sections[0]) {
+    DO_COMPATIBILITY(aclnnSplitTensor,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
+
+    uint64_t splitSections = x.dims()[axis] / sections[0];
+    EXEC_NPU_CMD(aclnnSplitTensor, dev_ctx, x, splitSections, axis, outputs);
+  } else {
+    DO_COMPATIBILITY(aclnnSplitWithSize,
+                     (custom_kernel::AclopSplitKernel<T, Context>(
+                         dev_ctx, x, num_or_sections, axis_scalar, outs)));
+
+    std::vector<int64_t> sections_;
+    int sum = 0;
+    int minusOneIndex = -1;
+    int all = x.dims()[axis];
+
+    for (int i = 0; i < sections.size(); ++i) {
+      sections_.push_back(sections[i]);
+      if (sections_[i] == -1) {
+        minusOneIndex = i;
+      } else {
+        sum += sections_[i];
+      }
+    }
+    if (minusOneIndex != -1) {
+      sections_[minusOneIndex] = all - sum;
+    }
+
+    EXEC_NPU_CMD(aclnnSplitWithSize, dev_ctx, x, sections_, axis, outputs);
   }
 }
 

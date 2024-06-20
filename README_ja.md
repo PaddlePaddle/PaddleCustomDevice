@@ -18,6 +18,7 @@ PaddleCustomDevice は以下のバックエンドをサポートしています:
 - [Apple MPS 用 PaddlePaddle カスタムデバイス実装](backends/mps/README.md)
 - [Biren GPU 用 PaddlePaddle カスタムデバイス実装](backends/biren_gpu/README.md)
 - [Enflame GCU 用 PaddlePaddle カスタムデバイス実装](backends/gcu/README.md)
+- [Tecorigin SDAA 用 PaddlePaddle カスタムデバイス実装](backends/sdaa/README.md)
 
 ## 著作権とライセンス
 

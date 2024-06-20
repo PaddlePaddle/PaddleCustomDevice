@@ -18,11 +18,11 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void AclopSplitKernel(const Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::IntArray& num_or_sections,
-                      const phi::Scalar& axis_scalar,
-                      std::vector<phi::DenseTensor*> outs) {
+void SplitKernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 const phi::IntArray& num_or_sections,
+                 const phi::Scalar& axis_scalar,
+                 std::vector<phi::DenseTensor*> outs) {
   // need to infershape output
   auto sections = num_or_sections.GetData();
   int axis = axis_scalar.to<int>();

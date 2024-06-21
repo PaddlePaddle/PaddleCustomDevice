@@ -57,10 +57,6 @@ class TestAbsKernelFP16(TestAbsKernel):
     def init_dtype(self):
         self.dtype = np.float16
 
-    # kernel 'mean' is not registerd and cpu 'mean' kernel do not support fp16
-    def test_check_grad(self):
-        pass
-
 
 class TestAbsKernelINT64(TestAbsKernel):
     def init_dtype(self):

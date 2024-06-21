@@ -72,11 +72,18 @@ file(
   runtime/*.cc)
 list(APPEND PLUGIN_SRCS ${PLUGIN_RUNTIME_SRCS})
 
+# custom sdaa c ops
+set(CUSTOM_SDAA_C_OPS_INC ${CMAKE_SOURCE_DIR}/sdaac_ops)
+set(CUSTOM_SDAA_C_OPS_LIB ${CMAKE_SOURCE_DIR}/sdaac_ops/lib)
+make_directory(${CUSTOM_SDAA_C_OPS_LIB})
+add_subdirectory(sdaac_ops)
+
 # version dump
 set(VERSION_DUMP_TARGET version_dump)
 set(PADDLE_SDAA_TOOLS_DIR ${CMAKE_SOURCE_DIR}/tools)
 set(VERSION_QUERY_DIR ${PADDLE_SDAA_TOOLS_DIR}/version)
 list(APPEND PLUGIN_SRCS ${VERSION_QUERY_DIR}/query.cc)
+set(VERSION_PY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/sdaa_ext/python/version/)
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/tools/version/minimum_supported_version.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/tools/version/minimum_supported_version.h @ONLY)
@@ -94,7 +101,10 @@ add_custom_command(
   TARGET ${VERSION_DUMP_TARGET}
   POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E echo "Run version_dump to generate version.py"
-  COMMAND ./${VERSION_DUMP_TARGET})
+  COMMAND ./${VERSION_DUMP_TARGET}
+  COMMAND ${CMAKE_COMMAND} -E echo "Copy version.py to ${VERSION_PY_PATH}"
+  COMMAND mv ./version.py ${VERSION_PY_PATH}
+  COMMAND ${CMAKE_COMMAND} -E remove -f ${VERSION_DUMP_TARGET})
 
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
@@ -130,6 +140,9 @@ endif()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sdaa_ext/setup.py.in
+               ${CMAKE_CURRENT_BINARY_DIR}/sdaa_ext_setup.py)
+
 add_custom_command(
   TARGET ${PLUGIN_NAME}
   POST_BUILD
@@ -145,17 +158,31 @@ add_custom_command(
     ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${EXTEND_OP_LIB}
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib/
   COMMENT "Creating plugin dirrectories------>>>")
 
 add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/sdaa-ext/.timestamp
+  COMMAND CUSTOM_DEVICE_ROOT="" python3
+          ${CMAKE_CURRENT_BINARY_DIR}/sdaa_ext_setup.py bdist_egg
+  COMMAND unzip -o ${CMAKE_CURRENT_BINARY_DIR}/dist/*.egg -d
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_sdaa
+  COMMAND mv ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_sdaa/sdaa_ext.so
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_sdaa/sdaa_ext_pd_.so
+  COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/sdaa_ext/python/*
+          ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_sdaa/
+  DEPENDS ${PLUGIN_NAME}
+  COMMENT "Packing sdaa-ext egg packages------>>>")
+
+add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
-  COMMAND
-    ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_SOURCE_DIR}/sdaa_ext/python/__init__.py
-    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${PLUGIN_NAME}
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/sdaa-ext/.timestamp
   COMMENT "Packing paddle-custom-sdaa whl packages------>>>")
 
-add_custom_target(python_package ALL
-                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)
+add_custom_target(
+  python_package ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/sdaa-ext/.timestamp
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)

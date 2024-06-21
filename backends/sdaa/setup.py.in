@@ -1,9 +1,9 @@
 from setuptools import setup, Distribution, find_namespace_packages
 
-packages = find_namespace_packages('python/paddle_custom_device/sdaa')
+packages = find_namespace_packages('python/paddle_sdaa')
 for i in range(len(packages)):
-    packages[i] = 'paddle_custom_device/sdaa/' + packages[i]
-packages.extend(['paddle_custom_device', 'paddle_custom_device/lib/'])
+    packages[i] = 'paddle_sdaa/' + packages[i]
+packages.extend(['paddle_custom_device', 'paddle_sdaa', 'paddle_custom_device/lib/'])
 package_data = {}
 
 class BinaryDistribution(Distribution):

@@ -37,4 +37,15 @@ set(PYTHON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../python")
 
 enable_testing()
 
+add_test(
+  NAME test_MNIST_model
+  COMMAND
+    ${CMAKE_COMMAND} -E env
+    CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
+    PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
+    python test_MNIST_model.py
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_subdirectory(unittests)
+add_subdirectory(runtime)
+add_subdirectory(distribution)

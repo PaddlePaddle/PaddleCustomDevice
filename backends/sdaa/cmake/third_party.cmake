@@ -60,6 +60,7 @@ if(WITH_MKLDNN AND NOT WITH_ARM)
   list(APPEND third_party_deps extern_mkldnn)
 endif()
 
-include(external/tabulate)
+include(external/tabulate) # tabulate
+list(APPEND third_party_deps tabulate)
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})

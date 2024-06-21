@@ -23,3 +23,10 @@
 # STRICT LIABILITY,OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY
 # WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 # OF SUCH DAMAGE.
+
+from .sdaa_ext import *  # noqa
+import paddle_sdaa.demo
+import paddle_sdaa.utils
+import paddle_sdaa.passes
+import paddle_sdaa.ops
+import paddle_sdaa.storage

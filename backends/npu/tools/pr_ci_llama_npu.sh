@@ -14,7 +14,7 @@
 
 function build() {
   cd ${CODE_ROOT}
-  bash tools/compile.sh
+  bash backends/npu/tools/compile.sh
   if [[ "$?" != "0" ]];then
       exit 7;
   fi

@@ -14,9 +14,6 @@
 
 function build() {
   cd ${CODE_ROOT}
-  pwd
-  echo 111
-  ls
   bash backends/npu/tools/compile.sh
   if [[ "$?" != "0" ]];then
       exit 7;

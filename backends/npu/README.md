@@ -48,7 +48,7 @@ cd backends/npu
 # 2. please ensure the PaddlePaddle cpu whl package is already installed
 # the development docker image NOT have PaddlePaddle cpu whl installed by default
 # you may download and install the nightly built cpu whl package with links below
-pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu
+pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
 
 # 3. compile options, whether to compile with unit testing, default is ON

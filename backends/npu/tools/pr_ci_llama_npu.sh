@@ -54,6 +54,10 @@ function run_test() {
   export MULTI_STREAM_MEMORY_REUSE=1
   source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
+  echo 11111
+  ls /paddle/*
+  cd /paddle/PaddleNLPllm/llama
+
   python -u  -m paddle.distributed.launch \
     --log_dir "./log_llama_ci" \
     --devices 0,1,2,3 \

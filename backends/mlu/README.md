@@ -8,25 +8,26 @@ Please refer to the following steps to compile, install and verify the custom de
 
 | Module    | Version  |
 | --------- | -------- |
-| cntoolkit | 3.8.4-1  |
-| cnnl      | 1.23.2-1 |
-| cnnlextra | 1.6.1-1  |
-| cncl      | 1.14.0-1 |
-| mluops    | 0.11.0-1 |
+| cntoolkit | 3.10.2-1 |
+| cnnl      | 1.25.1-1 |
+| cnnlextra | 1.8.1-1  |
+| cncl      | 1.16.0-1 |
+| mluops    | 1.1.1-1  |
 
 ## Prepare environment and source code
 
 ```bash
 # 1. pull PaddlePaddle Cambricon MLU development docker image
 # dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-kylinv10-aarch64-gcc82-py310
 
 # 2. refer to the following commands to start docker container
-docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
-    --shm-size=128G --network=host -w=/workspace \
+docker run -it --name paddle-mlu-dev -v `pwd`:/work \
+    --shm-size=128G --network=host --workdir=/work \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-gcc84-py310 /bin/bash
+    registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -35,6 +36,23 @@ cd PaddleCustomDevice
 
 ## PaddlePaddle Installation and Verification
 
+### Install Wheel Pacakge
+
+Install nighlty built PaddlePaddle wheel packages as following:
+
+```bash
+# Wheel packages for X86_64
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddlepaddle-2.6.1-cp310-cp310-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddle_custom_mlu-2.6.1-cp310-cp310-linux_x86_64.whl
+
+# Wheel packages for Aarch64
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddlepaddle-2.6.1-cp310-cp310-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddle_custom_mlu-2.6.1-cp310-cp310-linux_aarch64.whl
+
+# Install two wheel packages after download
+pip install paddlepaddle*.whl paddle_custom_mlu*.whl
+```
+
 ### Source Code Compilation
 
 ```bash
@@ -42,7 +60,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2. before compiling, ensure that PaddlePaddle (CPU version) is installed, you can run the following command
-pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF
@@ -65,13 +83,12 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2. check installed custom mlu version
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # output as following
-version: 2.6.0
-commit: 99fe60ff5e28788af73987027f7e3208fd5d7337
-cntoolkit: 3.8.4
-cnnl: 1.23.2
-cnnlextra: 1.6.1
-cncl: 1.14.0
-mluops: 0.11.0
+version: 2.6.1
+commit: 32bee0557c29162627e347e991e063f5a332d2b1
+cntoolkit: 3.10.1
+cnnl: 1.25.1
+cncl: 1.16.0
+mluops: 1.1.1
 
 # 3. health check
 python -c "import paddle; paddle.utils.run_check()"

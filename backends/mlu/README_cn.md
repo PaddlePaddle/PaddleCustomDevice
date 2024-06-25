@@ -8,25 +8,26 @@
 
 | 模块名称  | 版本     |
 | --------- | -------- |
-| cntoolkit | 3.8.4-1  |
-| cnnl      | 1.23.2-1 |
-| cnnlextra | 1.6.1-1  |
-| cncl      | 1.14.0-1 |
-| mluops    | 0.11.0-1 |
+| cntoolkit | 3.10.2-1 |
+| cnnl      | 1.25.1-1 |
+| cnnlextra | 1.8.1-1  |
+| cncl      | 1.16.0-1 |
+| mluops    | 1.1.1-1  |
 
 ## 环境准备与源码同步
 
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-kylinv10-aarch64-gcc82-py310
 
 # 2) 参考如下命令启动容器
-docker run -it --name paddle-mlu-dev -v `pwd`:/workspace \
-    --shm-size=128G --network=host -w=/workspace \
+docker run -it --name paddle-mlu-dev -v `pwd`:/work \
+    --shm-size=128G --network=host --workdir=/work \
     --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
     --privileged -v /usr/bin/cnmon:/usr/bin/cnmon \
-    registry.baidubce.com/device/paddle-mlu:ctr2.13.0-ubuntu20-gcc84-py310 /bin/bash
+    registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -35,6 +36,23 @@ cd PaddleCustomDevice
 
 ## PaddlePaddle 安装与运行
 
+### Wheel包安装
+
+飞桨提供日级别的预编译的 Wheel 安装包如下：
+
+```bash
+# X86_64 环境安装包下载链接
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddlepaddle-2.6.1-cp310-cp310-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddle_custom_mlu-2.6.1-cp310-cp310-linux_x86_64.whl
+
+# Aarch64 环境安装包下载链接
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddlepaddle-2.6.1-cp310-cp310-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/2.6.1/mlu/paddle_custom_mlu-2.6.1-cp310-cp310-linux_aarch64.whl
+
+# 安装下载之后的2个WHL包即可
+pip install paddlepaddle*.whl paddle_custom_mlu*.whl
+```
+
 ### 源码编译安装
 
 ```bash
@@ -42,7 +60,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
-pip install paddlepaddle==2.6.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install paddlepaddle==2.6.1 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -65,13 +83,13 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) 检查当前安装版本
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # 预期得到如下输出结果
-version: 2.6.0
-commit: 55f88ebff9297f2f4b90d61e211d2cf2784f2ad9
-cntoolkit: 3.8.4
-cnnl: 1.23.2
-cnnlextra: 1.6.1
-cncl: 1.14.0
-mluops: 0.11.0
+version: 2.6.1
+commit: 32bee0557c29162627e347e991e063f5a332d2b1
+cntoolkit: 3.10.1
+cnnl: 1.25.1
+cncl: 1.16.0
+mluops: 1.1.1
+
 # 3. 飞桨健康检查
 python -c "import paddle; paddle.utils.run_check()"
 # 预期得到如下输出结果

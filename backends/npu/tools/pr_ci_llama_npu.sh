@@ -17,8 +17,7 @@ function build() {
   if [[ "$?" != "0" ]];then
       exit 7;
   fi
-  cd ${CODE_ROOT}/build
-  pip install dist/*.whl
+  pip install backends/npu/build/dist/*.whl
 }
 
 function open_lock_seed() {

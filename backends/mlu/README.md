@@ -19,14 +19,15 @@ Please refer to the following steps to compile, install and verify the custom de
 ```bash
 # 1. pull PaddlePaddle Cambricon MLU development docker image
 #    dockerfile of the image is in tools/dockerfile directory
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-kylinv10-aarch64-gcc82-py310
 
 # 2. refer to the following commands to start docker container
 docker run -it --name paddle-mlu-dev -v $(pwd):/work \
   -w=/work --shm-size=128G --network=host --privileged  \
   --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   -v /usr/bin/cnmon:/usr/bin/cnmon \
-  registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310 /bin/bash
+  registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3. clone the source code
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -35,6 +36,23 @@ cd PaddleCustomDevice
 
 ## PaddlePaddle Installation and Verification
 
+### Install Wheel Pacakge
+
+Install nighlty built PaddlePaddle wheel packages as following:
+
+```bash
+# Wheel packages for X86_64
+https://paddle-device.bj.bcebos.com/0.0.0/mlu/paddlepaddle-0.0.0-cp310-cp310-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/0.0.0/mlu/paddle_custom_mlu-0.0.0-cp310-cp310-linux_x86_64.whl
+
+# Wheel packages for Aarch64
+https://paddle-device.bj.bcebos.com/0.0.0/mlu/paddlepaddle-0.0.0-cp310-cp310-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/0.0.0/mlu/paddle_custom_mlu-0.0.0-cp310-cp310-linux_aarch64.whl
+
+# Install two wheel packages after download
+pip install paddlepaddle*.whl paddle_custom_mlu*.whl
+```
+
 ### Source Code Compilation
 
 ```bash
@@ -42,7 +60,7 @@ cd PaddleCustomDevice
 cd backends/mlu
 
 # 2. before compiling, ensure that PaddlePaddle (CPU version) is installed, you can run the following command
-pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu
+pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
 # 3. compile options, whether to compile with unit testing, default is ON
 export WITH_TESTING=OFF

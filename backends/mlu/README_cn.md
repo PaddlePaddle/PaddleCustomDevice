@@ -19,14 +19,15 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与 dockerfile 位于 tools/dockerfile 目录下
-docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310
+docker pull registry.baidubce.com/device/paddle-mlu:ctr2.15.0-kylinv10-aarch64-gcc82-py310
 
 # 2) 参考如下命令启动容器
 docker run -it --name paddle-mlu-dev -v $(pwd):/work \
   -w=/work --shm-size=128G --network=host --privileged  \
   --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   -v /usr/bin/cnmon:/usr/bin/cnmon \
-  registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-gcc84-py310 /bin/bash
+  registry.baidubce.com/device/paddle-mlu:ctr2.15.0-ubuntu20-x86_64-gcc84-py310 /bin/bash
 
 # 3) 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -34,6 +35,23 @@ cd PaddleCustomDevice
 ```
 
 ## PaddlePaddle 安装与运行
+
+### Wheel包安装
+
+飞桨提供 Release 版本的预编译的 Wheel 安装包如下：
+
+```bash
+# X86_64 环境安装包下载链接
+https://paddle-device.bj.bcebos.com/3.0.0b0/mlu/paddlepaddle-3.0.0b0-cp310-cp310-linux_x86_64.whl
+https://paddle-device.bj.bcebos.com/3.0.0b0/mlu/paddle_custom_mlu-3.0.0b0-cp310-cp310-linux_x86_64.whl
+
+# Aarch64 环境安装包下载链接
+https://paddle-device.bj.bcebos.com/3.0.0b0/mlu/paddlepaddle-3.0.0b0-cp310-cp310-linux_aarch64.whl
+https://paddle-device.bj.bcebos.com/3.0.0b0/mlu/paddle_custom_mlu-3.0.0b0-cp310-cp310-linux_aarch64.whl
+
+# 安装下载之后的2个WHL包即可
+pip install paddlepaddle*.whl paddle_custom_mlu*.whl
+```
 
 ### 源码编译安装
 
@@ -43,7 +61,7 @@ cd backends/mlu
 
 # 2) 编译之前需要先保证环境下装有飞桨安装包，直接安装飞桨 CPU 版本即可
 # 默认开发镜像中不含有飞桨安装包，可通过如下地址安装 PaddlePaddle develop 分支的 nightly build 版本的安装包
-pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu
+pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
 # 3) 编译选项，是否打开单元测试编译，默认值为 ON
 export WITH_TESTING=OFF
@@ -66,11 +84,11 @@ python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
 # 2) 检查当前安装版本
 python -c "import paddle_custom_device; paddle_custom_device.mlu.version()"
 # 预期得到如下输出结果
-version: 0.0.0
-commit: 83dfe3de33f0a915fb189161568fc3804b5f9c1b
-cntoolkit: 3.10.2
+version: 3.0.0b0
+commit: 677b0fb8394c9939e0fcac4d943cabd4f39effd1
+cntoolkit: 3.10.1
 cnnl: 1.25.1
-cnnlextra: 1.8.1
+cnnl_extra: 1.8.1
 cncl: 1.16.0
 mluops: 1.1.1
 

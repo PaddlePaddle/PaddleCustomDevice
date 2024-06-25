@@ -38,7 +38,7 @@ cd PaddleCustomDevice
 
 ### Wheel包安装
 
-飞桨提供日级别的预编译的 Wheel 安装包如下：
+飞桨提供 Release 版本的预编译的 Wheel 安装包如下：
 
 ```bash
 # X86_64 环境安装包下载链接

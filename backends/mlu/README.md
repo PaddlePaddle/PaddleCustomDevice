@@ -38,7 +38,7 @@ cd PaddleCustomDevice
 
 ### Install Wheel Pacakge
 
-Install nighlty built PaddlePaddle wheel packages as following:
+Install release version of PaddlePaddle wheel packages as following
 
 ```bash
 # Wheel packages for X86_64

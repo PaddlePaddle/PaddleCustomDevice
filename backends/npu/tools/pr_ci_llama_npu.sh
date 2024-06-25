@@ -46,7 +46,6 @@ function run_test() {
   export HCCL_INTRA_PCIE_EHABLE=0
   export HCCL_INTRA_ROCE_ENABLE=1
   export FLAGS_allocator_strategy=naive_best_fit
-  export ASCEND_RT_VISIBLE_DEVICES="0,1,2,3"
   export FLAGS_NPU_MC2=1
   export MC2_Recompute=1
   unset PADDLE_TRAINER_ENDPOINTS

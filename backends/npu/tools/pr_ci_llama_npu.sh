@@ -13,7 +13,6 @@
 # limitations under the License.
 
 function build() {
-  cd ${CODE_ROOT}
   bash backends/npu/tools/compile.sh
   if [[ "$?" != "0" ]];then
       exit 7;

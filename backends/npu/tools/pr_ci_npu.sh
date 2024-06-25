@@ -206,14 +206,9 @@ function main() {
     IFS_DEFAULT=$IFS
     IFS=$'\n'
     if [ $(lspci | grep d801 | wc -l) -ne 0 ]; then
-        disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu")
     elif [ $(lspci | grep d802 | wc -l) -ne 0 ]; then
-        wget https://sys-p0.bj.bcebos.com/prec/disable_ut_npu_910B 
-        if [ -f "disable_ut_npu_910B" ];then
-            disable_ut_npu=$(cat "disable_ut_npu_910B")
-        else
-            disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b_global")
-        fi
+      disable_ut_npu=$(cat "${CODE_ROOT}/tools/disable_ut_npu_910b")
     else
       echo "Please make sure Ascend 910A or 910B NPUs exists!"
       exit 1

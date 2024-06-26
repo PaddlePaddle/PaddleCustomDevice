@@ -17,6 +17,12 @@
 
 namespace custom_kernel {
 
+template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
 template <typename T = int>
 inline void UpdatePadding(std::vector<T>* paddings,
                           const bool global_pooling,
@@ -349,6 +355,36 @@ void Pool2dGradKernel(const Context& dev_ctx,
                                    64,
                                    std::max(strides[0], strides[1])));
 
+  phi::DenseTensor out_grad_cast_tensor, in_x_grad_tmp_tensor;
+  if (out_grad_tensor.dtype() != phi::DataType::FLOAT32) {
+    phi::DenseTensorMeta out_grad_cast_tensor_meta;
+    phi::DenseTensorMeta in_x_grad_tmp_tensor_meta;
+    if (data_format == "NHWC") {
+      out_grad_cast_tensor_meta = {phi::DataType::FLOAT32,
+                                   out_grad_tensor.dims(),
+                                   phi::DataLayout::kNHWC};
+      in_x_grad_tmp_tensor_meta = {phi::DataType::FLOAT32,
+                                   in_x_grad_tensor.dims(),
+                                   phi::DataLayout::kNHWC};
+    } else {
+      out_grad_cast_tensor_meta = {phi::DataType::FLOAT32,
+                                   out_grad_tensor.dims()};
+      in_x_grad_tmp_tensor_meta = {phi::DataType::FLOAT32,
+                                   in_x_grad_tensor.dims()};
+    }
+
+    out_grad_cast_tensor.set_meta(out_grad_cast_tensor_meta);
+    in_x_grad_tmp_tensor.set_meta(in_x_grad_tmp_tensor_meta);
+    dev_ctx.template Alloc<T>(&in_x_grad_tmp_tensor);
+    custom_kernel::CastKernel<T, Context>(dev_ctx,
+                                          out_grad_tensor,
+                                          phi::DataType::FLOAT32,
+                                          &out_grad_cast_tensor);
+  } else {
+    out_grad_cast_tensor = out_grad_tensor;
+    in_x_grad_tmp_tensor = in_x_grad_tensor;
+  }
+
   if (pooling_type == "max") {
     if (global_pooling) {
       for (auto& s : strides_vec) {
@@ -363,19 +399,55 @@ void Pool2dGradKernel(const Context& dev_ctx,
       attrs["global_pooling"] = false;
     }
 
-    const auto& runner = NpuOpRunner("MaxPoolV3Grad",
-                                     {in_x_tensor, out_tensor, out_grad_tensor},
-                                     {in_x_grad_tensor},
-                                     attrs);  // 0: floor, 1: ceil
+    phi::DenseTensor cast_in_x_tensor, cast_out_tensor;
+    if (out_grad_tensor.dtype() != phi::DataType::FLOAT32) {
+      phi::DenseTensorMeta cast_in_x_tensor_meta;
+      phi::DenseTensorMeta cast_out_tensor_meta;
+      if (data_format == "NHWC") {
+        cast_in_x_tensor_meta = {
+            phi::DataType::FLOAT32, in_x_tensor.dims(), phi::DataLayout::kNHWC};
+        cast_out_tensor_meta = {
+            phi::DataType::FLOAT32, out_tensor.dims(), phi::DataLayout::kNHWC};
+      } else {
+        cast_in_x_tensor_meta = {phi::DataType::FLOAT32, in_x_tensor.dims()};
+        cast_out_tensor_meta = {phi::DataType::FLOAT32, out_tensor.dims()};
+      }
+
+      cast_in_x_tensor.set_meta(cast_in_x_tensor_meta);
+      cast_out_tensor.set_meta(cast_out_tensor_meta);
+
+      custom_kernel::CastKernel<T, Context>(
+          dev_ctx, in_x_tensor, phi::DataType::FLOAT32, &cast_in_x_tensor);
+      custom_kernel::CastKernel<T, Context>(
+          dev_ctx, out_tensor, phi::DataType::FLOAT32, &cast_out_tensor);
+    } else {
+      cast_in_x_tensor = in_x_tensor;
+      cast_out_tensor = out_tensor;
+    }
+
+    const auto& runner =
+        NpuOpRunner("MaxPoolV3Grad",
+                    {cast_in_x_tensor, cast_out_tensor, out_grad_cast_tensor},
+                    {in_x_grad_tmp_tensor},
+                    attrs);  // 0: floor, 1: ceil
     runner.Run(dev_ctx.stream());
   } else if (pooling_type == "avg") {
     NpuOpRunner runner;
     runner.SetType("AvgPoolV2Grad");
     runner.AddInput(dev_ctx, phi::vectorize<int>(in_x.dims()));
-    runner.AddInput(out_grad_tensor);
-    runner.AddOutput(in_x_grad_tensor);
+    runner.AddInput(out_grad_cast_tensor);
+    runner.AddOutput(in_x_grad_tmp_tensor);
     runner.AddAttrs(attrs);
     runner.Run(dev_ctx.stream());
+  }
+
+  if (out_grad_tensor.dtype() != phi::DataType::FLOAT32) {
+    custom_kernel::CastKernel<T, Context>(dev_ctx,
+                                          in_x_grad_tmp_tensor,
+                                          in_x_grad_tensor.dtype(),
+                                          &in_x_grad_tensor);
+  } else {
+    in_x_grad_tensor = in_x_grad_tmp_tensor;
   }
 }
 

@@ -17,9 +17,19 @@ function build() {
   if [[ "$?" != "0" ]];then
       exit 7;
   fi
-  pip install backends/npu/build/dist/*.whl
-  pip install -r /paddle/PaddleNLP/requirements.txt
 }
+
+
+function install_depend() {
+  pip install /paddle/backends/npu/build/dist/*.whl
+  pip install -r /paddle/PaddleNLP/requirements.txt
+  cd /paddle/PaddleNLP/llm/llama
+  mkdir pre-data
+  cd pre-data
+  wget -q https://bj.bcebos.com/paddlenlp/models/transformers/llama/data/llama_openwebtext_100k.bin
+  wget -q https://bj.bcebos.com/paddlenlp/models/transformers/llama/data/llama_openwebtext_100k.idx
+}
+
 
 function open_lock_seed() {
   echo "lock_seed_flag : $lock_seed_flag"
@@ -55,10 +65,7 @@ function run_test() {
   export MULTI_STREAM_MEMORY_REUSE=1
   source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-  echo 11111
-  ls /paddle/*
   cd /paddle/PaddleNLP/llm/llama
-
   python -u  -m paddle.distributed.launch \
     --log_dir "./log_llama_ci" \
     --devices 0,1,2,3 \

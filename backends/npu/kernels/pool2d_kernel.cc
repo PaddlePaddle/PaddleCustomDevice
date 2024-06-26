@@ -362,20 +362,48 @@ void Pool2dGradKernel(const Context& dev_ctx,
                             data_dims));
       attrs["global_pooling"] = false;
     }
-
-    const auto& runner = NpuOpRunner("MaxPoolV3Grad",
-                                     {in_x_tensor, out_tensor, out_grad_tensor},
-                                     {in_x_grad_tensor},
-                                     attrs);  // 0: floor, 1: ceil
-    runner.Run(dev_ctx.stream());
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx) {
+      const auto& runner = NpuOpRunner("MaxPoolV3Grad",
+                                       {inputs[0], inputs[1], inputs[2]},
+                                       {outputs[0]},
+                                       attrs);  // 0: floor, 1: ceil
+      runner.Run(dev_ctx.stream());
+    };
+    NpuOpRunner::TypeAdapter({in_x_tensor, out_tensor, out_grad_tensor},
+                             {in_x_grad_tensor},
+                             attrs,
+                             dev_ctx,
+                             op_func,
+                             {phi::DataType::FLOAT32,
+                              phi::DataType::FLOAT32,
+                              phi::DataType::FLOAT32},
+                             {phi::DataType::FLOAT32});
   } else if (pooling_type == "avg") {
-    NpuOpRunner runner;
-    runner.SetType("AvgPoolV2Grad");
-    runner.AddInput(dev_ctx, phi::vectorize<int>(in_x.dims()));
-    runner.AddInput(out_grad_tensor);
-    runner.AddOutput(in_x_grad_tensor);
-    runner.AddAttrs(attrs);
-    runner.Run(dev_ctx.stream());
+    auto op_func = [](const std::vector<phi::DenseTensor>& inputs,
+                      const std::vector<phi::DenseTensor>& outputs,
+                      const NPUAttributeMap& attrs,
+                      const phi::CustomContext& dev_ctx,
+                      const auto& host_vecs) {
+      NpuOpRunner runner;
+      runner.SetType("AvgPoolV2Grad");
+      runner.AddInput(dev_ctx, std::move(host_vecs[0]));
+      runner.AddInput(inputs[0]);
+      runner.AddOutput(outputs[0]);
+      runner.AddAttrs(attrs);
+      runner.Run(dev_ctx.stream());
+    };
+
+    NpuOpRunner::TypeAdapter<int>({out_grad_tensor},
+                                  {in_x_grad_tensor},
+                                  attrs,
+                                  dev_ctx,
+                                  op_func,
+                                  {phi::DataType::FLOAT32},
+                                  {phi::DataType::FLOAT32},
+                                  {phi::vectorize<int>(in_x.dims())});
   }
 }
 

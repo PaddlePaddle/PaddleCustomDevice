@@ -122,6 +122,7 @@ function run_test() {
 
 function main() {
   build
+  install_depend
   run_test
   open_lock_seed
   run_test 

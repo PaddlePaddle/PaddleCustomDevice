@@ -56,7 +56,7 @@ function run_test() {
 
   echo 11111
   ls /paddle/*
-  cd /paddle/PaddleNLPllm/llama
+  cd /paddle/PaddleNLP/llm/llama
 
   python -u  -m paddle.distributed.launch \
     --log_dir "./log_llama_ci" \

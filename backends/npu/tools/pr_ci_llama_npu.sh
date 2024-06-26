@@ -18,6 +18,7 @@ function build() {
       exit 7;
   fi
   pip install backends/npu/build/dist/*.whl
+  pip install -r /paddle/PaddleNLP/requirements.txt
 }
 
 function open_lock_seed() {

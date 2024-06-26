@@ -341,6 +341,21 @@ void Conv2DGradKernel(const Context& dev_ctx,
   custom_kernel::UpdatePaddingAndDilation(
       &paddings, &dilations, padding_algorithm, in_data_dims, strides, ksize);
 
+  DO_COMPATIBILITY(
+      aclnnConvolutionBackward,
+      (custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
+                                                        input,
+                                                        filter,
+                                                        output_grad,
+                                                        strides,
+                                                        paddings,
+                                                        dilations,
+                                                        groups,
+                                                        data_format,
+                                                        channel_last,
+                                                        input_grad,
+                                                        filter_grad)));
+
   if (paddings[0] != paddings[1] || paddings[2] != paddings[3]) {
     VLOG(2) << "Fallback to AclopConv2DGradKernel due to asymmetric padding : {"
             << paddings[0] << ", " << paddings[1] << ", " << paddings[2] << ", "
@@ -393,21 +408,6 @@ void Conv2DGradKernel(const Context& dev_ctx,
                                                             filter_grad);
   }
 
-  DO_COMPATIBILITY(
-      aclnnConvolutionBackward,
-      (custom_kernel::AclopConv2DGradKernel<T, Context>(dev_ctx,
-                                                        input,
-                                                        filter,
-                                                        output_grad,
-                                                        strides,
-                                                        paddings,
-                                                        dilations,
-                                                        groups,
-                                                        data_format,
-                                                        channel_last,
-                                                        input_grad,
-                                                        filter_grad)));
-
   phi::DenseTensor input_tensor(input), output_grad_tensor(output_grad);
 
   phi::DenseTensor filter_grad_tensor;
@@ -422,7 +422,16 @@ void Conv2DGradKernel(const Context& dev_ctx,
   if (input_grad) {
     dev_ctx.template Alloc<T>(input_grad);
     input_grad_tensor = phi::DenseTensor(*input_grad);
+  } else {
+    phi::DenseTensorMeta input_grad_meta = {input.dtype(), input.dims()};
+    input_grad_tensor.set_meta(input_grad_meta);
+    dev_ctx.template Alloc<T>(&input_grad_tensor);
   }
+
+  phi::DenseTensorMeta bias_grad_meta = {input.dtype(),
+                                         phi::make_ddim({input.dims()[0]})};
+  bias_grad_tensor.set_meta(bias_grad_meta);
+  dev_ctx.template Alloc<T>(&bias_grad_tensor);
 
   std::vector<int64_t> bias_sizes =
       phi::vectorize(phi::slice_ddim(filter_dims, 0, 1));

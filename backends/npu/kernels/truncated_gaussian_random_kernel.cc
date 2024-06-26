@@ -132,21 +132,27 @@ T Erfinv(T x) {
 }
 
 template <typename T>
+T clamp(T val, T min, T max) {
+  return val < min ? min : (val > max ? max : val);
+}
+
+template <typename T>
 struct TruncatedNormal {
-  T mean, std;
+  T mean, std, a, b;
   T a_normal_cdf;
   T b_normal_cdf;
-  TruncatedNormal(T mean, T std) : mean(mean), std(std) {
+  TruncatedNormal(T mean, T std, T a, T b) : mean(mean), std(std), a(a), b(b) {
     auto normal_cdf = [](T x) {
       return (1.0 + std::erf(x / std::sqrt(2.0))) / 2.0;
     };
-    a_normal_cdf = normal_cdf(-2.0);
-    b_normal_cdf = normal_cdf(2.0);
+    a_normal_cdf = normal_cdf((a - mean) / std);
+    b_normal_cdf = normal_cdf((b - mean) / std);
   }
 
   T operator()(T value) const {
     auto p = a_normal_cdf + (b_normal_cdf - a_normal_cdf) * value;
-    return std::sqrt(2.0) * Erfinv(2 * p - 1) * std + mean;
+    T ret = std::sqrt(2.0) * Erfinv(2 * p - 1) * std + mean;
+    return clamp(ret, a, b);
   }
 };
 
@@ -156,6 +162,8 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
                                    float mean,
                                    float std,
                                    int seed,
+                                   float a,
+                                   float b,
                                    phi::DataType dtype,
                                    phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
@@ -167,7 +175,7 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
 
   std::uniform_real_distribution<T> dist(std::numeric_limits<float>::min(),
                                          1.0);
-  TruncatedNormal<T> truncated_normal(mean, std);
+  TruncatedNormal<T> truncated_normal(mean, std, a, b);
   int64_t size = out->numel();
 
   std::shared_ptr<std::mt19937_64> engine;

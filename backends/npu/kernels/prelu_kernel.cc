@@ -91,8 +91,7 @@ void PReluKernel(const Context& dev_ctx,
       FillNpuTensorWithConstant<T>(out, dev_ctx, val);
       out->Resize(out_dim);
     } else {
-      const auto& runner = NpuOpRunner("PRelu", {x, alpha}, {*out}, {});
-      runner.Run(stream);
+      EXEC_NPU_CMD(aclnnPrelu, dev_ctx, x, alpha, *out);
     }
   }
 }
@@ -207,9 +206,13 @@ void PReluGradKernel(const Context& dev_ctx,
       x_grad->Resize(x_grad_dim);
     } else {
       phi::DenseTensor weight(alpha);
-      const auto& runner = NpuOpRunner(
-          "PReluGrad", {out_grad, x, weight}, {*x_grad, *alpha_grad}, {});
-      runner.Run(stream);
+      EXEC_NPU_CMD(aclnnPreluBackward,
+                   dev_ctx,
+                   out_grad,
+                   x,
+                   weight,
+                   *x_grad,
+                   *alpha_grad);
     }
   }
 }

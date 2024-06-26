@@ -18,6 +18,12 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void AclopSoftmaxKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         int axis,
@@ -141,7 +147,32 @@ void SoftmaxGradKernel(const Context& dev_ctx,
                        dev_ctx, out, out_grad, axis, x_grad)));
   dev_ctx.template Alloc<T>(x_grad);
   int64_t dim = static_cast<int64_t>(axis);
-  EXEC_NPU_CMD(aclnnSoftmaxBackward, dev_ctx, out_grad, out, dim, *x_grad);
+
+  phi::DenseTensor cast_x;
+  if (out_grad.dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensorMeta meta(out_grad.meta());
+    meta.dtype = phi::DataType::FLOAT32;
+    cast_x.set_meta(meta);
+
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, out_grad, phi::DataType::FLOAT32, &cast_x);
+  } else {
+    cast_x = out_grad;
+  }
+
+  phi::DenseTensor cast_y;
+  if (out.dtype() == phi::DataType::FLOAT64) {
+    phi::DenseTensorMeta meta(out.meta());
+    meta.dtype = phi::DataType::FLOAT32;
+    cast_y.set_meta(meta);
+
+    custom_kernel::CastKernel<T, Context>(
+        dev_ctx, out, phi::DataType::FLOAT32, &cast_y);
+  } else {
+    cast_y = out;
+  }
+
+  EXEC_NPU_CMD(aclnnSoftmaxBackward, dev_ctx, cast_x, cast_y, dim, *x_grad);
 }
 
 }  // namespace custom_kernel

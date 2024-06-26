@@ -156,7 +156,9 @@ function main() {
   build
   install_depend
   run_test
+  check_loss
   open_lock_seed
   run_test 
+  check_train
 }
 main

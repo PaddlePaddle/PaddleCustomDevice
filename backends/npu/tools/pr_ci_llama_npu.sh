@@ -12,6 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# Baseline
+train_loss=10.627841186523437
+train_samples_per_second=2.4003
+
+
+function check_loss() {
+  pr_train_loss=`grep "train_loss" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0|tail -1|awk '{print $NF}'`
+  if [ "$train_loss" = "$pr_train_loss" ]; then
+      echo "train_loss is Same"
+  else
+      echo "train_loss is different"
+      exit 8
+  fi
+}
+
+
+function check_train() {
+  pr_train_samples_per_second=`grep "train_samples_per_second" workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
+  int_train=`echo |awk "{print ${train_samples_per_second} * 100}"`
+  pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
+  diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`
+  if [ $diff_train -le 2 ]; then
+      echo "train_samples_per_second is less 2%"
+  else
+      echo "train_samples_per_second is greater than 2%"
+      exit 8
+  fi
+}
+
+
 function build() {
   bash backends/npu/tools/compile.sh
   if [[ "$?" != "0" ]];then
@@ -41,6 +72,7 @@ function open_lock_seed() {
       echo "npu_deterministic : $npu_deterministic   ACL_OP_DETERMINISTIC : $ACL_OP_DETERMINISTIC   ACL_OPT_DETERMINISTIC : $ACL_OPT_DETERMINISTIC   HCCL_DETERMINISTIC : $HCCL_DETERMINISTIC"
   fi
 }
+
 
 function run_test() {
 

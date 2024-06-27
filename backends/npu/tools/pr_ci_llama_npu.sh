@@ -64,19 +64,16 @@ function install_depend() {
 
 function open_lock_seed() {
   echo "lock_seed_flag : $lock_seed_flag"
-  if [[ ${lock_seed_flag} =~ "open_lock_seed" ]];then
-      export npu_deterministic=true
-      export ACL_OP_DETERMINISTIC=true
-      export ACL_OPT_DETERMINISTIC=true
-      export HCCL_DETERMINISTIC=true
-      echo "npu_deterministic : $npu_deterministic   ACL_OP_DETERMINISTIC : $ACL_OP_DETERMINISTIC   ACL_OPT_DETERMINISTIC : $ACL_OPT_DETERMINISTIC   HCCL_DETERMINISTIC : $HCCL_DETERMINISTIC"
-  fi
+  export npu_deterministic=true
+  export ACL_OP_DETERMINISTIC=true
+  export ACL_OPT_DETERMINISTIC=true
+  export HCCL_DETERMINISTIC=true
+  echo "npu_deterministic : $npu_deterministic   ACL_OP_DETERMINISTIC : $ACL_OP_DETERMINISTIC   ACL_OPT_DETERMINISTIC : $ACL_OPT_DETERMINISTIC   HCCL_DETERMINISTIC : $HCCL_DETERMINISTIC"
 }
 
 
 function run_test() {
 
-  lock_seed_flag=${1:-close}
   set -x
   ps aux | grep run_pretrain.py | grep -v grep | awk '{print $2}' | xargs kill -9
   rm -rf ./log_llama_ci
@@ -155,10 +152,10 @@ function run_test() {
 function main() {
   build
   install_depend
+  run_test 
+  check_train
   open_lock_seed
   run_test
   check_loss
-  run_test 
-  check_train
 }
 main

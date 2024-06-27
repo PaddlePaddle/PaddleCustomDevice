@@ -73,6 +73,9 @@ function open_lock_seed() {
 
 
 function run_test() {
+  cd /paddle/PaddleNLP/llm/llama
+  git status
+  git log -n1
 
   set -x
   ps aux | grep run_pretrain.py | grep -v grep | awk '{print $2}' | xargs kill -9
@@ -94,7 +97,6 @@ function run_test() {
   export MULTI_STREAM_MEMORY_REUSE=1
   source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-  cd /paddle/PaddleNLP/llm/llama
   python -u  -m paddle.distributed.launch \
     --log_dir "./log_llama_ci" \
     --devices 0,1,2,3 \

@@ -15,7 +15,7 @@
 
 # Baseline
 train_loss=10.627834224700928
-train_samples_per_second=1.6391
+train_samples_per_second=1.5886
 
 
 function check_loss() {
@@ -152,8 +152,8 @@ function run_test() {
 function main() {
   build
   install_depend
-  #run_test 
-  #check_train
+  run_test 
+  check_train
   open_lock_seed
   run_test
   check_loss

@@ -14,12 +14,12 @@
 
 
 # Baseline
-train_loss=10.627841186523437
-train_samples_per_second=2.4003
+train_loss=10.627834224700928
+train_samples_per_second=1.6391
 
 
 function check_loss() {
-  pr_train_loss=`grep "train_loss" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
+  pr_train_loss=`grep -oP 'train_loss: \K[0-9.]+' /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0`
   if [ "$train_loss" = "$pr_train_loss" ]; then
       echo "train_loss is Same"
   else
@@ -30,7 +30,7 @@ function check_loss() {
 
 
 function check_train() {
-  pr_train_samples_per_second=`grep "train_samples_per_second" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
+  pr_train_samples_per_second=`grep -oP 'train_samples_per_second: \K[0-9.]+' /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0` 
   int_train=`echo |awk "{print ${train_samples_per_second} * 100}"`
   pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`
@@ -155,9 +155,9 @@ function run_test() {
 function main() {
   build
   install_depend
+  open_lock_seed
   run_test
   check_loss
-  open_lock_seed
   run_test 
   check_train
 }

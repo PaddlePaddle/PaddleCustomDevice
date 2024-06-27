@@ -19,7 +19,7 @@ train_samples_per_second=2.4003
 
 
 function check_loss() {
-  pr_train_loss=`grep "train_loss" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0|tail -1|awk '{print $NF}'`
+  pr_train_loss=`grep "train_loss" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
   if [ "$train_loss" = "$pr_train_loss" ]; then
       echo "train_loss is Same"
   else
@@ -30,7 +30,7 @@ function check_loss() {
 
 
 function check_train() {
-  pr_train_samples_per_second=`grep "train_samples_per_second" workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
+  pr_train_samples_per_second=`grep "train_samples_per_second" /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0 |tail -1|cat -v|awk '{print $NF}'|awk -F '^' '{print $1}'`
   int_train=`echo |awk "{print ${train_samples_per_second} * 100}"`
   pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`

@@ -32,6 +32,13 @@ void ScaleKernel(const Context& dev_ctx,
                  phi::DenseTensor* out);
 
 template <typename T, typename Context>
+void ClipKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                const phi::Scalar& min,
+                const phi::Scalar& max,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
 void GreaterThanKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
@@ -1200,11 +1207,13 @@ void HardSigmoidKernel(const Context& dev_ctx,
                        float slope,
                        float offset,
                        phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
-  NPUAttributeMap attr_input = {{"alpha", slope}, {"beta", offset}};
-  auto stream = dev_ctx.stream();
-  const auto& runner = NpuOpRunner("HardSigmoid", {x}, {*out}, attr_input);
-  runner.Run(stream);
+  phi::DenseTensor scaled_x;
+  scaled_x.set_meta(x.meta());
+  custom_kernel::ScaleKernel<T, Context>(
+      dev_ctx, x, phi::Scalar(slope), phi::Scalar(offset), true, &scaled_x);
+
+  custom_kernel::ClipKernel<T, Context>(
+      dev_ctx, scaled_x, phi::Scalar(0.0f), phi::Scalar(1.0f), out);
 }
 
 template <typename T, typename Context>

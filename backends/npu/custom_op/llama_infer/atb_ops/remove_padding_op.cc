@@ -58,7 +58,7 @@ std::vector<paddle::Tensor> RemovePaddingOp(const paddle::Tensor& x,
       paddle::experimental::DeviceContextPool::Instance().Get(place));
 
   auto x_shape = x.shape();
-  const int bsz = x_shape[0];
+  const int bsz = seqlen.numel();
   const int padding_len = x_shape[1];
 
   auto seqlen_host = seqlen.copy_to(paddle::CPUPlace(), true);

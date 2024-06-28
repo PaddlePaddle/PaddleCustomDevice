@@ -14,7 +14,7 @@
 
 
 # Baseline
-train_loss=10.627834224700928
+train_loss=10.627834224700921
 train_samples_per_second=1.5886
 
 
@@ -22,9 +22,10 @@ function check_loss() {
   pr_train_loss=`grep -oP 'train_loss: \K[0-9.]+' /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0`
   if [ "$train_loss" = "$pr_train_loss" ]; then
       echo "train_loss is Same"
+      export loss_code=0
   else
       echo "train_loss is different"
-      exit 8
+      export loss_code=8
   fi
 }
 
@@ -36,8 +37,16 @@ function check_train() {
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`
   if [ $diff_train -le 2 ]; then
       echo "train_samples_per_second is less 2%"
+      export train_code=0
   else
       echo "train_samples_per_second is greater than 2%"
+      export train_code=8
+  fi
+}
+
+
+function check_code() {
+  if [ "$train_code" -ne 0 ] || [ "$loss_code" -ne 0 ]; then
       exit 8
   fi
 }
@@ -159,5 +168,6 @@ function main() {
   open_lock_seed
   run_test
   check_loss
+  check_code
 }
 main

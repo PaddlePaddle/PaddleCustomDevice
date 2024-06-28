@@ -46,7 +46,7 @@ function check_train() {
 
 
 function check_code() {
-  if [ "$trasin_code" -ne 0 ] && [ "$loss_code" -ne 0 ]; then
+  if [ "$train_code" -ne 0 ] && [ "$loss_code" -ne 0 ]; then
       echo "llama loss and train error"
       exit 8
   elif [ "$train_code" -ne 0 ]; then

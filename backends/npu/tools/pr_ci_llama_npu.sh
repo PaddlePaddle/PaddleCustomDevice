@@ -14,7 +14,7 @@
 
 
 # Baseline
-train_loss=10.627834224700921
+train_loss=10.627834224700928
 train_samples_per_second=1.5886
 
 

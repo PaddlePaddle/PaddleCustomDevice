@@ -18,11 +18,6 @@
 namespace custom_kernel {
 
 template <typename T, typename Context>
-void NegKernel(const Context& dev_ctx,
-               const phi::DenseTensor& x,
-               phi::DenseTensor* out);
-
-template <typename T, typename Context>
 void SubtractRawKernel(const Context& dev_ctx,
                        const phi::DenseTensor& x,
                        const phi::DenseTensor& y,
@@ -119,6 +114,13 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
       axes_t1.Resize({axes.size()});
       dev_ctx.template Alloc<int>(&axes_t1);
       custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
+      // For inplace strategy, dx will be stored in addr of dout, which makes
+      // the result of dy wrong.
+      if (dx->IsSharedWith(dout)) {
+        dx->clear();
+        dx->Resize(x.dims());
+        dev_ctx.template Alloc<T>(dx);
+      }
       const auto& sum_runner = NpuOpRunner(
           "ReduceSum", {*tmp_dout, axes_t1}, {*dx}, {{"keep_dims", true}});
       sum_runner.Run(stream, true);
@@ -187,7 +189,8 @@ void AclopSubtractGradKernel(const Context& dev_ctx,
     }
 
     // stage 3, negative
-    custom_kernel::NegKernel<T, Context>(dev_ctx, *tmp_dy, dy);
+    const auto& neg_runner = NpuOpRunner("Neg", {*tmp_dy}, {*dy}, {});
+    neg_runner.Run(stream);
   }
 }
 
@@ -226,10 +229,6 @@ void SubtractGradKernel(const Context& dev_ctx,
     for (auto i = 0; i < reduce_ndim; ++i) {
       axes.push_back(i);
     }
-    phi::DenseTensor axes_t;
-    axes_t.Resize({axes.size()});
-    dev_ctx.template Alloc<int>(&axes_t);
-    custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t);
 
     phi::DenseTensor* tmp_dout = const_cast<phi::DenseTensor*>(&dout);
     phi::DenseTensor reduced_dout;
@@ -260,10 +259,6 @@ void SubtractGradKernel(const Context& dev_ctx,
       }
     }
     if (axes.size() != 0) {
-      phi::DenseTensor axes_t1;
-      axes_t1.Resize({axes.size()});
-      dev_ctx.template Alloc<int>(&axes_t1);
-      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t1);
       // For inplace strategy, dx will be stored in addr of dout, which makes
       // the result of dy wrong.
       if (dx->IsSharedWith(dout)) {
@@ -305,13 +300,9 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dout.set_meta(reduced_dout_meta);
       dev_ctx.template Alloc<T>(&reduced_dout);
 
-      phi::DenseTensor axes_t2;
-      axes_t2.Resize({axes.size()});
-      dev_ctx.template Alloc<int>(&axes_t2);
-      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t2);
       keep_dim = false;
       auto dtype = ConvertToNpuDtype(reduced_dout.dtype());
-      auto axis = phi::IntArray(reduced_dout_dims);
+      auto axis = phi::IntArray(axes);
       EXEC_NPU_CMD(
           aclnnReduceSum, dev_ctx, dout, axis, keep_dim, dtype, reduced_dout);
       tmp_dout = &reduced_dout;
@@ -330,10 +321,6 @@ void SubtractGradKernel(const Context& dev_ctx,
       reduced_dy.set_meta(reduced_dy_meta);
       dev_ctx.template Alloc<T>(&reduced_dy);
 
-      phi::DenseTensor axes_t3;
-      axes_t3.Resize({axes.size()});
-      dev_ctx.template Alloc<int>(&axes_t3);
-      custom_kernel::TensorFromVector(dev_ctx, axes, dev_ctx, &axes_t3);
       keep_dim = true;
       auto dtype = ConvertToNpuDtype(reduced_dy.dtype());
       auto axis = phi::IntArray(axes);

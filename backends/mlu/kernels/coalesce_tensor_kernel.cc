@@ -270,7 +270,7 @@ void CoalesceTensorKernel(const Context &dev_ctx,
           custom_kernel::Slice(*fused_output,
                                static_cast<int64_t>(offset),
                                static_cast<int64_t>(offset + len));
-      TensorCopy(dev_ctx, *input[i], false, &sub_tensor);
+      TensorCopy(dev_ctx, *input[i], true, &sub_tensor);
 
       offset += use_align
                     ? custom_kernel::Alignment(

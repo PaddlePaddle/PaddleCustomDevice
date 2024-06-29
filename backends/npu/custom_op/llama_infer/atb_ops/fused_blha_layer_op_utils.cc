@@ -587,6 +587,7 @@ void FusedBlhaGlobalVar::update_out_encoder(const phi::CustomContext &dev_ctx,
   for (auto i = 0; i < batch_size; ++i) {
     if (seqlens_encoder[i] > 0) {
       in_offset += seqlens_encoder[i] * emb_dim;
+      out_offset = i * emb_dim;
       ACL_CHECK(aclrtMemcpyAsync(
           out_data + out_offset * sizeof(phi::float16),
           emb_dim * sizeof(phi::float16),
@@ -594,9 +595,6 @@ void FusedBlhaGlobalVar::update_out_encoder(const phi::CustomContext &dev_ctx,
           emb_dim * sizeof(phi::float16),
           ACL_MEMCPY_DEVICE_TO_DEVICE,
           reinterpret_cast<aclrtStream>(dev_ctx.stream())));
-      out_offset += emb_dim;
-    } else if (seqlens_decoder[i] > 0) {
-      out_offset += emb_dim;
     }
   }
 }
@@ -622,9 +620,8 @@ void FusedBlhaGlobalVar::update_out_decoder(const phi::CustomContext &dev_ctx,
 
   int64_t in_offset = 0, out_offset = 0;
   for (auto i = 0; i < batch_size; ++i) {
-    if (seqlens_encoder[i] > 0) {
-      out_offset += emb_dim;
-    } else if (seqlens_decoder[i] > 0) {
+    if (seqlens_decoder[i] > 0) {
+      out_offset = i * emb_dim;
       ACL_CHECK(
           aclrtMemcpyAsync(out_data + out_offset * sizeof(phi::float16),
                            emb_dim * sizeof(phi::float16),
@@ -633,7 +630,6 @@ void FusedBlhaGlobalVar::update_out_decoder(const phi::CustomContext &dev_ctx,
                            ACL_MEMCPY_DEVICE_TO_DEVICE,
                            reinterpret_cast<aclrtStream>(dev_ctx.stream())));
       in_offset += emb_dim;
-      out_offset += emb_dim;
     }
   }
 }

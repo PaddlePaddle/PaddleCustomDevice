@@ -132,6 +132,17 @@ class TestCase5(TestGatherOp):
         self.index_type = "int32"
 
 
+class TestCase6(TestGatherOp):
+    def config(self):
+        """
+        For one dimension input
+        """
+        self.x_shape = 100
+        self.x_type = "float32"
+        self.index = 1
+        self.index_type = "int32"
+
+
 class API_TestGather(unittest.TestCase):
     def test_out1(self):
         with base.program_guard(base.Program(), base.Program()):

@@ -15,7 +15,7 @@
 
 # Baseline
 train_loss=10.627834224700928
-train_samples_per_second=1.5886
+train_samples_per_second=1.6537
 
 
 function check_loss() {

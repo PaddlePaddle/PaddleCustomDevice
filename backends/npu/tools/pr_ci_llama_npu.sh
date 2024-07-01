@@ -31,7 +31,8 @@ function check_loss() {
 
 
 function check_train() {
-  pr_train_samples_per_second=`grep -oP 'train_samples_per_second: \K[0-9.]+' /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0` 
+  # The pr_train_samples_per_second obtains the average value of 3-9
+  pr_train_samples_per_second=`awk -F '[ :,]+' '/global_step: [3-9]/ {sum += $26} END {print sum/7}' /paddle/PaddleNLP/llm/llama/log_llama_ci/workerlog.0`
   int_train=`echo |awk "{print ${train_samples_per_second} * 100}"`
   pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`

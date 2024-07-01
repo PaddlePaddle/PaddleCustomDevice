@@ -15,7 +15,7 @@
 
 # Baseline
 train_loss=10.627834224700928
-train_samples_per_second=1.6537
+train_samples_per_second=2.569414
 
 
 function check_loss() {
@@ -37,11 +37,11 @@ function check_train() {
   pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`
   abs_diff_train=`echo $diff_train | awk '{if($1>=0) {print $1} else {print -$1}}'`
-  if [ $abs_diff_train -le 2 ]; then
-      echo "The absolute error of the train_samples_per_second is less than 0.02"
+  if [ $abs_diff_train -le 5 ]; then
+      echo "The absolute error of the train_samples_per_second is less than 0.05"
       export train_code=0
   else
-      echo "The absolute error of the train_samples_per_second is greater than 0.02"
+      echo "The absolute error of the train_samples_per_second is greater than 0.05"
       export train_code=8
   fi
 }

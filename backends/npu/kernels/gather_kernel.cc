@@ -65,7 +65,14 @@ void GatherKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnGatherV2,
                    (custom_kernel::AclopGatherKernel<T, Context>(
                        dev_ctx, x, index, axis, out)));
-  auto stream = dev_ctx.stream();
+
+  bool zero_dim_out = false;
+  if (out->dims().size() == 0) {
+    phi::DenseTensorMeta meta_1 = {x.dtype(), phi::make_ddim({1})};
+    out->set_meta(meta_1);
+    zero_dim_out = true;
+  }
+
   dev_ctx.template Alloc<T>(out);
 
   int64_t dim = axis.to<int64_t>();
@@ -81,6 +88,11 @@ void GatherKernel(const Context& dev_ctx,
     EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, x, dim, *p_index, *out);
   } else {
     EXEC_NPU_CMD(aclnnGatherV2, dev_ctx, x, dim, index, *out);
+  }
+
+  if (zero_dim_out) {
+    phi::DenseTensorMeta meta_0 = {x.dtype(), phi::make_ddim({})};
+    out->set_meta(meta_0);
   }
 }
 
@@ -118,8 +130,14 @@ void GatherGradKernel(const Context& dev_ctx,
   zeroslike_xout.Resize(x.dims());
 
   // step3: scatter(x_grad)
+  phi::DenseTensor out_grad_(out_grad);
+  if (out_grad.dims().size() == 0) {
+    phi::DenseTensorMeta meta_1 = {out_grad.dtype(), phi::make_ddim({1})};
+    out_grad_.set_meta(meta_1);
+  }
+
   EXEC_NPU_CMD(
-      aclnnScatterNd, dev_ctx, zeroslike_xout, *p_index, out_grad, *x_grad);
+      aclnnScatterNd, dev_ctx, zeroslike_xout, *p_index, out_grad_, *x_grad);
 }
 
 }  // namespace custom_kernel

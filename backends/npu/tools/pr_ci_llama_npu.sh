@@ -35,11 +35,12 @@ function check_train() {
   int_train=`echo |awk "{print ${train_samples_per_second} * 100}"`
   pr_train=`echo |awk "{print ${pr_train_samples_per_second} * 100}"`
   diff_train=`echo |awk "{print int(${int_train} - ${pr_train})}"`
-  if [ $diff_train -le 2 ]; then
-      echo "train_samples_per_second is less 2%"
+  abs_diff_train=`echo $diff_train | awk '{if($1>=0) {print $1} else {print -$1}}'`
+  if [ $abs_diff_train -le 2 ]; then
+      echo "The absolute error of the train_samples_per_second is less than 0.02"
       export train_code=0
   else
-      echo "train_samples_per_second is greater than 2%"
+      echo "The absolute error of the train_samples_per_second is greater than 0.02"
       export train_code=8
   fi
 }

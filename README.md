@@ -2,6 +2,10 @@
 
 简体中文 | [English](./README_en.md) | [日本語](./README_ja.md)
 
+[![Documentation Status](https://img.shields.io/badge/中文文档-最新-brightgreen.svg)](https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/hardware_support/index_cn.html)
+[![Release](https://img.shields.io/github/release/PaddlePaddle/Paddle.svg)](https://github.com/PaddlePaddle/PaddleCustomDevice/releases)
+[![License](https://img.shields.io/badge/license-Apache%202-blue.svg)](LICENSE)
+
 『飞桨』自定义硬件接入实现。
 
 ## 使用指南

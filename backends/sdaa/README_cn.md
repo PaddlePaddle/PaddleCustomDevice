@@ -53,7 +53,7 @@ cd backends/sdaa
 bash compile.sh
 
 # 6. 编译产出在 build/dist 路径下，使用 pip 安装
-pip install -U build/dist/*.whl
+pip install build/dist/*.whl --force-reinstall
 ```
 
 ### 基础功能检查

@@ -53,7 +53,7 @@ cd backends/sdaa
 bash compile.sh
 
 # 6. install the generated whl package, which is under build/dist directory
-pip install -U build/dist/*.whl
+pip install build/dist/*.whl --force-reinstall
 ```
 
 ### Verification

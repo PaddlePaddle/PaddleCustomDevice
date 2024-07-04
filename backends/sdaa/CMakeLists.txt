@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(paddle-custom-sdaa CXX C)
+project(paddle-sdaa CXX C)
 add_definitions(-std=c++14)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -11,7 +11,7 @@ option(WITH_SW "compile with sw arch support" OFF)
 option(WITH_GIT_COMMIT "compile with git commit print" ON)
 option(WITH_PADDLE_INFO "compile with paddle commit/version print" ON)
 
-set(PLUGIN_NAME "paddle-custom-sdaa")
+set(PLUGIN_NAME "paddle-sdaa")
 if(DEFINED ENV{PLUGIN_VERSION})
   set(PLUGIN_VERSION $ENV{PLUGIN_VERSION})
 else()
@@ -180,7 +180,7 @@ add_custom_command(
   COMMAND python3 ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${PLUGIN_NAME}
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/sdaa-ext/.timestamp
-  COMMENT "Packing paddle-custom-sdaa whl packages------>>>")
+  COMMENT "Packing paddle-sdaa whl packages------>>>")
 
 add_custom_target(
   python_package ALL

@@ -38,7 +38,7 @@ library_dirs = [
     '${CUSTOM_SDAA_C_OPS_LIB}'
 ]
 libraries = [
-    ':libpaddle-custom-sdaa.so',
+    ':libpaddle-sdaa.so',
     ':libsdcops.so',
     ':libtecodnn.so',
     ':libtecoblas.so',

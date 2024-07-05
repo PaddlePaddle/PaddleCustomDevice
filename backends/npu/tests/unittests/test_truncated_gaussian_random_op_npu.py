@@ -40,7 +40,7 @@ class TestTruncatedNormal(unittest.TestCase):
                 weight_attr = paddle.framework.ParamAttr(
                     name="linear_weight",
                     initializer=paddle.nn.initializer.TruncatedNormal(
-                        mean=0.0, std=2.0
+                        mean=0.0, std=2.0, a=-2.0, b=2.0
                     ),
                 )
                 linear = paddle.nn.Linear(

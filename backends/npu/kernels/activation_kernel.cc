@@ -1700,8 +1700,12 @@ void LogSigmoidGradKernel(const Context& dev_ctx,
                           const phi::DenseTensor& out,
                           const phi::DenseTensor& dout,
                           phi::DenseTensor* dx) {
+  phi::DenseTensor buffer;
+  phi::DenseTensorMeta buffer_meta = {out.dtype(), out.dims()};
+  buffer.set_meta(buffer_meta);
+  dev_ctx.template Alloc<T>(&buffer);
+  EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, buffer);
   dev_ctx.template Alloc<T>(dx);
-  phi::DenseTensor* buffer = nullptr;
   EXEC_NPU_CMD(aclnnLogSigmoidBackward, dev_ctx, dout, out, buffer, *dx);
 }
 

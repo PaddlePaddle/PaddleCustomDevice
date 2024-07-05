@@ -37,6 +37,7 @@ RUN apt-get install -y python3-distutils python${PY_VERSION} python${PY_VERSION}
 
 # install pip
 RUN curl -s -q https://bootstrap.pypa.io/get-pip.py | /usr/bin/python${PY_VERSION}
+ENV PIP_ROOT_USER_ACTION=ignore
 
 # set default python
 RUN rm -rf /usr/bin/python3 && ln -s /usr/bin/python${PY_VERSION} /usr/bin/python3 && \

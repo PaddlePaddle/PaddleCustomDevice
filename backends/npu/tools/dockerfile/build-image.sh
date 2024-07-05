@@ -20,10 +20,10 @@ set -ex
 # export CANN_VERSION=8.0.RC1
 # bash build-image.sh ${CANN_VERSION}
 
-CANN_VERSION=${1:-8.0.RC1} # default 8.0.RC1
+CANN_VERSION=${1:-8.0.T13} # default 8.0.T13
 
-# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 801
-DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80RC1
+# DOCKER_VERSION=${CANN_VERSION//[^0-9]/} # 801i3
+DOCKER_VERSION=${CANN_VERSION//[^0-9A-Z]/} # 80T13
 #DOCKER_VERSION=${DOCKER_VERSION,,} # lower case
 
 # Download packages from https://www.hiascend.com/software/cann/community first

@@ -1669,12 +1669,12 @@ void MishGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void RoundKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
+                 const int decimals,
                  phi::DenseTensor* out) {
-  auto stream = dev_ctx.stream();
+  int64_t decimals_trans = decimals;
+  
   dev_ctx.template Alloc<T>(out);
-
-  const auto& runner = NpuOpRunner("Round", {x}, {*out}, {});
-  runner.Run(stream);
+  EXEC_NPU_CMD(aclnnRoundDecimals, dev_ctx, x, decimals_trans, *out);
 }
 
 template <typename T, typename Context>

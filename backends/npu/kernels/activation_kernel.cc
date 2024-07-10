@@ -1672,7 +1672,6 @@ void RoundKernel(const Context& dev_ctx,
                  const int decimals,
                  phi::DenseTensor* out) {
   int64_t decimals_trans = decimals;
-  
   dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnRoundDecimals, dev_ctx, x, decimals_trans, *out);
 }

@@ -1669,12 +1669,11 @@ void MishGradKernel(const Context& dev_ctx,
 template <typename T, typename Context>
 void RoundKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
+                 const int decimals,
                  phi::DenseTensor* out) {
-  auto stream = dev_ctx.stream();
+  int64_t decimals_trans = decimals;
   dev_ctx.template Alloc<T>(out);
-
-  const auto& runner = NpuOpRunner("Round", {x}, {*out}, {});
-  runner.Run(stream);
+  EXEC_NPU_CMD(aclnnRoundDecimals, dev_ctx, x, decimals_trans, *out);
 }
 
 template <typename T, typename Context>
@@ -1700,8 +1699,12 @@ void LogSigmoidGradKernel(const Context& dev_ctx,
                           const phi::DenseTensor& out,
                           const phi::DenseTensor& dout,
                           phi::DenseTensor* dx) {
+  phi::DenseTensor buffer;
+  phi::DenseTensorMeta buffer_meta = {out.dtype(), out.dims()};
+  buffer.set_meta(buffer_meta);
+  dev_ctx.template Alloc<T>(&buffer);
+  EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, buffer);
   dev_ctx.template Alloc<T>(dx);
-  phi::DenseTensor* buffer = nullptr;
   EXEC_NPU_CMD(aclnnLogSigmoidBackward, dev_ctx, dout, out, buffer, *dx);
 }
 

@@ -48,7 +48,7 @@ FLAGS_DEFINE_bool(
     "Enable NPU Storage Format for Ascend910 performance improvement.");
 FLAGS_DEFINE_bool(npu_scale_aclnn, false, "use aclnn scale kernel");
 FLAGS_DEFINE_bool(npu_split_aclnn, false, "use aclnn split kernel");
-FLAGS_DEFINE_bool(npu_jit_compile, true, "enable npu jit compile");
+FLAGS_DEFINE_bool(npu_jit_compile, false, "enable npu jit compile");
 
 NpuOpRunner::NpuOpRunner() {}
 

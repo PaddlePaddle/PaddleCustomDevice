@@ -18,6 +18,7 @@ import unittest
 import os
 
 os.environ["FLAGS_npu_jit_compile"] = "false"
+os.system("export FLAGS_npu_jit_compile")
 print("FLAGS_npu_jit_compile:  ", os.environ.get("FLAGS_npu_jit_compile"))
 
 import numpy as np

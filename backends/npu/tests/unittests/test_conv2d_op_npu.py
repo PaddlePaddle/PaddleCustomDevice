@@ -28,6 +28,7 @@ from tests.op_test import OpTest
 paddle.enable_static()
 print("FLAGS_npu_jit_compile:  ", os.environ.get("FLAGS_npu_jit_compile"))
 
+
 def conv2d_forward_naive(
     input, filter, group, conv_param, padding_algorithm="EXPLICIT", data_format="NCHW"
 ):

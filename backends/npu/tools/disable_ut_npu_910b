@@ -9,3 +9,4 @@ test_fused_matmul_bias_op_npu
 test_histogram_op_npu
 test_kldiv_loss_op_npu
 test_zero_dim_tensor_npu
+test_matmulv2_op_npu

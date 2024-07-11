@@ -29,7 +29,8 @@ class TestTransposeOp(OpTest):
         self.init_op_type()
         self.initKernelType()
         self.initTestCase()
-        self.inputs = {"X": np.random.random(self.shape).astype("float32")}
+        self.init_dtype()
+        self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
         self.attrs = {
             "axis": list(self.axis),
         }
@@ -37,6 +38,9 @@ class TestTransposeOp(OpTest):
 
     def init_op_type(self):
         self.op_type = "transpose2"
+
+    def init_dtype(self):
+        self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
@@ -111,6 +115,22 @@ class TestCase9(TestTransposeOp):
     def initTestCase(self):
         self.shape = (2, 3, 2, 3, 2, 4, 3, 3)
         self.axis = (6, 1, 3, 5, 0, 2, 4, 7)
+
+
+class TestTransposeOpFP16(TestTransposeOp):
+    def init_dtype(self):
+        self.dtype = np.float16
+
+    def test_check_grad(self):
+        pass
+
+
+class TestTransposeOpInt64(TestTransposeOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    def test_check_grad(self):
+        pass
 
 
 class TestTransposeOpBool(TestTransposeOp):

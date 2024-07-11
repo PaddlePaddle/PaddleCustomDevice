@@ -418,7 +418,7 @@ void DepthwiseConv2dGradKernel(const Context& dev_ctx,
   } else {
     phi::DenseTensorMeta filter_grad_meta = {input.dtype(), input.dims()};
     filter_grad_tensor.set_meta(filter_grad_meta);
-    dev_ctx.template Alloc<T>(&filter_grad_tensor); 
+    dev_ctx.template Alloc<T>(&filter_grad_tensor);
   }
 
   if (input_grad) {

@@ -18,7 +18,7 @@ import unittest
 import os
 
 os.environ["FLAGS_npu_jit_compile"] = "false"
-print("FLAGS_npu_jit_compile: ", os.environ.get("FLAGS_npu_jit_compile"))
+print("FLAGS_npu_jit_compile:  ", os.environ.get("FLAGS_npu_jit_compile"))
 
 import numpy as np
 import paddle
@@ -26,7 +26,7 @@ from paddle.framework import set_flags
 from tests.op_test import OpTest
 
 paddle.enable_static()
-print("FLAGS_npu_jit_compile: ", os.environ.get("FLAGS_npu_jit_compile"))
+print("FLAGS_npu_jit_compile:  ", os.environ.get("FLAGS_npu_jit_compile"))
 
 def conv2d_forward_naive(
     input, filter, group, conv_param, padding_algorithm="EXPLICIT", data_format="NCHW"

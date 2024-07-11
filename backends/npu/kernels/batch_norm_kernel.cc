@@ -530,8 +530,10 @@ void BatchNormKernel(const Context& dev_ctx,
     EXEC_NPU_CMD(aclnnMuls, dev_ctx, tmp_running_mean, momentum_f, *mean_out);
     EXEC_NPU_CMD(aclnnInplaceAdd, dev_ctx, *mean_out, *saved_mean, momentum_p);
 
-    EXEC_NPU_CMD(aclnnMuls, dev_ctx, tmp_running_var, momentum_f, *variance_out);
-    EXEC_NPU_CMD(aclnnInplaceAdd, dev_ctx, *variance_out, *saved_variance, momentum_p);
+    EXEC_NPU_CMD(
+        aclnnMuls, dev_ctx, tmp_running_var, momentum_f, *variance_out);
+    EXEC_NPU_CMD(
+        aclnnInplaceAdd, dev_ctx, *variance_out, *saved_variance, momentum_p);
     auto stream = dev_ctx.stream();
 
     const auto& adds_runner =

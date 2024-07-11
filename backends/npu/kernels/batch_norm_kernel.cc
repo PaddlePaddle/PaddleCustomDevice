@@ -525,31 +525,14 @@ void BatchNormKernel(const Context& dev_ctx,
   if (training) {
     // CANN mean_out/var_out and paddlepaddle-cpu mean_out/var_out are
     // defferent.
+    phi::Scalar momentum_f = static_cast<float>(momentum);
+    phi::Scalar momentum_p = static_cast<float>(1 - momentum);
+    EXEC_NPU_CMD(aclnnMuls, dev_ctx, tmp_running_mean, momentum_f, *mean_out);
+    EXEC_NPU_CMD(aclnnInplaceAdd, dev_ctx, *mean_out, *saved_mean, momentum_p);
+
+    EXEC_NPU_CMD(aclnnMuls, dev_ctx, tmp_running_var, momentum_f, *variance_out);
+    EXEC_NPU_CMD(aclnnInplaceAdd, dev_ctx, *variance_out, *saved_variance, momentum_p);
     auto stream = dev_ctx.stream();
-    const auto& mean_muls_runner =
-        NpuOpRunner("Muls",
-                    {tmp_running_mean},
-                    {*mean_out},
-                    {{"value", static_cast<float>(momentum)}});
-    mean_muls_runner.Run(stream);
-    const auto& mean_axpy_runner =
-        NpuOpRunner("Axpy",
-                    {*mean_out, *saved_mean},
-                    {*mean_out},
-                    {{"alpha", static_cast<float>(1 - momentum)}});
-    mean_axpy_runner.Run(stream);
-    const auto& var_muls_runner =
-        NpuOpRunner("Muls",
-                    {tmp_running_var},
-                    {*variance_out},
-                    {{"value", static_cast<float>(momentum)}});
-    var_muls_runner.Run(stream);
-    const auto& var_axpy_runner =
-        NpuOpRunner("Axpy",
-                    {*variance_out, *saved_variance},
-                    {*variance_out},
-                    {{"alpha", static_cast<float>(1 - momentum)}});
-    var_axpy_runner.Run(stream);
 
     const auto& adds_runner =
         NpuOpRunner("Adds",

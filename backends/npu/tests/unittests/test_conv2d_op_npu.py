@@ -16,6 +16,7 @@ from __future__ import print_function
 
 import unittest
 import os
+
 os.environ["FLAGS_npu_jit_compile"] = "false"
 
 import numpy as np

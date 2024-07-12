@@ -28,6 +28,7 @@
 DECLARE_bool(npu_storage_format);
 DECLARE_bool(npu_scale_aclnn);
 DECLARE_bool(npu_split_aclnn);
+DECLARE_bool(npu_jit_compile);
 
 namespace custom_kernel {
 

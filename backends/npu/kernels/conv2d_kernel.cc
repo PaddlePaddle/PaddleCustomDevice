@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "acl/acl_op_compiler.h"
 #include "kernels/funcs/conv_util.h"
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
@@ -95,6 +96,10 @@ void Conv2dKernel(const Context& dev_ctx,
                   int groups,
                   const std::string& data_format,
                   phi::DenseTensor* output) {
+  if (FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
+
   auto strides = strides_t;
   auto paddings = paddings_t;
   auto dilations = dilations_t;
@@ -217,6 +222,10 @@ void Conv2dKernel(const Context& dev_ctx,
                groups_,
                output_tensor,
                cubeMathType);
+
+  if (FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
 }
 
 template <typename T, typename Context>
@@ -319,6 +328,10 @@ void Conv2DGradKernel(const Context& dev_ctx,
                       const std::string& data_format,
                       phi::DenseTensor* input_grad,
                       phi::DenseTensor* filter_grad) {
+  if (FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
+
   auto strides = strides_t;
   auto paddings = paddings_t;
   auto dilations = dilations_t;
@@ -417,6 +430,10 @@ void Conv2DGradKernel(const Context& dev_ctx,
   if (filter_grad) {
     dev_ctx.template Alloc<T>(filter_grad);
     filter_grad_tensor = phi::DenseTensor(*filter_grad);
+  } else {
+    phi::DenseTensorMeta filter_grad_meta = {input.dtype(), input.dims()};
+    filter_grad_tensor.set_meta(filter_grad_meta);
+    dev_ctx.template Alloc<T>(&filter_grad_tensor);
   }
 
   if (input_grad) {
@@ -462,6 +479,10 @@ void Conv2DGradKernel(const Context& dev_ctx,
                input_grad_tensor,
                filter_grad_tensor,
                bias_grad_tensor);
+
+  if (FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
 }
 
 }  // namespace custom_kernel

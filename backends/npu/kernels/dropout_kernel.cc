@@ -400,14 +400,15 @@ void DropoutRawKernel(const Context& dev_ctx,
       EXEC_NPU_CMD(
           aclnnDropoutDoMask, dev_ctx, tmp_x, *mask, dropout_prob, tmp_out);
     }
+
+    if (!is_upscale) {
+      phi::Scalar revert_scale = static_cast<T>(1.0 - dropout_prob);
+      EXEC_NPU_CMD(aclnnInplaceMuls, dev_ctx, *out, revert_scale);
+    }
   } else {
     if (!is_upscale) {
-      const auto& muls_runner =
-          NpuOpRunner("Muls",
-                      {x},
-                      {*out},
-                      {{"value", static_cast<float>(1 - dropout_prob)}});
-      muls_runner.Run(stream);
+      phi::Scalar down_scale = static_cast<T>(1.0 - dropout_prob);
+      EXEC_NPU_CMD(aclnnMuls, dev_ctx, x, down_scale, *out);
       return;
     }
     TensorCopy(dev_ctx, x, false, out);
@@ -531,7 +532,6 @@ void DropoutGradRawKernel(const Context& dev_ctx,
     return;
   }
 
-  dropout_prob = is_upscale ? dropout_prob : 0.0;
   if (dx->dtype() == phi::DataType::FLOAT64) {
     // transform dx
     phi::DenseTensor tmp_dx;
@@ -562,6 +562,11 @@ void DropoutGradRawKernel(const Context& dev_ctx,
         .Run(stream);
   } else {
     EXEC_NPU_CMD(aclnnDropoutDoMask, dev_ctx, dout, mask, dropout_prob, *dx);
+  }
+
+  if (!is_upscale) {
+    phi::Scalar revert_scale = static_cast<T>(1.0 - dropout_prob);
+    EXEC_NPU_CMD(aclnnInplaceMuls, dev_ctx, *dx, revert_scale);
   }
   return;
 }

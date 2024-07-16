@@ -1788,8 +1788,18 @@ NormalizeDesc::~NormalizeDesc() {
     beta_ptr = static_cast<const void*>(&beta_int64);
   }
 
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetOpTensorWorkspaceSize(
-      handle, a_desc, b_desc, output_desc, &workspace_size));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetOpTensorWorkspaceSize_v2(handle,
+                                                             op_tensor_desc,
+                                                             alpha1_ptr,
+                                                             a_desc,
+                                                             a,
+                                                             alpha2_ptr,
+                                                             b_desc,
+                                                             b,
+                                                             beta_ptr,
+                                                             output_desc,
+                                                             output,
+                                                             &workspace_size));
 
   Tensor workspace;
   workspace.Resize({static_cast<int64_t>(workspace_size)});
@@ -1931,16 +1941,16 @@ NormalizeDesc::~NormalizeDesc() {
 
 /* static */ void MLUCnnl::StridedSlice(
     const Context& ctx,
-    const int begin[],
-    const int end[],
-    const int strides[],
+    const int64_t begin[],
+    const int64_t end[],
+    const int64_t strides[],
     const cnnlTensorDescriptor_t input_desc,
     const void* input,
     const cnnlTensorDescriptor_t output_desc,
     void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlStridedSlice(
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlStridedSlice_v2(
       handle, input_desc, input, begin, end, strides, output_desc, output));
 }
 
@@ -2312,14 +2322,23 @@ NormalizeDesc::~NormalizeDesc() {
     void* index) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlAdaptivePoolingForward(handle,
-                                                        input_desc,
-                                                        input,
-                                                        pool_mode,
-                                                        output_desc,
-                                                        output,
-                                                        index_desc,
-                                                        index));
+  size_t workspace_size = 0;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetAdaptivePoolingForwardWorkspaceSize(
+      handle, input_desc, pool_mode, output_desc, &workspace_size));
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlAdaptivePoolingForward_v2(handle,
+                                                           input_desc,
+                                                           input,
+                                                           pool_mode,
+                                                           workspace_ptr,
+                                                           workspace_size,
+                                                           output_desc,
+                                                           output,
+                                                           index_desc,
+                                                           index));
 }
 
 /* static */ void MLUCnnl::Pool3D(const Context& ctx,
@@ -3280,7 +3299,6 @@ NormalizeDesc::~NormalizeDesc() {
                                   const cnnlTensorDescriptor_t output_desc,
                                   void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
-
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlInterp_v2(handle,
                                            align_corners,
                                            half_pixel_centers,
@@ -3295,7 +3313,7 @@ NormalizeDesc::~NormalizeDesc() {
 
 /* static */ void MLUCnnl::InterpBackward(
     const Context& ctx,
-    const cnnlInterpBackwardMode_t mode,
+    const cnnlInterpMode_t mode,
     const bool align_corners,
     const bool half_pixel_centers,
     const cnnlTensorDescriptor_t input_desc,
@@ -3304,16 +3322,26 @@ NormalizeDesc::~NormalizeDesc() {
     void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
 
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlInterpBackward_v2(handle,
-                                                   align_corners,
-                                                   half_pixel_centers,
-                                                   mode,
-                                                   NULL,
-                                                   true,
-                                                   input_desc,
-                                                   input,
-                                                   output_desc,
-                                                   output));
+  cnnlInterpDescriptor_t interp_desc;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlCreateInterpDescriptor(&interp_desc));
+
+  cnnlInterpAlgo_t algo;
+  if (align_corners == false && half_pixel_centers == false) {
+    algo = CNNL_INTERP_ALGO_0;
+  } else if (align_corners == false && half_pixel_centers == true) {
+    algo = CNNL_INTERP_ALGO_1;
+  } else if (align_corners == true && half_pixel_centers == false) {
+    algo = CNNL_INTERP_ALGO_3;
+  } else if (align_corners == true && half_pixel_centers == true) {
+    algo = CNNL_INTERP_ALGO_4;
+  }
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlSetInterpDescriptor_v2(interp_desc, input_desc, mode, algo, NULL));
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlInterpBackward_v3(
+      handle, interp_desc, input_desc, input, output_desc, output));
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlDestroyInterpDescriptor(interp_desc));
 }
 
 /* static */ void MLUCnnl::Cast(const Context& ctx,

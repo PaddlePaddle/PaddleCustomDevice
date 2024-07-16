@@ -141,6 +141,7 @@ PD_REGISTER_PLUGIN_KERNEL(gather_nd,
                           mlu,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdKernel,
+                          int,
                           int64_t,
                           float,
                           phi::dtype::float16) {}

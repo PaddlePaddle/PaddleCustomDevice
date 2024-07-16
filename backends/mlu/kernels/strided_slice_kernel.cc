@@ -211,10 +211,10 @@ void StridedSliceCompute(const Context& dev_ctx,
 
   // construct the starts_indices, ends_indices and strides_indices tensor for
   // calling StridedSlice op
-  std::vector<int> starts_indices_vector(D, 0);
-  std::vector<int> ends_indices_vector(out_dims_vector.begin(),
-                                       out_dims_vector.end());
-  std::vector<int> strides_indices_vector(D, 1);
+  std::vector<int64_t> starts_indices_vector(D, 0);
+  std::vector<int64_t> ends_indices_vector(out_dims_vector.begin(),
+                                           out_dims_vector.end());
+  std::vector<int64_t> strides_indices_vector(D, 1);
 
   for (size_t axis = 0; axis < axes.size(); axis++) {
     int axis_index = axes[axis];

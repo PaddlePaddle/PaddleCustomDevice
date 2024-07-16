@@ -1120,9 +1120,9 @@ class MLUCnnl {
                    void* indices_out);
 
   static void StridedSlice(const Context& ctx,
-                           const int begin[],
-                           const int end[],
-                           const int strides[],
+                           const int64_t begin[],
+                           const int64_t end[],
+                           const int64_t strides[],
                            const cnnlTensorDescriptor_t input_desc,
                            const void* input,
                            const cnnlTensorDescriptor_t output_desc,
@@ -1807,7 +1807,7 @@ class MLUCnnl {
                      void* output);
 
   static void InterpBackward(const Context& ctx,
-                             const cnnlInterpBackwardMode_t mode,
+                             const cnnlInterpMode_t mode,
                              const bool align_corners,
                              const bool half_pixel_centers,
                              const cnnlTensorDescriptor_t input_desc,

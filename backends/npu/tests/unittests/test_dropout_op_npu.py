@@ -228,6 +228,21 @@ class TestDropoutOpInference2(TestDropoutOpInference):
         self.outputs = {"Out": self.inputs["X"]}
 
 
+@skip_check_grad_ci(reason="For inference, check_grad is not required.")
+class TestDropoutOpInferenceDownscale(TestDropoutOpInference):
+    def setUp(self):
+        self.op_type = "dropout"
+        self.set_npu()
+        self.init_dtype()
+        self.inputs = {"X": np.random.random((32, 64, 3)).astype(self.dtype)}
+        self.attrs = {
+            "dropout_prob": 0.75,
+            "is_test": True,
+            "dropout_implementation": "downgrade_in_infer",
+        }
+        self.outputs = {"Out": self.inputs["X"] * (1.0 - self.attrs["dropout_prob"])}
+
+
 class TestDropoutOpWithSeed(TestDropoutOp):
     # the seed is a Tensor
     def setUp(self):

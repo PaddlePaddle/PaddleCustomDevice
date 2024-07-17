@@ -390,8 +390,7 @@ void InterpolateGradKernel(
   const DataLayout data_layout = StringToDataLayout(data_layout_str);
   int n, c, in_d, in_h, in_w;
   ExtractNCDWH(x.dims(), data_layout, &n, &c, &in_d, &in_h, &in_w);
-  int align_center = align_corners ? 0 : (align_mode == 0 ? 0 : 1);
-  align_center = 0;
+  int align_center = align_corners ? 0 : (align_mode == 1 ? 0 : 1);
 
   float scale_h = -1;
   float scale_w = -1;

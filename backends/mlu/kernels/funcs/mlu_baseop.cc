@@ -4964,6 +4964,88 @@ NormalizeDesc::~NormalizeDesc() {
       cnnlReciprocal(handle, input_desc, input, output_desc, output));
 }
 
+/* static */ void MLUCnnl::RmsNormForward(
+    const Context& ctx,
+    int axis,
+    const cnnlTensorDescriptor_t x_desc,
+    const void* x,
+    const cnnlTensorDescriptor_t scale_bias_desc,
+    const void* scale,
+    const void* bias,
+    float eps,
+    const cnnlTensorDescriptor_t y_desc,
+    void* y,
+    const cnnlTensorDescriptor_t rms_desc,
+    void* saved_rms) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(
+      cnnlGetRmsNormOpWorkspaceSize(handle, axis, x_desc, &workspace_size));
+
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRmsNormForward(handle,
+                                                axis,
+                                                x_desc,
+                                                x,
+                                                scale_bias_desc,
+                                                scale,
+                                                bias,
+                                                eps,
+                                                workspace_ptr,
+                                                workspace_size,
+                                                y_desc,
+                                                y,
+                                                rms_desc,
+                                                saved_rms));
+}
+
+/* static */ void MLUCnnl::RmsNormBackward(
+    const Context& ctx,
+    int axis,
+    const cnnlTensorDescriptor_t x_desc,
+    const void* x,
+    const cnnlTensorDescriptor_t diff_z_desc,
+    const void* diff_z,
+    const cnnlTensorDescriptor_t scale_desc,
+    const void* scale,
+    const cnnlTensorDescriptor_t rms_desc,
+    const void* saved_rms,
+    const cnnlTensorDescriptor_t diff_x_desc,
+    void* diff_x,
+    const cnnlTensorDescriptor_t diff_scale_bias_desc,
+    void* diff_scale,
+    void* diff_bias) {
+  cnnlHandle_t handle = GetHandleFromCTX(ctx);
+  size_t workspace_size;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetRmsNormBackwardWorkspaceSize(
+      handle, x_desc, axis, &workspace_size));
+
+  Tensor workspace;
+  workspace.Resize({static_cast<int64_t>(workspace_size)});
+  void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
+
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRmsNormBackward(handle,
+                                                 axis,
+                                                 x_desc,
+                                                 x,
+                                                 diff_z_desc,
+                                                 diff_z,
+                                                 scale_desc,
+                                                 scale,
+                                                 rms_desc,
+                                                 saved_rms,
+                                                 workspace_ptr,
+                                                 workspace_size,
+                                                 diff_x_desc,
+                                                 diff_x,
+                                                 diff_scale_bias_desc,
+                                                 diff_scale,
+                                                 diff_bias));
+}
+
 /* static */ void MLUCnnl::BceLoss(const Context& ctx,
                                    const cnnlBceLossReduction_t reduction,
                                    const cnnlTensorDescriptor_t input_desc,

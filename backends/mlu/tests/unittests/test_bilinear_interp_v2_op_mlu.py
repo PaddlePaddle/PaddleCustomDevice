@@ -278,6 +278,9 @@ class TestBilinearInterpCase7(TestBilinearInterpOp):
         self.align_corners = False
         self.align_mode = 1
 
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-5)
+
 
 class TestBilinearInterpSame(TestBilinearInterpOp):
     def init_test_case(self):

@@ -165,6 +165,10 @@ void InterpolateKernel(
     }
   }
 
+  if (out_h == 1 && out_w == 1) {
+    align_center = 0;
+  }
+
   VLOG(5) << "[Interp] n: " << n << " in_d: " << in_d << " in_h: " << in_h
           << " in_w: " << in_w << " out_d: " << out_d << " out_h: " << out_h
           << " out_w: " << out_w << " c: " << c;
@@ -440,6 +444,10 @@ void InterpolateGradKernel(
       out_h = out_size_data[0];
       out_w = out_size_data[1];
     }
+  }
+
+  if (out_h == 1 && out_w == 1) {
+    align_center = 0;
   }
 
   phi::DDim dim_grad;

@@ -23,6 +23,10 @@ void MeanRawKernel(const Context& dev_ctx,
                    bool keep_dim,
                    bool reduce_all,
                    phi::DenseTensor* out) {
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, x, false, out);
+    return;
+  }
   MLUReduceOp<T>(
       dev_ctx, x, axes.GetData(), keep_dim, reduce_all, "reduce_mean", out);
 }
@@ -46,6 +50,11 @@ void MeanGradKernel(const Context& dev_ctx,
                     bool reduce_all,
                     phi::DenseTensor* x_grad) {
   dev_ctx.template Alloc<T>(x_grad);
+
+  if (x.dims().size() == 0) {
+    TensorCopy(dev_ctx, out_grad, false, x_grad);
+    return;
+  }
 
   auto reduce_dims = axes.GetData();
   auto input_dims = phi::vectorize(x.dims());

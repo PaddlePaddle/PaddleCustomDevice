@@ -14,6 +14,10 @@
 
 from __future__ import print_function
 
+import os
+
+os.environ["FLAGS_use_stride_kernel"] = "1"
+
 import paddle
 import unittest
 import numpy as np

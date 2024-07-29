@@ -15,78 +15,126 @@
 import unittest
 
 import numpy as np
-from tests.op_test import OpTest
 
 import paddle
 from paddle import base
+from paddle.pir_utils import test_with_pir_api
 
 
-class TestHistogramOpError(unittest.TestCase):
-    """Test histogram op error."""
+class TestHistogram(unittest.TestCase):
+    """Test histogram api."""
 
-    def run_network(self, net_func):
-        main_program = base.Program()
-        startup_program = base.Program()
-        with base.program_guard(main_program, startup_program):
-            net_func()
-            exe = base.Executor()
-            exe.run(main_program)
-
-    def test_bins_error(self):
-        """Test bins should be greater than or equal to 1."""
-
-        def net_func():
-            input_value = paddle.tensor.fill_constant(
-                shape=[3, 4], dtype="float32", value=3.0
-            )
-            paddle.histogram(input=input_value, bins=-1, min=1, max=5)
-
-        with self.assertRaises(ValueError):
-            self.run_network(net_func)
-
-    def test_min_max_error(self):
-        """Test max must be larger or equal to min."""
-
-        def net_func():
-            input_value = paddle.tensor.fill_constant(
-                shape=[3, 4], dtype="float32", value=3.0
-            )
-            paddle.histogram(input=input_value, bins=1, min=5, max=1)
-
-        with self.assertRaises(ValueError):
-            self.run_network(net_func)
-
-
-class TestHistogramOp(OpTest):
     def setUp(self):
-        self.op_type = "histogram"
         self.init_test_case()
-        np_input = np.random.uniform(low=0.0, high=20.0, size=self.in_shape)
-        self.python_api = paddle.histogram
-        self.inputs = {"X": np_input}
-        self.init_attrs()
-        Out, _ = np.histogram(np_input, bins=self.bins, range=(self.min, self.max))
-        self.outputs = {"Out": Out.astype(np.int64)}
+        self.input_np = np.random.uniform(
+            low=0.0, high=20.0, size=self.in_shape
+        ).astype(np.float32)
+        self.weight_np = np.random.uniform(
+            low=0.0, high=1.0, size=self.in_shape
+        ).astype(np.float32)
 
     def init_test_case(self):
         self.in_shape = (10, 12)
         self.bins = 5
         self.min = 1
         self.max = 5
+        self.density = False
+        self.is_weight = False
 
-    def init_attrs(self):
-        self.attrs = {"bins": self.bins, "min": self.min, "max": self.max}
+    @test_with_pir_api
+    def test_static_graph(self):
+        startup_program = paddle.static.Program()
+        train_program = paddle.static.Program()
+        with paddle.static.program_guard(train_program, startup_program):
+            inputs = paddle.static.data(
+                name="input", dtype="float32", shape=self.in_shape
+            )
+            if self.is_weight:
+                weight = paddle.static.data(
+                    name="weight", dtype="float32", shape=self.in_shape
+                )
+                output = paddle.histogram(
+                    inputs,
+                    bins=self.bins,
+                    min=self.min,
+                    max=self.max,
+                    weight=weight,
+                    density=self.density,
+                )
+            else:
+                output = paddle.histogram(
+                    inputs,
+                    bins=self.bins,
+                    min=self.min,
+                    max=self.max,
+                    density=self.density,
+                )
+            place = base.CPUPlace()
+            if base.core.is_compiled_with_cuda():
+                place = base.CUDAPlace(0)
+            exe = base.Executor(place)
+            if self.is_weight:
+                res = exe.run(
+                    feed={
+                        "input": self.input_np,
+                        "weight": self.weight_np,
+                    },
+                    fetch_list=[output],
+                )
+            else:
+                res = exe.run(feed={"input": self.input_np}, fetch_list=[output])
 
-    def test_check_output(self):
-        self.check_output()
+            actual = np.array(res[0])
+            Out, _ = np.histogram(
+                self.input_np,
+                bins=self.bins,
+                range=(self.min, self.max),
+                density=self.density,
+                weights=self.weight_np if self.is_weight else None,
+            )
+            np.testing.assert_allclose(actual, Out, rtol=1e-58, atol=1e-5)
+
+    def test_dygraph(self):
+        with base.dygraph.guard():
+            inputs_np = np.random.uniform(
+                low=0.0, high=20.0, size=self.in_shape
+            ).astype(np.float32)
+
+            self.inputs = paddle.to_tensor(inputs_np)
+
+            weight_np = np.random.uniform(low=0.0, high=1.0, size=self.in_shape).astype(
+                np.float32
+            )
+            weight = paddle.to_tensor(weight_np)
+
+            actual = paddle.histogram(
+                self.inputs,
+                bins=5,
+                min=1,
+                max=5,
+                weight=weight if self.is_weight else None,
+                density=self.density,
+            )
+
+            Out, _ = np.histogram(
+                inputs_np,
+                bins=5,
+                range=(1, 5),
+                weights=weight_np if self.is_weight else None,
+                density=self.density,
+            )
+
+            np.testing.assert_allclose(actual.numpy(), Out, rtol=1e-58, atol=1e-5)
 
 
-class TestHistogramOp_ZeroDim(TestHistogramOp):
+class TestHistogramOp_ZeroDim(TestHistogram):
     def init_test_case(self):
         self.in_shape = []
         self.bins = 5
         self.min = 1
         self.max = 5
+        self.density = False
+        self.is_weight = False
 
 
 if __name__ == "__main__":

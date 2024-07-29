@@ -50,31 +50,21 @@ void TileKernelImpl(const Context& dev_ctx,
           vec_in_dims.size(),
           repeat_times.size()));
 
-  bool repeat_one_times = true;
-  for (size_t i = 0; i < repeat_times.size(); ++i) {
-    if (repeat_times[i] != 1) {
-      repeat_one_times = false;
-    }
-  }
   if (rank == 0) {
     TensorCopy(dev_ctx, x, false, out);
     return;
   }
-  if (repeat_one_times) {
-    TensorCopy(dev_ctx, x, false, out);
-  } else {
-    phi::DDim new_in_dims = phi::make_ddim(vec_in_dims);
-    phi::DDim out_dims(new_in_dims);
-    for (size_t i = 0; i < repeat_times.size(); ++i) {
-      out_dims[i] *= repeat_times[i];
-    }
-    out->Resize(out_dims);
-    dev_ctx.template Alloc<T>(out);
-    MLUCnnlTensorDesc x_desc(x);
-    MLUCnnlTensorDesc out_desc(*out);
-    MLUCnnl::BroadcastTo(
-        dev_ctx, x_desc.get(), GetBasePtr(&x), out_desc.get(), GetBasePtr(out));
+  phi::DDim new_in_dims = phi::make_ddim(vec_in_dims);
+  phi::DDim out_dims(new_in_dims);
+  for (size_t i = 0; i < repeat_times.size(); ++i) {
+    out_dims[i] *= repeat_times[i];
   }
+  out->Resize(out_dims);
+  dev_ctx.template Alloc<T>(out);
+  MLUCnnlTensorDesc x_desc(x);
+  MLUCnnlTensorDesc out_desc(*out);
+  MLUCnnl::BroadcastTo(
+      dev_ctx, x_desc.get(), GetBasePtr(&x), out_desc.get(), GetBasePtr(out));
 }
 
 template <typename T, typename Context>

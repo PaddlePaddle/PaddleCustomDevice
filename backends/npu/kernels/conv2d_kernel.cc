@@ -445,8 +445,8 @@ void Conv2DGradKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(&input_grad_tensor);
   }
 
-  phi::DenseTensorMeta bias_grad_meta = {input.dtype(),
-                                         phi::make_ddim({filter_grad_tensor.dims()[0]})};
+  phi::DenseTensorMeta bias_grad_meta = {
+      input.dtype(), phi::make_ddim({filter_grad_tensor.dims()[0]})};
   bias_grad_tensor.set_meta(bias_grad_meta);
   dev_ctx.template Alloc<T>(&bias_grad_tensor);
 

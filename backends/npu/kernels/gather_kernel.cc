@@ -150,7 +150,7 @@ void GatherGradKernel(const Context& dev_ctx,
       if (i == 0) {
         out_dims_new[i] = p_index->dims()[0];
       } else {
-        out_dims_new[i] = x.dims()[i];
+        out_dims_new[i] = out_grad.dims()[i-1];
       }
     }
 

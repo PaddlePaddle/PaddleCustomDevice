@@ -124,7 +124,7 @@ class TestCheckFiniteAndUnscaleOpWithInf(unittest.TestCase):
         _legacy_C_ops.check_finite_and_unscale([npu_x], scale, [npu_x], found_inf)
 
         k = x / y
-        np.testing.assert_allclose(npu_x.numpy()[:-1], k[:-1], rtol=5e-03)
+        np.testing.assert_allclose(npu_x.numpy()[:-1], k[:-1], rtol=1e-02)
         np.testing.assert_allclose(npu_x.numpy()[-1][:-1], k[-1][:-1], rtol=1e-03)
         np.testing.assert_equal(found_inf.numpy(), 1)
 

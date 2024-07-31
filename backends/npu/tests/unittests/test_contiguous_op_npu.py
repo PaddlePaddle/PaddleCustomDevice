@@ -14,10 +14,13 @@
 
 from __future__ import print_function
 
+import os
 import paddle
 import unittest
 import numpy as np
 from npu_utils import check_soc_version
+
+os.environ["FLAGS_use_stride_kernel"] = "1"
 
 
 class TestContiguous(unittest.TestCase):

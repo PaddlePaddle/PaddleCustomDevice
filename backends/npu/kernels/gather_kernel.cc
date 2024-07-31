@@ -144,13 +144,16 @@ void GatherGradKernel(const Context& dev_ctx,
   // step3: scatter(x_grad)
   phi::DenseTensor out_grad_(out_grad);
 
+  int64_t dim = axis.to<int64_t>();
+  int count = 0;
   if (index.dims().size() == 0) {
     std::vector<int64_t> out_dims_new(out_grad.dims().size() + 1);
     for (int64_t i = 0; i <= out_dims_new.size() - 1; i++) {
-      if (i == 0) {
+      if (i == dim) {
         out_dims_new[i] = 1;
       } else {
-        out_dims_new[i] = zeroslike_xout.dims()[i];
+        out_dims_new[i] = out_grad.dims()[count];
+        count++;
       }
     }
 

@@ -62,6 +62,9 @@ void TileKernelImpl(const Context& dev_ctx,
   }
   if (repeat_one_times) {
     TensorCopy(dev_ctx, x, false, out);
+    if (!x.dims().size()) {
+      out->Resize({1});
+    }
   } else {
     phi::DDim new_in_dims = phi::make_ddim(vec_in_dims);
     phi::DDim out_dims(new_in_dims);

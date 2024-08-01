@@ -23,7 +23,7 @@ import unittest
 import numpy as np
 from npu_utils import check_soc_version
 
-paddle.set_flags({"FLAGS_use_stride_kernel":1})
+paddle.set_flags({"FLAGS_use_stride_kernel": 1})
 
 
 class TestContiguous(unittest.TestCase):

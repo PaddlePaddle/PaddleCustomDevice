@@ -522,7 +522,7 @@ C_Status ProfilerCollectData(C_Profiler prof,
 void InitPlugin(CustomRuntimeParams *params) {
   FUNCALL_S
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
-  params->device_type = "habana_hpu";
+  params->device_type = "intel_hpu";
   params->sub_device_type = "gaudi2";
 
   memset(reinterpret_cast<void *>(params->interface),

@@ -1,51 +1,53 @@
-# 飞桨自定义接入硬件后端(Custom CPU)
+# PaddlePaddle Custom Device Implementaion for Custom CPU
 
-简体中文 | [English](./README.md)
+English | [简体中文](./README_cn.md)
 
-请参考以下步骤进行硬件后端(Habana HPU)的编译安装与验证
+Please refer to the following steps to compile, install and verify the custom device implementaion for Habana HPU.
 
-## 一、源码同步
+## Get Sources
 
 ```bash
-# 克隆代码
+# clone source 
 git clone --recursive https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 
-# 请执行以下命令，以保证checkout最新的Paddle源码
+# get the latest submodule source code
 git submodule sync
 git submodule update --remote --init --recursive
 ```
 
-## 二、编译安装
+## Compile and Install
 
 ```bash
-# 进入硬件后端(Habana HPU)目录
-cd backends/habana_hpu
+# navigate to implementaion for Habana HPU
+cd backends/intel_hpu
 
-# 编译之前需要先保证环境下装有Paddle WHL包，可以直接安装CPU版本
+# before compiling, ensure that Paddle is installed, you can run the following command
 pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/linux/cpu-mkl/develop.html
 
-# 创建编译目录并编译
+# create the build directory and navigate in
 mkdir build && cd build
 
 cmake ..
 make -j8
 
-# 编译产出在dist路径下，使用pip安装
+# using pip to install the output
 pip install dist/paddle_habana_hpu*.whl
 ```
 
-## 三、功能验证
+## Verification
 
 ```bash
-# 列出可用硬件后端
+# list available hardware backends
 python -c "import paddle; print(paddle.device.get_all_custom_device_type())"
-# 期待输出以下结果
-['habana_hpu']
 
-# 运行简单模型
+# expected output
+['intel_hpu']
+
+# run a simple model
 python ../tests/test_MNIST_model.py
-# 期待输出以下类似结果
+
+# expected similar output 
 ... ...
 Epoch 0 step 0, Loss = [2.2956038], Accuracy = 0.15625
 Epoch 0 step 100, Loss = [2.1552896], Accuracy = 0.3125
@@ -59,12 +61,12 @@ Epoch 0 step 800, Loss = [1.8925955], Accuracy = 0.640625
 Epoch 0 step 900, Loss = [1.8199624], Accuracy = 0.734375
 ```
 
-## 四、使用PaddleInference
+## Using PaddleInference
 
-重新编译插件
+Re-compile plugin
 
 ```bash
-# 编译PaddleInference
+# Compile PaddleInference
 git clone https://github.com/PaddlePaddle/Paddle.git
 git clone https://github.com/ronny1996/Paddle-Inference-Demo.git
 
@@ -79,29 +81,29 @@ popd
 cp -R Paddle/build/paddle_inference_install_dir Paddle-Inference-Demo/c++/lib/paddle_inference
 export PADDLE_INFERENCE_LIB_DIR=$(realpath Paddle-Inference-Demo/c++/lib/paddle_inference/paddle/lib)
 
-# 编译插件
-mkdir -p PaddleCustomDevice/backends/habana_hpu/build
-pushd PaddleCustomDevice/backends/habana_hpu/build
+# Compile the plug-in
+mkdir -p PaddleCustomDevice/backends/intel_hpu/build
+pushd PaddleCustomDevice/backends/intel_hpu/build
 
 cmake .. -DON_INFER=ON -DPADDLE_INFERENCE_LIB_DIR=${PADDLE_INFERENCE_LIB_DIR}
 make -j8
 
-# 指定插件路径
+# Specify the plug-in directory
 export CUSTOM_DEVICE_ROOT=$PWD
 popd
 ```
 
-使用 PaddleInference
+Using PaddleInference
 
 ```bash
 pushd Paddle-Inference-Demo/c++/resnet50
 
-# 修改 resnet50_test.cc，使用 config.EnableCustomDevice("habana_hpu", 0) 接口替换 config.EnableUseGpu(100, 0)
+# Modify resnet50_test.cc, use config.EnableCustomDevice("intel_hpu", 0) to replace config.EnableUseGpu(100, 0)
   
 bash run.sh
 ```
 
-期待输出以下类似结果
+expected similar output 
 
 ```bash
 I0713 09:02:38.808723 24792 resnet50_test.cc:74] run avg time is 297.75 ms

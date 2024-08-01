@@ -725,14 +725,14 @@ void MatmulGradKernel(const phi::Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(matmul,
-                    habana_hpu,
+                    intel_hpu,
                     ALL_LAYOUT,
                     custom_kernel::MatmulKernel,
                     float,
                     double) {}
 
 PD_BUILD_PHI_KERNEL(matmul_grad,
-                    habana_hpu,
+                    intel_hpu,
                     ALL_LAYOUT,
                     custom_kernel::MatmulGradKernel,
                     float,

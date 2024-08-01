@@ -16,7 +16,7 @@ import numpy as np
 import paddle
 from paddle.optimizer import SGD
 
-paddle.set_device("habana_hpu")
+paddle.set_device("intel_hpu")
 
 BATCH_SIZE = 64
 

@@ -172,14 +172,14 @@ void SoftmaxGradKernel(const phi::Context& dev_ctx,
 }  // namespace custom_kernel
 
 PD_BUILD_PHI_KERNEL(softmax,
-                    habana_hpu,
+                    intel_hpu,
                     ALL_LAYOUT,
                     custom_kernel::SoftmaxKernel,
                     float,
                     double) {}
 
 PD_BUILD_PHI_KERNEL(softmax_grad,
-                    habana_hpu,
+                    intel_hpu,
                     ALL_LAYOUT,
                     custom_kernel::SoftmaxGradKernel,
                     float,

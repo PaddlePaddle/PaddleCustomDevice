@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(paddle-habana-hpu CXX C)
+project(paddle-intel-hpu CXX C)
 
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
@@ -25,7 +25,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 option(WITH_TESTING    "compile with unit testing"        ON)
 option(ON_INFER        "compile with inference c++ lib"   OFF)
 
-set(PLUGIN_NAME        "paddle-habana-hpu")
+set(PLUGIN_NAME        "paddle-intel-hpu")
 set(PLUGIN_VERSION     "0.0.1")
 
 include(paddle)

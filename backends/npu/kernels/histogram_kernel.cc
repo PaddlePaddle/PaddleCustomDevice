@@ -14,34 +14,38 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+
 namespace custom_kernel {
 template <typename T, typename Context>
 void HistogramKernel(const Context& dev_ctx,
                      const phi::DenseTensor& input,
+                     const paddle::optional<phi::DenseTensor>& weight,
                      int64_t bins,
                      int min,
                      int max,
+                     bool density,
                      phi::DenseTensor* output) {
-  int mbins = static_cast<int>(bins);
-  dev_ctx.template Alloc<int>(output);
-  phi::DenseTensor ranges;
-  phi::DenseTensor nbins;
-  T mmin = static_cast<T>(min);
-  T mmax = static_cast<T>(max);
-  std::vector<T> mrange{mmax, mmin};
-  TensorFromVector<T>(dev_ctx, mrange, dev_ctx, &ranges);
-  std::vector<T> ss = {bins};
-  TensorFromVector<T>(dev_ctx, ss, dev_ctx, &nbins);
-  auto output_dim = output->dims();
-  output->Resize({-1});
-  NpuOpRunner histogram_runner;
-  histogram_runner.SetType("HistogramFixedWidth")
+  PADDLE_ENFORCE_EQ(
+      weight || density,
+      false,
+      phi::errors::InvalidArgument("PaddlePaddle does not support parameters "
+                                   "weight and density on the NPU."));
+
+  dev_ctx.template Alloc<T>(output);
+  EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, *output);
+
+  int bins_trans = bins;
+  float min_trans = min;
+  float max_trans = max;
+
+  NpuOpRunner runner;
+  runner.SetType("Histogram")
       .AddInput(input)
-      .AddInput(ranges)
-      .AddInput(nbins)
       .AddOutput(*output)
-      .Run(dev_ctx.stream());
-  output->Resize(output_dim);
+      .AddAttr("bins", bins_trans)
+      .AddAttr("min", min_trans)
+      .AddAttr("max", max_trans);
+  runner.Run(dev_ctx.stream());
 }
 };  // namespace custom_kernel
 
@@ -51,6 +55,4 @@ PD_REGISTER_PLUGIN_KERNEL(histogram,
                           custom_kernel::HistogramKernel,
                           float,
                           int,
-                          int64_t) {
-  kernel->OutputAt(0).SetDataType(paddle::DataType::INT64);
-}
+                          int64_t) {}

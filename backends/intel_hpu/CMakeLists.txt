@@ -36,7 +36,7 @@ link_directories(${PADDLE_LIB_DIR} /usr/lib/habanalabs)
 add_definitions(-std=c++14)
 
 file(GLOB_RECURSE PLUGIN_SRCS RELATIVE ${CMAKE_SOURCE_DIR} kernels/*.cc utils/*.cc)
-list(APPEND PLUGIN_SRCS runtime/hpu_runtime.cc)
+list(APPEND PLUGIN_SRCS runtime/runtime.cc)
 
 # build shared library
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
@@ -46,6 +46,9 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference glog Synapse)
 else()
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB} glog Synapse)
 endif()
+
+include(third_party)
+add_dependencies(${PLUGIN_NAME} third_party)
 
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in

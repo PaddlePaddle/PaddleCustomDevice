@@ -27,6 +27,9 @@ void IndexSelectKernel(const Context& dev_ctx,
   MLUCnnlTensorDesc x_desc(x);
   MLUCnnlTensorDesc out_desc(*output);
   MLUCnnlTensorDesc index_desc(index);
+  if (dim < 0) {
+    dim += x.dims().size();
+  }
   MLUCnnl::IndexSelect(dev_ctx,
                        dim,
                        x_desc.get(),

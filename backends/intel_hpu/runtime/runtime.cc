@@ -27,9 +27,52 @@
 #include <iostream>
 #include <string>
 
+#include "hccl.h"
+#include "hccl_types.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "utils/hpu_helper.h"
 #include "utils/hpu_utils.h"
+
+#define CHECK_HCCL_STATUS(x)                                            \
+  {                                                                     \
+    const auto _res = (x);                                              \
+    if (_res != hcclSuccess)                                            \
+      std::cerr << "In function " + std::string{__FUNCTION__} +         \
+                       "(): " #x " failed: " + hcclGetErrorString(_res) \
+                << std::endl;                                           \
+  };
+
+inline hcclDataType_t PDDataTypeToHcclDataType(C_DataType type) {
+  if (type == C_DataType::FLOAT32) {
+    return hcclFloat32;
+  } else if (type == C_DataType::FLOAT16) {
+    return hcclBfloat16;
+  } else if (type == C_DataType::INT32) {
+    return hcclInt32;
+  } else if (type == C_DataType::INT8) {
+    return hcclInt8;
+  } else if (type == C_DataType::UINT8) {
+    return hcclUint8;
+  } else if (type == C_DataType::INT64) {
+    return hcclInt64;
+  } else {
+    LOG(ERROR) << "Datatype " << type << " in hccl is not supported.";
+  }
+}
+
+hcclRedOp_t PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
+  if (op == C_CCLReduceOp::MIN) {
+    return hcclMin;
+  } else if (op == C_CCLReduceOp::MAX) {
+    return hcclMax;
+  } else if (op == C_CCLReduceOp::SUM) {
+    return hcclSum;
+  } else if (op == C_CCLReduceOp::PRODUCT) {
+    return hcclProd;
+  } else {
+    LOG(ERROR) << "Reduceop " << op << " in hccl is not supported.";
+  }
+}
 
 static C_Stream g_stream = nullptr;
 
@@ -97,8 +140,8 @@ class RuntimeManager {
     uint64_t total = 0;
 
     synStatus status = synDeviceGetMemoryInfo(deviceId, &free, &total);
-    LOG_IF(ERROR, Status != synSuccess)
-        << "[RUNTIME] synDeviceGetMemoryInfo() failed = " << Status;
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synDeviceGetMemoryInfo() failed = " << status;
 
     LOG(INFO) << "free = " << free;
     LOG(INFO) << "total = " << total;
@@ -107,12 +150,30 @@ class RuntimeManager {
     *free_memory = static_cast<size_t>(free);
   }
 
+  void GetNumDevices(size_t *count) {
+    uint32_t num_devices = 0;
+    synStatus status = synDeviceGetCount(&num_devices);
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synDeviceGetCount() failed = " << status;
+    if (num_devices >= 1) {
+      LOG(INFO) << "total device num =" << num_devices
+                << " actual return 1, only support 1 thread acquire 1 device";
+      num_devices = 1;
+    }
+
+    *count = static_cast<size_t>(num_devices);
+    LOG(INFO) << " number device = " << *count;
+  }
+
  private:
   synModuleId moduleID = 0;
   std::string busID = "";
   synDeviceId deviceId = 0;
   uint32_t Status = 0;  // 1 acquire, 0 not acquire
   uint32_t count = 0;
+
+  // hccl
+  hcclUniqueId uid;
 };
 
 static RuntimeManager runtimeManager;
@@ -166,14 +227,7 @@ C_Status Finalize() {
 
 C_Status GetDevicesCount(size_t *count) {
   FUNCALL_S
-  uint32_t pCount = 0;
-
-  synStatus status = synDeviceGetCount(&pCount);
-  CHKSTATUS("synDeviceGetCount failed!");
-  // currently only expose 1 device
-  *count = 1;
-  LOG(INFO) << "get real device count=" << pCount << " actual return "
-            << *count;
+  runtimeManager.GetNumDevices(count);
   FUNCALL_E
   return C_SUCCESS;
 }
@@ -489,9 +543,7 @@ C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
   FUNCALL_S
-
   runtimeManager.GetMemoryStats(device, total_memory, free_memory);
-
   FUNCALL_E
   return C_SUCCESS;
 }
@@ -515,7 +567,8 @@ C_Status XcclGetUniqueIdSize(size_t *sz) {
 
 C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
   FUNCALL_S
-
+  CHECK_HCCL_STATUS(
+      hcclGetUniqueId(reinterpret_cast<hcclUniqueId *>(unique_id)));
   FUNCALL_E
   return C_SUCCESS;
 }
@@ -525,14 +578,16 @@ C_Status XcclCommInitRank(size_t ranks,
                           size_t rank,
                           C_CCLComm *comm) {
   FUNCALL_S
-
+  hcclUniqueId uniqueId{};
+  CHECK_HCCL_STATUS(hcclCommInitRank(
+      reinterpret_cast<hcclComm_t *>(comm), ranks, uniqueId, rank));
   FUNCALL_E
   return C_SUCCESS;
 }
 
 C_Status XcclDestroyComm(C_CCLComm comm) {
   FUNCALL_S
-
+  CHECK_HCCL_STATUS(hcclCommDestroy(reinterpret_cast<hcclComm_t>(comm)));
   FUNCALL_E
   return C_SUCCESS;
 }
@@ -544,9 +599,13 @@ C_Status XcclAllReduce(void *send_buf,
                        C_CCLReduceOp op,
                        C_CCLComm comm,
                        C_Stream stream) {
-  FUNCALL_S
-
-  FUNCALL_E
+  CHECK_HCCL_STATUS(hcclAllReduce(static_cast<const void *>(send_buf),
+                                  recv_buf,
+                                  count,
+                                  PDDataTypeToHcclDataType(data_type),
+                                  PDReduceOpToHcclReduceOp(op),
+                                  reinterpret_cast<hcclComm_t>(comm),
+                                  reinterpret_cast<synStreamHandle>(stream)));
   return C_SUCCESS;
 }
 
@@ -556,9 +615,105 @@ C_Status XcclBroadcast(void *buf,
                        size_t root,
                        C_CCLComm comm,
                        C_Stream stream) {
-  FUNCALL_S
+  CHECK_HCCL_STATUS(hcclBroadcast(static_cast<const void *>(buf),
+                                  buf,
+                                  static_cast<uint64_t>(count),
+                                  PDDataTypeToHcclDataType(data_type),
+                                  static_cast<int>(root),
+                                  reinterpret_cast<hcclComm_t>(comm),
+                                  reinterpret_cast<synStreamHandle>(stream)));
+  return C_SUCCESS;
+}
 
-  FUNCALL_E
+C_Status XcclReduce(void *send_buf,
+                    void *recv_buf,
+                    size_t count,
+                    C_DataType data_type,
+                    C_CCLReduceOp op,
+                    size_t root,
+                    C_CCLComm comm,
+                    C_Stream stream) {
+  CHECK_HCCL_STATUS(hcclReduce(static_cast<const void *>(send_buf),
+                               recv_buf,
+                               count,
+                               PDDataTypeToHcclDataType(data_type),
+                               PDReduceOpToHcclReduceOp(op),
+                               root,
+                               reinterpret_cast<hcclComm_t>(comm),
+                               reinterpret_cast<synStreamHandle>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclAllGather(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  CHECK_HCCL_STATUS(hcclAllGather(static_cast<const void *>(send_buf),
+                                  recv_buf,
+                                  count,
+                                  PDDataTypeToHcclDataType(data_type),
+                                  reinterpret_cast<hcclComm_t>(comm),
+                                  reinterpret_cast<synStreamHandle>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclReduceScatter(void *send_buf,
+                           void *recv_buf,
+                           size_t count,
+                           C_DataType data_type,
+                           C_CCLReduceOp op,
+                           C_CCLComm comm,
+                           C_Stream stream) {
+  CHECK_HCCL_STATUS(
+      hcclReduceScatter(static_cast<const void *>(send_buf),
+                        recv_buf,
+                        count,
+                        PDDataTypeToHcclDataType(data_type),
+                        PDReduceOpToHcclReduceOp(op),
+                        reinterpret_cast<hcclComm_t>(comm),
+                        reinterpret_cast<synStreamHandle>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclGroupStart() {
+  CHECK_HCCL_STATUS(hcclGroupStart());
+  return C_SUCCESS;
+}
+
+C_Status XcclGroupEnd() {
+  CHECK_HCCL_STATUS(hcclGroupEnd());
+  return C_SUCCESS;
+}
+
+C_Status XcclSend(void *send_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t dest_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  CHECK_HCCL_STATUS(hcclSend(static_cast<const void *>(send_buf),
+                             count,
+                             PDDataTypeToHcclDataType(data_type),
+                             static_cast<uint32_t>(dest_rank),
+                             reinterpret_cast<hcclComm_t>(comm),
+                             reinterpret_cast<synStreamHandle>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclRecv(void *recv_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t src_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  CHECK_HCCL_STATUS(hcclRecv(recv_buf,
+                             count,
+                             PDDataTypeToHcclDataType(data_type),
+                             static_cast<uint32_t>(src_rank),
+                             reinterpret_cast<hcclComm_t>(comm),
+                             reinterpret_cast<synStreamHandle>(stream)));
   return C_SUCCESS;
 }
 
@@ -656,12 +811,19 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->device_memory_stats = DeviceMemStats;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
 
-  params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
-  params->interface->xccl_get_unique_id = XcclGetUniqueId;
-  params->interface->xccl_comm_init_rank = XcclCommInitRank;
-  params->interface->xccl_destroy_comm = XcclDestroyComm;
+  params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;
   params->interface->xccl_broadcast = XcclBroadcast;
+  params->interface->xccl_comm_init_rank = XcclCommInitRank;
+  params->interface->xccl_destroy_comm = XcclDestroyComm;
+  params->interface->xccl_get_unique_id = XcclGetUniqueId;
+  params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
+  params->interface->xccl_group_end = XcclGroupEnd;
+  params->interface->xccl_group_start = XcclGroupStart;
+  params->interface->xccl_recv = XcclRecv;
+  params->interface->xccl_reduce = XcclReduce;
+  params->interface->xccl_reduce_scatter = XcclReduceScatter;
+  params->interface->xccl_send = XcclSend;
 
   params->interface->profiler_collect_trace_data = ProfilerCollectData;
   params->interface->profiler_initialize = ProfilerInitialize;

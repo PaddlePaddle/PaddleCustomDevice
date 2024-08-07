@@ -25,13 +25,20 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <string>
+#include <unordered_map>
 
+#include "flags.h"
 #include "hccl.h"
 #include "hccl_types.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "utils/hpu_helper.h"
-#include "utils/hpu_utils.h"
+
+FLAGS_DEFINE_bool(intel_hpu_runtime_debug, false, "runtime debug log");
+#define DEBUG_LOG                             \
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) \
+      << __FUNCTION__ << ", " << __LINE__;
 
 #define CHECK_HCCL_STATUS(x)                                            \
   {                                                                     \
@@ -74,8 +81,6 @@ hcclRedOp_t PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
-static C_Stream g_stream = nullptr;
-
 class RuntimeManager {
  public:
   RuntimeManager() {}
@@ -95,7 +100,7 @@ class RuntimeManager {
       // release the old one and acquire a new one
       if (Status == 1) {
         status = synDeviceRelease(deviceId);
-        LOG_IF(ERROR, status == synSuccess)
+        LOG_IF(ERROR, status != synSuccess)
             << "[RUNTIME] synDeviceRelease() failed: [" << status << "]";
       }
       // status = synDeviceAcquireByModuleId(&deviceId, moduleID);
@@ -106,12 +111,13 @@ class RuntimeManager {
     }
     Status = 1;
 
-    LOG(INFO) << "set device id to " << device->id;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "set device id to " << device->id;
     moduleID = device->id;
   }
 
   void Release(const C_Device device) {
-    LOG_IF(ERROR, static_cast<synModuleId>(device->id) == moduleID)
+    LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
         << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
         << ", current = " << moduleID;
 
@@ -121,7 +127,8 @@ class RuntimeManager {
           << "[RUNTIME] synDeviceRelease() failed: [" << status << "]";
     }
 
-    LOG(INFO) << "moduleID =  " << moduleID << " released";
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "moduleID =  " << moduleID << " released";
   }
 
   int GetDevice() { return deviceId; }
@@ -143,8 +150,8 @@ class RuntimeManager {
     LOG_IF(ERROR, status != synSuccess)
         << "[RUNTIME] synDeviceGetMemoryInfo() failed = " << status;
 
-    LOG(INFO) << "free = " << free;
-    LOG(INFO) << "total = " << total;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) << "free = " << free;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) << "total = " << total;
 
     *total_memory = static_cast<size_t>(total);
     *free_memory = static_cast<size_t>(free);
@@ -156,14 +163,225 @@ class RuntimeManager {
     LOG_IF(ERROR, status != synSuccess)
         << "[RUNTIME] synDeviceGetCount() failed = " << status;
     if (num_devices >= 1) {
-      LOG(INFO) << "total device num =" << num_devices
-                << " actual return 1, only support 1 thread acquire 1 device";
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "total device num =" << num_devices
+          << " actual return 1, only support 1 thread acquire 1 device";
       num_devices = 1;
     }
 
     *count = static_cast<size_t>(num_devices);
-    LOG(INFO) << " number device = " << *count;
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << " number device = " << *count;
   }
+
+  C_Status CreateStream(const C_Device device, C_Stream *stream) {
+    LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
+        << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
+        << ", current = " << moduleID;
+
+    auto it = streams.find(reinterpret_cast<synStreamHandle>(*stream));
+    if (it == streams.end()) {
+      synStreamHandle h = nullptr;
+      synStatus status = synStreamCreateGeneric(&h, device->id, 0);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synStreamCreateGeneric() failed = " << status;
+
+      streams.insert(h);
+      *stream = reinterpret_cast<C_Stream>(h);
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "create stream stream = " << h;
+    }
+
+    return C_SUCCESS;
+  }
+
+  C_Status DestroyStream(const C_Device device, C_Stream stream) {
+    LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
+        << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
+        << ", current = " << moduleID;
+    auto it = streams.find(reinterpret_cast<synStreamHandle>(stream));
+    if (it != streams.end()) {
+      synStatus status = synStreamDestroy(*it);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synStreamDestroy() failed = " << status;
+      streams.erase(*it);
+    }
+    return C_SUCCESS;
+  }
+
+  C_Status Copy(const C_Device device,
+                void *dst,
+                const void *src,
+                size_t size,
+                size_t flag = 0 /*0 = h2d, 1 = d2h, 2=d2d*/) {
+    // TODO: cache mapped host addr
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "copy: flag = " << flag << ", size = " << size;
+    synStatus status = synFail;
+    if (flag == 0) {
+      if (stream_h2d == nullptr) {
+        status = synStreamCreateGeneric(
+            reinterpret_cast<synStreamHandle *>(&stream_h2d), device->id, 0);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synStreamCreateGeneric() failed = " << status;
+        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+            << "create builtin stream h2d" << stream_h2d;
+      }
+
+      status = synHostMap(device->id, size, src);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostMap() failed = " << status;
+
+      status = synMemCopyAsync(stream_h2d,
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               HOST_TO_DRAM);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync(HOST_TO_DRAM) failed = " << status;
+
+      status = synStreamSynchronize(stream_h2d);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synStreamSynchronize(stream_h2d) failed = " << status;
+
+      status = synHostUnmap(device->id, src);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostUnmap() failed = " << status;
+    } else if (flag == 1) {
+      if (stream_d2h == nullptr) {
+        status = synStreamCreateGeneric(
+            reinterpret_cast<synStreamHandle *>(&stream_d2h), device->id, 0);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synStreamCreateGeneric() failed = " << status;
+      }
+
+      status = synHostMap(device->id, size, dst);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostMap() failed = " << status;
+      status = synMemCopyAsync(stream_d2h,
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               DRAM_TO_HOST);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync() failed = " << status;
+      status = synStreamSynchronize(stream_d2h);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synStreamSynchronize() failed = " << status;
+      status = synHostUnmap(device->id, dst);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostUnmap() failed = " << status;
+    } else if (flag == 2) {
+      if (stream_d2d == nullptr) {
+        status = synStreamCreateGeneric(
+            reinterpret_cast<synStreamHandle *>(&stream_d2d), device->id, 0);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synStreamCreateGeneric() failed = " << status;
+      }
+      status = synMemCopyAsync(stream_d2d,
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               DRAM_TO_DRAM);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync() failed = " << status;
+      status = synStreamSynchronize(stream_d2d);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synStreamSynchronize() failed = " << status;
+    }
+    return C_SUCCESS;
+  }
+
+  C_Status AsyncCopy(const C_Device device,
+                     C_Stream stream,
+                     void *dst,
+                     const void *src,
+                     size_t size,
+                     size_t flag = 0 /*0 = h2d, 1 = d2h, 2=d2d*/) {
+    // TODO: cache mapped host addr
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "AsyncCopy: flag = " << flag << ", size = " << size
+        << ", stream = " << stream;
+    synStatus status = synFail;
+    if (flag == 0) {
+      status = synHostMap(device->id, size, src);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostMap() failed = " << status;
+      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               HOST_TO_DRAM);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync() failed = " << status;
+    } else if (flag == 1) {
+      status = synHostMap(device->id, size, dst);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostMap() failed = " << status;
+      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               DRAM_TO_HOST);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync() failed = " << status;
+    } else if (flag == 2) {
+      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
+                               reinterpret_cast<uint64_t>(src),
+                               size,
+                               reinterpret_cast<uint64_t>(dst),
+                               DRAM_TO_DRAM);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synMemCopyAsync() failed = " << status;
+    }
+    return C_SUCCESS;
+  }
+
+  C_Status CreateEvent(const C_Device device, C_Event *event) {
+    DEBUG_LOG
+    LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
+        << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
+        << ", current = " << moduleID;
+
+    auto it = events.find(reinterpret_cast<synEventHandle>(*event));
+    if (it == events.end()) {
+      synEventHandle e = nullptr;
+      synStatus status = synEventCreate(&e, deviceId, 0);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synEventCreate() failed = " << status;
+      events.insert(e);
+      *event = reinterpret_cast<C_Event>(e);
+    }
+
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "device id=" << device->id << " create event = " << *event;
+
+    DEBUG_LOG
+
+    return C_SUCCESS;
+  }
+
+  C_Status DestroyEvent(const C_Device device, C_Event event) {
+    DEBUG_LOG
+    LOG_IF(ERROR, static_cast<synModuleId>(device->id) != moduleID)
+        << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
+        << ", current = " << moduleID;
+    auto it = events.find(reinterpret_cast<synEventHandle>(event));
+    if (it != events.end()) {
+      synStatus status = synEventDestroy(*it);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] destroyEvent() failed = " << status;
+      events.erase(*it);
+    }
+    LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+        << "device id=" << device->id << " remove event = " << event;
+
+    DEBUG_LOG
+    return C_SUCCESS;
+  }
+
+  inline synModuleId GetModuleID() { return moduleID; }
+  inline synDeviceId GetDeviceID() { return deviceId; }
 
  private:
   synModuleId moduleID = 0;
@@ -174,71 +392,86 @@ class RuntimeManager {
 
   // hccl
   hcclUniqueId uid;
+
+  // user streams
+  std::set<synStreamHandle> streams;
+
+  // builtin stream
+  synStreamHandle stream_h2d = nullptr;
+  synStreamHandle stream_d2h = nullptr;
+  synStreamHandle stream_d2d = nullptr;
+
+  // user events
+  std::set<synEventHandle> events;
+
+  // cache
+  std::unordered_map<void *, size_t> hostMappedAddress;
 };
 
 static RuntimeManager runtimeManager;
 
 C_Status Init() {
-  FUNCALL_S
+  DEBUG_LOG
   synStatus status = synInitialize();
   LOG_IF(ERROR, status != synSuccess)
-      << "[RUNTIME] synInitialize() failed: [" << synSuccess << "]";
+      << "[RUNTIME] synInitialize() failed: [" << status << "]";
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status InitDevice(const C_Device device) {
-  FUNCALL_S
+  DEBUG_LOG
   runtimeManager.SetDevice(device);
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status SetDevice(const C_Device device) {
-  FUNCALL_S
+  DEBUG_LOG
   runtimeManager.SetDevice(device);
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status GetDevice(const C_Device device) {
-  FUNCALL_S
+  DEBUG_LOG
   device->id = runtimeManager.GetDevice();
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status DestroyDevice(const C_Device device) {
-  FUNCALL_S
+  DEBUG_LOG
   runtimeManager.Release(device);
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status Finalize() {
-  FUNCALL_S
+  DEBUG_LOG
 
   synStatus status = synDestroy();
-  CHKSTATUS("synDestroy failed");
-  FUNCALL_E
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synDestroy() failed: [" << status << "]";
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status GetDevicesCount(size_t *count) {
-  FUNCALL_S
+  DEBUG_LOG
   runtimeManager.GetNumDevices(count);
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
-  FUNCALL_S
+  DEBUG_LOG
 
   // TODO: suse HABANA_VISIBLE_DEVICES to get available device
   devices[0] = 0;
   // devices[1] = 1;
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -246,24 +479,9 @@ C_Status MemCpy_h2d(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " dst=" << dst << " src=" << src
-            << " size=" << size;
-
-  synStatus status = HostMap(device->id, size, src);
-  CHKSTATUS("synHostMap failed!");
-  status = synMemCopyAsync(g_stream->memcpyStreamHostToDev,
-                           reinterpret_cast<uint64_t>(src),
-                           size,
-                           reinterpret_cast<uint64_t>(dst),
-                           HOST_TO_DRAM);
-  CHKSTATUS("synMemCopyAsync HOST_TO_DRAM failed!");
-  status = synStreamSynchronize(g_stream->memcpyStreamHostToDev);
-  CHKSTATUS("synStreamSynchronize failed!");
-  status = HostUnmap(device->id, src);
-  CHKSTATUS("synHostUnmap failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.Copy(device, dst, src, size, 0);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -271,24 +489,9 @@ C_Status MemCpy_d2h(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " dst=" << dst << " src=" << src
-            << " size=" << size;
-
-  synStatus status = HostMap(device->id, size, dst);
-  CHKSTATUS("synHostMap failed!");
-  status = synMemCopyAsync(g_stream->memcpyStreamDevToHost,
-                           reinterpret_cast<uint64_t>(src),
-                           size,
-                           reinterpret_cast<uint64_t>(dst),
-                           DRAM_TO_HOST);
-  CHKSTATUS("synMemCopyAsync DRAM_TO_HOST failed!");
-  status = synStreamSynchronize(g_stream->memcpyStreamDevToHost);
-  CHKSTATUS("synStreamSynchronize failed!");
-  status = HostUnmap(device->id, dst);
-  CHKSTATUS("synHostUnmap failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.Copy(device, dst, src, size, 1);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -296,11 +499,9 @@ C_Status MemCpy_d2d(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
-  FUNCALL_S
-  // memcpy(dst, src, size);
-  // synMemCopyAsync(streamhandle, src, size, dst, DRAM_TO_DRAM);
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.Copy(device, dst, src, size, 2);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -309,23 +510,9 @@ C_Status AsyncMemCpy_h2d(const C_Device device,
                          void *dst,
                          const void *src,
                          size_t size) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream
-            << " dst=" << dst << " src=" << src << " size=" << size;
-
-  synStatus status = HostMap(device->id, size, src);
-  CHKSTATUS("synHostMap failed!");
-  status = synMemCopyAsync(g_stream->memcpyStreamHostToDev,
-                           reinterpret_cast<uint64_t>(src),
-                           size,
-                           reinterpret_cast<uint64_t>(dst),
-                           HOST_TO_DRAM);
-  CHKSTATUS("synMemCopyAsync HOST_TO_DRAM failed!");
-  // TODO: when to unmap in async
-  status = HostUnmap(device->id, src);
-  CHKSTATUS("synHostUnmap failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.AsyncCopy(device, stream, dst, src, size, 0);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -334,24 +521,9 @@ C_Status AsyncMemCpy_d2h(const C_Device device,
                          void *dst,
                          const void *src,
                          size_t size) {
-  FUNCALL_S
-
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream
-            << " dst=" << dst << " src=" << src << " size=" << size;
-
-  synStatus status = HostMap(device->id, size, dst);
-  CHKSTATUS("synHostMap failed!");
-  status = synMemCopyAsync(g_stream->memcpyStreamDevToHost,
-                           reinterpret_cast<uint64_t>(src),
-                           size,
-                           reinterpret_cast<uint64_t>(dst),
-                           DRAM_TO_HOST);
-  CHKSTATUS("synMemCopyAsync DRAM_TO_HOST failed!");
-  // TODO: when to unmap in async
-  status = HostUnmap(device->id, dst);
-  CHKSTATUS("synHostUnmap failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.AsyncCopy(device, stream, dst, src, size, 1);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -360,216 +532,208 @@ C_Status AsyncMemCpy_d2d(const C_Device device,
                          void *dst,
                          const void *src,
                          size_t size) {
-  FUNCALL_S
-  memcpy(dst, src, size);
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.AsyncCopy(device, stream, dst, src, size, 2);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status Allocate_device(const C_Device device, void **ptr, size_t size) {
-  FUNCALL_S
+  DEBUG_LOG
+  uint64_t p;
+  synStatus status =
+      synDeviceMalloc(runtimeManager.GetDeviceID(), size, 0, 0, &p);
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] hbmAlloc() failed = " << status;
+  *ptr = reinterpret_cast<void *>(p);
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "device id = " << runtimeManager.GetDeviceID()
+      << " malloc ptr=" << *ptr << " size=" << size;
 
-  // auto data = malloc(size);
-  // if (data) {
-  //   *ptr = data;
-  //   return C_SUCCESS;
-  // } else {
-  //   *ptr = nullptr;
-  // }
-
-  // TODO: how to bring into tensor name
-  static int i = 0;
-  uint64_t input_dram;
-  std::string name =
-      "Tensor_" + std::to_string(device->id) + "_" + std::to_string(i);
-  i++;
-  synStatus status = hbmAlloc(device->id, size, &input_dram, name);
-  CHKSTATUS("hbmAlloc failed!");
-  *ptr = reinterpret_cast<void *>(input_dram);
-  LOG(INFO) << "device id=" << device->id << " name=" << name << " ptr=" << *ptr
-            << " size=" << size;
-
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status Deallocate_device(const C_Device device, void *ptr, size_t size) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " ptr=" << ptr;
+  DEBUG_LOG
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "device id=" << runtimeManager.GetDeviceID() << " free ptr = " << ptr
+      << " size=" << size;
 
-  // free(ptr);
-  synStatus status =
-      hbmFree(device->id, *reinterpret_cast<uint64_t *>(ptr), "");
-  CHKSTATUS("hbmFree failed!");
+  synStatus status = synDeviceFree(
+      runtimeManager.GetDeviceID(), *reinterpret_cast<uint64_t *>(ptr), 0);
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] hbmFree() failed = " << status;
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status Allocate_host(const C_Device device, void **ptr, size_t size) {
-  FUNCALL_S
+  DEBUG_LOG
+  synStatus status = synHostMalloc(runtimeManager.GetDeviceID(), size, 0, ptr);
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synHostMalloc() failed = " << status;
 
-  // auto data = malloc(size);
-  // if (data) {
-  //   *ptr = data;
-  //   return C_SUCCESS;
-  // } else {
-  //   *ptr = nullptr;
-  // }
-
-  // TODO: how to bring into tensor name
-
-  FUNCALL_E
+  DEBUG_LOG
   return C_FAILED;
 }
 
 C_Status Deallocate_host(const C_Device device, void *ptr, size_t size) {
-  FUNCALL_S
-
-  // free(ptr);
-  FUNCALL_E
+  DEBUG_LOG
+  synStatus status = synHostFree(runtimeManager.GetDeviceID(), ptr, 0);
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synHostFree() failed = " << status;
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
-  FUNCALL_S
-  // stream = nullptr;
-
-  synStatus status = createStream(device->id, stream);
-  LOG(ERROR) << status;
-  CHKSTATUS("createStream failed!");
-  LOG(INFO) << "device id=" << device->id << " stream=" << *stream;
-
-  g_stream = *stream;
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.CreateStream(device, stream);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream;
-
-  synStatus status = destroyStream(device->id, stream);
-  CHKSTATUS("destroyStream failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.DestroyStream(device, stream);
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "device id=" << device->id << " stream=" << stream;
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  FUNCALL_S
-  synStatus status = createEvent(device->id, event);
-  CHKSTATUS("createEvent failed!");
-  LOG(INFO) << "device id=" << device->id << " event=" << *event;
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.CreateEvent(device, event);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream
-            << " event=" << event;
+  DEBUG_LOG
+  LOG_IF(ERROR,
+         static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
+      << "[RUNTIME] moduleID mismatch : moduleID = "
+      << runtimeManager.GetModuleID() << ", current = " << device->id;
+  synStatus status =
+      synEventRecord(reinterpret_cast<synEventHandle>(event),
+                     reinterpret_cast<const synStreamHandle>(stream));
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synEventRecord() failed = " << status;
 
-  synStatus status = recordEvent(device->id, stream, event);
-  CHKSTATUS("recordEvent failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " event=" << event;
-  synStatus status = destroyEvent(device->id, event);
-  CHKSTATUS("destroyEvent failed!");
-
-  FUNCALL_E
+  DEBUG_LOG
+  runtimeManager.DestroyEvent(device, event);
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id;
-  synStatus status = synDeviceSynchronize(device->id);
-  CHKSTATUS("synDeviceSynchronize failed!");
+  DEBUG_LOG
+  LOG_IF(ERROR,
+         static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
+      << "[RUNTIME] moduleID mismatch : moduleID = "
+      << runtimeManager.GetModuleID() << ", current = " << device->id;
 
-  FUNCALL_E
+  synStatus status = synDeviceSynchronize(runtimeManager.GetDevice());
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synDeviceSynchronize() failed = " << status;
+
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status SyncStream(const C_Device device, C_Stream stream) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream;
+  DEBUG_LOG
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+      << "SyncStream: " << static_cast<synModuleId>(device->id) << ", "
+      << reinterpret_cast<const synStreamHandle>(stream);
+  LOG_IF(ERROR,
+         static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
+      << "[RUNTIME] moduleID mismatch : moduleID = "
+      << runtimeManager.GetModuleID() << ", current = " << device->id;
 
-  // TODO: decide which stream to sync
-  synStatus status = synStreamSynchronize(stream->computeStream);
-  CHKSTATUS("synStreamSynchronize failed!");
+  synStatus status =
+      synStreamSynchronize(reinterpret_cast<const synStreamHandle>(stream));
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synStreamSynchronize() failed: [" << status << "]";
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status SyncEvent(const C_Device device, C_Event event) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " event=" << event;
+  DEBUG_LOG
+  LOG_IF(ERROR,
+         static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
+      << "[RUNTIME] moduleID mismatch : moduleID = "
+      << runtimeManager.GetModuleID() << ", current = " << device->id;
 
-  synStatus status = synEventSynchronize(event->eventHandle);
-  CHKSTATUS("synEventSynchronize failed!");
+  synStatus status =
+      synEventSynchronize(reinterpret_cast<const synEventHandle>(event));
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synEventSynchronize() failed: [" << status << "]";
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  FUNCALL_S
-  LOG(INFO) << "device id=" << device->id << " stream=" << stream
-            << " event=" << event;
+  DEBUG_LOG
+  LOG_IF(ERROR,
+         static_cast<synModuleId>(device->id) != runtimeManager.GetModuleID())
+      << "[RUNTIME] moduleID mismatch : moduleID = "
+      << runtimeManager.GetModuleID() << ", current = " << device->id;
 
-  // TODO: decide how which stream to wait
   synStatus status =
-      synStreamWaitEvent(stream->computeStream, event->eventHandle, 0);
-  CHKSTATUS("synStreamWaitEvent failed!");
+      synStreamWaitEvent(reinterpret_cast<const synStreamHandle>(stream),
+                         reinterpret_cast<synEventHandle>(event),
+                         0);
+  LOG_IF(ERROR, status != synSuccess)
+      << "[RUNTIME] synStreamWaitEvent() failed: [" << status << "]";
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status DeviceMemStats(const C_Device device,
                         size_t *total_memory,
                         size_t *free_memory) {
-  FUNCALL_S
+  DEBUG_LOG
   runtimeManager.GetMemoryStats(device, total_memory, free_memory);
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
-  FUNCALL_S
+  DEBUG_LOG
   *size = 512;
-  LOG(INFO) << "min chunksize=" << *size;
+  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) << "min chunksize=" << *size;
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
-// for unittest
 C_Status XcclGetUniqueIdSize(size_t *sz) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
-  FUNCALL_S
+  DEBUG_LOG
   CHECK_HCCL_STATUS(
       hcclGetUniqueId(reinterpret_cast<hcclUniqueId *>(unique_id)));
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -577,18 +741,18 @@ C_Status XcclCommInitRank(size_t ranks,
                           C_CCLRootId *unique_id,
                           size_t rank,
                           C_CCLComm *comm) {
-  FUNCALL_S
+  DEBUG_LOG
   hcclUniqueId uniqueId{};
   CHECK_HCCL_STATUS(hcclCommInitRank(
       reinterpret_cast<hcclComm_t *>(comm), ranks, uniqueId, rank));
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status XcclDestroyComm(C_CCLComm comm) {
-  FUNCALL_S
+  DEBUG_LOG
   CHECK_HCCL_STATUS(hcclCommDestroy(reinterpret_cast<hcclComm_t>(comm)));
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
@@ -718,52 +882,55 @@ C_Status XcclRecv(void *recv_buf,
 }
 
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerStart(C_Profiler prof, void *user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerStop(C_Profiler prof, void *user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 C_Status ProfilerCollectData(C_Profiler prof,
                              uint64_t start_ns,
                              void *user_data) {
-  FUNCALL_S
+  DEBUG_LOG
 
-  FUNCALL_E
+  DEBUG_LOG
   return C_SUCCESS;
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
-  FUNCALL_S
+  DEBUG_LOG
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
+  params->version.major = 1;
+  params->version.minor = 16;
+  params->version.patch = 0;
   params->device_type = "intel_hpu";
   params->sub_device_type = "gaudi2";
 
@@ -832,5 +999,5 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
 
-  FUNCALL_E
+  DEBUG_LOG
 }

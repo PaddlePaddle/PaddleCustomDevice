@@ -22,7 +22,14 @@ void KLDivLossKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      const phi::DenseTensor& label,
                      const std::string& reduction,
+                     bool log_target,
                      phi::DenseTensor* out) {
+  PADDLE_ENFORCE_EQ(
+      log_target,
+      false,
+      phi::errors::InvalidArgument("PaddlePaddle does not support parameters "
+                                   "log_target is true on the NPU."));
+
   dev_ctx.template Alloc<T>(out);
 
   auto stream = dev_ctx.stream();
@@ -49,7 +56,13 @@ void KLDivLossGradKernel(const Context& dev_ctx,
                          const phi::DenseTensor& label,
                          const phi::DenseTensor& d_out,
                          const std::string& reduction,
+                         bool log_target,
                          phi::DenseTensor* d_x) {
+  PADDLE_ENFORCE_EQ(
+      log_target,
+      false,
+      phi::errors::InvalidArgument("PaddlePaddle does not support parameters "
+                                   "log_target is true on the NPU."));
   dev_ctx.template Alloc<T>(d_x);
 
   auto stream = dev_ctx.stream();

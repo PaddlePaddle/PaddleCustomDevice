@@ -76,14 +76,16 @@ void AddRawKernel(const phi::Context& dev_ctx,
     }
     AddOperator op(guid, datatype);
     op.AddNode({x_dims, y_dims}, {out->dims()});
+    op.Compile();
+
     std::map<std::string, uint64_t> tensors;
     tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
     tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
     tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+
+    op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 
     return;
- 
 }
 
 template <typename T>

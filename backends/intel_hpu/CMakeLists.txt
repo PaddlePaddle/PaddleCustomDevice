@@ -24,11 +24,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_TESTING    "compile with unit testing"        ON)
 option(ON_INFER        "compile with inference c++ lib"   OFF)
+option(WITH_MKL "compile with mkl support" ON)
+option(WITH_ARM "compile with arm support" OFF)
 
 set(PLUGIN_NAME        "paddle-intel-hpu")
 set(PLUGIN_VERSION     "0.0.1")
 
 include(paddle)
+include(generic)
+include(version)
 
 include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels /usr/include/habanalabs)
 link_directories(${PADDLE_LIB_DIR} /usr/lib/habanalabs)

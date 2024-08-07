@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "runtime.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <semaphore.h>
@@ -29,25 +31,10 @@
 #include <string>
 #include <unordered_map>
 
-#include "flags.h"
 #include "hccl.h"
 #include "hccl_types.h"
-#include "paddle/phi/backends/device_ext.h"
-#include "utils/hpu_helper.h"
 
 FLAGS_DEFINE_bool(intel_hpu_runtime_debug, false, "runtime debug log");
-#define DEBUG_LOG                             \
-  LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) \
-      << __FUNCTION__ << ", " << __LINE__;
-
-#define CHECK_HCCL_STATUS(x)                                            \
-  {                                                                     \
-    const auto _res = (x);                                              \
-    if (_res != hcclSuccess)                                            \
-      std::cerr << "In function " + std::string{__FUNCTION__} +         \
-                       "(): " #x " failed: " + hcclGetErrorString(_res) \
-                << std::endl;                                           \
-  };
 
 inline hcclDataType_t PDDataTypeToHcclDataType(C_DataType type) {
   if (type == C_DataType::FLOAT32) {

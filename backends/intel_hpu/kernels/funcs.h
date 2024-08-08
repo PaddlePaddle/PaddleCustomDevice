@@ -94,4 +94,11 @@ namespace custom_kernel {
 // }
 // }
 
+static inline int CanonicalAxis(const int axis, const int rank) {
+  if (axis < 0) {
+    return axis + rank;
+  }
+  return axis;
+}
+
 }  // namespace custom_kernel

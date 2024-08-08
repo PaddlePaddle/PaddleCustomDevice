@@ -8,7 +8,6 @@
 
 #include "synapse_api.h"
 #include "synapse_common_types.h"
-#include "utils/hpu_utils.h"
 
 synStatus HostMap(const synDeviceId deviceId,
                   const uint64_t size,

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "funcs.h"
+#include "glog/logging.h"
 #include "hpu_operator.h"
-#include "paddle/phi/capi/all.h"
 #include "perf_lib_layer_params.h"
-#include "phi_funcs.h"
+#include "synapse_api.h"
+#include "synapse_common_types.h"
 
 namespace custom_kernel {
 
@@ -48,13 +50,13 @@ class SoftmaxOperator : public HpuOperator {
   }
 };
 
-template <typename T>
-void SoftmaxKernel(const phi::Context& dev_ctx,
+template <typename T, typename Context>
+void SoftmaxKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    int axis,
                    phi::DenseTensor* out) {
   const int rank = x.dims().size();
-  const int calc_axis = phi::funcs::CanonicalAxis(axis, rank);
+  const int calc_axis = custom_kernel::CanonicalAxis(axis, rank);
   int axis_dim = x.dims()[calc_axis];
 
   // allocate memory on device.
@@ -65,7 +67,11 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
 
   // compile
   SoftmaxOperator op;
-  op.AddNode({x.dims()}, {out->dims()}, calc_axis);
+
+  std::vector<int64_t> inputs_dim = phi::vectorize<int64_t>(x.dims());
+  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+
+  op.AddNode({inputs_dim}, {outputs_dim}, calc_axis);
   op.Compile();
 
   // runtime
@@ -77,10 +83,10 @@ void SoftmaxKernel(const phi::Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_BUILD_PHI_KERNEL(softmax,
-                    intel_hpu,
-                    ALL_LAYOUT,
-                    custom_kernel::SoftmaxKernel,
-                    float,
-                    phi::dtype::float16,
-                    phi::dtype::bfloat16) {}
+PD_REGISTER_PLUGIN_KERNEL(softmax,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::SoftmaxKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

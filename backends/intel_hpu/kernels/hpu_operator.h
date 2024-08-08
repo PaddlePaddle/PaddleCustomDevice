@@ -2,7 +2,10 @@
 
 #include <memory>
 
+#include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/common/type_traits.h"
+#include "paddle/phi/extension.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
 #include "utils/hpu_helper.h"

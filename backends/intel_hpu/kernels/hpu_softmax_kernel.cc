@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "funcs.h"
-#include "glog/logging.h"
 #include "hpu_operator.h"
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
@@ -57,7 +56,6 @@ void SoftmaxKernel(const Context& dev_ctx,
                    phi::DenseTensor* out) {
   const int rank = x.dims().size();
   const int calc_axis = custom_kernel::CanonicalAxis(axis, rank);
-  int axis_dim = x.dims()[calc_axis];
 
   // allocate memory on device.
   dev_ctx.template Alloc<T>(out);

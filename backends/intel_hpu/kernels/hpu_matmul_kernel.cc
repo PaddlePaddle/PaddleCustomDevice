@@ -11,29 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "paddle/phi/capi/all.h"
-#include "perf_lib_layer_params.h"
-#include "phi_funcs.h"
+#include "funcs.h"
 #include "hpu_operator.h"
+#include "perf_lib_layer_params.h"
+#include "synapse_api.h"
+#include "synapse_common_types.h"
 
 namespace custom_kernel {
 
-class MatmulOperator : public HpuOperator {
+class BatchGEMM : public HpuOperator {
  public:
-  MatmulOperator(std::string type)
-      : HpuOperator("matmul_fwd_f32"), nodetype_(type) {}
+  BatchGEMM(synDataType dtype) : HpuOperator("batch_gemm"), dtype_(dtype) {}
+
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
                bool trans_x,
                bool trans_y) {
-    assert(ins.size() == 2 && "input size should be 2");
-    assert(outs.size() == 1 && "output size should be 1");
-
     synTensor inputs[ins.size()] = {
-        createTensor(ins[0].size(), syn_type_float, ins[0], true, "x"),
-        createTensor(ins[1].size(), syn_type_float, ins[1], true, "y")};
+        createTensor(ins[0].size(), dtype_, ins[0], true, "x"),
+        createTensor(ins[1].size(), dtype_, ins[1], true, "y")};
     synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
+        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
     synGEMMParams params{trans_x, trans_y};
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs,
@@ -42,698 +40,107 @@ class MatmulOperator : public HpuOperator {
                                      outs.size(),
                                      &params,
                                      sizeof(params),
-                                     nodetype_.c_str() /*"batch_gemm"*/,
-                                     "matmul_op",
+                                     guid_.c_str(),
+                                     "BATCH_GEMM",
                                      nullptr,
                                      nullptr);
     CHKSTATUS("synNodeCreate batch_gemm failed!");
   }
-  std::string nodetype_; /* batch_gemm, gemm */
+
+ protected:
+  synDataType dtype_;
 };
 
-template <typename T>
-void GEMM(bool trans_x,
-          bool trans_y,
-          size_t M,
-          size_t K,
-          size_t N,
-          const T* x,
-          const T* y,
-          T* out,
-          bool trans_out = false) {
-  memset(out, 0, M * N * sizeof(T));
-  for (size_t m = 0; m < M; ++m) {
-    for (size_t n = 0; n < N; ++n) {
-      auto* out_data = trans_out ? &out[n * M + m] : &out[m * N + n];
-      for (size_t k = 0; k < K; ++k) {
-        auto x_dat = trans_x ? x[k * M + m] : x[m * K + k];
-        auto y_dat = trans_y ? y[n * K + k] : y[k * N + n];
-        *out_data += x_dat * y_dat;
-      }
-    }
-  }
-}
+class GEMM : public HpuOperator {
+ public:
+  GEMM(synDataType dtype) : HpuOperator("gemm"), dtype_(dtype) {}
 
-template <typename T>
-void BatchedGEMM(bool trans_x,
-                 bool trans_y,
-                 size_t M,
-                 size_t K,
-                 size_t N,
-                 const T* x,
-                 const T* y,
-                 T* out,
-                 size_t batch_size,
-                 bool x_is_larger,
-                 bool trans_out = false,
-                 bool bs_flag = false,
-                 bool reduce_bs = false,
-                 float alpha = 1.0) {
-  memset(out, 0, sizeof(T) * (reduce_bs ? M * N : batch_size * M * N));
-  if (x_is_larger) {
-    for (size_t bs = 0; bs < batch_size; ++bs) {
-      for (size_t m = 0; m < M; ++m) {
-        for (size_t n = 0; n < N; ++n) {
-          auto out_bs = reduce_bs ? 0 : bs * M * N;
-          auto* out_data =
-              trans_out ? &out[out_bs + n * M + m] : &out[out_bs + m * N + n];
-          for (size_t k = 0; k < K; ++k) {
-            auto x_dat =
-                trans_x ? x[bs * M * K + k * M + m] : x[bs * M * K + m * K + k];
-            auto y_bs = bs_flag ? bs * N * K : 0;
-            auto y_dat = trans_y ? y[y_bs + n * K + k] : y[y_bs + k * N + n];
-            *out_data += alpha * (x_dat * y_dat);
-          }
-        }
-      }
-    }
-  } else {
-    for (size_t bs = 0; bs < batch_size; ++bs) {
-      for (size_t m = 0; m < M; ++m) {
-        for (size_t n = 0; n < N; ++n) {
-          auto out_bs = reduce_bs ? 0 : bs * M * N;
-          auto* out_data =
-              trans_out ? &out[out_bs + n * M + m] : &out[out_bs + m * N + n];
-          for (size_t k = 0; k < K; ++k) {
-            auto y_dat =
-                trans_y ? y[bs * K * N + n * K + k] : y[bs * K * N + k * N + n];
-            auto x_bs = bs_flag ? bs * M * K : 0;
-            auto x_dat = trans_x ? x[x_bs + k * M + m] : x[x_bs + m * K + k];
-            *out_data += alpha * (x_dat * y_dat);
-          }
-        }
-      }
-    }
+  void AddNode(const std::vector<DIMS>& ins,
+               const std::vector<DIMS>& outs,
+               bool trans_x,
+               bool trans_y) {
+    synTensor inputs[ins.size()] = {
+        createTensor(ins[0].size(), dtype_, ins[0], true, "x"),
+        createTensor(ins[1].size(), dtype_, ins[1], true, "y")};
+    synTensor outputs[outs.size()] = {
+        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
+    synGEMMParams params{trans_x, trans_y};
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs,
+                                     outputs,
+                                     ins.size(),
+                                     outs.size(),
+                                     &params,
+                                     sizeof(params),
+                                     guid_.c_str(),
+                                     "GEMM",
+                                     nullptr,
+                                     nullptr);
+    CHKSTATUS("synNodeCreate batch_gemm failed!");
   }
-}
 
-template <typename T>
-void MatmulKernel(const phi::Context& dev_ctx,
+ protected:
+  synDataType dtype_;
+};
+
+template <typename T, typename Context>
+void MatmulKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const phi::DenseTensor& y,
                   bool transpose_x,
                   bool transpose_y,
                   phi::DenseTensor* out) {
-  auto x_dims = x.dims();
-  auto y_dims = y.dims();
-  auto x_data = x.data<T>();
-  auto y_data = y.data<T>();
-  auto x_ndim = x_dims.size();
-  auto y_ndim = y_dims.size();
+  auto x_rank = x.dims().size();
+  auto y_rank = y.dims().size();
+  VLOG(9) << " x rank = " << x_rank << ", y rank = " << y_rank;
+  PD_CHECK((x_rank == y_rank) || (y_rank != 2 && x_rank != y_rank),
+           "matmul rank not support");
 
-  if (x_ndim == 1 && y_ndim == 1) {
-    auto M = x.numel();
-    auto N = y.numel();
-    PD_CHECK(M == N, "M must be equal to N.");
-    out->Resize({1});
-    auto out_data = dev_ctx.template Alloc<T>(out);
+  synDataType dtype = syn_type_na;
+  if (std::is_same<T, phi::dtype::float16>::value) {
+    dtype = syn_type_fp16;
+  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+    dtype = syn_type_bf16;
+  } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
+    dtype = syn_type_fp8_143;
+  }
 
-    MatmulOperator op("gemm");
-    op.AddNode({x_dims, y_dims}, {out->dims()}, false, false);
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
+  std::vector<int64_t> y_dims = phi::vectorize<int64_t>(y.dims());
+  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-    // GEMM(false, false, 1, M, 1, x.data<T>(), y.data<T>(), out_data);
-    return;
-  } else if (x_ndim == 1) {
-    auto M = 1;
-    auto K = x.numel();
-    auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-    if (transpose_y) {
-      PD_CHECK(K == y_dims[y_ndim - 1],
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               y_ndim - 1,
-               K,
-               y_ndim - 1,
-               y_dims[y_ndim - 1]);
-    } else {
-      PD_CHECK(K == y_dims[y_ndim - 2],
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               y_ndim - 2,
-               K,
-               y_ndim - 2,
-               y_dims[y_ndim - 2]);
-    }
-    std::vector<int64_t> out_dims(y_ndim - 1);
-    if (transpose_y) {
-      std::copy_n(y_dims.cbegin(), y_ndim - 1, out_dims.begin());
-    } else {
-      std::copy_n(y_dims.cbegin(), y_ndim - 2, out_dims.begin());
-      out_dims.back() = y_dims.back();
-    }
-    out->Resize(out_dims);
-    auto out_data = dev_ctx.template Alloc<T>(out);
-    if (y_ndim == 2) {
-      MatmulOperator op("gemm");
-      op.AddNode({x_dims, y_dims}, {out->dims()}, false, transpose_y);
-      std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                           tensors);
-
-      // GEMM(false, transpose_y, M, K, N, x_data, y_data, out_data);
-    } else {
-      MatmulOperator op("batch_gemm");
-      op.AddNode({x_dims, y_dims}, {out->dims()}, false, transpose_y);
-      std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                           tensors);
-
-      //   BatchedGEMM(false,
-      //               transpose_y,
-      //               M,
-      //               K,
-      //               N,
-      //               x_data,
-      //               y_data,
-      //               out_data,
-      //               y_dims[0],
-      //               false);
-    }
-    return;
-  } else if (y_ndim == 1) {
-    auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-    auto K = y.numel();
-    auto N = 1;
-    if (!transpose_x) {
-      PD_CHECK(K == x_dims[x_ndim - 1],
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               x_ndim - 1,
-               K,
-               x_ndim - 1,
-               x_dims[x_ndim - 1]);
-    } else {
-      PD_CHECK(K == x_dims[x_ndim - 2],
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               x_ndim - 2,
-               K,
-               x_ndim - 2,
-               x_dims[x_ndim - 2]);
-    }
-    std::vector<int64_t> out_dims(x_ndim - 1);
-    if (!transpose_x) {
-      std::copy_n(x_dims.cbegin(), x_ndim - 1, out_dims.begin());
-    } else {
-      std::copy_n(x_dims.cbegin(), x_ndim - 2, out_dims.begin());
-      out_dims.back() = x_dims.back();
-    }
-    out->Resize(out_dims);
-    auto out_data = dev_ctx.template Alloc<T>(out);
-    if (x_ndim == 2) {
-      MatmulOperator op("gemm");
-      op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, false);
-      std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                           tensors);
-
-      // GEMM(transpose_x, false, M, K, N, x_data, y_data, out_data);
-    } else {
-      MatmulOperator op("batch_gemm");
-      op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, false);
-      std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                           tensors);
-
-      // BatchedGEMM(transpose_x,
-      //             false,
-      //             M,
-      //             K,
-      //             N,
-      //             x_data,
-      //             y_data,
-      //             out_data,
-      //             x_dims[0],
-      //             true);
-    }
+  dev_ctx.template Alloc<T>(out);
+  if (out->numel() == 0) {
     return;
   }
 
-  if (x_ndim == 2 && y_ndim == 2) {
-    auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-    auto K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-    auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-    std::vector<int64_t> out_dims({M, N});
-    out->Resize(out_dims);
-    auto out_data = dev_ctx.template Alloc<T>(out);
+  std::map<std::string, uint64_t> tensors;
+  tensors["y"] = reinterpret_cast<uint64_t>(x.data<T>());
+  tensors["x"] = reinterpret_cast<uint64_t>(y.data<T>());
+  tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
 
-    // MNIST work branch
-    MatmulOperator op("gemm");
-    op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-
-    // GEMM(transpose_x, transpose_y, M, K, N, x_data, y_data, out_data);
-  } else if (x_ndim == 3) {
-    auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-    auto K = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-    auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-    if (transpose_y) {
-      PD_CHECK(y_dims[y_ndim - 1] == K,
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               y_ndim - 1,
-               K,
-               y_ndim - 1,
-               y_dims[y_ndim - 1]);
-    } else {
-      PD_CHECK(y_dims[y_ndim - 2] == K,
-               "Input(Y) has error dim."
-               "Y'dims[%d] must be equal to %d"
-               "But received Y'dims[%d] is %d",
-               y_ndim - 2,
-               K,
-               y_ndim - 2,
-               y_dims[y_ndim - 2]);
-    }
-    std::vector<int64_t> out_dims({x_dims[0], M, N});
-    out->Resize(out_dims);
-    auto out_data = dev_ctx.template Alloc<T>(out);
-
-    MatmulOperator op("batch_gemm");
-    op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-
-    // BatchedGEMM(transpose_x,
-    //             transpose_y,
-    //             M,
-    //             K,
-    //             N,
-    //             x_data,
-    //             y_data,
-    //             out_data,
-    //             x_dims[0],
-    //             true);
-  } else if (y_ndim == 3) {
-    auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-    auto K = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-    auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-    if (!transpose_x) {
-      PD_CHECK(x_dims[x_ndim - 1] == K,
-               "Input(X) has error dim."
-               "X'dims[%d] must be equal to %d"
-               "But received X'dims[%d] is %d",
-               x_ndim - 1,
-               K,
-               x_ndim - 1,
-               x_dims[x_ndim - 1]);
-    } else {
-      PD_CHECK(x_dims[x_ndim - 2] == K,
-               "Input(X) has error dim."
-               "X'dims[%d] must be equal to %d"
-               "But received X'dims[%d] is %d",
-               x_ndim - 2,
-               K,
-               x_ndim - 2,
-               x_dims[y_ndim - 2]);
-    }
-    std::vector<int64_t> out_dims({y_dims[0], M, N});
-    out->Resize(out_dims);
-    auto out_data = dev_ctx.template Alloc<T>(out);
-
-    MatmulOperator op("batch_gemm");
-    op.AddNode({x_dims, y_dims}, {out->dims()}, transpose_x, transpose_y);
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-
-    // BatchedGEMM(transpose_x,
-    //             transpose_y,
-    //             M,
-    //             K,
-    //             N,
-    //             x_data,
-    //             y_data,
-    //             out_data,
-    //             y_dims[0],
-    //             false);
-  }
-}
-
-// class MatmulGradOperator : public HpuOperator {
-//   public:
-//   MatmulGradOperator() : HpuOperator("matmul_bwd_f32") {}
-//   void AddNode(const std::vector<DIMS>& ins,
-//               const std::vector<DIMS>& outs, bool trans_x, bool trans_y) {
-//     assert(ins.size() == 2 && "input size should be 2");
-//     assert(outs.size() == 1 && "output size should be 1");
-
-//     synTensor inputs[ins.size()]  = {createTensor(ins[0].size(),
-//     syn_type_float, ins[0], true, "x"),
-//                                     createTensor(ins[1].size(),
-//                                     syn_type_float, ins[1], true, "y")};
-//     synTensor outputs[outs.size()] = {createTensor(outs[0].size(),
-//     syn_type_float, outs[0], true, "output")}; synGEMMParams params{trans_x,
-//     trans_y}; synStatus status = synNodeCreate(graphHandle_, inputs, outputs,
-//     ins.size(), outs.size(), &params, sizeof(params), "batch_gemm",
-//     "matmul_bwd_op", nullptr, nullptr); CHKSTATUS("synNodeCreate batch_gemm
-//     failed!");
-//   }
-// };
-
-template <typename T>
-void MatmulGradKernel(const phi::Context& dev_ctx,
-                      const phi::DenseTensor& x,
-                      const phi::DenseTensor& y,
-                      const phi::DenseTensor& out_grad,
-                      bool transpose_x,
-                      bool transpose_y,
-                      phi::DenseTensor* dx,
-                      phi::DenseTensor* dy) {
-  auto x_dims = x.dims();
-  auto y_dims = y.dims();
-  auto dout_dims = out_grad.dims();
-
-  int x_ndim = x_dims.size();
-  int y_ndim = y_dims.size();
-  int ndim = dout_dims.size();
-
-  auto x_data = x.data<T>();
-  auto y_data = y.data<T>();
-  auto out_grad_data = out_grad.data<T>();
-  auto dx_data = static_cast<T*>(nullptr);
-  auto dy_data = static_cast<T*>(nullptr);
-
-  if (dx) dx_data = dev_ctx.template Alloc<T>(dx);
-  if (dy) dy_data = dev_ctx.template Alloc<T>(dy);
-
-  if (x_ndim == 1 && y_ndim == 1) {
-    if (out_grad.numel() == 1) {
-      auto M = 1;
-      auto K = 1;
-      auto N = x.numel();
-      if (dx) {
-        MatmulOperator op("gemm");
-        op.AddNode({dout_dims, y_dims}, {dx->dims()}, false, false);
-        std::map<std::string, uint64_t> tensors;
-        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
-        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                             tensors);
-
-        // GEMM(false, false, M, K, N, out_grad_data, y_data, dx_data);
-      }
-      if (dy) {
-        MatmulOperator op("gemm");
-        op.AddNode({dout_dims, x_dims}, {dy->dims()}, false, false);
-        std::map<std::string, uint64_t> tensors;
-        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-        tensors["y"] = reinterpret_cast<uint64_t>(x.data<T>());
-        tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
-        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                             tensors);
-
-        // GEMM(false, false, M, K, N, out_grad_data, x_data, dy_data);
-      }
-      return;
-    }
-  } else if (x_ndim == 1) {
-    // dx = dout' * y
-    // dy = x * dout'
-    if (dx) {
-      auto M = 1;
-      auto K = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      auto N = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-      if (y_ndim == 2) {
-        MatmulOperator op("gemm");
-        op.AddNode({dout_dims, y_dims}, {dx->dims()}, false, !transpose_y);
-        std::map<std::string, uint64_t> tensors;
-        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
-        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                             tensors);
-
-        // GEMM(false, !transpose_y, M, K, N, out_grad_data, y_data, dx_data);
-      } else {
-        MatmulOperator op("batch_gemm");
-        op.AddNode({dout_dims, x_dims}, {dy->dims()}, false, !transpose_y);
-        std::map<std::string, uint64_t> tensors;
-        tensors["x"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-        tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
-        tensors["output"] = reinterpret_cast<uint64_t>(dx->data<T>());
-        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                             tensors);
-
-        // BatchedGEMM(false,
-        //             !transpose_y,
-        //             M,
-        //             K,
-        //             N,
-        //             out_grad_data,
-        //             y_data,
-        //             dx_data,
-        //             y_dims[0],
-        //             false,
-        //             false,
-        //             true,
-        //             true);
-      }
-    }
-    if (dy) {
-      auto M = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-      auto K = 1;
-      auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      if (y_ndim == 2) {
-        MatmulOperator op("gemm");
-        op.AddNode({x_dims, dout_dims}, {dy->dims()}, false, false);
-        std::map<std::string, uint64_t> tensors;
-        tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-        tensors["y"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-        tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
-        op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                             tensors);
-
-        // GEMM(
-        //     false, false, M, K, N, x_data, out_grad_data, dy_data,
-        //     transpose_y);
-      } else {
-        BatchedGEMM(false,
-                    false,
-                    M,
-                    K,
-                    N,
-                    x_data,
-                    out_grad_data,
-                    dy_data,
-                    y_dims[0],
-                    false,
-                    transpose_y);
-      }
-    }
-    return;
-  } else if (y_ndim == 1) {
-    // dx = dout * y'
-    if (dx) {
-      auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto K = 1;
-      auto N = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-      if (x_ndim == 2) {
-        GEMM(
-            false, false, M, K, N, out_grad_data, y_data, dx_data, transpose_x);
-      } else {
-        BatchedGEMM(false,
-                    false,
-                    M,
-                    K,
-                    N,
-                    out_grad_data,
-                    y_data,
-                    dx_data,
-                    x_dims[0],
-                    true,
-                    transpose_x);
-      }
-    }
-    // dy = x' * dout
-    if (dy) {
-      auto M = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-      auto K = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto N = 1;
-      if (x_ndim == 2) {
-        GEMM(!transpose_x, false, M, K, N, x_data, out_grad_data, dy_data);
-      } else {
-        BatchedGEMM(!transpose_x,
-                    false,
-                    M,
-                    K,
-                    N,
-                    x_data,
-                    out_grad_data,
-                    dy_data,
-                    x_dims[0],
-                    true,
-                    false,
-                    true,
-                    true);
-      }
-    }
-
-    return;
-  }
-
-  if (x_ndim == 2 && y_ndim == 2) {
-    // dx = dout * y'
-    if (dx) {
-      auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto K = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      auto N = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-      GEMM(false,
-           !transpose_y,
-           M,
-           K,
-           N,
-           out_grad_data,
-           y_data,
-           dx_data,
-           transpose_x);
-    }
-    // dy = x' * dout
-    if (dy) {
-      auto M = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-      auto K = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-
-      // MNIST work branch
-      MatmulOperator op("gemm");
-      op.AddNode({x_dims, dout_dims}, {dy->dims()}, !transpose_x, false);
-      std::map<std::string, uint64_t> tensors;
-      tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-      tensors["y"] = reinterpret_cast<uint64_t>(out_grad.data<T>());
-      tensors["output"] = reinterpret_cast<uint64_t>(dy->data<T>());
-      op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-                           tensors);
-
-      // GEMM(!transpose_x,
-      //      false,
-      //      M,
-      //      K,
-      //      N,
-      //      x_data,
-      //      out_grad_data,
-      //      dy_data,
-      //      transpose_y);
-    }
-    return;
-  } else if (x_ndim == 2) {
-    // dx = dout * y'
-    if (dx) {
-      auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto K = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      auto N = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-      BatchedGEMM(false,
-                  !transpose_y,
-                  M,
-                  K,
-                  N,
-                  out_grad_data,
-                  y_data,
-                  dx_data,
-                  y_dims[0],
-                  false,
-                  transpose_x,
-                  true,
-                  true);
-    }
-    // dy = x' * dout
-    if (dy) {
-      auto M = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-      auto K = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      BatchedGEMM(!transpose_x,
-                  false,
-                  M,
-                  K,
-                  N,
-                  x_data,
-                  out_grad_data,
-                  dy_data,
-                  y_dims[0],
-                  false,
-                  transpose_y);
-    }
-    return;
-  } else if (y_ndim == 2) {
-    // dx = dout * y'
-    if (dx) {
-      auto M = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto K = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      auto N = transpose_x ? x_dims[x_ndim - 2] : x_dims[x_ndim - 1];
-      BatchedGEMM(false,
-                  !transpose_y,
-                  M,
-                  K,
-                  N,
-                  out_grad_data,
-                  y_data,
-                  dx_data,
-                  x_dims[0],
-                  true,
-                  transpose_x);
-    }
-    // dy = x' * dout
-    if (dy) {
-      auto M = transpose_y ? y_dims[y_ndim - 1] : y_dims[y_ndim - 2];
-      auto K = transpose_x ? x_dims[x_ndim - 1] : x_dims[x_ndim - 2];
-      auto N = transpose_y ? y_dims[y_ndim - 2] : y_dims[y_ndim - 1];
-      GEMM(!transpose_x,
-           false,
-           M,
-           K * x_dims[0],
-           N,
-           x_data,
-           out_grad_data,
-           dy_data,
-           transpose_y);
-    }
-    return;
+  if (y_rank == 2) {
+    // gemm
+    GEMM gemm(dtype);
+    gemm.AddNode({x_dims, y_dims}, {outputs_dim}, transpose_x, transpose_y);
+    gemm.Compile();
+    gemm.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  } else {
+    // batch gemm
+    BatchGEMM batch_gemm(dtype);
+    batch_gemm.AddNode(
+        {x_dims, y_dims}, {outputs_dim}, transpose_x, transpose_y);
+    batch_gemm.Compile();
+    batch_gemm.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
 }
 
 }  // namespace custom_kernel
 
-PD_BUILD_PHI_KERNEL(matmul,
-                    intel_hpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MatmulKernel,
-                    float,
-                    double) {}
-
-PD_BUILD_PHI_KERNEL(matmul_grad,
-                    intel_hpu,
-                    ALL_LAYOUT,
-                    custom_kernel::MatmulGradKernel,
-                    float,
-                    double) {}
+PD_REGISTER_PLUGIN_KERNEL(matmul,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::MatmulKernel,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16,
+                          phi::dtype::float8_e4m3fn) {}

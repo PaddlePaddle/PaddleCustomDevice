@@ -34,6 +34,7 @@ void AbsKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
+// abs
 PD_REGISTER_PLUGIN_KERNEL(abs,
                           intel_hpu,
                           ALL_LAYOUT,
@@ -44,3 +45,5 @@ PD_REGISTER_PLUGIN_KERNEL(abs,
                           int64_t) {
   kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }
+
+// cast

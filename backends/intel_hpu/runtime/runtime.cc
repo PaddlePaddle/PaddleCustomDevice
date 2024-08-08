@@ -462,7 +462,7 @@ C_Status GetDevicesList(size_t *devices) {
   return C_SUCCESS;
 }
 
-C_Status MemCpy_h2d(const C_Device device,
+C_Status MemCpyH2D(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
@@ -472,7 +472,7 @@ C_Status MemCpy_h2d(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status MemCpy_d2h(const C_Device device,
+C_Status MemCpyD2H(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
@@ -482,7 +482,7 @@ C_Status MemCpy_d2h(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status MemCpy_d2d(const C_Device device,
+C_Status MemCpyD2D(const C_Device device,
                     void *dst,
                     const void *src,
                     size_t size) {
@@ -492,18 +492,18 @@ C_Status MemCpy_d2d(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status AsyncMemCpy_h2d(const C_Device device,
-                         C_Stream stream,
-                         void *dst,
-                         const void *src,
-                         size_t size) {
+C_Status AsyncMemCpyH2D(const C_Device device,
+                   C_Stream stream,
+                   void *dst,
+                   const void *src,
+                   size_t size) {
   DEBUG_LOG
   runtimeManager.AsyncCopy(device, stream, dst, src, size, 0);
   DEBUG_LOG
   return C_SUCCESS;
 }
 
-C_Status AsyncMemCpy_d2h(const C_Device device,
+C_Status AsyncMemCpyD2H(const C_Device device,
                          C_Stream stream,
                          void *dst,
                          const void *src,
@@ -514,7 +514,7 @@ C_Status AsyncMemCpy_d2h(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status AsyncMemCpy_d2d(const C_Device device,
+C_Status AsyncMemCpyD2D(const C_Device device,
                          C_Stream stream,
                          void *dst,
                          const void *src,
@@ -945,13 +945,13 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->synchronize_event = SyncEvent;
   params->interface->stream_wait_event = StreamWaitEvent;
 
-  params->interface->memory_copy_h2d = MemCpy_h2d;
-  params->interface->memory_copy_d2d = MemCpy_d2d;
-  params->interface->memory_copy_d2h = MemCpy_d2h;
+  params->interface->memory_copy_h2d = MemCpyH2D;
+  params->interface->memory_copy_d2d = MemCpyD2D;
+  params->interface->memory_copy_d2h = MemCpyD2H;
   // params->interface->memory_copy_p2p = MemCpyP2P;
-  params->interface->async_memory_copy_h2d = AsyncMemCpy_h2d;
-  params->interface->async_memory_copy_d2d = AsyncMemCpy_d2d;
-  params->interface->async_memory_copy_d2h = AsyncMemCpy_d2h;
+  params->interface->async_memory_copy_h2d = AsyncMemCpyH2D;
+  params->interface->async_memory_copy_d2d = AsyncMemCpyD2D;
+  params->interface->async_memory_copy_d2h = AsyncMemCpyD2H;
   // params->interface->async_memory_copy_p2p = AsyncMemCpyP2P;
   params->interface->device_memory_allocate = Allocate_device;
   params->interface->host_memory_allocate = Allocate_host;

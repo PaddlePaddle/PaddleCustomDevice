@@ -13,9 +13,12 @@
 # the License.
 
 if(NOT PYTHON_VERSION)
-    find_package(Python REQUIRED COMPONENTS Interpreter Development)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development)
 else()
-    find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter Development EXACT)
+  find_package(
+    Python ${PYTHON_VERSION} REQUIRED
+    COMPONENTS Interpreter Development
+    EXACT)
 endif()
 
 message(STATUS "Python_EXECUTABLE is ${Python_EXECUTABLE}")

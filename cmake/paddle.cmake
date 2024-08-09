@@ -13,7 +13,8 @@
 # the License.
 
 find_package(Python ${PYTHON_VERSION} REQUIRED COMPONENTS Interpreter
-                                                          Development)
+                                                          Development EXACT)
+message(STATUS "Python_EXECUTABLE is ${Python_EXECUTABLE}")
 include_directories(${Python_INCLUDE_DIRS})
 
 if(DEFINED ENV{PADDLE_CUSTOM_PATH})

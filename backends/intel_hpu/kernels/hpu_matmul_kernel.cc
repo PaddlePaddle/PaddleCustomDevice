@@ -44,7 +44,8 @@ class BatchGEMM : public HpuOperator {
                                      "BATCH_GEMM",
                                      nullptr,
                                      nullptr);
-    CHKSTATUS("synNodeCreate batch_gemm failed!");
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synNodeCreate() failed = " << status;
   }
 
  protected:
@@ -76,7 +77,8 @@ class GEMM : public HpuOperator {
                                      "GEMM",
                                      nullptr,
                                      nullptr);
-    CHKSTATUS("synNodeCreate batch_gemm failed!");
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synNodeCreate() failed = " << status;
   }
 
  protected:
@@ -115,8 +117,8 @@ void MatmulKernel(const Context& dev_ctx,
   }
 
   std::map<std::string, uint64_t> tensors;
-  tensors["y"] = reinterpret_cast<uint64_t>(x.data<T>());
-  tensors["x"] = reinterpret_cast<uint64_t>(y.data<T>());
+  tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+  tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
 
   if (y_rank == 2) {

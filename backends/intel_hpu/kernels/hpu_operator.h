@@ -62,6 +62,8 @@ class HpuOperator {
     LOG(INFO) << "malloc device workspace " << workspaceSize;
     // TODO
     status = synDeviceMalloc(0, workspaceSize, 0, 0, &workspaceAddress);
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synDeviceMalloc() failed = " << status;
 
     CHKSTATUS("synDeviceMalloc failed!");
 
@@ -78,10 +80,11 @@ class HpuOperator {
                        0);
     CHKSTATUS("synLaunch failed!");
     status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
-    CHKSTATUS("synStreamSynchronize failed!");
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synStreamSynchronize() failed = " << status;
     status = synDeviceFree(0, workspaceAddress, 0);
-    CHKSTATUS("synDeviceFree failed!");
-    LOG(INFO) << " =======================";
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synDeviceFree() failed = " << status;
   }
 
   void CompileAndExecute(C_Stream stream,
@@ -114,26 +117,20 @@ class HpuOperator {
 
     synSectionHandle sectionHandle = nullptr;
     if (is_presist) {
-      const auto& section = sectionMap.find(name);
-      if (section == sectionMap.end()) {
-        status = synSectionCreate(&sectionHandle, 0, graphHandle_);
-        assert(status == synSuccess && "Create section failed!");
-      } else {
-        sectionHandle = section->second.first;
-      }
+      status = synSectionCreate(&sectionHandle, 0, graphHandle_);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synSectionCreate() failed = " << status;
     }
 
-    synTensor tensor;
+    synTensor tensor = nullptr;
     status = synTensorCreate(&tensor, &desc, sectionHandle, 0);
-    assert(status == synSuccess && "Create tensor failed!");
+    LOG_IF(ERROR, status != synSuccess)
+        << "[RUNTIME] synTensorCreate() failed = " << status;
     return tensor;
   }
 
   std::string guid_;
   synGraphHandle graphHandle_;
-  synSectionHandle inputSectionHandle_, outputSectionHandle_;
   synRecipeHandle recipeHandle_;
   uint64_t workspaceSize;
-
-  std::unordered_map<std::string, synRecipeHandle> recipes;
 };

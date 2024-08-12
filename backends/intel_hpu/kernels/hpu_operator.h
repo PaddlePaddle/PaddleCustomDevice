@@ -110,13 +110,15 @@ class HpuOperator {
     synStatus status = synGraphDestroy(graphHandle_);
     for (size_t i = 0; i < tensors_.size(); i++) {
       status = synTensorDestroy(tensors_[i]);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synTensorDestroy() failed = " << status;
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synTensorDestroy() failed = %d",
+               status);
     }
     for (size_t i = 0; i < sectons_.size(); i++) {
       status = synSectionDestroy(sectons_[i]);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synSectionDestroy() failed = " << status;
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synTensorDestroy() failed = %d",
+               status);
     }
   }
 

@@ -93,9 +93,7 @@ class HpuOperator {
                        recipeHandle_,
                        0);
 
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] synLaunch() failed = %d",
-             status);
+    PD_CHECK(status == synSuccess, "[RUNTIME] synLaunch() failed = %d", status);
     status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
     PD_CHECK(status == synSuccess,
              "[RUNTIME] synStreamSynchronize() failed = %d",
@@ -108,7 +106,19 @@ class HpuOperator {
     Execute(stream, tensors);
   }
 
-  virtual ~HpuOperator() { synGraphDestroy(graphHandle_); }
+  virtual ~HpuOperator() {
+    synStatus status = synGraphDestroy(graphHandle_);
+    for (size_t i = 0; i < tensors_.size(); i++) {
+      status = synTensorDestroy(tensors_[i]);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synTensorDestroy() failed = " << status;
+    }
+    for (size_t i = 0; i < sectons_.size(); i++) {
+      status = synSectionDestroy(sectons_[i]);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synSectionDestroy() failed = " << status;
+    }
+  }
 
   // protected:
   synTensor createTensor(unsigned dims,
@@ -128,6 +138,7 @@ class HpuOperator {
 
     for (unsigned i = 0; i < dims; ++i) {
       desc.m_sizes[i] = tensor_size[dims - 1 - i];
+      LOG(INFO) << "name = " << name << ", " << tensor_size[dims - 1 - i];
     }
 
     synSectionHandle sectionHandle = nullptr;
@@ -135,16 +146,20 @@ class HpuOperator {
       status = synSectionCreate(&sectionHandle, 0, graphHandle_);
       LOG_IF(ERROR, status != synSuccess)
           << "[RUNTIME] synSectionCreate() failed = " << status;
+      sectons_.push_back(sectionHandle);
     }
 
     synTensor tensor = nullptr;
     status = synTensorCreate(&tensor, &desc, sectionHandle, 0);
     LOG_IF(ERROR, status != synSuccess)
         << "[RUNTIME] synTensorCreate() failed = " << status;
+    tensors_.push_back(tensor);
     return tensor;
   }
 
   std::string guid_;
   synGraphHandle graphHandle_;
   synRecipeHandle recipeHandle_;
+  std::vector<synTensor> tensors_;
+  std::vector<synSectionHandle> sectons_;
 };

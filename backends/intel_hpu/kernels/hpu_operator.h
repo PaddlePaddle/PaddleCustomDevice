@@ -19,7 +19,7 @@ typedef std::vector<int64_t> DIMS;
 typedef std::pair<synSectionHandle, bool> sectionWithFirstIndication;
 static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
 
-static uint64_t cached_orkspaceSize = 0;
+static uint64_t cached_workspaceSize = 0;
 static uint64_t cached_workspaceAddress = 0;
 
 class HpuOperator {
@@ -39,25 +39,25 @@ class HpuOperator {
     status = synWorkspaceGetSize(&request_workspace_size, recipeHandle_);
     CHKSTATUS("synWorkspaceGetSize failed!");
 
-    if (request_workspace_size > cached_orkspaceSize) {
-      if (cached_orkspaceSize != 0) {
+    if (request_workspace_size > cached_workspaceSize) {
+      if (cached_workspaceSize != 0) {
         status = synDeviceFree(0, cached_workspaceAddress, 0);
         LOG_IF(ERROR, status != synSuccess)
             << "[RUNTIME] synDeviceFree() failed = " << status;
       }
 
-      cached_orkspaceSize = request_workspace_size;
+      cached_workspaceSize = request_workspace_size;
       // malloc the new one
-      LOG(INFO) << "malloc device workspace " << cached_orkspaceSize;
+      LOG(INFO) << "malloc device workspace " << cached_workspaceSize;
       status = synDeviceMalloc(
-          0, cached_orkspaceSize, 0, 0, &cached_workspaceAddress);
+          0, cached_workspaceSize, 0, 0, &cached_workspaceAddress);
       LOG_IF(ERROR, status != synSuccess)
           << "[RUNTIME] synDeviceMalloc() failed = " << status;
 
       CHKSTATUS("synDeviceMalloc failed!");
     }
 
-    LOG(INFO) << "workspace size = " << cached_orkspaceSize;
+    LOG(INFO) << "workspace size = " << cached_workspaceSize;
   }
 
   void prepareTensorInfo(synRecipeHandle recipe,
@@ -127,9 +127,7 @@ class HpuOperator {
                          synDataType data_type,
                          DIMS tensor_size, /*const unsigned* tensor_size,*/
                          bool is_presist,
-                         const char* name)
-
-  {
+                         const char* name) {
     synStatus status;
     synTensorDescriptor desc{};
     // input

@@ -14,6 +14,7 @@
 
 #include "funcs.h"
 #include "hpu_operator.h"
+#include "utils/utills.h"
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
@@ -22,18 +23,20 @@ namespace custom_kernel {
 
 class SoftmaxOperator : public HpuOperator {
  public:
-  SoftmaxOperator() : HpuOperator("softmax_fwd_f32") {}
+  SoftmaxOperator(std::string guid_prefix, std::string node_name)
+    : HpuOperator(guid_prefix), pName_(node_name) {}
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
-               int axis_dim) {
+               synDataType datatype,
+               ns_Softmax::Params params) {
     assert(ins.size() == 1 && "input size should be 1");
     assert(outs.size() == 1 && "output size should be 1");
 
     synTensor inputs[ins.size()] = {
-        createTensor(ins[0].size(), syn_type_float, ins[0], true, "input")};
+        createTensor(ins[0].size(), datatype, ins[0], true, "input")};
     synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
-    ns_Softmax::Params params{ins[0].size() - 1 - axis_dim};
+        createTensor(outs[0].size(), datatype, outs[0], true, "output")};
+
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs,
                                      outputs,
@@ -41,12 +44,13 @@ class SoftmaxOperator : public HpuOperator {
                                      outs.size(),
                                      &params,
                                      sizeof(params),
-                                     "softmax_fwd_f32",
-                                     "softmax_op",
+                                     guid_.c_str(),
+                                     pName_.c_str(),
                                      nullptr,
                                      nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
   }
+  std::string pName_;
 };
 
 template <typename T, typename Context>
@@ -62,21 +66,28 @@ void SoftmaxKernel(const Context& dev_ctx,
   if (out->numel() == 0) {
     return;
   }
-
-  // compile
-  SoftmaxOperator op;
-
   std::vector<int64_t> inputs_dim = phi::vectorize<int64_t>(x.dims());
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  ns_Softmax::Params params{inputs_dim.size() - 1 - calc_axis};
+  
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, ns_Softmax::Params>("softmax_fwd", {inputs_dim}, &params);
+  SoftmaxOperator* op = static_cast<SoftmaxOperator*>(op_info.getOp());
 
-  op.AddNode({inputs_dim}, {outputs_dim}, calc_axis);
-  op.Compile();
+  if(op == nullptr){
+    // compile
+    SoftmaxOperator* op_new = new SoftmaxOperator(op_info.guid_, "softmax_op");
+    op_new->AddNode({inputs_dim}, {outputs_dim}, op_info.datatype_, params);
+    op_new->Compile();
+    op = op_new;
+    op_info.setOp(op);
+  }
 
   // runtime
   std::map<std::string, uint64_t> tensors;
   tensors["input"] = reinterpret_cast<uint64_t>(x.data<T>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  op->Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <assert.h>
-
+#include <iostream>
+#include <vector>
 #include <list>
 #include <unordered_map>
+#include <cstdarg>
 
 using namespace std;
 
@@ -37,11 +39,113 @@ class LRUCache {
     item_map.insert(make_pair(key, item_list.begin()));
     clean();
   };
-  bool exist(const KEY_T &key) { return (item_map.count(key) > 0); };
+
+  bool exist(const KEY_T &key) {
+    return (item_map.count(key) > 0);
+  };
+
   VAL_T get(const KEY_T &key) {
-    assert(exist(key));
     auto it = item_map.find(key);
-    item_list.splice(item_list.begin(), item_list, it->second);
-    return it->second->second;
+    if (it != item_map.end()) {
+      item_list.splice(item_list.begin(), item_list, it->second);
+      return it->second->second;
+    }
+    else{
+      return nullptr;
+    }
   };
 };
+
+class KeyCreator {
+ public:
+  KeyCreator() { key_.reserve(kMaxKeyLength); }
+
+  ~KeyCreator() {}
+
+  void AddAsKey(const string& str) {
+    key_.append(str);
+    key_.append(1, delimiter); 
+  }
+
+  template <typename T>
+  void AddAsKey(const T data) {
+    auto buffer = reinterpret_cast<const char*>(&data);
+    key_.append(buffer, sizeof(T));
+    key_.append(1, delimiter);
+  }
+
+  void AddAsKey(const std::vector<int64_t>& dims) {
+    for (unsigned int i = 0; i < dims.size(); i++) {
+      AddAsKey<int>(dims[i]);
+    }
+  }
+
+  string GetKey() { return key_; }
+
+ private:
+  string key_ = "";
+  const char delimiter = '_';
+  const int kMaxKeyLength = 256;
+};
+
+
+class OpCacheOperator {
+  public:
+     template <typename T, typename TP>
+     void prepareOpInfo(string guid_prefix, const std::vector<DIMS>& ins, TP* params){
+       if(std::is_same<T, phi::dtype::float16>::value)
+       {
+           guid_ = guid_prefix + "_f16";
+           datatype_ = syn_type_fp16;
+       }
+       else if(std::is_same<T, phi::dtype::bfloat16>::value)
+       {
+           guid_ = guid_prefix + "_bf16";
+           datatype_ = syn_type_bf16;
+       }
+       else if(std::is_same<T, float>::value)
+       {
+           guid_ = guid_prefix + "_f32";
+           datatype_ = syn_type_single;
+       }
+       else
+       {
+           synStatus status = synUnsupported;
+           CHKSTATUS("synDataType not supported");
+       }
+       
+       key_creator_.AddAsKey(guid_);
+       for(int i = 0; i < ins.size(); i++){
+         key_creator_.AddAsKey(ins[i]);
+       }
+       if(params != nullptr)
+         key_creator_.AddAsKey<TP>(*params);
+     }
+     
+     HpuOperator* getOp(){
+       auto& lru_cache = OpCacheOperator::GetLRUCache();
+       if(lru_cache.exist(key_creator_.GetKey()))
+           return lru_cache.get(key_creator_.GetKey());
+       else
+           return nullptr;
+     }
+     
+     void setOp(HpuOperator* op){
+       auto& lru_cache = OpCacheOperator::GetLRUCache();
+       lru_cache.put(key_creator_.GetKey(), op);
+       return;
+     }
+     
+  private:
+    static inline LRUCache<string, HpuOperator*>& GetLRUCache() {
+      static const int kCapacity = 1024;  // cache capacity
+      static LRUCache<string, HpuOperator*> lru_cache_(kCapacity);
+      return lru_cache_;
+    }
+    
+  public:
+    std::string guid_;
+    synDataType datatype_;
+    KeyCreator key_creator_;
+};
+

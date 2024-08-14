@@ -20,9 +20,9 @@ import pdb
 paddle.set_device("intel_hpu")
 #paddle.set_device("custom_cpu")
 
-BATCH_SIZE = 64
-T=10
-H=4096
+BATCH_SIZE = 1
+T=2
+H=16
 
 class ADDMUL(paddle.nn.Layer):
     def __init__(self):
@@ -39,6 +39,8 @@ class ADD(paddle.nn.Layer):
 
     def forward(self, inputY, bias):
         out = paddle.add(inputY, bias)
+        out = paddle.add(out, bias)
+        out = paddle.add(out, inputY)
         return out
 
 #bfloat16
@@ -46,11 +48,11 @@ x_spec = InputSpec(shape=[T, H], dtype="bfloat16", name='x')
 y_spec = InputSpec(shape=[H, T], dtype="bfloat16", name='y')
 b_spec = InputSpec(shape=[T], dtype="bfloat16", name='b')
 
-model = ADDMUL()
+#model = ADDMUL()
 #net = paddle.jit.to_static(model, input_spec=[x_spec, y_spec, b_spec])
 #paddle.jit.save(net, "addmul_model")
 
-#model = ADD()
+model = ADD()
 #net = paddle.jit.to_static(model, input_spec=[y_spec, b_spec])
 #paddle.jit.save(net, "sum_model")
 
@@ -62,9 +64,11 @@ B = paddle.randn([T], dtype="bfloat16")
 print(X.shape)
 print(Y.shape)
 print(B.shape)
-out = model(X, Y, B)
-#out = model(Y, B)
+#out = model(X, Y, B)
+out = model(Y, B)
 print(out.shape)
+print(Y)
+print(B)
 print(out)
 
 

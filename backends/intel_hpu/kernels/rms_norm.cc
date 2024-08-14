@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,60 +14,114 @@
 
 #include "funcs.h"
 #include "hpu_operator.h"
-#include "paddle/extension.h"
+#include "perf_lib_layer_params.h"
+#include "synapse_api.h"
+#include "synapse_common_types.h"
 
-std::vector<std::vector<int64_t>> RmsNormInferShape(
-    const std::vector<int64_t>& x_shape,
-    const std::vector<int64_t>& gamma_shape,
-    float epsilon) {
-    int x_dim = x_shape.size();
-    int rstd_dim = x_dim - gamma_shape.size();
-    std::vector<int64_t> rstd_shape(x_shape.begin(), x_shape.begin() +
-    rstd_dim); rstd_shape.resize(x_dim, 1);
-  return {x_shape, rstd_shape};
+namespace custom_kernel {
+
+class RMS : public HpuOperator {
+ public:
+  RMS(synDataType dtype) : HpuOperator("rms_norm_ex_fwd_"), dtype_(dtype) {}
+  void AddNode(const std::vector<DIMS>& ins,
+               const std::vector<DIMS>& outs,
+               const float epsilon) {
+    std::vector<synTensor> inputs;
+    std::vector<synTensor> outputs;
+
+    auto x = createTensor(ins[0].size(), dtype_, ins[0], true, "x");
+    inputs.push_back(x);
+    auto w = createTensor(ins[1].size(), syn_type_single, ins[1], true, "w");
+    inputs.push_back(w);
+
+    auto out = createTensor(outs[0].size(), dtype_, outs[0], true, "out");
+    outputs.push_back(out);
+    auto mean_square =
+        createTensor(outs[1].size(), syn_type_single, outs[1], false, "inv_var");
+    outputs.push_back(mean_square);
+
+    if (dtype_ == syn_type_fp16) {
+      guid_ = guid_ + "f16";
+    } else if (dtype_ == syn_type_bf16) {
+      guid_ = guid_ + "bf16";
+    } else if (dtype_ == syn_type_single) {
+      guid_ = guid_ + "f32";
+    }
+
+    ns_LayerNormKernel::Params params;
+    params.epsValid = true;
+    params.eps = epsilon;
+
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs.data(),
+                                     outputs.data(),
+                                     inputs.size(),
+                                     outputs.size(),
+                                     &params,
+                                     sizeof(params),
+                                     guid_.c_str(),
+                                     "RMS",
+                                     nullptr,
+                                     nullptr);
+    CHKSTATUS("synNodeCreate reshape failed!");
+  }
+
+ protected:
+  synDataType dtype_;
+};
+
+template <typename T, typename Context>
+void RmsNormKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x,
+                   const paddle::optional<phi::DenseTensor>& bias,
+                   const paddle::optional<phi::DenseTensor>& residual,
+                   const phi::DenseTensor& norm_weight,
+                   const paddle::optional<phi::DenseTensor>& norm_bias,
+                   const float epsilon,
+                   const int begin_norm_axis,
+                   const float quant_scale,
+                   const int quant_round_type,
+                   const float quant_max_bound,
+                   const float quant_min_bound,
+                   phi::DenseTensor* out,
+                   phi::DenseTensor* residual_out,
+                   phi::DenseTensor* inv_var) {
+  dev_ctx.template Alloc<T>(out);
+  // dev_ctx.template Alloc<T>(residual_out);
+  // dev_ctx.template Alloc<T>(inv_var);
+
+  synDataType dtype = syn_type_na;
+  if (std::is_same<T, phi::dtype::float16>::value) {
+    dtype = syn_type_fp16;
+  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+    dtype = syn_type_bf16;
+  } else if (std::is_same<T, float>::value) {
+    dtype = syn_type_single;
+  }
+
+  RMS op(dtype);
+  std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
+  std::vector<int64_t> w_dims = phi::vectorize<int64_t>(norm_weight.dims());
+  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  std::vector<int64_t> inv_var_dim = phi::vectorize<int64_t>(inv_var->dims());
+  op.AddNode({x_dims, w_dims}, {outputs_dim, inv_var_dim}, epsilon);
+  op.Compile();
+
+  std::map<std::string, uint64_t> tensors;
+  tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
+  tensors["w"] = reinterpret_cast<uint64_t>(norm_weight.data<T>());
+  tensors["out"] = reinterpret_cast<uint64_t>(out->data<T>());
+  // tensors["inv_var"] = reinterpret_cast<uint64_t>(inv_var->data<T>());
+
+  op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
-std::vector<paddle::Tensor> intel_hpu_rms_norm(const paddle::Tensor& x,
-                                               const paddle::Tensor& gamma,
-                                               float epsilon) {
-  //   auto dev_ctx = static_cast<const phi::CustomContext*>(
-  //       paddle::experimental::DeviceContextPool::Instance().Get(x.place()));
+}  // namespace custom_kernel
 
-  //   auto x_tensor = static_cast<const phi::DenseTensor*>(x.impl().get());
-  //   auto gamma_tensor = static_cast<const
-  //   phi::DenseTensor*>(gamma.impl().get());
-
-  //   std::shared_ptr<phi::DenseTensor> y_tensor =
-  //       std::make_shared<phi::DenseTensor>();
-  //   y_tensor->Resize(x_tensor->dims());
-  //   dev_ctx->Alloc(y_tensor.get(), gamma_tensor->dtype());
-
-  //   std::shared_ptr<phi::DenseTensor> rstd_tensor =
-  //       std::make_shared<phi::DenseTensor>();
-  //   auto x_shape = phi::vectorize(x_tensor->dims());
-  //   auto gamma_shape = phi::vectorize(gamma_tensor->dims());
-  //   int x_dim = x_shape.size();
-  //   int rstd_dim = x_dim - gamma_shape.size();
-  //   std::vector<int64_t> rstd_shape_vec(x_shape.begin(),
-  //                                       x_shape.begin() + rstd_dim);
-  //   rstd_shape_vec.resize(x_dim, 1);
-  //   auto rstd_shape = phi::make_ddim(rstd_shape_vec);
-  //   rstd_tensor->Resize(rstd_shape);
-  //   dev_ctx->Alloc(rstd_tensor.get(), phi::DataType::FLOAT32);
-  //   double eps = epsilon;
-
-  //   EXEC_NPU_CMD(aclnnRmsNorm,
-  //                *dev_ctx,
-  //                *x_tensor,
-  //                *gamma_tensor,
-  //                eps,
-  //                *y_tensor,
-  //                *rstd_tensor);
-  //   return {paddle::Tensor(y_tensor), paddle::Tensor(rstd_tensor)};
-}
-
-PD_BUILD_OP(rms_norm_intel_hpu)
-    .Inputs({"x", "gamma"})
-    .Outputs({"y", "rstd"})
-    .Attrs({"epsilon: float"})
-    .SetKernelFn(PD_KERNEL(intel_hpu_rms_norm));
+PD_REGISTER_PLUGIN_KERNEL(rms_norm,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::RmsNormKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

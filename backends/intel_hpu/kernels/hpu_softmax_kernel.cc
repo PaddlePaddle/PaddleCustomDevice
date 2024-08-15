@@ -72,22 +72,24 @@ void SoftmaxKernel(const Context& dev_ctx,
   
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, ns_Softmax::Params>("softmax_fwd", {inputs_dim}, &params);
-  SoftmaxOperator* op = static_cast<SoftmaxOperator*>(op_info.getOp());
 
-  if(op == nullptr){
+  auto recipe = op_info.GetRecipe();
+  if(recipe == nullptr){
     // compile
-    SoftmaxOperator* op_new = new SoftmaxOperator(op_info.guid_, "softmax_op");
-    op_new->AddNode({inputs_dim}, {outputs_dim}, op_info.datatype_, params);
-    op_new->Compile();
-    op = op_new;
+    SoftmaxOperator op(op_info.guid_, "softmax_op");
+    op.AddNode({inputs_dim}, {outputs_dim}, op_info.datatype_, params);
+    op.Compile();
     op_info.setOp(op);
+    recipe = op_info.GetRecipe();
   }
 
   // runtime
   std::map<std::string, uint64_t> tensors;
   tensors["input"] = reinterpret_cast<uint64_t>(x.data<T>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  op->Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  
+  RecipeRunner runner(recipe); 
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

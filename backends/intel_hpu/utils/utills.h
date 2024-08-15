@@ -107,7 +107,7 @@ class OpCacheOperator {
     }
 
     key_creator_.AddAsKey(guid_);
-    for (int i = 0; i < ins.size(); i++) {
+    for (long unsigned int i = 0; i < ins.size(); i++) {
       key_creator_.AddAsKey(ins[i]);
     }
     if (params != nullptr) key_creator_.AddAsKey<TP>(*params);

@@ -140,9 +140,9 @@ BINARY_KERNEL(Sub)
 HPU_KERNEL_REGISTER(GUID##_raw, OP_NAME##RawKernel, float, phi::dtype::float16, phi::dtype::bfloat16) \
 HPU_KERNEL_REGISTER(GUID, OP_NAME##Kernel, float, phi::dtype::float16, phi::dtype::bfloat16)          \
 
-#define PD_REGISTER_PLUGIN_KERNEL_32bits(OP_NAME, GUID)    \
-HPU_KERNEL_REGISTER(GUID##_raw, OP_NAME##RawKernel, float) \
-HPU_KERNEL_REGISTER(GUID, OP_NAME##Kernel, float)          \
+#define PD_REGISTER_PLUGIN_KERNEL_FPx2(OP_NAME, GUID)                   \
+HPU_KERNEL_REGISTER(GUID##_raw, OP_NAME##RawKernel, float)                \
+HPU_KERNEL_REGISTER(GUID, OP_NAME##Kernel, float, phi::dtype::bfloat16)   \
 
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Add, add)
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Max, maximum)
@@ -150,5 +150,7 @@ PD_REGISTER_PLUGIN_KERNEL_FPx3(Min, minimum)
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Mult, multiply)
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow)
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract)
-PD_REGISTER_PLUGIN_KERNEL_32bits(Div, divide)
-PD_REGISTER_PLUGIN_KERNEL_32bits(Mod, remainder)
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide)
+
+PD_REGISTER_PLUGIN_KERNEL_FPx2(Mod, remainder)
+

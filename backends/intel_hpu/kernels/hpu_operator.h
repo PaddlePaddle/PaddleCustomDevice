@@ -35,29 +35,6 @@ class HpuOperator {
     LOG(INFO) << " synGraphCompile =" << guid_;
 
     CHKSTATUS("synGraphCompile failed!");
-    uint64_t request_workspace_size = 0;
-    status = synWorkspaceGetSize(&request_workspace_size, recipeHandle_);
-    CHKSTATUS("synWorkspaceGetSize failed!");
-
-    if (request_workspace_size > cached_workspaceSize) {
-      if (cached_workspaceSize != 0) {
-        status = synDeviceFree(0, cached_workspaceAddress, 0);
-        LOG_IF(ERROR, status != synSuccess)
-            << "[RUNTIME] synDeviceFree() failed = " << status;
-      }
-
-      cached_workspaceSize = request_workspace_size;
-      // malloc the new one
-      LOG(INFO) << "malloc device workspace " << cached_workspaceSize;
-      status = synDeviceMalloc(
-          0, cached_workspaceSize, 0, 0, &cached_workspaceAddress);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synDeviceMalloc() failed = " << status;
-
-      CHKSTATUS("synDeviceMalloc failed!");
-    }
-
-    LOG(INFO) << "workspace size = " << cached_workspaceSize;
   }
 
   void prepareTensorInfo(synRecipeHandle recipe,
@@ -81,6 +58,30 @@ class HpuOperator {
   void Execute(C_Stream stream, std::map<std::string, uint64_t>& tensors) {
     synStatus status;
 
+    uint64_t request_workspace_size = 0;
+    status = synWorkspaceGetSize(&request_workspace_size, recipeHandle_);
+    CHKSTATUS("synWorkspaceGetSize failed!");
+
+    if (request_workspace_size > cached_workspaceSize) {
+      if (cached_workspaceSize != 0) {
+        status = synDeviceFree(0, cached_workspaceAddress, 0);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synDeviceFree() failed = " << status;
+      }
+
+      cached_workspaceSize = request_workspace_size;
+      // malloc the new one
+      LOG(INFO) << "malloc device workspace " << cached_workspaceSize;
+      status = synDeviceMalloc(
+          0, cached_workspaceSize, 0, 0, &cached_workspaceAddress);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synDeviceMalloc() failed = " << status;
+
+      CHKSTATUS("synDeviceMalloc failed!");
+    }
+
+    LOG(INFO) << "workspace size = " << cached_workspaceSize;
+
     std::vector<synLaunchTensorInfo> concatTensors;
     for (auto& tensor : tensors) {
       concatTensors.push_back({tensor.first.c_str(), tensor.second});
@@ -100,14 +101,11 @@ class HpuOperator {
              status);
   }
 
-  void CompileAndExecute(C_Stream stream,
-                         std::map<std::string, uint64_t>& tensors) {
-    Compile();
-    Execute(stream, tensors);
-  }
-
   virtual ~HpuOperator() {
     synStatus status = synGraphDestroy(graphHandle_);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synGraphDestroy() failed = %d",
+             status);
     for (size_t i = 0; i < tensors_.size(); i++) {
       status = synTensorDestroy(tensors_[i]);
       PD_CHECK(status == synSuccess,
@@ -157,9 +155,87 @@ class HpuOperator {
     return tensor;
   }
 
+ public:
+  synRecipeHandle GetRecipe() { return recipeHandle_; }
+
   std::string guid_;
   synGraphHandle graphHandle_;
   synRecipeHandle recipeHandle_;
   std::vector<synTensor> tensors_;
   std::vector<synSectionHandle> sectons_;
+};
+
+class RecipeRunner {
+ public:
+  RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {}
+  ~RecipeRunner() {}
+
+  void prepareTensorInfo(synRecipeHandle recipe,
+                         synLaunchTensorInfo* tensorInfo,
+                         uint32_t totalNumOfTensors) {
+    const char* tensorNames[totalNumOfTensors];
+    uint64_t tensorIds[totalNumOfTensors];
+    uint32_t i = 0;
+
+    for (i = 0; i < totalNumOfTensors; ++i) {
+      tensorNames[i] = tensorInfo[i].tensorName;
+    }
+    synStatus status =
+        synTensorRetrieveIds(recipe, tensorNames, tensorIds, totalNumOfTensors);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synTensorRetrieveIds() failed = %d",
+             status);
+    for (i = 0; i < totalNumOfTensors; i++) {
+      tensorInfo[i].tensorId = tensorIds[i];
+    }
+  }
+
+  void Run(C_Stream stream, std::map<std::string, uint64_t>& tensors) {
+    uint64_t request_workspace_size = 0;
+    synStatus status =
+        synWorkspaceGetSize(&request_workspace_size, recipeHandle_);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synWorkspaceGetSize() failed = %d",
+             status);
+
+    if (request_workspace_size > cached_workspaceSize) {
+      if (cached_workspaceSize != 0) {
+        status = synDeviceFree(0, cached_workspaceAddress, 0);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synDeviceFree() failed = " << status;
+      }
+
+      cached_workspaceSize = request_workspace_size;
+      LOG(INFO) << "malloc device workspace " << cached_workspaceSize;
+      status = synDeviceMalloc(
+          0, cached_workspaceSize, 0, 0, &cached_workspaceAddress);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synDeviceMalloc() failed = " << status;
+
+      CHKSTATUS("synDeviceMalloc failed!");
+    }
+
+    LOG(INFO) << "workspace size = " << cached_workspaceSize;
+
+    std::vector<synLaunchTensorInfo> concatTensors;
+    for (auto& tensor : tensors) {
+      concatTensors.push_back({tensor.first.c_str(), tensor.second});
+    }
+    prepareTensorInfo(recipeHandle_, &concatTensors[0], concatTensors.size());
+    status = synLaunch(reinterpret_cast<synStreamHandle>(stream),
+                       concatTensors.data(),
+                       concatTensors.size(),
+                       cached_workspaceAddress,
+                       recipeHandle_,
+                       0);
+
+    PD_CHECK(status == synSuccess, "[RUNTIME] synLaunch() failed = %d", status);
+    status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synStreamSynchronize() failed = %d",
+             status);
+  }
+
+ protected:
+  synRecipeHandle recipeHandle_;
 };

@@ -1,11 +1,12 @@
 #pragma once
 
 #include <assert.h>
+
+#include <cstdarg>
 #include <iostream>
-#include <vector>
 #include <list>
 #include <unordered_map>
-#include <cstdarg>
+#include <vector>
 
 using namespace std;
 
@@ -29,7 +30,7 @@ class LRUCache {
  public:
   LRUCache(int cache_size_) : cache_size(cache_size_) {};
 
-  void put(const KEY_T &key, const VAL_T &val) {
+  void put(const KEY_T& key, const VAL_T& val) {
     auto it = item_map.find(key);
     if (it != item_map.end()) {
       item_list.erase(it->second);
@@ -40,17 +41,14 @@ class LRUCache {
     clean();
   };
 
-  bool exist(const KEY_T &key) {
-    return (item_map.count(key) > 0);
-  };
+  bool exist(const KEY_T& key) { return (item_map.count(key) > 0); };
 
-  VAL_T get(const KEY_T &key) {
+  VAL_T get(const KEY_T& key) {
     auto it = item_map.find(key);
     if (it != item_map.end()) {
       item_list.splice(item_list.begin(), item_list, it->second);
       return it->second->second;
-    }
-    else{
+    } else {
       return nullptr;
     }
   };
@@ -64,7 +62,7 @@ class KeyCreator {
 
   void AddAsKey(const string& str) {
     key_.append(str);
-    key_.append(1, delimiter); 
+    key_.append(1, delimiter);
   }
 
   template <typename T>
@@ -88,64 +86,57 @@ class KeyCreator {
   const int kMaxKeyLength = 256;
 };
 
-
 class OpCacheOperator {
-  public:
-     template <typename T, typename TP>
-     void prepareOpInfo(string guid_prefix, const std::vector<DIMS>& ins, TP* params){
-       if(std::is_same<T, phi::dtype::float16>::value)
-       {
-           guid_ = guid_prefix + "_f16";
-           datatype_ = syn_type_fp16;
-       }
-       else if(std::is_same<T, phi::dtype::bfloat16>::value)
-       {
-           guid_ = guid_prefix + "_bf16";
-           datatype_ = syn_type_bf16;
-       }
-       else if(std::is_same<T, float>::value)
-       {
-           guid_ = guid_prefix + "_f32";
-           datatype_ = syn_type_single;
-       }
-       else
-       {
-           synStatus status = synUnsupported;
-           CHKSTATUS("synDataType not supported");
-       }
-       
-       key_creator_.AddAsKey(guid_);
-       for(int i = 0; i < ins.size(); i++){
-         key_creator_.AddAsKey(ins[i]);
-       }
-       if(params != nullptr)
-         key_creator_.AddAsKey<TP>(*params);
-     }
-     
-     HpuOperator* getOp(){
-       auto& lru_cache = OpCacheOperator::GetLRUCache();
-       if(lru_cache.exist(key_creator_.GetKey()))
-           return lru_cache.get(key_creator_.GetKey());
-       else
-           return nullptr;
-     }
-     
-     void setOp(HpuOperator* op){
-       auto& lru_cache = OpCacheOperator::GetLRUCache();
-       lru_cache.put(key_creator_.GetKey(), op);
-       return;
-     }
-     
-  private:
-    static inline LRUCache<string, HpuOperator*>& GetLRUCache() {
-      static const int kCapacity = 1024;  // cache capacity
-      static LRUCache<string, HpuOperator*> lru_cache_(kCapacity);
-      return lru_cache_;
+ public:
+  template <typename T, typename TP>
+  void prepareOpInfo(string guid_prefix,
+                     const std::vector<DIMS>& ins,
+                     TP* params) {
+    if (std::is_same<T, phi::dtype::float16>::value) {
+      guid_ = guid_prefix + "_f16";
+      datatype_ = syn_type_fp16;
+    } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+      guid_ = guid_prefix + "_bf16";
+      datatype_ = syn_type_bf16;
+    } else if (std::is_same<T, float>::value) {
+      guid_ = guid_prefix + "_f32";
+      datatype_ = syn_type_single;
+    } else {
+      synStatus status = synUnsupported;
+      CHKSTATUS("synDataType not supported");
     }
-    
-  public:
-    std::string guid_;
-    synDataType datatype_;
-    KeyCreator key_creator_;
-};
 
+    key_creator_.AddAsKey(guid_);
+    for (int i = 0; i < ins.size(); i++) {
+      key_creator_.AddAsKey(ins[i]);
+    }
+    if (params != nullptr) key_creator_.AddAsKey<TP>(*params);
+  }
+
+  synRecipeHandle GetRecipe() {
+    auto& lru_cache = OpCacheOperator::GetLRUCache();
+    if (lru_cache.exist(key_creator_.GetKey())) {
+      return lru_cache.get(key_creator_.GetKey());
+    } else {
+      return nullptr;
+    }
+  }
+
+  void setOp(HpuOperator& op) {
+    auto& lru_cache = OpCacheOperator::GetLRUCache();
+    lru_cache.put(key_creator_.GetKey(), op.GetRecipe());
+    return;
+  }
+
+ private:
+  static inline LRUCache<string, synRecipeHandle>& GetLRUCache() {
+    static const int kCapacity = 1024;  // cache capacity
+    static LRUCache<string, synRecipeHandle> lru_cache_(kCapacity);
+    return lru_cache_;
+  }
+
+ public:
+  std::string guid_;
+  synDataType datatype_;
+  KeyCreator key_creator_;
+};

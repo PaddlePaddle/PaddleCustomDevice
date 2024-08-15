@@ -14,10 +14,10 @@
 #include "funcs.h"
 #include "glog/logging.h"
 #include "hpu_operator.h"
-#include "utils/utills.h"
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
+#include "utils/utills.h"
 
 namespace custom_kernel {
 
@@ -25,7 +25,7 @@ class BinaryOperator : public HpuOperator {
  public:
   BinaryOperator(std::string guid_prefix, std::string node_name)
       : HpuOperator(guid_prefix), pName_(node_name) {}
-      
+
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
                synDataType datatype) {
@@ -53,70 +53,69 @@ class BinaryOperator : public HpuOperator {
   std::string pName_;
 };
 
+#define BINARY_RAW_KERNEL(kernel_func, guid_prefix, node_name)                 \
+  template <typename T, typename Context>                                      \
+  void kernel_func(const Context& dev_ctx,                                     \
+                   const phi::DenseTensor& x,                                  \
+                   const phi::DenseTensor& y,                                  \
+                   int axis,                                                   \
+                   phi::DenseTensor* out) {                                    \
+    dev_ctx.template Alloc<T>(out);                                            \
+                                                                               \
+    std::vector<int64_t> x_dim = phi::vectorize<int64_t>(x.dims());            \
+    std::vector<int64_t> y_dim = phi::vectorize<int64_t>(y.dims());            \
+    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());   \
+                                                                               \
+    OpCacheOperator op_info;                                                   \
+    op_info.prepareOpInfo<T, nullptr_t>(guid_prefix, {x_dim, y_dim}, nullptr); \
+    auto recipe = op_info.GetRecipe();                                         \
+                                                                               \
+    if (recipe == nullptr) {                                                   \
+      BinaryOperator op(op_info.guid_, node_name);                             \
+      op.AddNode({x_dim, y_dim}, {outputs_dim}, op_info.datatype_);            \
+      op.Compile();                                                            \
+      op_info.setOp(op);                                                       \
+      recipe = op_info.GetRecipe();                                            \
+    }                                                                          \
+                                                                               \
+    std::map<std::string, uint64_t> tensors;                                   \
+    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());                    \
+    tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());                    \
+    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());            \
+                                                                               \
+    RecipeRunner runner(recipe);                                               \
+    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);         \
+                                                                               \
+    return;                                                                    \
+  }
 
-#define BINARY_RAW_KERNEL(kernel_func, guid_prefix, node_name)             \
-template <typename T, typename Context>                                    \
-void kernel_func(const Context& dev_ctx,                                   \
-                  const phi::DenseTensor& x,                               \
-                  const phi::DenseTensor& y,                               \
-                  int axis,                                                \
-                  phi::DenseTensor* out) {                                 \
-  dev_ctx.template Alloc<T>(out);                                          \
-                                                                           \
-  std::vector<int64_t> x_dim = phi::vectorize<int64_t>(x.dims());          \
-  std::vector<int64_t> y_dim = phi::vectorize<int64_t>(y.dims());          \
-  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims()); \
-                                                                           \
-  OpCacheOperator op_info;                                                 \
-  op_info.prepareOpInfo<T, nullptr_t>(guid_prefix, {x_dim, y_dim}, nullptr);    \
-  BinaryOperator* op = static_cast<BinaryOperator*>(op_info.getOp());      \
-                                                                           \
-  if(op == nullptr){                                                       \
-    BinaryOperator* op_new = new BinaryOperator(op_info.guid_, node_name); \
-    op_new->AddNode({x_dim, y_dim}, {outputs_dim}, op_info.datatype_);     \
-    op_new->Compile();                                                     \
-    op = op_new;                                                           \
-    op_info.setOp(op);                                                     \
-  }                                                                        \
-                                                                           \
-  std::map<std::string, uint64_t> tensors;                                 \
-  tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());                  \
-  tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());                  \
-  tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());          \
-                                                                           \
-  op->Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);      \
-                                                                           \
-  return;                                                                  \
-}                                                                          \
+#define BINARY_KERNEL(kernel_func, kernel_raw_func)              \
+  template <typename T, typename Context>                        \
+  void kernel_func(const Context& dev_ctx,                       \
+                   const phi::DenseTensor& x,                    \
+                   const phi::DenseTensor& y,                    \
+                   phi::DenseTensor* out) {                      \
+    int axis = -1;                                               \
+    custom_kernel::kernel_raw_func<T>(dev_ctx, x, y, axis, out); \
+  }
 
-#define BINARY_KERNEL(kernel_func, kernel_raw_func)                        \
-template <typename T, typename Context>                                    \
-void kernel_func(const Context& dev_ctx,                                   \
-               const phi::DenseTensor& x,                                  \
-               const phi::DenseTensor& y,                                  \
-               phi::DenseTensor* out) {                                    \
-  int axis = -1;                                                           \
-  custom_kernel::kernel_raw_func<T>(dev_ctx, x, y, axis, out);             \
-}                                                                          \
-
-
-//#define PRINT_MACRO_HELPER(args...) #args
-//#define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
-//#pragma message(PRINT_MACRO(BINARY_KERNEL(AddRawKernel, "add_fwd", "Add")))
-
+// #define PRINT_MACRO_HELPER(args...) #args
+// #define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
+// #pragma message(PRINT_MACRO(BINARY_KERNEL(AddRawKernel, "add_fwd", "Add")))
 
 BINARY_RAW_KERNEL(AddRawKernel, "add_fwd", "Add")
 BINARY_KERNEL(AddKernel, AddRawKernel)
 
 }  // namespace custom_kernel
 
-#define HPU_KERNEL_REGISTER(kernel_name, kernel_func, ...)    \
-PD_REGISTER_PLUGIN_KERNEL(kernel_name,                        \
-                          intel_hpu,                          \
-                          ALL_LAYOUT,                         \
-                          custom_kernel::kernel_func,         \
-                          __VA_ARGS__) {}                     \
+#define HPU_KERNEL_REGISTER(kernel_name, kernel_func, ...) \
+  PD_REGISTER_PLUGIN_KERNEL(kernel_name,                   \
+                            intel_hpu,                     \
+                            ALL_LAYOUT,                    \
+                            custom_kernel::kernel_func,    \
+                            __VA_ARGS__) {}
 
-HPU_KERNEL_REGISTER(add_raw, AddRawKernel, float, phi::dtype::float16, phi::dtype::bfloat16)
-HPU_KERNEL_REGISTER(add, AddKernel, float, phi::dtype::float16, phi::dtype::bfloat16)
-
+HPU_KERNEL_REGISTER(
+    add_raw, AddRawKernel, float, phi::dtype::float16, phi::dtype::bfloat16)
+HPU_KERNEL_REGISTER(
+    add, AddKernel, float, phi::dtype::float16, phi::dtype::bfloat16)

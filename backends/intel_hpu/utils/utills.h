@@ -101,6 +101,9 @@ class OpCacheOperator {
     } else if (std::is_same<T, float>::value) {
       guid_ = guid_prefix + "_f32";
       datatype_ = syn_type_single;
+    } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
+      datatype_ = syn_type_fp8_143;
+      guid_ = guid_prefix + "_hf8";
     } else {
       synStatus status = synUnsupported;
       CHKSTATUS("synDataType not supported");

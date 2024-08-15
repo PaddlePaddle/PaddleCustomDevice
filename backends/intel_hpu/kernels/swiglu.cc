@@ -17,6 +17,7 @@
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
+#include "utils/utills.h"
 
 namespace custom_kernel {
 
@@ -95,32 +96,32 @@ void SwiGluKernel(const Context& dev_ctx,
       return;
     }
 
-    synDataType dtype = syn_type_na;
-    if (std::is_same<T, phi::dtype::float16>::value) {
-      dtype = syn_type_fp16;
-    } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
-      dtype = syn_type_bf16;
-    } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
-      dtype = syn_type_fp8_143;
-    } else if (std::is_same<T, float>::value) {
-      dtype = syn_type_single;
-    }
-
-    SwiGlu op(dtype);
     std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
     const auto& y_tensor = y.get();
     std::vector<int64_t> y_dims = phi::vectorize<int64_t>(y_tensor.dims());
     std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-    op.AddNode({x_dims, y_dims}, {outputs_dim});
-    op.Compile();
+    OpCacheOperator op_info;
+    op_info.prepareOpInfo<T, nullptr_t>(
+        "SwiGluKernel", {x_dims, y_dims}, nullptr);
+    auto recipe = op_info.GetRecipe();
+
+    if (recipe == nullptr) {
+      SwiGlu op(op_info.datatype_);
+
+      op.AddNode({x_dims, y_dims}, {outputs_dim});
+      op.Compile();
+      op_info.setOp(op);
+
+      recipe = op_info.GetRecipe();
+    }
 
     std::map<std::string, uint64_t> tensors;
     tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
     tensors["y"] = reinterpret_cast<uint64_t>(y_tensor.data<T>());
     tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-
-    op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+    RecipeRunner runner(recipe);
+    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
 }
 

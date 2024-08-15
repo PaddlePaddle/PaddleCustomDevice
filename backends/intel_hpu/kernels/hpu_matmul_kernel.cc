@@ -16,6 +16,7 @@
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
+#include "utils/utills.h"
 
 namespace custom_kernel {
 
@@ -25,14 +26,13 @@ class BatchGEMM : public HpuOperator {
 
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
-               bool trans_x,
-               bool trans_y) {
+               synGEMMParams params) {
     synTensor inputs[ins.size()] = {
         createTensor(ins[0].size(), dtype_, ins[0], true, "x"),
         createTensor(ins[1].size(), dtype_, ins[1], true, "y")};
     synTensor outputs[outs.size()] = {
         createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-    synGEMMParams params{trans_x, trans_y};
+
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs,
                                      outputs,
@@ -58,14 +58,13 @@ class GEMM : public HpuOperator {
 
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
-               bool trans_x,
-               bool trans_y) {
+               synGEMMParams params) {
     synTensor inputs[ins.size()] = {
         createTensor(ins[0].size(), dtype_, ins[0], true, "x"),
         createTensor(ins[1].size(), dtype_, ins[1], true, "y")};
     synTensor outputs[outs.size()] = {
         createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-    synGEMMParams params{trans_x, trans_y};
+
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs,
                                      outputs,
@@ -98,43 +97,45 @@ void MatmulKernel(const Context& dev_ctx,
   PD_CHECK((x_rank == y_rank) || (y_rank != 2 && x_rank != y_rank),
            "matmul rank not support");
 
-  synDataType dtype = syn_type_na;
-  if (std::is_same<T, phi::dtype::float16>::value) {
-    dtype = syn_type_fp16;
-  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
-    dtype = syn_type_bf16;
-  } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
-    dtype = syn_type_fp8_143;
+  dev_ctx.template Alloc<T>(out);
+  if (out->numel() == 0) {
+    return;
   }
 
   std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
   std::vector<int64_t> y_dims = phi::vectorize<int64_t>(y.dims());
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-  dev_ctx.template Alloc<T>(out);
-  if (out->numel() == 0) {
-    return;
+  synGEMMParams params{transpose_x, transpose_y};
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, synGEMMParams>(
+      "MatmulKernel", {x_dims, y_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    if (y_rank == 2) {
+      // gemm
+      GEMM op(op_info.datatype_);
+      op.AddNode({x_dims, y_dims}, {outputs_dim}, params);
+      op.Compile();
+      op_info.setOp(op);
+    } else {
+      // batch gemm
+      BatchGEMM op(op_info.datatype_);
+      op.AddNode({x_dims, y_dims}, {outputs_dim}, params);
+      op.Compile();
+      op_info.setOp(op);
+    }
+
+    recipe = op_info.GetRecipe();
   }
 
   std::map<std::string, uint64_t> tensors;
   tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
   tensors["y"] = reinterpret_cast<uint64_t>(y.data<T>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-
-  if (y_rank == 2) {
-    // gemm
-    GEMM gemm(dtype);
-    gemm.AddNode({x_dims, y_dims}, {outputs_dim}, transpose_x, transpose_y);
-    gemm.Compile();
-    gemm.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-  } else {
-    // batch gemm
-    BatchGEMM batch_gemm(dtype);
-    batch_gemm.AddNode(
-        {x_dims, y_dims}, {outputs_dim}, transpose_x, transpose_y);
-    batch_gemm.Compile();
-    batch_gemm.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-  }
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

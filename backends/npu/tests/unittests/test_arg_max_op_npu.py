@@ -383,7 +383,7 @@ class TestArgMaxInt32Case10(BaseTestCase):
 
 
 # test argmax, dtype: int64
-class TestArgMaxInt32Case1(BaseTestCase):
+class TestArgMaxInt64Case1(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4, 5)
@@ -391,7 +391,7 @@ class TestArgMaxInt32Case1(BaseTestCase):
         self.axis = -1
 
 
-class TestArgMaxInt32Case2(BaseTestCase):
+class TestArgMaxInt64Case2(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4, 5)
@@ -399,7 +399,7 @@ class TestArgMaxInt32Case2(BaseTestCase):
         self.axis = 0
 
 
-class TestArgMaxInt32Case3(BaseTestCase):
+class TestArgMaxInt64Case3(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4, 5)
@@ -407,7 +407,7 @@ class TestArgMaxInt32Case3(BaseTestCase):
         self.axis = 1
 
 
-class TestArgMaxInt32Case4(BaseTestCase):
+class TestArgMaxInt64Case4(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4, 5)
@@ -415,7 +415,7 @@ class TestArgMaxInt32Case4(BaseTestCase):
         self.axis = 2
 
 
-class TestArgMaxInt32Case5(BaseTestCase):
+class TestArgMaxInt64Case5(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4)
@@ -423,7 +423,7 @@ class TestArgMaxInt32Case5(BaseTestCase):
         self.axis = -1
 
 
-class TestArgMaxInt32Case6(BaseTestCase):
+class TestArgMaxInt64Case6(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4)
@@ -431,7 +431,7 @@ class TestArgMaxInt32Case6(BaseTestCase):
         self.axis = 0
 
 
-class TestArgMaxInt32Case7(BaseTestCase):
+class TestArgMaxInt64Case7(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3, 4)
@@ -439,7 +439,7 @@ class TestArgMaxInt32Case7(BaseTestCase):
         self.axis = 1
 
 
-class TestArgMaxInt32Case8(BaseTestCase):
+class TestArgMaxInt64Case8(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (1,)
@@ -447,7 +447,7 @@ class TestArgMaxInt32Case8(BaseTestCase):
         self.axis = 0
 
 
-class TestArgMaxInt32Case9(BaseTestCase):
+class TestArgMaxInt64Case9(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (2,)
@@ -455,7 +455,7 @@ class TestArgMaxInt32Case9(BaseTestCase):
         self.axis = 0
 
 
-class TestArgMaxInt32Case10(BaseTestCase):
+class TestArgMaxInt64Case10(BaseTestCase):
     def initTestCase(self):
         self.op_type = "arg_max"
         self.dims = (3,)

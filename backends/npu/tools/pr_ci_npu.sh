@@ -364,7 +364,7 @@ function main() {
 
     # PaddleX test
     echo "Start Download"
-    git clone --depth https://github.com/PaddlePaddle/PaddleX.git
+    git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas

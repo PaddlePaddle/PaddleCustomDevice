@@ -109,7 +109,6 @@ void RmsNormKernel(const Context& dev_ctx,
   tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
   tensors["w"] = reinterpret_cast<uint64_t>(norm_weight.data<T>());
   tensors["out"] = reinterpret_cast<uint64_t>(out->data<T>());
-  // tensors["inv_var"] = reinterpret_cast<uint64_t>(inv_var->data<T>());
 
   op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }

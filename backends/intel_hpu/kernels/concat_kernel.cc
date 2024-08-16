@@ -14,6 +14,7 @@
 
 #include "funcs.h"
 #include "hpu_operator.h"
+#include "utils/utills.h"
 
 namespace custom_kernel {
 
@@ -23,7 +24,7 @@ class Concat : public HpuOperator {
 
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
-               int axis) {
+               unsigned params) {
     std::vector<synTensor> inputs;
     for (size_t i = 0; i < ins.size(); i++) {
       std::string name("x");
@@ -34,7 +35,7 @@ class Concat : public HpuOperator {
 
     synTensor outputs[outs.size()] = {
         createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-    unsigned params = static_cast<unsigned>(axis);
+
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs.data(),
                                      outputs,
@@ -69,26 +70,24 @@ void ConcatKernel(const Context& dev_ctx,
     return;
   }
 
-  synDataType dtype = syn_type_na;
-  if (std::is_same<T, phi::dtype::float16>::value) {
-    dtype = syn_type_fp16;
-  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
-    dtype = syn_type_bf16;
-  } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
-    dtype = syn_type_fp8_143;
-  } else if (std::is_same<T, float>::value) {
-    dtype = syn_type_single;
-  }
-
-  Concat op(dtype);
+  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
   std::vector<DIMS> inputs_dims = {};
   for (size_t i = 0; i < ins.size(); i++) {
     inputs_dims.push_back(phi::vectorize<int64_t>(ins[i]->dims()));
   }
 
-  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
-  op.AddNode(inputs_dims, {outputs_dim}, axis);
-  op.Compile();
+  unsigned params = static_cast<unsigned>(axis);
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, unsigned>("ConcatKernel", inputs_dims, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Concat op(op_info.datatype_);
+    op.AddNode(inputs_dims, {outputs_dim}, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
 
   std::map<std::string, uint64_t> tensors;
   for (size_t i = 0; i < ins.size(); i++) {
@@ -97,7 +96,8 @@ void ConcatKernel(const Context& dev_ctx,
     tensors[name] = reinterpret_cast<uint64_t>(ins[i]->data<T>());
   }
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel
@@ -106,7 +106,6 @@ PD_REGISTER_PLUGIN_KERNEL(concat,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::ConcatKernel,
-                          int,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

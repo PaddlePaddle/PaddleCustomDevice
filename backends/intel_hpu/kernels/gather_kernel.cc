@@ -17,6 +17,7 @@
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
+#include "utils/utills.h"
 
 namespace custom_kernel {
 
@@ -25,7 +26,7 @@ class Gather : public HpuOperator {
   Gather(synDataType dtype) : HpuOperator("gather_fwd_"), dtype_(dtype) {}
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
-               int axis_dim) {
+               ns_GatherKernel::Params params) {
     std::vector<synTensor> inputs;
     inputs.push_back(createTensor(ins[0].size(), dtype_, ins[0], true, "x"));
     inputs.push_back(
@@ -33,9 +34,6 @@ class Gather : public HpuOperator {
 
     synTensor outputs[outs.size()] = {
         createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-
-    ns_GatherKernel::Params params;
-    params.axis = ins[0].size() - 1 - axis_dim;
 
     if (dtype_ == syn_type_fp16) {
       guid_ = guid_ + "f16";
@@ -74,31 +72,35 @@ void GatherKernel(const Context& dev_ctx,
   auto dim =
       CanonicalAxis(axis.to<int64_t>(), static_cast<int64_t>(x.dims().size()));
 
-  synDataType dtype = syn_type_na;
-  if (std::is_same<T, phi::dtype::float16>::value) {
-    dtype = syn_type_fp16;
-  } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
-    dtype = syn_type_bf16;
-  } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
-    dtype = syn_type_fp8_143;
-  } else if (std::is_same<T, float>::value) {
-    dtype = syn_type_single;
-  }
+  OpCacheOperator op_info;
 
-  Gather op(dtype);
   std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
   std::vector<int64_t> index_dims = phi::vectorize<int64_t>(index.dims());
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-  op.AddNode({x_dims, index_dims}, {outputs_dim}, static_cast<int>(dim));
-  op.Compile();
+  ns_GatherKernel::Params params;
+  params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
+
+  op_info.prepareOpInfo<T, ns_GatherKernel::Params>(
+      "GatherKernel", {x_dims, index_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Gather op(op_info.datatype_);
+
+    op.AddNode({x_dims, index_dims}, {outputs_dim}, params);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
 
   std::map<std::string, uint64_t> tensors;
   tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-  // TODO, index.dtype == int64
   tensors["index"] = reinterpret_cast<uint64_t>(index.data<int32_t>());
   tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

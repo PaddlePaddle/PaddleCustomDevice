@@ -131,6 +131,22 @@ class OpCacheOperator {
     return;
   }
 
+  template <typename T>
+  std::string GetTypeStr() {
+    if (std::is_same<T, phi::dtype::float16>::value) {
+      return "f16";
+    } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+      return "bf16";
+    } else if (std::is_same<T, float>::value) {
+      return "f32";
+    } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
+      return "hf8";
+    } else {
+      // PD_CHECK("synDataType not supported");
+      return "";
+    }
+  }
+
  private:
   static inline LRUCache<string, synRecipeHandle>& GetLRUCache() {
     static const int kCapacity = 1024;  // cache capacity

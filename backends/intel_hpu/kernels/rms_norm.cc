@@ -36,8 +36,8 @@ class RMS : public HpuOperator {
 
     auto out = createTensor(outs[0].size(), dtype_, outs[0], true, "out");
     outputs.push_back(out);
-    auto mean_square =
-        createTensor(outs[1].size(), syn_type_single, outs[1], false, "inv_var");
+    auto mean_square = createTensor(
+        outs[1].size(), syn_type_single, outs[1], false, "inv_var");
     outputs.push_back(mean_square);
 
     if (dtype_ == syn_type_fp16) {
@@ -87,8 +87,6 @@ void RmsNormKernel(const Context& dev_ctx,
                    phi::DenseTensor* residual_out,
                    phi::DenseTensor* inv_var) {
   dev_ctx.template Alloc<T>(out);
-  // dev_ctx.template Alloc<T>(residual_out);
-  // dev_ctx.template Alloc<T>(inv_var);
 
   synDataType dtype = syn_type_na;
   if (std::is_same<T, phi::dtype::float16>::value) {

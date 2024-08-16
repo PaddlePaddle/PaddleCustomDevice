@@ -362,6 +362,26 @@ function main() {
         bash ${CODE_ROOT}/tools/coverage/coverage_process.sh
     fi
 
+    # PaddleX ResNet50 test
+    echo "Start PaddleX ResNet50"
+    git clone --depth https://github.com/PaddlePaddle/PaddleX.git
+    cd PaddleX
+    pip install -e .
+    paddlex --install PaddleClas
+    wget https://paddle-model-ecology.bj.bcebos.com/paddlex/data/cls_flowers_examples.tar -P ./dataset
+    tar -xf ./dataset/cls_flowers_examples.tar -C ./dataset/
+    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    -o Global.mode=check_dataset \
+    -o Global.dataset_dir=./dataset/cls_flowers_examples
+
+    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    -o Global.mode=train \
+    -o Global.dataset_dir=./dataset/cls_flowers_examples \
+    -o Global.output=resnet50_output \
+    -o Global.device="npu:${ASCEND_RT_VISIBLE_DEVICES}"
+
+    echo "End PaddleX ResNet50"
+
 }
 
 main $@

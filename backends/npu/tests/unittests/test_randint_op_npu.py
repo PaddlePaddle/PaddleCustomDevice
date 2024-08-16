@@ -28,7 +28,7 @@ paddle.enable_static()
 def check_randint_out(data, low, high):
     assert isinstance(data, np.ndarray), "The input data should be np.ndarray."
     mask = (data < low) | (data >= high)
-    return mask.any()
+    return not mask.any()
 
 
 def convert_dtype(dtype_str):
@@ -78,7 +78,7 @@ class TestRandintOp(OpTest):
 
     def verify_output(self, outs):
         out_np = np.array(outs[0])
-        self.assertTrue(check_randint_out(outs, self.low, self.high))
+        self.assertTrue(check_randint_out(out_np, self.low, self.high))
 
 
 class TestRandintOpLow(TestRandintOp):

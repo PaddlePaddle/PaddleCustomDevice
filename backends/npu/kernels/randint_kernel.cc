@@ -19,18 +19,18 @@ namespace custom_kernel {
 
 template <typename T, typename Context>
 void RandintKernel(const Context& dev_ctx,
-                   int low,
-                   int high,
+                   const int low,
+                   const int high,
                    const phi::IntArray& shape,
                    phi::DataType dtype UNUSED,
                    phi::DenseTensor* out) {
   out->Resize(common::make_ddim(shape.GetData()));
   dev_ctx.template Alloc<T>(out);
-  FillNpuTensorWithConstant<T>(out, dev_ctx, static_cast<T>(0));
-  out->Resize(common::make_ddim(shape.GetData()));
-  int seed = 0;
-  int offset = 0;
-  EXEC_NPU_CMD(aclnnInplaceRandom, dev_ctx, *out, low, high, seed, offset);
+  int64_t low_ = low;
+  int64_t high_ = high;
+  int64_t seed = 0;
+  int64_t offset = 0;
+  EXEC_NPU_CMD(aclnnInplaceRandom, dev_ctx, *out, low_, high_, seed, offset);
 }
 }  // namespace custom_kernel
 

@@ -21,7 +21,6 @@ void GatherNdKernel(const Context &dev_ctx,
                     const phi::DenseTensor &x,
                     const phi::DenseTensor &index,
                     phi::DenseTensor *out) {
-  PADDLE_GCU_KERNEL_TRACE("gather_nd");
   dev_ctx.template Alloc<T>(out);
 
   if (x.numel() == 0) {
@@ -37,5 +36,6 @@ PD_REGISTER_PLUGIN_KERNEL(gather_nd,
                           custom_kernel::GatherNdKernel,
                           int,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           bool) {}

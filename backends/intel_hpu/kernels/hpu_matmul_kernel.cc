@@ -144,6 +144,7 @@ PD_REGISTER_PLUGIN_KERNEL(matmul,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::MatmulKernel,
+                          float,
                           phi::dtype::bfloat16,
                           phi::dtype::float16,
                           phi::dtype::float8_e4m3fn) {}

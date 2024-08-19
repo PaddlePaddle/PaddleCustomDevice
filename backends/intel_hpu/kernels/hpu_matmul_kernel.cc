@@ -94,7 +94,7 @@ void MatmulKernel(const Context& dev_ctx,
   auto x_rank = x.dims().size();
   auto y_rank = y.dims().size();
   VLOG(9) << " x rank = " << x_rank << ", y rank = " << y_rank;
-  PD_CHECK((x_rank == y_rank) || (y_rank != 2 && x_rank != y_rank),
+  PD_CHECK((x_rank == y_rank) || (y_rank == 2 && x_rank != y_rank),
            "matmul rank not support");
 
   dev_ctx.template Alloc<T>(out);

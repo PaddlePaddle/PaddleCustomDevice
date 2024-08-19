@@ -89,15 +89,15 @@ void ConcatKernel(const Context& dev_ctx,
     recipe = op_info.GetRecipe();
   }
 
-  std::map<std::string, uint64_t> tensors;
-  for (size_t i = 0; i < ins.size(); i++) {
-    std::string name("x");
-    name = name + std::to_string(i);
-    tensors[name] = reinterpret_cast<uint64_t>(ins[i]->data<T>());
-  }
-  tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  RecipeRunner runner(recipe);
-  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  // std::map<std::string, uint64_t> tensors;
+  // for (size_t i = 0; i < ins.size(); i++) {
+  //   std::string name("x");
+  //   name = name + std::to_string(i);
+  //   tensors[name] = reinterpret_cast<uint64_t>(ins[i]->data<T>());
+  // }
+  // tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+  // RecipeRunner runner(recipe);
+  // runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

@@ -90,12 +90,12 @@ void EmbeddingKernel(const Context& dev_ctx,
   op.AddNode({x_dims, index_dims}, {outputs_dim}, 0);
   op.Compile();
 
-  std::map<std::string, uint64_t> tensors;
-  tensors["weight"] = reinterpret_cast<uint64_t>(weight.data<T>());
-  // TODO, index.dtype == int64
-  tensors["inputx"] = reinterpret_cast<uint64_t>(inputx.data<int32_t>());
-  tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  // std::map<std::string, uint64_t> tensors;
+  // tensors["weight"] = reinterpret_cast<uint64_t>(weight.data<T>());
+  // // TODO, index.dtype == int64
+  // tensors["inputx"] = reinterpret_cast<uint64_t>(inputx.data<int32_t>());
+  // tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+  // op.Execute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

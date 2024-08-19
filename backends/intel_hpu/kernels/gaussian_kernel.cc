@@ -27,12 +27,12 @@ void GaussianKernel(const Context& ctx,
                     phi::DenseTensor* out) {
   ctx.template Alloc<T>(out);
 
-  phi::DenseTensor cpu_tensor;
-  phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
-  cpu_tensor.set_meta(cpu_meta);
-  T* cpu_data = ctx.template HostAlloc<T>(&cpu_tensor);
-  std::normal_distribution<typename phi::dtype::MPTypeTrait<T>::Type> dist(mean,
-                                                                           std);
+  // phi::DenseTensor cpu_tensor;
+  // phi::DenseTensorMeta cpu_meta = {out->dtype(), out->dims()};
+  // cpu_tensor.set_meta(cpu_meta);
+  // T* cpu_data = ctx.template HostAlloc<T>(&cpu_tensor);
+  // std::normal_distribution<typename phi::dtype::MPTypeTrait<T>::Type> dist(mean,
+  //                                                                          std);
 
   // int64_t size = out->numel();
 

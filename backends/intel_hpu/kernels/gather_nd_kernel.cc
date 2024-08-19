@@ -32,7 +32,7 @@ void GatherNdKernel(const Context &dev_ctx,
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(gather_nd,
-                          gcu,
+                          intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::GatherNdKernel,
                           int,

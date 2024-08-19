@@ -23,6 +23,24 @@ limitations under the License. */
 
 namespace custom_kernel {
 
+inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
+  if (type == phi::DataType::FLOAT32) {
+    return syn_type_single;
+  } else if (type == phi::DataType::FLOAT16) {
+    return syn_type_fp16;
+  } else if (type == phi::DataType::BFLOAT16) {
+    return syn_type_bf16;
+  } else if (type == phi::DataType::INT32) {
+    return syn_type_int32;
+  } else if (type == phi::DataType::INT8) {
+    return syn_type_int8;
+  } else if (type == phi::DataType::UINT8) {
+    return syn_type_uint8;
+  } else {
+    LOG(ERROR) << "Datatype " << type << " in synapse is not supported.";
+  }
+}
+
 /**
  * CPU -> INTEL_HPU
  * INTEL_HPU -> CPU

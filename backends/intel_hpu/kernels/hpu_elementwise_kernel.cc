@@ -103,34 +103,34 @@ class BinaryOperator : public HpuOperator {
     custom_kernel::kernel_func##RawKernel<T>(dev_ctx, x, y, axis, out); \
   }
 
-// #define PRINT_MACRO_HELPER(args...) #args
-// #define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
-// #pragma message(PRINT_MACRO(BINARY_RAW_KERNEL(Add, add)))
-// #pragma message(PRINT_MACRO(BINARY_KERNEL(Add)))
+            // #define PRINT_MACRO_HELPER(args...) #args
+            // #define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
+            // #pragma message(PRINT_MACRO(BINARY_RAW_KERNEL(Add, add)))
+            // #pragma message(PRINT_MACRO(BINARY_KERNEL(Add)))
 
-BINARY_RAW_KERNEL(Add, add)
-BINARY_KERNEL(Add)
+            BINARY_RAW_KERNEL(Add, add);
+BINARY_KERNEL(Add);
 
-BINARY_RAW_KERNEL(Div, div)
-BINARY_KERNEL(Div)
+BINARY_RAW_KERNEL(Div, div);
+BINARY_KERNEL(Div);
 
-BINARY_RAW_KERNEL(Max, max)
-BINARY_KERNEL(Max)
+BINARY_RAW_KERNEL(Max, max);
+BINARY_KERNEL(Max);
 
-BINARY_RAW_KERNEL(Min, min)
-BINARY_KERNEL(Min)
+BINARY_RAW_KERNEL(Min, min);
+BINARY_KERNEL(Min);
 
-BINARY_RAW_KERNEL(Mod, mod)
-BINARY_KERNEL(Mod)
+BINARY_RAW_KERNEL(Mod, mod);
+BINARY_KERNEL(Mod);
 
-BINARY_RAW_KERNEL(Mult, mult)
-BINARY_KERNEL(Mult)
+BINARY_RAW_KERNEL(Mult, mult);
+BINARY_KERNEL(Mult);
 
-BINARY_RAW_KERNEL(Pow, pow)
-BINARY_KERNEL(Pow)
+BINARY_RAW_KERNEL(Pow, pow);
+BINARY_KERNEL(Pow);
 
-BINARY_RAW_KERNEL(Sub, sub)
-BINARY_KERNEL(Sub)
+BINARY_RAW_KERNEL(Sub, sub);
+BINARY_KERNEL(Sub);
 }  // namespace custom_kernel
 
 #define HPU_KERNEL_REGISTER(kernel_name, kernel_func, ...) \
@@ -153,12 +153,12 @@ BINARY_KERNEL(Sub)
   HPU_KERNEL_REGISTER(GUID##_raw, OP_NAME##RawKernel, float) \
   HPU_KERNEL_REGISTER(GUID, OP_NAME##Kernel, float, phi::dtype::bfloat16)
 
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Add, add)
-    PD_REGISTER_PLUGIN_KERNEL_FPx3(Max, maximum)
-        PD_REGISTER_PLUGIN_KERNEL_FPx3(Min, minimum)
-            PD_REGISTER_PLUGIN_KERNEL_FPx3(Mult, multiply)
-                PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow)
-                    PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract)
-                        PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide)
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Add, add);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Max, maximum);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Min, minimum);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Mult, multiply);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract);
+PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide);
 
-                            PD_REGISTER_PLUGIN_KERNEL_FPx2(Mod, remainder)
+PD_REGISTER_PLUGIN_KERNEL_FPx2(Mod, remainder);

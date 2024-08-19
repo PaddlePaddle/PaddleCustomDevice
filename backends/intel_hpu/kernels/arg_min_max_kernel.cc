@@ -24,7 +24,7 @@ void ArgMinKernel(const Context& dev_ctx,
                   bool flatten,
                   phi::DataType dtype,
                   phi::DenseTensor* out) {
-  dev_ctx.Alloc(out, out->dtype());
+  dev_ctx.template Alloc<int64_t>(out);
 }
 
 template <typename T, typename Context>
@@ -35,7 +35,7 @@ void ArgMaxKernel(const Context& dev_ctx,
                   bool flatten,
                   phi::DataType dtype,
                   phi::DenseTensor* out) {
-  dev_ctx.template Alloc<T>(out);
+  dev_ctx.template Alloc<int64_t>(out);
 }
 
 }  // namespace custom_kernel

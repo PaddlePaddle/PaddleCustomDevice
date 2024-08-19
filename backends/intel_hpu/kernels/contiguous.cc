@@ -36,6 +36,7 @@ PD_REGISTER_PLUGIN_KERNEL(contiguous,
                           int8_t,
                           int16_t,
                           int32_t,
+                          int64_t,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

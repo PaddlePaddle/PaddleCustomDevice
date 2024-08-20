@@ -16,9 +16,9 @@
 // #include "perf_lib_layer_params.h"
 
 // namespace custom_kernel {
-// class FullOperator : public HpuOperator {
+// class Full : public HpuOperator {
 //  public:
-//   FullOperator() : HpuOperator("full_fwd_f32") {}
+//   Full() : HpuOperator("full_fwd_f32") {}
 //   template <typename VType>
 //   void AddNode(const std::vector<DIMS>& ins,
 //                const std::vector<DIMS>& outs,
@@ -45,26 +45,21 @@
 //   }
 // };
 
-// // template <typename T, typename VType>
-// // void FullValue(const phi::Context& dev_ctx,
-// //                phi::DenseTensor* tensor,
-// //                VType val) {
-// //   if (tensor->dims().size() == 0) tensor->Resize({1});
-// //   auto t = dev_ctx.template Alloc<T>(tensor);
+// template <typename T, typename VType>
+// void FullValue(const phi::Context& dev_ctx,
+//                phi::DenseTensor* tensor,
+//                VType val) {
+//   if (tensor->dims().size() == 0) tensor->Resize({1});
+//   auto t = dev_ctx.template Alloc<T>(tensor);
 
-// //   FullOperator op;
+//   FullOperator op;
 
-// //   op.AddNode({}, {tensor->dims()}, val);
+//   op.AddNode({}, {tensor->dims()}, val);
 
-// //   std::map<std::string, uint64_t> tensors;
-// //   tensors["output"] = reinterpret_cast<uint64_t>(tensor->data<T>());
-// //   op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()),
-// //   tensors); return;
-
-// //   for (auto i = 0; i < tensor->numel(); ++i) {
-// //     t[i] = val;
-// //   }
-// // }
+//   std::map<std::string, uint64_t> tensors;
+//   tensors["output"] = reinterpret_cast<uint64_t>(tensor->data<T>());
+//   op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+// }
 
 // template <typename T, typename Context>
 // void FullKernel(const Context& dev_ctx,

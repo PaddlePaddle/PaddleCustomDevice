@@ -34,12 +34,42 @@ inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
     return syn_type_bf16;
   } else if (type == phi::DataType::INT32) {
     return syn_type_int32;
-  } else if (type == phi::DataType::INT8) {
+  } else if (type == phi::DataType::INT8 || type == phi::DataType::BOOL) {
     return syn_type_int8;
   } else if (type == phi::DataType::UINT8) {
     return syn_type_uint8;
+  } else if (type == phi::DataType::INT64) {
+    return syn_type_int64;
   } else {
     LOG(ERROR) << "Datatype " << type << " in synapse is not supported.";
+  }
+}
+
+inline std::string SynDataTypeToStr(synDataType s) {
+  switch (s) {
+    case syn_type_int8:
+      return "i8";
+    case syn_type_bf16:
+      return "bf16";
+    case syn_type_single:
+      return "f32";
+    case syn_type_int16:
+      return "i16";
+    case syn_type_uint8:
+      return "u8";
+    case syn_type_fp16:
+      return "f16";
+    case syn_type_int32:
+      return "i32";
+    case syn_type_fp8_152:
+    case syn_type_fp8_143:
+      return "hf8";
+    case syn_type_int64:
+      return "i64";
+    case syn_type_uint64:
+      return "u64";
+    default:
+      break;
   }
 }
 
@@ -162,6 +192,7 @@ struct TensorInfo {
   std::vector<int64_t> dims;
   uint64_t device_addr;
   const void* host_addr;
+  synDataType type;
 };
 
 class ConvertTensors {
@@ -181,6 +212,7 @@ class ConvertTensors {
         info.dims = phi::vectorize<int64_t>(x.dims());
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
+        info.type = PDDataTypeToSynDataType(x.dtype());
         x_tensors_.insert({addr, info});
       }
       x_host_tensor_.push_back(addr);
@@ -194,6 +226,7 @@ class ConvertTensors {
         info.dims = phi::vectorize<int64_t>(x.dims());
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
+        info.type = PDDataTypeToSynDataType(x.dtype());
         y_tensors_.insert({addr, info});
       }
       y_host_tensor_.push_back(addr);

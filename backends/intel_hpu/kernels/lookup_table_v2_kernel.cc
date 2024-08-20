@@ -27,7 +27,8 @@ class Embedding : public HpuOperator {
                const std::vector<DIMS>& outs,
                int axis_dim) {
     std::vector<synTensor> inputs;
-    inputs.push_back(createTensor(ins[0].size(), dtype_, ins[0], true, "weight"));
+    inputs.push_back(
+        createTensor(ins[0].size(), dtype_, ins[0], true, "weight"));
     inputs.push_back(
         createTensor(ins[1].size(), syn_type_int32, ins[1], true, "inputx"));
 

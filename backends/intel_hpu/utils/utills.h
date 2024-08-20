@@ -9,6 +9,9 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "synapse_api.h"
+#include "synapse_common_types.h"
+
 using namespace std;
 
 template <class KEY_T, class VAL_T>
@@ -167,3 +170,5 @@ class OpCacheOperator {
   synDataType datatype_;
   KeyCreator key_creator_;
 };
+
+std::string ShowErrorMsg(synStatus s);

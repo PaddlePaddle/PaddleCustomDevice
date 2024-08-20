@@ -261,6 +261,7 @@ function main() {
     fi
 
     # PaddleX test
+    unset MLU_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
     cd PaddleX

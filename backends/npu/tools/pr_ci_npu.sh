@@ -363,6 +363,7 @@ function main() {
     fi
 
     # PaddleX test
+    unset USE_910B
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
     cd PaddleX

@@ -21,6 +21,7 @@ static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
 
 static uint64_t cached_workspaceSize = 0;
 static uint64_t cached_workspaceAddress = 0;
+static uint32_t recipe_count = 0;
 
 class HpuOperator {
  public:
@@ -31,8 +32,12 @@ class HpuOperator {
 
   void Compile() {
     synStatus status = synGraphCompile(
-        &recipeHandle_, graphHandle_, (guid_ + ".recipe").c_str(), 0);
-    LOG(INFO) << " synGraphCompile =" << guid_;
+        &recipeHandle_,
+        graphHandle_,
+        (guid_ + "_" + std::to_string(recipe_count) + ".recipe").c_str(),
+        0);
+    LOG(INFO) << " synGraphCompile =" << guid_ << ", count = " << recipe_count;
+    recipe_count += 1;
 
     CHKSTATUS("synGraphCompile failed!");
   }

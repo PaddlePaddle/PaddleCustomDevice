@@ -41,6 +41,8 @@ class Cast : public HpuOperator {
       guid_ = guid_ + "_bf16_to";
     } else if (src_type_ == syn_type_single) {
       guid_ = guid_ + "_f32_to";
+    } else if (src_type_ == syn_type_int32) {
+      guid_ = guid_ + "_i32_to";
     }
 
     if (dst_type_ == syn_type_fp16) {
@@ -49,6 +51,8 @@ class Cast : public HpuOperator {
       guid_ = guid_ + "_bf16";
     } else if (dst_type_ == syn_type_single) {
       guid_ = guid_ + "_f32";
+    }else if (dst_type_ == syn_type_int32) {
+      guid_ = guid_ + "_i32";
     }
 
     synStatus status = synNodeCreate(graphHandle_,
@@ -77,7 +81,7 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out) {
   if (x.dtype() == dtype) {
     dev_ctx.template Alloc<T>(out);
-    TensorCopy(dev_ctx, x, false, out);
+    TensorCopy(dev_ctx, x, true, out);
     return;
   }
 

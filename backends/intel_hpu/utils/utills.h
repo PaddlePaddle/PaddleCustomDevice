@@ -7,7 +7,7 @@
 #include <list>
 #include <unordered_map>
 #include <vector>
-
+#include "glog/logging.h"
 using namespace std;
 
 template <class KEY_T, class VAL_T>
@@ -109,6 +109,7 @@ class OpCacheOperator {
       guid_ = guid_prefix + "_i32";
     } else {
       synStatus status = synUnsupported;
+      LOG(INFO) << typeid(T).name();
       CHKSTATUS("synDataType not supported");
     }
 

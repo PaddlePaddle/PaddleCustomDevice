@@ -21,6 +21,8 @@ limitations under the License. */
 #include "paddle/phi/extension.h"
 #include "runtime/runtime.h"
 
+typedef std::vector<int64_t> DIMS;
+
 namespace custom_kernel {
 
 inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
@@ -154,5 +156,101 @@ inline int CanonicalAxis(const int axis, const int rank) {
   }
   return axis;
 }
+
+struct TensorInfo {
+  std::string name;
+  std::vector<int64_t> dims;
+  uint64_t device_addr;
+  const void* host_addr;
+};
+
+class ConvertTensors {
+ public:
+  ConvertTensors() : count_(0) {}
+  ~ConvertTensors() {}
+
+  void Add(const phi::DenseTensor& x, bool is_input = true) {
+    auto addr = x.data();
+    if (is_input) {
+      auto it = x_tensors_.find(addr);
+      if (it == x_tensors_.end()) {
+        // new tensor
+        TensorInfo info;
+        info.name = "x_" + std::to_string(count_);
+        count_++;
+        info.dims = phi::vectorize<int64_t>(x.dims());
+        info.host_addr = addr;
+        info.device_addr = reinterpret_cast<uint64_t>(addr);
+        x_tensors_.insert({addr, info});
+      }
+      x_host_tensor_.push_back(addr);
+    } else {
+      auto it = y_tensors_.find(addr);
+      if (it == y_tensors_.end()) {
+        // new tensor
+        TensorInfo info;
+        info.name = "y_" + std::to_string(count_);
+        count_++;
+        info.dims = phi::vectorize<int64_t>(x.dims());
+        info.host_addr = addr;
+        info.device_addr = reinterpret_cast<uint64_t>(addr);
+        y_tensors_.insert({addr, info});
+      }
+      y_host_tensor_.push_back(addr);
+    }
+  }
+
+  void Add(const phi::DenseTensor* x, bool is_input = true) {
+    Add(*x, is_input);
+  }
+
+  std::vector<DIMS> GetDims(bool is_input = true) {
+    std::vector<DIMS> out;
+    if (is_input) {
+      for (size_t i = 0; i < x_host_tensor_.size(); i++) {
+        out.push_back(x_tensors_[x_host_tensor_[i]].dims);
+      }
+    } else {
+      for (size_t i = 0; i < y_tensors_.size(); i++) {
+        out.push_back(y_tensors_[y_host_tensor_[i]].dims);
+      }
+    }
+
+    return out;
+  }
+
+  std::map<std::string, uint64_t> GetDeviceAddr() {
+    std::map<std::string, uint64_t> out;
+    for (auto it = x_tensors_.begin(); it != x_tensors_.end(); it++) {
+      out.insert({it->second.name, it->second.device_addr});
+    }
+
+    for (auto it = y_tensors_.begin(); it != y_tensors_.end(); it++) {
+      out.insert({it->second.name, it->second.device_addr});
+    }
+    return out;
+  }
+
+  std::vector<TensorInfo> GetTensors(bool is_input = true) {
+    std::vector<TensorInfo> out;
+    if (is_input) {
+      for (size_t i = 0; i < x_host_tensor_.size(); i++) {
+        out.push_back(x_tensors_[x_host_tensor_[i]]);
+      }
+    } else {
+      for (size_t i = 0; i < y_tensors_.size(); i++) {
+        out.push_back(y_tensors_[y_host_tensor_[i]]);
+      }
+    }
+    return out;
+  }
+
+ protected:
+  std::vector<const void*> x_host_tensor_;
+  std::map<const void*, TensorInfo> x_tensors_;
+  std::vector<const void*> y_host_tensor_;
+  std::map<const void*, TensorInfo> y_tensors_;
+  int32_t count_;
+};
 
 }  // namespace custom_kernel

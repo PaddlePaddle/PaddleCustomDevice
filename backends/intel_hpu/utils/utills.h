@@ -7,6 +7,7 @@
 #include <list>
 #include <unordered_map>
 #include <vector>
+
 #include "glog/logging.h"
 using namespace std;
 
@@ -107,6 +108,9 @@ class OpCacheOperator {
     } else if (std::is_same<T, int32_t>::value) {
       datatype_ = syn_type_int32;
       guid_ = guid_prefix + "_i32";
+    } else if (std::is_same<T, bool>::value) {
+      datatype_ = syn_type_int8;
+      guid_ = guid_prefix + "_i8";
     } else {
       synStatus status = synUnsupported;
       LOG(INFO) << typeid(T).name();

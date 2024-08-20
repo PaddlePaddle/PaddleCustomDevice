@@ -22,25 +22,27 @@ class Concat : public HpuOperator {
  public:
   Concat(synDataType dtype) : HpuOperator("concat"), dtype_(dtype) {}
 
-  void AddNode(const std::vector<DIMS>& ins,
-               const std::vector<DIMS>& outs,
-               unsigned params) {
-    std::vector<synTensor> inputs;
-    for (size_t i = 0; i < ins.size(); i++) {
-      std::string name("x");
-      name = name + std::to_string(i);
-      inputs.push_back(
-          createTensor(ins[0].size(), dtype_, ins[i], true, name.c_str()));
+  void AddNode(ConvertTensors& ct, unsigned params) {
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
+
+    std::vector<synTensor> syn_inputs;
+    for (size_t i = 0; i < inputs.size(); i++) {
+      syn_inputs.push_back(createTensor(
+          inputs[i].dims.size(), dtype_, inputs[i].dims, true, inputs[i].name));
     }
 
-    synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
+    std::vector<synTensor> syn_outputs;
+    for (size_t i = 0; i < outputs.size(); i++) {
+      syn_outputs.push_back(createTensor(
+          outputs[i].dims.size(), dtype_, outputs[i].dims, true, outputs[i].name));
+    }
 
     synStatus status = synNodeCreate(graphHandle_,
-                                     inputs.data(),
-                                     outputs,
-                                     ins.size(),
-                                     outs.size(),
+                                     syn_inputs.data(),
+                                     syn_outputs.data(),
+                                     syn_inputs.size(),
+                                     syn_outputs.size(),
                                      &params,
                                      sizeof(params),
                                      guid_.c_str(),
@@ -70,12 +72,13 @@ void ConcatKernel(const Context& dev_ctx,
     return;
   }
 
-  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
-  std::vector<DIMS> inputs_dims = {};
+  ConvertTensors ct;
   for (size_t i = 0; i < ins.size(); i++) {
-    inputs_dims.push_back(phi::vectorize<int64_t>(ins[i]->dims()));
+    ct.Add(ins[i]);
   }
+  ct.Add(out, false);
 
+  std::vector<DIMS> inputs_dims = ct.GetDims();
   unsigned params = static_cast<unsigned>(axis);
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, unsigned>("ConcatKernel", inputs_dims, &params);
@@ -83,21 +86,15 @@ void ConcatKernel(const Context& dev_ctx,
 
   if (recipe == nullptr) {
     Concat op(op_info.datatype_);
-    op.AddNode(inputs_dims, {outputs_dim}, params);
+    op.AddNode(ct, params);
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();
   }
 
-  // std::map<std::string, uint64_t> tensors;
-  // for (size_t i = 0; i < ins.size(); i++) {
-  //   std::string name("x");
-  //   name = name + std::to_string(i);
-  //   tensors[name] = reinterpret_cast<uint64_t>(ins[i]->data<T>());
-  // }
-  // tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-  // RecipeRunner runner(recipe);
-  // runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

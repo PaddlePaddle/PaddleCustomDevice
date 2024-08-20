@@ -203,7 +203,8 @@ class RuntimeManager {
                 size_t flag = 0 /*0 = h2d, 1 = d2h, 2=d2d*/) {
     // TODO: cache mapped host addr
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "copy: flag = " << flag << ", size = " << size;
+        << "copy: flag = " << flag << ", size = " << size << ", src = " << src
+        << ", dst = " << dst;
     synStatus status = synFail;
     if (flag == 0) {
       if (stream_h2d == nullptr) {
@@ -288,7 +289,7 @@ class RuntimeManager {
     // TODO: cache mapped host addr
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
         << "AsyncCopy: flag = " << flag << ", size = " << size
-        << ", stream = " << stream;
+        << ", stream = " << stream << ", src = " << src << ", dst = " << dst;
     synStatus status = synFail;
     if (flag == 0) {
       status = synHostMap(device->id, size, src);
@@ -463,9 +464,9 @@ C_Status GetDevicesList(size_t *devices) {
 }
 
 C_Status MemCpyH2D(const C_Device device,
-                    void *dst,
-                    const void *src,
-                    size_t size) {
+                   void *dst,
+                   const void *src,
+                   size_t size) {
   DEBUG_LOG
   runtimeManager.Copy(device, dst, src, size, 0);
   DEBUG_LOG
@@ -473,9 +474,9 @@ C_Status MemCpyH2D(const C_Device device,
 }
 
 C_Status MemCpyD2H(const C_Device device,
-                    void *dst,
-                    const void *src,
-                    size_t size) {
+                   void *dst,
+                   const void *src,
+                   size_t size) {
   DEBUG_LOG
   runtimeManager.Copy(device, dst, src, size, 1);
   DEBUG_LOG
@@ -483,9 +484,9 @@ C_Status MemCpyD2H(const C_Device device,
 }
 
 C_Status MemCpyD2D(const C_Device device,
-                    void *dst,
-                    const void *src,
-                    size_t size) {
+                   void *dst,
+                   const void *src,
+                   size_t size) {
   DEBUG_LOG
   runtimeManager.Copy(device, dst, src, size, 2);
   DEBUG_LOG
@@ -493,10 +494,10 @@ C_Status MemCpyD2D(const C_Device device,
 }
 
 C_Status AsyncMemCpyH2D(const C_Device device,
-                   C_Stream stream,
-                   void *dst,
-                   const void *src,
-                   size_t size) {
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
   DEBUG_LOG
   runtimeManager.AsyncCopy(device, stream, dst, src, size, 0);
   DEBUG_LOG
@@ -504,10 +505,10 @@ C_Status AsyncMemCpyH2D(const C_Device device,
 }
 
 C_Status AsyncMemCpyD2H(const C_Device device,
-                         C_Stream stream,
-                         void *dst,
-                         const void *src,
-                         size_t size) {
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
   DEBUG_LOG
   runtimeManager.AsyncCopy(device, stream, dst, src, size, 1);
   DEBUG_LOG
@@ -515,10 +516,10 @@ C_Status AsyncMemCpyD2H(const C_Device device,
 }
 
 C_Status AsyncMemCpyD2D(const C_Device device,
-                         C_Stream stream,
-                         void *dst,
-                         const void *src,
-                         size_t size) {
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
   DEBUG_LOG
   runtimeManager.AsyncCopy(device, stream, dst, src, size, 2);
   DEBUG_LOG
@@ -702,7 +703,7 @@ C_Status DeviceMemStats(const C_Device device,
 
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
   DEBUG_LOG
-  *size = 512;
+  *size = 1;
   LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug) << "min chunksize=" << *size;
 
   DEBUG_LOG

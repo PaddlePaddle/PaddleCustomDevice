@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "funcs.h"
 #include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
@@ -9,8 +10,6 @@
 #include "synapse_api.h"
 #include "synapse_common_types.h"
 #include "utils/hpu_helper.h"
-
-typedef std::vector<int64_t> DIMS;
 
 #define CHKSTATUS(ERR)           \
   assert(status == synSuccess && \
@@ -111,8 +110,9 @@ class HpuOperator {
     PD_CHECK(status == synSuccess,
              "[RUNTIME] synGraphDestroy() failed = %d",
              status);
-    for (size_t i = 0; i < tensors_.size(); i++) {
-      status = synTensorDestroy(tensors_[i]);
+
+    for (auto it = tensors_.begin(); it != tensors_.end(); ++it) {
+      status = synTensorDestroy(it->second);
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synTensorDestroy() failed = %d",
                status);
@@ -130,13 +130,13 @@ class HpuOperator {
                          synDataType data_type,
                          DIMS tensor_size, /*const unsigned* tensor_size,*/
                          bool is_presist,
-                         const char* name) {
+                         std::string name) {
     synStatus status;
     synTensorDescriptor desc{};
     // input
     desc.m_dataType = data_type;
     desc.m_dims = dims;
-    desc.m_name = name;
+    desc.m_name = name.c_str();
     memset(desc.m_strides, 0, sizeof(desc.m_strides));
 
     for (unsigned i = 0; i < dims; ++i) {
@@ -156,7 +156,7 @@ class HpuOperator {
     status = synTensorCreate(&tensor, &desc, sectionHandle, 0);
     LOG_IF(ERROR, status != synSuccess)
         << "[RUNTIME] synTensorCreate() failed = " << status;
-    tensors_.push_back(tensor);
+    tensors_.insert({name, tensor});
     return tensor;
   }
 
@@ -166,8 +166,9 @@ class HpuOperator {
   std::string guid_;
   synGraphHandle graphHandle_;
   synRecipeHandle recipeHandle_;
-  std::vector<synTensor> tensors_;
   std::vector<synSectionHandle> sectons_;
+
+  std::map<std::string, synTensor> tensors_;
 };
 
 class RecipeRunner {

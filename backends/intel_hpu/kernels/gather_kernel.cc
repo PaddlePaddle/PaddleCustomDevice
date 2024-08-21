@@ -21,33 +21,43 @@
 
 namespace custom_kernel {
 
+struct GatherParams {
+  ns_GatherKernel::Params params;
+};
+
 class Gather : public HpuOperator {
  public:
-  Gather(synDataType dtype) : HpuOperator("gather_fwd_"), dtype_(dtype) {}
-  void AddNode(const std::vector<DIMS>& ins,
-               const std::vector<DIMS>& outs,
-               ns_GatherKernel::Params params) {
-    std::vector<synTensor> inputs;
-    inputs.push_back(createTensor(ins[0].size(), dtype_, ins[0], true, "x"));
-    inputs.push_back(
-        createTensor(ins[1].size(), syn_type_int32, ins[1], true, "index"));
+  Gather() : HpuOperator("gather_fwd_") {}
 
-    synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
+  void AddNode(ConvertTensors& ct, ns_GatherKernel::Params params) {
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
 
-    if (dtype_ == syn_type_fp16) {
-      guid_ = guid_ + "f16";
-    } else if (dtype_ == syn_type_bf16) {
-      guid_ = guid_ + "bf16";
-    } else if (dtype_ == syn_type_single) {
-      guid_ = guid_ + "f32";
+    std::vector<synTensor> syn_inputs;
+    for (size_t i = 0; i < inputs.size(); i++) {
+      syn_inputs.push_back(createTensor(inputs[i].dims.size(),
+                                        inputs[i].type,
+                                        inputs[i].dims,
+                                        true,
+                                        inputs[i].name));
     }
 
+    std::vector<synTensor> syn_outputs;
+    for (size_t i = 0; i < outputs.size(); i++) {
+      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
+                                         outputs[i].type,
+                                         outputs[i].dims,
+                                         true,
+                                         outputs[i].name));
+    }
+
+    guid_ = guid_ + SynDataTypeToStr(inputs[0].type);
+
     synStatus status = synNodeCreate(graphHandle_,
-                                     inputs.data(),
-                                     outputs,
-                                     ins.size(),
-                                     1,
+                                     syn_inputs.data(),
+                                     syn_outputs.data(),
+                                     syn_inputs.size(),
+                                     syn_outputs.size(),
                                      &params,
                                      sizeof(params),
                                      guid_.c_str(),
@@ -56,9 +66,6 @@ class Gather : public HpuOperator {
                                      nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
   }
-
- protected:
-  synDataType dtype_;
 };
 
 template <typename T, typename Context>
@@ -72,6 +79,11 @@ void GatherKernel(const Context& dev_ctx,
   auto dim =
       CanonicalAxis(axis.to<int64_t>(), static_cast<int64_t>(x.dims().size()));
 
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(index);
+  ct.Add(out, false);
+
   OpCacheOperator op_info;
 
   std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
@@ -81,24 +93,22 @@ void GatherKernel(const Context& dev_ctx,
   ns_GatherKernel::Params params;
   params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
 
+  std::vector<DIMS> inputs_dims = ct.GetDims();
   op_info.prepareOpInfo<T, ns_GatherKernel::Params>(
-      "GatherKernel", {x_dims, index_dims}, &params);
+      "GatherKernel", inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    Gather op(op_info.datatype_);
+    Gather op;
 
-    op.AddNode({x_dims, index_dims}, {outputs_dim}, params);
+    op.AddNode(ct, params);
     op.Compile();
     op_info.setOp(op);
 
     recipe = op_info.GetRecipe();
   }
 
-  std::map<std::string, uint64_t> tensors;
-  tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-  tensors["index"] = reinterpret_cast<uint64_t>(index.data<int32_t>());
-  tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
   RecipeRunner runner(recipe);
   runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }

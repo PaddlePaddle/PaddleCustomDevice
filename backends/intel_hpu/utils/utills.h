@@ -114,7 +114,10 @@ class OpCacheOperator {
     } else if (std::is_same<T, bool>::value) {
       datatype_ = syn_type_int8;
       guid_ = guid_prefix + "_i8";
-    } else {
+    } else if (std::is_same<T, int64_t>::value) {
+      datatype_ = syn_type_int64;
+      guid_ = guid_prefix + "_i64";
+    }else {
       synStatus status = synUnsupported;
       LOG(INFO) << typeid(T).name();
       CHKSTATUS("synDataType not supported");

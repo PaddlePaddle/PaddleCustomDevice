@@ -23,13 +23,14 @@ namespace custom_kernel {
 
 struct GatherParams {
   ns_GatherKernel::Params params;
+  phi::DataType type;
 };
 
 class Gather : public HpuOperator {
  public:
   Gather() : HpuOperator("gather_fwd_") {}
 
-  void AddNode(ConvertTensors& ct, ns_GatherKernel::Params params) {
+  void AddNode(ConvertTensors& ct, GatherParams params) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
@@ -58,8 +59,8 @@ class Gather : public HpuOperator {
                                      syn_outputs.data(),
                                      syn_inputs.size(),
                                      syn_outputs.size(),
-                                     &params,
-                                     sizeof(params),
+                                     &params.params,
+                                     sizeof(params.params),
                                      guid_.c_str(),
                                      "gather",
                                      nullptr,
@@ -85,17 +86,50 @@ void GatherKernel(const Context& dev_ctx,
   ct.Add(out, false);
 
   OpCacheOperator op_info;
+  GatherParams params;
+  params.params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
+  params.type = index.dtype();
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  op_info.prepareOpInfo<T, GatherParams>("GatherKernel", inputs_dims, &params);
+  auto recipe = op_info.GetRecipe();
 
-  std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-  std::vector<int64_t> index_dims = phi::vectorize<int64_t>(index.dims());
-  std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  if (recipe == nullptr) {
+    Gather op;
 
-  ns_GatherKernel::Params params;
-  params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+}
+
+template <typename T, typename Context>
+void EmbeddingKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& inputx,
+                     const phi::DenseTensor& weight,
+                     int64_t padding_idx,
+                     phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+
+  ConvertTensors ct;
+  ct.Add(weight);
+  ct.Add(inputx);
+  ct.Add(out, false);
+
+  OpCacheOperator op_info;
+
+  GatherParams params;
+  params.params.axis = static_cast<int32_t>(inputx.dims().size()) - 1;
+  params.type = inputx.dtype();
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  op_info.prepareOpInfo<T, ns_GatherKernel::Params>(
-      "GatherKernel", inputs_dims, &params);
+  op_info.prepareOpInfo<T, GatherParams>(
+      "EmbeddingKernel", inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
@@ -122,3 +156,11 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           float,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(embedding,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::EmbeddingKernel,
+                          float,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {}

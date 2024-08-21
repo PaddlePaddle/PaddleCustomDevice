@@ -67,23 +67,23 @@ class TestCastBF16(OpTest):
 
 
 
-# class TestCastBF16_1(TestCastBF16):
-#     def init_shape(self):
-#         self.shape = [2, 1, 4096, 4096]
+class TestCastBF16_1(TestCastBF16):
+    def init_shape(self):
+        self.shape = [2, 1, 4096, 4096]
 
-#     def init_dtype(self):
-#         self.input_dtype = "float32"
-#         self.output_dtype = "bool"
-#         self.in_dtype = int(core.VarDesc.VarType.BF16)
-#         self.out_dtype = int(core.VarDesc.VarType.BOOL)
+    def init_dtype(self):
+        self.input_dtype = "float32"
+        self.output_dtype = "bool"
+        self.in_dtype = int(core.VarDesc.VarType.BF16)
+        self.out_dtype = int(core.VarDesc.VarType.BOOL)
 
 
-# class TestCastBF16_2(TestCastBF16_1):
-#     def init_dtype(self):
-#         self.input_dtype = "float32"
-#         self.output_dtype = "float32"
-#         self.in_dtype = int(core.VarDesc.VarType.BF16)
-#         self.out_dtype = int(core.VarDesc.VarType.FP32)
+class TestCastBF16_2(TestCastBF16_1):
+    def init_dtype(self):
+        self.input_dtype = "float32"
+        self.output_dtype = "float32"
+        self.in_dtype = int(core.VarDesc.VarType.BF16)
+        self.out_dtype = int(core.VarDesc.VarType.FP32)
 
 
 if __name__ == "__main__":

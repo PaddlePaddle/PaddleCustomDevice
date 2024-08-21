@@ -95,7 +95,9 @@ void CastKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<int64_t>(out);
   } else if (dtype == phi::DataType::UINT8) {
     dev_ctx.template Alloc<uint8_t>(out);
-  } else if (dtype == phi::DataType::INT8 || dtype == phi::DataType::BOOL) {
+  } else if (dtype == phi::DataType::BOOL) {
+    dev_ctx.template Alloc<bool>(out);
+  } else if (dtype == phi::DataType::INT8) {
     dev_ctx.template Alloc<int8_t>(out);
   } else {
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);

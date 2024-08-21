@@ -1,85 +1,117 @@
-// // Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
-// //
-// // Licensed under the Apache License, Version 2.0 (the "License");
-// // you may not use this file except in compliance with the License.
-// // You may obtain a copy of the License at
-// //
-// //     http://www.apache.org/licenses/LICENSE-2.0
-// //
-// // Unless required by applicable law or agreed to in writing, software
-// // distributed under the License is distributed on an "AS IS" BASIS,
-// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// // See the License for the specific language governing permissions and
-// // limitations under the License.
-// #include "funcs.h"
-// #include "hpu_operator.h"
-// #include "perf_lib_layer_params.h"
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "funcs.h"
+#include "hpu_operator.h"
+#include "perf_lib_layer_params.h"
+#include "utils/utills.h"
 
-// namespace custom_kernel {
-// class Full : public HpuOperator {
-//  public:
-//   Full() : HpuOperator("full_fwd_f32") {}
-//   template <typename VType>
-//   void AddNode(const std::vector<DIMS>& ins,
-//                const std::vector<DIMS>& outs,
-//                VType val) {
-//     assert(ins.size() == 0 && "input size should be 0");
-//     assert(outs.size() == 1 && "output size should be 1");
+namespace custom_kernel {
 
-//     synTensor outputs[outs.size()] = {
-//         createTensor(outs[0].size(), syn_type_float, outs[0], true, "output")};
-//     ns_ConstantKernel::Params params{val};
+struct FullParams {
+  phi::IntArray shape;
+  phi::DataType dst_type;
+  ns_ConstantKernel::Params params;
+};
 
-//     synStatus status = synNodeCreate(graphHandle_,
-//                                      nullptr,
-//                                      outputs,
-//                                      0,
-//                                      outs.size(),
-//                                      &params,
-//                                      sizeof(params),
-//                                      "constant_f32",
-//                                      "constant_fwd_op",
-//                                      nullptr,
-//                                      nullptr);
-//     CHKSTATUS("synNodeCreate full failed!");
-//   }
-// };
+class Full : public HpuOperator {
+ public:
+  Full() : HpuOperator("constant_") {}
 
-// template <typename T, typename VType>
-// void FullValue(const phi::Context& dev_ctx,
-//                phi::DenseTensor* tensor,
-//                VType val) {
-//   if (tensor->dims().size() == 0) tensor->Resize({1});
-//   auto t = dev_ctx.template Alloc<T>(tensor);
+  void AddNode(ConvertTensors& ct, FullParams params) {
+    auto outputs = ct.GetTensors(false);
 
-//   FullOperator op;
+    std::vector<synTensor> syn_outputs;
+    for (size_t i = 0; i < outputs.size(); i++) {
+      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
+                                         outputs[i].type,
+                                         outputs[i].dims,
+                                         true,
+                                         outputs[i].name));
+    }
+    guid_ = guid_ + SynDataTypeToStr(outputs[0].type);
+    synStatus status = synNodeCreate(graphHandle_,
+                                     nullptr,
+                                     syn_outputs.data(),
+                                     0,
+                                     syn_outputs.size(),
+                                     &params.params,
+                                     sizeof(params.params),
+                                     guid_.c_str(),
+                                     "constant",
+                                     nullptr,
+                                     nullptr);
+    CHKSTATUS("synNodeCreate full failed!");
+  }
+};
 
-//   op.AddNode({}, {tensor->dims()}, val);
+template <typename T, typename Context>
+void FullKernel(const Context& dev_ctx,
+                const phi::IntArray& shape,
+                const phi::Scalar& val,
+                phi::DataType dtype,
+                phi::DenseTensor* out) {
+  auto int_shape = shape.GetData();
+  out->Resize(phi::make_ddim(int_shape));
+  if (out->dims().size() == 0) {
+    out->Resize({1});
+  }
+  dev_ctx.template Alloc<T>(out);
 
-//   std::map<std::string, uint64_t> tensors;
-//   tensors["output"] = reinterpret_cast<uint64_t>(tensor->data<T>());
-//   op.CompileAndExecute(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-// }
+  ConvertTensors ct;
+  ct.Add(out, false);
 
-// template <typename T, typename Context>
-// void FullKernel(const Context& dev_ctx,
-//                 const phi::IntArray& shape,
-//                 const phi::Scalar& val,
-//                 phi::DataType dtype,
-//                 phi::DenseTensor* out) {
-//   //   auto int_shape = shape.GetData();
-//   //   out->Resize(std::vector<int64_t>(int_shape.cbegin(), int_shape.cend()));
-//   //   FullValue<T>(dev_ctx, out, val.to<T>());
-// }
-// }  // namespace custom_kernel
+  OpCacheOperator op_info;
+  FullParams params;
+  params.shape = shape;
+  params.dst_type = dtype;
+  if (dtype == phi::DataType::FLOAT32 || dtype == phi::DataType::FLOAT16 ||
+      dtype == phi::DataType::BFLOAT16) {
+    params.params.constant.f = val.to<float>();
+  } else if (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT8 ||
+             dtype == phi::DataType::BOOL || dtype == phi::DataType::UINT8 ||
+             dtype == phi::DataType::INT64) {
+    params.params.constant.i = val.to<int>();
+  } else {
+    phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
+  }
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  op_info.prepareOpInfo<T, FullParams>("FullKernel", inputs_dims, &params);
+  auto recipe = op_info.GetRecipe();
 
-// PD_REGISTER_PLUGIN_KERNEL(full,
-//                           intel_hpu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::FullKernel,
-//                           float,
-//                           uint8_t,
-//                           int16_t,
-//                           int32_t,
-//                           int64_t,
-//                           bool) {}
+  if (recipe == nullptr) {
+    Full op;
+
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+}
+}  // namespace custom_kernel
+
+PD_REGISTER_PLUGIN_KERNEL(full,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::FullKernel,
+                          float,
+                          uint8_t,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}

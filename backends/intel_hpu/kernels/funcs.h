@@ -41,35 +41,38 @@ inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
   } else if (type == phi::DataType::INT64) {
     return syn_type_int64;
   } else {
-    LOG(ERROR) << "Datatype " << type << " in synapse is not supported.";
+    phi::errors::InvalidArgument("Unsupported cast dtype %s", type);
   }
 }
 
 inline std::string SynDataTypeToStr(synDataType s) {
-  switch (s) {
-    case syn_type_int8:
-      return "i8";
-    case syn_type_bf16:
-      return "bf16";
-    case syn_type_single:
-      return "f32";
-    case syn_type_int16:
-      return "i16";
-    case syn_type_uint8:
-      return "u8";
-    case syn_type_fp16:
-      return "f16";
-    case syn_type_int32:
-      return "i32";
-    case syn_type_fp8_152:
-    case syn_type_fp8_143:
-      return "hf8";
-    case syn_type_int64:
-      return "i64";
-    case syn_type_uint64:
-      return "u64";
-    default:
-      break;
+  if (s == syn_type_int8 || s == syn_type_fixed) {
+    return "i8";
+  } else if (s == syn_type_single || s == syn_type_float) {
+    return "f32";
+  } else if (s == syn_type_fp8_143 || s == syn_type_fp8_152) {
+    return "hf8";
+  } else {
+    switch (s) {
+      case syn_type_bf16:
+        return "bf16";
+        return "f32";
+      case syn_type_int16:
+        return "i16";
+      case syn_type_uint8:
+        return "u8";
+      case syn_type_fp16:
+        return "f16";
+      case syn_type_int32:
+        return "i32";
+      case syn_type_int64:
+        return "i64";
+      case syn_type_uint64:
+        return "u64";
+      default:
+        phi::errors::InvalidArgument("Unsupported cast dtype %d", s);
+        break;
+    }
   }
 }
 

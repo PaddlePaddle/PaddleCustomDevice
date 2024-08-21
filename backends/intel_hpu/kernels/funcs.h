@@ -56,7 +56,6 @@ inline std::string SynDataTypeToStr(synDataType s) {
     switch (s) {
       case syn_type_bf16:
         return "bf16";
-        return "f32";
       case syn_type_int16:
         return "i16";
       case syn_type_uint8:

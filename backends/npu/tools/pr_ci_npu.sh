@@ -224,8 +224,6 @@ function run_paddlex() {
 
 function main() {
     # skip paddlepaddle cpu install as npu docker image already have cpu whl package installed
-    run_paddlex
-
     # custom_npu build and install
     cd ${CODE_ROOT}
     bash tools/compile.sh
@@ -234,6 +232,7 @@ function main() {
     fi
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
+    run_paddlex
     # get changed ut and kernels
     set +e
     changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")

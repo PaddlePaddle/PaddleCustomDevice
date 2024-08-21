@@ -1,4 +1,4 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,15 @@
 
 namespace custom_kernel {
 
-class Where : public HpuOperator {
- public:
-  Where() : HpuOperator("where_fwd_") {}
+struct EinsumParams {
+  synEinsumParams params;
+};
 
-  void AddNode(ConvertTensors& ct) {
+class Einsum : public HpuOperator {
+ public:
+  Einsum() : HpuOperator("einsum") {}
+
+  void AddNode(ConvertTensors& ct, EinsumParams& params) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
@@ -42,66 +46,67 @@ class Where : public HpuOperator {
                                          true,
                                          outputs[i].name));
     }
-    guid_ = guid_ + SynDataTypeToStr(inputs[1].type);
+
+    guid_ = guid_ + "_" + SynDataTypeToStr(inputs[0].type);
+
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
                                      syn_outputs.data(),
                                      syn_inputs.size(),
                                      syn_outputs.size(),
-                                     nullptr,
-                                     0,
+                                     &params.params,
+                                     sizeof(params.params),
                                      guid_.c_str(),
-                                     "Where",
+                                     "Einsum",
                                      nullptr,
                                      nullptr);
-    LOG_IF(ERROR, status != synSuccess)
-        << "[RUNTIME] synNodeCreate() failed = " << status;
+    CHKSTATUS("synNodeCreate reshape failed!");
   }
 };
 
 template <typename T, typename Context>
-void WhereKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& condition,
-                 const phi::DenseTensor& x,
-                 const phi::DenseTensor& y,
-                 phi::DenseTensor* out) {
+void EinsumKernel(const Context& dev_ctx,
+                  const std::vector<const phi::DenseTensor*>& inputs,
+                  const std::string& equation,
+                  phi::DenseTensor* out,
+                  std::vector<phi::DenseTensor*> cache,
+                  std::vector<phi::DenseTensor*> xshape UNUSED) {
   dev_ctx.template Alloc<T>(out);
-  if (x.numel() == 0) {
-    return;
+  ConvertTensors ct;
+  for (size_t i = 0; i < inputs.size(); i++) {
+    ct.Add(inputs[i]);
   }
 
-  ConvertTensors ct;
-  ct.Add(condition);
-  ct.Add(x);
-  ct.Add(y);
   ct.Add(out, false);
 
-  std::vector<DIMS> inputs_dims = ct.GetDims();
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, nullptr_t>("WhereKernel", inputs_dims, nullptr);
+  EinsumParams params;
+  params.params = synEinsumParams(equation.c_str());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  op_info.prepareOpInfo<T, EinsumParams>("GatherKernel", inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    Where op;
-    op.AddNode(ct);
+    Einsum op;
+
+    op.AddNode(ct, params);
     op.Compile();
     op_info.setOp(op);
+
     recipe = op_info.GetRecipe();
   }
 
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
   RecipeRunner runner(recipe);
-  auto tensors = ct.GetDeviceAddr();
   runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
-
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(where,
+PD_REGISTER_PLUGIN_KERNEL(einsum,
                           intel_hpu,
                           ALL_LAYOUT,
-                          custom_kernel::WhereKernel,
-                          int32_t,
-                          int64_t,
+                          custom_kernel::EinsumKernel,
                           float,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          int32_t,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {}

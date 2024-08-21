@@ -83,6 +83,7 @@ void CastKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(out);
   } else if (dtype == phi::DataType::FLOAT64) {
     dev_ctx.template Alloc<double>(out);
+    return;
   } else if (dtype == phi::DataType::FLOAT16) {
     dev_ctx.template Alloc<phi::dtype::float16>(out);
   } else if (dtype == phi::DataType::BFLOAT16) {
@@ -140,7 +141,6 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
                           float,
-                          double,
                           int8_t,
                           uint8_t,
                           int16_t,

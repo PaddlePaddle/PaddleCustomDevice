@@ -46,6 +46,7 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_h2d,
                           phi::dtype::bfloat16,
                           int8_t,
                           uint8_t,
+                          int64_t,
                           int) {}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
@@ -57,4 +58,5 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           phi::dtype::bfloat16,
                           int8_t,
                           uint8_t,
+                          int64_t,
                           int) {}

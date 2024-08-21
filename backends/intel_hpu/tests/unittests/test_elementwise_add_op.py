@@ -72,7 +72,28 @@ class TestFP16ElementwiseAddOp_1(TestElementwiseAddOp_broadcast):
     def init_dtype(self):
         self.dtype = np.float16
 
+class TestElementwiseAddOp_2(TestElementwiseAddOp):
+    def setUp(self):
+        self.op_type = "elementwise_add"
+        self.set_hpu()
+        self.init_dtype()
+        self.init_axis()
+        self.init_input_output()
 
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(self.x),
+            "Y": OpTest.np_dtype_to_base_dtype(self.x),
+        }
+        self.outputs = {"Out": self.out}
+    def init_input_output(self):
+        self.x = np.random.uniform(-1, 1, [13, 17]).astype(self.dtype)
+        self.out = self.x + self.x
+
+class TestElementwiseAddOp_scalar(TestElementwiseAddOp):
+    def init_input_output(self):
+        self.x = np.random.rand(2, 3, 4).astype(self.dtype)
+        self.y = np.random.rand(1).astype(self.dtype)
+        self.out = self.x + self.y
 
 
 if __name__ == "__main__":

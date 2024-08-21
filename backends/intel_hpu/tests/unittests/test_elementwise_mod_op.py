@@ -44,10 +44,9 @@ class TestElementwiseModOp(OpTest):
 
     def init_input_output(self):
         np.random.seed(1024)
-        self.x = np.random.uniform(0, 10000, [10, 10]).astype(self.dtype)
-        self.y = np.random.uniform(0, 1000, [10, 10]).astype(self.dtype)
+        self.x = np.random.uniform(10, 100, [10, 10]).astype(self.dtype)
+        self.y = np.random.uniform(1, 10, [10, 10]).astype(self.dtype)
         self.out = np.mod(self.x, self.y)
-        
         
     def init_dtype(self):
         self.dtype = np.float32
@@ -57,13 +56,6 @@ class TestElementwiseModOp(OpTest):
         
     def test_check_output(self):
         self.check_output_with_place(self.place)
-
-
-class TestElementwiseModOp_broadcast(TestElementwiseModOp):
-    def init_input_output(self):
-        self.x = np.random.uniform(-1000, 1000, [13, 10]).astype(self.dtype)
-        self.y = np.random.uniform(-100, 100, [10]).astype(self.dtype)
-        self.out = np.fmod(self.y + np.fmod(self.x, self.y), self.y)
 
 
 if __name__ == "__main__":

@@ -201,7 +201,12 @@ struct TensorInfo {
 class ConvertTensors {
  public:
   ConvertTensors() : count_(0) {}
-  ~ConvertTensors() {}
+  ~ConvertTensors() {
+    y_tensors_.clear();
+    x_tensors_.clear();
+    x_host_tensor_.clear();
+    y_host_tensor_.clear();
+  }
 
   void Add(const phi::DenseTensor& x, bool is_input = true) {
     auto addr = x.data();
@@ -218,6 +223,7 @@ class ConvertTensors {
         info.type = PDDataTypeToSynDataType(x.dtype());
         info.num_elements = x.numel();
         x_tensors_.insert({addr, info});
+        LOG(INFO) << "add tensor " << info.name << ", " << addr;
       }
       x_host_tensor_.push_back(addr);
     } else {
@@ -233,6 +239,7 @@ class ConvertTensors {
         info.type = PDDataTypeToSynDataType(x.dtype());
         info.num_elements = x.numel();
         y_tensors_.insert({addr, info});
+        LOG(INFO) << "add tensor " << info.name << ", " << addr;
       }
       y_host_tensor_.push_back(addr);
     }

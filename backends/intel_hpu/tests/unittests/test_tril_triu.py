@@ -49,12 +49,12 @@ class TestTrilTriu(OpTest):
 
     def initTestCase(self):
         np.random.seed(1024)
-        self.x = np.random.uniform(1, 2, [3, 4]).astype(self.dtype)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
         #self.x = np.arange(1, 101, dtype=self.dtype).reshape([10, -1])
         #self.real_op_type = np.random.choice(["triu", "tril"])
         self.real_op_type = "tril"
         #self.diagonal = None
-        self.diagonal = 0
+        self.diagonal = 2
         
     def init_dtype(self):
         self.dtype = np.float32

@@ -18,6 +18,7 @@
 #include "perf_lib_layer_params.h"
 #include "synapse_api.h"
 #include "synapse_common_types.h"
+#include <climits>
 
 namespace custom_kernel {
 
@@ -68,10 +69,12 @@ void TrilTriuKernel(const Context& dev_ctx,
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
   ns_MatrixBandPartKernel::Params params;
   if (lower ) {
+    params.numLower = INT_MIN;
     params.numUpper = diagonal;
   }
   else {
     params.numLower = diagonal;
+    params.numUpper = INT_MAX;
   }
   
   OpCacheOperator op_info;

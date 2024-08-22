@@ -195,6 +195,7 @@ struct TensorInfo {
   uint64_t device_addr;
   const void* host_addr;
   synDataType type;
+  size_t num_elements;
 };
 
 class ConvertTensors {
@@ -215,6 +216,7 @@ class ConvertTensors {
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
         info.type = PDDataTypeToSynDataType(x.dtype());
+        info.num_elements = x.numel();
         x_tensors_.insert({addr, info});
       }
       x_host_tensor_.push_back(addr);
@@ -229,6 +231,7 @@ class ConvertTensors {
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
         info.type = PDDataTypeToSynDataType(x.dtype());
+        info.num_elements = x.numel();
         y_tensors_.insert({addr, info});
       }
       y_host_tensor_.push_back(addr);

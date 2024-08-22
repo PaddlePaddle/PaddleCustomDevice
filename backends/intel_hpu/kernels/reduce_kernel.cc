@@ -24,49 +24,76 @@ namespace custom_kernel {
 struct ReduceParams {
   ns_Reduction::Params params;
   bool keep_dim;
-  phi::IntArray dims;
+  int dim;
+  std::string op;
+  bool reduce_all;
 };
 
 class Reduce : public HpuOperator {
  public:
-  Reduce(synDataType dtype, std::string op)
-      : HpuOperator("reduce"), op_(op), dtype_(dtype) {}
-  void AddNode(const std::vector<DIMS>& ins,
-               const std::vector<DIMS>& outs,
-               ReduceParams params) {
-    std::vector<synTensor> inputs;
-    inputs.push_back(createTensor(ins[0].size(), dtype_, ins[0], true, "x"));
-
-    synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-
-    std::string name = guid_ + op_;
-    guid_ = guid_ + "_" + op_ + "_fwd_";
-    if (dtype_ == syn_type_fp16) {
-      guid_ = guid_ + "f16";
-    } else if (dtype_ == syn_type_bf16) {
-      guid_ = guid_ + "bf16";
-    } else if (dtype_ == syn_type_single) {
-      guid_ = guid_ + "f32";
+  Reduce() : HpuOperator("reduce") {}
+  void AddNode(ConvertTensors& ct, ReduceParams& params) {
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
+    if (params.reduce_all) {
+      inputs[0].dims = std::vector<int64_t>({inputs[0].num_elements});
+      outputs[0].dims = std::vector<int64_t>({1});
     }
-    LOG(INFO) << "reduce dim = " << params.params.reductionDimension;
+    std::vector<synTensor> syn_inputs;
+    for (size_t i = 0; i < inputs.size(); i++) {
+      syn_inputs.push_back(createTensor(inputs[i].dims.size(),
+                                        inputs[i].type,
+                                        inputs[i].dims,
+                                        true,
+                                        inputs[i].name));
+    }
+
+    std::vector<synTensor> syn_outputs;
+    for (size_t i = 0; i < outputs.size(); i++) {
+      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
+                                         outputs[i].type,
+                                         outputs[i].dims,
+                                         true,
+                                         outputs[i].name));
+    }
+
+    auto reduce_guid =
+        guid_ + "_" + params.op + "_fwd_" + SynDataTypeToStr(inputs[0].type);
+    std::string reduce_name = guid_ + "_" + params.op + "_before_reshape";
+    std::vector<synTensor> reduce_outputs;
+
+    auto tmp_dims = inputs[0].dims;
+    tmp_dims[params.dim] = 1;
+    reduce_outputs.push_back(createTensor(
+        tmp_dims.size(), inputs[0].type, tmp_dims, false, "reduce_out"));
+
     synStatus status = synNodeCreate(graphHandle_,
-                                     inputs.data(),
-                                     outputs,
-                                     ins.size(),
-                                     1,
+                                     syn_inputs.data(),
+                                     reduce_outputs.data(),
+                                     syn_inputs.size(),
+                                     reduce_outputs.size(),
                                      &params.params,
                                      sizeof(params.params),
-                                     guid_.c_str(),
-                                     name.c_str(),
+                                     reduce_guid.c_str(),
+                                     reduce_name.c_str(),
                                      nullptr,
                                      nullptr);
     CHKSTATUS("synNodeCreate reshape failed!");
+    std::string reshape_name = guid_ + "_reshape";
+    std::string reshape_guid = "reshape";
+    status = synNodeCreate(graphHandle_,
+                           reduce_outputs.data(),
+                           syn_outputs.data(),
+                           reduce_outputs.size(),
+                           syn_outputs.size(),
+                           nullptr,
+                           0,
+                           reshape_guid.c_str(),
+                           reshape_name.c_str(),
+                           nullptr,
+                           nullptr);
+    CHKSTATUS("synNodeCreate reshape failed!");
   }
-
- protected:
-  synDataType dtype_;
-  std::string op_;
 };
 
 template <typename T, typename Context>
@@ -76,34 +103,47 @@ void MeanKernel(const Context& dev_ctx,
                 bool keep_dim,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  if (dims.size() == 1) {
-    OpCacheOperator op_info;
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-    ReduceParams params;
-    params.keep_dim = keep_dim;
-    auto rank = static_cast<int32_t>(x.dims().size());
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
+
+  auto rank = static_cast<int32_t>(x.dims().size());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  ReduceParams params;
+  params.keep_dim = keep_dim;
+  params.op = "mean";
+  if (dims.size() == 0) {
+    params.dim = 0;
+    params.reduce_all = true;
+
+    params.params.reductionDimension = 0;
+  } else {
+    PD_CHECK(dims.size() == 1,
+             "Reduction only support axis = 1 but got %d.",
+             dims.size());
     auto dim = CanonicalAxis(static_cast<int64_t>(dims[0]),
-                             static_cast<int64_t>(x.dims().size()));
+                             static_cast<int64_t>(rank));
+    params.dim = dim;
+    params.reduce_all = false;
     params.params.reductionDimension = rank - 1 - dim;
-    op_info.prepareOpInfo<T, ReduceParams>("MeanKernel", {x_dims}, &params);
-    auto recipe = op_info.GetRecipe();
-    if (recipe == nullptr) {
-      Reduce op(op_info.datatype_, "mean");
-      op.AddNode({x_dims}, {outputs_dim}, params);
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
+
+  op_info.prepareOpInfo<T, ReduceParams>("MeanKernel", {inputs_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Reduce op;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 template <typename T, typename Context>
@@ -113,34 +153,47 @@ void MaxKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  if (dims.size() == 1) {
-    OpCacheOperator op_info;
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
 
-    ReduceParams params;
-    params.keep_dim = keep_dim;
-    auto rank = static_cast<int32_t>(x.dims().size());
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
+
+  auto rank = static_cast<int32_t>(x.dims().size());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  ReduceParams params;
+  params.keep_dim = keep_dim;
+  params.op = "max";
+  if (dims.size() == 0) {
+    params.dim = 0;
+    params.reduce_all = true;
+
+    params.params.reductionDimension = 0;
+  } else {
+    PD_CHECK(dims.size() == 1,
+             "Reduction only support axis = 1 but got %d.",
+             dims.size());
     auto dim = CanonicalAxis(static_cast<int64_t>(dims[0]),
-                             static_cast<int64_t>(x.dims().size()));
+                             static_cast<int64_t>(rank));
+    params.dim = dim;
+    params.reduce_all = false;
     params.params.reductionDimension = rank - 1 - dim;
-    op_info.prepareOpInfo<T, ReduceParams>("MaxKernel", {x_dims}, &params);
-    auto recipe = op_info.GetRecipe();
-    if (recipe == nullptr) {
-      Reduce op(op_info.datatype_, "max");
-      op.AddNode({x_dims}, {outputs_dim}, params);
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
+
+  op_info.prepareOpInfo<T, ReduceParams>("MaxKernel", {inputs_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Reduce op;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 template <typename T, typename Context>
@@ -150,34 +203,46 @@ void MinKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  if (dims.size() == 1) {
-    OpCacheOperator op_info;
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
 
-    ReduceParams params;
-    params.keep_dim = keep_dim;
-    auto rank = static_cast<int32_t>(x.dims().size());
+  auto rank = static_cast<int32_t>(x.dims().size());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  ReduceParams params;
+  params.keep_dim = keep_dim;
+  params.op = "min";
+  if (dims.size() == 0) {
+    params.dim = 0;
+    params.reduce_all = true;
+
+    params.params.reductionDimension = 0;
+  } else {
+    PD_CHECK(dims.size() == 1,
+             "Reduction only support axis = 1 but got %d.",
+             dims.size());
     auto dim = CanonicalAxis(static_cast<int64_t>(dims[0]),
-                             static_cast<int64_t>(x.dims().size()));
+                             static_cast<int64_t>(rank));
+    params.dim = dim;
+    params.reduce_all = false;
     params.params.reductionDimension = rank - 1 - dim;
-    op_info.prepareOpInfo<T, ReduceParams>("MinKernel", {x_dims}, &params);
-    auto recipe = op_info.GetRecipe();
-    if (recipe == nullptr) {
-      Reduce op(op_info.datatype_, "min");
-      op.AddNode({x_dims}, {outputs_dim}, params);
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
+
+  op_info.prepareOpInfo<T, ReduceParams>("MinKernel", {inputs_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Reduce op;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 template <typename T, typename Context>
@@ -188,35 +253,46 @@ void SumKernel(const Context& dev_ctx,
                bool keep_dim,
                phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  if (dims.size() == 1) {
-    OpCacheOperator op_info;
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
 
-    ReduceParams params;
-    params.keep_dim = keep_dim;
-    auto rank = static_cast<int32_t>(x.dims().size());
+  auto rank = static_cast<int32_t>(x.dims().size());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  ReduceParams params;
+  params.keep_dim = keep_dim;
+  params.op = "sum";
+  if (dims.size() == 0) {
+    params.dim = 0;
+    params.reduce_all = true;
+
+    params.params.reductionDimension = 0;
+  } else {
+    PD_CHECK(dims.size() == 1,
+             "Reduction only support axis = 1 but got %d.",
+             dims.size());
     auto dim = CanonicalAxis(static_cast<int64_t>(dims[0]),
-                             static_cast<int64_t>(x.dims().size()));
+                             static_cast<int64_t>(rank));
+    params.dim = dim;
+    params.reduce_all = false;
     params.params.reductionDimension = rank - 1 - dim;
-
-    op_info.prepareOpInfo<T, ReduceParams>("SumKernel", {x_dims}, &params);
-    auto recipe = op_info.GetRecipe();
-    if (recipe == nullptr) {
-      Reduce op(op_info.datatype_, "sum");
-      op.AddNode({x_dims}, {outputs_dim}, params);
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
+
+  op_info.prepareOpInfo<T, ReduceParams>("SumKernel", {inputs_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Reduce op;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 template <typename T, typename Context>
@@ -227,34 +303,46 @@ void ProdKernel(const Context& dev_ctx,
                 bool keep_dim,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-  if (dims.size() == 1) {
-    OpCacheOperator op_info;
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
 
-    ReduceParams params;
-    params.keep_dim = keep_dim;
-    auto rank = static_cast<int32_t>(x.dims().size());
+  auto rank = static_cast<int32_t>(x.dims().size());
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  ReduceParams params;
+  params.keep_dim = keep_dim;
+  params.op = "prod";
+  if (dims.size() == 0) {
+    params.dim = 0;
+    params.reduce_all = true;
+
+    params.params.reductionDimension = 0;
+  } else {
+    PD_CHECK(dims.size() == 1,
+             "Reduction only support axis = 1 but got %d.",
+             dims.size());
     auto dim = CanonicalAxis(static_cast<int64_t>(dims[0]),
-                             static_cast<int64_t>(x.dims().size()));
+                             static_cast<int64_t>(rank));
+    params.dim = dim;
+    params.reduce_all = false;
     params.params.reductionDimension = rank - 1 - dim;
-    op_info.prepareOpInfo<T, ReduceParams>("ProdKernel", {x_dims}, &params);
-    auto recipe = op_info.GetRecipe();
-    if (recipe == nullptr) {
-      Reduce op(op_info.datatype_, "prod");
-      op.AddNode({x_dims}, {outputs_dim}, params);
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
   }
+
+  op_info.prepareOpInfo<T, ReduceParams>("ProdKernel", {inputs_dims}, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Reduce op;
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  RecipeRunner runner(recipe);
+  auto tensors = ct.GetDeviceAddr();
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

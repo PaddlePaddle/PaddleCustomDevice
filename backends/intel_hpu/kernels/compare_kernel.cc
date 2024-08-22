@@ -90,10 +90,9 @@ void NotEqualRawKernel(const Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
   phi::DenseTensor tmp;
-  phi::DenseTensorMeta meta = {out->dtype(), out->dims()};
+  phi::DenseTensorMeta meta({x.dtype(), out->dims()});
   tmp.set_meta(meta);
-  dev_ctx.template Alloc<bool>(&tmp);
-  custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, axis, out);
+  custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, axis, &tmp);
   custom_kernel::LogicalNotKernel<T, Context>(dev_ctx, tmp, out);
 }
 
@@ -156,7 +155,7 @@ void LessThanRawKernel(const Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
   phi::DenseTensor tmp;
-  phi::DenseTensorMeta meta = {out->dtype(), out->dims()};
+  phi::DenseTensorMeta meta = {x.dtype(), x.dims()};
   tmp.set_meta(meta);
   dev_ctx.template Alloc<bool>(&tmp);
   custom_kernel::GreaterEqualRawKernel<T, Context>(dev_ctx, x, y, -1, &tmp);
@@ -222,9 +221,8 @@ void GreaterThanRawKernel(const Context& dev_ctx,
                           int axis,
                           phi::DenseTensor* out) {
   phi::DenseTensor tmp;
-  phi::DenseTensorMeta meta = {out->dtype(), out->dims()};
+  phi::DenseTensorMeta meta({x.dtype(), x.dims()});
   tmp.set_meta(meta);
-  dev_ctx.template Alloc<bool>(&tmp);
   custom_kernel::LessEqualRawKernel<T, Context>(dev_ctx, x, y, -1, &tmp);
   custom_kernel::LogicalNotKernel<T, Context>(dev_ctx, tmp, out);
 }

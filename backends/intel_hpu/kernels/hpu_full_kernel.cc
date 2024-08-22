@@ -61,6 +61,7 @@ void FullKernel(const Context& dev_ctx,
                 const phi::Scalar& val,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
+  std::cout << "HPU FullKernel with val = " << val << std::endl;
   auto int_shape = shape.GetData();
   out->Resize(phi::make_ddim(int_shape));
   if (out->dims().size() == 0) {
@@ -103,12 +104,37 @@ void FullKernel(const Context& dev_ctx,
   RecipeRunner runner(recipe);
   runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
+
+
+template <typename T, typename Context>
+void FullLikeKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::Scalar& val,
+                    phi::DataType dtype,
+                    phi::DenseTensor* out) {
+  std::cout << "HPU FullLikeKernel with val = " << val << std::endl;
+  std::vector<int64_t> shape_vec = phi::vectorize(x.dims());
+  phi::IntArray out_shape(shape_vec);
+  custom_kernel::FullKernel<T, Context>(dev_ctx, out_shape, val, dtype, out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::FullKernel,
+                          float,
+                          uint8_t,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          bool) {}
+
+PD_REGISTER_PLUGIN_KERNEL(full_like,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::FullLikeKernel,
                           float,
                           uint8_t,
                           int16_t,

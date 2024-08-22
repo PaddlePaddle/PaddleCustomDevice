@@ -210,6 +210,8 @@ class ConvertTensors {
 
   void Add(const phi::DenseTensor& x, bool is_input = true) {
     auto addr = x.data();
+
+    phi::vectorize<int64_t>(x.dims());
     if (is_input) {
       auto it = x_tensors_.find(addr);
       if (it == x_tensors_.end()) {
@@ -218,6 +220,9 @@ class ConvertTensors {
         info.name = "x_" + std::to_string(count_);
         count_++;
         info.dims = phi::vectorize<int64_t>(x.dims());
+        if (x.dims().size() == 0) {
+          info.dims.push_back({1});
+        }
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
         info.type = PDDataTypeToSynDataType(x.dtype());
@@ -234,6 +239,9 @@ class ConvertTensors {
         info.name = "y_" + std::to_string(count_);
         count_++;
         info.dims = phi::vectorize<int64_t>(x.dims());
+        if (x.dims().size() == 0) {
+          info.dims.push_back({1});
+        }
         info.host_addr = addr;
         info.device_addr = reinterpret_cast<uint64_t>(addr);
         info.type = PDDataTypeToSynDataType(x.dtype());

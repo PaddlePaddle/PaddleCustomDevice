@@ -90,7 +90,7 @@ void NotEqualRawKernel(const Context& dev_ctx,
                        int axis,
                        phi::DenseTensor* out) {
   phi::DenseTensor tmp;
-  phi::DenseTensorMeta meta({x.dtype(), out->dims()});
+  phi::DenseTensorMeta meta({x.dtype(), x.dims()});
   tmp.set_meta(meta);
   custom_kernel::EqualRawKernel<T, Context>(dev_ctx, x, y, axis, &tmp);
   custom_kernel::LogicalNotKernel<T, Context>(dev_ctx, tmp, out);

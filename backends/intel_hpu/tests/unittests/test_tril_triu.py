@@ -52,9 +52,9 @@ class TestTrilTriu(OpTest):
         self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
         #self.x = np.arange(1, 101, dtype=self.dtype).reshape([10, -1])
         #self.real_op_type = np.random.choice(["triu", "tril"])
-        self.real_op_type = "tril"
+        self.real_op_type = "triu"
         #self.diagonal = None
-        self.diagonal = 2
+        self.diagonal = -3
         
     def init_dtype(self):
         self.dtype = np.float32
@@ -63,6 +63,61 @@ class TestTrilTriu(OpTest):
         self.check_output_with_place(self.place)
 
 
+class TestTrilNone(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "tril"
+        self.diagonal = None
+        
+class TestTril0(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "tril"
+        self.diagonal = 0
+
+class TestTrilp(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "tril"
+        self.diagonal = 4
+
+class TestTriln(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "tril"
+        self.diagonal = -4
+
+class TestTriuNone(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "triu"
+        self.diagonal = None
+        
+class TestTriu0(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "triu"
+        self.diagonal = 0
+
+class TestTriup(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "triu"
+        self.diagonal = 4
+
+class TestTriun(TestTrilTriu):
+    def initTestCase(self):
+        np.random.seed(1024)
+        self.x = np.random.uniform(1, 2, [8,8]).astype(self.dtype)
+        self.real_op_type = "triu"
+        self.diagonal = -4
 
 if __name__ == "__main__":
     unittest.main()

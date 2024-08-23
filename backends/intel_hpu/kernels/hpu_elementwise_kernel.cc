@@ -61,7 +61,7 @@ class BinaryOperator : public HpuOperator {
                               int axis,                                      \
                               phi::DenseTensor* out) {                       \
     dev_ctx.template Alloc<T>(out);                                          \
-                                                                             \
+    LOG(INFO) << "CALL HPU " << #kernel_func << "RawKernel";                 \
     std::vector<int64_t> x_dim = phi::vectorize<int64_t>(x.dims());          \
     std::vector<int64_t> y_dim = phi::vectorize<int64_t>(y.dims());          \
     if (y_dim.size() == 0) {                                                 \
@@ -103,12 +103,12 @@ class BinaryOperator : public HpuOperator {
     custom_kernel::kernel_func##RawKernel<T>(dev_ctx, x, y, axis, out); \
   }
 
-            // #define PRINT_MACRO_HELPER(args...) #args
-            // #define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
-            // #pragma message(PRINT_MACRO(BINARY_RAW_KERNEL(Add, add)))
-            // #pragma message(PRINT_MACRO(BINARY_KERNEL(Add)))
+// #define PRINT_MACRO_HELPER(args...) #args
+// #define PRINT_MACRO(x) #x "=" PRINT_MACRO_HELPER(x)
+// #pragma message(PRINT_MACRO(BINARY_RAW_KERNEL(Add, add)))
+// #pragma message(PRINT_MACRO(BINARY_KERNEL(Add)))
 
-            BINARY_RAW_KERNEL(Add, add);
+BINARY_RAW_KERNEL(Add, add);
 BINARY_KERNEL(Add);
 
 BINARY_RAW_KERNEL(Div, div);

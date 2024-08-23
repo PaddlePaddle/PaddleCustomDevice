@@ -93,10 +93,10 @@ void doArgMaxMinTensor(const Context& dev_ctx,
   params.type = out_datatype;
   op_info.prepareOpInfo<T, ArgMinMaxParams>(guid_prefix, {x_dims}, &params);
   
-  const int siz_ar = op_info.key_creator_.GetKey().size();
-  for (int i = 0; i < siz_ar; ++i)
-    printf("%d ", op_info.key_creator_.GetKey()[i]);
-  std::cout << std::endl;
+  // const int siz_ar = op_info.key_creator_.GetKey().size();
+  // for (int i = 0; i < siz_ar; ++i)
+  //   printf("%d ", op_info.key_creator_.GetKey()[i]);
+  // std::cout << std::endl;
   
   auto recipe = op_info.GetRecipe();
   if(recipe == nullptr){

@@ -21,6 +21,13 @@
 
 namespace custom_kernel {
 
+template <typename T, typename Context>
+void FullKernel(const Context& dev_ctx,
+                const phi::IntArray& shape,
+                const phi::Scalar& val,
+                phi::DataType dtype,
+                phi::DenseTensor* out);
+
 class BinaryOperator : public HpuOperator {
  public:
   BinaryOperator(std::string guid_prefix, std::string node_name)
@@ -136,6 +143,22 @@ BINARY_KERNEL(Pow);
 
 BINARY_RAW_KERNEL(Sub, sub);
 BINARY_KERNEL(Sub);
+
+template <typename T, typename Context>
+void PowKernelScalar(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const phi::Scalar& factor_scalar,
+                     phi::DenseTensor* out) {
+  phi::DenseTensor y;
+  phi::DenseTensorMeta y_meta({x.dtype(), {1}});
+  y.set_meta(y_meta);
+  std::vector<int64_t> shape_vec = {1};
+  phi::IntArray scalar_shape(shape_vec);
+  custom_kernel::FullKernel<float, Context>(
+      dev_ctx, scalar_shape, factor_scalar, x.dtype(), &y);
+  custom_kernel::PowKernel<T, Context>(dev_ctx, x, y, out);
+}
+
 }  // namespace custom_kernel
 
 #define HPU_KERNEL_REGISTER(kernel_name, kernel_func, ...) \
@@ -165,5 +188,12 @@ PD_REGISTER_PLUGIN_KERNEL_FPx3(Mult, multiply);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide);
-
 PD_REGISTER_PLUGIN_KERNEL_FPx2(Mod, remainder);
+
+PD_REGISTER_PLUGIN_KERNEL(pow,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::PowKernelScalar,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

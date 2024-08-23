@@ -29,7 +29,7 @@ class TrilTriuOperator : public HpuOperator {
   void AddNode(const std::vector<DIMS>& ins,
                const std::vector<DIMS>& outs,
                synDataType datatype,
-               ns_MatrixBandPartKernel::Params params) {
+               ns_MatrixBandPartKernel::triParams params) {
     assert(ins.size() == 1 && "input size should be 1");
     assert(outs.size() == 1 && "output size should be 1");
 
@@ -67,18 +67,21 @@ void TrilTriuKernel(const Context& dev_ctx,
   }
   std::vector<int64_t> inputs_dim = phi::vectorize<int64_t>(x.dims());
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
-  ns_MatrixBandPartKernel::Params params;
+  ns_MatrixBandPartKernel::triParams params;
+
   if (lower ) {
     params.numLower = INT_MIN;
     params.numUpper = diagonal;
+    params.excludeDiag = 1;
   }
   else {
     params.numLower = diagonal;
     params.numUpper = INT_MAX;
+    params.excludeDiag = 1;
   }
-  
+
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, ns_MatrixBandPartKernel::Params>("matrix_band_part_fwd", {inputs_dim}, &params);
+  op_info.prepareOpInfo<T, ns_MatrixBandPartKernel::triParams>("matrix_band_part_fwd", {inputs_dim}, &params);
 
   auto recipe = op_info.GetRecipe();
   if(recipe == nullptr){

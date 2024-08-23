@@ -67,8 +67,13 @@ class BinaryOperator : public HpuOperator {
     if (y_dim.size() == 0) {                                                 \
       y_dim.push_back(1);                                                    \
     }                                                                        \
+    if (x_dim.size() == 0) {                                                 \
+      x_dim.push_back(1);                                                    \
+    }                                                                        \
     std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims()); \
-                                                                             \
+    if (outputs_dim.size() == 0) {                                           \
+      outputs_dim.push_back(1);                                              \
+    }                                                                        \
     OpCacheOperator op_info;                                                 \
     op_info.prepareOpInfo<T, nullptr_t>(                                     \
         #node_name "_fwd", {x_dim, y_dim}, nullptr);                         \

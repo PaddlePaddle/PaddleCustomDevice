@@ -21,9 +21,16 @@
 
 namespace custom_kernel {
 
-#define PD_REGISTER_PLUGIN_KERNEL_32bits(OP_NAME, GUID)                     \
+#define PD_REGISTER_PLUGIN_KERNEL_32f(OP_NAME, GUID)                        \
   PD_REGISTER_PLUGIN_KERNEL(                                                \
       GUID, intel_hpu, ALL_LAYOUT, custom_kernel::OP_NAME##Kernel, float) { \
+    kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype())); \
+  }
+
+#define PD_REGISTER_PLUGIN_KERNEL_16f32f(OP_NAME, GUID)                     \
+  PD_REGISTER_PLUGIN_KERNEL(                                                \
+      GUID, intel_hpu, ALL_LAYOUT, custom_kernel::OP_NAME##Kernel, float,   \
+      phi::dtype::bfloat16, phi::dtype::float16) {                          \
     kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype())); \
   }
 
@@ -116,27 +123,27 @@ UNARY_KERNEL(Floor, floor)
 UNARY_KERNEL(Ceil, ceil);
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL_32bits(Abs, abs);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Tanh, tanh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Cos, cos);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Sin, sin);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Tan, tan);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Asin, asin);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Atan, atan);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Acos, acos);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Sinh, sinh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Cosh, cosh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Asinh, asinh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Acosh, acosh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Atanh, atanh);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Relu, relu);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Silu, silu);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Exp, exp);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Sqrt, sqrt);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Rsqrt, rsqrt);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Softsign, softsign);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Sigmoid, sigmoid);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Log, log);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Negative, neg);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Floor, floor);
-PD_REGISTER_PLUGIN_KERNEL_32bits(Ceil, ceil);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Abs, abs);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Tanh, tanh);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Cos, cos);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Sin, sin);
+PD_REGISTER_PLUGIN_KERNEL_32f(Tan, tan);
+PD_REGISTER_PLUGIN_KERNEL_32f(Asin, asin);
+PD_REGISTER_PLUGIN_KERNEL_32f(Atan, atan);
+PD_REGISTER_PLUGIN_KERNEL_32f(Acos, acos);
+PD_REGISTER_PLUGIN_KERNEL_32f(Sinh, sinh);
+PD_REGISTER_PLUGIN_KERNEL_32f(Cosh, cosh);
+PD_REGISTER_PLUGIN_KERNEL_32f(Asinh, asinh);
+PD_REGISTER_PLUGIN_KERNEL_32f(Acosh, acosh);
+PD_REGISTER_PLUGIN_KERNEL_32f(Atanh, atanh);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Relu, relu);
+PD_REGISTER_PLUGIN_KERNEL_32f(Silu, silu);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Exp, exp);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Sqrt, sqrt);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Rsqrt, rsqrt);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Softsign, softsign);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Sigmoid, sigmoid);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Log, log);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Negative, neg);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Floor, floor);
+PD_REGISTER_PLUGIN_KERNEL_16f32f(Ceil, ceil);

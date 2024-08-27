@@ -61,7 +61,7 @@ void FullKernel(const Context& dev_ctx,
                 const phi::Scalar& val,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
-  std::cout << "HPU FullKernel with val = " << val << std::endl;
+  LOG(INFO) << "HPU FullKernel with val = " << val;
   auto int_shape = shape.GetData();
   out->Resize(phi::make_ddim(int_shape));
   if (out->dims().size() == 0) {

@@ -125,6 +125,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::TrilTriuKernel,
+                          bool,
                           float,
                           phi::dtype::bfloat16) {}
 
@@ -132,6 +133,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::TrilKernel,
+                          bool,
                           float,
                           phi::dtype::bfloat16) {}
 
@@ -139,5 +141,6 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::TriuKernel,
+                          bool,
                           float,
                           phi::dtype::bfloat16) {}

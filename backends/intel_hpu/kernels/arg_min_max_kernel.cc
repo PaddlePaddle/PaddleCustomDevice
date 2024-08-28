@@ -101,7 +101,6 @@ void doArgMaxMinTensor(const Context& dev_ctx,
   auto recipe = op_info.GetRecipe();
   if(recipe == nullptr){
     // compile
-    std::cout << "------------------  compile with " << op_info.guid_ << std::endl;
     ArgMaxMinOperator op(op_info.guid_, node_name);
     op.AddNode({x_dims}, {out_dims}, op_info.datatype_, params);
     op.Compile();

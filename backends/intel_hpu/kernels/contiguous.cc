@@ -74,20 +74,20 @@ void ContiguousKernel(const Context& dev_ctx,
     params.params.strides[rank - 1 - i] = params.input_strides[i];
   }
   // calculate output dim
-  auto numel = input.numel();
-  int dim1 = 0;
-  int non_one = 1;
-  for (size_t i = 0; i < rank; i++) {
-    if (params.input_strides[i] == 1) {
-      meta.dims[i] = 1;
-      dim1 = i;
-    } else {
-      meta.dims[i] = numel / params.input_strides[i];
-      non_one = non_one * meta.dims[i];
-    }
-  }
+  // auto numel = input.numel();
+  // int dim1 = 0;
+  // int non_one = 1;
+  // for (size_t i = 0; i < rank; i++) {
+  //   if (params.input_strides[i] == 1) {
+  //     meta.dims[i] = 1;
+  //     dim1 = i;
+  //   } else {
+  //     meta.dims[i] = numel / params.input_strides[i];
+  //     non_one = non_one * meta.dims[i];
+  //   }
+  // }
 
-  meta.dims[dim1] = numel / non_one;
+  // meta.dims[dim1] = numel / non_one;
 
   meta.strides = meta.calc_strides(meta.dims);
   meta.offset = 0;

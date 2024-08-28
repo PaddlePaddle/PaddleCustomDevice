@@ -112,7 +112,7 @@ void FullLikeKernel(const Context& dev_ctx,
                     const phi::Scalar& val,
                     phi::DataType dtype,
                     phi::DenseTensor* out) {
-  std::cout << "HPU FullLikeKernel with val = " << val << std::endl;
+  LOG(INFO) << "HPU FullLikeKernel with val = " << val;
   std::vector<int64_t> shape_vec = phi::vectorize(x.dims());
   phi::IntArray out_shape(shape_vec);
   custom_kernel::FullKernel<T, Context>(dev_ctx, out_shape, val, dtype, out);
@@ -141,3 +141,4 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           int32_t,
                           int64_t,
                           bool) {}
+

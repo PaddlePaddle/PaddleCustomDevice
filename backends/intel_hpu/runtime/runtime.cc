@@ -216,9 +216,10 @@ class RuntimeManager {
             << "create builtin stream h2d" << stream_h2d;
       }
 
-      status = synHostMap(device->id, size, src);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostMap() failed = " << status;
+      addCache(device,src, size);
+      // status = synHostMap(device->id, size, src);
+      // LOG_IF(ERROR, status != synSuccess)
+      //     << "[RUNTIME] synHostMap() failed = " << status;
 
       status = synMemCopyAsync(stream_h2d,
                                reinterpret_cast<uint64_t>(src),
@@ -232,9 +233,9 @@ class RuntimeManager {
       LOG_IF(ERROR, status != synSuccess)
           << "[RUNTIME] synStreamSynchronize(stream_h2d) failed = " << status;
 
-      status = synHostUnmap(device->id, src);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostUnmap() failed = " << status;
+      // status = synHostUnmap(device->id, src);
+      // LOG_IF(ERROR, status != synSuccess)
+      //     << "[RUNTIME] synHostUnmap() failed = " << status;
     } else if (flag == 1) {
       if (stream_d2h == nullptr) {
         status = synStreamCreateGeneric(
@@ -243,9 +244,10 @@ class RuntimeManager {
             << "[RUNTIME] synStreamCreateGeneric() failed = " << status;
       }
 
-      status = synHostMap(device->id, size, dst);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostMap() failed = " << status;
+      addCache(device,dst, size);
+      // status = synHostMap(device->id, size, dst);
+      // LOG_IF(ERROR, status != synSuccess)
+      //     << "[RUNTIME] synHostMap() failed = " << status;
       status = synMemCopyAsync(stream_d2h,
                                reinterpret_cast<uint64_t>(src),
                                size,
@@ -256,9 +258,9 @@ class RuntimeManager {
       status = synStreamSynchronize(stream_d2h);
       LOG_IF(ERROR, status != synSuccess)
           << "[RUNTIME] synStreamSynchronize() failed = " << status;
-      status = synHostUnmap(device->id, dst);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostUnmap() failed = " << status;
+      // status = synHostUnmap(device->id, dst);
+      // LOG_IF(ERROR, status != synSuccess)
+      //     << "[RUNTIME] synHostUnmap() failed = " << status;
     } else if (flag == 2) {
       if (stream_d2d == nullptr) {
         status = synStreamCreateGeneric(
@@ -292,9 +294,7 @@ class RuntimeManager {
         << ", stream = " << stream << ", src = " << src << ", dst = " << dst;
     synStatus status = synFail;
     if (flag == 0) {
-      status = synHostMap(device->id, size, src);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostMap() failed = " << status;
+      addCache(device, src, size);
       status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
                                reinterpret_cast<uint64_t>(src),
                                size,
@@ -303,9 +303,7 @@ class RuntimeManager {
       LOG_IF(ERROR, status != synSuccess)
           << "[RUNTIME] synMemCopyAsync() failed = " << status;
     } else if (flag == 1) {
-      status = synHostMap(device->id, size, dst);
-      LOG_IF(ERROR, status != synSuccess)
-          << "[RUNTIME] synHostMap() failed = " << status;
+      addCache(device,dst, size);
       status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
                                reinterpret_cast<uint64_t>(src),
                                size,
@@ -371,6 +369,31 @@ class RuntimeManager {
   inline synModuleId GetModuleID() { return moduleID; }
   inline synDeviceId GetDeviceID() { return deviceId; }
 
+  inline void addCache(const C_Device device, const void *ptr, size_t size) {
+    auto it = hostMappedAddress.find(ptr);
+    synStatus status = synFail;
+    if (it == hostMappedAddress.end()) {
+      // not found, map and cache
+       status = synHostMap(device->id, size, ptr);
+      LOG_IF(ERROR, status != synSuccess)
+          << "[RUNTIME] synHostMap() failed = " << status;
+      hostMappedAddress[ptr] = size;
+    } else {
+      if (it->second != size) {
+        // found but size not equal
+        // unmap the old one and map a new one
+        status = synHostUnmap(device->id, ptr);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synHostUnmap() failed = " << status;
+
+        status = synHostMap(device->id, size, ptr);
+        LOG_IF(ERROR, status != synSuccess)
+            << "[RUNTIME] synHostMap() failed = " << status;
+        hostMappedAddress[ptr] = size;
+      }
+    }
+  }
+
  private:
   synModuleId moduleID = 0;
   std::string busID = "";
@@ -393,7 +416,7 @@ class RuntimeManager {
   std::set<synEventHandle> events;
 
   // cache
-  std::unordered_map<void *, size_t> hostMappedAddress;
+  std::unordered_map<const void *, size_t> hostMappedAddress;
 };
 
 static RuntimeManager runtimeManager;

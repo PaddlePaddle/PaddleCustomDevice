@@ -14,165 +14,57 @@
 
 #include "funcs.h"
 #include "hpu_operator.h"
-
+#include "utils/utills.h"
+#include "perf_lib_layer_params.h"
 
 namespace custom_kernel {
 
-// template <typename T, typename Context>
-// void ConcatKernel(const Context& dev_ctx,
-//                   const std::vector<const phi::DenseTensor*>& ins,
-//                   const phi::Scalar& axis_scalar,
-//                   phi::DenseTensor* out);
+struct IndexSampleParams {
+  ns_GatherKernel::Params params;
+};
 
-// template <typename T, typename Context>
-// void GatherNdKernel(const Context& dev_ctx,
-//                     const phi::DenseTensor& x,
-//                     const phi::DenseTensor& index,
-//                     phi::DenseTensor* out);
+class IndexSample : public HpuOperator {
+ public:
+  IndexSample() : HpuOperator("gather_elements_fwd_") {}
 
-// template <typename T, typename Context>
-// void IndexSampleGather(const Context& dev_ctx,
-//                        const phi::DenseTensor* index,
-//                        const phi::DenseTensor* input,
-//                        phi::DenseTensor* out) {
-//   auto index_dims = index->dims();
-//   auto input_dims = input->dims();
-//   auto batch_size = input_dims[0];
-//   auto index_length = index_dims[1];
-//   auto stream = dev_ctx.stream();
+  void AddNode(ConvertTensors& ct, IndexSampleParams& params) {
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
 
-//   // NPU implementation depends on spliting input in the first dimension.
-//   // When the input shape is (100,1), this implementation costs lots of time
-//   // to Slice and Gather. It makes more sense when input shape is (1,100).
-//   if (input_dims[1] > input_dims[0] * 100) {
-//     phi::DenseTensor tmp_input;
-//     phi::DenseTensorMeta input_meta = {input->dtype(),
-//                                        phi::make_ddim({input->numel()})};
-//     tmp_input.set_meta(input_meta);
-//     dev_ctx.template Alloc<T>(&tmp_input);
-//     TensorCopy(dev_ctx, *input, false, &tmp_input);
-//     tmp_input.Resize({input->numel()});
-//     std::vector<phi::DenseTensor> tmp_output;
-//     for (auto i = 0; i < batch_size; ++i) {
-//       // adds
-//       phi::DenseTensor tmp_index, tmp_slice_t, trans_index;
-//       tmp_index.Resize(index->dims());
-//       tmp_slice_t.Resize(phi::make_ddim({index_length}));
-//       trans_index.Resize(index->dims());
-//       dev_ctx.template Alloc<int32_t>(&tmp_index);
-//       dev_ctx.template Alloc<int32_t>(&tmp_slice_t);
-//       dev_ctx.template Alloc<int32_t>(&trans_index);
-//       if (index->dtype() == phi::DataType::INT64) {
-//         const auto& cast_runner = NpuOpRunner(
-//             "Cast", {*index}, {trans_index}, {{"dst_type", ACL_INT32}});
-//         cast_runner.Run(stream);
-//         const auto& adds_runner =
-//             NpuOpRunner("Adds",
-//                         {trans_index},
-//                         {tmp_index},
-//                         {{"value", static_cast<float>(i * input_dims[1])}});
-//         adds_runner.Run(stream);
-//       } else {
-//         const auto& adds_runner =
-//             NpuOpRunner("Adds",
-//                         {*index},
-//                         {tmp_index},
-//                         {{"value", static_cast<float>(i * input_dims[1])}});
-//         adds_runner.Run(stream);
-//       }
-//       tmp_index.Resize({index->numel()});
-//       // slice
-//       NpuOpRunner runner1;
-//       runner1.SetType("Slice")
-//           .AddInput(tmp_index)
-//           .AddInput(dev_ctx, std::vector<int32_t>{i * index_length})
-//           .AddInput(dev_ctx, std::vector<int32_t>{index_length})
-//           .AddOutput(tmp_slice_t)
-//           .Run(stream);
-//       // gather
-//       phi::DenseTensor tmp_out_t;
-//       phi::DenseTensorMeta meta = {tmp_input.dtype(),
-//                                    phi::make_ddim({index_length})};
-//       tmp_out_t.set_meta(meta);
-//       if (tmp_input.dtype() == phi::DataType::FLOAT32) {
-//         dev_ctx.template Alloc<float>(&tmp_out_t);
-//       } else if (tmp_input.dtype() == phi::DataType::INT32) {
-//         dev_ctx.template Alloc<int32_t>(&tmp_out_t);
-//       } else if (tmp_input.dtype() == phi::DataType::INT64) {
-//         dev_ctx.template Alloc<int64_t>(&tmp_out_t);
-//       } else if (tmp_input.dtype() == phi::DataType::FLOAT16) {
-//         dev_ctx.template Alloc<phi::dtype::float16>(&tmp_out_t);
-//       }
+    std::vector<synTensor> syn_inputs;
+    for (size_t i = 0; i < inputs.size(); i++) {
+      syn_inputs.push_back(createTensor(inputs[i].dims.size(),
+                                        inputs[i].type,
+                                        inputs[i].dims,
+                                        true,
+                                        inputs[i].name));
+    }
 
-//       NpuOpRunner gather_runner;
-//       gather_runner.SetType("GatherV2")
-//           .AddInput(tmp_input)
-//           .AddInput(tmp_slice_t)
-//           .AddInput(dev_ctx, std::vector<int32_t>{0})
-//           .AddOutput(tmp_out_t)
-//           .Run(stream);
-//       tmp_output.push_back(tmp_out_t);
-//     }
+    std::vector<synTensor> syn_outputs;
+    for (size_t i = 0; i < outputs.size(); i++) {
+      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
+                                         outputs[i].type,
+                                         outputs[i].dims,
+                                         true,
+                                         outputs[i].name));
+    }
 
-//     int count = 0;
-//     std::vector<const phi::DenseTensor*> concat_input;
-//     for (int i = 0; i < tmp_output.size(); ++i) {
-//       count += tmp_output[i].numel();
-//       concat_input.push_back(&tmp_output[i]);
-//     }
+    guid_ = guid_ + SynDataTypeToStr(inputs[0].type);
 
-//     auto dtype = concat_input[0]->dtype();
-//     auto out_dim = out->dims();
-//     phi::DenseTensorMeta meta = {dtype, phi::make_ddim({count})};
-//     out->set_meta(meta);
-
-//     phi::Scalar axis = 0;
-//     if (dtype == phi::DataType::FLOAT32) {
-//       custom_kernel::ConcatKernel<float, Context>(
-//           dev_ctx, concat_input, axis, out);
-//     } else if (dtype == phi::DataType::INT32) {
-//       custom_kernel::ConcatKernel<int32_t, Context>(
-//           dev_ctx, concat_input, axis, out);
-//     } else if (dtype == phi::DataType::INT64) {
-//       custom_kernel::ConcatKernel<int64_t, Context>(
-//           dev_ctx, concat_input, axis, out);
-//     } else if (dtype == phi::DataType::FLOAT16) {
-//       custom_kernel::ConcatKernel<phi::dtype::float16, Context>(
-//           dev_ctx, concat_input, axis, out);
-//     }
-//     out->Resize(out_dim);
-
-//   } else {
-//     // CPU implementation for index
-//     std::vector<T> gather_index_vec;
-//     std::vector<T> index_vec;
-//     TensorToVector(dev_ctx, *index, dev_ctx, &index_vec);
-//     for (auto i = 0; i < batch_size; ++i) {
-//       for (auto j = 0; j < index_length; j++) {
-//         gather_index_vec.push_back(i);
-//         gather_index_vec.push_back(index_vec[i * index_length + j]);
-//       }
-//     }
-//     phi::DenseTensor gather_index;
-//     TensorFromVector(dev_ctx, gather_index_vec, dev_ctx, &gather_index);
-//     gather_index.Resize({batch_size, index_length, 2});
-
-//     auto dtype = input->dtype();
-//     if (dtype == phi::DataType::FLOAT32) {
-//       custom_kernel::GatherNdKernel<float, Context>(
-//           dev_ctx, *input, gather_index, out);
-//     } else if (dtype == phi::DataType::INT32) {
-//       custom_kernel::GatherNdKernel<int32_t, Context>(
-//           dev_ctx, *input, gather_index, out);
-//     } else if (dtype == phi::DataType::INT64) {
-//       custom_kernel::GatherNdKernel<int64_t, Context>(
-//           dev_ctx, *input, gather_index, out);
-//     } else if (dtype == phi::DataType::FLOAT16) {
-//       custom_kernel::GatherNdKernel<phi::dtype::float16, Context>(
-//           dev_ctx, *input, gather_index, out);
-//     }
-//   }
-// }
+    synStatus status = synNodeCreate(graphHandle_,
+                                     syn_inputs.data(),
+                                     syn_outputs.data(),
+                                     syn_inputs.size(),
+                                     syn_outputs.size(),
+                                     &params.params,
+                                     sizeof(params.params),
+                                     guid_.c_str(),
+                                     "index_sample",
+                                     nullptr,
+                                     nullptr);
+    CHKSTATUS("synNodeCreate reshape failed!");
+  }
+};
 
 template <typename T, typename Context>
 void IndexSampleKernel(const Context& dev_ctx,
@@ -181,15 +73,33 @@ void IndexSampleKernel(const Context& dev_ctx,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
-  // const auto& index_type = index.dtype();
-  // if (index_type == phi::DataType::INT32) {
-  //   IndexSampleGather<int32_t, Context>(dev_ctx, &index, &x, out);
-  // } else {
-  //   IndexSampleGather<int64_t, Context>(dev_ctx, &index, &x, out);
-  // }
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(index);
+  ct.Add(out, false);
+
+  OpCacheOperator op_info;
+  IndexSampleParams params;
+  params.params.axis = 0;
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  op_info.prepareOpInfo<T, IndexSampleParams>(
+      "IndexSampleKernel", inputs_dims, &params);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    IndexSample op;
+
+    op.AddNode(ct, params);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
-
-
 
 }  // namespace custom_kernel
 

@@ -37,7 +37,7 @@ def cann_parse_enabled():
     Automatically parse profiling data for NPU devices using CANN tools.
     """
     prof_root_dir = os.getenv(
-        'PROFILER_OUTPUT_DIR', os.path.join(os.getcwd(), 'ascend_profiling')
+        "PROFILER_OUTPUT_DIR", os.path.join(os.getcwd(), "ascend_profiling")
     )
 
     if not is_npu_device():
@@ -65,9 +65,7 @@ def find_latest_prof_directory(prof_root_dir):
     Find the latest PROF_* directory in the profiling root directory.
     """
     try:
-        prof_dirs = [
-            d for d in os.listdir(prof_root_dir) if d.startswith('PROF_')
-        ]
+        prof_dirs = [d for d in os.listdir(prof_root_dir) if d.startswith("PROF_")]
         if not prof_dirs:
             return None
         return max(
@@ -119,13 +117,13 @@ def merge_json_files(prof_dir):
             print(f"Paddle JSON file {paddle_json_path} is empty or invalid.")
             return
 
-        paddle_events = paddle_data.get('traceEvents', [])
+        paddle_events = paddle_data.get("traceEvents", [])
         msprof_events = msprof_data if isinstance(msprof_data, list) else []
 
         adjust_paddle_sort_index(paddle_events, msprof_events)
 
-        merged_data = {'traceEvents': paddle_events + msprof_events}
-        output_json_path = os.path.join(prof_dir, 'merged_trace.json')
+        merged_data = {"traceEvents": paddle_events + msprof_events}
+        output_json_path = os.path.join(prof_dir, "merged_trace.json")
         save_json(merged_data, output_json_path)
         print(f"Merged JSON file saved to {output_json_path}")
 
@@ -138,11 +136,11 @@ def find_latest_msprof_json(prof_dir):
     Find the latest msprof JSON file in the specified directory.
     """
     try:
-        msprof_output_dir = os.path.join(prof_dir, 'mindstudio_profiler_output')
+        msprof_output_dir = os.path.join(prof_dir, "mindstudio_profiler_output")
         msprof_json_files = [
             f
             for f in os.listdir(msprof_output_dir)
-            if f.startswith('msprof_') and f.endswith('.json')
+            if f.startswith("msprof_") and f.endswith(".json")
         ]
         if not msprof_json_files:
             return None
@@ -150,9 +148,7 @@ def find_latest_msprof_json(prof_dir):
             msprof_output_dir,
             max(
                 msprof_json_files,
-                key=lambda f: os.path.getmtime(
-                    os.path.join(msprof_output_dir, f)
-                ),
+                key=lambda f: os.path.getmtime(os.path.join(msprof_output_dir, f)),
             ),
         )
     except (FileNotFoundError, PermissionError) as e:
@@ -165,11 +161,9 @@ def find_latest_paddle_json():
     Find the latest Paddle JSON file in the current working directory.
     """
     try:
-        paddle_json_dir = os.path.join(os.getcwd(), 'profiler_demo')
+        paddle_json_dir = os.path.join(os.getcwd(), "profiler_demo")
         paddle_json_files = [
-            f
-            for f in os.listdir(paddle_json_dir)
-            if f.endswith('.paddle_trace.json')
+            f for f in os.listdir(paddle_json_dir) if f.endswith(".paddle_trace.json")
         ]
         if not paddle_json_files:
             return None
@@ -177,9 +171,7 @@ def find_latest_paddle_json():
             paddle_json_dir,
             max(
                 paddle_json_files,
-                key=lambda f: os.path.getmtime(
-                    os.path.join(paddle_json_dir, f)
-                ),
+                key=lambda f: os.path.getmtime(os.path.join(paddle_json_dir, f)),
             ),
         )
     except (FileNotFoundError, PermissionError) as e:
@@ -192,7 +184,7 @@ def load_json(file_path):
     Load a JSON file from the specified path.
     """
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         print(f"Error loading JSON file {file_path}: {e!s}")
@@ -207,7 +199,7 @@ def save_json(data, file_path):
     Save the given data to a JSON file at the specified path.
     """
     try:
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             json.dump(data, f, indent=2)
     except (OSError, PermissionError) as e:
         print(f"Error saving JSON file {file_path}: {e!s}")
@@ -219,18 +211,18 @@ def adjust_paddle_sort_index(paddle_events, msprof_events):
     """
     min_sort_index_msprof = min(
         (
-            event.get('args', {}).get('sort_index', float('inf'))
+            event.get("args", {}).get("sort_index", float("inf"))
             for event in msprof_events
-            if 'args' in event
+            if "args" in event
         ),
         default=0,
     )
 
     min_sort_index_paddle = min(
         (
-            event.get('args', {}).get('sort_index', float('inf'))
+            event.get("args", {}).get("sort_index", float("inf"))
             for event in paddle_events
-            if 'args' in event
+            if "args" in event
         ),
         default=0,
     )
@@ -238,5 +230,5 @@ def adjust_paddle_sort_index(paddle_events, msprof_events):
     adjustment_value = min_sort_index_msprof - min_sort_index_paddle - 1
 
     for event in paddle_events:
-        if 'args' in event and 'sort_index' in event['args']:
-            event['args']['sort_index'] += adjustment_value
+        if "args" in event and "sort_index" in event["args"]:
+            event["args"]["sort_index"] += adjustment_value

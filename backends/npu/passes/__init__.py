@@ -14,4 +14,4 @@
 
 from .common import setUp
 from .common import addPasses
-from .cann_export import cann_parse_enabled
+from .cann_export import cann_parse_enabled as cann_parse_enabled

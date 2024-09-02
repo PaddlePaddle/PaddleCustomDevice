@@ -12,6 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .common import setUp
-from .common import addPasses
 from .cann_export import cann_parse_enabled as cann_parse_enabled
+from .common import addPasses, setUp

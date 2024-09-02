@@ -13,4 +13,4 @@
 # limitations under the License.
 
 from .cann_export import cann_parse_enabled as cann_parse_enabled
-from .common import addPasses, setUp
+from .common import addPasses as addPasses, setUp as setUp

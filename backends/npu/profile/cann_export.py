@@ -25,6 +25,7 @@
 # limitations under the License.
 
 
+import datetime
 import json
 import os
 import subprocess
@@ -32,7 +33,7 @@ import subprocess
 import paddle
 
 
-def cann_parse_enabled():
+def cann_parse_enabled(profiler_output_dir: str):
     """
     Automatically parse profiling data for NPU devices using CANN tools.
     """
@@ -50,7 +51,7 @@ def cann_parse_enabled():
 
     latest_prof_path = os.path.join(prof_root_dir, latest_prof_dir)
     run_msprof_command(latest_prof_path)
-    merge_json_files(latest_prof_path)
+    merge_json_files(profiler_output_dir, latest_prof_path)
 
 
 def is_npu_device():
@@ -90,21 +91,21 @@ def run_msprof_command(prof_dir):
         print(f"Error running msprof command: {e!s}")
 
 
-def merge_json_files(prof_dir):
+def merge_json_files(profiler_output_dir: str, latest_prof_path: str):
     """
     Merge the JSON files from msprof and paddle, adjusting sort_index to ensure correct event order.
     """
     try:
-        msprof_json_path = find_latest_msprof_json(prof_dir)
+        msprof_json_path = find_latest_msprof_json(latest_prof_path)
         if not msprof_json_path:
             print(
-                f"No msprof JSON files found in {os.path.join(prof_dir, 'mindstudio_profiler_output')}."
+                f"No msprof JSON files found in {os.path.join(latest_prof_path, 'mindstudio_profiler_output')}."
             )
             return
 
-        paddle_json_path = find_latest_paddle_json()
+        paddle_json_path = find_latest_paddle_json(profiler_output_dir)
         if not paddle_json_path:
-            print("No Paddle JSON files found.")
+            print(f"No Paddle JSON files found in {profiler_output_dir}.")
             return
 
         msprof_data = load_json(msprof_json_path)
@@ -123,7 +124,14 @@ def merge_json_files(prof_dir):
         adjust_paddle_sort_index(paddle_events, msprof_events)
 
         merged_data = {"traceEvents": paddle_events + msprof_events}
-        output_json_path = os.path.join(prof_dir, "merged_trace.json")
+
+        now = datetime.datetime.now()
+        file_name = f'trace_view_{now.strftime("%Y_%m_%d_%H_%M_%S")}.json'
+        msprof_output_dir = os.path.join(latest_prof_path, "mindstudio_profiler_output")
+        output_json_path = os.path.join(msprof_output_dir, file_name)
+
+        os.makedirs(msprof_output_dir, exist_ok=True)
+
         save_json(merged_data, output_json_path)
         print(f"Merged JSON file saved to {output_json_path}")
 
@@ -156,22 +164,23 @@ def find_latest_msprof_json(prof_dir):
         return None
 
 
-def find_latest_paddle_json():
+def find_latest_paddle_json(profiler_output_dir: str) -> str:
     """
     Find the latest Paddle JSON file in the current working directory.
     """
     try:
-        paddle_json_dir = os.path.join(os.getcwd(), "profiler_demo")
         paddle_json_files = [
-            f for f in os.listdir(paddle_json_dir) if f.endswith(".paddle_trace.json")
+            f
+            for f in os.listdir(profiler_output_dir)
+            if f.endswith(".paddle_trace.json")
         ]
         if not paddle_json_files:
             return None
         return os.path.join(
-            paddle_json_dir,
+            profiler_output_dir,
             max(
                 paddle_json_files,
-                key=lambda f: os.path.getmtime(os.path.join(paddle_json_dir, f)),
+                key=lambda f: os.path.getmtime(os.path.join(profiler_output_dir, f)),
             ),
         )
     except (FileNotFoundError, PermissionError) as e:

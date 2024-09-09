@@ -3,8 +3,8 @@
 readonly VERSION="1.6.0"
 
 script_dir=$(dirname "${BASH_SOURCE[0]}")
-chmod +x $script_dir/../scripts/paddle_log
-$script_dir/../scripts/paddle_log
+chmod +x $script_dir/../../paddle_log
+$script_dir/../../paddle_log
 
 version=$(cpplint --version)
 

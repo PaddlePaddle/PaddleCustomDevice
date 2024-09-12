@@ -121,7 +121,8 @@ Output data shape is (1, 10)
 | -------- | -------------------------------- | ------ | --------------------------------- | ------------------------------------------------------------ |
 | Debug     | CUSTOM_DEVICE_BLACK_LIST| String | Ops in back list will fallbacks to CPU  |  ""  |
 | Debug     | FLAGS_npu_check_nan_inf | Bool   | check nan or inf of all npu kernels | False                                                       |
-| Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu kernels | False                                                     |
+| Debug     | FLAGS_npu_blocking_run | Bool   | enable sync for all npu calculation kernels | False                                                     |
+| Debug     | FLAGS_npu_blocking_comm | Bool   | enable sync for all npu communication kernels | False                                                     |
 | Profiling | FLAGS_npu_profiling_dir | String |   ACL profiling output dir     | "ascend_profiling"                                           |
 | Profiling | FLAGS_npu_profiling_dtypes | Uint64 | ACL datatypes to profile | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L31) |
 | Profiling | FLAGS_npu_profiling_metrics | Uint64 | AI Core metric to profile  | Refer to [runtime.cc](https://github.com/PaddlePaddle/PaddleCustomDevice/blob/develop/backends/npu/runtime/runtime.cc#L36) |

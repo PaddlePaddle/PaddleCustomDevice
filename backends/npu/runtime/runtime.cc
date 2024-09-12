@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "kernels/funcs/npu_enforce.h"
 #include "runtime/flags.h"
 
 FLAGS_DEFINE_string(npu_profiling_dir,
@@ -36,6 +37,10 @@ FLAGS_DEFINE_uint64(npu_profiling_dtypes,
 FLAGS_DEFINE_uint64(npu_profiling_metrics,
                     static_cast<uint64_t>(ACL_AICORE_PIPE_UTILIZATION),
                     "AI Core metric to profile");
+
+FLAGS_DEFINE_bool(npu_blocking_comm,
+                  false,
+                  "enable sync for all npu commnucations");
 
 FLAGS_DEFINE_bool(set_to_1d, true, "set_to_1d");
 
@@ -879,6 +884,14 @@ C_Status XcclAllReduce(void *send_buf,
                            PDReduceOpToHcclReduceOp(op),
                            reinterpret_cast<HcclComm>(comm),
                            reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -894,6 +907,14 @@ C_Status XcclBroadcast(void *buf,
                            static_cast<uint32_t>(root),
                            reinterpret_cast<HcclComm>(comm),
                            reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -913,6 +934,14 @@ C_Status XcclReduce(void *send_buf,
                         root,
                         comm,
                         stream));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -928,6 +957,14 @@ C_Status XcclAllGather(void *send_buf,
                            PDDataTypeToHcclDataType(data_type),
                            reinterpret_cast<HcclComm>(comm),
                            reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -945,6 +982,14 @@ C_Status XcclReduceScatter(void *send_buf,
                                PDReduceOpToHcclReduceOp(op),
                                reinterpret_cast<HcclComm>(comm),
                                reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -964,6 +1009,14 @@ C_Status XcclSend(void *send_buf,
                       static_cast<uint32_t>(dest_rank),
                       reinterpret_cast<HcclComm>(comm),
                       reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 
@@ -979,6 +1032,14 @@ C_Status XcclRecv(void *recv_buf,
                       static_cast<uint32_t>(src_rank),
                       reinterpret_cast<HcclComm>(comm),
                       reinterpret_cast<aclrtStream>(stream)));
+
+  VLOG(1) << "FLAGS_npu_blocking_comm = " << FLAGS_npu_blocking_comm;
+  if (FLAGS_npu_blocking_comm) {
+    aclError ret;
+    ret = aclrtSynchronizeStream(stream);
+    PADDLE_ENFORCE_NPU_SUCCESS(ret);
+  }
+
   return C_SUCCESS;
 }
 

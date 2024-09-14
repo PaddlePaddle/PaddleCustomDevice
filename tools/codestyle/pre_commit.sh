@@ -14,6 +14,8 @@
 
 set -x
 
+echo "new pr here" 
+
 # use pre-commit 2.17
 if ! [[ $(pre-commit --version) == *"2.17.0"* ]]; then
     pip install pre-commit==2.17.0 1>nul

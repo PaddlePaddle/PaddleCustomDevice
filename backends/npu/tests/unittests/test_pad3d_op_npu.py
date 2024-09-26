@@ -412,6 +412,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
         def test_mode_3():
+            paddle.enable_static()
             input_shape = (1, 2, 3, 4, 5)
             data = np.random.rand(*input_shape).astype(np.float32)
             x = paddle.static.data(name="x", shape=input_shape)
@@ -419,6 +420,7 @@ class TestPad3dOpNpuError(unittest.TestCase):
             place = paddle.CPUPlace()
             exe = Executor(place)
             outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
+            paddle.disable_static()
 
         self.assertRaises(Exception, test_value)
 

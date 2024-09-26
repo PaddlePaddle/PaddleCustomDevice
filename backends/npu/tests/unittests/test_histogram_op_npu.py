@@ -41,6 +41,7 @@ class TestHistogram(unittest.TestCase):
         self.is_weight = False
 
     def test_static_graph(self):
+        paddle.enable_static()
         startup_program = paddle.static.Program()
         train_program = paddle.static.Program()
         with paddle.static.program_guard(train_program, startup_program):

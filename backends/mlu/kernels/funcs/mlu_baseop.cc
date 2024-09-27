@@ -2849,7 +2849,7 @@ NormalizeDesc::~NormalizeDesc() {
     void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
   size_t workspace_size = 0;
-  cnnlGetFlashAttentionForwardWorkspaceSize(
+  cnnlGetFlashAttentionForwardWorkspaceSize_v2(
       handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
 
   Tensor workspace;

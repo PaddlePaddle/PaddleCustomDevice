@@ -92,6 +92,7 @@ class TestHistogram(unittest.TestCase):
                 weights=self.weight_np if self.is_weight else None,
             )
             np.testing.assert_allclose(actual, Out, rtol=1e-58, atol=1e-5)
+        paddle.disable_static()
 
     def test_dygraph(self):
         with base.dygraph.guard():

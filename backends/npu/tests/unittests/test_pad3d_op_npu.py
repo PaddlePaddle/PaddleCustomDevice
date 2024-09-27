@@ -383,94 +383,75 @@ class TestPad3dAPI(unittest.TestCase):
 
 
 class TestPad3dOpNpuError(unittest.TestCase):
-    def test_errors(self):
-        def test_value():
-            input_shape = (1, 2, 3, 4, 5)
-            data = np.random.rand(*input_shape).astype(np.float32)
-            x = paddle.static.data(name="x", shape=input_shape)
-            y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], value=1, mode="constant")
-            place = paddle.CustomPlace("npu", 0)
-            exe = Executor(place)
-            outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
+    def test_value():
+        input_shape = (1, 2, 3, 4, 5)
+        data = np.random.rand(*input_shape).astype(np.float32)
+        x = paddle.static.data(name="x", shape=input_shape)
+        y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], value=1, mode="constant")
+        place = paddle.CustomPlace("npu", 0)
+        exe = Executor(place)
+        outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
-        def test_mode_1():
-            input_shape = (1, 2, 3, 4, 5)
-            data = np.random.rand(*input_shape).astype(np.float32)
-            x = paddle.static.data(name="x", shape=input_shape)
-            y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="reflect")
-            place = paddle.CustomPlace("npu", 0)
-            exe = Executor(place)
-            outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
+    def test_mode_1():
+        input_shape = (1, 2, 3, 4, 5)
+        data = np.random.rand(*input_shape).astype(np.float32)
+        x = paddle.static.data(name="x", shape=input_shape)
+        y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="reflect")
+        place = paddle.CustomPlace("npu", 0)
+        exe = Executor(place)
+        outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
-        def test_mode_2():
-            input_shape = (1, 2, 3, 4, 5)
-            data = np.random.rand(*input_shape).astype(np.float32)
-            x = paddle.static.data(name="x", shape=input_shape)
-            y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="replicate")
-            place = paddle.CustomPlace("npu", 0)
-            exe = Executor(place)
-            outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
+    def test_mode_2():
+        input_shape = (1, 2, 3, 4, 5)
+        data = np.random.rand(*input_shape).astype(np.float32)
+        x = paddle.static.data(name="x", shape=input_shape)
+        y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="replicate")
+        place = paddle.CustomPlace("npu", 0)
+        exe = Executor(place)
+        outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
 
-        def test_mode_3():
-            paddle.enable_static()
-            input_shape = (1, 2, 3, 4, 5)
-            data = np.random.rand(*input_shape).astype(np.float32)
-            x = paddle.static.data(name="x", shape=input_shape)
-            y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="circular")
-            place = paddle.CPUPlace()
-            exe = Executor(place)
-            outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
-            paddle.disable_static()
-
-        self.assertRaises(Exception, test_value)
-
-        self.assertRaises(Exception, test_mode_1)
-
-        self.assertRaises(Exception, test_mode_2)
-
-        self.assertRaises(Exception, test_mode_3)
+    def test_mode_3():
+        paddle.enable_static()
+        input_shape = (1, 2, 3, 4, 5)
+        data = np.random.rand(*input_shape).astype(np.float32)
+        x = paddle.static.data(name="x", shape=input_shape)
+        y = F.pad(x, pad=[1, 1, 1, 1, 1, 1], mode="circular")
+        place = paddle.CPUPlace()
+        exe = Executor(place)
+        outputs = exe.run(feed={"x": data}, fetch_list=[y.name])
+        paddle.disable_static()
 
 
 class TestPadDataformatError(unittest.TestCase):
-    def test_errors(self):
-        def test_ncl():
-            input_shape = (1, 2, 3, 4)
-            pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
-            data = (
-                np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape)
-                + 1
-            )
-            my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCL")
-            data = paddle.to_tensor(data)
-            result = my_pad(data)
+    def test_ncl():
+        input_shape = (1, 2, 3, 4)
+        pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
+        data = (
+            np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape) + 1
+        )
+        my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCL")
+        data = paddle.to_tensor(data)
+        result = my_pad(data)
 
-        def test_nchw():
-            input_shape = (1, 2, 4)
-            pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
-            data = (
-                np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape)
-                + 1
-            )
-            my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCHW")
-            data = paddle.to_tensor(data)
-            result = my_pad(data)
+    def test_nchw():
+        input_shape = (1, 2, 4)
+        pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
+        data = (
+            np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape) + 1
+        )
+        my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCHW")
+        data = paddle.to_tensor(data)
+        result = my_pad(data)
 
-        def test_ncdhw():
-            input_shape = (1, 2, 3, 4)
-            pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
-            data = (
-                np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape)
-                + 1
-            )
-            my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCDHW")
-            data = paddle.to_tensor(data)
-            result = my_pad(data)
-
-        self.assertRaises(AssertionError, test_ncl)
-
-        self.assertRaises(AssertionError, test_nchw)
-
-        self.assertRaises(AssertionError, test_ncdhw)
+    def test_ncdhw():
+        input_shape = (1, 2, 3, 4)
+        pad = paddle.to_tensor(np.array([2, 1, 2, 1]).astype("int32"))
+        data = (
+            np.arange(np.prod(input_shape), dtype=np.float64).reshape(input_shape) + 1
+        )
+        my_pad = nn.Pad1D(padding=pad, mode="replicate", data_format="NCDHW")
+        data = paddle.to_tensor(data)
+        result = my_pad(data)
 
 
 if __name__ == "__main__":

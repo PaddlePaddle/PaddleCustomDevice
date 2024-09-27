@@ -233,9 +233,7 @@ function main() {
     fi
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
-    env
     run_paddlex
-    sleep 30d
     # get changed ut and kernels
     set +e
     changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")

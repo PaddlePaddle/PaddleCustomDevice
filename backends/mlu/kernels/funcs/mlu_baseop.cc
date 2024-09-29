@@ -2849,7 +2849,7 @@ NormalizeDesc::~NormalizeDesc() {
     void* output) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
   size_t workspace_size = 0;
-  cnnlGetFlashAttentionForwardWorkspaceSize_v2(
+  cnnlGetFlashAttentionForwardWorkspaceSize(
       handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
 
   Tensor workspace;
@@ -2909,8 +2909,8 @@ NormalizeDesc::~NormalizeDesc() {
     void* dv) {
   cnnlHandle_t handle = GetHandleFromCTX(ctx);
   size_t workspace_size = 0;
-  cnnlGetFlashAttentionBackwardWorkspaceSize(
-      handle, flash_atten_desc, q_desc, k_desc, v_desc, &workspace_size);
+  cnnlGetFlashAttentionBackwardWorkspaceSize_v2(
+      handle, flash_atten_desc, q_desc, k_desc, v_desc, csq_desc, &workspace_size);
   Tensor workspace;
   workspace.Resize({static_cast<int64_t>(workspace_size)});
   void* workspace_ptr = ctx.Alloc(&workspace, DataType::INT8, workspace_size);
@@ -5564,65 +5564,6 @@ NormalizeDesc::~NormalizeDesc() {
                                              nullptr,
                                              nullptr));
   PADDLE_ENFORCE_MLU_SUCCESS(cnnlDestroyRoiAlignDescriptor(roialign_desc));
-}
-
-/* static */ void MLUCnnl::RotaryEmbedding(
-    const Context& ctx,
-    bool conj,
-    const cnnlTensorDescriptor_t x1_desc,
-    const void* x1,
-    const cnnlTensorDescriptor_t x2_desc,
-    const void* x2,
-    const cnnlTensorDescriptor_t cos_desc,
-    const void* cos,
-    const cnnlTensorDescriptor_t sin_desc,
-    const void* sin,
-    const cnnlTensorDescriptor_t freqs_desc,
-    const void* freqs,
-    const cnnlTensorDescriptor_t cu_seqlens_desc,
-    const void* cu_seqlens,
-    const cnnlTensorDescriptor_t out1_desc,
-    void* out1,
-    const cnnlTensorDescriptor_t out2_desc,
-    void* out2) {
-  cnnlRotaryEmbeddingDescriptor_t rotary_embedding_desc;
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlCreateRotaryEmbeddingDescriptor(&rotary_embedding_desc));
-  bool interleaved = false;
-  bool is_cross_input = false;
-  bool is_cross_output = false;
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlSetRotaryEmbeddingDescriptor_v2(rotary_embedding_desc,
-                                          conj,
-                                          interleaved,
-                                          is_cross_input,
-                                          is_cross_output,
-                                          CNNL_SEQDATA_TNBC));
-
-  cnnlHandle_t handle = GetHandleFromCTX(ctx);
-  PADDLE_ENFORCE_MLU_SUCCESS(cnnlRotaryEmbedding_v2(handle,
-                                                    rotary_embedding_desc,
-                                                    x1_desc,
-                                                    x1,
-                                                    x2_desc,
-                                                    x2,
-                                                    cos_desc,
-                                                    cos,
-                                                    sin_desc,
-                                                    sin,
-                                                    freqs_desc,
-                                                    freqs,
-                                                    cu_seqlens_desc,
-                                                    cu_seqlens,
-                                                    nullptr,
-                                                    0,
-                                                    out1_desc,
-                                                    out1,
-                                                    out2_desc,
-                                                    out2));
-
-  PADDLE_ENFORCE_MLU_SUCCESS(
-      cnnlDestroyRotaryEmbeddingDescriptor(rotary_embedding_desc));
 }
 
 /* static */ void MLUCnnl::RoiAlignBackward(

@@ -1,0 +1,1 @@
+../../../../cmake/external/onednn.cmake

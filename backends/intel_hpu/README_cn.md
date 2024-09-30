@@ -97,11 +97,11 @@ popd
 pushd Paddle-Inference-Demo/c++/resnet50
 
 # 修改 resnet50_test.cc，使用 config.EnableCustomDevice("intel_hpu", 0) 接口替换 config.EnableUseGpu(100, 0)
-  
+
 bash run.sh
 ```
 
-期待输出以下类似结果
+期待输出以下类似的结果
 
 ```bash
 I0713 09:02:38.808723 24792 resnet50_test.cc:74] run avg time is 297.75 ms

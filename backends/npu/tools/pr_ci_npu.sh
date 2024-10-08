@@ -233,7 +233,6 @@ function main() {
     fi
     cd ${CODE_ROOT}/build
     pip install dist/*.whl
-    run_paddlex
     # get changed ut and kernels
     set +e
     changed_uts=$(git diff --name-only ${PADDLE_BRANCH} | grep "backends/npu/tests/unittests")
@@ -426,6 +425,9 @@ function main() {
     if [[ "${WITH_COVERAGE:-OFF}" == "ON" ]];then
         bash ${CODE_ROOT}/tools/coverage/coverage_process.sh
     fi
+
+    # Run PaddleX Test
+    run_paddlex
 }
 
 main $@

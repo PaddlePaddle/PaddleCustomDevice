@@ -163,7 +163,7 @@ function run_paddlex() {
     # PaddleX test
     unset USE_910B
     echo "Start Download"
-    git clone -b release/3.0-beta --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
+    git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas

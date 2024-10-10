@@ -66,7 +66,7 @@ void NormKernel(const Context& dev_ctx,
   bool keepdim = true;
   x_norm->Resize(phi::make_ddim(resize_list));
   EXEC_NPU_CMD(aclnnNorm, dev_ctx, x, p, axis, keepdim, *x_norm);
-  x_norm->Resize(1);
+  x_norm->Resize({1});
 }
 
 template <typename T, typename Context>

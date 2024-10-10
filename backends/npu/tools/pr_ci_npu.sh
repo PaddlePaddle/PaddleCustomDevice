@@ -202,26 +202,26 @@ function run_paddlex() {
     -o Global.output=ppyolo_plus_s_output \
     -o Global.device="npu:${DEVICE_LIST}"
 
-    python main.py -c paddlex/configs/object_detection/PP-YOLOE_plus-S.yaml \
-    -o Global.mode=predict \
-    -o Predict.model_dir="./ppyolo_plus_s_output/best_model" \
-    -o Predict.input_path="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_object_detection_002.png" \
-    -o Global.device="npu:${DEVICE}"
+    #python main.py -c paddlex/configs/object_detection/PP-YOLOE_plus-S.yaml \
+    #-o Global.mode=predict \
+    #-o Predict.model_dir="./ppyolo_plus_s_output/best_model" \
+    #-o Predict.input_path="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_object_detection_002.png" \
+    #-o Global.device="npu:${DEVICE}"
     echo "End PP-YOLOE+"
 
-    echo "Start DeepLabv3"
+    echo "Start DeepLabv3+"
     python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/seg_optic_examples \
     -o Global.output=deeplabv3p_output \
     -o Global.device="npu:${DEVICE_LIST}"
 
-    python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
-    -o Global.mode=predict \
-    -o Predict.model_dir="./deeplabv3p_output/best_model/model/" \
-    -o Predict.input_path="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_semantic_segmentation_001.jpg" \
-    -o Global.device="npu:${DEVICE}"
-    echo "End DeepLabv3"
+    #python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
+    #-o Global.mode=predict \
+    #-o Predict.model_dir="./deeplabv3p_output/best_model/model/" \
+    #-o Predict.input_path="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_semantic_segmentation_001.jpg" \
+    #-o Global.device="npu:${DEVICE}"
+    echo "End DeepLabv3+"
 }
 
 

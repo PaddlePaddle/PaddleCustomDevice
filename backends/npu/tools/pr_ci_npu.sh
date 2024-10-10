@@ -161,7 +161,10 @@ function card_test() {
 function run_paddlex() {
 
     # PaddleX test
+    export DEVICE=($(echo $ASCEND_RT_VISIBLE_DEVICES | tr "," "\n"))
+    export DEVICE_LIST=$(echo $ASCEND_RT_VISIBLE_DEVICES)
     unset USE_910B
+    unset ASCEND_RT_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
     cd PaddleX
@@ -179,12 +182,11 @@ function run_paddlex() {
     echo "End Download"
 
     echo "Start PaddleX ResNet50"
-    export DEVICE=($(echo $ASCEND_RT_VISIBLE_DEVICES | tr "," "\n"))
     python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/cls_flowers_examples \
     -o Global.output=resnet50_output \
-    -o Global.device="npu:${ASCEND_RT_VISIBLE_DEVICES}"
+    -o Global.device="npu:${DEVICE_LIST}"
 
     #python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
     #-o Global.mode=predict \
@@ -198,7 +200,7 @@ function run_paddlex() {
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/det_coco_examples \
     -o Global.output=ppyolo_plus_s_output \
-    -o Global.device="npu:${ASCEND_RT_VISIBLE_DEVICES}"
+    -o Global.device="npu:${DEVICE_LIST}"
 
     python main.py -c paddlex/configs/object_detection/PP-YOLOE_plus-S.yaml \
     -o Global.mode=predict \
@@ -212,7 +214,7 @@ function run_paddlex() {
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/seg_optic_examples \
     -o Global.output=deeplabv3p_output \
-    -o Global.device="npu:${ASCEND_RT_VISIBLE_DEVICES}"
+    -o Global.device="npu:${DEVICE_LIST}"
 
     python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=predict \

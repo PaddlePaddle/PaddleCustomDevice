@@ -508,7 +508,7 @@ void InterpolateGradKernel(
                                 CNNL_LAYOUT_NHWC,
                                 ToCnnlDataType(transformed_input_grad.dtype()));
   MLUCnnl::InterpBackward(dev_ctx,
-                          GetMLUCnnlInterpBackwardMode(interp_method),
+                          GetMLUCnnlInterpMode(interp_method),
                           align_corners,
                           align_center,
                           input_desc.get(),

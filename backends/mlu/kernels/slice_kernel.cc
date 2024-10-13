@@ -203,11 +203,11 @@ void SliceRawKernel(const Context& dev_ctx,
                     const std::vector<int64_t>& infer_flags,
                     const std::vector<int64_t>& decrease_axis,
                     phi::DenseTensor* out) {
-  std::vector<int> axes(axes_t.begin(), axes_t.end());
+  std::vector<int64_t> axes(axes_t.begin(), axes_t.end());
   auto starts_int = starts_array.GetData();
   auto ends_int = ends_array.GetData();
-  std::vector<int> starts(starts_int.begin(), starts_int.end());
-  std::vector<int> ends(ends_int.begin(), ends_int.end());
+  std::vector<int64_t> starts(starts_int.begin(), starts_int.end());
+  std::vector<int64_t> ends(ends_int.begin(), ends_int.end());
 
   PADDLE_ENFORCE_EQ(
       starts.size(),
@@ -233,8 +233,9 @@ void SliceRawKernel(const Context& dev_ctx,
     }
   }
 
-  custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
-  slice_dims = custom_kernel::GetSliceDims<int>(
+  custom_kernel::CheckAndUpdateSliceAttrs<int64_t>(
+      in_dims, axes, &starts, &ends);
+  slice_dims = custom_kernel::GetSliceDims<int64_t>(
       in_dims, axes, starts, ends, nullptr, nullptr);
   reset_slice_dims = true;
   auto out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
@@ -242,16 +243,17 @@ void SliceRawKernel(const Context& dev_ctx,
   out->Resize(out_dims);
 
   if (slice_dims.size() != in_dims.size() && !reset_slice_dims) {
-    custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
-    slice_dims = custom_kernel::GetSliceDims<int>(
+    custom_kernel::CheckAndUpdateSliceAttrs<int64_t>(
+        in_dims, axes, &starts, &ends);
+    slice_dims = custom_kernel::GetSliceDims<int64_t>(
         in_dims, axes, starts, ends, nullptr, nullptr);
   }
 
   int in_dim_size = x.dims().size();
   if (static_cast<int>(axes.size()) != in_dim_size) {
-    std::vector<int> tmp_starts(in_dim_size, 0);
+    std::vector<int64_t> tmp_starts(in_dim_size, 0);
     const auto& in_dims_vec = phi::vectorize(x.dims());
-    std::vector<int> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
+    std::vector<int64_t> tmp_ends(in_dims_vec.begin(), in_dims_vec.end());
     for (size_t i = 0; i < axes.size(); ++i) {
       tmp_starts[axes[i]] = starts[i];
       tmp_ends[axes[i]] = ends[i];
@@ -259,7 +261,7 @@ void SliceRawKernel(const Context& dev_ctx,
     starts.swap(tmp_starts);
     ends.swap(tmp_ends);
   }
-  std::vector<int> strides(in_dim_size, 1);
+  std::vector<int64_t> strides(in_dim_size, 1);
 
   dev_ctx.template Alloc<T>(out);
 

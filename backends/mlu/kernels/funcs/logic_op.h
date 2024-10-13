@@ -33,7 +33,10 @@ void MLULogicOp(const Context& dev_ctx,
       *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
 
   cnnlLogicOp_t logic_op = GetMLUCnnlLogicOp(logic_name);
-  if (x.dtype() != DataType::INT64) {
+  if (x.dtype() != DataType::INT64 || logic_op == CNNL_LOGIC_OP_EQ ||
+      logic_op == CNNL_LOGIC_OP_NE || logic_op == CNNL_LOGIC_OP_LE ||
+      logic_op == CNNL_LOGIC_OP_LT || logic_op == CNNL_LOGIC_OP_GE ||
+      logic_op == CNNL_LOGIC_OP_GT) {
     MLUCnnl::Logic(dev_ctx,
                    logic_op,
                    input_x.get(),

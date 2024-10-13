@@ -69,9 +69,9 @@ void SetValueKernel(const Context& dev_ctx,
     slice_dims_for_assign = phi::make_ddim(slice_dims_with_none);
   }
   int in_size = in_dims.size();
-  int starts_indices[in_size] = {0};
-  int ends_indices[in_size] = {0};
-  int strides_indices[in_size] = {0};
+  int64_t starts_indices[in_size] = {0};
+  int64_t ends_indices[in_size] = {0};
+  int64_t strides_indices[in_size] = {0};
 
   for (int i = 0; i < in_dims.size(); ++i) {
     starts_indices[i] = 0;
@@ -80,9 +80,9 @@ void SetValueKernel(const Context& dev_ctx,
   }
   for (size_t i = 0; i < axes.size(); i++) {
     int axis_index = axes[i];
-    starts_indices[axis_index] = static_cast<int>(starts_local[i]);
-    ends_indices[axis_index] = static_cast<int>(ends_local[i]);
-    strides_indices[axis_index] = static_cast<int>(steps_local[i]);
+    starts_indices[axis_index] = static_cast<int64_t>(starts_local[i]);
+    ends_indices[axis_index] = static_cast<int64_t>(ends_local[i]);
+    strides_indices[axis_index] = static_cast<int64_t>(steps_local[i]);
   }
 
   std::vector<T> assgin_values;
@@ -286,20 +286,20 @@ void SetTensorValueKernel(const Context& dev_ctx,
     slice_dims_for_assign = phi::make_ddim(slice_dims_with_none);
   }
   int in_size = in_dims.size();
-  int starts_indices[in_size] = {0};
-  int ends_indices[in_size] = {0};
-  int strides_indices[in_size] = {0};
+  int64_t starts_indices[in_size] = {0};
+  int64_t ends_indices[in_size] = {0};
+  int64_t strides_indices[in_size] = {0};
 
   for (int i = 0; i < in_dims.size(); ++i) {
     starts_indices[i] = 0;
-    ends_indices[i] = static_cast<int>(slice_dims[i]);
+    ends_indices[i] = static_cast<int64_t>(slice_dims[i]);
     strides_indices[i] = 1;
   }
   for (size_t i = 0; i < axes.size(); i++) {
     int axis_index = axes[i];
-    starts_indices[axis_index] = static_cast<int>(starts_local[i]);
-    ends_indices[axis_index] = static_cast<int>(ends_local[i]);
-    strides_indices[axis_index] = static_cast<int>(steps_local[i]);
+    starts_indices[axis_index] = static_cast<int64_t>(starts_local[i]);
+    ends_indices[axis_index] = static_cast<int64_t>(ends_local[i]);
+    strides_indices[axis_index] = static_cast<int64_t>(steps_local[i]);
   }
 
   phi::DenseTensor value_temp;

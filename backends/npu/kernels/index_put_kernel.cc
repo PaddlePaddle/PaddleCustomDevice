@@ -64,9 +64,11 @@ void IndexPutKernel(const Context& dev_ctx,
     }
   }
 
-  dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(
-      aclnnIndexPutImpl, dev_ctx, *out, tensor_list, value, accumulate, unsafe);
+      aclnnIndexPutImpl, dev_ctx, x, tensor_list, value, accumulate, unsafe);
+
+  dev_ctx.template Alloc<T>(out);
+  TensorCopy(dev_ctx, x, true, out);
 }
 
 template <typename T, typename Context>

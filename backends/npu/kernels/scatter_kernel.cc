@@ -150,8 +150,7 @@ PD_REGISTER_PLUGIN_KERNEL(scatter,
                           float,
                           int64_t,
                           int,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(scatter_grad,
                           npu,
@@ -160,5 +159,4 @@ PD_REGISTER_PLUGIN_KERNEL(scatter_grad,
                           float,
                           int64_t,
                           int,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::float16) {}

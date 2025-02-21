@@ -52,6 +52,7 @@ class GCUEngineCompiler::GCUEngineCompilerImpl {
 
  private:
   void CreateInputs();
+  void CreateConstOrParameter();
   void MapInnerOutputValues(const pir::Operation* yield_op);
   void SetGraphOutputs();
   void ConvertGraph();
@@ -72,6 +73,9 @@ class GCUEngineCompiler::GCUEngineCompilerImpl {
   pir::Block* block_;
   std::vector<const phi::DenseTensor*> inputs_;
   std::vector<phi::DenseTensor*> outputs_;
+  std::vector<const phi::DenseTensor*> device_constants_;
+  std::vector<phi::DenseTensor*> parameters_;
+  std::unordered_set<pir::Value> uninitialized_const_or_params_;
 
   // for GCU graph
   GcuBuilderPtr builder_ = nullptr;
@@ -152,8 +156,20 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::Compile(GCUEngine* gcu_engine) {
   VLOG(3) << "Compiler begin to CompileHLIR for " << engine_key_;
   topsExecutable_t tops_executable =
       custom_engine::CompileTopsExecutable(hlir_module);
+
   VLOG(3) << "Compiler CompileHLIR end for " << engine_key_;
-  gcu_engine->Init(engine_key_, tops_executable, inputs_, outputs_);
+  std::vector<const phi::DenseTensor*> total_inputs(inputs_);
+  total_inputs.insert(
+      total_inputs.end(), parameters_.begin(), parameters_.end());
+  total_inputs.insert(
+      total_inputs.end(), device_constants_.begin(), device_constants_.end());
+
+  std::vector<phi::DenseTensor*> total_outputs(outputs_);
+  //   // not necessary
+  //   total_outputs.insert(total_outputs.end(), parameters_.begin(),
+  //                        parameters_.end());
+
+  gcu_engine->Init(engine_key_, tops_executable, total_inputs, total_outputs);
   VLOG(3) << "Generate GCUEngine for " << engine_key_;
   return;
 }
@@ -168,7 +184,127 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::CreateInputs() {
     gcu_op_cache_[tensor] =
         std::make_shared<GcuOp>(builder_->CreateInput(input_type));
     VLOG(6) << "Create gcu builder input[" << i
-            << "]: " << engine_value_to_var_names_.at(engine_inputs_[i]).at(0);
+            << "]: " << engine_value_to_var_names_.at(engine_inputs_[i]).at(0)
+            << ", dims:" << custom_engine::VectorToStr<int64_t>(dims);
+  }
+}
+
+void GCUEngineCompiler::GCUEngineCompilerImpl::CreateConstOrParameter() {
+  auto get_const_and_parameters_func =
+      [](const std::list<pir::Operation*>& graph_ops,
+         std::vector<const pir::Operation*>& constants,
+         std::vector<const pir::Operation*>& parameters) -> void {
+    for (const auto* op : graph_ops) {
+      std::string op_name = op->name();
+      auto op_attributes = op->attributes();
+      if (op->HasAttribute("op_name")) {
+        op_name = op->attribute<pir::StrAttribute>("op_name").AsString();
+      }
+      if (op->isa<pir::ParameterOp>()) {
+        parameters.emplace_back(op);
+      } else if (op_name == pir::ConstantOp::name()) {
+        constants.emplace_back(op);
+      }
+    }
+  };
+
+  std::list<pir::Operation*> current_graph_ops = block_->ops();
+  pir::Block* parent_block = op_->GetParentProgram()->block();
+  std::list<pir::Operation*> parent_graph_ops = parent_block->ops();
+
+  std::vector<const pir::Operation*> current_graph_constant_ops;
+  std::vector<const pir::Operation*> current_graph_parameters;
+  std::vector<const pir::Operation*> parent_graph_constant_ops;
+  std::vector<const pir::Operation*> parent_graph_parameters;
+
+  get_const_and_parameters_func(
+      current_graph_ops, current_graph_constant_ops, current_graph_parameters);
+  get_const_and_parameters_func(
+      parent_graph_ops, parent_graph_constant_ops, parent_graph_parameters);
+
+  VLOG(6) << "CreateConstOrParameter get_const_and_parameters_func, current "
+             "graph parameters size:"
+          << current_graph_parameters.size()
+          << ", constant op size:" << current_graph_constant_ops.size();
+
+  VLOG(6) << "CreateConstOrParameter get_const_and_parameters_func, parent "
+             "graph parameters size:"
+          << parent_graph_parameters.size()
+          << ", constant op size:" << parent_graph_constant_ops.size();
+
+  std::vector<const pir::Operation*> total_parameters(current_graph_parameters);
+  total_parameters.insert(total_parameters.end(),
+                          parent_graph_parameters.begin(),
+                          parent_graph_parameters.end());
+
+  std::vector<const pir::Operation*> total_constants(
+      current_graph_constant_ops);
+  total_constants.insert(total_constants.end(),
+                         parent_graph_constant_ops.begin(),
+                         parent_graph_constant_ops.end());
+
+  for (const auto* op : total_parameters) {
+    auto value = op->result(0);
+    auto tensor = engine_value_to_tensors_.at(value).at(0);
+    if (gcu_op_cache_.count(tensor) > 0) {
+      continue;
+    }
+    auto param_name = op->attributes()
+                          .at("parameter_name")
+                          .dyn_cast<pir::StrAttribute>()
+                          .AsString();
+    if (!(tensor->initialized())) {
+      uninitialized_const_or_params_.insert(value);
+      VLOG(6) << "Skip uninitialized parameter, name:" << param_name
+              << ", dims: [" << tensor->dims() << "].";
+      continue;
+    }
+
+    auto ptype = custom_engine::ConvertFromPhiDataType(tensor->dtype());
+    std::vector<int64_t> dims = common::vectorize(tensor->dims());
+    builder::Type gcu_op_type(dims, ptype);
+    gcu_op_cache_[tensor] =
+        std::make_shared<GcuOp>(builder_->CreateInput(gcu_op_type));
+    parameters_.emplace_back(tensor);
+    VLOG(6) << "Create gcu builder Parameter:" << param_name
+            << ", dims:" << custom_engine::VectorToStr<int64_t>(dims);
+  }
+
+  for (const auto* op : total_constants) {
+    if (op->isa<pir::ConstantTensorOp>()) {
+      auto const_name = op->dyn_cast<pir::ConstantTensorOp>().tensor_name();
+      auto value = op->result(0);
+      auto tensor = engine_value_to_tensors_.at(value).at(0);
+      if (gcu_op_cache_.count(tensor) > 0) {
+        continue;
+      }
+      if (!(tensor->initialized())) {
+        uninitialized_const_or_params_.insert(value);
+        VLOG(6) << "Skip uninitialized constant, name:" << const_name
+                << ", dims: [" << tensor->dims() << "].";
+        continue;
+      }
+      auto ptype = custom_engine::ConvertFromPhiDataType(tensor->dtype());
+      std::vector<int64_t> dims = common::vectorize(tensor->dims());
+      builder::Type gcu_op_type(dims, ptype);
+      builder::Op const_op;
+      if (tensor->place().GetType() == phi::AllocationType::CPU) {
+        const_op = builder::Const(
+            builder_, static_cast<void*>(tensor->data()), gcu_op_type);
+      } else {
+        const_op = builder_->CreateInput(gcu_op_type);
+        device_constants_.emplace_back(tensor);
+      }
+
+      gcu_op_cache_[tensor] = std::make_shared<GcuOp>(const_op);
+      VLOG(6) << "Create gcu builder Constant:" << const_name
+              << ", dims:" << custom_engine::VectorToStr<int64_t>(dims);
+    } else {
+      PADDLE_THROW(common::errors::Unimplemented(
+          "Only support ConstantTensorOp, name:%s, id:%ld.",
+          op->name().c_str(),
+          op->name()));
+    }
   }
 }
 
@@ -248,6 +384,7 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
 
   VLOG(3) << "Create inputs node for " << engine_key_;
   CreateInputs();
+  CreateConstOrParameter();
   //   builder_->Dump();
 
   VLOG(3) << "Convert calc ops for " << engine_key_;
@@ -274,6 +411,18 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
     VLOG(6) << "Get input_gcu_ops for " << op_name << ", num:" << input_num;
     for (size_t i = 0; i < input_num; ++i) {
       auto value = op->operand_source(i);
+      bool invalid =
+          (!(value) || (uninitialized_const_or_params_.count(value) > 0));
+      if (invalid) {
+        std::vector<GcuOpPtr> invalid_ops = {std::make_shared<GcuOp>()};
+        input_gcu_ops.emplace_back(invalid_ops);
+        VLOG(3) << "Input " << i
+                << " is a NULL VALUE or uninitialized, maybe it is an "
+                   "optional input or zero tensor, op_name:"
+                << op_name;
+        continue;
+      }
+
       PADDLE_ENFORCE_GT(
           engine_value_to_tensors_.count(value),
           0,
@@ -298,9 +447,12 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
                 i,
                 n,
                 var_names.at(n)));
-        gcu_ops.emplace_back(gcu_op_cache_.at(tensors[n]));
+        auto gcu_op_in = gcu_op_cache_.at(tensors[n]);
+        gcu_ops.emplace_back(gcu_op_in);
         VLOG(6) << "op_name:" << op_name << ", inputs[" << i << "][" << n
-                << "], var name:" << var_names.at(n);
+                << "], var name:" << var_names.at(n) << ", dims:"
+                << custom_engine::VectorToStr<int64_t>(
+                       gcu_op_in->GetType().GetShape());
       }
       input_gcu_ops.emplace_back(gcu_ops);
     }
@@ -309,6 +461,10 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
     VLOG(6) << "Start to convert for " << op_name;
     GcuOpPtr gcu_op = convert_func(builder_, op, input_gcu_ops);
     VLOG(6) << "End of conversion for " << op_name;
+    if (gcu_op == nullptr) {
+      VLOG(6) << "Skip conversion for " << op_name;
+      continue;
+    }
 
     bool is_tuple_out = gcu_op->GetType().IsTuple();
     if (is_tuple_out) {
@@ -322,6 +478,12 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
 
       for (size_t i = 0; i < output_num; ++i) {
         auto out_value = op->result(i);
+        if (engine_value_to_tensors_.count(out_value) == 0) {
+          VLOG(3) << "Output GetTupleElement for " << op_name
+                  << ", output index:" << i
+                  << " not found, maybe a reserve space.";
+          continue;
+        }
         auto tensors = engine_value_to_tensors_.at(out_value);
         PADDLE_ENFORCE_EQ(tensors.size(),
                           1,
@@ -333,14 +495,15 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
                               i));
 
         auto tensor = tensors.at(0);
-        auto ptype = custom_engine::ConvertFromPhiDataType(tensor->dtype());
-        std::vector<int64_t> dims = common::vectorize(tensor->dims());
-        builder::Type input_type(dims, ptype);
-        gcu_op_cache_[tensor] =
+        auto gcu_op_out =
             std::make_shared<GcuOp>(builder::GetTupleElement(*gcu_op, i));
+        gcu_op_cache_[tensor] = gcu_op_out;
         VLOG(6) << "Output GetTupleElement for " << op_name
                 << ", output index:" << i
-                << ", name:" << engine_value_to_var_names_.at(out_value).at(0);
+                << ", name:" << engine_value_to_var_names_.at(out_value).at(0)
+                << ", dims:"
+                << custom_engine::VectorToStr<int64_t>(
+                       gcu_op_out->GetType().GetShape());
       }
     } else {
       if (op->num_results() == 1) {
@@ -355,7 +518,10 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::ConvertGraph() {
                               op_name.c_str()));
         gcu_op_cache_[tensors.at(0)] = gcu_op;
         VLOG(6) << "Output set for " << op_name
-                << ", name:" << engine_value_to_var_names_.at(out_value).at(0);
+                << ", name:" << engine_value_to_var_names_.at(out_value).at(0)
+                << ", dims:"
+                << custom_engine::VectorToStr<int64_t>(
+                       gcu_op->GetType().GetShape());
       } else {
         VLOG(6) << "Op " << op_name << " does not have any output value.";
       }

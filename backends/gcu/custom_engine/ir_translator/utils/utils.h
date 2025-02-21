@@ -37,4 +37,18 @@ std::vector<std::string> GetTopsCompileOptions();
 topsExecutable_t CompileTopsExecutable(
     const std::shared_ptr<hlir::Module>& module);
 
+template <typename T = int64_t>
+static std::string VectorToStr(std::vector<T> vec) {
+  std::stringstream ss;
+  auto len = vec.size();
+  ss << "[";
+  for (size_t i = 0; i < len; ++i) {
+    ss << std::fixed << vec[i];
+    if (i != len - 1) {
+      ss << ", ";
+    }
+  }
+  ss << "]";
+  return ss.str();
+}
 }  // namespace custom_engine

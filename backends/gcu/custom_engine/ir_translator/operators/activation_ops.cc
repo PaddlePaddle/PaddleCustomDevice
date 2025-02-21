@@ -26,6 +26,54 @@ static GcuOpPtr TranslateAbs(
   return std::make_shared<GcuOp>(builder::Abs(input));
 }
 
+static GcuOpPtr TranslateHardsigmoid(
+    GcuBuilderPtr gcu_builder,
+    const pir::Operation *op,
+    const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
+  auto input = *(gcu_op_inputs[0][0]);
+  const auto &attrs = op->attributes();
+  float slope = attrs.at("slope").dyn_cast<pir::FloatAttribute>().data();
+  float offset = attrs.at("offset").dyn_cast<pir::FloatAttribute>().data();
+  return std::make_shared<GcuOp>(builder::HardSigmoid(input, slope, offset));
+}
+
+static GcuOpPtr TranslateHardswish(
+    GcuBuilderPtr gcu_builder,
+    const pir::Operation *op,
+    const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
+  auto input = *(gcu_op_inputs[0][0]);
+  return std::make_shared<GcuOp>(builder::HardSwish(input));
+}
+
+static GcuOpPtr TranslateRelu(
+    GcuBuilderPtr gcu_builder,
+    const pir::Operation *op,
+    const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
+  auto input = *(gcu_op_inputs[0][0]);
+  return std::make_shared<GcuOp>(builder::Relu(input));
+}
+
+static GcuOpPtr TranslateSigmoid(
+    GcuBuilderPtr gcu_builder,
+    const pir::Operation *op,
+    const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
+  auto input = *(gcu_op_inputs[0][0]);
+  return std::make_shared<GcuOp>(builder::Sigmoid(input));
+}
+
+static GcuOpPtr TranslateSqrt(
+    GcuBuilderPtr gcu_builder,
+    const pir::Operation *op,
+    const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
+  auto input = *(gcu_op_inputs[0][0]);
+  return std::make_shared<GcuOp>(builder::Sqrt(input));
+}
 }  // namespace custom_engine
 
 REGISTER_OP_TRANSLATOR(pd_op_abs, custom_engine::TranslateAbs)
+REGISTER_OP_TRANSLATOR(pd_op_hardsigmoid, custom_engine::TranslateHardsigmoid)
+REGISTER_OP_TRANSLATOR(pd_op_hardswish, custom_engine::TranslateHardswish)
+REGISTER_OP_TRANSLATOR(pd_op_relu, custom_engine::TranslateRelu)
+REGISTER_OP_TRANSLATOR(pd_op_relu_, custom_engine::TranslateRelu)
+REGISTER_OP_TRANSLATOR(pd_op_sigmoid, custom_engine::TranslateSigmoid)
+REGISTER_OP_TRANSLATOR(pd_op_sqrt, custom_engine::TranslateSqrt)

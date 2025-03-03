@@ -97,6 +97,12 @@ parser.add_argument(
 )
 parser.add_argument("--platform", type=str, help="platform name")
 parser.add_argument("--junit", type=str, help="junit result file")
+parser.add_argument(
+    "--filter",
+    choices=["stable", "unstable", "all"],
+    help="filter test case list: stable/unstable/all",
+    default="all",
+)
 parser.add_argument("--k", type=str, help="designative test case name to run")
 
 cmd_args.update(vars(parser.parse_args()))
@@ -147,10 +153,33 @@ if cmd_args["k"]:
 script_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(script_path)
 
+from config import skip_case_lst
+
+cmd_args_filter = "all"
+if cmd_args["filter"]:
+    cmd_args_filter = cmd_args["filter"]
+
 for test_case in test_case_dict_lst:
     testcase_name = test_case.get("testcase_name", "")
+    # if --k matched test case
     if match_test_case_name and match_test_case_name not in testcase_name:
         continue
+
+    # only run test cases in stable testsuites
+    if "stable" == cmd_args_filter and testcase_name in skip_case_lst:
+        if ts:
+            testcase = jTestCase(testcase_name)
+            testcase.setSkip(f"{testcase_name} is not in stable list")
+            ts.addCase(testcase)
+        continue
+    # only run test cases in unstable testsuites
+    elif "unstable" == cmd_args_filter and testcase_name not in skip_case_lst:
+        if ts:
+            testcase = jTestCase(testcase_name)
+            testcase.setSkip(f"{testcase_name} is not in unstable list")
+            ts.addCase(testcase)
+        continue
+
     test_case["testcase_subcase_name"] = match_sub_test_case_name
     run_unit_test(ts, test_case)
 

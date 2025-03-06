@@ -27,7 +27,13 @@
 #include <string>
 #include <vector>
 
+#include "habanalabs/perf_lib_layer_params.h"
+#include "habanalabs/synapse_api.h"
+#include "habanalabs/synapse_common_types.h"
+#include "kernels/funcs.h"
+#include "kernels/hpu_operator.h"
 #include "paddle/extension.h"
+#include "utils/utils.h"
 
 inline bool is_in_end(const int64_t id, const int64_t* end_ids, int length) {
   bool flag = false;
@@ -101,46 +107,171 @@ PD_BUILD_OP(set_stop_value_multi_ends)
     .SetInferShapeFn(PD_INFER_SHAPE(GetStopFlagsMultiInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(GetStopFlagsMultiInferDtype));
 
-void set_value_by_flag_and_id(const bool* stop_flags,
-                              int64_t* pre_ids_all,
-                              const int64_t* pre_ids,
-                              const int64_t* step_idx,
-                              int bs,
-                              int length) {
-#pragma omp parallel for num_threads(OMP_THREAD_NUM)
-  for (int bi = 0; bi < bs; bi++) {
-    if (!stop_flags[bi]) {
-      int64_t* pre_ids_all_now = pre_ids_all + bi * length;
-      if (step_idx[bi] >= 0) {
-        pre_ids_all_now[step_idx[bi]] = pre_ids[bi];
-      }
+namespace custom_kernel {
+class SetValueByFlagAndIdxOp : public HpuOperator {
+ public:
+  SetValueByFlagAndIdxOp() : HpuOperator("custom_set_value_bfai") {}
+
+  synTensor createTensorFromCT(ConvertTensors& ct,
+                               int idx,
+                               std::string name,
+                               bool is_input = true,
+                               synSectionHandle section = nullptr) {
+    if (is_input) {
+      auto inputs = ct.GetTensors();
+      synTensor t = createTensor(inputs[idx].dims.size(),
+                                 inputs[idx].type,
+                                 inputs[idx].dims,
+                                 true,
+                                 name.c_str(),
+                                 section);
+      return t;
     }
+
+    auto outputs = ct.GetTensors(false);
+    synTensor t = createTensor(outputs[idx].dims.size(),
+                               outputs[idx].type,
+                               outputs[idx].dims,
+                               true,
+                               name.c_str(),
+                               section);
+    return t;
   }
-}
+
+  synTensor createTensorNoPresist(std::string name,
+                                  synDataType dtype,
+                                  std::vector<int64_t> dims,
+                                  synSectionHandle section = nullptr) {
+    synTensor t =
+        createTensor(dims.size(), dtype, dims, false, name.c_str(), section);
+    return t;
+  }
+
+  void AddCastNode(synTensor x, synTensor y, std::string node_guid) {
+    synTensor syn_inputs[1] = {x};
+    synTensor syn_outputs[1] = {y};
+    synStatus status = synNodeCreate(graphHandle_,
+                                     syn_inputs,
+                                     syn_outputs,
+                                     1,
+                                     1,
+                                     nullptr,
+                                     0,
+                                     node_guid.c_str(),
+                                     node_guid.c_str(),
+                                     nullptr,
+                                     nullptr);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] SetValue::Cast_i64_to_i32 synNodeCreate() failed = ",
+             status);
+  }
+
+  void AddSetValueBFAINode(synTensor* inputs, synTensor* outputs) {
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs,
+                                     outputs,
+                                     4,
+                                     1,
+                                     nullptr,
+                                     0,
+                                     guid_.c_str(),
+                                     guid_.c_str(),
+                                     nullptr,
+                                     nullptr);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] SetValue::AddSetValue synNodeCreate() failed = ",
+             status);
+  }
+
+ private:
+};
+
+}  // namespace custom_kernel
 
 std::vector<paddle::Tensor> SetValueByFlagsAndIdx(
     const paddle::Tensor& pre_ids_all,
     const paddle::Tensor& pre_ids_now,
     const paddle::Tensor& step_idx,
     const paddle::Tensor& stop_flags) {
-  std::vector<int64_t> pre_ids_all_shape = pre_ids_all.shape();
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          pre_ids_all.place()));
 
-  int bs = stop_flags.shape()[0];
-  int length = pre_ids_all_shape[1];
+  auto pre_ids_now_dt =
+      static_cast<const phi::DenseTensor*>(pre_ids_now.impl().get());
+  auto step_idx_dt =
+      static_cast<const phi::DenseTensor*>(step_idx.impl().get());
+  auto stop_flags_dt =
+      static_cast<const phi::DenseTensor*>(stop_flags.impl().get());
+  auto pre_ids_all_dt =
+      static_cast<const phi::DenseTensor*>(pre_ids_all.impl().get());
 
-  auto pre_ids_all_cpu = pre_ids_all.copy_to(paddle::CPUPlace(), true);
-  auto pre_ids_now_cpu = pre_ids_now.copy_to(paddle::CPUPlace(), true);
-  auto step_idx_cpu = step_idx.copy_to(paddle::CPUPlace(), true);
-  auto stop_flags_cpu = stop_flags.copy_to(paddle::CPUPlace(), true);
+  phi::DenseTensor out(*pre_ids_all_dt);
 
-  set_value_by_flag_and_id(
-      stop_flags_cpu.data<bool>(),
-      const_cast<int64_t*>(pre_ids_all_cpu.data<int64_t>()),
-      pre_ids_now_cpu.data<int64_t>(),
-      step_idx_cpu.data<int64_t>(),
-      bs,
-      length);
-  pre_ids_all_cpu.copy_to(pre_ids_all.place(), true);
+  custom_kernel::ConvertTensors ct;
+  ct.Add(*pre_ids_all_dt);
+  ct.Add(*pre_ids_now_dt);
+  ct.Add(*step_idx_dt);
+  ct.Add(*stop_flags_dt);
+  ct.Add(out, false);
+
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<int32_t, nullptr_t>(
+      "SetValueByFlagsAndIdx", inputs_dims, nullptr);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    custom_kernel::SetValueByFlagAndIdxOp op;
+
+    synSectionHandle section_shared = op.createSection();
+    synTensor pre_ids_all_in =
+        op.createTensorFromCT(ct, 0, "pre_ids_all_in", true, section_shared);
+    synTensor pre_ids_all_i32 = op.createTensorNoPresist(
+        "pre_ids_all_i32", syn_type_int32, inputs_dims[0]);
+    op.AddCastNode(pre_ids_all_in, pre_ids_all_i32, "cast_i64_to_i32");
+
+    synTensor pre_ids_now_in = op.createTensorFromCT(ct, 1, "pre_ids_now_in");
+    synTensor pre_ids_now_i32 = op.createTensorNoPresist(
+        "pre_ids_now_i32", syn_type_int32, inputs_dims[1]);
+    op.AddCastNode(pre_ids_now_in, pre_ids_now_i32, "cast_i64_to_i32");
+
+    synTensor step_idx_in = op.createTensorFromCT(ct, 2, "step_idx_in");
+    synTensor step_idx_i32 = op.createTensorNoPresist(
+        "step_idx_i32", syn_type_int32, inputs_dims[2]);
+    op.AddCastNode(step_idx_in, step_idx_i32, "cast_i64_to_i32");
+
+    synTensor stop_flags_in = op.createTensorFromCT(ct, 3, "stop_flags_in");
+    synTensor out_i32 =
+        op.createTensorNoPresist("out_i32", syn_type_int32, inputs_dims[0]);
+    synTensor inputs[] = {
+        pre_ids_all_i32, pre_ids_now_i32, step_idx_i32, stop_flags_in};
+    synTensor outputs[] = {out_i32};
+    op.AddSetValueBFAINode(inputs, outputs);
+
+    synTensor out_i64 =
+        op.createTensorFromCT(ct, 0, "pre_ids_all_out", false, section_shared);
+    op.AddCastNode(out_i32, out_i64, "cast_i32_to_i64");
+
+    op.Compile();
+    op_info.setOp(op);
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors;
+  tensors["pre_ids_all_in"] =
+      reinterpret_cast<uint64_t>(pre_ids_all_dt->data<int64_t>());
+  tensors["pre_ids_now_in"] =
+      reinterpret_cast<uint64_t>(pre_ids_now_dt->data<int64_t>());
+  tensors["step_idx_in"] =
+      reinterpret_cast<uint64_t>(step_idx_dt->data<int64_t>());
+  tensors["stop_flags_in"] =
+      reinterpret_cast<uint64_t>(stop_flags_dt->data<bool>());
+  tensors["pre_ids_all_out"] = reinterpret_cast<uint64_t>(out.data<int64_t>());
+
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx->stream()), tensors);
+
   return {stop_flags};
 }
 

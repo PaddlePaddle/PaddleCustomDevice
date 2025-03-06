@@ -74,7 +74,9 @@ class HpuOperator {
 
 class RecipeRunner {
  public:
-  explicit RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {}
+  explicit RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {
+    deviceId_ = getDevice();
+  }
   ~RecipeRunner() {}
 
   void prepareTensorInfo(synRecipeHandle recipe,
@@ -85,6 +87,13 @@ class RecipeRunner {
 
  protected:
   synRecipeHandle recipeHandle_;
+
+ private:
+  synDeviceId deviceId_ = 0;
+  static std::queue<synEventHandle> executionQueue_;
+
+  synDeviceId getDevice() const;
+  bool isQueueSizeExceeded() const;
 };
 
 #endif  // BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_

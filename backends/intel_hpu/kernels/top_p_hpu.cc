@@ -303,7 +303,7 @@ class TopP : public HpuOperator {
     params.seed = seed;
 
     std::string node_guid =
-        "random_multinomial_fwd_" + SynDataTypeToStr(outputs[0].type);
+        "random_multinomial_pt_fwd_" + SynDataTypeToStr(outputs[0].type);
 
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs,

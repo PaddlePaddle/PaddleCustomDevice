@@ -302,8 +302,8 @@ template <typename T, typename Context>
 void ProdKernel(const Context& dev_ctx,
                 const phi::DenseTensor& x,
                 const phi::IntArray& dims,
-                phi::DataType out_dtype,
                 bool keep_dim,
+                bool reduce_all,
                 phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
   ConvertTensors ct;

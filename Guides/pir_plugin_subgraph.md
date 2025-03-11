@@ -6,10 +6,7 @@
 - 一类是定义kernel， 由paddle执行器进行调度，
 - 一类是接入编译器，由编译器生成kernel paddle执行器执行。
 - 一类是由硬件图引擎完成子图的构造，编译和执行。
-
-
-![paddle 硬件接入方式图](paddle_device_design.png)
-
+![paddle 硬件接入方式](image.png)
 本文档提供了基于Paddle3.0 版本下静态图IR([pir 介绍文档](https://github.com/PaddlePaddle/community/tree/master/pfcc/paddle-code-reading/IR_Dialect))的**插件式子图执行器接入**指导文档。供厂商做自定义的子图优化,以利用硬件子图执行的优化能力，提高模型训练和推理性能。
 
 ###2.功能
@@ -29,7 +26,7 @@ __图编译执行体系__：
 
 3. 实现``custom_engine_op_lower（C_CustomEngineLowerParams*）``接口,接入``pd_op_to_kernel_pass`` 完成子图的编译预处理 _(Paddle 中load 接入``HandleForCustomEngineOP`` 中lower方法)_。
 
-4. 实现``graph_engine_build（C_CustomEngineInstruction）``，``graph_engine_execute(C_CustomEngineInstruction)`` 接口承担**构建和执行硬件子图**的功能， 内部管理xxx 的engine, 完成硬件编译，执行功能。_(Paddle 中load 接入``CustomEngineInstruction`` 中build / run 方法）_
+4. 实现``graph_engine_build（C_CustomEngineInstruction）``，``graph_engine_execute(C_CustomEngineInstruction)`` 接口承担**构建和执行硬件子图**的功能， 内部管理xxx 的engine, 完成硬件编译，执行功能。_(Paddle 中load 接入``CustomEngineInstruction`` 中build / run 方法)_
 
 ![子图接入流程图](subgraph_case.png)
 

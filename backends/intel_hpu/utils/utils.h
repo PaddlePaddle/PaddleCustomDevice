@@ -26,6 +26,8 @@
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
 
+#define MAX_OPNAME_LEN 32
+
 template <class KEY_T, class VAL_T>
 class LRUCache {
  private:
@@ -183,7 +185,7 @@ class OpCacheOperator {
 
  private:
   static inline LRUCache<std::string, synRecipeHandle>& GetLRUCache() {
-    static const int kCapacity = 1024;  // cache capacity
+    static const int kCapacity = 10240;  // cache capacity
     static LRUCache<std::string, synRecipeHandle> lru_cache_(kCapacity);
     return lru_cache_;
   }

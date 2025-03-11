@@ -17,3 +17,6 @@
 #include "paddle/pir/include/pass/pass_registry.h"
 
 USE_PIR_PASS(addn_replace_pass);
+USE_PIR_PASS(gcu_op_marker_pass);
+USE_PIR_PASS(gcu_sub_graph_extract_pass);
+USE_PIR_PASS(gcu_replace_with_engine_op_pass);

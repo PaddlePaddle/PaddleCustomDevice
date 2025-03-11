@@ -142,7 +142,6 @@ PD_REGISTER_PLUGIN_KERNEL_32f(Asinh, asinh);
 PD_REGISTER_PLUGIN_KERNEL_32f(Acosh, acosh);
 PD_REGISTER_PLUGIN_KERNEL_32f(Atanh, atanh);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Relu, relu);
-PD_REGISTER_PLUGIN_KERNEL_32f(Silu, silu);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Exp, exp);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Sqrt, sqrt);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Rsqrt, rsqrt);
@@ -152,3 +151,12 @@ PD_REGISTER_PLUGIN_KERNEL_16f32f(Log, log);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Negative, neg);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Floor, floor);
 PD_REGISTER_PLUGIN_KERNEL_16f32f(Ceil, ceil);
+
+PD_REGISTER_PLUGIN_KERNEL(silu,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::SiluKernel,
+                          float,
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
+}

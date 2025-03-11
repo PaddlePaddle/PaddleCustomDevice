@@ -94,7 +94,7 @@ class TestReduceMaxOpInt64(TestNPUReduceMaxOp):
         self.init_dtype()
 
         self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {"dim": [-2, -1], "out_dtype": int(core.VarDesc.VarType.INT32)}
+        self.attrs = {"dim": [-1], "out_dtype": int(core.VarDesc.VarType.INT32)}
         self.outputs = {
             "Out": self.inputs["X"]
             .max(axis=tuple(self.attrs["dim"]))

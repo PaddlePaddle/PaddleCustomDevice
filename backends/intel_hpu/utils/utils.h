@@ -25,51 +25,47 @@
 #include "glog/logging.h"
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
+#include "kernels/hpu_operator.h"
+#include "runtime/flags.h"
 
 #define MAX_OPNAME_LEN 32
+
+class RecipeCache {
+ public:
+  RecipeCache();
+  ~RecipeCache() {}
+
+  void store(std::string cache_id, synRecipeHandle recipe_handle);
+  synRecipeHandle lookup(std::string cache_id);
+
+  // Location of stored recipes
+  std::string get_cache_path() const { return cache_path_; }
+  void flush();
+  bool isEnabled() { return !cache_path_.empty(); }
+
+ private:
+  std::string cache_path_;
+  bool cache_delete_;
+  int cache_size_mb_;
+};
 
 template <class KEY_T, class VAL_T>
 class LRUCache {
  private:
   std::list<std::pair<KEY_T, VAL_T>> item_list;
   std::unordered_map<KEY_T, decltype(item_list.begin())> item_map;
-  size_t cache_size;
+  size_t cache_num;
+  RecipeCache recipe_cache;
 
  private:
-  void clean(void) {
-    while (item_map.size() > cache_size) {
-      auto last_it = item_list.end();
-      last_it--;
-      item_map.erase(last_it->first);
-      item_list.pop_back();
-    }
-  }
+  void clean(void);
 
  public:
-  explicit LRUCache(int cache_size_) : cache_size(cache_size_) {}
-
-  void put(const KEY_T& key, const VAL_T& val) {
-    auto it = item_map.find(key);
-    if (it != item_map.end()) {
-      item_list.erase(it->second);
-      item_map.erase(it);
-    }
-    item_list.push_front(make_pair(key, val));
-    item_map.insert(make_pair(key, item_list.begin()));
-    clean();
-  }
-
+  LRUCache();
+  void put(const KEY_T& key, const VAL_T& val);
   bool exist(const KEY_T& key) { return (item_map.count(key) > 0); }
-
-  VAL_T get(const KEY_T& key) {
-    auto it = item_map.find(key);
-    if (it != item_map.end()) {
-      item_list.splice(item_list.begin(), item_list, it->second);
-      return it->second->second;
-    } else {
-      return nullptr;
-    }
-  }
+  VAL_T get(const KEY_T& key);
+  VAL_T search(const KEY_T& key);
 };
 
 class KeyCreator {
@@ -156,8 +152,11 @@ class OpCacheOperator {
       VLOG(4) << "hint cache " << key_creator_.GetKey() << ", " << h;
       return h;
     } else {
-      VLOG(4) << "mis hint cache " << key_creator_.GetKey();
-      return nullptr;
+      VLOG(4) << "search recipe cache " << key_creator_.GetKey();
+      auto h = lru_cache.search(key_creator_.GetKey());
+      if (h)
+        VLOG(4) << "hint recipe cache " << key_creator_.GetKey() << ", " << h;
+      return h;
     }
   }
 
@@ -185,8 +184,7 @@ class OpCacheOperator {
 
  private:
   static inline LRUCache<std::string, synRecipeHandle>& GetLRUCache() {
-    static const int kCapacity = 10240;  // cache capacity
-    static LRUCache<std::string, synRecipeHandle> lru_cache_(kCapacity);
+    static LRUCache<std::string, synRecipeHandle> lru_cache_;
     return lru_cache_;
   }
 

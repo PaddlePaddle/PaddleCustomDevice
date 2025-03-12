@@ -1,0 +1,415 @@
+The system is: Linux - 4.14.0_1-0-0-44 - x86_64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler: /usr/bin/cc 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+
+The C compiler identification is GNU, found in "/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/3.18.0/CompilerIdC/a.out"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /usr/bin/c++ 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is GNU, found in "/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/3.18.0/CompilerIdCXX/a.out"
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: /ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_75d2b/fast && /usr/bin/make  -f CMakeFiles/cmTC_75d2b.dir/build.make CMakeFiles/cmTC_75d2b.dir/build
+make[1]: Entering directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o
+/usr/bin/cc   -v -o CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -c /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCCompilerABI.c
+Using built-in specs.
+COLLECT_GCC=/usr/bin/cc
+Target: x86_64-pc-linux-gnu
+Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib
+Thread model: posix
+gcc version 8.2.0 (GCC) 
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/cc1 -quiet -v -imultiarch x86_64-linux-gnu /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCCompilerABI.c -quiet -dumpbase CMakeCCompilerABI.c -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -version -o /tmp/ccdXNDHa.s
+GNU C17 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)
+	compiled by GNU C version 8.2.0, GMP version 6.1.0, MPFR version 3.1.4, MPC version 1.0.3, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+ignoring nonexistent directory "/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../x86_64-pc-linux-gnu/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include
+ /usr/local/include
+ /usr/local/gcc-8.2/include
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+GNU C17 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)
+	compiled by GNU C version 8.2.0, GMP version 6.1.0, MPFR version 3.1.4, MPC version 1.0.3, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+Compiler executable checksum: 8bc999eb6cfa8a99e2ddc81138767200
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+ as -v --64 -o CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o /tmp/ccdXNDHa.s
+GNU assembler version 2.33.1 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.33.1
+COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64'
+Linking C executable cmTC_75d2b
+/home/cmake-3.18.0-Linux-x86_64/bin/cmake -E cmake_link_script CMakeFiles/cmTC_75d2b.dir/link.txt --verbose=1
+/usr/bin/cc  -v -rdynamic CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -o cmTC_75d2b 
+Using built-in specs.
+COLLECT_GCC=/usr/bin/cc
+COLLECT_LTO_WRAPPER=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper
+Target: x86_64-pc-linux-gnu
+Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib
+Thread model: posix
+gcc version 8.2.0 (GCC) 
+COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_75d2b' '-mtune=generic' '-march=x86-64'
+ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2 -plugin /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so -plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUnBdTc.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --eh-frame-hdr -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_75d2b /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0 -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/local/cuda/lib64/stubs -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../.. CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_75d2b' '-mtune=generic' '-march=x86-64'
+make[1]: Leaving directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp'
+
+
+
+Parsed C implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+    add: [/usr/local/include]
+    add: [/usr/local/gcc-8.2/include]
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/local/gcc-8.2/include] ==> [/usr/local/gcc-8.2/include]
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include;/usr/local/include;/usr/local/gcc-8.2/include;/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed C implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/make cmTC_75d2b/fast && /usr/bin/make  -f CMakeFiles/cmTC_75d2b.dir/build.make CMakeFiles/cmTC_75d2b.dir/build]
+  ignore line: [make[1]: Entering directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp']
+  ignore line: [Building C object CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o]
+  ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -c /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCCompilerABI.c]
+  ignore line: [Using built-in specs.]
+  ignore line: [COLLECT_GCC=/usr/bin/cc]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib]
+  ignore line: [Thread model: posix]
+  ignore line: [gcc version 8.2.0 (GCC) ]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+  ignore line: [ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/cc1 -quiet -v -imultiarch x86_64-linux-gnu /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCCompilerABI.c -quiet -dumpbase CMakeCCompilerABI.c -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -version -o /tmp/ccdXNDHa.s]
+  ignore line: [GNU C17 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)]
+  ignore line: [	compiled by GNU C version 8.2.0  GMP version 6.1.0  MPFR version 3.1.4  MPC version 1.0.3  isl version isl-0.18-GMP]
+  ignore line: []
+  ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+  ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+  ignore line: [ignoring nonexistent directory "/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../x86_64-pc-linux-gnu/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/local/gcc-8.2/include]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [GNU C17 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)]
+  ignore line: [	compiled by GNU C version 8.2.0  GMP version 6.1.0  MPFR version 3.1.4  MPC version 1.0.3  isl version isl-0.18-GMP]
+  ignore line: []
+  ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+  ignore line: [Compiler executable checksum: 8bc999eb6cfa8a99e2ddc81138767200]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+  ignore line: [ as -v --64 -o CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o /tmp/ccdXNDHa.s]
+  ignore line: [GNU assembler version 2.33.1 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.33.1]
+  ignore line: [COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64']
+  ignore line: [Linking C executable cmTC_75d2b]
+  ignore line: [/home/cmake-3.18.0-Linux-x86_64/bin/cmake -E cmake_link_script CMakeFiles/cmTC_75d2b.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/cc  -v -rdynamic CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -o cmTC_75d2b ]
+  ignore line: [Using built-in specs.]
+  ignore line: [COLLECT_GCC=/usr/bin/cc]
+  ignore line: [COLLECT_LTO_WRAPPER=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib]
+  ignore line: [Thread model: posix]
+  ignore line: [gcc version 8.2.0 (GCC) ]
+  ignore line: [COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_75d2b' '-mtune=generic' '-march=x86-64']
+  link line: [ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2 -plugin /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so -plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUnBdTc.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --eh-frame-hdr -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_75d2b /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0 -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/local/cuda/lib64/stubs -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../.. CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/ccUnBdTc.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-export-dynamic] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_75d2b] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crt1.o] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crti.o] ==> ignore
+    arg [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o] ==> ignore
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0]
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/local/cuda/lib64/stubs] ==> dir [/usr/local/cuda/lib64/stubs]
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..]
+    arg [CMakeFiles/cmTC_75d2b.dir/CMakeCCompilerABI.c.o] ==> ignore
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [-lc] ==> lib [c]
+    arg [-lgcc] ==> lib [gcc]
+    arg [--as-needed] ==> ignore
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [--no-as-needed] ==> ignore
+    arg [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crtn.o] ==> ignore
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0]
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64] ==> [/usr/local/gcc-8.2/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/local/cuda/lib64/stubs] ==> [/usr/local/cuda/lib64/stubs]
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..] ==> [/usr/local/gcc-8.2/lib]
+  implicit libs: [gcc;gcc_s;c;gcc;gcc_s]
+  implicit dirs: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0;/usr/local/gcc-8.2/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib64;/usr/local/cuda/lib64/stubs;/usr/local/gcc-8.2/lib]
+  implicit fwks: []
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: /ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_eef2b/fast && /usr/bin/make  -f CMakeFiles/cmTC_eef2b.dir/build.make CMakeFiles/cmTC_eef2b.dir/build
+make[1]: Entering directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/c++   -v -o CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -c /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCXXCompilerABI.cpp
+Using built-in specs.
+COLLECT_GCC=/usr/bin/c++
+Target: x86_64-pc-linux-gnu
+Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib
+Thread model: posix
+gcc version 8.2.0 (GCC) 
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/cc1plus -quiet -v -imultiarch x86_64-linux-gnu -D_GNU_SOURCE /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpbase CMakeCXXCompilerABI.cpp -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -version -o /tmp/ccGIiHoi.s
+GNU C++14 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)
+	compiled by GNU C version 8.2.0, GMP version 6.1.0, MPFR version 3.1.4, MPC version 1.0.3, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"
+ignoring nonexistent directory "/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../x86_64-pc-linux-gnu/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include
+ /usr/local/include
+ /usr/local/gcc-8.2/include
+ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+GNU C++14 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)
+	compiled by GNU C version 8.2.0, GMP version 6.1.0, MPFR version 3.1.4, MPC version 1.0.3, isl version isl-0.18-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+Compiler executable checksum: 8ab71907e41bd1c47e7cad5d1a4bda13
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+ as -v --64 -o CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccGIiHoi.s
+GNU assembler version 2.33.1 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.33.1
+COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+Linking CXX executable cmTC_eef2b
+/home/cmake-3.18.0-Linux-x86_64/bin/cmake -E cmake_link_script CMakeFiles/cmTC_eef2b.dir/link.txt --verbose=1
+/usr/bin/c++  -v -rdynamic CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_eef2b 
+Using built-in specs.
+COLLECT_GCC=/usr/bin/c++
+COLLECT_LTO_WRAPPER=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper
+Target: x86_64-pc-linux-gnu
+Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib
+Thread model: posix
+gcc version 8.2.0 (GCC) 
+COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/
+LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_eef2b' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2 -plugin /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so -plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPRFu1g.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --eh-frame-hdr -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_eef2b /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0 -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/local/cuda/lib64/stubs -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../.. CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o
+COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_eef2b' '-shared-libgcc' '-mtune=generic' '-march=x86-64'
+make[1]: Leaving directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp'
+
+
+
+Parsed CXX implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0]
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu]
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward]
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+    add: [/usr/local/include]
+    add: [/usr/local/gcc-8.2/include]
+    add: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+    add: [/usr/include/x86_64-linux-gnu]
+    add: [/usr/include]
+  end of search list found
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0] ==> [/usr/local/gcc-8.2/include/c++/8.2.0]
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu] ==> [/usr/local/gcc-8.2/include/c++/8.2.0/x86_64-pc-linux-gnu]
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward] ==> [/usr/local/gcc-8.2/include/c++/8.2.0/backward]
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+  collapse include dir [/usr/local/include] ==> [/usr/local/include]
+  collapse include dir [/usr/local/gcc-8.2/include] ==> [/usr/local/gcc-8.2/include]
+  collapse include dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+  collapse include dir [/usr/include/x86_64-linux-gnu] ==> [/usr/include/x86_64-linux-gnu]
+  collapse include dir [/usr/include] ==> [/usr/include]
+  implicit include dirs: [/usr/local/gcc-8.2/include/c++/8.2.0;/usr/local/gcc-8.2/include/c++/8.2.0/x86_64-pc-linux-gnu;/usr/local/gcc-8.2/include/c++/8.2.0/backward;/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include;/usr/local/include;/usr/local/gcc-8.2/include;/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed;/usr/include/x86_64-linux-gnu;/usr/include]
+
+
+Parsed CXX implicit link information from above output:
+  link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/make cmTC_eef2b/fast && /usr/bin/make  -f CMakeFiles/cmTC_eef2b.dir/build.make CMakeFiles/cmTC_eef2b.dir/build]
+  ignore line: [make[1]: Entering directory '/ssd3/mayongqiang/cpu/PaddleCustomDevice/backends/GPGPU/tests/unittests/CMakeFiles/CMakeTmp']
+  ignore line: [Building CXX object CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -c /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Using built-in specs.]
+  ignore line: [COLLECT_GCC=/usr/bin/c++]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib]
+  ignore line: [Thread model: posix]
+  ignore line: [gcc version 8.2.0 (GCC) ]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+  ignore line: [ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/cc1plus -quiet -v -imultiarch x86_64-linux-gnu -D_GNU_SOURCE /home/cmake-3.18.0-Linux-x86_64/share/cmake-3.18/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpbase CMakeCXXCompilerABI.cpp -mtune=generic -march=x86-64 -auxbase-strip CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -version -o /tmp/ccGIiHoi.s]
+  ignore line: [GNU C++14 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)]
+  ignore line: [	compiled by GNU C version 8.2.0  GMP version 6.1.0  MPFR version 3.1.4  MPC version 1.0.3  isl version isl-0.18-GMP]
+  ignore line: []
+  ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+  ignore line: [ignoring nonexistent directory "/usr/local/include/x86_64-linux-gnu"]
+  ignore line: [ignoring nonexistent directory "/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../x86_64-pc-linux-gnu/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include]
+  ignore line: [ /usr/local/include]
+  ignore line: [ /usr/local/gcc-8.2/include]
+  ignore line: [ /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed]
+  ignore line: [ /usr/include/x86_64-linux-gnu]
+  ignore line: [ /usr/include]
+  ignore line: [End of search list.]
+  ignore line: [GNU C++14 (GCC) version 8.2.0 (x86_64-pc-linux-gnu)]
+  ignore line: [	compiled by GNU C version 8.2.0  GMP version 6.1.0  MPFR version 3.1.4  MPC version 1.0.3  isl version isl-0.18-GMP]
+  ignore line: []
+  ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+  ignore line: [Compiler executable checksum: 8ab71907e41bd1c47e7cad5d1a4bda13]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+  ignore line: [ as -v --64 -o CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccGIiHoi.s]
+  ignore line: [GNU assembler version 2.33.1 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.33.1]
+  ignore line: [COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+  ignore line: [Linking CXX executable cmTC_eef2b]
+  ignore line: [/home/cmake-3.18.0-Linux-x86_64/bin/cmake -E cmake_link_script CMakeFiles/cmTC_eef2b.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/c++  -v -rdynamic CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_eef2b ]
+  ignore line: [Using built-in specs.]
+  ignore line: [COLLECT_GCC=/usr/bin/c++]
+  ignore line: [COLLECT_LTO_WRAPPER=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper]
+  ignore line: [Target: x86_64-pc-linux-gnu]
+  ignore line: [Configured with: ../gcc-8.2.0/configure --prefix=/usr/local/gcc-8.2 --enable-threads=posix --disable-checking --disable-multilib]
+  ignore line: [Thread model: posix]
+  ignore line: [gcc version 8.2.0 (GCC) ]
+  ignore line: [COMPILER_PATH=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/]
+  ignore line: [LIBRARY_PATH=/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64/:/lib/x86_64-linux-gnu/:/lib/../lib64/:/usr/lib/x86_64-linux-gnu/:/usr/lib/../lib64/:/usr/local/cuda/lib64/stubs/:/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../:/lib/:/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-v' '-rdynamic' '-o' 'cmTC_eef2b' '-shared-libgcc' '-mtune=generic' '-march=x86-64']
+  link line: [ /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2 -plugin /usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so -plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPRFu1g.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --eh-frame-hdr -m elf_x86_64 -export-dynamic -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_eef2b /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0 -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64 -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib64 -L/usr/local/cuda/lib64/stubs -L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../.. CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o]
+    arg [/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/usr/local/gcc-8.2/libexec/gcc/x86_64-pc-linux-gnu/8.2.0/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/ccPRFu1g.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-export-dynamic] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_eef2b] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crt1.o] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crti.o] ==> ignore
+    arg [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtbegin.o] ==> ignore
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0]
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64]
+    arg [-L/lib/x86_64-linux-gnu] ==> dir [/lib/x86_64-linux-gnu]
+    arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+    arg [-L/usr/lib/x86_64-linux-gnu] ==> dir [/usr/lib/x86_64-linux-gnu]
+    arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+    arg [-L/usr/local/cuda/lib64/stubs] ==> dir [/usr/local/cuda/lib64/stubs]
+    arg [-L/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..] ==> dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..]
+    arg [CMakeFiles/cmTC_eef2b.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [-lstdc++] ==> lib [stdc++]
+    arg [-lm] ==> lib [m]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [-lc] ==> lib [c]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/crtend.o] ==> ignore
+    arg [/usr/lib/x86_64-linux-gnu/crtn.o] ==> ignore
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0] ==> [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0]
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../lib64] ==> [/usr/local/gcc-8.2/lib64]
+  collapse library dir [/lib/x86_64-linux-gnu] ==> [/lib/x86_64-linux-gnu]
+  collapse library dir [/lib/../lib64] ==> [/lib64]
+  collapse library dir [/usr/lib/x86_64-linux-gnu] ==> [/usr/lib/x86_64-linux-gnu]
+  collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+  collapse library dir [/usr/local/cuda/lib64/stubs] ==> [/usr/local/cuda/lib64/stubs]
+  collapse library dir [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../..] ==> [/usr/local/gcc-8.2/lib]
+  implicit libs: [stdc++;m;gcc_s;gcc;c;gcc_s;gcc]
+  implicit dirs: [/usr/local/gcc-8.2/lib/gcc/x86_64-pc-linux-gnu/8.2.0;/usr/local/gcc-8.2/lib64;/lib/x86_64-linux-gnu;/lib64;/usr/lib/x86_64-linux-gnu;/usr/lib64;/usr/local/cuda/lib64/stubs;/usr/local/gcc-8.2/lib]
+  implicit fwks: []
+
+

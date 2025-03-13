@@ -20,7 +20,7 @@ import copy
 from paddle.base import Program, program_guard
 import paddle.base as base
 import paddle
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 
 paddle.enable_static()
 
@@ -161,6 +161,35 @@ class TestFP16ElementwiseAddOp(TestElementwiseAddOp):
 class TestDoubleElementwiseAddOp(TestElementwiseAddOp):
     def init_dtype(self):
         self.dtype = np.double
+
+
+class TestElementwiseAddOpBF16(TestElementwiseAddOp):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "elementwise_add"
+        self.python_api = paddle.add
+        self.init_dtype()
+        self.init_input_output()
+        self.init_kernel_type()
+        self.init_axis()
+
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(self.x)),
+            "Y": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(self.y)),
+        }
+        self.attrs = {"axis": self.axis, "use_mkldnn": self.use_mkldnn}
+        self.outputs = {"Out": convert_float_to_uint16(self.out)}
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def init_input_output(self):
+        self.x = np.random.uniform(0.1, 1, [14, 17]).astype(np.float32)
+        self.y = np.random.uniform(0.1, 1, [14, 17]).astype(np.float32)
+        self.out = np.add(self.x, self.y)
 
 
 class TestUint8ElementwiseAddOp(TestElementwiseAddOp):
@@ -345,49 +374,51 @@ class TestFP16ElementwiseAddOp_scalar2(TestFP16ElementwiseAddOp):
 
 class TestAddAPI(unittest.TestCase):
     def test_name(self):
-        with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = paddle.add(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = paddle.add(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_static(self):
-        with paddle.static.program_guard(paddle.static.Program()):
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
 
-            x_np = np.array([2, 3, 4]).astype("float32")
-            y_np = np.array([1, 5, 2]).astype("float32")
+                x_np = np.array([2, 3, 4]).astype("float32")
+                y_np = np.array([1, 5, 2]).astype("float32")
 
-            x = paddle.static.data(name="x", shape=[3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[3], dtype="float32")
+                x = paddle.static.data(name="x", shape=[3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[3], dtype="float32")
 
-            x_reshape = paddle.reshape(x, [3, 1])
-            y_reshape = paddle.reshape(y, [3, 1])
-            z = paddle.add(x_reshape, y_reshape)
-            z = paddle.reshape(z, shape=[3])
+                x_reshape = paddle.reshape(x, [3, 1])
+                y_reshape = paddle.reshape(y, [3, 1])
+                z = paddle.add(x_reshape, y_reshape)
+                z = paddle.reshape(z, shape=[3])
 
-            place = paddle.CustomPlace("sdaa", 0)
-            exe = paddle.static.Executor(place)
-            x_value, y_value, z_value = exe.run(
-                feed={"x": x_np, "y": y_np}, fetch_list=[x, y, z]
-            )
+                place = paddle.CustomPlace("sdaa", 0)
+                exe = paddle.static.Executor(place)
+                x_value, y_value, z_value = exe.run(
+                    feed={"x": x_np, "y": y_np}, fetch_list=[x, y, z]
+                )
 
-            z_expected = np.array([3.0, 8.0, 6.0])
-            self.assertEqual(
-                (x_value == x_np).all(),
-                True,
-                msg="x_value = {}, but expected {}".format(x_value, x_np),
-            )
-            self.assertEqual(
-                (y_value == y_np).all(),
-                True,
-                msg="y_value = {}, but expected {}".format(y_value, y_np),
-            )
-            self.assertEqual(
-                (z_value == z_expected).all(),
-                True,
-                msg="z_value = {}, but expected {}".format(z_value, z_expected),
-            )
+                z_expected = np.array([3.0, 8.0, 6.0])
+                self.assertEqual(
+                    (x_value == x_np).all(),
+                    True,
+                    msg="x_value = {}, but expected {}".format(x_value, x_np),
+                )
+                self.assertEqual(
+                    (y_value == y_np).all(),
+                    True,
+                    msg="y_value = {}, but expected {}".format(y_value, y_np),
+                )
+                self.assertEqual(
+                    (z_value == z_expected).all(),
+                    True,
+                    msg="z_value = {}, but expected {}".format(z_value, z_expected),
+                )
 
 
 class TestAddError(unittest.TestCase):
@@ -401,11 +432,6 @@ class TestAddError(unittest.TestCase):
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("sdaa", 0)
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
-
-            # the input dtype must be float16 or float32 or float64 or int32 or int64
-            x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.add, x2, y2)
 
 
 class TestElementwiseAddOp_Vector(TestElementwiseAddOp):
@@ -730,24 +756,19 @@ class TestElementwiseAddOpError(unittest.TestCase):
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
 
-            # the input dtype of elementwise_add must be float16 or float32 or float64 or int32 or int64
-            # float16 only can be set on GPU place
-            x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.add, x2, y2)
-
 
 class TestAddApi(unittest.TestCase):
     def _executed_api(self, x, y, name=None):
         return paddle.add(x, y, name)
 
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = self._executed_api(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = self._executed_api(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_declarative(self):
         with base.program_guard(base.Program()):
@@ -764,7 +785,7 @@ class TestAddApi(unittest.TestCase):
 
             place = paddle.CustomPlace("sdaa", 0)
             exe = base.Executor(place)
-            z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
+            z_value = exe.run(feed=gen_data(), fetch_list=[z])
             z_expected = np.array([3.0, 8.0, 6.0])
             self.assertEqual((z_value == z_expected).all(), True)
 
@@ -772,8 +793,8 @@ class TestAddApi(unittest.TestCase):
         with base.dygraph.guard(paddle.CustomPlace("sdaa", 0)):
             np_x = np.array([2, 3, 4]).astype("float32")
             np_y = np.array([1, 5, 2]).astype("float32")
-            x = base.dygraph.to_variable(np_x)
-            y = base.dygraph.to_variable(np_y)
+            x = paddle.to_tensor(np_x)
+            y = paddle.to_tensor(np_y)
             z = self._executed_api(x, y)
             np_z = z.numpy()
             z_expected = np.array([3.0, 8.0, 6.0])

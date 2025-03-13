@@ -44,7 +44,7 @@ def _version_check():
         info = ["Dependence", "Compilation Version", "Current Version"]
         version_table = prettytable.PrettyTable(info)
     # get all dependences name
-    except_list = ["paddle_commit", "paddle_sdaa_commit"]
+    except_list = ["paddle_commit", "paddle_sdaa_commit", "paddle_sdaa_version"]
     check_list = [
         var
         for var in dir(version)

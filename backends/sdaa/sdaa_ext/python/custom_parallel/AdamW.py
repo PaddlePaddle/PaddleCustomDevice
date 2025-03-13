@@ -27,7 +27,7 @@ import warnings
 from paddle_sdaa.sdaa_ext import *  # noqa
 import paddle
 from paddle.optimizer import AdamW
-from paddle.base import framework
+from paddle.base import framework, core
 import numpy as np
 import paddle.profiler as profiler
 from paddle.base.layer_helper import LayerHelper
@@ -68,6 +68,10 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
             or isinstance(self._grad_clip, paddle.nn.ClipGradByNorm)
         ):
             self.need_append_all_param = False
+
+        # Do not support AMSGrad
+        self._amsgrad = False
+
         if paddle.in_dynamic_mode():
             self.re_distribution()
             if self.group is not None and not isinstance(self._parameter_list[0], dict):
@@ -134,6 +138,9 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
                 total_num = total_num_
 
             self.flat_accum[k] = paddle.empty(shape=[total_num], dtype=paddle.float32)
+            dtype = flatacc_list[0].dtype
+            if isinstance(dtype, core.DataType):
+                dtype = paddle.base.framework.paddle_type_to_proto_type[dtype]
             paddle._legacy_C_ops.coalesce_tensor(
                 flatacc_list,
                 flatacc_list,
@@ -145,7 +152,7 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
                 "align_size",
                 128,
                 "dtype",
-                flatacc_list[0].dtype,
+                dtype,
             )
 
     def _update_beta(self, name, param):
@@ -204,6 +211,11 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
 
         moment1 = self._get_accumulator_master(self._moment1_acc_str, param_and_grad[0])
         moment2 = self._get_accumulator_master(self._moment2_acc_str, param_and_grad[0])
+        moment2_max = (
+            self._get_accumulator_master(self._moment2_acc_max_str, param_and_grad[0])
+            if self._amsgrad
+            else None
+        )
         beta1_pow_acc = self._get_accumulator_master(
             self._beta1_pow_acc_str, param_and_grad[0]
         )
@@ -294,12 +306,13 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
             moment1_ = moment1
             moment2_ = moment2
 
-        _, _, _, _, _, *_ = paddle._C_ops.adamw_(
+        _, _, _, _, _, _, _ = paddle._C_ops.adamw_(
             param_,
             grad_,
             lr,
             moment1_,
             moment2_,
+            moment2_max,
             beta1_pow_acc,
             beta2_pow_acc,
             master_weight,
@@ -314,6 +327,7 @@ class DistributeAdamW(AdamW, DistributeOptimizer):
             1000,
             find_master,
             False,
+            self._amsgrad,
         )
         return None
 

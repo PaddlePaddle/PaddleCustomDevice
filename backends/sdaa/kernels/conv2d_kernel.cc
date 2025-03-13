@@ -39,12 +39,7 @@ void Conv2dTecodnnKernel(const Context& dev_ctx,
                          const std::string& data_format,
                          phi::DenseTensor* output) {
   VLOG(4) << "CALL SDAA Conv2dTecodnnKernel";
-  PADDLE_ENFORCE_EQ(
-      groups,
-      1,
-      phi::errors::InvalidArgument("tecodnn not support group conv"
-                                   "But recieved: group is %d",
-                                   groups));
+
   ConvKernel<T, Context>(dev_ctx,
                          2,
                          input,
@@ -116,12 +111,7 @@ void Conv2dGradTecodnnKernel(const Context& dev_ctx,
                              phi::DenseTensor* input_grad,
                              phi::DenseTensor* filter_grad) {
   VLOG(4) << "CALL SDAA Conv2dGradTecodnnKernel";
-  PADDLE_ENFORCE_EQ(
-      groups,
-      1,
-      phi::errors::InvalidArgument("tecodnn not support group conv"
-                                   "But recieved: group is %d",
-                                   groups));
+
   ConvBackwardKernel<T, Context>(dev_ctx,
                                  2,
                                  input,

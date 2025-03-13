@@ -31,7 +31,7 @@ import unittest
 
 import paddle
 import paddle.base as base
-from paddle.base import Program, program_guard
+from paddle.base import core
 
 paddle.enable_static()
 SEED = 2021
@@ -41,8 +41,9 @@ class TestMemcpy_FillConstant(unittest.TestCase):
     def get_prog(self):
         self.__class__.use_custom_device = True
         paddle.enable_static()
-        main_program = Program()
-        with program_guard(main_program):
+        main_program = paddle.static.Program()
+        startup_program = paddle.static.Program()
+        with paddle.static.program_guard(main_program, startup_program):
             cpu_var_name = "tensor@Cpu"
             sdaa_var_name = "tensor@sdaa"
             cpu_var = main_program.global_block().create_var(
@@ -80,39 +81,86 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             )
         return main_program, sdaa_var, cpu_var
 
-    def test_sdaa_cpoy_to_cpu(self):
+    def test_sdaa_copy_to_cpu(self):
         self.__class__.use_custom_device = True
-        main_program, sdaa_var, cpu_var = self.get_prog()
-        main_program.global_block().append_op(
-            type="memcpy",
-            inputs={"X": sdaa_var},
-            outputs={"Out": cpu_var},
-            attrs={"dst_place_type": 0},
-        )
-        place = paddle.CustomPlace("sdaa", 0)
-        exe = base.Executor(place)
-        sdaa_, cpu_ = exe.run(
-            main_program, feed={}, fetch_list=[sdaa_var.name, cpu_var.name]
-        )
-        np.testing.assert_allclose(sdaa_, cpu_)
-        np.testing.assert_allclose(cpu_, np.ones((10, 10)))
+        with paddle.pir_utils.OldIrGuard():
+            main_program, sdaa_var, cpu_var = self.get_prog()
+            main_program.global_block().append_op(
+                type="memcpy",
+                inputs={"X": sdaa_var},
+                outputs={"Out": cpu_var},
+                attrs={"dst_place_type": 0},
+            )
+            place = paddle.CustomPlace("sdaa", 0)
+            exe = base.Executor(place)
+            sdaa_, cpu_ = exe.run(
+                main_program, feed={}, fetch_list=[sdaa_var.name, cpu_var.name]
+            )
+            np.testing.assert_allclose(sdaa_, cpu_)
+            np.testing.assert_allclose(cpu_, np.ones((10, 10)))
 
-    def test_cpu_cpoy_sdaa(self):
+    def test_cpu_copy_sdaa(self):
         self.__class__.use_custom_device = True
-        main_program, sdaa_var, cpu_var = self.get_prog()
-        main_program.global_block().append_op(
-            type="memcpy",
-            inputs={"X": cpu_var},
-            outputs={"Out": sdaa_var},
-            attrs={"dst_place_type": 6},
-        )
-        place = paddle.CustomPlace("sdaa", 0)
-        exe = base.Executor(place)
-        sdaa_, cpu_ = exe.run(
-            main_program, feed={}, fetch_list=[sdaa_var.name, cpu_var.name]
-        )
-        np.testing.assert_allclose(sdaa_, cpu_)
-        np.testing.assert_allclose(sdaa_, np.zeros((10, 10)))
+        with paddle.pir_utils.OldIrGuard():
+            main_program, sdaa_var, cpu_var = self.get_prog()
+            main_program.global_block().append_op(
+                type="memcpy",
+                inputs={"X": cpu_var},
+                outputs={"Out": sdaa_var},
+                attrs={"dst_place_type": 6},
+            )
+            place = paddle.CustomPlace("sdaa", 0)
+            exe = base.Executor(place)
+            sdaa_, cpu_ = exe.run(
+                main_program, feed={}, fetch_list=[sdaa_var.name, cpu_var.name]
+            )
+            np.testing.assert_allclose(sdaa_, cpu_)
+            np.testing.assert_allclose(sdaa_, np.zeros((10, 10)))
+
+
+class TestMemcpyLoDTensorArray_FillRandom(unittest.TestCase):
+    def setUp(self):
+        self.input_shape = [50, 60]
+        self.x = np.random.random(self.input_shape).astype("float32")
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.iter_num = 5
+        self.dtype = "float32"
+
+    def test_sdaa_copy_to_cpu_multi_io(self):
+        self.__class__.use_custom_device = True
+        paddle.enable_static()
+        with paddle.pir_utils.OldIrGuard():
+            main_program = paddle.static.Program()
+            startup_program = paddle.static.Program()
+            with paddle.static.program_guard(main_program, startup_program):
+                cpu_var_name = "tensors@Cpu"
+                sdaa_var_name = "tensors@sdaa"
+                cpu_var = main_program.global_block().create_var(
+                    name=cpu_var_name,
+                    dtype=self.dtype,
+                    type=core.VarDesc.VarType.LOD_TENSOR_ARRAY,
+                )
+                sdaa_var = main_program.global_block().create_var(
+                    name=sdaa_var_name,
+                    dtype=self.dtype,
+                    type=core.VarDesc.VarType.LOD_TENSOR_ARRAY,
+                )
+                input = paddle.assign(self.x)
+                zero = paddle.tensor.fill_constant(shape=[1], value=0, dtype="int64")
+                for i in range(self.iter_num):
+                    paddle.tensor.array_write(input, zero + i, sdaa_var)
+                main_program.global_block().append_op(
+                    type="memcpy_d2h",
+                    inputs={"X": sdaa_var},
+                    outputs={"Out": cpu_var},
+                    attrs={"dst_place_type": 0},
+                )
+                exe = paddle.static.Executor(self.place)
+                sdaa_, cpu_ = exe.run(
+                    main_program, feed={}, fetch_list=[sdaa_var.name, cpu_var.name]
+                )
+                np.testing.assert_allclose(sdaa_, cpu_, rtol=0)
+                np.testing.assert_allclose(cpu_[0], self.x, rtol=0)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
+from scipy.stats import truncnorm
 
 from op_test import OpTest
 import paddle
@@ -51,6 +52,8 @@ class TestGaussianRandomKernel(OpTest):
             "mean": self.mean,
             "std": self.std,
             "seed": 10,
+            "a": self.a,
+            "b": self.b,
             "use_mkldnn": self.use_mkldnn,
         }
         paddle.seed(10)
@@ -60,6 +63,8 @@ class TestGaussianRandomKernel(OpTest):
     def set_attrs(self):
         self.mean = 1.0
         self.std = 2.0
+        self.a = -3.0
+        self.b = 5.0
 
     def set_sdaa(self):
         self.__class__.use_custom_device = True
@@ -78,7 +83,8 @@ class TestGaussianRandomKernel(OpTest):
         hist, _ = np.histogram(outs[0], range=(-3, 5))
         hist = hist.astype("float32")
         hist /= float(outs[0].size)
-        data = np.random.normal(size=(123, 92), loc=1, scale=2)
+        # Note: result of scipy.stats.truncnorm.rvs is inside [loc + a * scale, loc + b * scale], while result of paddle._C_ops.truncated_gaussian_random is inside [a, b]
+        data = truncnorm.rvs(a=-2, b=2, loc=1, scale=2, size=(123, 92))
         hist2, _ = np.histogram(data, range=(-3, 5))
         hist2 = hist2.astype("float32")
         hist2 /= float(outs[0].size)
@@ -96,8 +102,8 @@ class TestGaussianRandomKernelFP16(OpTest):
 
 class TestPrecisionAlignment(unittest.TestCase):
     def test_verify_output_with_GPU(self):
-        paddle.seed(2023)
         paddle.disable_static()
+        paddle.seed(2023)
         data = paddle.ones(shape=[3, 1, 8], dtype="float32")
         bias_attr = paddle.framework.ParamAttr(
             name="linear_bias",
@@ -113,97 +119,97 @@ class TestPrecisionAlignment(unittest.TestCase):
         weight_attr_gpu = paddle.to_tensor(
             [
                 [
-                    -2.01012564,
-                    -2.44575310,
-                    1.17401874,
-                    2.16073179,
-                    -0.76169139,
-                    2.23397636,
-                    2.56214452,
-                    -0.78591233,
+                    -1.6186513,
+                    -1.8141448,
+                    0.5027355,
+                    1.11318,
+                    -0.8634622,
+                    1.1533377,
+                    1.3226961,
+                    -0.88003653,
                 ],
                 [
-                    3.01231623,
-                    -1.13635075,
-                    -0.90178585,
-                    1.83117115,
-                    2.94593811,
-                    2.29788685,
-                    0.76837879,
-                    -0.6240067,
+                    1.5248024,
+                    -1.1134394,
+                    -0.9586074,
+                    0.92273754,
+                    1.497296,
+                    1.1876942,
+                    0.22377466,
+                    -0.7683639,
                 ],
                 [
-                    0.66532052,
-                    -1.86164320,
-                    -1.13086987,
-                    0.78322679,
-                    -2.12622166,
-                    3.37603354,
-                    1.91009712,
-                    -2.53848076,
+                    0.15126379,
+                    -1.5425761,
+                    -1.109894,
+                    0.23417574,
+                    -1.6748872,
+                    1.6611208,
+                    0.9697355,
+                    -1.8501672,
                 ],
                 [
-                    2.61308789,
-                    -0.71218991,
-                    -0.49577177,
-                    2.04250932,
-                    1.22324121,
-                    2.68732953,
-                    -2.44257021,
-                    2.76428628,
+                    1.3473688,
+                    -0.8294384,
+                    -0.67861795,
+                    1.0466517,
+                    0.53572905,
+                    1.3825172,
+                    -1.8128731,
+                    1.4179268,
                 ],
                 [
-                    -2.75118279,
-                    1.62414622,
-                    4.00820446,
-                    2.18627882,
-                    -1.07511091,
-                    -1.76093519,
-                    0.71191508,
-                    0.58216548,
+                    -1.9252577,
+                    0.79564375,
+                    1.8412019,
+                    1.1272806,
+                    -1.0736177,
+                    -1.4884466,
+                    0.1841138,
+                    0.09239072,
                 ],
                 [
-                    4.62944603,
-                    0.81320274,
-                    3.25842428,
-                    -0.06121963,
-                    -1.47933340,
-                    0.84862852,
-                    4.30057287,
-                    -1.09468853,
+                    1.9555091,
+                    0.25513613,
+                    1.619711,
+                    -0.3689488,
+                    -1.3271068,
+                    0.2798395,
+                    1.9019394,
+                    -1.0863973,
                 ],
                 [
-                    0.31158024,
-                    1.90019679,
-                    3.06459785,
-                    2.99715447,
-                    1.37522984,
-                    1.49921751,
-                    1.62003994,
-                    0.94212717,
+                    -0.10086287,
+                    0.96388614,
+                    1.545898,
+                    1.5185906,
+                    0.6362051,
+                    0.71646774,
+                    0.7930698,
+                    0.3446629,
                 ],
                 [
-                    2.46152616,
-                    0.73536116,
-                    1.90530849,
-                    0.68263239,
-                    0.45855901,
-                    1.55757499,
-                    -1.28208399,
-                    0.50616789,
+                    1.2726623,
+                    0.20060308,
+                    0.9669079,
+                    0.16348132,
+                    0.0043795,
+                    0.75367326,
+                    -1.2062784,
+                    0.03834143,
                 ],
             ]
         )
         bias_attr_gpu = paddle.to_tensor(
             [
-                3.01231623,
-                -1.13635075,
-                -0.90178585,
-                1.83117115,
-                2.94593811,
-                2.29788685,
-                0.76837879,
-                -0.62400675,
+                1.5248024,
+                -1.1134394,
+                -0.9586074,
+                0.92273754,
+                1.497296,
+                1.1876942,
+                0.22377466,
+                -0.7683639,
             ]
         )
 

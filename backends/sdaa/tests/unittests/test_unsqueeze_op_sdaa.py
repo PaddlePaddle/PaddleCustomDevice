@@ -283,40 +283,41 @@ class TestUnsqueezeAPI(unittest.TestCase):
         self.unsqueeze = paddle.unsqueeze
 
     def test_api(self):
-        input = np.random.random([3, 2, 5]).astype("float64")
-        x = paddle.static.data(name="x", shape=[3, 2, 5], dtype="float64")
-        positive_3_int32 = paddle.tensor.fill_constant([1], "int32", 3)
-        positive_1_int64 = paddle.tensor.fill_constant([1], "int64", 1)
-        axes_tensor_int32 = paddle.static.data(
-            name="axes_tensor_int32", shape=[3], dtype="int32"
-        )
-        axes_tensor_int64 = paddle.static.data(
-            name="axes_tensor_int64", shape=[3], dtype="int64"
-        )
+        with paddle.static.program_guard(paddle.static.Program()):
+            input = np.random.random([3, 2, 5]).astype("float64")
+            x = paddle.static.data(name="x", shape=[3, 2, 5], dtype="float64")
+            positive_3_int32 = paddle.tensor.fill_constant([1], "int32", 3)
+            positive_1_int64 = paddle.tensor.fill_constant([1], "int64", 1)
+            axes_tensor_int32 = paddle.static.data(
+                name="axes_tensor_int32", shape=[3], dtype="int32"
+            )
+            axes_tensor_int64 = paddle.static.data(
+                name="axes_tensor_int64", shape=[3], dtype="int64"
+            )
 
-        out_1 = self.unsqueeze(x, axis=[3, 1, 1])
-        out_2 = self.unsqueeze(x, axis=[positive_3_int32, positive_1_int64, 1])
-        out_3 = self.unsqueeze(x, axis=axes_tensor_int32)
-        out_4 = self.unsqueeze(x, axis=3)
-        out_5 = self.unsqueeze(x, axis=axes_tensor_int64)
+            out_1 = self.unsqueeze(x, axis=[3, 1, 1])
+            out_2 = self.unsqueeze(x, axis=[positive_3_int32, positive_1_int64, 1])
+            out_3 = self.unsqueeze(x, axis=axes_tensor_int32)
+            out_4 = self.unsqueeze(x, axis=3)
+            out_5 = self.unsqueeze(x, axis=axes_tensor_int64)
 
-        place = paddle.CustomPlace("sdaa", 0)
-        exe = paddle.static.Executor(place)
-        res_1, res_2, res_3, res_4, res_5 = exe.run(
-            paddle.static.default_main_program(),
-            feed={
-                "x": input,
-                "axes_tensor_int32": np.array([3, 1, 1]).astype("int32"),
-                "axes_tensor_int64": np.array([3, 1, 1]).astype("int64"),
-            },
-            fetch_list=[out_1, out_2, out_3, out_4, out_5],
-        )
+            place = paddle.CustomPlace("sdaa", 0)
+            exe = paddle.static.Executor(place)
+            res_1, res_2, res_3, res_4, res_5 = exe.run(
+                paddle.static.default_main_program(),
+                feed={
+                    "x": input,
+                    "axes_tensor_int32": np.array([3, 1, 1]).astype("int32"),
+                    "axes_tensor_int64": np.array([3, 1, 1]).astype("int64"),
+                },
+                fetch_list=[out_1, out_2, out_3, out_4, out_5],
+            )
 
-        assert np.array_equal(res_1, input.reshape([3, 1, 1, 2, 5, 1]))
-        assert np.array_equal(res_2, input.reshape([3, 1, 1, 2, 5, 1]))
-        assert np.array_equal(res_3, input.reshape([3, 1, 1, 2, 5, 1]))
-        assert np.array_equal(res_4, input.reshape([3, 2, 5, 1]))
-        assert np.array_equal(res_5, input.reshape([3, 1, 1, 2, 5, 1]))
+            assert np.array_equal(res_1, input.reshape([3, 1, 1, 2, 5, 1]))
+            assert np.array_equal(res_2, input.reshape([3, 1, 1, 2, 5, 1]))
+            assert np.array_equal(res_3, input.reshape([3, 1, 1, 2, 5, 1]))
+            assert np.array_equal(res_4, input.reshape([3, 2, 5, 1]))
+            assert np.array_equal(res_5, input.reshape([3, 1, 1, 2, 5, 1]))
 
     def test_error(self):
         def test_axes_type():

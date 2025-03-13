@@ -16,7 +16,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -101,6 +101,54 @@ class ElementwiseMulOp(OpTest):
 
     def init_axis(self):
         self.axis = -1
+
+
+class TestBF16ElementwiseMulOp(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "elementwise_mul"
+        self.python_api = paddle.multiply
+        self.public_python_api = paddle.multiply
+        self.dtype = np.uint16
+
+        self.x = np.random.uniform(0.1, 1, [13, 17]).astype(np.float32)
+        self.y = np.random.uniform(0.1, 1, [13, 17]).astype(np.float32)
+        self.out = np.multiply(self.x, self.y)
+
+        self.axis = -1
+
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(self.x)),
+            "Y": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(self.y)),
+        }
+        self.outputs = {"Out": convert_float_to_uint16(self.out)}
+        self.attrs = {"axis": self.axis, "use_mkldnn": False}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad_normal(self):
+        self.check_grad_with_place(self.place, ["X", "Y"], "Out")
+
+    def test_check_grad_ingore_x(self):
+        self.check_grad_with_place(
+            self.place,
+            ["Y"],
+            "Out",
+            no_grad_set=set("X"),
+        )
+
+    def test_check_grad_ingore_y(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            no_grad_set=set("Y"),
+        )
 
 
 @skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")
@@ -284,30 +332,6 @@ class TestElementwiseMulOp_xsize_lessthan_ysize(ElementwiseMulOp):
 
     def init_axis(self):
         self.axis = 2
-
-
-class TestElementwiseMulApi_broadcast_dim_1(unittest.TestCase):
-
-    paddle.disable_static()
-    paddle.set_device("sdaa")
-    np_x = np.random.uniform(0.1, 1.0, [768]).astype("float32")
-    np_y = np.random.uniform(0.1, 1.0, [1, 1]).astype("float32")
-
-    x = paddle.to_tensor(np_x, stop_gradient=False)
-    y = paddle.to_tensor(np_y, stop_gradient=False)
-    z = paddle.multiply(x, y)
-    z.backward()
-
-    paddle.set_device("cpu")
-    xc = x._to("cpu")
-    yc = y._to("cpu")
-    zc = paddle.multiply(xc, yc)
-    zc.backward()
-
-    np.testing.assert_allclose(z, zc)
-    np.testing.assert_allclose(x.grad, xc.grad)
-    np.testing.assert_allclose(y.grad, yc.grad)
-    paddle.enable_static()
 
 
 if __name__ == "__main__":

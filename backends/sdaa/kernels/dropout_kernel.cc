@@ -120,6 +120,11 @@ void DropoutKernel(const Context& dev_ctx,
 
   const char* value = std::getenv(ALIGN_NV);
   if (value) {
+    PADDLE_ENFORCE_NE(
+        x.dtype() == phi::DataType::BFLOAT16,
+        true,
+        phi::errors::InvalidArgument(
+            "Dropout Align_NV mode does not support BFLOAT16 dtype"));
     DropoutNVAlign<T>(dev_ctx,
                       x,
                       seed_tensor,
@@ -264,4 +269,5 @@ PD_REGISTER_PLUGIN_KERNEL(dropout_grad,
                           ALL_LAYOUT,
                           custom_kernel::DropoutGradKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {}

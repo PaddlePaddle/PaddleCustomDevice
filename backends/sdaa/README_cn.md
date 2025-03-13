@@ -8,25 +8,28 @@
 
 | 组件         | 版本     |
 | ---------   | -------- |
-| TecoDriver  | 1.1.0    |
-| TecoToolkit | 1.1.0    |
+| TecoDriver  | 2.0.2    |
+| TecoToolkit | 2.0.2    |
 
 ## 环境准备与源码同步
 ```bash
 # 1. 拉取开发镜像
-wget http://mirrors.tecorigin.com/repository/teco-docker-tar-repo/release/ubuntu22.04/x86_64/1.1.0/paddle-1.1.0-paddle_sdaa1.1.0.tar
-docker load < paddle-1.1.0-paddle_sdaa1.1.0.tar
+wget http://mirrors.tecorigin.com/repository/teco-docker-tar-repo/release/ubuntu22.04/x86_64/2.0.2/paddle-2.0.2-paddle_sdaa2.0.2.tar
+docker load < paddle-2.0.2-paddle_sdaa2.0.2.tar
 
 # 2. 参考如下命令启动容器并激活 conda 环境（conda 环境中已安装 PaddlePaddle 主框架）
 docker run -it --name="paddle_sdaa_dev" --net=host -v $(pwd):/work \
 --device=/dev/tcaicard0 --device=/dev/tcaicard1 \
 --device=/dev/tcaicard2 --device=/dev/tcaicard3 \
 --cap-add SYS_PTRACE --cap-add SYS_ADMIN --shm-size 64g \
-jfrog.tecorigin.net/tecotp-docker/release/ubuntu22.04/x86_64/paddle:1.1.0-paddle_sdaa1.1.0 /bin/bash
+jfrog.tecorigin.net/tecotp-docker/release/ubuntu22.04/x86_64/paddle:2.0.2-paddle_sdaa2.0.2 /bin/bash
 
-conda activate paddle_env
+conda activate paddle_env_py310
 
-# 3. 克隆 PaddleCustomDevice 源码
+# 3. 安装 paddlepaddle 主框架
+python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/ --force-reinstall
+
+# 4. 克隆 PaddleCustomDevice 源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 cd PaddleCustomDevice
 ```

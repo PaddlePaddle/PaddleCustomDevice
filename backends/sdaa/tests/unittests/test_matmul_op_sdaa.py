@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 import paddle.base as base
 
@@ -555,6 +555,123 @@ create_test_fp16_class(TestMatMulOpBroadcast7)
 create_test_fp16_class(TestMatMulOpBroadcast8)
 create_test_fp16_class(TestMatMulOpBroadcast9)
 create_test_fp16_class(TestMatMulOpBroadcast10)
+
+
+class TestMatMulOpBf16Case(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def config(self):
+        self.x_shape = (2, 26896, 128)
+        self.y_shape = (2, 128, 16)
+        self.trans_x = False
+        self.trans_y = False
+
+    def init_kernel_type(self):
+        self.dtype = np.uint16
+
+    def setUp(self):
+        self.set_sdaa()
+        self.init_kernel_type()
+        self.config()
+        self.op_type = "matmul_v2"
+        x = np.random.random(self.x_shape).astype(np.float32)
+        y = np.random.random(self.y_shape).astype(np.float32)
+        # -0.1 ~ 0.1
+        x = -0.1 + 0.2 * x
+        y = -0.1 + 0.2 * y
+        np_uint16_x = convert_float_to_uint16(x)
+        np_uint16_y = convert_float_to_uint16(y)
+        np_uint16_to_fp32_x = convert_uint16_to_float(np_uint16_x)
+        np_uint16_to_fp32_y = convert_uint16_to_float(np_uint16_y)
+        result = reference_matmul(
+            np_uint16_to_fp32_x, np_uint16_to_fp32_y, self.trans_x, self.trans_y
+        )
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(np_uint16_x),
+            "Y": OpTest.np_dtype_to_base_dtype(np_uint16_y),
+        }
+        self.attrs = {"trans_x": self.trans_x, "trans_y": self.trans_y}
+        self.outputs = {"Out": result}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=0.004)
+
+    def test_check_grad(self):
+        pass
+
+
+class TestMatMulOpBf16Case01(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (100,)
+        self.y_shape = (100,)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case02(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (128, 100)
+        self.y_shape = (100,)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case03(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (1, 2, 26896, 128)
+        self.y_shape = (128, 16)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case04(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (1, 2, 128, 26896)
+        self.y_shape = (128, 16)
+        self.trans_x = True
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case05(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (16, 128)
+        self.y_shape = (128, 16)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case06(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (10, 10)
+        self.y_shape = (3, 1, 10, 10)
+        self.trans_x = False
+        self.trans_y = True
+
+
+class TestMatMulOpBf16Case07(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (3, 10, 10, 1, 5)
+        self.y_shape = (10, 10, 5, 4)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case08(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (1, 1, 2, 100)
+        self.y_shape = (1, 1, 100, 2)
+        self.trans_x = False
+        self.trans_y = False
+
+
+class TestMatMulOpBf16Case09(TestMatMulOpBf16Case):
+    def config(self):
+        self.x_shape = (2, 1, 2, 100)
+        self.y_shape = (1, 1, 100, 2)
+        self.trans_x = False
+        self.trans_y = False
 
 
 class TestMatMulV2API(unittest.TestCase):

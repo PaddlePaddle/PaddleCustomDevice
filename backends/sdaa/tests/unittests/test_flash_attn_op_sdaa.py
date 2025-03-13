@@ -112,13 +112,17 @@ def diff3_max(eval_data, base_data, th=1e-6):
 # ==========================================diff3max==========================================
 
 
-def sdaa_flash_attn(q, k, v):
+def sdaa_flash_attn(q, k, v, attn_mask):
     q = paddle.transpose(q, [1, 0, 2, 3])
     q.register_hook(save_grad)
     k = paddle.transpose(k, [1, 0, 2, 3])
     k.register_hook(save_grad)
     v = paddle.transpose(v, [1, 0, 2, 3])
     v.register_hook(save_grad)
+    if attn_mask:
+        attention_mask = get_triangle_upper_mask(q)
+    else:
+        attention_mask = None
 
     training = True
     out, _, _, _ = paddle._C_ops.flash_attn(
@@ -126,7 +130,7 @@ def sdaa_flash_attn(q, k, v):
         k,
         v,
         None,
-        None,
+        attention_mask,
         0.0,
         False,
         False,
@@ -142,7 +146,7 @@ def sdaa_flash_attn(q, k, v):
     return out
 
 
-def model_attn(query_states, key_states, value_states):
+def model_attn(query_states, key_states, value_states, attn_mask):
     # q,k,v [batch_size, seq_len, num_heads, head_dim]
     head_dim = dim
     q_len = query_states.shape[1]
@@ -158,9 +162,11 @@ def model_attn(query_states, key_states, value_states):
     value_states.register_hook(save_grad)
 
     attn_weights = paddle.matmul(query_states, key_states.transpose([0, 1, 3, 2]))
-    attention_mask = get_triangle_upper_mask(attn_weights)
-    attention_mask = attention_mask.reshape([bsz, 1, q_len, kv_seq_len])
-    attn_weights = attn_weights + attention_mask
+    if attn_mask:
+        attention_mask = get_triangle_upper_mask(attn_weights)
+        attention_mask = attention_mask.reshape([bsz, 1, q_len, kv_seq_len])
+        attn_weights = attn_weights + attention_mask
+
     attn_weights = F.softmax(attn_weights, axis=-1, dtype="float32").astype(
         query_states.dtype
     )
@@ -175,7 +181,11 @@ def model_attn(query_states, key_states, value_states):
 
 
 class TestFlashAttention(unittest.TestCase):
+    def init(self):
+        self.attn_mask = True
+
     def setUp(self):
+        self.init()
         runtime_envs = os.environ
         runtime_envs["HIGH_PERFORMANCE_GEMM"] = "1"
 
@@ -228,18 +238,25 @@ class TestFlashAttention(unittest.TestCase):
             self.cpu_model_query_states,
             self.cpu_model_key_states,
             self.cpu_model_value_states,
+            self.attn_mask,
         )
 
         paddle.set_device("sdaa")
         with paddle.amp.auto_cast(True, custom_black_list={"matmul_v2"}):
             model_output = model_attn(
-                self.model_query_states, self.model_key_states, self.model_value_states
+                self.model_query_states,
+                self.model_key_states,
+                self.model_value_states,
+                self.attn_mask,
             )
         paddle.device.synchronize()
 
         paddle.set_device("sdaa")
         flash_attn_output = sdaa_flash_attn(
-            self.sdaa_query_states, self.sdaa_key_states, self.sdaa_value_states
+            self.sdaa_query_states,
+            self.sdaa_key_states,
+            self.sdaa_value_states,
+            self.attn_mask,
         )
         paddle.device.synchronize()
 
@@ -262,6 +279,11 @@ class TestFlashAttention(unittest.TestCase):
             )
             diff = backward_test / backward_golden
             np.testing.assert_equal(True, diff < diff_standard)
+
+
+class TestFlashAttentionNoMask(TestFlashAttention):
+    def init(self):
+        self.attn_mask = False
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 from unittest import mock
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 import os
 import paddle
 import paddle.base as base
@@ -29,30 +29,9 @@ paddle.enable_static()
 SEED = 2021
 
 
-def dropout_wapper(
-    X,
-    Seed=None,
-    dropout_prob=0.5,
-    is_test=False,
-    dropout_implementation="downgrade_in_infer",
-    seed=0,
-    fix_seed=False,
-):
-    return paddle._C_ops.dropout(
-        X,
-        Seed,
-        dropout_prob,
-        is_test,
-        dropout_implementation,
-        seed,
-        fix_seed,
-    )
-
-
 class TestDropoutOp(OpTest):
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {"X": np.random.random((32, 64)).astype(self.dtype)}
@@ -75,7 +54,10 @@ class TestDropoutOp(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
     def test_check_output(self):
-        self.check_output_with_place(self.place)
+        self.check_output_with_place(
+            self.place,
+            check_dygraph=False,
+        )
 
     def test_check_grad_normal(self):
         if self.dtype == np.float16:
@@ -86,6 +68,7 @@ class TestDropoutOp(OpTest):
                 ["X"],
                 "Out",
                 numeric_place=paddle.CPUPlace(),
+                check_dygraph=False,
             )
 
 
@@ -93,7 +76,6 @@ class TestDropoutOpInput1d(TestDropoutOp):
     # change input shape
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {"X": np.random.random((3, 62)).astype(self.dtype)}
@@ -113,7 +95,6 @@ class TestDropoutOpInput1d_1(TestDropoutOp):
     # the input is 1-D
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {"X": np.random.random((2000)).astype(self.dtype)}
@@ -133,7 +114,6 @@ class TestDropoutOp2(TestDropoutOp):
     # the dropout_prob is 1.0
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {"X": np.random.random((32, 64)).astype(self.dtype)}
@@ -153,7 +133,6 @@ class TestDropoutOp3(TestDropoutOp):
     # the input dim is 3
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {"X": np.random.random((32, 64, 2)).astype(self.dtype)}
@@ -174,7 +153,6 @@ class TestDropoutOpWithIsTest(TestDropoutOp):
     # the seed is a Tensor
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {
@@ -198,7 +176,6 @@ class TestDropoutOpWithSeed(TestDropoutOp):
     # the seed is a Tensor
     def setUp(self):
         self.op_type = "dropout"
-        self.python_api = dropout_wapper
         self.set_sdaa()
         self.init_dtype()
         self.inputs = {
@@ -225,6 +202,44 @@ class TestDropoutOpFp16(TestDropoutOp):
         self.__class__.use_custom_device = True
         # self.__class__.no_need_check_grad = True
         self.place = paddle.CustomPlace("sdaa", 0)
+
+
+class TestDropoutOpBF16(OpTest):
+    def setUp(self):
+        self.op_type = "dropout"
+        self.set_sdaa()
+        self.init_dtype()
+        x = np.random.random((32, 64)).astype(np.float32)
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.attrs = {
+            "dropout_prob": 0.0,
+            "fix_seed": True,
+            "is_test": False,
+            "dropout_implementation": "upscale_in_train",
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": np.ones((32, 64)).astype("uint8"),
+        }
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, check_dygraph=False)
+
+    def test_check_grad_normal(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=0.007,
+            check_dygraph=False,
+        )
 
 
 class TestDropoutAPI(unittest.TestCase):
@@ -283,18 +298,45 @@ class TestDropoutAPI(unittest.TestCase):
 
 
 def set_seed(seed):
+    paddle.disable_static()
     random.seed(seed)
     np.random.seed(seed)
     paddle.seed(seed)
+    paddle.enable_static()
 
 
-class TestDropoutBase(unittest.TestCase):
+class TestDropoutBase(OpTest):
     def setUp(self):
+        self.op_type = "dropout"
+        self.set_place()
         self.init_dtype()
         self.init_shape()
         self.init_p()
-        self.place = [paddle.CustomPlace("sdaa", 0)]
         self.iter = 10
+
+        self._prepare_args()
+
+    def _prepare_args(self):
+        self.inputs = {
+            "X": np.random.randint(low=1, high=12341234234, size=self.shape).astype(
+                self.dtype
+            )
+        }
+        self.attrs = {
+            "dropout_prob": self.p,
+            "fix_seed": False,
+            "is_test": False,
+            "dropout_implementation": "upscale_in_train",
+            "seed": 0,
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": np.ones(tuple(self.shape)).astype("uint8"),
+        }
+
+    def set_place(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -305,11 +347,13 @@ class TestDropoutBase(unittest.TestCase):
     def init_p(self):
         self.p = 0.5
 
-    def _check_abnormal_output(self, x: np.ndarray):
-        y, mask = paddle._C_ops.dropout(
-            paddle.to_tensor(x), None, self.p, False, "upscale_in_train", 0, False
-        )
-        y, mask = y.numpy(), mask.numpy()
+    def set_X(self, x):
+        self.inputs["X"] = x
+
+    def _check_abnormal_output(self, x):
+        self.set_X(x)
+        y, mask = self.calc_output(self.place)
+        y, mask = np.array(y), np.array(mask)
         np.testing.assert_array_equal(np.where(y > 0, 1, 0), mask)
 
         # upscale in train
@@ -319,12 +363,11 @@ class TestDropoutBase(unittest.TestCase):
         return y, mask
 
     def check_output(self, place):
-        with paddle.base.dygraph.guard(place=place):
-            set_seed(SEED)
-            x = np.random.randint(low=1, high=12341234234, size=self.shape).astype(
-                self.dtype
-            )
-            self._check_abnormal_output(x)
+        set_seed(SEED)
+        x = np.random.randint(low=1, high=12341234234, size=self.shape).astype(
+            self.dtype
+        )
+        self._check_abnormal_output(x)
 
     def _check_stability_helper(self, x: List[List[np.ndarray]], abs_eps: float = 1e-8):
         for i in range(1, len(x)):
@@ -332,7 +375,6 @@ class TestDropoutBase(unittest.TestCase):
                 np.testing.assert_allclose(x[i][j], x[i - 1][j], atol=abs_eps)
 
     def check_stability(self, place):
-        paddle.disable_static(place)
         dropout_res = []
         for j in range(3):
             step_result = []
@@ -347,12 +389,9 @@ class TestDropoutBase(unittest.TestCase):
 
         self._check_stability_helper(dropout_res)
 
-        paddle.enable_static()
-
-    def test_dygraph_api(self):
-        for place in self.place:
-            self.check_output(place)
-            self.check_stability(place)
+    def test_static_api(self):
+        self.check_output(self.place)
+        self.check_stability(self.place)
 
 
 class TestDropoutBase2(TestDropoutBase):
@@ -374,7 +413,7 @@ def check_bernoulli_distribution(matrix, p, significance_level=0.05):
     shape = matrix.shape
     dtype = matrix.dtype
 
-    proportion = paddle.mean(matrix)
+    proportion = np.mean(matrix)
 
     from scipy import stats
 
@@ -385,13 +424,34 @@ def check_bernoulli_distribution(matrix, p, significance_level=0.05):
     return is_bernoulli, proportion, shape, dtype
 
 
-class TestDropoutDistribution(unittest.TestCase):
+class TestDropoutDistribution(OpTest):
     def setUp(self):
+        self.op_type = "dropout"
         self.init_dtype()
         self.init_shape()
         self.init_p()
         self.proportion_eps = 0.2
-        self.place = [paddle.CustomPlace("sdaa", 0)]
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self._prepare_args()
+
+    def _prepare_args(self):
+        self.inputs = {
+            "X": np.random.randint(low=1, high=12341234234, size=self.shape).astype(
+                self.dtype
+            )
+        }
+        self.attrs = {
+            "dropout_prob": self.p,
+            "fix_seed": False,
+            "is_test": False,
+            "dropout_implementation": "upscale_in_train",
+            "seed": 0,
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": np.ones(tuple(self.shape)).astype("uint8"),
+        }
 
     def init_dtype(self):
         self.dtype = "float32"
@@ -402,13 +462,15 @@ class TestDropoutDistribution(unittest.TestCase):
     def init_p(self):
         self.p = 0.5
 
+    def set_X(self, x):
+        self.inputs["X"] = x
+
     def check_distribution(self, place):
-        paddle.disable_static(place)
         set_seed(SEED)
-        x = paddle.to_tensor(np.random.rand(*tuple(self.shape)).astype(self.dtype))
-        _, mask = paddle._C_ops.dropout(
-            x, None, self.p, False, "upscale_in_train", 0, False
-        )
+        x = np.random.rand(*tuple(self.shape)).astype(self.dtype)
+        self.set_X(x)
+        _, mask = self.calc_output(place)
+        mask = np.array(mask)
         is_bernoulli, proportion, shape, dtype = check_bernoulli_distribution(
             mask.astype("float32"), p=self.p
         )
@@ -418,14 +480,10 @@ class TestDropoutDistribution(unittest.TestCase):
         print("Matrix shape:", shape)
         print("Matrix dtype:", dtype)
         self.assertTrue(is_bernoulli)
-        np.testing.assert_allclose(
-            proportion.numpy(), 1 - self.p, atol=self.proportion_eps
-        )
-        paddle.enable_static()
+        np.testing.assert_allclose(proportion, 1 - self.p, atol=self.proportion_eps)
 
-    def test_dygraph_api(self):
-        for place in self.place:
-            self.check_distribution(place)
+    def test_static_api(self):
+        self.check_distribution(self.place)
 
 
 class TestDropoutDistribution2(TestDropoutDistribution):
@@ -452,6 +510,8 @@ class TestDropoutDistributionWithBigShape1(TestDropoutDistribution):
             0,
             1,
             0,
+            -2.0,
+            2.0,
             paddle.float32,
             paddle.CustomPlace("sdaa", 0),
         )
@@ -467,18 +527,39 @@ class TestEnvError(unittest.TestCase):
         paddle.enable_static()
 
 
-class TestAlignGPU(unittest.TestCase):
+class TestAlignGPU(OpTest):
     def setUp(self):
-        paddle.seed(12345)
+        set_seed(12345)
+        self.op_type = "dropout"
+        self.set_place()
+
+        TestAlignGPU.exist_check_grad = False
+
+    def set_place(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def _prepare_args(self, x, p, fix_seed, is_test, seed):
+        self.inputs = {"X": x}
+        self.attrs = {
+            "dropout_prob": p,
+            "fix_seed": fix_seed,
+            "is_test": is_test,
+            "dropout_implementation": "upscale_in_train",
+            "seed": seed,
+        }
+        self.outputs = {
+            "Out": self.inputs["X"],
+            "Mask": np.ones(x.shape).astype("uint8"),
+        }
 
     @mock.patch.dict(os.environ, {"RANDOM_ALIGN_NV_DEVICE": "v100"})
     def test_error(self):
-        paddle.disable_static()
 
-        x = paddle.ones([2, 3, 8], dtype=paddle.float16)
-        _, mask = paddle._C_ops.dropout(
-            x, None, 0.5, False, "upscale_in_train", 0, False
-        )
+        x = np.ones((2, 3, 8)).astype("float16")
+        self._prepare_args(x=x, p=0.5, fix_seed=False, seed=0, is_test=False)
+        _, mask = self.calc_output(self.place)
+        mask = np.array(mask)
         mask_gpu = np.array(
             [
                 [
@@ -494,18 +575,18 @@ class TestAlignGPU(unittest.TestCase):
             ],
             dtype=np.uint8,
         )
-        np.testing.assert_equal(mask.numpy(), mask_gpu)
+        np.testing.assert_equal(mask, mask_gpu)
 
-        seed_tensor = paddle.to_tensor([12345], dtype=paddle.int32)
-        _, mask_seed_tensor = paddle._C_ops.dropout(
-            x, seed_tensor, 0.7, False, "upscale_in_train", 0, True
+        self._prepare_args(
+            x=x,
+            p=0.7,
+            seed=0,
+            is_test=False,
+            fix_seed=False,
         )
-        _, mask_fix_seed = paddle._C_ops.dropout(
-            x, None, 0.7, False, "upscale_in_train", 12345, True
-        )
-        _, mask = paddle._C_ops.dropout(
-            x, None, 0.7, False, "upscale_in_train", 0, False
-        )
+        _, mask = self.calc_output(self.place)
+        mask = np.array(mask)
+
         mask_gpu = np.array(
             [
                 [
@@ -521,10 +602,7 @@ class TestAlignGPU(unittest.TestCase):
             ],
             dtype=np.uint8,
         )
-        np.testing.assert_equal(mask_fix_seed.numpy(), mask_gpu)
-        np.testing.assert_equal(mask_seed_tensor.numpy(), mask_gpu)
-        np.testing.assert_equal(mask.numpy(), mask_gpu)
-        paddle.enable_static()
+        np.testing.assert_equal(mask, mask_gpu)
 
 
 if __name__ == "__main__":

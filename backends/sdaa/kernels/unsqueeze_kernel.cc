@@ -74,7 +74,7 @@ void UnsqueezeKernel(const Context& dev_ctx,
                      phi::DenseTensor* out) {
   auto x_dims = x.dims();
   auto out_dims = out->dims();
-  if (axes.FromTensor()) {
+  if (axes.FromTensor() && out->dims()[0] == -1) {
     out_dims = custom_kernel::GetUnsqueezeShape(axes.GetData(), x_dims);
   }
   out->Resize(out_dims);
@@ -95,10 +95,11 @@ void UnsqueezeWithXShapeKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void UnsqueezeGradKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& x,
+                         const phi::DenseTensor& x_shape,
                          const phi::DenseTensor& dout,
                          phi::DenseTensor* dx) {
-  auto x_dims = dx->dims();
+  auto xshape_dims = x_shape.dims();
+  auto x_dims = phi::slice_ddim(xshape_dims, 1, xshape_dims.size());
   dev_ctx.template Alloc<T>(dx);
   phi::Copy(dev_ctx, dout, dev_ctx.GetPlace(), true, dx);
   dx->Resize(x_dims);
@@ -106,10 +107,10 @@ void UnsqueezeGradKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
                           sdaa,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeKernel,
+                          custom_kernel::UnsqueezeWithXShapeKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,
@@ -123,10 +124,10 @@ PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}
 
-PD_REGISTER_PLUGIN_KERNEL(unsqueeze_with_xshape,
+PD_REGISTER_PLUGIN_KERNEL(unsqueeze,
                           sdaa,
                           ALL_LAYOUT,
-                          custom_kernel::UnsqueezeWithXShapeKernel,
+                          custom_kernel::UnsqueezeKernel,
                           float,
                           double,
                           phi::dtype::bfloat16,

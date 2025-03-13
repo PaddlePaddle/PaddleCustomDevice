@@ -69,11 +69,6 @@ std::vector<paddle::Tensor> CustomRopeForward(const paddle::Tensor& q,
   CHECK_CUSTOM_INPUT(cos);
   CHECK_CUSTOM_INPUT(sin);
 
-  auto dev_ctx =
-      paddle::experimental::DeviceContextPool::Instance().Get(q.place());
-  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
-  sdaaStream_t custom_stream = custom_kernel::GetStreamFromCTX(*custom_ctx);
-
   // check shape, dtype
   PADDLE_ENFORCE_EQ(q.dims().size() == 4 && k.dims().size() == 4 &&
                         cos.dims().size() == 4 && sin.dims().size() == 4,
@@ -105,45 +100,70 @@ std::vector<paddle::Tensor> CustomRopeForward(const paddle::Tensor& q,
 
   // get seq_len, head_nums, size_per_head
   int bs, seq_len, head_nums, size_per_head;
-  seq_len = q.dims()[0];
-  bs = q.dims()[1];
+  seq_len = q.dims()[1];
+  bs = q.dims()[0];
   head_nums = q.dims()[2];
   size_per_head = q.dims()[3];
   VLOG(4) << "get batch_size:" << bs << ", seq_len:" << seq_len
           << ", head_nums:" << head_nums << ", size_per_head:" << size_per_head;
 
-  auto q_out = paddle::empty({seq_len, bs, head_nums, size_per_head},
+  auto q_out = paddle::empty({bs, seq_len, head_nums, size_per_head},
                              phi::DataType::FLOAT32,
                              q.place());
-  auto k_out = paddle::empty({seq_len, bs, head_nums, size_per_head},
+  auto k_out = paddle::empty({bs, seq_len, head_nums, size_per_head},
                              phi::DataType::FLOAT32,
                              k.place());
-
   VLOG(4) << "CustomRopeForward";
-  TCUS_CHECK(sdcops::rotary_embedding_ext(q.data<float>(),
-                                          bs * head_nums * size_per_head,
-                                          size_per_head,
-                                          k.data<float>(),
-                                          bs * head_nums * size_per_head,
-                                          size_per_head,
-                                          sin.data<float>(),
-                                          cos.data<float>(),
-                                          q_out.data<float>(),
-                                          bs * head_nums * size_per_head,
-                                          size_per_head,
-                                          k_out.data<float>(),
-                                          bs * head_nums * size_per_head,
-                                          size_per_head,
-                                          seq_len,
-                                          head_nums * bs,
-                                          head_nums * bs,
-                                          size_per_head,
-                                          size_per_head,
-                                          true,
-                                          true,
-                                          DATA_FLOAT,
-                                          DATA_FLOAT,
-                                          custom_stream));
+  auto dev_ctx =
+      paddle::experimental::DeviceContextPool::Instance().Get(q.place());
+  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
+  tecocustomHandle_t tecocustomHandle =
+      custom_kernel::GetTecoCustomHandleFromCTX(*custom_ctx);
+
+  tecocustomTensorDescriptor_t qDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(q.dims()),
+          q.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  tecocustomTensorDescriptor_t kDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(k.dims()),
+          k.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  std::vector<int> dims = {seq_len, size_per_head};
+  std::vector<int> strides = {size_per_head, 1};
+  tecocustomTensorDescriptor_t sin_desc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          dims, sin.dtype(), custom_kernel::TensorFormat::Undefined, strides);
+
+  tecocustomTensorDescriptor_t outDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(q_out.dims()),
+          q_out.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  TECOCUSTOM_CHECK(tecocustomRotaryEmbeddingExt(tecocustomHandle,
+                                                qDesc,
+                                                q.data(),
+                                                kDesc,
+                                                k.data(),
+                                                sin_desc,
+                                                sin.data(),
+                                                sin_desc,
+                                                cos.data(),
+                                                outDesc,
+                                                q_out.data(),
+                                                outDesc,
+                                                k_out.data(),
+                                                size_per_head,
+                                                true,
+                                                true));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(qDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(kDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(sin_desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(outDesc));
 
   return {q_out, k_out};
 }
@@ -165,52 +185,73 @@ std::vector<paddle::Tensor> CustomRopeBackward(
   CHECK_CUSTOM_INPUT(grad_q_out);
   CHECK_CUSTOM_INPUT(grad_k_out);
 
-  // get ctx and stream
-  auto dev_ctx =
-      paddle::experimental::DeviceContextPool::Instance().Get(q.place());
-  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
-  sdaaStream_t custom_stream = custom_kernel::GetStreamFromCTX(*custom_ctx);
-
   // get seq_len, head_nums, size_per_head
   int bs, seq_len, head_nums, size_per_head;
-  seq_len = q.dims()[0];
-  bs = q.dims()[1];
+  seq_len = q.dims()[1];
+  bs = q.dims()[0];
   head_nums = q.dims()[2];
   size_per_head = q.dims()[3];
 
-  auto grad_q = paddle::empty({seq_len, bs, head_nums, size_per_head},
+  auto grad_q = paddle::empty({bs, seq_len, head_nums, size_per_head},
                               phi::DataType::FLOAT32,
                               q.place());
-  auto grad_k = paddle::empty({seq_len, bs, head_nums, size_per_head},
+  auto grad_k = paddle::empty({bs, seq_len, head_nums, size_per_head},
                               phi::DataType::FLOAT32,
                               k.place());
 
   VLOG(4) << "CustomRopeBackward";
-  TCUS_CHECK(
-      sdcops::rotary_embedding_backward_ext(grad_q_out.data<float>(),
-                                            bs * head_nums * size_per_head,
-                                            size_per_head,
-                                            grad_k_out.data<float>(),
-                                            bs * head_nums * size_per_head,
-                                            size_per_head,
-                                            sin.data<float>(),
-                                            cos.data<float>(),
-                                            grad_q.data<float>(),
-                                            bs * head_nums * size_per_head,
-                                            size_per_head,
-                                            grad_k.data<float>(),
-                                            bs * head_nums * size_per_head,
-                                            size_per_head,
-                                            seq_len,
-                                            head_nums * bs,
-                                            head_nums * bs,
-                                            size_per_head,
-                                            size_per_head,
-                                            true,
-                                            true,
-                                            DATA_FLOAT,
-                                            DATA_FLOAT,
-                                            custom_stream));
+  // get ctx and stream
+  auto dev_ctx =
+      paddle::experimental::DeviceContextPool::Instance().Get(q.place());
+  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
+  tecocustomHandle_t tecocustomHandle =
+      custom_kernel::GetTecoCustomHandleFromCTX(*custom_ctx);
+
+  tecocustomTensorDescriptor_t dqOutDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(grad_q_out.dims()),
+          grad_q_out.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  tecocustomTensorDescriptor_t dkOutDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(grad_k_out.dims()),
+          grad_k_out.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  std::vector<int> dims = {seq_len, size_per_head};
+  std::vector<int> strides = {size_per_head, 1};
+  tecocustomTensorDescriptor_t sin_desc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          dims, sin.dtype(), custom_kernel::TensorFormat::Undefined, strides);
+
+  tecocustomTensorDescriptor_t dqDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(grad_q.dims()),
+          grad_q.dtype(),
+          custom_kernel::TensorFormat::NHWC);
+
+  TECOCUSTOM_CHECK(tecocustomRotaryEmbeddingExtBackward(tecocustomHandle,
+                                                        dqOutDesc,
+                                                        grad_q_out.data(),
+                                                        dkOutDesc,
+                                                        grad_k_out.data(),
+                                                        sin_desc,
+                                                        sin.data(),
+                                                        sin_desc,
+                                                        cos.data(),
+                                                        dqDesc,
+                                                        grad_q.data(),
+                                                        dqDesc,
+                                                        grad_k.data(),
+                                                        size_per_head,
+                                                        true,
+                                                        true));
+
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(dqOutDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(dkOutDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(sin_desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(dqDesc));
 
   return {grad_q, grad_k};
 }

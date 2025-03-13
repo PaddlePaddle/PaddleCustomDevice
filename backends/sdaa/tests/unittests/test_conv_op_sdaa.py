@@ -323,9 +323,7 @@ class TestWithStride(TestConv2DOp):
         self.filter_size = [6, f_c, 3, 3]
 
 
-@unittest.skip("group conv has bug")
 class TestWithGroup(TestConv2DOp):
-    # not supported(already put up a request)
     def init_test_case(self):
         self.pad = [0, 0]
         self.stride = [1, 1]
@@ -333,6 +331,20 @@ class TestWithGroup(TestConv2DOp):
         self.group = 3
         assert np.mod(self.input_size[1], self.groups) == 0
         f_c = self.input_size[1] // self.groups
+        self.filter_size = [18, f_c, 3, 3]
+
+
+class TestWithGroupChannelLast(TestConv2DOp):
+    def init_data_format(self):
+        self.data_format = "NHWC"
+
+    def init_test_case(self):
+        self.pad = [0, 0]
+        self.stride = [1, 1]
+        self.input_size = [2, 5, 5, 3]  # NHWC
+        self.group = 3
+        assert np.mod(self.input_size[-1], self.groups) == 0
+        f_c = self.input_size[-1] // self.groups
         self.filter_size = [18, f_c, 3, 3]
 
 
@@ -349,9 +361,7 @@ class TestWith1x1(TestConv2DOp):
         self.groups = 1
 
 
-@unittest.skip("group conv has bug")
 class TestWithDepthWise5x5(TestConv2DOp):
-    # not supported(already put up a request)
     def init_test_case(self):
         self.pad = [0, 0]
         self.stride = [1, 1]
@@ -364,15 +374,45 @@ class TestWithDepthWise5x5(TestConv2DOp):
         self.groups = 4
 
 
-@unittest.skip("group conv has bug")
+class TestWithDepthWise5x5_ChannelLast(TestConv2DOp):
+    def init_data_format(self):
+        self.data_format = "NHWC"
+
+    def init_test_case(self):
+        self.pad = [0, 0]
+        self.stride = [1, 1]
+        self.input_size = [2, 10, 10, 4]  # NHWC
+        assert np.mod(self.input_size[-1], self.groups) == 0
+        f_c = self.input_size[-1] // self.groups
+        self.filter_size = [8, f_c, 5, 5]
+
+    def init_group(self):
+        self.groups = 4
+
+
 class TestWithDepthWise7x7(TestConv2DOp):
-    # not supported(already put up a request)
     def init_test_case(self):
         self.pad = [1, 1]
         self.stride = [2, 2]
         self.input_size = [2, 8, 10, 10]  # NCHW
         assert np.mod(self.input_size[1], self.groups) == 0
         f_c = self.input_size[1] // self.groups
+        self.filter_size = [16, f_c, 7, 7]
+
+    def init_group(self):
+        self.groups = 8
+
+
+class TestWithDepthWise7x7_ChannelLast(TestConv2DOp):
+    def init_data_format(self):
+        self.data_format = "NHWC"
+
+    def init_test_case(self):
+        self.pad = [1, 1]
+        self.stride = [2, 2]
+        self.input_size = [2, 10, 10, 8]  # NHWC
+        assert np.mod(self.input_size[-1], self.groups) == 0
+        f_c = self.input_size[-1] // self.groups
         self.filter_size = [16, f_c, 7, 7]
 
     def init_group(self):
@@ -750,6 +790,9 @@ create_test_fp16_class(TestWithPad2)
 create_test_fp16_class(TestWithStride2)
 create_test_fp16_class(TestWith1x1_2)
 create_test_fp16_class(TestWithInput1x1Filter1x1_2)
+create_test_fp16_class(TestWithGroup)
+create_test_fp16_class(TestWithDepthWise5x5_ChannelLast)
+create_test_fp16_class(TestWithDepthWise7x7_ChannelLast)
 
 create_test_padding_SAME_class(TestWithPad2)
 create_test_padding_SAME_class(TestWithStride2)

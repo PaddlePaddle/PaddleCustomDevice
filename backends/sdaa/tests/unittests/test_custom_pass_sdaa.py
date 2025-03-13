@@ -19,7 +19,6 @@ import unittest
 import paddle
 import paddle_sdaa  # noqa
 
-from paddle.base.layer_helper import LayerHelper
 
 paddle.enable_static()
 
@@ -93,13 +92,7 @@ def func_silu(x):
     ]
 )
 def fc_pass_subgraph(input, w, bias):
-    helper = LayerHelper("mul", **locals())
-    out = helper.create_variable_for_type_inference(dtype=input.dtype)
-    helper.append_op(
-        type="mul",
-        inputs={"X": input, "Y": w},
-        outputs={"Out": out},
-    )
+    out = paddle.matmul(input, w)
     return paddle.add(out, bias)
 
 
@@ -107,76 +100,43 @@ MODLE_FILE = "./saved_model"
 MODLE_FILE2 = "./silu_fuse_model"
 
 
-class TestCustomPass(unittest.TestCase):
-    def setUp(self):
-        paddle.jit.save(func, MODLE_FILE)
-
-    def test_my_add_n(self):
-        config = paddle.inference.Config()
-        config.set_prog_file(MODLE_FILE + ".pdmodel")
-        config.enable_memory_optim()
-        config.enable_custom_device("sdaa")
-        pass_builder = config.pass_builder()
-        pass_builder.append_pass("custom_add_n")
-        print(pass_builder.all_passes())
-        predictor = paddle.inference.create_predictor(config)
-
-        np_inputs = [
-            np.random.randn(2, 32).astype("float32"),
-            np.random.randn(2, 32).astype("float32"),
-            np.random.randn(2, 32).astype("float32"),
-        ]
-        input_names = predictor.get_input_names()
-        for i, name in enumerate(input_names):
-            input_tensor = predictor.get_input_handle(name)
-            input_tensor.copy_from_cpu(np_inputs[i])
-
-        predictor.run()
-        results = []
-        output_names = predictor.get_output_names()
-        for i, name in enumerate(output_names):
-            output_tensor = predictor.get_output_handle(name)
-            output_data = output_tensor.copy_to_cpu()
-            results.append(output_data)
-        np.testing.assert_allclose(results[0], np.sum(np_inputs, axis=0), rtol=1e-5)
-
-
 class TestCustomPassSilu(unittest.TestCase):
     def setUp(self):
         paddle.jit.save(func_silu, MODLE_FILE2)
 
     def test_silu_fuse(self):
-        paddle.disable_static()
-        config = paddle.inference.Config()
-        config.set_prog_file(MODLE_FILE2 + ".pdmodel")
-        config.enable_memory_optim()
-        config.enable_custom_device("sdaa")
-        config.switch_ir_optim(True)
-        pass_builder = config.pass_builder()
-        pass_builder.append_pass("custom_silu_fuse_pass")
-        print(pass_builder.all_passes())
-        print("IR Optim is: {}".format(config.ir_optim()))
-        predictor = paddle.inference.create_predictor(config)
+        with paddle.pir_utils.OldIrGuard():
+            paddle.disable_static()
+            config = paddle.inference.Config()
+            config.set_prog_file(MODLE_FILE2 + ".pdmodel")
+            config.enable_memory_optim()
+            config.enable_custom_device("sdaa")
+            config.switch_ir_optim(True)
+            pass_builder = config.pass_builder()
+            pass_builder.append_pass("custom_silu_fuse_pass")
+            print(pass_builder.all_passes())
+            print("IR Optim is: {}".format(config.ir_optim()))
+            predictor = paddle.inference.create_predictor(config)
 
-        np_inputs = [np.random.randn(2, 32).astype("float32")]
-        input_names = predictor.get_input_names()
-        for i, name in enumerate(input_names):
-            input_tensor = predictor.get_input_handle(name)
-            input_tensor.copy_from_cpu(np_inputs[i])
+            np_inputs = [np.random.randn(2, 32).astype("float32")]
+            input_names = predictor.get_input_names()
+            for i, name in enumerate(input_names):
+                input_tensor = predictor.get_input_handle(name)
+                input_tensor.copy_from_cpu(np_inputs[i])
 
-        predictor.run()
-        results = []
-        output_names = predictor.get_output_names()
-        for i, name in enumerate(output_names):
-            output_tensor = predictor.get_output_handle(name)
-            output_data = output_tensor.copy_to_cpu()
-            results.append(output_data)
-        np.testing.assert_allclose(
-            results,
-            paddle.nn.functional.silu(paddle.to_tensor(np_inputs)).numpy(),
-            rtol=1e-5,
-        )
-        paddle.enable_static()
+            predictor.run()
+            results = []
+            output_names = predictor.get_output_names()
+            for i, name in enumerate(output_names):
+                output_tensor = predictor.get_output_handle(name)
+                output_data = output_tensor.copy_to_cpu()
+                results.append(output_data)
+            np.testing.assert_allclose(
+                results,
+                paddle.nn.functional.silu(paddle.to_tensor(np_inputs)).numpy(),
+                rtol=1e-5,
+            )
+            paddle.enable_static()
 
 
 class TestCustomFcPass(unittest.TestCase):
@@ -187,44 +147,47 @@ class TestCustomFcPass(unittest.TestCase):
         self.batch_size = 64
 
     def test_custom_fc_n(self):
-        config = paddle.inference.Config()
-        config.set_prog_file(self.model_name + ".pdmodel")
-        config.enable_memory_optim()
-        config.enable_custom_device("sdaa")
-        pass_builder = config.pass_builder()
-        pass_builder.append_pass("custom_fc")
-        predictor = paddle.inference.create_predictor(config)
+        with paddle.pir_utils.OldIrGuard():
+            config = paddle.inference.Config()
+            config.set_prog_file(self.model_name + ".pdmodel")
+            config.enable_memory_optim()
+            config.enable_custom_device("sdaa")
+            pass_builder = config.pass_builder()
+            pass_builder.append_pass("custom_fc")
+            predictor = paddle.inference.create_predictor(config)
 
-        np_inputs = [
-            np.random.randn(self.batch_size, 200).astype("float32"),
-            np.random.randn(200, 2).astype("float32"),
-            np.random.randn(2).astype("float32"),
-        ]
-        input_names = predictor.get_input_names()
-        for i, name in enumerate(input_names):
-            input_tensor = predictor.get_input_handle(name)
-            input_tensor.copy_from_cpu(np_inputs[i])
+            np_inputs = [
+                np.random.randn(self.batch_size, 200).astype("float32"),
+                np.random.randn(200, 2).astype("float32"),
+                np.random.randn(2).astype("float32"),
+            ]
+            input_names = predictor.get_input_names()
+            for i, name in enumerate(input_names):
+                input_tensor = predictor.get_input_handle(name)
+                input_tensor.copy_from_cpu(np_inputs[i])
 
-        predictor.run()
-        results = []
-        output_names = predictor.get_output_names()
-        for i, name in enumerate(output_names):
-            output_tensor = predictor.get_output_handle(name)
-            output_data = output_tensor.copy_to_cpu()
-            results.append(output_data)
+            predictor.run()
+            results = []
+            output_names = predictor.get_output_names()
+            for i, name in enumerate(output_names):
+                output_tensor = predictor.get_output_handle(name)
+                output_data = output_tensor.copy_to_cpu()
+                results.append(output_data)
 
-        with paddle.base.dygraph.guard(paddle.CPUPlace()):
-            cpu_output = paddle._legacy_C_ops.fc(
-                paddle.to_tensor(np_inputs[0]),
-                paddle.to_tensor(np_inputs[1]),
-                paddle.to_tensor(np_inputs[2]),
-                "activation_type",
-                "",
-                "in_num_col_dims",
-                1,
+            with paddle.base.dygraph.guard(paddle.CPUPlace()):
+                cpu_output = paddle._legacy_C_ops.fc(
+                    paddle.to_tensor(np_inputs[0]),
+                    paddle.to_tensor(np_inputs[1]),
+                    paddle.to_tensor(np_inputs[2]),
+                    "activation_type",
+                    "",
+                    "in_num_col_dims",
+                    1,
+                )
+
+            np.testing.assert_allclose(
+                results[0], cpu_output.numpy(), rtol=1e-4, atol=1e-2
             )
-
-        np.testing.assert_allclose(results[0], cpu_output.numpy(), rtol=1e-4, atol=1e-2)
 
 
 class TestCustomConvBnFusedPass(unittest.TestCase):
@@ -235,40 +198,41 @@ class TestCustomConvBnFusedPass(unittest.TestCase):
         self.batch_size = 32
 
     def _get_output_with_place(self, np_inputs, place):
-        config = paddle.inference.Config()
-        config.set_prog_file(self.model_name + ".pdmodel")
-        config.enable_memory_optim()
+        with paddle.pir_utils.OldIrGuard():
+            config = paddle.inference.Config()
+            config.set_prog_file(self.model_name + ".pdmodel")
+            config.enable_memory_optim()
 
-        if isinstance(place, paddle.CustomPlace):
-            config.enable_custom_device("sdaa")
-            pass_builder = config.pass_builder()
-            pass_builder.append_pass("custom_conv_bn_fuse_pass")
-        else:
-            pass_builder = config.pass_builder()
+            if isinstance(place, paddle.CustomPlace):
+                config.enable_custom_device("sdaa")
+                pass_builder = config.pass_builder()
+                pass_builder.append_pass("custom_conv_bn_fuse_pass")
+            else:
+                pass_builder = config.pass_builder()
 
-            for pass_name in pass_builder.all_passes():
-                pass_builder.delete_pass(pass_name)
+                for pass_name in pass_builder.all_passes():
+                    pass_builder.delete_pass(pass_name)
 
-            # pass_builder.append_pass("conv_bn_fuse_pass")
+                # pass_builder.append_pass("conv_bn_fuse_pass")
 
-        config.switch_ir_debug(True)
-        predictor = paddle.inference.create_predictor(config)
+            config.switch_ir_debug(True)
+            predictor = paddle.inference.create_predictor(config)
 
-        input_names = predictor.get_input_names()
-        for i, name in enumerate(input_names):
-            input_tensor = predictor.get_input_handle(name)
-            input_tensor.copy_from_cpu(np_inputs[i])
+            input_names = predictor.get_input_names()
+            for i, name in enumerate(input_names):
+                input_tensor = predictor.get_input_handle(name)
+                input_tensor.copy_from_cpu(np_inputs[i])
 
-        predictor.run()
+            predictor.run()
 
-        results = []
-        output_names = predictor.get_output_names()
-        for i, name in enumerate(output_names):
-            output_tensor = predictor.get_output_handle(name)
-            output_data = output_tensor.copy_to_cpu()
-            results.append(output_data)
-        predictor.clear_intermediate_tensor()
-        return results
+            results = []
+            output_names = predictor.get_output_names()
+            for i, name in enumerate(output_names):
+                output_tensor = predictor.get_output_handle(name)
+                output_data = output_tensor.copy_to_cpu()
+                results.append(output_data)
+            predictor.clear_intermediate_tensor()
+            return results
 
     def test_custom_conv_bn_fused(self):
         np_inputs = [

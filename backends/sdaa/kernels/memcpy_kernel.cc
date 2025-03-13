@@ -72,24 +72,21 @@ void MemcpyD2HKernel(const Context& dev_ctx,
 
 template <typename T, typename Context>
 void MemcpyD2HMultiIOKernel(const Context& dev_ctx,
-                            const std::vector<const phi::DenseTensor*>& array,
+                            const phi::TensorArray& array,
                             int dst_place_type,
-                            std::vector<phi::DenseTensor*> out_array) {
+                            phi::TensorArray* out_array) {
+  PADDLE_ENFORCE_NOT_NULL(out_array,
+                          phi::errors::PreconditionNotMet(
+                              "output tesnor_array should not be nullptr"));
   PADDLE_ENFORCE_EQ(
       array.size(),
-      out_array.size(),
+      out_array->size(),
       phi::errors::PreconditionNotMet(
-          "input size %d != output size %d", array.size(), out_array.size()));
+          "input size %d != output size %d", array.size(), out_array->size()));
   for (size_t i = 0; i < array.size(); i++) {
-    PADDLE_ENFORCE_NOT_NULL(array[i],
-                            phi::errors::PreconditionNotMet(
-                                "input tesnor %d should not be nullptr", i));
-    PADDLE_ENFORCE_NOT_NULL(out_array[i],
-                            phi::errors::PreconditionNotMet(
-                                "output tesnor %d should not be nullptr", i));
-
-    const auto& x = *(array[i]);
-    MemcpyD2HKernel<T, Context>(dev_ctx, x, dst_place_type, out_array[i]);
+    const auto& x = array[i];
+    MemcpyD2HKernel<T, Context>(
+        dev_ctx, x, dst_place_type, &(out_array->at(i)));
   }
 }
 
@@ -127,7 +124,9 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h,
                           phi::dtype::bfloat16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          int16_t) {}
+                          int16_t) {
+  kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           sdaa,
@@ -144,7 +143,9 @@ PD_REGISTER_PLUGIN_KERNEL(memcpy_d2h_multi_io,
                           phi::dtype::bfloat16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>,
-                          int16_t) {}
+                          int16_t) {
+  kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
+}
 
 PD_REGISTER_PLUGIN_KERNEL(memcpy,
                           sdaa,

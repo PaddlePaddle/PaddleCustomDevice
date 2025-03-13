@@ -11,15 +11,16 @@ from setuptools.command.install_lib import install_lib
 include_dirs = [
     '${CMAKE_CURRENT_SOURCE_DIR}',
     '${PADDLE_INC_DIR}',
-    '${PADDLE_INC_DIR}third_party',
+    '${PADDLE_INC_DIR}/third_party',
     '${TECODNN_INC}',
     '${TBLAS_INC}',
-    '${TECODNN_CUSTOM_INC}',
+    '${TECOCUSTOM_EXT_INC}',
+    '${TECOCUSTOM_INC}',
     '${CMAKE_SOURCE_DIR}',
     '${EXTEND_OP_INC}',
     '${CMAKE_BINARY_DIR}/third_party/install/gflags/include',
     '${CMAKE_BINARY_DIR}/third_party/install/glog/include',
-    '${CMAKE_BINARY_DIR}/third_party/install/mkldnn/include',
+    '${CMAKE_BINARY_DIR}/third_party/install/onednn/include',
     '${SDPTI_INC}',
     '${SDAA_INC}',
     '${TCCL_INC}',
@@ -31,10 +32,11 @@ library_dirs = [
     '${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/lib/',
     '${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/',
     '${EXTEND_OP_PATH}lib/',
-    '${TECODNN_PATH}/lib/',
-    '${TBLAS_PATH}/lib/',
+    '${TECODNN_PATH}/lib64/',
+    '${TBLAS_PATH}/lib64/',
     '${TCCL_PATH}/lib64/',
-    '${TECODNN_CUSTOM_PATH}/lib/',
+    '${TECOCUSTOM_EXT_PATH}/lib64/',
+    '${TECOCUSTOM_PATH}/lib64/',
     '${CUSTOM_SDAA_C_OPS_LIB}'
 ]
 libraries = [
@@ -43,6 +45,7 @@ libraries = [
     ':libtecodnn.so',
     ':libtecoblas.so',
     ':libtecodnn_ext.so',
+    ':libtecocustom.so',
     ':libtccl.so',
     '${SDAA_LIB}',
     ':libcustomsdaacops.a'
@@ -76,6 +79,9 @@ def get_sdaaext_source_files(path):
 extra_compile_args = ['-Wall', '-g', '-DPADDLE_WITH_CUSTOM_DEVICE', '-O3']
 if "${WITH_SW}" == "ON":
     extra_compile_args.append('-DPADDLE_WITH_SW')
+
+if "${WITH_LOONGARCH}" == "ON":
+    extra_compile_args.append('-DPADDLE_WITH_LOONGARCH')
 
 if "${WITH_PADDLE_INFO}" == "ON":
   extra_compile_args.append('-DPADDLE_COMMIT_ID=\"${PADDLE_COMMIT_ID}\"')

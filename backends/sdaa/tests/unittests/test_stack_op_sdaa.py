@@ -31,7 +31,7 @@ import unittest
 import numpy as np
 import paddle
 import paddle.base as base
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 
 paddle.enable_static()
 from white_list import no_grad_set_white_list
@@ -121,6 +121,59 @@ class TestStackOpBase(OpTest):
         )
 
 
+class TestStackBF16Op(OpTest):
+    def initDefaultParameters(self):
+        self.num_inputs = 4
+        self.input_dim = (5, 6, 7)
+        self.axis = 0
+        self.dtype = np.uint16
+
+    def initParameters(self):
+        pass
+
+    def get_x_names(self):
+        x_names = []
+        for i in range(self.num_inputs):
+            x_names.append(f"x{i}")
+        return x_names
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def setUp(self):
+        self.initDefaultParameters()
+        self.initParameters()
+        self.op_type = "stack"
+        self.python_api = paddle.stack
+        self.set_sdaa()
+        self.x = []
+        for i in range(self.num_inputs):
+            self.x.append(np.random.random(size=self.input_dim).astype(np.float32))
+
+        out = np.stack(self.x, axis=self.axis)
+
+        tmp = []
+        x_names = self.get_x_names()
+        for i in range(self.num_inputs):
+            tmp.append((x_names[i], convert_float_to_uint16(self.x[i])))
+
+        self.inputs = {"X": tmp}
+        self.outputs = {"Y": convert_float_to_uint16(out)}
+        self.attrs = {"axis": self.axis}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad(
+            self.get_x_names(),
+            "Y",
+            max_relative_error=0.03,
+        )
+
+
 class TestStackOp1(TestStackOpBase):
     def initParameters(self):
         self.num_inputs = 16
@@ -196,9 +249,9 @@ create_test_fp16(TestStackOp5)
 create_test_fp16(TestStackOp6)
 
 
-class TestStackAPIWithDenseTensorArray(unittest.TestCase):
+class TestStackAPIWithLoDTensorArray(unittest.TestCase):
     """
-    Test stack api when the input(x) is a DenseTensorArray.
+    Test stack api when the input(x) is a LoDTensorArray.
     """
 
     def setUp(self):
@@ -230,9 +283,9 @@ class TestStackAPIWithDenseTensorArray(unittest.TestCase):
         )
 
 
-class TestTensorStackAPIWithDenseTensorArray(unittest.TestCase):
+class TestTensorStackAPIWithLoDTensorArray(unittest.TestCase):
     """
-    Test stack api when the input(x) is a DenseTensorArray.
+    Test stack api when the input(x) is a LoDTensorArray.
     """
 
     def setUp(self):
@@ -298,16 +351,16 @@ class API_DygraphTest(unittest.TestCase):
         data2 = np.array([[3.0, 4.0]], dtype="float32")
         data3 = np.array([[5.0, 6.0]], dtype="float32")
         with base.dygraph.guard(place=paddle.CustomPlace("sdaa", 0)):
-            x1 = base.dygraph.to_variable(data1)
-            x2 = base.dygraph.to_variable(data2)
-            x3 = base.dygraph.to_variable(data3)
+            x1 = paddle.to_tensor(data1)
+            x2 = paddle.to_tensor(data2)
+            x3 = paddle.to_tensor(data3)
             result = paddle.stack([x1, x2, x3])
             result_np = result.numpy()
         expected_result = np.stack([data1, data2, data3])
         self.assertTrue(np.allclose(expected_result, result_np))
 
         with base.dygraph.guard(place=paddle.CustomPlace("sdaa", 0)):
-            y1 = base.dygraph.to_variable(data1)
+            y1 = paddle.to_tensor(data1)
             result = paddle.stack([y1], axis=0)
             result_np_2 = result.numpy()
         expected_result_2 = np.stack([data1], axis=0)

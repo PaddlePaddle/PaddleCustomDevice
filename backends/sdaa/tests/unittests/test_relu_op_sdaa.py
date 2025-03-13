@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -152,6 +152,39 @@ class TestReluNet(unittest.TestCase):
 
         self.assertTrue(np.allclose(sdaa_pred, cpu_pred))
         self.assertTrue(np.allclose(sdaa_loss, cpu_loss))
+
+
+class TestReluBF16(OpTest):
+    def setUp(self):
+        self.op_type = "relu"
+        self.python_api = paddle.nn.functional.relu
+        self.init_dtype()
+        self.init_shape()
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(np.float32)
+        out = 1 / (1 + np.exp(-x))
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_shape(self):
+        self.shape = [11, 17]
+
+    def test_check_output(self):
+        place = paddle.CustomPlace("sdaa", 0)
+        self.check_output_with_place(place)
+
+    def test_check_grad(self):
+        place = paddle.CustomPlace("sdaa", 0)
+        self.check_grad_with_place(place, ["X"], "Out")
+
+
+class TestReluBF16Case01(TestReluBF16):
+    def init_shape(self):
+        self.shape = [32, 20]
 
 
 if __name__ == "__main__":

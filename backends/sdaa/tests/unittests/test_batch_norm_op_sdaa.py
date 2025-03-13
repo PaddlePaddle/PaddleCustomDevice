@@ -231,54 +231,55 @@ class TestBatchNormOpInference(unittest.TestCase):
         ground_truth["saved_mean"] = mean
         ground_truth["saved_variance"] = variance
 
-        program = base.Program()
-        with base.program_guard(program):
-            block = program.global_block()
-            for name in ground_truth:
-                block.create_var(
-                    name=name, dtype="float32", shape=ground_truth[name].shape
+        with paddle.pir_utils.OldIrGuard():
+            program = base.Program()
+            with base.program_guard(program):
+                block = program.global_block()
+                for name in ground_truth:
+                    block.create_var(
+                        name=name, dtype="float32", shape=ground_truth[name].shape
+                    )
+                inputs = {
+                    "X": block.var("x"),
+                    "Scale": block.var("scale"),
+                    "Bias": block.var("bias"),
+                    "Mean": block.var("mean"),
+                    "Variance": block.var("variance"),
+                }
+                attrs = {
+                    "epsilon": epsilon,
+                    "is_test": self.is_test,
+                    "data_layout": data_layout,
+                    "use_mkldnn": False,
+                    "fuse_with_relu": False,
+                    "use_global_stats": self.use_global_stats,
+                    "trainable_statistics ": self.trainable_statistics,
+                }
+                outputs = {
+                    "Y": block.var("y"),
+                    "MeanOut": block.var("mean"),  # share memory
+                    "VarianceOut": block.var("variance"),  # share memory
+                    "SavedMean": block.var("saved_mean"),
+                    "SavedVariance": block.var("saved_variance"),
+                }
+                block.create_var(name="reserve_space", dtype="float32")
+                outputs["ReserveSpace"] = block.var("reserve_space")
+                bn_op = block.append_op(
+                    type="batch_norm", inputs=inputs, outputs=outputs, attrs=attrs
                 )
-            inputs = {
-                "X": block.var("x"),
-                "Scale": block.var("scale"),
-                "Bias": block.var("bias"),
-                "Mean": block.var("mean"),
-                "Variance": block.var("variance"),
-            }
-            attrs = {
-                "epsilon": epsilon,
-                "is_test": self.is_test,
-                "data_layout": data_layout,
-                "use_mkldnn": False,
-                "fuse_with_relu": False,
-                "use_global_stats": self.use_global_stats,
-                "trainable_statistics ": self.trainable_statistics,
-            }
-            outputs = {
-                "Y": block.var("y"),
-                "MeanOut": block.var("mean"),  # share memory
-                "VarianceOut": block.var("variance"),  # share memory
-                "SavedMean": block.var("saved_mean"),
-                "SavedVariance": block.var("saved_variance"),
-            }
-            block.create_var(name="reserve_space", dtype="float32")
-            outputs["ReserveSpace"] = block.var("reserve_space")
-            bn_op = block.append_op(
-                type="batch_norm", inputs=inputs, outputs=outputs, attrs=attrs
-            )
 
-            program._sync_with_cpp()
+                program._sync_with_cpp()
 
-            exe = base.Executor(place)
-            out = exe.run(
-                program,
-                feed={
-                    name: ground_truth[name]
-                    for name in ["x", "scale", "bias", "mean", "variance"]
-                },
-                fetch_list=["y"],
-            )
-            self.__assert_close(var_dict["y"], out[0], "y", atol=1e-3)
+                exe = base.Executor(place)
+                out = exe.run(
+                    program,
+                    feed={
+                        name: ground_truth[name]
+                        for name in ["x", "scale", "bias", "mean", "variance"]
+                    },
+                    fetch_list=["y"],
+                )
+                self.__assert_close(var_dict["y"], out[0], "y", atol=1e-3)
 
     def test_check_output(self):
         place = paddle.CustomPlace("sdaa", 0)
@@ -493,91 +494,92 @@ class TestBatchNormOpTraining(unittest.TestCase):
             ]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = base.Program()
-            with base.program_guard(program):
-                block = program.global_block()
-                for name in ground_truth:
-                    block.create_var(
-                        name=name, dtype="float32", shape=ground_truth[name].shape
+            with paddle.pir_utils.OldIrGuard():
+                program = base.Program()
+                with base.program_guard(program):
+                    block = program.global_block()
+                    for name in ground_truth:
+                        block.create_var(
+                            name=name, dtype="float32", shape=ground_truth[name].shape
+                        )
+                    inputs = {
+                        "X": block.var("x"),
+                        "Scale": block.var("scale"),
+                        "Bias": block.var("bias"),
+                        "Mean": block.var("mean"),
+                        "Variance": block.var("variance"),
+                    }
+                    attrs = {
+                        "epsilon": epsilon,
+                        "is_test": False,
+                        "data_layout": data_layout,
+                        "use_mkldnn": self.use_mkldnn,
+                        "fuse_with_relu": self.fuse_with_relu,
+                        "use_global_stats": self.use_global_stats,
+                    }
+                    if self.use_momentum_variable:
+                        inputs["MomentumTensor"] = block.var("momentum_var")
+                    else:
+                        attrs["momentum"] = momentum
+
+                    outputs = {
+                        "Y": block.var("y"),
+                        "MeanOut": block.var("mean"),  # share memory
+                        "VarianceOut": block.var("variance"),  # share memory
+                        "SavedMean": block.var("saved_mean"),
+                        "SavedVariance": block.var("saved_variance"),
+                    }
+                    block.create_var(name="reserve_space", dtype="float32")
+                    outputs["ReserveSpace"] = block.var("reserve_space")
+                    bn_op = block.append_op(
+                        type="batch_norm", inputs=inputs, outputs=outputs, attrs=attrs
                     )
-                inputs = {
-                    "X": block.var("x"),
-                    "Scale": block.var("scale"),
-                    "Bias": block.var("bias"),
-                    "Mean": block.var("mean"),
-                    "Variance": block.var("variance"),
-                }
-                attrs = {
-                    "epsilon": epsilon,
-                    "is_test": False,
-                    "data_layout": data_layout,
-                    "use_mkldnn": self.use_mkldnn,
-                    "fuse_with_relu": self.fuse_with_relu,
-                    "use_global_stats": self.use_global_stats,
-                }
-                if self.use_momentum_variable:
-                    inputs["MomentumTensor"] = block.var("momentum_var")
-                else:
-                    attrs["momentum"] = momentum
+                    block.create_var(name="y@GRAD", dtype=self.dtype, shape=y.shape)
 
-                outputs = {
-                    "Y": block.var("y"),
-                    "MeanOut": block.var("mean"),  # share memory
-                    "VarianceOut": block.var("variance"),  # share memory
-                    "SavedMean": block.var("saved_mean"),
-                    "SavedVariance": block.var("saved_variance"),
-                }
-                block.create_var(name="reserve_space", dtype="float32")
-                outputs["ReserveSpace"] = block.var("reserve_space")
-                bn_op = block.append_op(
-                    type="batch_norm", inputs=inputs, outputs=outputs, attrs=attrs
-                )
-                block.create_var(name="y@GRAD", dtype=self.dtype, shape=y.shape)
+                    # generate backward op_desc
+                    grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(
+                        bn_op.desc, self.no_grad_set, []
+                    )
+                    grad_op_desc = grad_op_desc_list[0]
+                    new_op_desc = block.desc.append_op()
+                    new_op_desc.copy_from(grad_op_desc)
+                    for var_name in grad_op_desc.output_arg_names():
+                        block.desc.var(var_name.encode("ascii"))
+                    grad_op_desc.infer_var_type(block.desc)
+                    grad_op_desc.infer_shape(block.desc)
+                    for arg in grad_op_desc.output_arg_names():
+                        grad_var = block.desc.find_var(arg.encode("ascii"))
+                        grad_var.set_dtype(core.VarDesc.VarType.FP32)
 
-                # generate backward op_desc
-                grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(
-                    bn_op.desc, self.no_grad_set, []
-                )
-                grad_op_desc = grad_op_desc_list[0]
-                new_op_desc = block.desc.append_op()
-                new_op_desc.copy_from(grad_op_desc)
-                for var_name in grad_op_desc.output_arg_names():
-                    block.desc.var(var_name.encode("ascii"))
-                grad_op_desc.infer_var_type(block.desc)
-                grad_op_desc.infer_shape(block.desc)
-                for arg in grad_op_desc.output_arg_names():
-                    grad_var = block.desc.find_var(arg.encode("ascii"))
-                    grad_var.set_dtype(core.VarDesc.VarType.FP32)
+                    program._sync_with_cpp()
 
-                program._sync_with_cpp()
+                    exe = base.Executor(place)
+                    out = exe.run(
+                        program,
+                        feed={
+                            name: var_dict[name]
+                            for name in [
+                                "x",
+                                "scale",
+                                "bias",
+                                "mean",
+                                "variance",
+                                "y@GRAD",
+                                "momentum_var",
+                            ]
+                        },
+                        fetch_list=self.fetch_list,
+                    )
 
-                exe = base.Executor(place)
-                out = exe.run(
-                    program,
-                    feed={
-                        name: var_dict[name]
-                        for name in [
-                            "x",
-                            "scale",
-                            "bias",
-                            "mean",
-                            "variance",
-                            "y@GRAD",
-                            "momentum_var",
-                        ]
-                    },
-                    fetch_list=self.fetch_list,
-                )
+                for id, name in enumerate(self.fetch_list):
+                    if name == "variance":
+                        self.__assert_close(var_dict[name], out[id], name, atol=1e-3)
+                        continue
 
-            for id, name in enumerate(self.fetch_list):
-                if name == "variance":
-                    self.__assert_close(var_dict[name], out[id], name, atol=1e-3)
-                    continue
-
-                # saved_mean and saved_variance is None when use_global_stats is True
-                if out[id] is not None:
-                    self.__assert_close(var_dict[name], out[id], name)
-            # print("op test forward passed: ", str(place), data_layout)
+                    # saved_mean and saved_variance is None when use_global_stats is True
+                    if out[id] is not None:
+                        self.__assert_close(var_dict[name], out[id], name)
+                # print("op test forward passed: ", str(place), data_layout)
 
         for data_format in self.data_formats:
             test_with_place(core.CustomPlace("sdaa", 0), data_format, [2, 3, 4, 5])

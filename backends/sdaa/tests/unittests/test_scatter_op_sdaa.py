@@ -41,13 +41,18 @@ class TestScatterOp(OpTest):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.python_api = paddle.scatter
-        ref_np = np.ones((3, 50)).astype("float32")
+        self._set_dtype()
+        target_dtype = "float16" if self.dtype == np.float16 else "float32"
+        ref_np = np.ones((3, 50)).astype(target_dtype)
         index_np = np.array([1, 2]).astype("int32")
-        updates_np = np.random.random((2, 50)).astype("float32")
+        updates_np = np.random.random((2, 50)).astype(target_dtype)
         output_np = np.copy(ref_np)
         output_np[index_np] = updates_np
         self.inputs = {"X": ref_np, "Ids": index_np, "Updates": updates_np}
         self.outputs = {"Out": output_np}
+
+    def _set_dtype(self):
+        self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(
@@ -56,6 +61,21 @@ class TestScatterOp(OpTest):
 
     def test_check_grad(self):
         pass
+
+
+class TestScatterFP16Op(TestScatterOp):
+    def _set_dtype(self):
+        self.dtype = np.float16
+
+
+class TestScatterINT64Op(TestScatterOp):
+    def _set_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScatterINT32Op(TestScatterOp):
+    def _set_dtype(self):
+        self.dtype = np.int32
 
 
 class TestScatterOp0(OpTest):
@@ -65,14 +85,19 @@ class TestScatterOp0(OpTest):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.python_api = paddle.scatter
-        ref_np = np.ones((3, 3)).astype("float32")
+        self._set_dtype()
+        target_dtype = "float16" if self.dtype == np.float16 else "float32"
+        ref_np = np.ones((3, 3)).astype(target_dtype)
         index_np = np.array([1, 2]).astype("int32")
-        updates_np = np.random.random((2, 3)).astype("float32")
+        updates_np = np.random.random((2, 3)).astype(target_dtype)
         output_np = np.copy(ref_np)
         output_np[index_np] = updates_np
         self.inputs = {"X": ref_np, "Ids": index_np, "Updates": updates_np}
         self.attrs = {"overwrite": True}
         self.outputs = {"Out": output_np}
+
+    def _set_dtype(self):
+        self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(
@@ -81,6 +106,21 @@ class TestScatterOp0(OpTest):
 
     def test_check_grad(self):
         pass
+
+
+class TestScatterFP16Op0(TestScatterOp0):
+    def _set_dtype(self):
+        self.dtype = np.float16
+
+
+class TestScatterINT64Op0(TestScatterOp0):
+    def _set_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScatterINT32Op0(TestScatterOp0):
+    def _set_dtype(self):
+        self.dtype = np.int32
 
 
 class TestScatterOp1(OpTest):
@@ -90,10 +130,12 @@ class TestScatterOp1(OpTest):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.python_api = paddle.scatter
-        ref_np = np.ones((3, 3)).astype("float32")
-        zeros_np = np.zeros([2, 3]).astype("float32")
+        self._set_dtype()
+        target_dtype = "float16" if self.dtype == np.float16 else "float32"
+        ref_np = np.ones((3, 3)).astype(target_dtype)
+        zeros_np = np.zeros([2, 3]).astype(target_dtype)
         index_np = np.array([1, 1]).astype("int32")
-        updates_np = np.random.random((2, 3)).astype("float32")
+        updates_np = np.random.random((2, 3)).astype(target_dtype)
         output_np = np.copy(ref_np)
         output_np[index_np] = zeros_np
         for i in range(0, len(index_np)):
@@ -102,6 +144,9 @@ class TestScatterOp1(OpTest):
         self.inputs = {"X": ref_np, "Ids": index_np, "Updates": updates_np}
         self.outputs = {"Out": output_np}
 
+    def _set_dtype(self):
+        self.dtype = np.float32
+
     def test_check_output(self):
         self.check_output_with_place(
             self.place,
@@ -109,6 +154,21 @@ class TestScatterOp1(OpTest):
 
     def test_check_grad(self):
         pass
+
+
+class TestScatterFP16Op1(TestScatterOp1):
+    def _set_dtype(self):
+        self.dtype = np.float16
+
+
+class TestScatterINT64Op1(TestScatterOp1):
+    def _set_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScatterINT32Op1(TestScatterOp1):
+    def _set_dtype(self):
+        self.dtype = np.int32
 
 
 class TestScatterOp2(OpTest):
@@ -118,13 +178,18 @@ class TestScatterOp2(OpTest):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.python_api = paddle.scatter
-        ref_np = np.ones((3, 3)).astype("float32")
+        self._set_dtype()
+        target_dtype = "float16" if self.dtype == np.float16 else "float32"
+        ref_np = np.ones((3, 3)).astype(target_dtype)
         index_np = np.array([1, 2]).astype("int64")
-        updates_np = np.random.random((2, 3)).astype("float32")
+        updates_np = np.random.random((2, 3)).astype(target_dtype)
         output_np = np.copy(ref_np)
         output_np[index_np] = updates_np
         self.inputs = {"X": ref_np, "Ids": index_np, "Updates": updates_np}
         self.outputs = {"Out": output_np}
+
+    def _set_dtype(self):
+        self.dtype = np.float32
 
     def test_check_output(self):
         self.check_output_with_place(
@@ -133,6 +198,65 @@ class TestScatterOp2(OpTest):
 
     def test_check_grad(self):
         pass
+
+
+class TestScatterFP16Op2(TestScatterOp2):
+    def _set_dtype(self):
+        self.dtype = np.float16
+
+
+class TestScatterINT64Op2(TestScatterOp2):
+    def _set_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScatterINT32Op2(TestScatterOp2):
+    def _set_dtype(self):
+        self.dtype = np.int32
+
+
+class TestScatterOp3(OpTest):
+    def setUp(self):
+        self.op_type = "scatter"
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+        self.python_api = paddle.scatter
+        self._set_dtype()
+        target_dtype = "float16" if self.dtype == np.float16 else "float32"
+        ref_np = np.ones((3, 50)).astype(target_dtype)
+        index_np = np.array([[1], [2]]).astype("int32")
+        updates_np = np.random.random((2, 50)).astype(target_dtype)
+        output_np = np.copy(ref_np)
+        output_np[np.array([1, 2]).astype("int32")] = updates_np
+        self.inputs = {"X": ref_np, "Ids": index_np, "Updates": updates_np}
+        self.outputs = {"Out": output_np}
+
+    def _set_dtype(self):
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(
+            self.place,
+        )
+
+    def test_check_grad(self):
+        pass
+
+
+class TestScatterFP16Op3(TestScatterOp3):
+    def _set_dtype(self):
+        self.dtype = np.float16
+
+
+class TestScatterINT64Op3(TestScatterOp3):
+    def _set_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScatterINT32Op3(TestScatterOp3):
+    def _set_dtype(self):
+        self.dtype = np.int32
 
 
 class TestScatterAPI(unittest.TestCase):
@@ -183,9 +307,9 @@ class TestScatterAPI(unittest.TestCase):
                     np.float32
                 )
 
-                x = base.dygraph.to_variable(x_data)
-                index = base.dygraph.to_variable(index_data)
-                updates = base.dygraph.to_variable(updates_data)
+                x = paddle.to_tensor(x_data)
+                index = paddle.to_tensor(index_data)
+                updates = paddle.to_tensor(updates_data)
 
                 output1 = self.scatter(x, index, updates, overwrite=False)
                 self.assertEqual(
@@ -195,6 +319,11 @@ class TestScatterAPI(unittest.TestCase):
                     ).all(),
                     True,
                 )
+
+
+class TestScatterInplaceAPI(TestScatterAPI):
+    def executed_api(self):
+        self.scatter = paddle.scatter_
 
 
 class TestScatterOpFp16(OpTest):

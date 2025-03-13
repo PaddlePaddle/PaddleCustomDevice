@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -76,6 +76,36 @@ class TestTanhFp16(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
+
+
+class TestTanhBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "tanh"
+        self.python_api = paddle.tanh
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [3, 4]).astype(np.float32)
+        out = np.tanh(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.attrs = {}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = False
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestTanhNet(unittest.TestCase):

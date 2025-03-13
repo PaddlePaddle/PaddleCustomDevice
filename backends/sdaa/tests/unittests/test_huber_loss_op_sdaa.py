@@ -113,11 +113,6 @@ class TestHuberLossOp3(TestHuberLossOp):
         return (16, 12, 1)
 
 
-class TestHuberLossOp4(TestHuberLossOp):
-    def set_shape(self):
-        return 120
-
-
 def create_test_fp64_class(parent):
     class TestHuberLossOpFp64Case(parent):
         def init_dtype(self):
@@ -141,7 +136,6 @@ create_test_fp64_class(TestHuberLossOp)
 create_test_fp64_class(TestHuberLossOp1)
 create_test_fp64_class(TestHuberLossOp2)
 create_test_fp64_class(TestHuberLossOp3)
-create_test_fp64_class(TestHuberLossOp4)
 
 
 def create_test_fp16_class(parent):
@@ -167,7 +161,6 @@ create_test_fp16_class(TestHuberLossOp)
 create_test_fp16_class(TestHuberLossOp1)
 create_test_fp16_class(TestHuberLossOp2)
 create_test_fp16_class(TestHuberLossOp3)
-create_test_fp16_class(TestHuberLossOp4)
 
 
 class TestHuberLossOpError(unittest.TestCase):

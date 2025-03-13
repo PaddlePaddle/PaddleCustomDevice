@@ -25,6 +25,7 @@ void CastKernel(const Context &dev_ctx,
                 phi::DenseTensor *out) {
   VLOG(4) << "Call SDAA CastKernel";
   dev_ctx.Alloc(out, out_dtype, 0, false, false);
+
   sdaa_ops::doCastTensor(dev_ctx, x, out);
 }
 
@@ -39,6 +40,7 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           float,
                           double,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           int16_t,
                           int8_t,
                           int64_t,

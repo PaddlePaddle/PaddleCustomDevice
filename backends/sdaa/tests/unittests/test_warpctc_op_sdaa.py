@@ -870,10 +870,10 @@ class TestWarpCTCGradAPICase(unittest.TestCase):
 
     paddle.set_device("cpu")
     loss_cpu_func = paddle.nn.CTCLoss(blank=0, reduction="none")
-    predicts_cpu = predicts._to("cpu")
-    labels_cpu = labels._to("cpu")
-    preds_lengths_cpu = preds_lengths._to("cpu")
-    label_lengths_cpu = label_lengths._to("cpu")
+    predicts_cpu = paddle.to_tensor(np_logits, stop_gradient=False)
+    labels_cpu = paddle.to_tensor(np_labels)
+    preds_lengths_cpu = paddle.to_tensor(np_logits_length)
+    label_lengths_cpu = paddle.to_tensor(np_labels_length)
 
     losscpu = loss_cpu_func(
         predicts_cpu, labels_cpu, preds_lengths_cpu, label_lengths_cpu

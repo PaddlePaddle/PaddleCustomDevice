@@ -303,7 +303,8 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }
@@ -313,7 +314,8 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
                           ALL_LAYOUT,
                           custom_kernel::LayerNormGradKernel,
                           float,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);

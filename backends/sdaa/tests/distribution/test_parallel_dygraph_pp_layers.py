@@ -20,7 +20,7 @@ from test_parallel_dygraph_mp_layers import TestMultipleCustomDevices
 
 class TestHybridPipeParallel(TestMultipleCustomDevices):
     def test_hybrid_parallel_pp_layer(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             os.path.abspath("hybrid_parallel_pp_layer.py"), "sdaa"
         )
 

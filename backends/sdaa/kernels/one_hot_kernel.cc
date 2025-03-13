@@ -30,6 +30,16 @@
 #include "paddle/phi/extension.h"
 namespace custom_kernel {
 
+__inline__ static bool isEnableParallelTP() {
+  int enable_parallel_tp = 0;
+  const char* env = NULL;
+  if ((env = std::getenv("ENABLE_PARALLEL_TP")) != NULL) {
+    enable_parallel_tp = atoi(env);
+  }
+
+  return enable_parallel_tp;
+}
+
 template <typename T, typename Context>
 void doOneHotTensor(const Context& dev_ctx,
                     const phi::DenseTensor& x,
@@ -42,7 +52,7 @@ void doOneHotTensor(const Context& dev_ctx,
   if (x.dims().size() == 0) {
     out_dims.insert(out_dims.begin(), 1);
   }
-  if (isEnvEnable("ENABLE_PARALLEL_TP")) {
+  if (isEnableParallelTP()) {
     phi::DenseTensorMeta bound_meta = {x.dtype(), phi::make_ddim({1})};
     phi::DenseTensorMeta compare_meta = {phi::DataType::BOOL, x.dims()};
 

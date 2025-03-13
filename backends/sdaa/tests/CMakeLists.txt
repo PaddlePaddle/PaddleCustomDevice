@@ -43,7 +43,7 @@ add_test(
     ${CMAKE_COMMAND} -E env
     CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
     PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
-    python test_MNIST_model.py
+    FLAGS_enable_pir_api=false python test_MNIST_model.py
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(unittests)

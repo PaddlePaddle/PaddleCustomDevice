@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -48,6 +48,47 @@ class TestExp(OpTest):
 
     def init_dtype(self):
         self.dtype = np.float32
+
+    def compute_gradient(self, grad_out, out):
+        return grad_out * out
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-5)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            user_defined_grads=[self.grad_x],
+            user_defined_grad_outputs=[self.grad_out],
+        )
+
+
+class TestExpBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "exp"
+        self.python_api = paddle.exp
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        x = np.random.uniform(-1, 1, [11, 17]).astype(np.float32)
+        out = np.exp(x)
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+        grad_out = np.ones(out.shape).astype(np.float32)
+        self.grad_out = convert_float_to_uint16(grad_out)
+        grad_x = self.compute_gradient(grad_out, out)
+        self.grad_x = convert_float_to_uint16(grad_x)
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
 
     def compute_gradient(self, grad_out, out):
         return grad_out * out

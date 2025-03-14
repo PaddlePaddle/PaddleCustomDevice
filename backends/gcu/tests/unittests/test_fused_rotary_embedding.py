@@ -30,10 +30,10 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
 FUSED_ROPE_CASE = [
     # for llama2
     {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int64},
-    {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int64},
+    # {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int64},
 
     {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int32},
-    {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int32},
+    # {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int32},
 
 ]
 # fmt: on

@@ -38,11 +38,24 @@ def inference_common_passes(use_pir=True):
             "delete_weight_dequant_linear_op_pass",
             "map_op_to_another_pass",
             "identity_op_clean_pass",
+            # Operator exchange pass
+            "matmul_scale_fuse_pass",
             # Operator fusion pass
             "silu_fuse_pass",
-            "conv2d_bn_fuse_pass",
-            "conv2d_add_act_fuse_pass",
-            "conv2d_add_fuse_pass",
+            "gcu_conv2d_bn_fuse_pass",
+            "gcu_conv2d_add_fuse_pass",
+            "fused_conv2d_add_act_append_pass",
+            "matmul_transpose_fuse_pass",
+            "matmul_add_act_fuse_pass",
+            "multihead_matmul_fuse_pass",
+            "embedding_eltwise_layernorm_fuse_pass",
+            "fc_elementwise_layernorm_fuse_pass",
+            "fused_dot_product_attention_pass",
+            "fused_dropout_add_pass",
+            "fused_flash_attn_pass",
+            "fused_rotary_position_embedding_pass",
+            "horizontal_fuse_pass",
+            "transpose_flatten_concat_fuse_pass",
         ]
     else:
         return [
@@ -50,6 +63,7 @@ def inference_common_passes(use_pir=True):
             "is_test_pass",
             "simplify_with_basic_ops_pass",
             "constant_folding_pass",
+            "silu_fuse_pass",
             "conv_bn_fuse_pass",
             "conv_eltwiseadd_bn_fuse_pass",
             "conv_transpose_bn_fuse_pass",
@@ -78,6 +92,8 @@ def inference_common_passes(use_pir=True):
             "conv2d_transpose_elementwise_add_fuse_pass",
             "conv2d_depthwise_elementwise_add_fuse_pass",
             "conv2d_elementwise_add_fuse_pass",
+            # "fused_conv2d_add_act_append_pass",
+            "constant_folding_pass",
             # always last
             "add_netoutput_op_pass",
         ]

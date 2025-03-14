@@ -71,6 +71,10 @@ from .legacy_ir_passes.gcu_conv_elementwise_add_fuse_pass import (
     conv2d_elementwise_add_fuse_pass,
 )
 
+from .legacy_ir_passes.gcu_fused_conv2d_add_act_append_pass import (
+    fused_conv2d_add_act_append_pass,
+)
+
 from .legacy_ir_passes.gcu_netoutput_pass import (
     add_netoutput_op_pass,
 )

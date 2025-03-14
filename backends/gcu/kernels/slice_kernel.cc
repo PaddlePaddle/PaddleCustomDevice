@@ -70,8 +70,14 @@ void SliceKernel(const Context& dev_ctx,
     if (out->data() == x.data()) {
       *out = TensorEmpty(dev_ctx, out->meta());
     }
+    phi::DenseTensor input_x;
+    if (x.place().GetType() == phi::AllocationType::CPU) {
+      TensorCopy(dev_ctx, x, false, &input_x);
+    } else {
+      input_x = x;
+    }
 
-    custom_kernel::SliceBase(dev_ctx, x, axes, starts, out);
+    custom_kernel::SliceBase(dev_ctx, input_x, axes, starts, out);
     out->Resize(out_dims);
 
   } else {  // kernel impl base on JIT

@@ -140,6 +140,10 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
         act_mode = TOPSATEN_ACTIVATION_SIGMOID;
       } else if (activation == "swish") {
         act_mode = TOPSATEN_ACTIVATION_SWISH;
+      } else if (activation == "leaky_relu") {
+        act_mode = TOPSATEN_ACTIVATION_LEAKY_RELU;
+      } else if (activation == "hardswish") {
+        act_mode = TOPSATEN_ACTIVATION_HARD_SWISH;
       } else {
         PADDLE_THROW(phi::errors::Unimplemented(
             "Unsupport activation string: %s.", activation));

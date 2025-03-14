@@ -33,38 +33,38 @@ void YoloBoxKernel(const Context& dev_ctx,
   PADDLE_GCU_KERNEL_TRACE("yolo_box");
   dev_ctx.template Alloc<T>(boxes);
   dev_ctx.template Alloc<T>(scores);
-  if (LaunchAOTKernel()) {
-    THROW_AOT_UNIMPLEMENTED();
-  } else {  // kernel impl base on JIT
-    TensorNameMap input_names;
-    input_names["X"] = {"x"};
-    input_names["ImgSize"] = {"img_size"};
+  //   if (LaunchAOTKernel()) {
+  //     THROW_AOT_UNIMPLEMENTED();
+  //   } else {  // kernel impl base on JIT
+  TensorNameMap input_names;
+  input_names["X"] = {"x"};
+  input_names["ImgSize"] = {"img_size"};
 
-    TensorValueMap inputs;
-    inputs["X"] = {const_cast<DenseTensor*>(&x)};
-    inputs["ImgSize"] = {const_cast<DenseTensor*>(&img_size)};
+  TensorValueMap inputs;
+  inputs["X"] = {const_cast<DenseTensor*>(&x)};
+  inputs["ImgSize"] = {const_cast<DenseTensor*>(&img_size)};
 
-    TensorNameMap output_names;
-    output_names["Boxes"] = {"boxes"};
-    output_names["Scores"] = {"scores"};
+  TensorNameMap output_names;
+  output_names["Boxes"] = {"boxes"};
+  output_names["Scores"] = {"scores"};
 
-    TensorValueMap outputs;
-    outputs["Boxes"] = {boxes};
-    outputs["Scores"] = {scores};
+  TensorValueMap outputs;
+  outputs["Boxes"] = {boxes};
+  outputs["Scores"] = {scores};
 
-    GcuAttributeMap attrs;
-    attrs["class_num"] = class_num;
-    attrs["anchors"] = anchors;
-    attrs["conf_thresh"] = conf_thresh;
-    attrs["downsample_ratio"] = downsample_ratio;
-    attrs["clip_bbox"] = clip_bbox;
-    attrs["scale_x_y"] = scale_x_y;
-    attrs["iou_aware"] = iou_aware;
-    attrs["iou_aware_factor"] = iou_aware_factor;
+  GcuAttributeMap attrs;
+  attrs["class_num"] = class_num;
+  attrs["anchors"] = anchors;
+  attrs["conf_thresh"] = conf_thresh;
+  attrs["downsample_ratio"] = downsample_ratio;
+  attrs["clip_bbox"] = clip_bbox;
+  attrs["scale_x_y"] = scale_x_y;
+  attrs["iou_aware"] = iou_aware;
+  attrs["iou_aware_factor"] = iou_aware_factor;
 
-    GcuRunner(
-        input_names, inputs, output_names, outputs, attrs, "yolo_box", dev_ctx);
-  }
+  GcuRunner(
+      input_names, inputs, output_names, outputs, attrs, "yolo_box", dev_ctx);
+  //   }
 }
 }  // namespace custom_kernel
 

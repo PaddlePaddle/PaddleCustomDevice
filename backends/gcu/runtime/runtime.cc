@@ -29,6 +29,7 @@
 #include "backend/executor/cast_runner.h"
 #include "glog/logging.h"
 #include "paddle/phi/capi/include/type_utils.h"
+#include "passes/gcu_pass_pipeline.h"
 #include "runtime/flags.h"
 
 namespace {
@@ -795,5 +796,10 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_group_end = XcclGroupEnd;
   params->interface->xccl_send = XcclSend;
   params->interface->xccl_recv = XcclRecv;
+
+  // GCU PIR pass pipeline
+  params->pir_default_passes = reinterpret_cast<void *>(
+      const_cast<std::vector<std::string> *>(GetPirGcuPasses()));
+
   VLOG(0) << "InitPlugin for backend GCU successfully.";
 }

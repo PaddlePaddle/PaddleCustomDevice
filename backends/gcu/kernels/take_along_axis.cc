@@ -25,25 +25,26 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
                          DenseTensor* out) {
   PADDLE_GCU_KERNEL_TRACE("take_along_axis");
   if (LaunchAOTKernel()) {
-    dev_ctx.template Alloc<T>(out);
+    THROW_AOT_UNIMPLEMENTED();
+    // dev_ctx.template Alloc<T>(out);
 
-    const auto x_shape = x.dims();
-    const auto x_rank = x_shape.size();
-    axis = axis < 0 ? axis + x_rank : axis;
+    // const auto x_shape = x.dims();
+    // const auto x_rank = x_shape.size();
+    // axis = axis < 0 ? axis + x_rank : axis;
 
-    // check valid
-    // average divide if num_split has only one value
-    PADDLE_ENFORCE_GT(axis,
-                      0,
-                      phi::errors::InvalidArgument(
-                          "axis should be in [-%zu, %zu)!", x_rank, x_rank));
+    // // check valid
+    // // average divide if num_split has only one value
+    // PADDLE_ENFORCE_GT(axis,
+    //                   0,
+    //                   phi::errors::InvalidArgument(
+    //                       "axis should be in [-%zu, %zu)!", x_rank, x_rank));
 
-    int64_t axis_64 = axis;
-    phi::DenseTensor out_tmp = custom_kernel::TensorEmpty(dev_ctx, x.meta());
-    LAUNCH_TOPSATENOP(
-        topsatenGather, dev_ctx, out_tmp, x, index, axis_64, false);
+    // int64_t axis_64 = axis;
+    // phi::DenseTensor out_tmp = custom_kernel::TensorEmpty(dev_ctx, x.meta());
+    // LAUNCH_TOPSATENOP(
+    //     topsatenGather, dev_ctx, out_tmp, x, index, axis_64, false);
 
-    LAUNCH_TOPSATENOP(topsatenCopy, dev_ctx, *out, x, false);
+    // LAUNCH_TOPSATENOP(topsatenCopy, dev_ctx, *out, x, false);
   } else {  // kernel impl base on JIT
     THROW_JIT_UNIMPLEMENTED();
   }
@@ -51,12 +52,12 @@ void TakeAlongAxisKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
-                          GPU,
-                          ALL_LAYOUT,
-                          custom_kernel::TakeAlongAxisKernel,
-                          float,
-                          double,
-                          int64_t,
-                          int,
-                          phi::dtype::float16) {}
+// PD_REGISTER_PLUGIN_KERNEL(take_along_axis,
+//                           GPU,
+//                           ALL_LAYOUT,
+//                           custom_kernel::TakeAlongAxisKernel,
+//                           float,
+//                           double,
+//                           int64_t,
+//                           int,
+//                           phi::dtype::float16) {}

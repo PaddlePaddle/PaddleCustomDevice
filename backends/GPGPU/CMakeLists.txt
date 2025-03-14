@@ -13,7 +13,7 @@
 # the License
 
 cmake_minimum_required(VERSION 3.10)
-set(PYTHON_VERSION "3.9")
+set(PYTHON_VERSION "3.8.16")
 project(paddle-custom-gpu CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
@@ -88,7 +88,7 @@ include(${PP_glog})
 include(${PP_eigen})
 
 
-set(CU_FILE_FOLDER /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/)
+set(CU_FILE_FOLDER ${PADDLE_SOURCE_DIR}/Paddle/paddle/phi/kernels/gpu/)
 file(
   GLOB TEST_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
@@ -103,15 +103,15 @@ file(
 # list(REMOVE_ITEM TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adagrad_kernel.cu)
 
 set(TEST_SRCS ${FILE_NAME})
-set(TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/gather_grad_kernel.cu)
-set(TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/arg_min_max_kernel.cu) #ok
+set(TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_grad_kernel.cu)
+set(TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arg_min_max_kernel.cu) #ok
 # set(TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu)
 
 message(STATUS "TEST_SRCS = ${TEST_SRCS}")
 
 
 # set(CPU_RUN runtime/runtime.cc)
-set(TEST_SRCS "/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/index_add_kernel.cu")
+set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu")
 # set_source_files_properties(/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/index_add_kernel.cu PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
 # set_source_files_properties(${TEST_SRCS} PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
 
@@ -128,6 +128,9 @@ add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
 target_link_libraries(${TEST_TARGET} PRIVATE glog)
 target_link_libraries(${TEST_TARGET} PRIVATE ${PADDLE_CORE_LIB})
 
+message("include: =====", ${C_INCLUDE_PATH})
+message("include: =====", ${CPLUS_INCLUDE_PATH})
+include_directories(BEFORE /home/PaddleCustomDevice/Paddle)
 # set_property(
 #   TEST ${TEST_TARGET}
 #   PROPERTY
@@ -143,7 +146,7 @@ target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1)
 add_custom_command(
   OUTPUT index_add_kernel_preprocessed.cc
   COMMAND nvcc -E ${TEST_SRCS}
-    -I/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle
+    -I${PADDLE_SOURCE_DIR}
     -I${POPART_DIR}/include
     -I${JEMALLOC_INCLUDE_DIR} 
     -I${UTF8PROC_INSTALL_DIR}/include
@@ -161,9 +164,9 @@ add_custom_command(
     -I${XXHASH_INCLUDE_DIR}
     -I${ZLIB_INCLUDE_DIR}
     -I${GTEST_INCLUDE_DIR}
-    -I /ssd3/mayongqiang/cpu/Paddle/third_party/eigen3
-    -I /ssd3/mayongqiang/cpu/Paddle/build/third_party/install/glog/include
-    -I /ssd3/mayongqiang/cpu/Paddle/third_party/gflags
+    -I${PADDLE_SOURCE_DIR}/third_party/eigen3
+    -I${PADDLE_SOURCE_DIR}/third_party/install/glog/include
+    -I${PADDLE_SOURCE_DIR}/third_party/gflags
     -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
     DEPENDS ${PHI_DEPS})
 message("------------------- ${PHI_DEPS}")

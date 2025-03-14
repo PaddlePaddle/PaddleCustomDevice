@@ -1,4 +1,4 @@
 [submodule "Paddle"]
 	path = Paddle
-	url = https://github.com/PaddlePaddle/Paddle.git
-	branch = develop
+	url = https://github.com/YqGe585/Paddle.git
+	branch = GPGPU

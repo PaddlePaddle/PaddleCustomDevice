@@ -23,15 +23,20 @@ from paddle.base import Program, program_guard
 from tests.op_test import OpTest, convert_float_to_uint16
 from npu_utils import get_cann_version
 
+with paddle.pir_utils.OldIrGuard():
+    from paddle.base import program_guard as old_program_guard, Program as OldProgram
+
+
 CANN_VERSION_CODE = get_cann_version()
 
 
 def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
-            self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.device = "npu:0"
             self.op_type = op_type
+            self.python_api = eval("paddle." + op_type)
+            self.set_device()
 
         def init_input_output(self, shape1, shape2):
             if typename == "bfloat16":
@@ -48,8 +53,12 @@ def create_test_class(op_type, typename, callback):
             out = callback(x, y)
             self.outputs = {"Out": out}
 
-        def set_npu(self):
+        def set_device(self):
             self.__class__.use_custom_device = True
+            self.place = paddle.CustomPlace(
+                self.device.split(":")[0], int(self.device.split(":")[1])
+            )
+            paddle.set_device(self.device)
 
         def test_output(self):
             self.init_input_output((10, 7), (10, 7))
@@ -75,28 +84,14 @@ def create_test_class(op_type, typename, callback):
                 self.assertRaises(TypeError, op, x=a, y=b, axis=True)
                 self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
                 self.assertRaises(TypeError, op, x=a, y=b, cond=1)
-
-                try:
-                    result = op(x=a, y=c)
-                except TypeError:
-                    self.fail(
-                        "TypeError should not raised for float32 and int16 inputs"
-                    )
-
-                try:
-                    result = op(x=c, y=a)
-                except TypeError:
-                    self.fail(
-                        "TypeError should not raised for int16 and float32 inputs"
-                    )
-
+                self.assertRaises(TypeError, op, x=a, y=c)
+                self.assertRaises(TypeError, op, x=c, y=a)
                 self.assertRaises(TypeError, op, x=a, y=d)
                 self.assertRaises(TypeError, op, x=d, y=a)
                 self.assertRaises(TypeError, op, x=c, y=d)
 
         def test_dynamic_api(self):
             paddle.disable_static()
-            paddle.set_device("npu:0")
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
                 y = np.random.random(size=(10, 7)).astype(np.float32)
@@ -114,7 +109,6 @@ def create_test_class(op_type, typename, callback):
             if op_type != "equal":
                 return
             paddle.disable_static()
-            paddle.set_device("npu:0")
             y = np.random.random(size=(10, 7)).astype("int32")
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
@@ -211,12 +205,13 @@ def create_test_class(op_type, typename, callback):
 
         def test_attr_name(self):
             paddle.enable_static()
-            with program_guard(Program(), Program()):
-                x = paddle.static.data(name="x", shape=[-1, 4], dtype=typename)
-                y = paddle.static.data(name="y", shape=[-1, 4], dtype=typename)
-                op = eval("paddle.%s" % (self.op_type))
-                out = op(x=x, y=y, name="name_%s" % (self.op_type))
-            self.assertEqual("name_%s" % (self.op_type) in out.name, True)
+            with paddle.pir_utils.OldIrGuard():
+                with old_program_guard(OldProgram(), OldProgram()):
+                    x = paddle.static.data(name="x", shape=[-1, 4], dtype=typename)
+                    y = paddle.static.data(name="y", shape=[-1, 4], dtype=typename)
+                    op = eval("paddle.%s" % (self.op_type))
+                    out = op(x=x, y=y, name="name_%s" % (self.op_type))
+                    self.assertEqual("name_%s" % (self.op_type) in out.name, True)
 
     cls_name = "{0}_{1}".format(op_type, typename)
     Cls.__name__ = cls_name

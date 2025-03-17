@@ -491,52 +491,60 @@ class TestConv2DTransposeAPI(unittest.TestCase):
     def test_case1(self):
         data1 = paddle.static.data(name="data1", shape=[-1, 3, 5, 5], dtype="float32")
         data2 = paddle.static.data(name="data2", shape=[-1, 5, 5, 3], dtype="float32")
-        out1 = paddle.static.nn.conv2d_transpose(
-            input=data1, groups=1, num_filters=6, filter_size=3, data_format="NCHW"
-        )
-        out2 = paddle.static.nn.conv2d_transpose(
-            input=data2, groups=1, num_filters=6, filter_size=3, data_format="NHWC"
-        )
-        out3 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        out1 = paddle.nn.Conv2DTranspose(
+            in_channels=3,
+            out_channels=6,
+            kernel_size=3,
             groups=1,
-            num_filters=6,
-            filter_size=3,
+            data_format="NCHW",
+        )(data1)
+        out2 = paddle.nn.Conv2DTranspose(
+            in_channels=3,
+            out_channels=6,
+            kernel_size=3,
+            groups=1,
+            data_format="NHWC",
+        )(data2)
+        out3 = paddle.nn.Conv2DTranspose(
+            in_channels=5,
+            out_channels=6,
+            kernel_size=3,
+            groups=1,
             padding=[[0, 0], [1, 1], [1, 1], [0, 0]],
             data_format="NHWC",
-        )
-        out4 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        )(data1)
+        out4 = paddle.nn.Conv2DTranspose(
+            in_channels=3,
+            out_channels=6,
+            kernel_size=3,
             groups=3,
-            num_filters=6,
-            filter_size=3,
             padding=[[0, 0], [0, 0], [2, 1], [0, 0]],
             data_format="NCHW",
-        )
-        out5 = paddle.static.nn.conv2d_transpose(
-            input=data2,
+        )(data1)
+        out5 = paddle.nn.Conv2DTranspose(
+            in_channels=5,
+            out_channels=6,
+            kernel_size=3,
             groups=1,
-            num_filters=6,
-            filter_size=3,
             padding="SAME",
             data_format="NCHW",
-        )
-        out6 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        )(data2)
+        out6 = paddle.nn.Conv2DTranspose(
+            in_channels=5,
+            out_channels=6,
+            kernel_size=3,
             groups=1,
-            num_filters=6,
-            filter_size=3,
             padding="VALID",
             data_format="NHWC",
-        )
-        out7 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        )(data1)
+        out7 = paddle.nn.Conv2DTranspose(
+            in_channels=5,
+            out_channels=6,
+            kernel_size=[5, 3],
             groups=1,
-            num_filters=6,
-            output_size=[7, 7],
             padding=[0, 0],
             data_format="NHWC",
-        )
+        )(data1, [7, 7])
 
         data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
         data2_np = np.random.random((2, 5, 5, 3)).astype("float32")
@@ -570,39 +578,39 @@ class TestConv2DTransposeOpException(unittest.TestCase):
         data = paddle.static.data(name="data", shape=[-1, 3, 5, 5], dtype="float32")
 
         def attr_data_format():
-            out = paddle.static.nn.conv2d_transpose(
-                input=data, groups=1, num_filters=6, filter_size=3, data_format="NCDHW"
-            )
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=3, out_channels=6, kernel_size=3, data_format="NCDHW"
+            )(data)
 
         self.assertRaises(ValueError, attr_data_format)
 
         def attr_padding_str():
-            out = paddle.static.nn.conv2d_transpose(
-                input=data, groups=1, num_filters=6, filter_size=3, padding="Vald"
-            )
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=3, out_channels=6, kernel_size=3, padding="Vald"
+            )(data)
 
         self.assertRaises(ValueError, attr_padding_str)
 
         def attr_padding_list():
-            out = paddle.static.nn.conv2d_transpose(
-                input=data,
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=3,
                 groups=1,
-                num_filters=6,
-                filter_size=3,
+                out_channels=6,
+                kernel_size=3,
                 padding=[[1, 1], [1, 1], [0, 0], [0, 0]],
-            )
+            )(data)
 
         self.assertRaises(ValueError, attr_padding_list)
 
         def attr_padding_with_data_format():
-            out = paddle.static.nn.conv2d_transpose(
-                input=data,
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=5,
                 groups=1,
-                num_filters=6,
-                filter_size=3,
+                out_channels=6,
+                kernel_size=3,
                 padding=[[1, 1], [0, 0], [0, 0], [1, 1]],
                 data_format="NHWC",
-            )
+            )(data)
 
         self.assertRaises(ValueError, attr_padding_with_data_format)
 
@@ -611,18 +619,24 @@ class TestConv2DTransposeOpException(unittest.TestCase):
         )
 
         def error_input_size():
-            out = paddle.static.nn.conv2d_transpose(
-                input=error_input, groups=1, num_filters=6, filter_size=3
-            )
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=1,
+                groups=1,
+                out_channels=6,
+                kernel_size=3,
+            )(error_input)
 
         self.assertRaises(ValueError, error_input_size)
 
         def error_groups():
-            out = paddle.static.nn.conv2d_transpose(
-                input=data, groups=0, num_filters=6, filter_size=3, data_format="NHWC"
-            )
+            out = paddle.nn.Conv2DTranspose(
+                in_channels=5,
+                groups=0,
+                out_channels=6,
+                kernel_size=3,
+            )(data)
 
-        self.assertRaises(ValueError, error_groups)
+        self.assertRaises(ZeroDivisionError, error_groups)
 
 
 class TestConv2DTransposeRepr(unittest.TestCase):

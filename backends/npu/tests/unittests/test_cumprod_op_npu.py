@@ -67,7 +67,7 @@ class TestCumprodOp(unittest.TestCase):
             exe.run(base.default_startup_program())
             out = exe.run(
                 feed={"X": data_np},
-                fetch_list=[y.name, y2.name, y3.name, y4.name, y5.name, y6.name],
+                fetch_list=[y, y2, y3, y4, y5, y6],
             )
 
             z = np.cumprod(data_np, axis=0)
@@ -87,10 +87,11 @@ class TestCumprodOp(unittest.TestCase):
         self.run_static(use_custom_device=True)
 
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data("x", [3, 4])
-            y = paddle.cumprod(x, dim=0, name="out")
-            self.assertTrue("out" in y.name)
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data("x", [3, 4])
+                y = paddle.cumprod(x, dim=0, name="out")
+                self.assertTrue("out" in y.name)
 
 
 if __name__ == "__main__":

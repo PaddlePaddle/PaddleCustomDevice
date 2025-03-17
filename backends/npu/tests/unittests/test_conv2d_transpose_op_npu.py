@@ -580,7 +580,7 @@ class TestConv2DTransposeAPI(unittest.TestCase):
         data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
         data2_np = np.random.random((2, 5, 5, 3)).astype("float32")
 
-        place = core.CustomPlace("npu", 0)
+        place = core.CustomPlace("custom_cpu", 0)
         exe = base.Executor(place)
         exe.run(base.default_startup_program())
         results = exe.run(
@@ -1017,52 +1017,74 @@ class TestConv2DTransposeAPI(unittest.TestCase):
     def test_case1(self):
         data1 = paddle.static.data(name="data1", shape=[-1, 3, 5, 5], dtype="float32")
         data2 = paddle.static.data(name="data2", shape=[-1, 5, 5, 3], dtype="float32")
-        out1 = paddle.static.nn.conv2d_transpose(
-            input=data1, groups=3, num_filters=6, filter_size=3, data_format="NCHW"
+
+        conv1 = paddle.nn.Conv2DTranspose(
+            in_channels=data1.shape[1],
+            out_channels=6,
+            kernel_size=3,
+            groups=3,
+            data_format="NCHW",
         )
-        out2 = paddle.static.nn.conv2d_transpose(
-            input=data2, groups=3, num_filters=6, filter_size=3, data_format="NHWC"
+        out1 = conv1(data1)
+
+        conv2 = paddle.nn.Conv2DTranspose(
+            in_channels=data2.shape[-1],
+            out_channels=6,
+            kernel_size=3,
+            groups=3,
+            data_format="NHWC",
         )
-        out3 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        out2 = conv2(data2)
+
+        conv3 = paddle.nn.Conv2DTranspose(
+            in_channels=data1.shape[-1],
+            out_channels=5,
+            kernel_size=3,
             groups=5,
-            num_filters=6,
-            filter_size=3,
             padding=[[0, 0], [1, 1], [1, 1], [0, 0]],
             data_format="NHWC",
         )
-        out4 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        out3 = conv3(data1)
+
+        conv4 = paddle.nn.Conv2DTranspose(
+            in_channels=data1.shape[1],
+            out_channels=6,
+            kernel_size=3,
             groups=3,
-            num_filters=6,
-            filter_size=3,
             padding=[[0, 0], [0, 0], [2, 1], [0, 0]],
             data_format="NCHW",
         )
-        out5 = paddle.static.nn.conv2d_transpose(
-            input=data2,
+        out4 = conv4(data1)
+
+        conv5 = paddle.nn.Conv2DTranspose(
+            in_channels=data2.shape[1],
+            out_channels=10,
+            kernel_size=3,
             groups=5,
-            num_filters=6,
-            filter_size=3,
             padding="SAME",
             data_format="NCHW",
         )
-        out6 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        out5 = conv5(data2)
+
+        conv6 = paddle.nn.Conv2DTranspose(
+            in_channels=data1.shape[-1],
+            out_channels=5,
+            kernel_size=3,
             groups=5,
-            num_filters=6,
-            filter_size=3,
             padding="VALID",
             data_format="NHWC",
         )
-        out7 = paddle.static.nn.conv2d_transpose(
-            input=data1,
+        out6 = conv6(data1)
+
+        conv7 = paddle.nn.Conv2DTranspose(
+            in_channels=data1.shape[-1],
+            out_channels=10,
+            kernel_size=[5, 3],
             groups=5,
-            num_filters=6,
-            output_size=[7, 7],
             padding=[0, 0],
             data_format="NHWC",
         )
+        out7 = conv7(data1, output_size=[7, 7])
 
         data1_np = np.random.random((2, 3, 5, 5)).astype("float32")
         data2_np = np.random.random((2, 5, 5, 3)).astype("float32")

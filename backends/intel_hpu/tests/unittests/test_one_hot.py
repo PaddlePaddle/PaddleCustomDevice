@@ -90,7 +90,7 @@ class TestOneHotOpAttr(OpTest):
         pass
 
 
-class TestOneHotOpNoLoad(OpTest):
+class TestOneHotOpNoLod(OpTest):
     def set_hpu(self):
         self.__class__.use_custom_device = True
 

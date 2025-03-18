@@ -485,13 +485,13 @@ class RuntimeManager {
            reinterpret_cast<void *>(uid.internal),
            uid.length);
     if (FLAGS_intel_hpu_runtime_debug) {
-      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id);
+      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id->data);
       std::ostringstream oss;
       for (size_t i = 0; i < unique_id->sz; ++i) {
         oss << std::hex << static_cast<int>(bytes[i]);
       }
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "unique_id =" << oss.str() << "uid size = " << unique_id->sz;
+          << "unique_id =" << oss.str() << ", uid size = " << unique_id->sz;
     }
     return C_SUCCESS;
   }
@@ -501,13 +501,13 @@ class RuntimeManager {
                         size_t rank,
                         C_CCLComm *comm) {
     if (FLAGS_intel_hpu_runtime_debug) {
-      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id);
+      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id->data);
       std::ostringstream oss;
       for (size_t i = 0; i < unique_id->sz; ++i) {
         oss << std::hex << static_cast<int>(bytes[i]);
       }
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "unique_id =" << oss.str() << "uid size = " << unique_id->sz
+          << "unique_id =" << oss.str() << ", uid size = " << unique_id->sz
           << ", rank = " << rank;
     }
 

@@ -18,24 +18,17 @@
 
 namespace custom_engine {
 
-static GcuOpPtr TranslateReshape(
+static GcuOpPtr TranslateShape(
     GcuBuilderPtr gcu_builder,
     const pir::Operation *op,
     const std::vector<std::vector<GcuOpPtr>> &gcu_op_inputs) {
   auto x = *(gcu_op_inputs[0][0]);
-  auto shape_tensor = *(gcu_op_inputs[1][0]);
-
-  PADDLE_ENFORCE_EQ(shape_tensor.IsConstant(),
-                    true,
-                    common::errors::PreconditionNotMet(
-                        "Input[1] shape_tensor is not a Constant."));
-  auto shape = shape_tensor.GetConstData<int64_t>();
-
-  builder::Type output_type(shape, x.GetType().GetPrimitiveType());
-  return std::make_shared<GcuOp>(builder::Reshape(x, output_type));
+  auto out = builder::Shape(x);
+  out = builder::Convert(
+      out, {out.GetType().GetShape(), builder::PrimitiveType::S32()});
+  return std::make_shared<GcuOp>(out);
 }
 
 }  // namespace custom_engine
 
-REGISTER_OP_TRANSLATOR(pd_op_reshape, custom_engine::TranslateReshape)
-REGISTER_OP_TRANSLATOR(pd_op_reshape_, custom_engine::TranslateReshape)
+REGISTER_OP_TRANSLATOR(pd_op_shape, custom_engine::TranslateShape)

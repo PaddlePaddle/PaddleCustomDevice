@@ -1016,8 +1016,7 @@ void InterpolateGradKernel(
 
   // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
-    auto output_get = get_new_shape_mlu(dev_ctx, size_tensor.get());
-    auto list_new_size_tensor = size_tensor.get();
+    auto output_get = get_new_shape_npu(dev_ctx, size_tensor.get());
     out_h = output_get[0];
     out_w = output_get[1];
   } else if (out_size) {

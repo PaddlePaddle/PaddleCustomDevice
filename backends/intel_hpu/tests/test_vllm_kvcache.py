@@ -252,7 +252,7 @@ else:
 
     def insert_or_update_cache(input, cache, block_indices, block_offsets):
         if block_offsets is None:
-            paddlenlp_ops.index_copy(cache, block_indices, input, 0)
+            paddlenlp_ops.index_copy_(cache, block_indices, input, 0)
         else:
             # import pdb; pdb.set_trace()
             # aa = paddle.stack((block_indices, block_offsets), 1)

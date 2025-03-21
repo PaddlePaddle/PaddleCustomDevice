@@ -20,12 +20,12 @@
 
 namespace custom_kernel {
 
-class IndexCopy : public HpuOperator {
+class IndexReduce : public HpuOperator {
  public:
-  explicit IndexCopy(synDataType dtype)
-      : HpuOperator("index_copy_fwd"), dtype_(dtype) {}
+  explicit IndexReduce(synDataType dtype)
+      : HpuOperator("index_reduce_fwd"), dtype_(dtype) {}
 
-  void AddNode(ConvertTensors& ct, ns_IndexCopy::Params params) {
+  void AddNode(ConvertTensors& ct, ns_IndexReduce::Params params) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
@@ -81,11 +81,11 @@ class IndexCopy : public HpuOperator {
 };
 
 template <typename T, typename Context>
-void IndexCopyKernel(const Context& dev_ctx,
-                     const phi::DenseTensor& input,
-                     const phi::Scalar& dim,
-                     const phi::DenseTensor& index,
-                     const phi::DenseTensor& source) {
+void IndexReduceKernel(const Context& dev_ctx,
+                       const phi::DenseTensor& input,
+                       const phi::Scalar& dim,
+                       const phi::DenseTensor& index,
+                       const phi::DenseTensor& source) {
   ConvertTensors ct;
   ct.Add(input);
   ct.Add(index);
@@ -94,17 +94,19 @@ void IndexCopyKernel(const Context& dev_ctx,
   ct.Add(input, false);
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  ns_IndexCopy::Params params{};
+  ns_IndexReduce::Params params{};
+  params.mode = INDEX_REDUCE_AMAX;
+  params.include_self = true;
   params.axis = dim.to<unsigned>();
 
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, ns_IndexCopy::Params>(
-      "index_copy_kernel", inputs_dims, &params);
+  op_info.prepareOpInfo<T, ns_IndexReduce::Params>(
+      "IndexReduceKernel_", inputs_dims, &params);
 
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    IndexCopy op(op_info.datatype_);
+    IndexReduce op(op_info.datatype_);
     op.AddNode(ct, params);
     op.Compile();
     op_info.setOp(op);
@@ -119,28 +121,34 @@ void IndexCopyKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 template <typename Context>
-void CallIndexCopyKernel(const Context& dev_ctx,
-                         const phi::DenseTensor& input,
-                         const phi::Scalar& dim,
-                         const phi::DenseTensor& index,
-                         const phi::DenseTensor& source) {
+void CallIndexReduceKernel(const Context& dev_ctx,
+                           const phi::DenseTensor& input,
+                           const phi::Scalar& dim,
+                           const phi::DenseTensor& index,
+                           const phi::DenseTensor& source,
+                           const std::string reduce = "amax",
+                           const bool include_self = true) {
   if (input.dtype() == phi::DataType::FLOAT32) {
-    custom_kernel::IndexCopyKernel<float>(dev_ctx, input, dim, index, source);
-  } else if (input.dtype() == phi::DataType::FLOAT16) {
-    custom_kernel::IndexCopyKernel<phi::dtype::float16>(
+    custom_kernel::IndexReduceKernel<float>(dev_ctx, input, dim, index, source);
+  } else if (input.dtype() == phi::DataType::INT32) {
+    custom_kernel::IndexReduceKernel<int32_t>(
         dev_ctx, input, dim, index, source);
   } else if (input.dtype() == phi::DataType::BFLOAT16) {
-    custom_kernel::IndexCopyKernel<phi::dtype::bfloat16>(
+    custom_kernel::IndexReduceKernel<phi::dtype::bfloat16>(
         dev_ctx, input, dim, index, source);
   } else {
-    throw std::runtime_error("Unsupported data type for IndexCopyKernel");
+    throw std::runtime_error("Unsupported data type for IndexReduceKernel");
   }
 }
 
-void IndexCopyForward(const paddle::Tensor& input,
-                      const int dim,
-                      const paddle::Tensor& index,
-                      const paddle::Tensor& source) {
+void IndexReduceForward(const paddle::Tensor& input,
+                        const int dim,
+                        const paddle::Tensor& index,
+                        const paddle::Tensor& source,
+                        const std::string reduce = "amax",
+                        const bool include_self = true) {
+  PD_CHECK(reduce == "amax", "only support reduce = amax");
+  PD_CHECK(include_self == true, "only support include_self = true");
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(input.place()));
 
@@ -149,29 +157,29 @@ void IndexCopyForward(const paddle::Tensor& input,
   auto source_tensor =
       static_cast<const phi::DenseTensor*>(source.impl().get());
 
-  CallIndexCopyKernel(
+  CallIndexReduceKernel(
       *dev_ctx, *input_tensor, phi::Scalar(dim), *index_tensor, *source_tensor);
 }
 
-std::vector<std::vector<int64_t>> IndexCopyInferShape(
+std::vector<std::vector<int64_t>> IndexReduceInferShape(
     const std::vector<int64_t>& input_shape,
     const std::vector<int64_t>& index_shape,
     const std::vector<int64_t>& source_shape) {
   return {input_shape};
 }
 
-std::vector<paddle::DataType> IndexCopyInferDtype(
+std::vector<paddle::DataType> IndexReduceInferDtype(
     const paddle::DataType& input_dtype,
     const paddle::DataType& index_dtype,
     const paddle::DataType& source_dtype) {
   return {input_dtype};
 }
 
-PD_BUILD_OP(index_copy_)
+PD_BUILD_OP(index_reduce_)
     .Inputs({"input", "index", "source"})
     .Outputs({"out"})
-    .Attrs({"dim: int"})
+    .Attrs({"dim: int", "reduce: std::string", "include_self: bool"})
     .SetInplaceMap({{"input", "out"}})
-    .SetKernelFn(PD_KERNEL(IndexCopyForward))
-    .SetInferShapeFn(PD_INFER_SHAPE(IndexCopyInferShape))
-    .SetInferDtypeFn(PD_INFER_DTYPE(IndexCopyInferDtype));
+    .SetKernelFn(PD_KERNEL(IndexReduceForward))
+    .SetInferShapeFn(PD_INFER_SHAPE(IndexReduceInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(IndexReduceInferDtype));

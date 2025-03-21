@@ -20,7 +20,7 @@ namespace custom_kernel {
 
 inline std::vector<int> get_new_shape_npu(
     const phi::CustomContext& dev_ctx,
-    const std::vector<const Tensor*>& list_new_shape_tensor) {
+    const std::vector<const phi::DenseTensor*>& list_new_shape_tensor) {
   // get tensor from
   std::vector<int> vec_new_shape;
   for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {

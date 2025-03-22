@@ -14,6 +14,7 @@
 
 from __future__ import print_function, division
 
+import tempfile
 import os
 import numpy as np
 import unittest
@@ -33,33 +34,54 @@ def generate_add_n():
     return pattern, replace
 
 
-@paddle.jit.to_static(
-    input_spec=[
-        paddle.static.InputSpec([None, 32], "float32", "x"),
-        paddle.static.InputSpec([None, 32], "float32", "y"),
-        paddle.static.InputSpec([None, 32], "float32", "z"),
-    ]
-)
-def func(x, y, z):
-    return x + y + z
+class TestNet(paddle.nn.Layer):
+    def __init__(self):
+        super(TestNet, self).__init__()
+        if paddle.framework.use_pir_api():
+            # In PIR, .pdiparams file is necessary when loading model.
+            # At least one parameter is needed to generate .pdiparams file in paddle.jit.save
+            self.alpha = paddle.create_parameter(shape=[1], dtype="float32")
 
-
-MODLE_FILE = "./saved_model"
+    @paddle.jit.to_static(
+        full_graph=True,
+        input_spec=[
+            paddle.static.InputSpec([None, 32], "float32", "x"),
+            paddle.static.InputSpec([None, 32], "float32", "y"),
+            paddle.static.InputSpec([None, 32], "float32", "z"),
+        ],
+    )
+    def forward(self, x, y, z):
+        return x + y + z
 
 
 class TestCustomPass(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.prefix = "test_custom_pass"
+
         for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
             if lib.endswith(".so"):
                 paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
                     lib
                 )
-        paddle.jit.save(func, MODLE_FILE)
+
+        paddle.disable_static()
+        net = TestNet()
+        paddle.enable_static()
+        paddle.jit.save(net, os.path.join(self.temp_dir.name, self.prefix))
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def test_my_add_n(self):
-        config = paddle.inference.Config()
-        config.set_prog_file(MODLE_FILE + ".pdmodel")
-        config.enable_memory_optim()
+        if paddle.framework.use_pir_api():
+            config = paddle.inference.Config(self.temp_dir.name, self.prefix)
+        else:
+            config = paddle.inference.Config()
+            config.set_prog_file(
+                os.path.join(self.temp_dir.name, self.prefix + ".pdmodel")
+            )
+            config.enable_memory_optim()
         config.enable_custom_device("mlu")
         pass_builder = config.pass_builder()
         pass_builder.append_pass("generate_add_n")

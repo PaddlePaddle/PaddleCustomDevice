@@ -37,8 +37,10 @@ def generate_add_n():
 class TestNet(paddle.nn.Layer):
     def __init__(self):
         super(TestNet, self).__init__()
-        # At least one parameter is needed to generate .pdiparams file in paddle.jit.save
-        self.alpha = paddle.create_parameter(shape=[1], dtype="float32")
+        if paddle.framework.use_pir_api():
+            # In PIR, .pdiparams file is necessary when loading model.
+            # At least one parameter is needed to generate .pdiparams file in paddle.jit.save
+            self.alpha = paddle.create_parameter(shape=[1], dtype="float32")
 
     @paddle.jit.to_static(
         input_spec=[
@@ -71,7 +73,14 @@ class TestCustomPass(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_my_add_n(self):
-        config = paddle.inference.Config(self.temp_dir.name, self.prefix)
+        if paddle.framework.use_pir_api():
+            config = paddle.inference.Config(self.temp_dir.name, self.prefix)
+        else:
+            config = paddle.inference.Config()
+            config.set_prog_file(
+                os.path.join(self.temp_dir.name, self.prefix + ".pdmodel")
+            )
+            config.enable_memory_optim()
         config.enable_custom_device("npu")
         pass_builder = config.pass_builder()
         pass_builder.append_pass("generate_add_n")

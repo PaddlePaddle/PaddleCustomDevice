@@ -29,7 +29,7 @@ with paddle.pir_utils.OldIrGuard():
 def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
-            self.device = "mlu:7"
+            self.device = "mlu:0"
             self.op_type = op_type
             self.python_api = eval("paddle." + op_type)
             self.set_device()

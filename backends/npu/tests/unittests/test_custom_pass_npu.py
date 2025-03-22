@@ -43,11 +43,12 @@ class TestNet(paddle.nn.Layer):
             self.alpha = paddle.create_parameter(shape=[1], dtype="float32")
 
     @paddle.jit.to_static(
+        full_graph=True,
         input_spec=[
             paddle.static.InputSpec([None, 32], "float32", "x"),
             paddle.static.InputSpec([None, 32], "float32", "y"),
             paddle.static.InputSpec([None, 32], "float32", "z"),
-        ]
+        ],
     )
     def forward(self, x, y, z):
         return x + y + z

@@ -118,7 +118,7 @@ class TestMemcpy_FillConstant(unittest.TestCase):
             np.testing.assert_allclose(sdaa_, np.zeros((10, 10)))
 
 
-class TestMemcpyLoDTensorArray_FillRandom(unittest.TestCase):
+class TestMemcpyDenseTensorArray_FillRandom(unittest.TestCase):
     def setUp(self):
         self.input_shape = [50, 60]
         self.x = np.random.random(self.input_shape).astype("float32")

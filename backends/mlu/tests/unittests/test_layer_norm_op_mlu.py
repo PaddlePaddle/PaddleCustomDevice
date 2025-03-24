@@ -26,6 +26,7 @@ from tests.op_test import _set_use_system_allocator
 from paddle.static.amp.fp16_utils import (
     _keep_layer_norm_scale_bias_to_fp32,
 )
+from paddle.pir_utils import OldIrGuard
 
 paddle.enable_static()
 
@@ -170,8 +171,10 @@ class TestLayerNormOp(unittest.TestCase):
                 var_names += ["bias"]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = base.Program()
-            with base.program_guard(program):
+            with OldIrGuard():
+                program = base.Program()
+                old_program_guard = base.program_guard
+            with old_program_guard(program):
                 block = program.global_block()
                 for name in ground_truth:
                     block.create_var(
@@ -221,14 +224,15 @@ class TestLayerNormOp(unittest.TestCase):
 
                 program._sync_with_cpp()
                 exe = base.Executor(place)
-                out = exe.run(
-                    program,
-                    feed={
-                        name: var_dict[name]
-                        for name in ["x", "scale", "bias", "y@GRAD"]
-                    },
-                    fetch_list=fetch_list,
-                )
+                with OldIrGuard():
+                    out = exe.run(
+                        program,
+                        feed={
+                            name: var_dict[name]
+                            for name in ["x", "scale", "bias", "y@GRAD"]
+                        },
+                        fetch_list=fetch_list,
+                    )
 
                 self.__assert_close(y, out[0], "y")
                 self.__assert_close(mean, out[1], "mean")

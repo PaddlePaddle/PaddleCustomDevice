@@ -17,7 +17,6 @@ import unittest
 from tests.op_test import OpTest
 
 import numpy as np
-import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -120,60 +119,119 @@ class API_TestDygraphGather(unittest.TestCase):
 
 
 class TestGathertError(unittest.TestCase):
+    def setUp(self) -> None:
+        self.place = paddle.CustomPlace("mlu", 0)
+        paddle.set_device("mlu:0")
+
     def test_error1(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        paddle.enable_static()
+        if not paddle.framework.use_pir_api():
+            with paddle.static.program_guard(
+                paddle.static.Program(), paddle.static.Program()
+            ):
+
+                input_shape = [8, 9, 6]
+                index_shape = [4]
+                x_int8 = paddle.static.data(
+                    shape=input_shape, dtype="int8", name="x_int8"
+                )
+                x_float32 = paddle.static.data(
+                    shape=input_shape, dtype="float32", name="x_float32"
+                )
+                axis = paddle.static.data(shape=[1], dtype="float32", name="axis")
+                index = paddle.static.data(
+                    shape=index_shape, dtype="int32", name="index"
+                )
+                index_float = paddle.static.data(
+                    shape=index_shape, dtype="float32", name="index_float"
+                )
+
+                def test_x_type():
+                    paddle.gather(x_int8, index)
+
+                self.assertRaises(TypeError, test_x_type)
+
+                def test_index_type():
+                    paddle.gather(x_float32, index_float)
+
+                self.assertRaises(TypeError, test_index_type)
+
+                def test_axis_dtype():
+                    paddle.gather(x_float32, index, axis=1.11)
+
+                self.assertRaises(TypeError, test_axis_dtype)
+
+                def test_axis_dtype1():
+                    paddle.gather(x_float32, index, axis=axis)
+
+                self.assertRaises(TypeError, test_axis_dtype1)
+        else:
             paddle.set_device("mlu")
-
-            shape = [8, 9, 6]
-            x = paddle.static.data(shape=shape, dtype="int8", name="x")
-            axis = paddle.static.data(shape=[1], dtype="float32", name="axis")
-            index = paddle.static.data(shape=shape, dtype="int32", name="index")
-            index_float = paddle.static.data(
-                shape=shape, dtype="float32", name="index_float"
-            )
-
-            def test_x_type():
-                paddle.gather(x, index)
-
-            self.assertRaises(TypeError, test_x_type)
+            input_shape = [8, 9, 6]
+            index_shape = [4]
 
             def test_index_type():
-                paddle.gather(x, index_float)
+                with paddle.static.program_guard(
+                    paddle.static.Program(), paddle.static.Program()
+                ):
+                    x = paddle.static.data(shape=input_shape, dtype="float32", name="x")
+                    index = paddle.static.data(
+                        shape=index_shape, dtype="float32", name="index_float"
+                    )
+                    out = paddle.gather(x, index)
+                    exe = paddle.static.Executor(place=self.place)
+                    exe.run(paddle.static.default_startup_program())
+                    self.assertRaises(
+                        ValueError,
+                        exe.run,
+                        paddle.static.default_main_program(),
+                        feed={
+                            "x": np.random.random(input_shape).astype("float32"),
+                            "index_float": np.random.random(index_shape).astype(
+                                "float32"
+                            ),
+                        },
+                    )
 
-            self.assertRaises(TypeError, test_index_type)
+            def test_axis_scalar_dtype():
+                with paddle.static.program_guard(
+                    paddle.static.Program(), paddle.static.Program()
+                ):
+                    x = paddle.static.data(shape=input_shape, dtype="float32", name="x")
+                    index = paddle.static.data(
+                        shape=index_shape, dtype="int32", name="index"
+                    )
+                    axis = paddle.static.data(shape=[1], dtype="int32", name="axis")
+                    self.assertRaises(TypeError, paddle.gather, x, index, axis=1.11)
 
-            def test_axis_dtype():
-                paddle.gather(x, index, axis=1.11)
+            def test_axis_tensor_dtype():
+                with paddle.static.program_guard(
+                    paddle.static.Program(), paddle.static.Program()
+                ):
+                    x = paddle.static.data(shape=input_shape, dtype="float32", name="x")
+                    index = paddle.static.data(
+                        shape=index_shape, dtype="int32", name="index"
+                    )
+                    axis = paddle.static.data(shape=[1], dtype="float32", name="axis")
+                    y = paddle.gather(x, index, axis=axis)
+                    exe = paddle.static.Executor(place=self.place)
+                    exe.run(paddle.static.default_startup_program())
+                    self.assertRaises(
+                        ValueError,
+                        exe.run,
+                        paddle.static.default_main_program(),
+                        feed={
+                            "x": np.random.random(input_shape).astype("float32"),
+                            "index": np.random.randint(0, 8, index_shape).astype(
+                                "int32"
+                            ),
+                            "axis": np.array([1.11]).astype("float32"),
+                        },
+                    )
 
-            self.assertRaises(TypeError, test_axis_dtype)
-
-            def test_axis_dtype1():
-                paddle.gather(x, index, axis=axis)
-
-            self.assertRaises(TypeError, test_axis_dtype1)
-
-    def test_error2(self):
-        with base.program_guard(base.Program(), base.Program()):
-            paddle.set_device("mlu")
-
-            shape = [8, 9, 6]
-            x = paddle.static.data(shape=shape, dtype="int8", name="x")
-            index = paddle.static.data(shape=shape, dtype="int32", name="mask")
-            index_float = paddle.static.data(
-                shape=shape, dtype="float32", name="index_float"
-            )
-
-            def test_x_type():
-                paddle.gather(x, index)
-
-            self.assertRaises(TypeError, test_x_type)
-
-            def test_index_type():
-                paddle.gather(x, index_float)
-
-            self.assertRaises(TypeError, test_index_type)
+            test_index_type()
+            test_axis_scalar_dtype()
+            test_axis_tensor_dtype()
 
 
 if __name__ == "__main__":

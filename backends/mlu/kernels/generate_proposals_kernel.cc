@@ -105,21 +105,23 @@ void GenerateProposalsKernel(const Context& dev_ctx,
                              rpn_rois_num_desc.get(),
                              GetBasePtr(&rpn_roi_num_tmp),
                              GetBasePtr(&rpn_rois_batch_size));
-
+  std::cout << "2222222" << std::endl;
   dev_ctx.Wait();
+  std::cout << "3333333" << std::endl;
   std::vector<int> rpn_rois_batch_size_cpu;
   TensorToVector<int>(
       dev_ctx, rpn_rois_batch_size, dev_ctx, &rpn_rois_batch_size_cpu);
 
   int roi_num_final = rpn_rois_batch_size_cpu[0];
+  std::cout << "roi_num_final: " << roi_num_final << std::endl;
   rpn_rois->Resize({roi_num_final, 4});
   rpn_roi_probs->Resize({roi_num_final, 1});
 }
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
-                          mlu,
-                          ALL_LAYOUT,
-                          custom_kernel::GenerateProposalsKernel,
-                          float) {}
+// PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
+//                           mlu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::GenerateProposalsKernel,
+//                           float) {}

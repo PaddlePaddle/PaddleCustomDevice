@@ -16,6 +16,7 @@ WORKSPACE=`pwd`
 python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 python -c "import paddle; print(paddle.__version__)"
 python -c "import paddle; print(paddle.version.commit)"
+python -m pip install install lxml
 
 
 cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu

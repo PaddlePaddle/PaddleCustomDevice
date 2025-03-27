@@ -19,7 +19,10 @@ echo "Install whl"
 python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 python -c "import paddle; print(paddle.__version__)"
 python -c "import paddle; print(paddle.version.commit)"
-python -m pip install lxml
+python -m pip install lxml numpy==1.26.4
+cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/custom_ops
+python setup.py install
+
 
 echo "Start build"
 cd ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu

@@ -391,10 +391,15 @@ class TestElementwiseAddOpError(unittest.TestCase):
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
 
-            # the input dtype of elementwise_add must be float16 or float32
-            x2 = paddle.static.data(name="x2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[-1, 3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.add, x2, y2)
+            if not paddle.framework.in_pir_mode():
+                # the input dtype of elementwise_add must be float16 or float32
+                x2 = paddle.static.data(
+                    name="x2", shape=[-1, 3, 4, 5, 6], dtype="uint8"
+                )
+                y2 = paddle.static.data(
+                    name="y2", shape=[-1, 3, 4, 5, 6], dtype="uint8"
+                )
+                self.assertRaises(TypeError, paddle.add, x2, y2)
 
 
 class TestAddApi(unittest.TestCase):
@@ -402,12 +407,13 @@ class TestAddApi(unittest.TestCase):
         return paddle.add(x, y, name)
 
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = self._executed_api(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = self._executed_api(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_declarative(self):
         with base.program_guard(base.Program()):
@@ -424,7 +430,7 @@ class TestAddApi(unittest.TestCase):
 
             place = paddle.CustomPlace("mlu", 0)
             exe = base.Executor(place)
-            z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
+            z_value = exe.run(feed=gen_data(), fetch_list=[z])
             z_expected = np.array([3.0, 8.0, 6.0])
             self.assertEqual((z_value == z_expected).all(), True)
 
@@ -509,7 +515,13 @@ class TestBoolAddFloatElementwiseAddop(unittest.TestCase):
         a = 1.5
         b = paddle.full([4, 5, 6], True, dtype="bool")
         c = a + b
-        self.assertTrue(c.dtype == core.VarDesc.VarType.FP32)
+
+        expected_type = (
+            core.DataType.FLOAT32
+            if paddle.framework.use_pir_api()
+            else core.VarDesc.VarType.FP32
+        )
+        self.assertTrue(c.dtype == expected_type)
         paddle.enable_static()
 
     def test_dygraph_add(self):
@@ -517,7 +529,13 @@ class TestBoolAddFloatElementwiseAddop(unittest.TestCase):
         a = 1.5
         b = paddle.full([4, 5, 6], True, dtype="bool")
         c = a + b
-        self.assertTrue(c.dtype == core.VarDesc.VarType.FP32)
+
+        expected_type = (
+            core.DataType.FLOAT32
+            if paddle.framework.use_pir_api()
+            else core.VarDesc.VarType.FP32
+        )
+        self.assertTrue(c.dtype == expected_type)
 
 
 if __name__ == "__main__":

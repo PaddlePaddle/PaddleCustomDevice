@@ -21,6 +21,10 @@ from tests.op_test import convert_float_to_uint16, convert_uint16_to_float
 import paddle
 import paddle.base as base
 
+import os
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+
 
 class TestIndexPut(unittest.TestCase):
     def setUp(self):
@@ -57,7 +61,9 @@ class TestIndexPut_BF16API(unittest.TestCase):
         index = [paddle.to_tensor([1, 1]), paddle.to_tensor([3, 4])]
         index_np = np.array([[1, 1], [3, 4]])
 
-        paddle.disable_static(paddle.CustomPlace("intel_hpu", 0))
+        paddle.disable_static(
+            paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        )
         with base.dygraph.guard():
             input_np = convert_float_to_uint16(
                 np.random.random(self.shape).astype(self.dtype)

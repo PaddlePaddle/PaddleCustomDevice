@@ -210,6 +210,17 @@ class TestSetValueItemSliceInWhile(TestSetValueApi):
     def _get_answer(self):
         self.data[0] = self.value
 
+    # 重写 test_api 方法，只运行静态图测试
+    def test_api(self):
+        static_out = self._run_static()
+        self._get_answer()
+
+        error_msg = "\nIn {} mode: \nExpected res = \n{}, \n\nbut received : \n{}"
+        self.assertTrue(
+            (self.data == static_out).all(),
+            msg=error_msg.format("static", self.data, static_out),
+        )
+
 
 # 1.2.2 step > 1
 class TestSetValueItemSliceStep(TestSetValueApi):

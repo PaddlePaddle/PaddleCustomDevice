@@ -141,7 +141,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array(
@@ -157,7 +157,7 @@ class TestNPUIndexSelectAPI(unittest.TestCase):
             exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array(

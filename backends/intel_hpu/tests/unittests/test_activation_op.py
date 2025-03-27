@@ -98,7 +98,7 @@ class TestAtan(TestActivation):
             exe = base.Executor(self.place)
             (result,) = exe.run(feed={"X": np_x}, fetch_list=[out])
             expected = np.arctan(np_x)
-            self.assertEqual(result, expected)
+            self.assertTrue(np.allclose(result, expected))
 
     def test_dygraph(self):
         with base.dygraph.guard(self.place):

@@ -83,7 +83,7 @@ class TestAccuracyAPI1(unittest.TestCase):
         exe = paddle.static.Executor()
         (result,) = exe.run(
             feed={"predictions": self.input_predictions, "labels": self.input_labels},
-            fetch_list=[self.result.name],
+            fetch_list=[self.result],
         )
         self.assertEqual((result == self.expect_value).all(), True)
 

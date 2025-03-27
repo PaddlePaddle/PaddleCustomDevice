@@ -143,14 +143,17 @@ class TestMomentumV2(unittest.TestCase):
             rms_optimizer.minimize(avg_cost)
 
             fetch_list = [avg_cost]
-            train_reader = paddle.batch(
-                paddle.dataset.uci_housing.train(), batch_size=1
+            train_reader = paddle.io.DataLoader(
+                paddle.text.datasets.UCIHousing(mode="train"),
+                batch_size=1,
+                places=place,
+                feed_list=[x, y],
+                return_list=False,
             )
-            feeder = base.DataFeeder(place=place, feed_list=[x, y])
             exe = base.Executor(place)
             exe.run(base.default_startup_program())
             for data in train_reader():
-                exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
+                exe.run(main, feed=data, fetch_list=fetch_list)
 
     def test_raise_error(self):
         self.assertRaises(ValueError, paddle.optimizer.Momentum, learning_rate=None)
@@ -267,14 +270,17 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
             momentum_optimizer.minimize(avg_cost)
 
             fetch_list = [avg_cost]
-            train_reader = paddle.batch(
-                paddle.dataset.uci_housing.train(), batch_size=1
+            train_reader = paddle.io.DataLoader(
+                paddle.text.datasets.UCIHousing(mode="train"),
+                batch_size=1,
+                places=place,
+                feed_list=[x, y],
+                return_list=False,
             )
-            feeder = base.DataFeeder(place=place, feed_list=[x, y])
             exe = base.Executor(place)
             exe.run(base.default_startup_program())
             for data in train_reader():
-                exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
+                exe.run(main, feed=data, fetch_list=fetch_list)
 
 
 class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):

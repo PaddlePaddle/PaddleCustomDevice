@@ -210,10 +210,8 @@ class TestSetValueItemSliceInWhile(TestSetValueApi):
     def _get_answer(self):
         self.data[0] = self.value
 
-        # 重写 test_api 方法，只运行静态图测试
-
+    # 重写 test_api 方法，只运行静态图测试
     def test_api(self):
-        # 只运行静态图测试
         static_out = self._run_static()
         self._get_answer()
 

@@ -269,23 +269,24 @@ create_test_fp16_class(TestModeAllNHWC)
 
 
 def prelu_t(x, mode, param_attr=None, name=None, data_format="NCHW"):
-    helper = base.layer_helper.LayerHelper("prelu", **locals())
-    alpha_shape = [1, x.shape[1], 1, 1]
-    dtype = helper.input_dtype(input_param_name="x")
-    alpha = helper.create_parameter(
-        attr=helper.param_attr,
-        shape=alpha_shape,
-        dtype="float32",
-        is_bias=False,
-        default_initializer=paddle.nn.initializer.Constant(0.25),
-    )
-    out = helper.create_variable_for_type_inference(dtype)
-    helper.append_op(
-        type="prelu",
-        inputs={"X": x, "Alpha": alpha},
-        attrs={"mode": mode, "data_format": data_format},
-        outputs={"Out": out},
-    )
+    with paddle.pir_utils.OldIrGuard():
+        helper = base.layer_helper.LayerHelper("prelu", **locals())
+        alpha_shape = [1, x.shape[1], 1, 1]
+        dtype = helper.input_dtype(input_param_name="x")
+        alpha = helper.create_parameter(
+            attr=helper.param_attr,
+            shape=alpha_shape,
+            dtype="float32",
+            is_bias=False,
+            default_initializer=paddle.nn.initializer.Constant(0.25),
+        )
+        out = helper.create_variable_for_type_inference(dtype)
+        helper.append_op(
+            type="prelu",
+            inputs={"X": x, "Alpha": alpha},
+            attrs={"mode": mode, "data_format": data_format},
+            outputs={"Out": out},
+        )
     return out
 
 
@@ -296,22 +297,22 @@ class TestModeError(unittest.TestCase):
         self.x_np = np.ones([1, 2, 3, 4]).astype("float32")
 
     def test_mode_error(self):
-        main_program = Program()
-        with base.program_guard(main_program, Program()):
-            x = paddle.static.data(name="x", shape=[2, 3, 4, 5])
-            try:
-                y = prelu_t(x, "any")
-            except Exception as e:
-                assert e.args[0].find("InvalidArgument") != -1
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program(), base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3, 4, 5])
+                try:
+                    y = prelu_t(x, "any")
+                except Exception as e:
+                    assert e.args[0].find("InvalidArgument") != -1
 
     def test_data_format_error1(self):
-        main_program = Program()
-        with base.program_guard(main_program, Program()):
-            x = paddle.static.data(name="x", shape=[2, 3, 4, 5])
-            try:
-                y = prelu_t(x, "channel", data_format="N")
-            except Exception as e:
-                assert e.args[0].find("InvalidArgument") != -1
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program(), base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3, 4, 5])
+                try:
+                    y = prelu_t(x, "channel", data_format="N")
+                except Exception as e:
+                    assert e.args[0].find("InvalidArgument") != -1
 
     def test_data_format_error2(self):
         main_program = Program()

@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -66,6 +66,39 @@ class TestSquareKernel(OpTest):
             ["X"],
             "Out",
             max_relative_error=0.007,
+        )
+
+
+class TestSquareBF16Kernel(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "square"
+        self.python_api = paddle.square
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        x = np.random.uniform(-1, 1, [11, 17, 16, 8]).astype(np.float32)
+        out = np.square(x, dtype=np.float32)
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-2)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=1e-2,
         )
 
 

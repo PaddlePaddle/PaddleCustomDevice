@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle.base as base
 from paddle.base import Program, program_guard
 import paddle
@@ -60,6 +60,31 @@ class TestExpandV2OpRank1(OpTest):
 
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out")
+
+
+class TestExpandV2BF16Op(OpTest):
+    def setUp(self):
+        self.op_type = "expand_v2"
+        self.dtype = np.uint16
+        self.python_api = paddle.expand
+        self.public_python_api = paddle.expand
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        x = np.random.randint(10, size=(8, 8, 5)).astype(np.float32)
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.attrs = {"shape": [8, 8, 5]}
+        output = np.tile(x, (1, 1, 1)).astype(np.float32)
+        self.outputs = {"Out": convert_float_to_uint16(output)}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+        )
 
 
 class TestExpandV2OpRank2_DimExpanding(TestExpandV2OpRank1):
@@ -282,17 +307,18 @@ class TestExpandV2OpInt64_t(OpTest):
 
 class TestExpandV2Error(unittest.TestCase):
     def test_errors(self):
-        with program_guard(Program(), Program()):
-            x1 = base.create_lod_tensor(
-                np.array([[-1]]), [[1]], paddle.CustomPlace("sdaa", 0)
-            )
-            shape = [2, 2]
-            self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
-            x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="uint8")
-            self.assertRaises(TypeError, paddle.tensor.expand, x2, shape)
-            x3 = paddle.static.data(name="x3", shape=[-1, 4], dtype="bool")
-            x3.stop_gradient = False
-            self.assertRaises(ValueError, paddle.tensor.expand, x3, shape)
+        with paddle.pir_utils.OldIrGuard():
+            with program_guard(Program(), Program()):
+                x1 = base.create_lod_tensor(
+                    np.array([[-1]]), [[1]], paddle.CustomPlace("sdaa", 0)
+                )
+                shape = [2, 2]
+                self.assertRaises(TypeError, paddle.tensor.expand, x1, shape)
+                x2 = paddle.static.data(name="x2", shape=[-1, 4], dtype="bool")
+                x2.stop_gradient = False
+                self.assertRaises(ValueError, paddle.tensor.expand, x2, shape)
+                x2.stop_gradient = True
+                self.assertRaises(TypeError, paddle.tensor.expand, x2, 1)
 
 
 # Test python API

@@ -136,6 +136,12 @@ void FlashAttnKernel(
         attn_seq_len, attn_head_num, attn_size_per_head, attn_mode);
     softmax_offset = workspace_size;
   }
+
+  auto attn_mask_mode = FLASH_ATTENTION_SOFTMAX_MODE::NO_MASK;
+  if (attn_mask) {
+    attn_mask_mode = FLASH_ATTENTION_SOFTMAX_MODE::MASK_UP_TRI;
+  }
+
   // get qkv size
   int64_t half_q_size = GetFP16TensorSize(q);
   int64_t half_k_size = GetFP16TensorSize(k);
@@ -165,26 +171,28 @@ void FlashAttnKernel(
   dev_ctx.template Alloc<T>(out);
   TensorStride out_stride = GenTensorStride(*out);
   sdaaStream_t custom_stream = GetStreamFromCTX(dev_ctx);
-  TCUS_CHECK(
-      lmik::flash_attention<float>(half_q_addr,
-                                   q_stride.lda,
-                                   q_stride.stride,
-                                   half_k_addr,
-                                   k_stride.lda,
-                                   k_stride.stride,
-                                   half_v_addr,
-                                   v_stride.lda,
-                                   v_stride.stride,
-                                   attn_seq_len,
-                                   attn_size_per_head,
-                                   attn_head_num,
-                                   out->data<T>(),
-                                   out_stride.lda,
-                                   out_stride.stride,
-                                   qk_scalar,
-                                   attn_mode,
-                                   static_cast<float*>(softmax_lse->data()),
-                                   custom_stream));
+
+  lmik::Flash_Attention_Parameter<float> para;
+  para.Q = half_q_addr;
+  para.ldQ = q_stride.lda;
+  para.strideQ = q_stride.stride;
+  para.K = half_k_addr;
+  para.ldK = k_stride.lda;
+  para.strideK = k_stride.stride;
+  para.V = half_v_addr;
+  para.ldV = v_stride.lda;
+  para.strideV = v_stride.stride;
+  para.seq_len = attn_seq_len;
+  para.size_per_head = attn_size_per_head;
+  para.head_num = attn_head_num;
+  para.atten_out = out->data<T>();
+  para.ld_O = out_stride.lda;
+  para.strideO = out_stride.stride;
+  para.qk_scalar = qk_scalar;
+  para.atten_mode = attn_mode;
+  para.sfm_res = static_cast<float*>(softmax_lse->data());
+  para.sfm_mode = attn_mask_mode;
+  TCUS_CHECK(lmik::flash_attention_ext<float>(para, custom_stream));
 }
 
 template <typename T, typename Context>

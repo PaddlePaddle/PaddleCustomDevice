@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import os
-import shutil
 import time
 import argparse
 import datetime
+import tempfile
 import numpy as np
 
 import paddle
@@ -67,13 +67,9 @@ def test(epoch_id, test_loader, model, cost):
     )
 
 
-def infer(model_dir):
-    # model file
-    params_file = os.path.join(model_dir, "model.pdiparams")
-    model_file = os.path.join(model_dir, "model.pdmodel")
-
+def infer(model_dir, prefix):
     # create config
-    config = paddle_infer.Config(model_file, params_file)
+    config = paddle_infer.Config(model_dir, prefix)
     config.enable_custom_device("mlu")
 
     # create predictor
@@ -203,11 +199,13 @@ def main(args):
         model,
         input_spec=[paddle.static.InputSpec(shape=[None, 1, 28, 28], dtype="float32")],
     )
-    paddle.jit.save(model, "output/model")
 
-    # infernece and clear
-    infer("output")
-    shutil.rmtree("output")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        prefix = "test_LeNet_MNIST"
+        paddle.jit.save(model, os.path.join(temp_dir, prefix))
+
+        # infernece and clear
+        infer(temp_dir, prefix)
 
 
 class AverageMeter(object):

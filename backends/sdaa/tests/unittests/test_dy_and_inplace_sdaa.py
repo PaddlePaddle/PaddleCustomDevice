@@ -106,7 +106,6 @@ class TestSub1(TestSub):
             max_relative_error=0.006,
             check_dygraph=False,
             check_inplace=False,
-            compare_static=True,
         )
 
 

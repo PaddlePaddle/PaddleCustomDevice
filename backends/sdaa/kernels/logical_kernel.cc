@@ -107,6 +107,7 @@ PD_REGISTER_PLUGIN_KERNEL(logical_not,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::LogicalNotKernel,
+                          bool,
                           int,
                           float) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);

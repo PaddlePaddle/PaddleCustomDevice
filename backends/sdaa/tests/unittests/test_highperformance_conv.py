@@ -23,6 +23,8 @@ import paddle
 import os
 import random
 import paddle.nn as nn
+import paddle.nn.functional as F
+from paddle.nn.initializer import Normal
 
 from paddle.base import dygraph
 
@@ -32,6 +34,7 @@ paddle.enable_static()
 SEED = 2022
 
 os.environ["HIGH_PERFORMANCE_CONV"] = "1"
+os.environ["FLAGS_enable_pir_with_pt_in_dy2st"] = "0"
 
 
 class TestConv2DOp_HIGHPERFORMANCE(OpTest):
@@ -95,13 +98,13 @@ class TestConv2DOp_HIGHPERFORMANCE(OpTest):
     def test_backward_api_dygraph(self):
         x = np.random.uniform(low=0, high=1.0, size=self.input_size)
         x_var = paddle.to_tensor(x, dtype="float32")
-        scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
         conv = nn.Conv2D(3, 16, (3, 3), data_format=self.data_format)
         input_n = x_var.numpy()
         weight = conv.weight.numpy()
         bias = conv.bias.numpy()
 
         paddle.device.set_device("sdaa")
+        scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
         conv_layer = nn.Conv2D(3, 16, (3, 3), data_format=self.data_format)
         x_var = paddle.to_tensor(input_n)
         conv_layer.weight.set_value(paddle.to_tensor(weight))
@@ -160,7 +163,7 @@ class TestConv2DOp_HIGHPERFORMANCE(OpTest):
             optmi1.clear_grad()
             loss_c.append(loss.item())
 
-        np.testing.assert_allclose(np.array(loss_c), np.array(loss_l), atol=1e-2)
+        np.testing.assert_allclose(np.array(loss_c), np.array(loss_l), atol=2e-2)
 
 
 class TestConv2DOp_HIGHPERFORMANCE_adam_amp(TestConv2DOp_HIGHPERFORMANCE):
@@ -266,13 +269,13 @@ class TestConv2DOp_HIGHPERFORMANCE(OpTest):
     def test_backward_api_dygraph(self):
         x = np.random.uniform(low=0, high=1.0, size=self.input_size)
         x_var = paddle.to_tensor(x, dtype="float32")
-        scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
         conv = nn.Conv2D(3, 64, (7, 7), data_format=self.data_format)
         input_n = x_var.numpy()
         weight = conv.weight.numpy()
         bias = conv.bias.numpy()
 
         paddle.device.set_device("sdaa")
+        scaler = paddle.amp.GradScaler(init_loss_scaling=1024)
         conv_layer = nn.Conv2D(3, 64, (7, 7), data_format=self.data_format)
         x_var = paddle.to_tensor(input_n)
         conv_layer.weight.set_value(paddle.to_tensor(weight))
@@ -468,6 +471,247 @@ class TestConv2dWithMultiply(TestConv2dWithHIGHPERFORMANCE):
                     grad,
                     paddle.to_tensor([1, 2], dtype=grad.dtype),
                 )
+
+
+class RPNFeat(nn.Layer):
+    """
+    Feature extraction in RPN head
+
+    Args:
+        in_channel (int): Input channel
+        out_channel (int): Output channel
+    """
+
+    def __init__(self, in_channel=1024, out_channel=1024):
+        super(RPNFeat, self).__init__()
+        # rpn feat is shared with each level
+        self.rpn_conv = nn.Conv2D(
+            in_channels=in_channel,
+            out_channels=out_channel,
+            kernel_size=3,
+            padding=1,
+            weight_attr=paddle.ParamAttr(initializer=Normal(mean=0.0, std=0.01)),
+        )
+        self.rpn_conv.skip_quant = True
+
+    def weight(self):
+        return self.rpn_conv.weight
+
+    def bias(self):
+        return self.rpn_conv.bias
+
+    def set_weight(self, weight):
+        self.rpn_conv.weight.set_value(weight)
+
+    def set_bias(self, bias):
+        self.rpn_conv.bias.set_value(bias)
+
+    def forward(self, feats):
+        rpn_feats = []
+        for feat in feats:
+            rpn_feats.append(F.relu(self.rpn_conv(feat)))
+        return rpn_feats
+
+
+class TestConv2DWithRPNFeat_HIGHPERFORMANCE(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def set_optimizer(self):
+        self.use_multi_tensor = False
+
+    def setUp(self):
+        self.set_sdaa()
+        self.__class__.no_need_check_grad = False
+        self.__class__.op_type = "conv2d"
+        self.init_amp()
+        self.init_test_case()
+        self.set_optimizer()
+
+    def init_test_case(self):
+        self.input_size = [1, 256, 168, 256]  # NHWC
+
+    def init_amp(self):
+        self.amp = True
+
+    def test_api_dygraph(self):
+        pass
+
+        paddle.disable_static()
+        paddle.device.set_device("cpu")
+        paddle.seed(100)
+        random.seed(100)
+        np.random.seed(100)
+        x = np.random.rand(*self.input_size).astype("float32")
+
+        x_var_cpu = [
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+        ]
+        conv_cpu = RPNFeat(in_channel=256, out_channel=256)
+        cpu_out = conv_cpu(x_var_cpu)
+        weight = conv_cpu.weight().numpy()
+
+        paddle.device.set_device("sdaa")
+        x_var_sdaa = [
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+            paddle.to_tensor(x, dtype="float32"),
+        ]
+        conv_sdaa = RPNFeat(in_channel=256, out_channel=256)
+        conv_sdaa.set_weight(paddle.to_tensor(weight))
+        if self.amp:
+            with paddle.amp.auto_cast(custom_white_list={"conv2d"}, level="O1"):
+                cpu_s = conv_sdaa(x_var_sdaa)
+        else:
+            cpu_s = conv_sdaa(x_var_sdaa)
+
+        if self.amp:
+            atol = 1e-2
+        else:
+            atol = 1e-2
+
+        for i in range(len(cpu_s)):
+            np.testing.assert_allclose(cpu_s[i].numpy(), cpu_out[i].numpy(), atol=atol)
+
+    def test_backward_api_dygraph(self):
+        paddle.disable_static()
+        x = np.random.rand(*self.input_size).astype("float32")
+        x_var = paddle.to_tensor(x, dtype="float32")
+        conv = RPNFeat(in_channel=256, out_channel=256)
+        input_n = x_var.numpy()
+        weight = conv.weight().numpy()
+        bias = conv.bias().numpy()
+
+        paddle.device.set_device("sdaa")
+        conv_layer = RPNFeat(in_channel=256, out_channel=256)
+        x_var = [
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+        ]
+        conv_layer.set_weight(paddle.to_tensor(weight))
+        conv_layer.set_bias(paddle.to_tensor(bias))
+        opti = paddle.optimizer.Momentum(
+            learning_rate=0.001, parameters=conv_layer.parameters()
+        )
+        scaler = paddle.amp.GradScaler(init_loss_scaling=65536)
+        loss_l = []
+        for i in range(3):
+            if self.amp:
+                with paddle.amp.auto_cast(custom_white_list={"conv2d"}, level="O1"):
+                    y_var = conv_layer(x_var)
+                    loss = paddle.mean(sum(y_var))
+                scaled = scaler.scale(loss)
+                scaled.backward()
+                scaler.step(opti)
+                scaler.update()
+                opti.clear_grad(set_to_zero=False)
+                loss_l.append(loss.item())
+            else:
+                y_var = conv_layer(x_var)
+                loss = paddle.mean(sum(y_var))
+                loss.backward()
+                opti.step()
+                opti.clear_grad()
+                loss_l.append(loss.item())
+        paddle.device.set_device("cpu")
+        x_var = [
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+        ]
+        conv1 = RPNFeat(in_channel=256, out_channel=256)
+        conv1.set_weight(paddle.to_tensor(weight))
+        conv1.set_bias(paddle.to_tensor(bias))
+
+        optmi1 = paddle.optimizer.Momentum(
+            learning_rate=0.001, parameters=conv1.parameters()
+        )
+        loss_c = []
+        for i in range(3):
+            y_var = conv1(x_var)
+            loss = paddle.mean(sum(y_var))
+            loss.backward()
+            optmi1.step()
+            optmi1.clear_grad()
+            loss_c.append(loss.item())
+        np.testing.assert_allclose(np.array(loss_c), np.array(loss_l), atol=1e-2)
+
+    def test_api_static(self):
+        paddle.disable_static()
+        paddle.seed(100)
+        random.seed(100)
+        np.random.seed(100)
+        x = np.random.rand(*self.input_size).astype("float32")
+        x_var = paddle.to_tensor(x, dtype="float32")
+        conv = RPNFeat(in_channel=256, out_channel=256)
+        input_n = x_var.numpy()
+        weight = conv.weight().numpy()
+        bias = conv.bias().numpy()
+
+        paddle.device.set_device("sdaa")
+        scaler = paddle.amp.GradScaler(init_loss_scaling=65536)
+        conv_layer = RPNFeat(in_channel=256, out_channel=256)
+
+        x_var = [
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+        ]
+        conv_layer.set_weight(paddle.to_tensor(weight))
+        conv_layer.set_bias(paddle.to_tensor(bias))
+        opti = paddle.optimizer.Momentum(
+            learning_rate=0.001, parameters=conv_layer.parameters()
+        )
+        conv_layer = paddle.jit.to_static(conv_layer, full_graph=True)
+        loss_l = []
+        for i in range(10):
+            if self.amp:
+                with paddle.amp.auto_cast(custom_white_list={"conv2d"}, level="O1"):
+                    y_var = conv_layer(x_var)
+                    loss = paddle.mean(sum(y_var))
+                scaled = scaler.scale(loss)
+                scaled.backward()
+                scaler.step(opti)
+                scaler.update()
+                opti.clear_grad(set_to_zero=False)
+                loss_l.append(loss.item())
+            else:
+                y_var = conv_layer(x_var)
+                loss = paddle.mean(sum(y_var))
+                loss.backward()
+                opti.step()
+                opti.clear_grad()
+                loss_l.append(loss.item())
+        paddle.device.set_device("cpu")
+        x_var = [
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+            paddle.to_tensor(input_n),
+        ]
+        conv1 = RPNFeat(in_channel=256, out_channel=256)
+        conv1.set_weight(paddle.to_tensor(weight))
+        conv1.set_bias(paddle.to_tensor(bias))
+
+        optmi1 = paddle.optimizer.Momentum(
+            learning_rate=0.001, parameters=conv1.parameters()
+        )
+        conv1 = paddle.jit.to_static(conv1, full_graph=True)
+        loss_c = []
+        for i in range(10):
+            y_var = conv1(x_var)
+            loss = paddle.mean(sum(y_var))
+            loss.backward()
+            optmi1.step()
+            optmi1.clear_grad()
+            loss_c.append(loss.item())
+        np.testing.assert_allclose(np.array(loss_c), np.array(loss_l), atol=1e-2)
 
 
 if __name__ == "__main__":

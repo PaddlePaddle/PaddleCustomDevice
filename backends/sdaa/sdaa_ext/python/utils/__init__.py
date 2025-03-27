@@ -26,3 +26,5 @@
 
 from .install_check import run_check
 from .load_balance import *  # noqa
+from .sdaa_extension import SDAAExtension, setup, load
+from .extension_utils import get_build_directory

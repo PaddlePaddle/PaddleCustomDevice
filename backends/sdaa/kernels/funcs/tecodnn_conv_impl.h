@@ -290,11 +290,20 @@ void doConv2dForward(const Context& dev_ctx,
                      int* filterStrideA,
                      int* upscaleA,
                      int groups,
-                     int Nd) {
+                     int Nd,
+                     bool output_need_cast_for_group_conv) {
   // tecodnn plugin
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   phi::DDim in_dims = in_x_NHWC_HALF.dims();
   phi::DDim out_dims = out->dims();
+
+  phi::DenseTensor out_temp;
+  if (output_need_cast_for_group_conv) {
+    out_temp.Resize(out_dims);
+    dev_ctx.template Alloc<phi::dtype::float16>(&out_temp);
+  } else {
+    out_temp = *out;
+  }
 
   tecodnnFilterDescriptor_t filterDesc;
   tecodnnConvolutionDescriptor_t convDesc;
@@ -313,7 +322,7 @@ void doConv2dForward(const Context& dev_ctx,
   x_Desc = sdaa_ops::GetTecodnnTensorDesc(
       phi::vectorize<int>(in_dims), in_x_NHWC_HALF.dtype(), TensorFormat::NHWC);
   y_Desc = sdaa_ops::GetTecodnnTensorDesc(
-      phi::vectorize<int>(out_dims), out->dtype(), TensorFormat::NHWC);
+      phi::vectorize<int>(out_dims), out_temp.dtype(), TensorFormat::NHWC);
   TECODNN_CHECK(tecodnnSetConvolutionGroupCount(convDesc, groups));
   TECODNN_CHECK(tecodnnSetConvolution2dDescriptor(convDesc,
                                                   padA[0],
@@ -354,7 +363,10 @@ void doConv2dForward(const Context& dev_ctx,
                                           workSpaceSizeInBytes,
                                           &beta,
                                           y_Desc,
-                                          out->data()));
+                                          out_temp.data()));
+  if (output_need_cast_for_group_conv) {
+    sdaa_ops::doCastTensor(dev_ctx, out_temp, out);
+  }
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(y_Desc));
   TECODNN_CHECK(tecodnnDestroyFilterDescriptor(filterDesc));
@@ -392,13 +404,17 @@ void ConvKernel(const Context& dev_ctx,
           << filter_t.storage_properties_initialized();
   phi::DDim filter_dims;
   phi::DDim filter_data_dims;
+  int filter_C, input_C;
+  bool output_need_cast_for_group_conv = false;
   if (filter_t.storage_properties_initialized()) {
     auto storages = filter_t.storage_properties<SDAAStorageProperties>();
     filter_dims = storages.storage_dims;  // CHWN
     filter_data_dims = phi::slice_ddim(filter_dims, 1, 3);
+    filter_C = filter_dims[0];
   } else {
     filter_dims = filter_t.dims();  // NCHW
     filter_data_dims = phi::slice_ddim(filter_dims, 2, filter_dims.size());
+    filter_C = filter_dims[1];
   }
   VLOG(1) << "real filter dims " << filter_dims;
 
@@ -409,8 +425,25 @@ void ConvKernel(const Context& dev_ctx,
   phi::DDim in_data_dims;
   if (channel_last) {  // NHWC
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+    input_C = in_dims[3];
   } else {  // NCHW
     in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+    input_C = in_dims[1];
+  }
+
+  if (!is_depthwise_conv && groups > 1) {
+    PADDLE_ENFORCE_EQ(
+        input_C == (filter_C * groups),
+        true,
+        phi::errors::InvalidArgument(
+            "The number of input channels should be equal filter_C * groups "
+            "for group_conv, "
+            "but got input channels is %d, filter_C is %d, groups is %d",
+            input_C,
+            filter_C,
+            groups));
+    if (input.dtype() == phi::DataType::FLOAT32)
+      output_need_cast_for_group_conv = true;
   }
 
   std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
@@ -479,7 +512,8 @@ void ConvKernel(const Context& dev_ctx,
                        filterStrideA,
                        upscaleA,
                        groups,
-                       Nd);
+                       Nd,
+                       output_need_cast_for_group_conv);
 
   } else {  // NCHW
     phi::DenseTensor out_nhwc;
@@ -496,7 +530,8 @@ void ConvKernel(const Context& dev_ctx,
                        filterStrideA,
                        upscaleA,
                        groups,
-                       Nd);
+                       Nd,
+                       output_need_cast_for_group_conv);
     sdaa_ops::doTransformTensor(
         dev_ctx, out_nhwc, Convert_TF::NHWC2NCHW, output);
   }
@@ -514,7 +549,8 @@ inline void doConv2dBackwardFilter(
     int* filterStrideA,
     int* upscaleA,
     int groups,
-    int Nd) {
+    int Nd,
+    bool output_need_cast_for_group_conv) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t x_Desc, dy_Desc;
   tecodnnFilterDescriptor_t filterDesc;
@@ -531,7 +567,17 @@ inline void doConv2dBackwardFilter(
       phi::vectorize<int>(output_grad_NHWC_HALF.dims()),
       output_grad_NHWC_HALF.dtype(),
       TensorFormat::NHWC);
-  tecodnnDataType_t dt = sdaa_ops::ToTecodnnDataType(filter_grad_CHWN->dtype());
+
+  phi::DenseTensor filter_grad_CHWN_temp;
+  if (output_need_cast_for_group_conv) {
+    filter_grad_CHWN_temp.Resize(filter_grad_CHWN->dims());
+    dev_ctx.template Alloc<phi::dtype::float16>(&filter_grad_CHWN_temp);
+  } else {
+    filter_grad_CHWN_temp = *filter_grad_CHWN;
+  }
+
+  tecodnnDataType_t dt =
+      sdaa_ops::ToTecodnnDataType(filter_grad_CHWN_temp.dtype());
 
   TECODNN_CHECK(tecodnnSetFilter4dDescriptor(filterDesc,
                                              dt,
@@ -580,7 +626,10 @@ inline void doConv2dBackwardFilter(
                                                  workSpaceSizeInBytes,
                                                  &beta,
                                                  filterDesc,
-                                                 filter_grad_CHWN->data()));
+                                                 filter_grad_CHWN_temp.data()));
+  if (output_need_cast_for_group_conv) {
+    sdaa_ops::doCastTensor(dev_ctx, filter_grad_CHWN_temp, filter_grad_CHWN);
+  }
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(dy_Desc));
   TECODNN_CHECK(tecodnnDestroyFilterDescriptor(filterDesc));
@@ -596,7 +645,8 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
                                  int* filterStrideA,
                                  int* upscaleA,
                                  int groups,
-                                 int Nd) {
+                                 int Nd,
+                                 bool output_need_cast_for_group_conv) {
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t dy_Desc;
   tecodnnTensorDescriptor_t dx_Desc;
@@ -606,9 +656,18 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
   tecodnnConvolutionBwdDataAlgo_t BD_algo = TECODNN_CONVOLUTION_BWD_DATA_ALGO_0;
   TECODNN_CHECK(tecodnnCreateFilterDescriptor(&filterDesc));
   TECODNN_CHECK(tecodnnCreateConvolutionDescriptor(&convDesc));
+
+  phi::DenseTensor input_grad_NHWC_temp;
+  if (output_need_cast_for_group_conv) {
+    input_grad_NHWC_temp.Resize(input_grad_NHWC->dims());
+    dev_ctx.template Alloc<phi::dtype::float16>(&input_grad_NHWC_temp);
+  } else {
+    input_grad_NHWC_temp = *input_grad_NHWC;
+  }
+
   dx_Desc = sdaa_ops::GetTecodnnTensorDesc(
       phi::vectorize<int>(input_grad_NHWC->dims()),
-      input_grad_NHWC->dtype(),
+      input_grad_NHWC_temp.dtype(),
       TensorFormat::NHWC);
   dy_Desc = sdaa_ops::GetTecodnnTensorDesc(
       phi::vectorize<int>(output_grad_NHWC_HALF.dims()),
@@ -661,7 +720,10 @@ inline void doConv2dBackwardData(const Context& dev_ctx,
                                                workSpaceSizeInBytes,
                                                &beta,
                                                dx_Desc,
-                                               input_grad_NHWC->data()));
+                                               input_grad_NHWC_temp.data()));
+  if (output_need_cast_for_group_conv) {
+    sdaa_ops::doCastTensor(dev_ctx, input_grad_NHWC_temp, input_grad_NHWC);
+  }
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(dx_Desc));
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(dy_Desc));
   TECODNN_CHECK(tecodnnDestroyFilterDescriptor(filterDesc));
@@ -700,13 +762,17 @@ void ConvBackwardKernel(const Context& dev_ctx,
   VLOG(1) << "filter.storage_properties_initialized: "
           << filter.storage_properties_initialized();
 
+  int input_C, filter_C;
+  bool output_need_cast_for_group_conv = false;
   if (filter.storage_properties_initialized()) {
     auto storages = filter.storage_properties<SDAAStorageProperties>();
     filter_dims = storages.storage_dims;  // CHWN
     filter_data_dims = phi::slice_ddim(filter_dims, 1, 3);
+    filter_C = filter_dims[0];
   } else {
     filter_dims = filter.dims();
     filter_data_dims = phi::slice_ddim(filter_dims, 2, filter_dims.size());
+    filter_C = filter_dims[1];
   }
   VLOG(4) << "conv backward called" << filter_dims;
   VLOG(4) << "filter.storage_properties_initialized "
@@ -759,8 +825,26 @@ void ConvBackwardKernel(const Context& dev_ctx,
   phi::DDim in_data_dims;
   if (channel_last) {  // NHWC
     in_data_dims = phi::slice_ddim(in_dims, 1, in_dims.size() - 1);
+    input_C = in_dims[3];
   } else {  // NCHW
     in_data_dims = phi::slice_ddim(in_dims, 2, in_dims.size());
+    input_C = in_dims[1];
+  }
+
+  if (!is_depthwise_conv && groups > 1) {
+    PADDLE_ENFORCE_EQ(
+        input_C == (filter_C * groups),
+        true,
+        phi::errors::InvalidArgument(
+            "The number of input channels should be equal filter_C * groups "
+            "for group_conv, "
+            "but got input channels is %d, filter_C is %d, groups is %d",
+            input_C,
+            filter_C,
+            groups));
+
+    if (input.dtype() == phi::DataType::FLOAT32)
+      output_need_cast_for_group_conv = true;
   }
 
   std::vector<int> ksize = phi::vectorize<int>(filter_data_dims);
@@ -789,10 +873,13 @@ void ConvBackwardKernel(const Context& dev_ctx,
       output_grad_nhwc_half = output_grad;
 
     if (filter.storage_properties_initialized()) {
-      SDAAStorageProperties filter_grad_properties =
-          filter.storage_properties<SDAAStorageProperties>();
-      sdaa_ops::doAddStorageProperties(
-          dev_ctx, filter_grad, filter_grad_properties);
+      if (!filter_grad->storage_properties_initialized()) {
+        SDAAStorageProperties filter_grad_properties =
+            filter.storage_properties<SDAAStorageProperties>();
+        sdaa_ops::doAddStorageProperties(
+            dev_ctx, filter_grad, filter_grad_properties);
+      }
+
       doConv2dBackwardFilter(dev_ctx,
                              input_nhwc_half,
                              output_grad_nhwc_half,
@@ -802,7 +889,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                              filterStrideA,
                              upscaleA,
                              groups,
-                             Nd);
+                             Nd,
+                             output_need_cast_for_group_conv);
     } else {
       // output: filter_grad
       phi::DenseTensor filter_grad_chwn;
@@ -821,7 +909,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                              filterStrideA,
                              upscaleA,
                              groups,
-                             Nd);
+                             Nd,
+                             output_need_cast_for_group_conv);
       sdaa_ops::doTransformTensor(
           dev_ctx, filter_grad_chwn, Convert_TF::CHWN2NCHW, filter_grad);
     }
@@ -847,7 +936,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                            filterStrideA,
                            upscaleA,
                            groups,
-                           Nd);
+                           Nd,
+                           output_need_cast_for_group_conv);
     } else {  // NCHW
       phi::DenseTensor input_grad_nhwc;
       Gen_Tecodnn_Out<T>(dev_ctx, *input_grad, &input_grad_nhwc, is_NCHW);
@@ -860,7 +950,8 @@ void ConvBackwardKernel(const Context& dev_ctx,
                            filterStrideA,
                            upscaleA,
                            groups,
-                           Nd);
+                           Nd,
+                           output_need_cast_for_group_conv);
       sdaa_ops::doTransformTensor(
           dev_ctx, input_grad_nhwc, Convert_TF::NHWC2NCHW, input_grad);
     }

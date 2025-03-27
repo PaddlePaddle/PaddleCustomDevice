@@ -20,6 +20,7 @@ bool CheckDtype(const phi::DataType& dt) {
   static std::vector<phi::DataType> tecodnn_support_dtype = {
       phi::DataType::FLOAT32,
       phi::DataType::FLOAT16,
+      phi::DataType::BFLOAT16,
       phi::DataType::INT32,
       phi::DataType::INT64,
       phi::DataType::FLOAT64};
@@ -138,7 +139,8 @@ PD_REGISTER_PLUGIN_KERNEL(sum_raw,
                           double,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -151,7 +153,8 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           double,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
@@ -164,4 +167,5 @@ PD_REGISTER_PLUGIN_KERNEL(sum_grad,
                           double,
                           int32_t,
                           int64_t,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

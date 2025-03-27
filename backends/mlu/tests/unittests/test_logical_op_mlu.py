@@ -127,18 +127,17 @@ def test(unit_test, use_mlu=False, test_error=False):
 
 def test_type_error(unit_test, use_mlu, type_str_map):
     def check_type(op_str, x, y, binary_op):
-        op = getattr(paddle, op_str)
-        error_type = ValueError
-        if isinstance(x, np.ndarray):
-            x = paddle.to_tensor(x)
-            y = paddle.to_tensor(y)
-            error_type = BaseException
-        if binary_op:
-            if not paddle.in_dynamic_mode():
+        if not paddle.framework.in_dynamic_or_pir_mode():
+            op = getattr(paddle, op_str)
+            error_type = ValueError
+            if isinstance(x, np.ndarray):
+                x = paddle.to_tensor(x)
+                y = paddle.to_tensor(y)
+                error_type = BaseException
+            if binary_op:
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, y=y, out=1)
-        else:
-            if not paddle.in_dynamic_mode():
+            else:
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, out=1)
 

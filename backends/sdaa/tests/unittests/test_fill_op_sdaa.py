@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-
+from op_test import convert_float_to_uint16
 import paddle
 
 
@@ -46,6 +46,32 @@ class TestFillOp(unittest.TestCase):
         self.init()
 
         self.inputs = np.random.random(self.shape).astype(self.dtype)
+
+    def init(self):
+        paddle.set_device("sdaa:0")
+
+    def test_fill_inplace(self):
+        self.inputs.fill(self.value)
+
+        sdaa_inputs = paddle.to_tensor(self.inputs)
+        fill_inplace(sdaa_inputs, self.value)
+        np.testing.assert_allclose(
+            sdaa_inputs.numpy(), self.inputs, atol=self.atol, rtol=self.rtol
+        )
+
+
+class TestFillOpBF16(unittest.TestCase):
+    def setUp(self):
+        self.dtype = np.float32
+        self.shape = [2, 3, 4, 5]
+        self.value = 0.0
+        self.atol = 1e-6
+        self.rtol = 1e-6
+        self.init()
+
+        self.inputs = convert_float_to_uint16(
+            np.random.random(self.shape).astype(self.dtype)
+        )
 
     def init(self):
         paddle.set_device("sdaa:0")
@@ -82,6 +108,14 @@ class TestFillOpInt32(TestFillOp):
 class TestFillOpFloat16(TestFillOp):
     def init(self):
         self.dtype = np.float16
+        self.value = 0.121
+        self.atol = 1e-3
+        self.rtol = 1e-3
+
+
+class TestFillOpDouble(TestFillOp):
+    def init(self):
+        self.dtype = np.double
         self.value = 0.121
         self.atol = 1e-3
         self.rtol = 1e-3

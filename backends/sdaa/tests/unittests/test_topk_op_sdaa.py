@@ -117,10 +117,13 @@ class TestTopkV2OpFloat16(TestTopkV2SDAAOp):
         self.largest = True
 
     def set_dtype(self):
-        self.dtype = np.float32
+        self.dtype = np.float16
 
     def set_input_data(self):
         self.input_data = np.random.rand(3, 40).astype(self.dtype)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestTopkV2OP1Int32(TestTopkV2SDAAOp):
@@ -149,6 +152,18 @@ class TestTopkV2OP4Int32(TestTopkV2SDAAOp):
         self.k = 3
         self.axis = 1
         self.largest = True
+
+
+class TestTopkV2SortDimensionBig(TestTopkV2SDAAOp):
+    def set_input_data(self):
+        self.input_data = np.random.choice(
+            10000000, size=(32, 36, 6400), replace=False
+        ).astype(self.dtype)
+
+
+class TestTopkV2SortDimensionBigFp16(TestTopkV2OpFloat16):
+    def set_input_data(self):
+        self.input_data = np.random.rand(32, 36, 6400).astype(self.dtype)
 
 
 class TestTopkV2Op1Int64(TestTopkV2OP1Int32):
@@ -320,8 +335,8 @@ class TestTopKAPI(unittest.TestCase):
             result1 = paddle.topk(input_tensor, k=2)
             result2 = paddle.topk(input_tensor, k=2, axis=-1)
             result3 = paddle.topk(input_tensor, k=k_tensor, axis=1)
-            self.assertEqual(result3[0].shape, (6, -1, 8))
-            self.assertEqual(result3[1].shape, (6, -1, 8))
+            self.assertEqual(result3[0].shape, [6, -1, 8])
+            self.assertEqual(result3[1].shape, [6, -1, 8])
             result4 = paddle.topk(input_tensor, k=2, axis=1, largest=False)
             result5 = paddle.topk(input_tensor, k=2, axis=-1, largest=False)
             result6 = paddle.topk(large_input_tensor, k=1, axis=-1)

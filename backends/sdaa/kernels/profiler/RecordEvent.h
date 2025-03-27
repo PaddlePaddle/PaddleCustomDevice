@@ -66,6 +66,7 @@ struct TraceEvent {
         thread_id(thread_id),
         correlation_id(correlation_id),
         msg(msg) {}
+
   std::string name;
   uint64_t start_ns;
   uint64_t end_ns;

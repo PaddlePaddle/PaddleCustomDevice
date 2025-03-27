@@ -21,15 +21,27 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <stack>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "paddle/common/flags.h"
 #include "paddle/phi/core/enforce.h"
-#include "paddle/phi/core/flags.h"
 #include "runtime/flags.h"
 #include "runtime/sdaaEvent.h"
 #include "version/query.h"
+
+#define CHECK_SDPTI(call)                                       \
+  do {                                                          \
+    SDptiResult err = call;                                     \
+    if (err != SDPTI_SUCCESS) {                                 \
+      const char *error_string;                                 \
+      custom_dynload::sdptiGetResultString(err, &error_string); \
+      PADDLE_THROW(phi::errors::PreconditionNotMet(             \
+          "line:%d, Error:%s", __LINE__, error_string));        \
+    }                                                           \
+  } while (0)
 
 #define MEMORY_FRACTION 0.5f
 #define PINNED_MEMORY_BLOCKSIZE (64 * 1024)
@@ -209,6 +221,115 @@ class AlignnedAllocatorList {
 };
 
 static AlignnedAllocatorList *global_allocator_list = nullptr;
+
+void TecoDNNCallback(tecodnnSeverity_t sev,
+                     void *udata,
+                     const tecodnnDebug_t *dbg,
+                     const char *msg) {
+  DNNDumpData *udata_origin = static_cast<DNNDumpData *>(udata);
+
+  size_t data_size = strlen(msg) + 1;
+  if (data_size > 8192) {
+    void *new_udata = realloc(udata_origin->udata, data_size);
+    if (new_udata != NULL) {
+      udata_origin->udata = static_cast<char *>(new_udata);
+      memset(udata_origin->udata, 0, data_size);
+    }
+  }
+  if (sev == TECODNN_SEV_DUMP_INFO) {
+    snprintf(udata_origin->udata, data_size, "%s\n", msg);
+  }
+}
+
+std::string trim(const std::string &str) {
+  size_t first = str.find_first_not_of(" \t\n\r");
+  if (first == std::string::npos) return "";
+  size_t last = str.find_last_not_of(" \t\n\r");
+  return str.substr(first, last - first + 1);
+}
+
+std::string generateUniqueKey(
+    const std::string &baseKey,
+    std::unordered_map<std::string, int> &keyCount) {  // NOLINT
+  int &count = keyCount[baseKey];
+  return baseKey + "_" + std::to_string(++count);
+}
+
+std::string parseToJSON(std::string &input) {  // NOLINT
+  std::stack<std::string> bracestack;
+  std::stack<std::string> keystack;
+  std::unordered_map<std::string, int> keyCount;
+  std::string json = "{";
+  std::string currentIndent;
+  std::istringstream stream(input);
+
+  std::string line;
+  bool firstItem = true;
+  while (std::getline(stream, line)) {
+    line = trim(line);
+    if (line.empty()) continue;
+
+    if (line.back() == '{') {  // start parse a new object
+      std::string key = trim(line.substr(0, line.size() - 1));
+      if (!firstItem) {
+        json += ",";
+        if (key == keystack.top()) {
+          key = generateUniqueKey(key, keyCount);
+        } else {
+          keyCount.erase(keystack.top());
+          keystack.pop();
+          keystack.push(key);
+        }
+      } else {
+        keystack.push(key);
+      }
+      firstItem = true;
+
+      json += "\"" + key + "\": {";
+      bracestack.push("}");
+    } else if (line == "}") {  // end current object
+      if (!bracestack.empty()) {
+        json += bracestack.top();
+        bracestack.pop();
+      }
+      if (!keystack.empty()) {
+        keyCount.erase(keystack.top());
+        keystack.pop();
+      }
+      firstItem = false;
+    } else {  // process key-value pair
+      auto pos = line.find(':');
+      std::string key = trim(line.substr(0, pos));
+      std::string value = trim(line.substr(pos + 1));
+      if (!firstItem) {
+        json += ",";
+        if (key == keystack.top()) {
+          key = generateUniqueKey(key, keyCount);
+        } else {
+          keyCount.erase(keystack.top());
+          keystack.pop();
+          keystack.push(key);
+        }
+      } else {
+        keystack.push(key);
+      }
+      firstItem = false;
+
+      json += "\"" + key + "\": ";
+      if (value.front() == '"') {  // process string
+        json += value;
+      } else if (value.find_first_not_of("0123456789.-") ==
+                 std::string::npos) {  // process number
+        json += value;
+      } else {  // process others
+        json += "\"" + value + "\"";
+      }
+    }
+  }
+
+  json += "}";
+  return json;
+}
 
 bool isEnvEnable(std::string env_) {
   static std::unordered_map<std::string, bool> envMap;
@@ -397,7 +518,6 @@ C_Status AsyncMemCpyH2D(const C_Device device,
                         size_t size) {
   CustomSDAAStream_t sdaa_stream = reinterpret_cast<CustomSDAAStream_t>(stream);
   sdaaStream_t p_sdaa_stream = sdaa_stream->pStream;
-  // CustomSDAAStream_t p_sdaa_stream = GetSecondaryStream(sdaa_stream);
   if (PINNED_MEMORY_BLOCKSIZE < size) {
     checkSdaaErrors(
         sdaaMemcpyAsync(dst, src, size, sdaaMemcpyHostToDevice, p_sdaa_stream));
@@ -411,6 +531,18 @@ C_Status AsyncMemCpyH2D(const C_Device device,
                                     p_sdaa_stream));
     global_allocator_list->Record(device_id);
   }
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyH2DInternal(const C_Device device,
+                                C_Stream stream,
+                                void *dst,
+                                const void *src,
+                                size_t size) {
+  CustomSDAAStream_t sdaa_stream = reinterpret_cast<CustomSDAAStream_t>(stream);
+  sdaaStream_t p_sdaa_stream = sdaa_stream->pStream;
+  checkSdaaErrors(
+      sdaaMemcpyAsync(dst, src, size, sdaaMemcpyHostToDevice, p_sdaa_stream));
   return C_SUCCESS;
 }
 
@@ -450,33 +582,22 @@ C_Status DeviceAllocate(const C_Device device, void **ptr, size_t size) {
   return C_FAILED;
 }
 
-// NOTE(liaotianju):pinned-memory is not invoked by CustomDevice for now,
-// uncomment when it is
-//
-// C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
-//   void *data;
-//   checkSdaaErrors(sdaaMallocHost(&data, size));
-//   if (data) {
-//     *ptr = data;
-//     return C_SUCCESS;
-//   } else {
-//     *ptr = nullptr;
-//   }
-//   return C_FAILED;
-// }
+C_Status HostAllocate(const C_Device device, void **ptr, size_t size) {
+  void *data;
+  checkSdaaErrors(sdaaMallocHost(&data, size));
+  *ptr = data;
+  return data ? C_SUCCESS : C_FAILED;
+}
 
 C_Status DeviceDeallocate(const C_Device device, void *ptr, size_t size) {
   checkSdaaErrors(sdaaFree(ptr));
   return C_SUCCESS;
 }
 
-// NOTE(liaotianju):pinned-memory is not invoked by CustomDevice for now,
-// uncomment when it is
-//
-// C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
-//   checkSdaaErrors(sdaaFreeHost(ptr));
-//   return C_SUCCESS;
-// }
+C_Status HostDeallocate(const C_Device device, void *ptr, size_t size) {
+  checkSdaaErrors(sdaaFreeHost(ptr));
+  return C_SUCCESS;
+}
 
 C_Status CreateStream(const C_Device device, C_Stream *stream) {
   VLOG(4) << "start to create stream.";
@@ -484,13 +605,17 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
   TECODNN_CHECK(tecodnnCreate(&tecodnnHandle));
   tblasHandle_t tecoblasHandle;
   TBLAS_CHECK(tblasCreate(&tecoblasHandle));
+  tecocustomHandle_t tecocustomHandle;
+  TECOCUSTOM_CHECK(tecocustomCreate(&tecocustomHandle));
   sdaaStream_t stream_;
   checkSdaaErrors(sdaaStreamCreateWithFlags(&stream_, sdaaStreamNonBlocking));
   TECODNN_CHECK(tecodnnSetStream(tecodnnHandle, stream_));
   TBLAS_CHECK(tecoblasSetStream(tecoblasHandle, stream_));
+  TECOCUSTOM_CHECK(tecocustomSetStream(tecocustomHandle, stream_));
   CustomSDAAStream_t sdaa_stream = new CustomSDAAStream();
   sdaa_stream->dnnHandle = tecodnnHandle;
   sdaa_stream->tblasHandle = tecoblasHandle;
+  sdaa_stream->tcustomHandle = tecocustomHandle;
   sdaa_stream->pStream = stream_;
   *stream = reinterpret_cast<C_Stream>(sdaa_stream);
   return C_SUCCESS;
@@ -807,7 +932,7 @@ C_Status ProfilerCollectData(C_Profiler prof,
 
 C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
   RecordEvent::Instance().SetSdptiMode(isSdptiEnabled());
-  if (isEnvEnable("USE_ATTRIBUTE_INFO_DUMP")) {
+  if (isEnvEnable("DUMP_INTO_PROFILER")) {
     RecordEvent::Instance().AttributeDumpEnable();
   }
   return C_SUCCESS;
@@ -904,6 +1029,8 @@ tcclDataType_t PDDataTypeToTcclDataType(C_DataType dtype) {
     return tcclUint64;
   } else if (dtype == C_DataType::FLOAT16) {
     return tcclHalf;
+  } else if (dtype == C_DataType::BFLOAT16) {
+    return tcclBF16;
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "Datatype %s in tccl is not supported.", dtype));
@@ -1128,15 +1255,15 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->memory_copy_d2d = MemCpyD2D;
   params->interface->memory_copy_d2h = MemCpyD2H;
   params->interface->memory_copy_p2p = nullptr;
-  params->interface->async_memory_copy_h2d = AsyncMemCpyH2D;
+  params->interface->async_memory_copy_h2d = AsyncMemCpyH2DInternal;
   params->interface->async_memory_copy_d2d = AsyncMemCpyD2D;
   params->interface->async_memory_copy_d2h = AsyncMemCpyD2H;
   params->interface->async_memory_copy_p2p = nullptr;
   params->interface->device_memory_allocate = DeviceAllocate;
-  // params->interface->host_memory_allocate = HostAllocate;
+  params->interface->host_memory_allocate = HostAllocate;
   params->interface->unified_memory_allocate = nullptr;
   params->interface->device_memory_deallocate = DeviceDeallocate;
-  // params->interface->host_memory_deallocate = HostDeallocate;
+  params->interface->host_memory_deallocate = HostDeallocate;
   params->interface->unified_memory_deallocate = nullptr;
 
   params->interface->get_device_count = GetDevicesCount;

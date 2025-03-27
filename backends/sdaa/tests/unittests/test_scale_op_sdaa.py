@@ -325,14 +325,18 @@ class TestBiasAfterScaleInt64(TestBiasAfterScale):
 
 class TestScaleOpZeroNumelVariable(unittest.TestCase):
     def test_check_zero_numel(self):
-        paddle.set_device("sdaa")
-        data = paddle.ones([0, 1])
-        out = paddle.scale(data, 2)
-        self.assertEqual(out, data)
+        with paddle.pir_utils.OldIrGuard():
+            paddle.set_device("sdaa")
+            data = paddle.ones([0, 1])
+            out = paddle.scale(data, 2)
+            self.assertEqual(out, data)
 
 
 class TestScaleRaiseError(unittest.TestCase):
     def test_errors(self):
+
+        paddle.enable_static()
+
         def test_type():
             paddle.set_device("sdaa")
             paddle.scale([10])

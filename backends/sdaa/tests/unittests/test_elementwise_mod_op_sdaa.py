@@ -182,12 +182,13 @@ class TestRemainderOp(unittest.TestCase):
 
     def test_name(self):
         paddle.set_device("sdaa")
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="int32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="int32")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="int32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="int32")
 
-            y_1 = self._executed_api(x, y, name="div_res")
-            self.assertEqual(("div_res" in y_1.name), True)
+                y_1 = self._executed_api(x, y, name="div_res")
+                self.assertEqual(("div_res" in y_1.name), True)
 
     def test_dygraph(self):
         paddle.set_device("sdaa")
@@ -249,6 +250,50 @@ class TestRemainderInplaceBroadcastSuccess3(TestRemainderInplaceBroadcastSuccess
     def init_data(self):
         self.x_numpy = np.random.rand(2, 3, 1, 5).astype("float")
         self.y_numpy = np.random.rand(1, 3, 1, 5).astype("float")
+
+
+class TestElementwiseModOpInt64(TestElementwiseModOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+class TestRemainderOp(unittest.TestCase):
+    def test_name(self):
+        paddle.set_device("sdaa")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="int64")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="int64")
+                y_1 = paddle.remainder(x, y, name="div_res")
+                self.assertEqual(("div_res" in y_1.name), True)
+
+    def test_dygraph(self):
+        paddle.set_device("sdaa")
+        with base.dygraph.guard():
+            np_x = np.array([2, 3, 8, 7]).astype("int64")
+            np_y = np.array([1, 5, 3, 3]).astype("int64")
+            x = paddle.to_tensor(np_x)
+            y = paddle.to_tensor(np_y)
+            z = paddle.remainder(x, y)
+            np_z = z.numpy()
+            z_expected = np.array([0, 3, 2, 1])
+            self.assertEqual((np_z == z_expected).all(), True)
+
+            np_x = np.array([-3.3, 11.5, -2, 3.5])
+            np_y = np.array([-1.2, 2.0, 3.3, -2.3])
+            x = paddle.to_tensor(np_x)
+            y = paddle.to_tensor(np_y)
+            z = x % y
+            z_expected = np.array([-0.9, 1.5, 1.3, -1.1])
+            self.assertEqual(np.allclose(z_expected, z.numpy()), True)
+
+            np_x = np.array([-3, 11, -2, 3])
+            np_y = np.array([-1, 2, 3, -2])
+            x = paddle.to_tensor(np_x, dtype="int64")
+            y = paddle.to_tensor(np_y, dtype="int64")
+            z = x % y
+            z_expected = np.array([0, 1, 1, -1])
+            self.assertEqual(np.allclose(z_expected, z.numpy()), True)
 
 
 if __name__ == "__main__":

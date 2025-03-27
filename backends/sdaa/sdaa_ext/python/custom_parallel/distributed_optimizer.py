@@ -30,6 +30,10 @@ from ..utils import *  # noqa
 from .device_map import *  # noqa
 from ..storage import *  # noqa
 
+from paddle.base import core
+
+# from paddle.lr import LRScheduler
+
 
 class DistributeOptimizer:
     def __init__(self, *args, **kwargs):
@@ -99,6 +103,9 @@ class DistributeOptimizer:
         self.flat_param = paddle.full(
             shape=[total_num], fill_value=0.0, dtype=paddle.float32
         )
+        dtype = self.flatten_params[0].dtype
+        if isinstance(dtype, core.DataType):
+            dtype = paddle.base.framework.paddle_type_to_proto_type[dtype]
         paddle._legacy_C_ops.coalesce_tensor(
             self.flatten_params,
             self.flatten_params,
@@ -110,7 +117,7 @@ class DistributeOptimizer:
             "align_size",
             128,
             "dtype",
-            self.flatten_params[0].dtype,
+            dtype,
         )
         # print(self.flat_param.shape, flush=True)
 
@@ -208,3 +215,18 @@ class DistributeOptimizer:
                     )
                     cur_rank_allocate_num += remaining_num
                     remaining_num = 0
+
+        # for debug
+        # for i in range(len(self._rank_param_group)):
+        #     print(f"self._rank_param_group[{i}]: {self._rank_param_group[i]}")
+        #     print(f"len(self._rank_param_group[i]): {len(self._rank_param_group[i])}")
+        # for k, v in self._rank_param_group[self.rank].items():
+        #     print(
+        #         f'rank{i} param.name : {k} ,is_clip: {v[0]} , start: {v[1]} , end: {v[2]} , param_len :{index_and_padding[k][2]} , alin_len :{index_and_padding[k][1]}',
+        #         flush=True)
+        # print("---------------\n----------------")
+        # for k,v in self._rank_pram_gap[self.rank].items():
+        #     print(
+        #         f'rank{i} param.name : {k} , len : {v}',
+        #         flush=True)
+        # print("---------------\n---------------")

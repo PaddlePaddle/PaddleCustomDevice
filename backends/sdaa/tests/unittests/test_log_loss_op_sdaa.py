@@ -28,7 +28,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -59,6 +59,37 @@ class TestLogLossOp(OpTest):
             1 - predicted + epsilon
         )
         self.outputs = {"Loss": loss}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, check_dygraph=True)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place, ["Predicted"], "Loss", check_dygraph=True
+        )
+
+
+class TestLogLossBF16Op(OpTest):
+    def setUp(self):
+        self.op_type = "log_loss"
+        samples_num = 100
+        self.__class__.use_custom_device = True
+        self.dtype = np.uint16
+        self.place = paddle.CustomPlace("sdaa", 0)
+        x = np.random.random((samples_num, 1)).astype("float32")
+        predicted = sigmoid_array(x)
+        labels = np.random.randint(0, 2, (samples_num, 1)).astype("float32")
+        epsilon = 1e-7
+        self.inputs = {
+            "Predicted": convert_float_to_uint16(predicted),
+            "Labels": convert_float_to_uint16(labels),
+        }
+
+        self.attrs = {"epsilon": epsilon}
+        loss = -labels * np.log(predicted + epsilon) - (1 - labels) * np.log(
+            1 - predicted + epsilon
+        )
+        self.outputs = {"Loss": convert_float_to_uint16(loss)}
 
     def test_check_output(self):
         self.check_output_with_place(self.place, check_dygraph=True)

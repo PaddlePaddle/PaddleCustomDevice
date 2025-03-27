@@ -21,10 +21,248 @@ limitations under the License. */
 #include <vector>
 
 #include "paddle/phi/extension.h"
+#include "paddle/phi/kernels/reshape_kernel.h"
 #include "runtime/runtime.h"
 
 namespace custom_kernel {
 using Context = phi::CustomContext;
+
+template <typename T, typename Context>
+void ExpandKernel(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const phi::IntArray& shape,
+                  phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void NonZeroKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& condition,
+                   phi::DenseTensor* out);
+
+template <typename T, typename Context>
+void SplitWithNumKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& x,
+                        int num,
+                        const phi::Scalar& axis_scalar,
+                        std::vector<phi::DenseTensor*> outs);
+
+template <typename T, typename Context>
+void CastKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DataType out_dtype,
+                phi::DenseTensor* out);
+
+template <typename T, typename Context>
+phi::DenseTensor GetReshapeAndExpandTensor(const Context& dev_ctx,
+                                           const phi::DenseTensor& tensor,
+                                           const phi::DDim& res_dim,
+                                           const phi::DDim& bd_dim,
+                                           int index) {
+  std::vector<int64_t> before_dims = phi::vectorize(tensor.dims());
+  std::vector<int64_t> mid_dims(res_dim.size(), 1);
+
+  if (index == 0) {
+    for (size_t i = 0; i < before_dims.size(); ++i) {
+      mid_dims[bd_dim.size() - i - 1] = before_dims[before_dims.size() - i - 1];
+    }
+  } else {
+    mid_dims[index] = before_dims[0];
+  }
+
+  phi::DenseTensor mid_tensor;
+  phi::DenseTensorMeta meta_mid = {tensor.dtype(), phi::make_ddim(mid_dims)};
+  mid_tensor.set_meta(meta_mid);
+  phi::ReshapeKernel<Context>(
+      dev_ctx, tensor, phi::IntArray(mid_dims), &mid_tensor);
+
+  phi::DenseTensor res_tensor;
+  phi::DenseTensorMeta meta_res = {tensor.dtype(), res_dim};
+  res_tensor.set_meta(meta_res);
+  custom_kernel::ExpandKernel<T, Context>(
+      dev_ctx, mid_tensor, phi::IntArray(phi::vectorize(res_dim)), &res_tensor);
+  return res_tensor;
+}
+
+template <typename T, typename Context>
+std::vector<const phi::DenseTensor*> DealWithBoolIndices(
+    const Context& dev_ctx,
+    const std::vector<const phi::DenseTensor*>& indices_v,
+    std::vector<phi::DenseTensor>* tmp_indices_v) {
+  std::vector<const phi::DenseTensor*> res;
+
+  bool contains_bool_tensor = false;
+  for (size_t i = 0; i < indices_v.size(); ++i) {
+    if (indices_v[i]->dtype() == phi::DataType::BOOL) {
+      contains_bool_tensor = true;
+      break;
+    }
+  }
+
+  if (contains_bool_tensor) {
+    for (size_t i = 0; i < indices_v.size(); ++i) {
+      if (indices_v[i]->dtype() == phi::DataType::BOOL) {
+        int rank = indices_v[i]->dims().size();
+        PADDLE_ENFORCE_GE(rank,
+                          1UL,
+                          phi::errors::InvalidArgument(
+                              "the only bool tensor in indices should "
+                              "have number of dimension at least 1"));
+        phi::DenseTensor nonzero_indices;
+        custom_kernel::NonZeroKernel<bool, Context>(
+            dev_ctx, *indices_v[i], &nonzero_indices);
+
+        if (nonzero_indices.numel() == 0) {
+          std::vector<const phi::DenseTensor*> empty_indices;
+          return empty_indices;
+        }
+
+        std::vector<phi::DenseTensor*> integer_indices(rank, nullptr);
+        const int tmp_ix = tmp_indices_v->size();
+        for (int i = 0; i < rank; ++i) {
+          phi::DenseTensor tmp_index;
+          phi::DenseTensorMeta meta_tmp_index = {
+              phi::DataType::INT64,
+              phi::make_ddim({nonzero_indices.dims()[0], 1})};
+          tmp_index.set_meta(meta_tmp_index);
+          tmp_indices_v->emplace_back(tmp_index);
+        }
+        for (int i = 0; i < rank; ++i) {
+          integer_indices[i] = &((*tmp_indices_v)[i + tmp_ix]);
+        }
+        custom_kernel::SplitWithNumKernel<int64_t, Context>(
+            dev_ctx, nonzero_indices, rank, 1, integer_indices);
+        for (size_t i = 0; i < integer_indices.size(); ++i) {
+          integer_indices[i]->Resize({integer_indices[i]->dims()[0]});
+        }
+
+      } else if ((indices_v[i]->dtype() == phi::DataType::INT64) ||
+                 (indices_v[i]->dtype() == phi::DataType::INT32)) {
+        tmp_indices_v->emplace_back(*indices_v[i]);
+      } else {
+        PADDLE_THROW(phi::errors::InvalidArgument(
+            "data type of tensor in indices must be int32, int64 or bool"));
+      }
+    }
+
+    res.reserve(tmp_indices_v->size());
+    for (size_t i = 0; i < tmp_indices_v->size(); ++i) {
+      res.emplace_back(&((*tmp_indices_v)[i]));
+    }
+  } else {
+    res = indices_v;
+  }
+  return res;
+}
+
+static phi::DDim BroadCastTensorsDims(
+    const std::vector<const phi::DenseTensor*>& tensors) {
+  int target_rank = 0;
+  for (const auto& tensor : tensors) {
+    target_rank = std::max(target_rank, tensor->dims().size());
+  }
+
+  PADDLE_ENFORCE_GT(
+      target_rank,
+      0,
+      phi::errors::InvalidArgument("BroadCastTensorsDims requires at "
+                                   "least one input tensor to have "
+                                   "rank greater than zero"));
+
+  std::vector<int64_t> target_dims(target_rank, 0);
+  for (int index = 0; index < target_rank; index++) {
+    int target_dim_size = 1;
+    for (const auto& tensor : tensors) {
+      auto input_ddim = tensor->dims();
+      int axis = static_cast<int>(input_ddim.size()) - index - 1;
+      int dim_size = 1;
+      if (axis >= 0) {
+        dim_size = input_ddim[axis];
+      }
+
+      if (target_dim_size != 1 && dim_size != 1 &&
+          target_dim_size != dim_size) {
+        PADDLE_THROW(phi::errors::InvalidArgument(
+            "BroadCastTensorsDims inputs does not satisfy bcast semantics, "
+            "please check axis = %d in reverse order",
+            index));
+      }
+
+      target_dim_size = dim_size == 1 ? target_dim_size : dim_size;
+    }
+    target_dims[target_rank - index - 1] = target_dim_size;
+  }
+  return phi::make_ddim(target_dims);
+}
+
+template <typename T, typename Context>
+void DealWithIndices(const Context& dev_ctx,
+                     const phi::DenseTensor& x,
+                     const std::vector<const phi::DenseTensor*>& int_indices_v,
+                     std::vector<const phi::DenseTensor*>* res_indices_v,
+                     std::vector<phi::DenseTensor>* tmp_res_indices_v,
+                     const std::vector<phi::DenseTensor>& range_tensor_v,
+                     const phi::DDim& bd_dim,
+                     std::vector<int64_t>* res_dim_v) {
+  size_t total_dims = x.dims().size();
+  if (int_indices_v.size() < total_dims) {
+    std::vector<int64_t> tmp_x_dims = phi::vectorize(x.dims());
+    int len_bd_dim = bd_dim.size();
+    res_dim_v->insert(res_dim_v->end(),
+                      tmp_x_dims.begin() + int_indices_v.size(),
+                      tmp_x_dims.end());
+    phi::DDim res_dim = phi::make_ddim(*res_dim_v);
+    for (size_t i = 0; i < int_indices_v.size(); ++i) {
+      phi::DenseTensor index_tensor;
+      if (int_indices_v[i]->dtype() == phi::DataType::INT32) {
+        index_tensor.Resize(int_indices_v[i]->dims());
+        custom_kernel::CastKernel<T, Context>(
+            dev_ctx, *int_indices_v[i], phi::DataType::INT64, &index_tensor);
+      } else {
+        index_tensor = *int_indices_v[i];
+      }
+      tmp_res_indices_v->emplace_back(
+          GetReshapeAndExpandTensor<int64_t, Context>(
+              dev_ctx, index_tensor, res_dim, bd_dim, 0));
+    }
+    for (size_t i = 0; i < range_tensor_v.size(); ++i) {
+      tmp_res_indices_v->emplace_back(
+          GetReshapeAndExpandTensor<int64_t, Context>(
+              dev_ctx, range_tensor_v[i], res_dim, bd_dim, i + len_bd_dim));
+    }
+    for (size_t i = 0; i < res_indices_v->size(); ++i) {
+      (*res_indices_v)[i] = &(*tmp_res_indices_v)[i];
+    }
+
+  } else {
+    for (size_t i = 0; i < int_indices_v.size(); ++i) {
+      phi::DenseTensor index_tensor;
+      phi::DenseTensor expand_index;
+      if (int_indices_v[i]->dtype() == phi::DataType::INT32) {
+        index_tensor.Resize(int_indices_v[i]->dims());
+        custom_kernel::CastKernel<T, Context>(
+            dev_ctx, *int_indices_v[i], phi::DataType::INT64, &index_tensor);
+      } else {
+        index_tensor = *int_indices_v[i];
+      }
+      if (bd_dim != int_indices_v[i]->dims()) {
+        phi::DenseTensor expand_index;
+        phi::DenseTensorMeta meta_ei = {phi::DataType::INT64, bd_dim};
+        expand_index.set_meta(meta_ei);
+        custom_kernel::ExpandKernel<int64_t, Context>(
+            dev_ctx,
+            index_tensor,
+            phi::IntArray(phi::vectorize<int64_t>(bd_dim)),
+            &expand_index);
+      } else {
+        expand_index = index_tensor;
+      }
+      tmp_res_indices_v->emplace_back(expand_index);
+    }
+    for (size_t i = 0; i < res_indices_v->size(); ++i) {
+      (*res_indices_v)[i] = &(*tmp_res_indices_v)[i];
+    }
+  }
+}
+
 /**
  * CPU -> SDAA
  * SDAA -> CPU
@@ -289,6 +527,12 @@ inline void TensorFromVectorTensor(
 inline static tecodnnHandle_t GetHandleFromCTX(const Context& dev_ctx) {
   return GetHandle(dev_ctx.stream());
 }
+
+inline static tecocustomHandle_t GetTecoCustomHandleFromCTX(
+    const Context& dev_ctx) {
+  return GetTecoCustomHandle(dev_ctx.stream());
+}
+
 inline static sdaaStream_t GetStreamFromCTX(const Context& dev_ctx) {
   return GetStream(dev_ctx.stream());
 }
@@ -309,6 +553,8 @@ static std::string get_blas_data_type_str(tecoblasDataType_t t) {
       return "\"TECOBLAS_DATA_INT32\"";
     case TECOBLAS_DATA_INT64:
       return "\"TECOBLAS_DATA_INT64\"";
+    case TECOBLAS_DATA_BFLOAT16:
+      return "\"TECOBLAS_DATA_BFLOAT16\"";
     default:
       return "\"UNKNOWN_DATA_TYPE\"";
   }

@@ -28,14 +28,16 @@
 #include "kernels/profiler/os_info.h"
 #include "kernels/profiler/sdaa_wrapper.h"
 #include "paddle/phi/backends/device_ext.h"
-#include "tccl.h"      //NOLINT
-#include "tecoblas.h"  //NOLINT
-#include "tecodnn.h"   // NOLINT
+#include "tccl.h"        //NOLINT
+#include "tecoblas.h"    //NOLINT
+#include "tecocustom.h"  // NOLINT
+#include "tecodnn.h"     // NOLINT
 
 struct CustomSDAAStream {
   sdaaStream_t pStream;
   tecodnnHandle_t dnnHandle;
   tblasHandle_t tblasHandle;
+  tecocustomHandle_t tcustomHandle;
   ~CustomSDAAStream() {
     if (dnnHandle) {
       tecodnnDestroy(dnnHandle);
@@ -44,6 +46,10 @@ struct CustomSDAAStream {
     if (tblasHandle) {
       tblasDestroy(tblasHandle);
       tblasHandle = nullptr;
+    }
+    if (tcustomHandle) {
+      tecocustomDestroy(tcustomHandle);
+      tcustomHandle = nullptr;
     }
     if (pStream) {
       sdaaStreamDestroy(pStream);
@@ -79,14 +85,14 @@ struct lastCommStream {
   sdaaStream_t p_stream = nullptr;
 };
 
-#define CHECK_SDPTI(call)                             \
-  do {                                                \
-    SDptiResult err = call;                           \
-    if (err != SDPTI_SUCCESS) {                       \
-      fprintf(stderr, "%s:%d\n", "SDPTI_ERROR", err); \
-      exit(EXIT_FAILURE);                             \
-    }                                                 \
-  } while (0)
+struct DNNDumpData {
+  char *udata = nullptr;
+  DNNDumpData() {
+    udata = reinterpret_cast<char *>(malloc(8192));
+    memset(udata, 0, 8192);
+  }
+  ~DNNDumpData() { free(udata); }
+};
 
 inline tecodnnHandle_t GetHandle(void *stream) {
   return reinterpret_cast<CustomSDAAStream_t>(stream)->dnnHandle;
@@ -96,6 +102,10 @@ inline sdaaStream_t GetStream(void *cstream) {
 }
 inline tblasHandle_t GetBlasHandle(void *stream) {
   return reinterpret_cast<CustomSDAAStream_t>(stream)->tblasHandle;
+}
+
+inline tecocustomHandle_t GetTecoCustomHandle(void *stream) {
+  return reinterpret_cast<CustomSDAAStream_t>(stream)->tcustomHandle;
 }
 
 C_Status MemCpyH2D(const C_Device device,
@@ -141,6 +151,13 @@ C_Status CreateEvent(const C_Device device, C_Event *event);
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event);
 C_Status QueryEvent(const C_Device device, C_Event event);
 C_Status DestroyEvent(const C_Device device, C_Event event);
+
+void TecoDNNCallback(tecodnnSeverity_t sev,
+                     void *udata,
+                     const tecodnnDebug_t *dbg,
+                     const char *msg);
+
+std::string parseToJSON(std::string &input);  // NOLINT
 
 bool isEnvEnable(std::string env_);
 

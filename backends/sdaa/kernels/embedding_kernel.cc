@@ -268,11 +268,13 @@ PD_REGISTER_PLUGIN_KERNEL(embedding,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(embedding_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::EmbeddingGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

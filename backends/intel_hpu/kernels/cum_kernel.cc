@@ -25,16 +25,14 @@ namespace custom_kernel {
 
 class CumsumOperator : public HpuOperator {
  public:
-  CumsumOperator(std::string guid_prefix, std::string node_name)
-      : HpuOperator(guid_prefix), pName_(node_name) {}
-  void AddNode(ConvertTensors& ct, ns_CumSumKernel::Params params) {
+  CumsumOperator() : HpuOperator("cumsum_fwd_") {}
+  void AddNode(ConvertTensors& ct,
+               ns_CumSumKernel::Params params,
+               bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -56,8 +54,7 @@ class CumsumOperator : public HpuOperator {
                                          section));
     }
 
-    std::string guid = +"cumsum_fwd_" + SynDataTypeToStr(inputs[0].type);
-
+    guid_ = guid_ + SynDataTypeToStr(inputs[0].type);
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
                                      syn_outputs.data(),
@@ -65,14 +62,13 @@ class CumsumOperator : public HpuOperator {
                                      syn_outputs.size(),
                                      &params,
                                      sizeof(params),
-                                     guid.c_str(),
-                                     pName_.c_str(),
+                                     guid_.c_str(),
+                                     "cumsum",
                                      nullptr,
                                      nullptr);
     PD_CHECK(
         status == synSuccess, "[RUNTIME] synNodeCreate () failed = %d", status);
   }
-  std::string pName_;
 };
 
 template <typename T, typename Context>
@@ -107,22 +103,23 @@ void CumsumKernel(const Context& dev_ctx,
   std::vector<int64_t> inputs_dim =
       phi::vectorize<int64_t>(input_tensor.dims());
   ct.Add(input_tensor);
+  ct.Add(out, false);
+
   int params_exclusive = static_cast<int>(exclusive);
   int params_reverse = static_cast<int>(reverse);
   ns_CumSumKernel::Params params{params_axis, params_exclusive, params_reverse};
 
+  bool in_place = (input_tensor.data() == out->data());
+
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, ns_CumSumKernel::Params>(
-      "cumsum_fwd_", {inputs_dim}, &params);
+      in_place ? "CumSumKernel_" : "CumSumKernel", {inputs_dim}, &params);
 
   auto recipe = op_info.GetRecipe();
-  ct.Add(out, false);
   if (recipe == nullptr) {
     // compile
-    std::string op_node_name =
-        (input_tensor.data() == out->data()) ? "_cumsum_op" : "cumsum_op";
-    CumsumOperator op(op_info.guid_, op_node_name);
-    op.AddNode(ct, params);
+    CumsumOperator op;
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();

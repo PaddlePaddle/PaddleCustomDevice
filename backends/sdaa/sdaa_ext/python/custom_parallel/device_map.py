@@ -42,7 +42,7 @@ def device_core_map():
 
     dummy_input = paddle.to_tensor([1], place=paddle.CPUPlace(), dtype="int32")
     device_card = rank_ids(dummy_input).numpy().tolist()
-    card_core_map = dict()
+    card_core_map = {}
     for idx, val in enumerate(device_card):
         cur_id_list = card_core_map.get(val, [])
         cur_id_list.append(idx)
@@ -67,8 +67,8 @@ def get_cur_process_device_list():
     all_device_ids = [int(i) for i in all_device_ids]  # --devices, physical ids
     device_core_dict = device_core_map()
     devices_list = []
-    for key, val in device_core_dict.items():
+    for _, val in device_core_dict.items():
         cur_list = list(set(all_device_ids) & set(val))  # one physical card ids
-        if cur_list != []:
+        if cur_list:
             devices_list.append((all_device_ids, cur_list, cur_device_id))
     return devices_list

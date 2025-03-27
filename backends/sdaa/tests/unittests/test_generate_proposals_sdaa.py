@@ -422,6 +422,7 @@ class TestGenerateProposalsV2Op(OpTest):
             "RpnRois": self.rpn_rois[0],
             "RpnRoiProbs": self.rpn_roi_probs[0],
         }
+        print(self.anchors.shape, self.variances.shape)
         # print('Scores',self.scores.shape,flush=True)
         # print('BboxDeltas',self.bbox_deltas.shape,flush=True)
         # print('anchors',self.anchors.shape,flush=True)
@@ -506,6 +507,36 @@ class TestGenerateProposalsV2OpNoOffset(TestGenerateProposalsV2Op):
         self.min_size = 3.0
         self.eta = 1.0
         self.pixel_offset = False
+
+
+class TestGenerateProposalsV2Op_(TestGenerateProposalsV2Op):
+    def init_test_input(self):
+        batch_size = 1
+        input_channels = 20
+        layer_h = 16
+        layer_w = 16
+        input_feat = np.random.random(
+            (batch_size, input_channels, layer_h, layer_w)
+        ).astype("float32")
+        self.anchors, self.variances = anchor_generator_in_python(
+            input_feat=input_feat,
+            anchor_sizes=[16.0, 32.0],
+            aspect_ratios=[0.5, 1.0],
+            variances=[1.0, 1.0, 1.0, 1.0],
+            stride=[16.0, 16.0],
+            offset=0.5,
+        )
+        self.im_shape = np.array([[64, 64]]).astype("float32")
+        num_anchors = self.anchors.shape[2]
+
+        self.scores = np.random.random(
+            (batch_size, num_anchors, layer_h, layer_w)
+        ).astype("float32")
+        self.bbox_deltas = np.random.random(
+            (batch_size, num_anchors * 4, layer_h, layer_w)
+        ).astype("float32")
+        self.anchors = self.anchors.reshape([num_anchors * layer_h * layer_w, 4])
+        self.variances = self.variances.reshape([num_anchors * layer_h * layer_w, 4])
 
 
 if __name__ == "__main__":

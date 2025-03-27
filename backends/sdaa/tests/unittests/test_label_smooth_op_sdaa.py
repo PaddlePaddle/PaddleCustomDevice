@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -85,10 +85,61 @@ class TestLabelSmoothOp(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        if self.dtype == np.float16:
-            self.check_grad_with_place(self.place, ["X"], "Out")
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+
+class TestLabelSmoothBF16Op(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "label_smooth"
+        self.python_api = paddle.nn.functional.label_smooth
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        self.set_inputs()
+        self.set_attrs()
+        self.set_outputs()
+
+    def calc_out(self, label, epsilon, dist=None):
+        label_dim = label.shape[-1]
+        y = (1 - epsilon) * label
+        if dist is not None:
+            y += epsilon * dist
         else:
-            self.check_grad_with_place(self.place, ["X"], "Out")
+            y += epsilon / label_dim
+        return y.astype(self.dtype)
+
+    def set_inputs(self):
+        batch_size, label_dim = 64, 102
+        self.x = np.zeros((batch_size, label_dim)).astype(np.float32)
+        self.nonzero_index = np.random.randint(label_dim, size=(batch_size))
+        self.x[np.arange(batch_size), self.nonzero_index] = 1
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(self.x))
+        }
+
+    def set_attrs(self):
+        epsilon = 0.1
+        self.attrs = {"epsilon": epsilon}
+
+    def set_outputs(self):
+        dist = None if "PriorDist" not in self.inputs else self.inputs["PriorDist"]
+        out = self.calc_out(self.x, self.attrs["epsilon"], dist)
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
 
 
 class TestLabelSmoothOpWithPriorDist(TestLabelSmoothOp):

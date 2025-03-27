@@ -99,11 +99,9 @@ tecodnnPoolingMode_t GetTecodnnPoolingMode(const std::string& pooling_type,
         true,
         phi::errors::InvalidArgument(
             "MaxPool only support exclusive==false, but got true"));
-    PADDLE_ENFORCE_EQ(
-        ceil_mode,
-        false,
-        phi::errors::InvalidArgument(
-            "MaxPool in sdaa only support ceil_mode==False, but got true."));
+    if (ceil_mode) {
+      return TECODNN_POOLING_MAX_CEIL_TRUE;
+    }
     return TECODNN_POOLING_MAX;
   } else if (pooling_type == "avg") {
     tecodnnPoolingMode_t pooling_mode;

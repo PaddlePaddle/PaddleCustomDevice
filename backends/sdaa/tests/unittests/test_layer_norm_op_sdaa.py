@@ -21,6 +21,7 @@ from operator import mul
 import paddle
 import paddle.base as base
 import paddle.base.core as core
+import paddle.nn.functional as F
 
 paddle.enable_static()
 
@@ -178,90 +179,95 @@ class TestLayerNormOp(unittest.TestCase):
                 var_names += ["bias"]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = base.Program()
             vaild_name = ["x", "y", "y@GRAD"]
-            with base.program_guard(program):
-                block = program.global_block()
-                for name in ground_truth:
-                    if name in vaild_name:
-                        block.create_var(
-                            name=name, dtype=self.dtype, shape=ground_truth[name].shape
-                        )
-                    else:
-                        block.create_var(
-                            name=name, dtype=np.float32, shape=ground_truth[name].shape
-                        )
+            with paddle.pir_utils.OldIrGuard():
+                program = base.Program()
+                with base.program_guard(program):
+                    block = program.global_block()
+                    for name in ground_truth:
+                        if name in vaild_name:
+                            block.create_var(
+                                name=name,
+                                dtype=self.dtype,
+                                shape=ground_truth[name].shape,
+                            )
+                        else:
+                            block.create_var(
+                                name=name,
+                                dtype=np.float32,
+                                shape=ground_truth[name].shape,
+                            )
 
-                inputs = {"X": block.var("x")}
-                fetch_list = [
-                    "y",
-                    "mean",
-                    "variance",
-                    "x@GRAD",
-                ]
-                if has_scale:
-                    inputs["Scale"] = block.var("scale")
-                    fetch_list += ["scale@GRAD"]
-                if has_bias:
-                    inputs["Bias"] = block.var("bias")
-                    fetch_list += ["bias@GRAD"]
-                layer_norm_op = block.append_op(
-                    type="layer_norm",
-                    inputs=inputs,
-                    outputs={
-                        "Y": block.var("y"),
-                        "Mean": block.var("mean"),  # share the same memory
-                        "Variance": block.var("variance"),  # share the same memory
-                    },
-                    attrs={
-                        "epsilon": epsilon,
-                        "begin_norm_axis": begin_norm_axis,
-                        "use_mkldnn": use_mkldnn,
-                    },
-                )
-                # generate backward op_desc
-                grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(
-                    layer_norm_op.desc, set(), []
-                )
-                grad_op_desc = grad_op_desc_list[0]
-                new_op_desc = block.desc.append_op()
-                new_op_desc.copy_from(grad_op_desc)
-                for var_name in grad_op_desc.output_arg_names():
-                    block.desc.var(var_name.encode("ascii"))
-                grad_op_desc.infer_var_type(block.desc)
-                grad_op_desc.infer_shape(block.desc)
-                for arg in grad_op_desc.output_arg_names():
-                    grad_var = block.desc.find_var(arg.encode("ascii"))
-                    grad_var.set_dtype(core.VarDesc.VarType.FP32)
+                    inputs = {"X": block.var("x")}
+                    fetch_list = [
+                        "y",
+                        "mean",
+                        "variance",
+                        "x@GRAD",
+                    ]
+                    if has_scale:
+                        inputs["Scale"] = block.var("scale")
+                        fetch_list += ["scale@GRAD"]
+                    if has_bias:
+                        inputs["Bias"] = block.var("bias")
+                        fetch_list += ["bias@GRAD"]
+                    layer_norm_op = block.append_op(
+                        type="layer_norm",
+                        inputs=inputs,
+                        outputs={
+                            "Y": block.var("y"),
+                            "Mean": block.var("mean"),  # share the same memory
+                            "Variance": block.var("variance"),  # share the same memory
+                        },
+                        attrs={
+                            "epsilon": epsilon,
+                            "begin_norm_axis": begin_norm_axis,
+                            "use_mkldnn": use_mkldnn,
+                        },
+                    )
+                    # generate backward op_desc
+                    grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(
+                        layer_norm_op.desc, set(), []
+                    )
+                    grad_op_desc = grad_op_desc_list[0]
+                    new_op_desc = block.desc.append_op()
+                    new_op_desc.copy_from(grad_op_desc)
+                    for var_name in grad_op_desc.output_arg_names():
+                        block.desc.var(var_name.encode("ascii"))
+                    grad_op_desc.infer_var_type(block.desc)
+                    grad_op_desc.infer_shape(block.desc)
+                    for arg in grad_op_desc.output_arg_names():
+                        grad_var = block.desc.find_var(arg.encode("ascii"))
+                        grad_var.set_dtype(core.VarDesc.VarType.FP32)
 
-                program._sync_with_cpp()
-                exe = base.Executor(place)
-                out = exe.run(
-                    program,
-                    feed={
-                        name: var_dict[name]
-                        for name in ["x", "scale", "bias", "y@GRAD"]
-                    },
-                    fetch_list=fetch_list,
-                )
-                self.__assert_close(y, out[0], "y", self.atol)
-                self.__assert_close(mean, out[1], "mean", self.atol)
-                # self.__assert_close(variance, out[fetch_list.index('variance')], "variance", self.atol)
-                self.__assert_close(x_grad, out[3], "x_grad", self.atol)
-                if has_scale:
-                    self.__assert_close(
-                        scale_grad,
-                        out[fetch_list.index("scale@GRAD")],
-                        "scale_grad",
-                        self.atol,
+                    program._sync_with_cpp()
+                    exe = base.Executor(place)
+                    out = exe.run(
+                        program,
+                        feed={
+                            name: var_dict[name]
+                            for name in ["x", "scale", "bias", "y@GRAD"]
+                        },
+                        fetch_list=fetch_list,
                     )
-                if has_bias:
-                    self.__assert_close(
-                        bias_grad,
-                        out[fetch_list.index("bias@GRAD")],
-                        "bias_grad",
-                        self.atol,
-                    )
+                    self.__assert_close(y, out[0], "y", self.atol)
+                    self.__assert_close(mean, out[1], "mean", self.atol)
+                    # self.__assert_close(variance, out[fetch_list.index('variance')], "variance", self.atol)
+                    self.__assert_close(x_grad, out[3], "x_grad", self.atol)
+                    if has_scale:
+                        self.__assert_close(
+                            scale_grad,
+                            out[fetch_list.index("scale@GRAD")],
+                            "scale_grad",
+                            self.atol,
+                        )
+                    if has_bias:
+                        self.__assert_close(
+                            bias_grad,
+                            out[fetch_list.index("bias@GRAD")],
+                            "bias_grad",
+                            self.atol,
+                        )
 
         test_with_place(self.place, shape, begin_norm_axis)
 
@@ -283,6 +289,54 @@ class TestLayerNormOpFP16(TestLayerNormOp):
     def init_dtype(self):
         self.dtype = np.float16
         self.atol = 1e-2
+
+
+class TestBF16ScaleBiasLayerNorm(unittest.TestCase):
+    def check_main(self, x_np, weight_np, bias_np, dtype):
+        paddle.disable_static()
+
+        x = paddle.to_tensor(x_np)
+        weight = paddle.to_tensor(weight_np)
+        bias = paddle.to_tensor(bias_np)
+
+        if dtype == "bfloat16":
+            x = x.cast(paddle.base.core.VarDesc.VarType.BF16)
+
+        x.stop_gradient = False
+        weight.stop_gradient = False
+        bias.stop_gradient = False
+
+        y = F.layer_norm(x, x.shape[1:], weight, bias)
+        x_g, w_g, b_g = paddle.grad(y, [x, weight, bias])
+
+        y_np = y.cast("float32").numpy()
+        x_g_np = x_g.cast("float32").numpy()
+        w_g_np = w_g.cast("float32").numpy()
+        b_g_np = b_g.cast("float32").numpy()
+
+        paddle.enable_static()
+        return y_np, x_g_np, w_g_np, b_g_np
+
+    def test_main(self):
+        np.random.seed(123)
+        x_np = np.random.random([10, 20]).astype("float32")
+        weight_np = np.random.random([20]).astype("float32")
+        bias_np = np.random.random([20]).astype("float32")
+
+        y_np_1, x_g_np_1, w_g_np_1, b_g_np_1 = self.check_main(
+            x_np, weight_np, bias_np, "float32"
+        )
+        y_np_2, x_g_np_2, w_g_np_2, b_g_np_2 = self.check_main(
+            x_np, weight_np, bias_np, "bfloat16"
+        )
+
+        def assert_equal(x, y):
+            np.testing.assert_allclose(x, y, rtol=1e-05, atol=3e-2)
+
+        assert_equal(y_np_1, y_np_2)
+        assert_equal(x_g_np_1, x_g_np_2)
+        assert_equal(w_g_np_1, w_g_np_2)
+        assert_equal(b_g_np_1, b_g_np_2)
 
 
 if __name__ == "__main__":

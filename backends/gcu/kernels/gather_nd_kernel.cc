@@ -43,90 +43,95 @@ void GatherNdKernel(const Context &dev_ctx,
   }
 
   if (LaunchAOTKernel()) {
-    phi::DenseTensor input_x(x);
-    phi::DenseTensor input_index(index);
-    phi::DenseTensor output(*out);
+    THROW_AOT_UNIMPLEMENTED();
+    // phi::DenseTensor input_x(x);
+    // phi::DenseTensor input_index(index);
+    // phi::DenseTensor output(*out);
 
-    if (x.dtype() == phi::DataType::INT64) {
-      input_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32);
-    }
+    // if (x.dtype() == phi::DataType::INT64) {
+    //   input_x = custom_kernel::Cast(dev_ctx, x, phi::DataType::INT32);
+    // }
 
-    if (index.dtype() == phi::DataType::INT64) {
-      input_index = custom_kernel::Cast(dev_ctx, index, phi::DataType::INT32);
-    }
+    // if (index.dtype() == phi::DataType::INT64) {
+    //   input_index = custom_kernel::Cast(dev_ctx, index,
+    //   phi::DataType::INT32);
+    // }
 
-    if (out->dtype() == phi::DataType::INT64) {
-      auto meta = out->meta();
-      meta.dtype = phi::DataType::INT32;
-      output.set_meta(meta);
-      dev_ctx.template Alloc(&output, output.dtype());
-    }
+    // if (out->dtype() == phi::DataType::INT64) {
+    //   auto meta = out->meta();
+    //   meta.dtype = phi::DataType::INT32;
+    //   output.set_meta(meta);
+    //   dev_ctx.template Alloc(&output, output.dtype());
+    // }
 
-    std::vector<int64_t> src_shape = phi::vectorize(x.dims());
-    std::vector<int64_t> index_shape = phi::vectorize(index.dims());
-    int64_t src_rank = src_shape.size();
-    int64_t index_rank = index_shape.size();
+    // std::vector<int64_t> src_shape = phi::vectorize(x.dims());
+    // std::vector<int64_t> index_shape = phi::vectorize(index.dims());
+    // int64_t src_rank = src_shape.size();
+    // int64_t index_rank = index_shape.size();
 
-    int64_t indices_last_dim_size = index_shape.back();
-    int64_t slices_rank = src_rank - indices_last_dim_size;
-    int64_t batch_dims_size = index_rank - 1;
+    // int64_t indices_last_dim_size = index_shape.back();
+    // int64_t slices_rank = src_rank - indices_last_dim_size;
+    // int64_t batch_dims_size = index_rank - 1;
 
-    // * @param offset_dims: The set of dimensions in the output shape that
-    // offset
-    //                       into an array sliced from x.
-    std::vector<int64_t> offset_dims;
-    for (auto i = 0; i < slices_rank; ++i) {
-      offset_dims.push_back(batch_dims_size + i);
-    }
+    // // * @param offset_dims: The set of dimensions in the output shape that
+    // // offset
+    // //                       into an array sliced from x.
+    // std::vector<int64_t> offset_dims;
+    // for (auto i = 0; i < slices_rank; ++i) {
+    //   offset_dims.push_back(batch_dims_size + i);
+    // }
 
-    // * @param slice_sizes: slice_sizes[i] is the bounds for the slice on
-    //                       dimension i.
-    std::vector<int64_t> slice_sizes(indices_last_dim_size, 1);
-    for (int64_t i = indices_last_dim_size; i < src_rank; ++i) {
-      slice_sizes.push_back(src_shape.at(i));
-    }
+    // // * @param slice_sizes: slice_sizes[i] is the bounds for the slice on
+    // //                       dimension i.
+    // std::vector<int64_t> slice_sizes(indices_last_dim_size, 1);
+    // for (int64_t i = indices_last_dim_size; i < src_rank; ++i) {
+    //   slice_sizes.push_back(src_shape.at(i));
+    // }
 
-    // * @param collapsed_slice_dims: The set of dimensions in each slice that
-    // are
-    //                                collapsed away.
-    //                                These dimensions must have size 1.
-    std::vector<int64_t> collapsed_slice_dims;
-    for (auto i = 0; i < indices_last_dim_size; ++i) {
-      collapsed_slice_dims.push_back(i);
-    }
+    // // * @param collapsed_slice_dims: The set of dimensions in each slice
+    // that
+    // // are
+    // //                                collapsed away.
+    // //                                These dimensions must have size 1.
+    // std::vector<int64_t> collapsed_slice_dims;
+    // for (auto i = 0; i < indices_last_dim_size; ++i) {
+    //   collapsed_slice_dims.push_back(i);
+    // }
 
-    // * @param start_index_map: A map that describes how to map indices in
-    //                           start_indices to legal indices into x.
-    std::vector<int64_t> start_index_map = collapsed_slice_dims;
+    // // * @param start_index_map: A map that describes how to map indices in
+    // //                           start_indices to legal indices into x.
+    // std::vector<int64_t> start_index_map = collapsed_slice_dims;
 
-    // * @param index_vector_dim: The dimension in start_indices that "contains"
-    //                            the starting indices.
-    int64_t index_vector_dim = index_rank - 1;
+    // // * @param index_vector_dim: The dimension in start_indices that
+    // "contains"
+    // //                            the starting indices.
+    // int64_t index_vector_dim = index_rank - 1;
 
-    // * @param indices_are_sorted: Whether the indices are guaranteed to be
-    //                              sorted by the caller.
-    bool indices_are_sorted = false;
+    // // * @param indices_are_sorted: Whether the indices are guaranteed to be
+    // //                              sorted by the caller.
+    // bool indices_are_sorted = false;
 
-    // * @param unique_indices: Whether the indices are guaranteed to be unique
-    //                          by the caller.
-    bool unique_indices = false;
+    // // * @param unique_indices: Whether the indices are guaranteed to be
+    // unique
+    // //                          by the caller.
+    // bool unique_indices = false;
 
-    LAUNCH_TOPSATENOP(topsxlaGather,
-                      dev_ctx,
-                      output,
-                      input_x,
-                      input_index,
-                      offset_dims,
-                      slice_sizes,
-                      collapsed_slice_dims,
-                      start_index_map,
-                      index_vector_dim,
-                      indices_are_sorted,
-                      unique_indices);
+    // LAUNCH_TOPSATENOP(topsxlaGather,
+    //                   dev_ctx,
+    //                   output,
+    //                   input_x,
+    //                   input_index,
+    //                   offset_dims,
+    //                   slice_sizes,
+    //                   collapsed_slice_dims,
+    //                   start_index_map,
+    //                   index_vector_dim,
+    //                   indices_are_sorted,
+    //                   unique_indices);
 
-    if (out->dtype() == phi::DataType::INT64) {
-      custom_kernel::Cast(dev_ctx, output, phi::DataType::INT64, out);
-    }
+    // if (out->dtype() == phi::DataType::INT64) {
+    //   custom_kernel::Cast(dev_ctx, output, phi::DataType::INT64, out);
+    // }
 
   } else {  // kernel impl base on JIT
     TensorNameMap input_names;
@@ -219,14 +224,14 @@ void GatherNdGradKernel(const Context &dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(gather_nd,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::GatherNdKernel,
-                          int,
-                          phi::dtype::float16,
-                          float,
-                          bool) {}
+// PD_REGISTER_PLUGIN_KERNEL(gather_nd,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::GatherNdKernel,
+//                           int,
+//                           phi::dtype::float16,
+//                           float,
+//                           bool) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_nd_grad,
                           gcu,

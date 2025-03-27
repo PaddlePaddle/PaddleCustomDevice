@@ -32,8 +32,8 @@ def fused_rotary_position_embedding(query, key, cos, sin):
     Apply Rotary Position Embedding kernel.
 
     Args:
-        query (Tensor): The query Tensor with data type float32. The shape of q must be [seq_len, batch_size, num_heads, head_dim] and head_dim must be a multiple of 32.
-        key (Tensor): The key Tensor with data type float32. The shape of k must be [seq_len, batch_size, num_heads, head_dim] and head_dim must be a multiple of 32.
+        query (Tensor): The query Tensor with data type float32. The shape of q must be [batch_size, seq_len, num_heads, head_dim] and head_dim must be 128.
+        key (Tensor): The key Tensor with data type float32. The shape of k must be [batch_size, seq_len, num_heads, head_dim] and head_dim must be 128.
         cos  (Tensor): The cos Tensor with data type float32.
         sin (Tensor): The sin Tensor with data type float32.
 
@@ -47,11 +47,11 @@ def fused_rotary_position_embedding(query, key, cos, sin):
             >>> import paddle
             >>> import paddle_sdaa
 
-            >>> q = paddle.randn([1, 1, 4, 64], dtype='float32')
-            >>> k = paddle.randn([1, 1, 4, 64], dtype='float32')
+            >>> q = paddle.randn([1, 1, 4, 128], dtype='float32')
+            >>> k = paddle.randn([1, 1, 4, 128], dtype='float32')
 
-            >>> x = paddle.randn([1, 1, 1, 64], dtype='float32')
-            >>> y = paddle.randn([1, 1, 1, 64], dtype='float32')
+            >>> x = paddle.randn([1, 1, 1, 128], dtype='float32')
+            >>> y = paddle.randn([1, 1, 1, 128], dtype='float32')
             >>> sin = paddle.sin(x)
             >>> cos = paddle.cos(y)
             >>> out_q, out_k = paddle_sdaa.ops.fused_rotary_position_embedding(q, k, cos, sin)

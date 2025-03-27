@@ -54,6 +54,9 @@ class TestIdentity(OpTest):
         np.testing.assert_allclose(
             conv_weight_numpy, conv_weight_numpy_storage, atol=1e-6
         )
+        conv_weight = paddle.to_tensor(conv_weight_numpy)
+        conv_weight = paddle._C_ops.npu_identity(conv_weight, 0)
+        paddle.allclose(conv_weight, conv_cpu.weight)
 
 
 if __name__ == "__main__":

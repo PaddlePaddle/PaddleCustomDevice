@@ -80,11 +80,13 @@ PD_REGISTER_PLUGIN_KERNEL(label_smooth,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(label_smooth_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

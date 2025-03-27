@@ -29,12 +29,12 @@ class Scale : public HpuOperator {
  public:
   Scale() : HpuOperator("scale_", false) {}
 
-  void AddNode(ConvertTensors& ct, ScaleParams& params) {
+  void AddNode(ConvertTensors& ct, ScaleParams& params, bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
     synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
+    if (in_place) {
       section = createSection();
     }
 
@@ -158,14 +158,11 @@ class Scale : public HpuOperator {
 class ScaleCast : public HpuOperator {
  public:
   ScaleCast() : HpuOperator("scale_", false) {}
-  void AddNode(ConvertTensors& ct, ScaleParams& params) {
+  void AddNode(ConvertTensors& ct, ScaleParams& params, bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::string guid_full = "constant_f32";
     std::string name_scaler = guid_ + "full_scaler";
@@ -367,17 +364,21 @@ void ScaleKernel(const Context& dev_ctx,
   params.scalerParams.constant.f = scale;
   params.biasParams.constant.f = bias;
 
+  bool in_place = (x.data() == out->data());
+  std::string guid_prefix =
+      (x.dtype() != phi::DataType::FLOAT32)
+          ? (in_place ? "ScaleCastKernel_" : "ScaleCastKernel")
+          : (in_place ? "ScaleKernel_" : "ScaleKernel");
+
   OpCacheOperator op_info;
-  std::string op_name =
-      (x.data() == out->data()) ? "_scaleKernel" : "scaleKernel";
-  op_info.prepareOpInfo<T, ScaleParams>(op_name, inputs_dims, &params);
+  op_info.prepareOpInfo<T, ScaleParams>(guid_prefix, inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     if (x.dtype() != phi::DataType::FLOAT32) {
       ScaleCast op;
 
-      op.AddNode(ct, params);
+      op.AddNode(ct, params, in_place);
       op.Compile();
       op_info.setOp(op);
 
@@ -385,7 +386,7 @@ void ScaleKernel(const Context& dev_ctx,
     } else {
       Scale op;
 
-      op.AddNode(ct, params);
+      op.AddNode(ct, params, in_place);
       op.Compile();
       op_info.setOp(op);
 

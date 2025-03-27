@@ -38,7 +38,6 @@ SEED = 2021
 EPOCH = 100
 
 
-# @skip_check_grad_ci("haven't implemention")
 class TestSliceOp(OpTest):
     def setUp(self):
         self.op_type = "slice"
@@ -399,6 +398,58 @@ class TestSliceOpDecsDimFp16(TestSliceOpDecsDim):
         self.dtype = np.float16
 
 
+class TestSliceOpDecsMultiDim(TestSliceOpDecsDim):
+    def config(self):
+        self.input = np.random.random([1, 2, 8, 3, 3]).astype(self.dtype)
+        self.starts = [0, 0]
+        self.ends = [1, 1]
+        self.axes = [3, 4]
+        self.decrease_axis = [3, 4]
+        self.infer_flags = [1, 1, 1]
+        self.out = self.input[..., 0, 0]
+
+    def test_check_grad_normal(self):
+        self.check_grad_with_place(
+            self.place,
+            ["Input"],
+            "Out",
+            numeric_place=paddle.CPUPlace(),
+        )
+
+
+class TestSliceOpDecsMultiDim2(TestSliceOpDecsMultiDim):
+    def config(self):
+        self.input = np.random.random([1, 2, 8, 3, 3, 4]).astype(self.dtype)
+        self.starts = [0, 0, 0]
+        self.ends = [1, 1, 2]
+        self.axes = [3, 4, 5]
+        self.decrease_axis = [3, 4]
+        self.infer_flags = [1, 1, 1]
+        self.out = self.input[..., 0, 0, 0:2]
+
+
+class TestSliceOpDecsMultiDim3(TestSliceOpDecsMultiDim):
+    def config(self):
+        self.input = np.random.random([1, 2, 8, 3, 3, 5]).astype(self.dtype)
+        self.starts = [0, 0, 0, 2]
+        self.ends = [1, 1, 1, 4]
+        self.axes = [2, 3, 4, 5]
+        self.decrease_axis = [2, 3, 4]
+        self.infer_flags = [1, 1, 1]
+        self.out = self.input[..., 0, 0, 0, 2:4]
+
+
+class TestSliceOpDecsMultiDim4(TestSliceOpDecsMultiDim):
+    def config(self):
+        self.input = np.random.random([3, 2, 8, 3, 3, 5]).astype(self.dtype)
+        self.starts = [1, 0, 0, 0, 2]
+        self.ends = [2, 1, 1, 1, 4]
+        self.axes = [0, 2, 3, 4, 5]
+        self.decrease_axis = [2, 3, 4]
+        self.infer_flags = [1, 1, 1]
+        self.out = self.input[1:2, :, 0, 0, 0, 2:4]
+
+
 class TestSliceOpDecsDim2(TestSliceOpDecsDim):
     def config(self):
         self.input = np.random.random([3, 4, 5, 6]).astype(self.dtype)
@@ -667,14 +718,21 @@ class TestSliceOpIndexApi(OpTest):
     def test_api_dygraph(self):
         paddle.disable_static()
         paddle.set_device("sdaa")
-        input = paddle.to_tensor([0.0], dtype=self.dtype)
-        output_sdaa = input[0]
+        input_sdaa = paddle.arange(100, dtype=self.dtype).reshape([10, 10])
+        input_sdaa.stop_gradient = False
+        output_sdaa = input_sdaa[0]
+        output_sdaa.backward()
+        grad_sdaa = input_sdaa.grad.numpy()
         assert "sdaa" in str(output_sdaa.place)
         paddle.set_device("cpu")
-        input = paddle.to_tensor([0.0], dtype=self.dtype)
-        output_cpu = input[0]
+        input_cpu = paddle.arange(100, dtype=self.dtype).reshape([10, 10])
+        input_cpu.stop_gradient = False
+        output_cpu = input_cpu[0]
+        output_cpu.backward()
+        grad_cpu = input_cpu.grad.numpy()
         assert "cpu" in str(output_cpu.place)
         np.testing.assert_allclose(output_cpu.numpy(), output_sdaa.numpy(), atol=1e-10)
+        np.testing.assert_allclose(grad_cpu, grad_sdaa, atol=1e-10)
 
 
 class TestSliceOpIndexApi_double(TestSliceOpIndexApi):

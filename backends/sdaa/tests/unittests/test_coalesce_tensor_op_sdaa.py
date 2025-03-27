@@ -133,10 +133,7 @@ class TestAllocContinuousSpace(OpTest):
 
     def verify_output(self, place):
         with base.dygraph.base.guard(place=place):
-            tensor_input = [
-                base.dygraph.base.to_variable(value=data[1])
-                for data in self.inputs["Input"]
-            ]
+            tensor_input = [paddle.to_tensor(data[1]) for data in self.inputs["Input"]]
             eager_outputs, eager_fused_output = coalesce_tensor_eager_api(
                 tensor_input,
                 datatype=self.attrs["dtype"],

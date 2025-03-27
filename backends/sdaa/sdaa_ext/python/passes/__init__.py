@@ -25,6 +25,7 @@
 # OF SUCH DAMAGE.
 
 from . import common
+from . import conv_bn_fused_pass
 
 from .ir_custom_pass_patch import monkey_patch_for_custom_pass
 

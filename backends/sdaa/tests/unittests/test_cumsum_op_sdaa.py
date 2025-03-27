@@ -50,7 +50,7 @@ class TestCumsumOp(unittest.TestCase):
         self.assertTrue(np.array_equal(z, y.numpy()))
 
     def run_static(self, use_custom_device=False):
-        with base.program_guard(base.Program()):
+        with paddle.static.program_guard(paddle.static.Program()):
             data_np = np.random.random((100, 100)).astype(np.float32)
             x = paddle.static.data("X", [100, 100])
             y = paddle.cumsum(x)
@@ -67,7 +67,7 @@ class TestCumsumOp(unittest.TestCase):
             exe.run(base.default_startup_program())
             out = exe.run(
                 feed={"X": data_np},
-                fetch_list=[y.name, y2.name, y3.name, y4.name, y5.name, y6.name],
+                fetch_list=[y, y2, y3, y4, y5, y6],
             )
 
             z = np.cumsum(data_np)
@@ -87,10 +87,11 @@ class TestCumsumOp(unittest.TestCase):
         self.run_static(use_custom_device=True)
 
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data("x", [3, 4])
-            y = paddle.cumsum(x, name="out")
-            self.assertTrue("out" in y.name)
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data("x", [3, 4])
+                y = paddle.cumsum(x, name="out")
+                self.assertTrue("out" in y.name)
 
 
 def cumsum_wrapper(x, axis=-1, flatten=False, exclusive=False, reverse=False):
@@ -256,13 +257,14 @@ class TestCumSumWithFlatten2(TestCumSumOp1):
 # ----------------Cumsum Int64----------------
 class TestCumSumOpInt64(TestCumSumOp1):
     def init_testcase(self):
-        self.attrs = {"axis": -1, "reverse": True}
+        self.attrs = {"axis": -1, "reverse": False}
         self.inputs = {
             "X": np.random.randint(1, 10000, size=(5, 6, 10)).astype(self.dtype)
         }
-        self.outputs = {
-            "Out": np.flip(np.flip(self.inputs["X"], axis=2).cumsum(axis=2), axis=2)
-        }
+        self.outputs = {"Out": np.cumsum(self.inputs["X"], -1)}
+
+    def init_dtype(self):
+        self.dtype = np.int64
 
 
 def create_test_int64(parent):
@@ -282,6 +284,7 @@ create_test_int64(TestCumSumOp5)
 create_test_int64(TestCumSumOp7)
 create_test_int64(TestCumSumWithFlatten1)
 create_test_int64(TestCumSumWithFlatten2)
+
 # tecodnn only support reverse=false, exclusive=false when dtype is int64
 # create_test_int64(TestCumSumOp2)
 # create_test_int64(TestCumSumExclusive1)
@@ -290,6 +293,40 @@ create_test_int64(TestCumSumWithFlatten2)
 # create_test_int64(TestCumSumExclusive4)
 # create_test_int64(TestCumSumExclusive5)
 # create_test_int64(TestCumSumReverseExclusive)
+
+
+# ----------------Cumsum Int32----------------
+class TestCumSumOpInt32(TestCumSumOp1):
+    def init_testcase(self):
+        self.attrs = {"axis": -1, "reverse": True}
+        self.inputs = {
+            "X": np.random.randint(1, 10000, size=(5, 6, 10)).astype(self.dtype)
+        }
+        self.outputs = {
+            "Out": np.flip(np.flip(self.inputs["X"], axis=2).cumsum(axis=2), axis=2)
+        }
+
+    def init_dtype(self):
+        self.dtype = np.int32
+
+
+def create_test_int32(parent):
+    class TestCumSumInt32(parent):
+        def init_dtype(self):
+            self.dtype = np.int32
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Int32")
+    TestCumSumInt32.__name__ = cls_name
+    globals()[cls_name] = TestCumSumInt32
+
+
+create_test_int32(TestCumSumOp1)
+create_test_int32(TestCumSumOp3)
+create_test_int32(TestCumSumOp4)
+create_test_int32(TestCumSumOp5)
+create_test_int32(TestCumSumOp7)
+create_test_int32(TestCumSumWithFlatten1)
+create_test_int32(TestCumSumWithFlatten2)
 
 if __name__ == "__main__":
     unittest.main()

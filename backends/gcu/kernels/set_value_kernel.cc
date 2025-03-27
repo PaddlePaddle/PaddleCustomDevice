@@ -249,22 +249,22 @@ void SetValueKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(set_value,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::SetValueKernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          bool) {}
+// PD_REGISTER_PLUGIN_KERNEL(set_value,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::SetValueKernel,
+//                           float,
+//                           double,
+//                           int,
+//                           int64_t,
+//                           bool) {}
 
-PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::SetTensorValueKernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          bool) {}
+// PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::SetTensorValueKernel,
+//                           float,
+//                           double,
+//                           int,
+//                           int64_t,
+//                           bool) {}

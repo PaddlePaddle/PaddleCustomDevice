@@ -141,12 +141,15 @@ void MergedMomentumKernel(
   static bool is_first_time = true;
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") && is_first_time) {
     for (int i = 0; i < M; i++) {
-      if (!param[i]->storage_properties_initialized() &&
-          grad[i]->storage_properties_initialized()) {
+      if (grad[i]->storage_properties_initialized()) {
         auto grad_properties =
             grad[i]->storage_properties<SDAAStorageProperties>();
-        sdaa_ops::swapTensorData(dev_ctx, *param[i], grad_properties);
-        sdaa_ops::swapTensorData(dev_ctx, *velocity[i], grad_properties);
+        if (!param[i]->storage_properties_initialized()) {
+          sdaa_ops::swapTensorData(dev_ctx, *param[i], grad_properties);
+        }
+        if (!velocity[i]->storage_properties_initialized()) {
+          sdaa_ops::swapTensorData(dev_ctx, *velocity[i], grad_properties);
+        }
       }
     }
     is_first_time = false;

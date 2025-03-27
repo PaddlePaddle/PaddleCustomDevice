@@ -50,7 +50,7 @@ class set_value_flags_test(unittest.TestCase):
         )
 
         topk_ids_out, stop_flags_out = paddlenlp_ops.set_stop_value_multi_ends(
-            topk_ids, stop_flags, end_ids
+            topk_ids, stop_flags, end_ids, 0
         )
 
         self.assertTrue(paddle.all(paddle.equal(topk_ids_out_ref, topk_ids_out)))

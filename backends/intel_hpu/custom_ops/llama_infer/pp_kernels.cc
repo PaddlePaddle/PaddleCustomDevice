@@ -173,7 +173,8 @@ class GetStopFlagsMultiOp : public PostProcessOp {
 
 std::vector<paddle::Tensor> GetStopFlagsMulti(const paddle::Tensor& topk_ids,
                                               const paddle::Tensor& stop_flags,
-                                              const paddle::Tensor& end_ids) {
+                                              const paddle::Tensor& end_ids,
+                                              int64_t mode) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           topk_ids.place()));
@@ -264,6 +265,7 @@ std::vector<paddle::DataType> GetStopFlagsMultiInferDtype(
 
 PD_BUILD_OP(set_stop_value_multi_ends)
     .Inputs({"topk_ids", "stop_flags", "end_ids"})
+    .Attrs({"mode: int64_t"})
     .Outputs({"topk_ids_out", "stop_flags_out"})
     .SetKernelFn(PD_KERNEL(GetStopFlagsMulti))
     .SetInferShapeFn(PD_INFER_SHAPE(GetStopFlagsMultiInferShape))

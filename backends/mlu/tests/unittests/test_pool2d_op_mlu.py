@@ -1040,7 +1040,7 @@ class TestPool2DAPI(unittest.TestCase):
             padding=[0, 0],
             data_format="NHWC",
         )
-        assert out_9.shape == (2, -1, 3, 3)
+        assert tuple(out_9.shape) == (2, -1, 3, 3)
 
         # test negetive
         out_10 = paddle.nn.functional.avg_pool2d(
@@ -1050,7 +1050,7 @@ class TestPool2DAPI(unittest.TestCase):
             padding=[0, 0],
             data_format="NCHW",
         )
-        assert out_10.shape == (2, 3, -1, -1)
+        assert tuple(out_10.shape) == (2, 3, -1, -1)
 
         exe = base.Executor(place=paddle.CustomPlace("mlu", 0))
 

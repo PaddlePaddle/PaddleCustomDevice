@@ -180,20 +180,8 @@ C_Status InitEigenDevice(const C_Device device, Eigen::GpuDevice* eigen_device) 
 C_Status DestoryEigenDevice(const C_Device device, Eigen::GpuDevice* eigen_device) {
     if (eigen_device == nullptr) return C_SUCCESS;
 
-    Eigen::GpuStreamDevice* stream_device = 
-        static_cast<Eigen::GpuStreamDevice*>(eigen_device->streamDevice());
-
-    cudaStream_t* cuda_stream = stream_device->stream();
-
     eigen_device->~GpuDevice();
-
-    delete stream_device;
-
-    cudaError_t cuda_err = cudaStreamDestroy(*cuda_stream);
-    if (cuda_err != cudaSuccess) {
-        return C_ERROR;
-    }
-
+    
     return C_SUCCESS;
 }
 

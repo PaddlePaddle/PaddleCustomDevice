@@ -158,6 +158,7 @@ C_Status StreamWaitEvent(const C_Device device,
 
 C_Status VisibleDevices(size_t *devices) { return C_SUCCESS; }
 
+// modified for eigen test
 C_Status InitEigenDevice(Eigen::GpuDevice* eigen_device) {
   cudaStream_t stream;
     cudaError_t cuda_err = cudaStreamCreate(&stream);

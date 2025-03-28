@@ -98,6 +98,7 @@ file(
   GLOB TEST_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
   list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu)
+  # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/l1_norm_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu)

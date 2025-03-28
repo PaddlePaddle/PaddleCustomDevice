@@ -113,6 +113,8 @@ class TestReluAPI(unittest.TestCase):
             res = exe.run(feed={"X": self.x_np}, fetch_list=[out1, out2])
         out_ref = np.maximum(self.x_np, 0)
         for r in res:
+            print("TestReluAPI:test_static_api:out_ref=", out_ref)
+            print("TestReluAPI:test_static_api:r=", r)
             np.testing.assert_allclose(out_ref, r, rtol=1e-05)
 
     def test_dygraph_api(self):
@@ -123,6 +125,8 @@ class TestReluAPI(unittest.TestCase):
         out2 = self.relu(x)
         out_ref = np.maximum(self.x_np, 0)
         for r in [out1, out2]:
+            print("TestReluAPI:test_dygraph_api:out_ref=", out_ref)
+            print("TestReluAPI:test_dygraph_api:r=", r.numpy())
             np.testing.assert_allclose(out_ref, r.numpy(), rtol=1e-05)
         paddle.enable_static()
 

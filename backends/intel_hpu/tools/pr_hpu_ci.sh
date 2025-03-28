@@ -30,8 +30,12 @@ mkdir -p build && cd build
 cmake .. 
 make -j $(nproc)
 
-python -m pip install --force-reinstall -U dist/paddle*.whl
+# Update lib.so
+rm -rf  /usr/lib/habanalabs/libcustom_tpc_perf_lib.so 
+wget --no-proxy -q https://paddle-ci.cdn.bcebos.com/libcustom_tpc_perf_lib.so -P /usr/lib/habanalabs/ 
+cp /usr/lib/habanalabs/libcustom_tpc_perf_lib.so ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/build/
 
+python -m pip install --force-reinstall -U dist/paddle*.whl
 export PYTHONPATH=/workspace/PaddleCustomDevice/python:/workspace/PaddleCustomDevice/python/tests:$PYTHONPATH
 
 echo "Start Test"

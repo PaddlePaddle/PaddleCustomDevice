@@ -159,7 +159,7 @@ C_Status StreamWaitEvent(const C_Device device,
 C_Status VisibleDevices(size_t *devices) { return C_SUCCESS; }
 
 // modified for eigen test
-C_Status InitEigenDevice(Eigen::GpuDevice* eigen_device) {
+C_Status InitEigenDevice(const C_Device device, Eigen::GpuDevice* eigen_device) {
   cudaStream_t stream;
     cudaError_t cuda_err = cudaStreamCreate(&stream);
     if (cuda_err != cudaSuccess) {
@@ -174,6 +174,26 @@ C_Status InitEigenDevice(Eigen::GpuDevice* eigen_device) {
     }
 
     new (eigen_device) Eigen::GpuDevice(stream_device);
+    return C_SUCCESS;
+}
+
+C_Status DestoryEigenDevice(const C_Device device, Eigen::GpuDevice* eigen_device) {
+    if (eigen_device == nullptr) return C_SUCCESS;
+
+    Eigen::GpuStreamDevice* stream_device = 
+        static_cast<Eigen::GpuStreamDevice*>(eigen_device->streamDevice());
+
+    cudaStream_t* cuda_stream = stream_device->stream();
+
+    eigen_device->~GpuDevice();
+
+    delete stream_device;
+
+    cudaError_t cuda_err = cudaStreamDestroy(*cuda_stream);
+    if (cuda_err != cudaSuccess) {
+        return C_ERROR;
+    }
+
     return C_SUCCESS;
 }
 
@@ -369,6 +389,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_device_list = GetDevicesList;
 
   params->interface->init_eigen_device = InitEigenDevice;
+  params->interface->destory_eigen_device = DestoryEigenDevice;
 //   params->interface->device_memory_stats = DeviceMemStats;
 //   params->interface->device_min_chunk_size = DeviceMinChunkSize;
 

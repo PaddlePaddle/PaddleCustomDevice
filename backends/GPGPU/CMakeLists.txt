@@ -13,13 +13,14 @@
 # the License
 
 cmake_minimum_required(VERSION 3.10)
-set(PYTHON_VERSION "3.8.16")
+set(PYTHON_VERSION "3.8")
 project(paddle-custom-gpu CXX C)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -H")
-
 
 
 include(paddle)
@@ -40,6 +41,9 @@ add_definitions(-DGPUContext=CustomContext)
 
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
+
+add_definitions(-DUSE_CUDA_STREAM_TYPE)
+add_definitions(-DSTREAM_TYPE=cudaStream_t)
 
 message(STATUS "CUDA_INCLUDE_DIRS:${CUDA_INCLUDE_DIRS}")
 message(STATUS "PADDLE INIT DONE!")
@@ -64,7 +68,8 @@ endif()
 set(RUNTIME_SRCS runtime/runtime.cc)
 
 message(STATUS "PADDLE_SOURCE_DIR = ${PADDLE_SOURCE_DIR}")
-
+set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" CACHE PATH "Third party libraries directory.")
+message(STATUS "THIRD_PARTY_PATH = ${THIRD_PARTY_PATH}")
 include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/kernels)
 # link_directories(${PADDLE_LIB_DIR})
@@ -92,6 +97,7 @@ set(CU_FILE_FOLDER ${PADDLE_SOURCE_DIR}/Paddle/paddle/phi/kernels/gpu/)
 file(
   GLOB TEST_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
+  list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu)
 # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu)
@@ -111,7 +117,9 @@ message(STATUS "TEST_SRCS = ${TEST_SRCS}")
 
 
 # set(CPU_RUN runtime/runtime.cc)
-set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu")
+
+# set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu")
+set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu")
 # set_source_files_properties(/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/index_add_kernel.cu PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
 # set_source_files_properties(${TEST_SRCS} PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
 
@@ -128,8 +136,6 @@ add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
 target_link_libraries(${TEST_TARGET} PRIVATE glog)
 target_link_libraries(${TEST_TARGET} PRIVATE ${PADDLE_CORE_LIB})
 
-message("include: =====", ${C_INCLUDE_PATH})
-message("include: =====", ${CPLUS_INCLUDE_PATH})
 include_directories(BEFORE /home/PaddleCustomDevice/Paddle)
 # set_property(
 #   TEST ${TEST_TARGET}
@@ -141,11 +147,15 @@ include_directories(BEFORE /home/PaddleCustomDevice/Paddle)
 #     # LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PADDLE_BINARY_DIR}/python/paddle/libs:${PADDLE_BINARY_DIR}/python/paddle/base
 # )
 
-target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1)
+target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1 
+    USE_CUDA_STREAM_TYPE 
+    STREAM_TYPE=cudaStream_t )
 
 add_custom_command(
-  OUTPUT index_add_kernel_preprocessed.cc
+  # OUTPUT index_add_kernel_preprocessed.cc
+  OUTPUT bincount_kernel_preprocessed.cc
   COMMAND nvcc -E ${TEST_SRCS}
+    -include complex
     -I${PADDLE_SOURCE_DIR}
     -I${POPART_DIR}/include
     -I${JEMALLOC_INCLUDE_DIR} 
@@ -165,16 +175,17 @@ add_custom_command(
     -I${ZLIB_INCLUDE_DIR}
     -I${GTEST_INCLUDE_DIR}
     -I${PADDLE_SOURCE_DIR}/third_party/eigen3
-    -I${PADDLE_SOURCE_DIR}/third_party/install/glog/include
-    -I${PADDLE_SOURCE_DIR}/third_party/gflags
-    -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
+    -I${PADDLE_SOURCE_DIR}/build/third_party/install/glog/include
+    -I${PADDLE_SOURCE_DIR}/build/third_party/install/gflags
+    # -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
+    -o ${CMAKE_CURRENT_BINARY_DIR}/bincount_kernel_preprocessed.cc
     DEPENDS ${PHI_DEPS})
 message("------------------- ${PHI_DEPS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}")
 
 
 add_custom_target(mypreprocess
-    DEPENDS index_add_kernel_preprocessed.cc
+    DEPENDS bincount_kernel_preprocessed.cc
 )
 add_dependencies(${TEST_TARGET} mypreprocess)
 

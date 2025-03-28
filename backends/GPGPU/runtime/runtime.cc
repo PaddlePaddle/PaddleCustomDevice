@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#define EIGEN_USE_GPU
 #include <errno.h>
 #include <fcntl.h>
 #include <semaphore.h>
@@ -23,8 +23,10 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+
 #include <cuda_runtime.h>
 #include "paddle/phi/backends/device_ext.h"
+#include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f
 
@@ -155,6 +157,24 @@ C_Status StreamWaitEvent(const C_Device device,
 }
 
 C_Status VisibleDevices(size_t *devices) { return C_SUCCESS; }
+
+C_Status InitEigenDevice(Eigen::GpuDevice* eigen_device) {
+  cudaStream_t stream;
+    cudaError_t cuda_err = cudaStreamCreate(&stream);
+    if (cuda_err != cudaSuccess) {
+        return C_ERROR;
+    }
+
+    Eigen::GpuStreamDevice* stream_device = new Eigen::GpuStreamDevice(&stream);
+
+    if (stream_device == nullptr) {
+        cudaStreamDestroy(stream);
+        return C_ERROR;
+    }
+
+    new (eigen_device) Eigen::GpuDevice(stream_device);
+    return C_SUCCESS;
+}
 
 // C_Status DeviceMemStats(const C_Device device,
 //                         size_t *total_memory,
@@ -346,6 +366,8 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;
+
+  params->interface->init_eigen_device = InitEigenDevice;
 //   params->interface->device_memory_stats = DeviceMemStats;
 //   params->interface->device_min_chunk_size = DeviceMinChunkSize;
 

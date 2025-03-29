@@ -108,9 +108,30 @@ class TestRandpermOpFloat64(TestRandpermOp):
 
 class TestRandpermOpError(unittest.TestCase):
     def test_errors(self):
-        with program_guard(Program(), Program()):
-            self.assertRaises(ValueError, paddle.randperm, -3)
-            self.assertRaises(TypeError, paddle.randperm, 10, "int8")
+        paddle.set_device("npu")
+        if paddle.framework.use_pir_api():
+
+            def test_invalid_n():
+                with program_guard(Program(), Program()):
+                    paddle.randperm(-3)
+                    exe = paddle.static.Executor()
+                    exe.run(paddle.static.default_startup_program())
+                    exe.run(paddle.static.default_main_program())
+
+            self.assertRaises(RuntimeError, test_invalid_n)
+
+            def test_invalid_dtype():
+                with program_guard(Program(), Program()):
+                    paddle.randperm(10, "int8")
+                    exe = paddle.static.Executor()
+                    exe.run(paddle.static.default_startup_program())
+                    exe.run(paddle.static.default_main_program())
+
+            self.assertRaises(TypeError, test_invalid_dtype)
+        else:
+            with program_guard(Program(), Program()):
+                self.assertRaises(ValueError, paddle.randperm, -3)
+                self.assertRaises(TypeError, paddle.randperm, 10, "int8")
 
 
 class TestRandpermAPI(unittest.TestCase):

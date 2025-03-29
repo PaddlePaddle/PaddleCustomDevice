@@ -133,7 +133,9 @@ class TestRollInt32OpCase3(TestRollInt32):
 
 class TestRollAPI(unittest.TestCase):
     def input_data(self):
-        self.data_x = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+        self.data_x = np.array(
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
+        ).astype("float32")
 
     def test_roll_op_api(self):
         self.input_data()
@@ -142,11 +144,10 @@ class TestRollAPI(unittest.TestCase):
         # case 1:
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1, 3], dtype="float32")
-            x.desc.set_need_check_feed(False)
             z = paddle.roll(x, shifts=1)
             exe = base.Executor(paddle.CustomPlace("mlu", 0))
             (res,) = exe.run(
-                feed={"x": self.data_x}, fetch_list=[z.name], return_numpy=False
+                feed={"x": self.data_x}, fetch_list=[z], return_numpy=False
             )
             expect_out = np.array([[9.0, 1.0, 2.0], [3.0, 4.0, 5.0], [6.0, 7.0, 8.0]])
             np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
@@ -154,11 +155,10 @@ class TestRollAPI(unittest.TestCase):
         # case 2:
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1, 3], dtype="float32")
-            x.desc.set_need_check_feed(False)
             z = paddle.roll(x, shifts=1, axis=0)
             exe = base.Executor(paddle.CustomPlace("mlu", 0))
             (res,) = exe.run(
-                feed={"x": self.data_x}, fetch_list=[z.name], return_numpy=False
+                feed={"x": self.data_x}, fetch_list=[z], return_numpy=False
             )
         expect_out = np.array([[7.0, 8.0, 9.0], [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)

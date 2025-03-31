@@ -39,20 +39,31 @@ add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 add_definitions(-DPADDLE_CUDA_FP16)
 add_definitions(-DGPUContext=CustomContext)
 
+# set(CUDA_TOOLKIT_ROOT_DIR "/root/cu-bridge/CUDA_DIR" CACHE PATH "CUDA Toolkit Path" FORCE)
+# set(CUDA_INCLUDE_DIRS "${CUDA_TOOLKIT_ROOT_DIR}/include" CACHE PATH "CUDA Include Path" FORCE)
+# include_directories(${CUDA_INCLUDE_DIRS} ${CUDA_TOOLKIT_ROOT_DIR}/include/thrust)
+
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
+
+# find_package(Thrust REQUIRED 
+#   HINTS "/root/cu-bridge/CUDA_DIR/include/thrust"
+#   PATHS "/root/cu-bridge/CUDA_DIR/include/thrust"
+# )
+# include_directories(${Thrust_INCLUDE_DIRS})
 
 add_definitions(-DUSE_CUDA_STREAM_TYPE)
 add_definitions(-DSTREAM_TYPE=cudaStream_t)
 
 message(STATUS "CUDA_INCLUDE_DIRS:${CUDA_INCLUDE_DIRS}")
+message(STATUS "CUDA_TOOLKIT_ROOT_DIR:${CUDA_TOOLKIT_ROOT_DIR}")
 message(STATUS "PADDLE INIT DONE!")
 option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 # option(WITH_GPU "Compile PaddlePaddle with NVIDIA GPU" ON)
 
 enable_language(CUDA)
-include(../../Paddle/cmake/cuda.cmake)
+include(cmake/cuda.cmake)
 
 message(STATUS "CMAKE_CUDA_FLAGS = ${CMAKE_CUDA_FLAGS}")
 

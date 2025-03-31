@@ -19,6 +19,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Paddle/cmake")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -H")
 
@@ -63,7 +64,7 @@ option(ON_INFER "compile with inference c++ lib" OFF)
 # option(WITH_GPU "Compile PaddlePaddle with NVIDIA GPU" ON)
 
 enable_language(CUDA)
-include(cmake/cuda.cmake)
+include(../../Paddle/cmake/cuda.cmake)
 
 message(STATUS "CMAKE_CUDA_FLAGS = ${CMAKE_CUDA_FLAGS}")
 

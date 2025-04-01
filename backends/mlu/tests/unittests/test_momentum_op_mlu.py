@@ -177,14 +177,17 @@ class TestMomentumV2(unittest.TestCase):
             rms_optimizer.minimize(avg_cost)
 
             fetch_list = [avg_cost]
-            train_reader = paddle.batch(
-                paddle.dataset.uci_housing.train(), batch_size=1
+            train_reader = paddle.io.DataLoader(
+                paddle.text.datasets.UCIHousing(mode="train"),
+                batch_size=1,
+                places=place,
+                feed_list=[x, y],
+                return_list=False,
             )
-            feeder = base.DataFeeder(place=place, feed_list=[x, y])
             exe = base.Executor(place)
             exe.run(base.default_startup_program())
             for data in train_reader():
-                exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
+                exe.run(main, feed=data, fetch_list=fetch_list)
 
     def test_raise_error(self):
         self.assertRaises(ValueError, paddle.optimizer.Momentum, learning_rate=None)
@@ -301,14 +304,18 @@ class TestMomentumOpWithDecayAPI(unittest.TestCase):
             momentum_optimizer.minimize(avg_cost)
 
             fetch_list = [avg_cost]
-            train_reader = paddle.batch(
-                paddle.dataset.uci_housing.train(), batch_size=1
+            train_reader = paddle.io.DataLoader(
+                paddle.text.datasets.UCIHousing(mode="train"),
+                batch_size=1,
+                places=place,
+                feed_list=[x, y],
+                return_list=False,
             )
             feeder = base.DataFeeder(place=place, feed_list=[x, y])
             exe = base.Executor(place)
             exe.run(base.default_startup_program())
             for data in train_reader():
-                exe.run(main, feed=feeder.feed(data), fetch_list=fetch_list)
+                exe.run(main, feed=data, fetch_list=fetch_list)
 
 
 class TestFusedMomentumWithDecayAPI(unittest.TestCase):
@@ -341,12 +348,18 @@ class TestFusedMomentumWithDecayAPI(unittest.TestCase):
         )
         program = self.get_program(weight_attr, bias_attr=False)
         ops = program.global_block().ops
-
-        self.assertEqual(ops[-1].attr("regularization_method"), "l2_decay")
-        self.assertEqual(ops[-1].attr("regularization_coeff"), np.float32(0.1))
-        for i in range(len(ops)):
-            self.assertTrue("sum" not in ops[i].type)
-            self.assertTrue("scale" not in ops[i].type)
+        if paddle.framework.use_pir_api():
+            self.assertEqual(ops[-1].attrs()["regularization_method"], "l2_decay")
+            self.assertEqual(ops[-1].attrs()["regularization_coeff"], np.float32(0.1))
+            for i in range(len(ops)):
+                self.assertTrue("pd_op.add_n" not in ops[i].name())
+                self.assertTrue("pd_op.scale" not in ops[i].name())
+        else:
+            self.assertEqual(ops[-1].attr("regularization_method"), "l2_decay")
+            self.assertEqual(ops[-1].attr("regularization_coeff"), np.float32(0.1))
+            for i in range(len(ops)):
+                self.assertTrue("sum" not in ops[i].type)
+                self.assertTrue("scale" not in ops[i].type)
 
     def test_param_has_l1decay(self):
         paddle.enable_static()
@@ -362,29 +375,56 @@ class TestFusedMomentumWithDecayAPI(unittest.TestCase):
         )
         program = self.get_program(weight_attr, bias_attr)
         ops = program.global_block().ops
-
-        self.assertEqual(ops[-1].type, "momentum")
-        self.assertEqual(ops[-2].type, "momentum")
-        self.assertEqual(ops[-3].type, "sum")
-        self.assertEqual(ops[-4].type, "scale")
-        self.assertEqual(ops[-5].type, "sign")
-        self.assertEqual(ops[-6].type, "matmul_v2_grad")
-        if "weight" in ops[-1].input("Param"):
-            self.assertEqual(ops[-1].attr("regularization_method"), "")
-            self.assertEqual(ops[-1].attr("regularization_coeff"), 0)
-        if "bias" in ops[-2].input("Param"):
-            self.assertEqual(ops[-2].attr("regularization_method"), "l2_decay")
-            self.assertEqual(ops[-2].attr("regularization_coeff"), np.float32(0.5))
+        if paddle.framework.use_pir_api():
+            op_names = [
+                "pd_op.momentum_",
+                "pd_op.momentum_",
+                "pd_op.add_n",
+                "builtin.combine",
+                "pd_op.scale",
+                "pd_op.full",
+                "pd_op.sign",
+                "pd_op.matmul_grad",
+            ]
+            for i, name in enumerate(op_names):
+                self.assertEqual(ops[-(i + 1)].name(), name)
+            if "weight" == ops[-1].operand_source(0).name:
+                self.assertEqual(ops[-1].attrs()["regularization_method"], "")
+                self.assertEqual(ops[-1].attrs()["regularization_coeff"], 0)
+            if "bias" == ops[-2].operand_source(0).name:
+                self.assertEqual(ops[-2].attrs()["regularization_method"], "l2_decay")
+                self.assertEqual(
+                    ops[-2].attrs()["regularization_coeff"], np.float32(0.5)
+                )
+        else:
+            self.assertEqual(ops[-1].type, "momentum")
+            self.assertEqual(ops[-2].type, "momentum")
+            self.assertEqual(ops[-3].type, "sum")
+            self.assertEqual(ops[-4].type, "scale")
+            self.assertEqual(ops[-5].type, "sign")
+            self.assertEqual(ops[-6].type, "matmul_v2_grad")
+            if "weight" in ops[-1].input("Param"):
+                self.assertEqual(ops[-1].attr("regularization_method"), "")
+                self.assertEqual(ops[-1].attr("regularization_coeff"), 0)
+            if "bias" in ops[-2].input("Param"):
+                self.assertEqual(ops[-2].attr("regularization_method"), "l2_decay")
+                self.assertEqual(ops[-2].attr("regularization_coeff"), np.float32(0.5))
 
     def test_param_has_no_regularizer(self):
         paddle.enable_static()
         program = self.get_program(weight_attr=None)
         ops = program.global_block().ops
-        self.assertEqual(ops[-1].attr("regularization_method"), "l2_decay")
-        self.assertEqual(ops[-1].attr("regularization_coeff"), np.float32(0.5))
-        for i in range(len(ops)):
-            self.assertTrue("sum" not in ops[i].type)
-            self.assertTrue("scale" not in ops[i].type)
+        if paddle.framework.use_pir_api():
+            self.assertEqual(ops[-1].attrs()["regularization_method"], "l2_decay")
+            self.assertEqual(ops[-1].attrs()["regularization_coeff"], np.float32(0.5))
+            for i in range(len(ops)):
+                self.assertTrue("pd_op.add_n" not in ops[i].name())
+                self.assertTrue("pd_op.scale" not in ops[i].name())
+        else:
+            self.assertEqual(ops[-1].attr("regularization_method"), "l2_decay")
+            for i in range(len(ops)):
+                self.assertTrue("sum" not in ops[i].type)
+                self.assertTrue("scale" not in ops[i].type)
 
 
 class TestMomentumOpVsMomentumOpWithDecayAPI(unittest.TestCase):

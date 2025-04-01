@@ -79,7 +79,7 @@ class TestHPU_BOOL(OpTest):
         self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
 
     def init_dtype(self):
-        self.dtype = np.bool
+        self.dtype = bool
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

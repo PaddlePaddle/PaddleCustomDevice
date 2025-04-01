@@ -93,13 +93,20 @@ void CastKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(
       aclnnCast,
       (custom_kernel::AclopCastKernel<T, Context>(dev_ctx, x, dtype, out)));
-
+  out->Resize((x.dims()));
   if (x.dtype() == dtype) {
+    if (x.dims() == phi::make_ddim({-1})) {
+      *out = x;
+      return;
+    }
     dev_ctx.template Alloc<T>(out);
     TensorCopy(dev_ctx, x, false, out);
     return;
   }
-
+  if (x.dims() == phi::make_ddim({-1})) {
+    PADDLE_THROW(phi::errors::InvalidArgument(
+        "canot cast tensor with unknown shape for diffrent dtype"));
+  }
   int aclDtype = ConvertToNpuDtype(dtype);
 
   if (dtype == phi::DataType::FLOAT32) {

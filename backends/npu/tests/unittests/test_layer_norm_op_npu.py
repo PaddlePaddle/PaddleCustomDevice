@@ -24,6 +24,8 @@ import paddle.base as base
 import paddle.base.core as core
 import paddle_custom_device
 
+from paddle.pir_utils import OldIrGuard
+
 paddle.enable_static()
 
 SEED = 2021
@@ -180,8 +182,10 @@ class TestLayerNormOp(unittest.TestCase):
                 var_names += ["bias"]
             ground_truth = {name: var_dict[name] for name in var_names}
 
-            program = base.Program()
-            with base.program_guard(program):
+            with OldIrGuard():
+                program = base.Program()
+                old_program_guard = base.program_guard
+            with old_program_guard(program):
                 block = program.global_block()
                 for name in ground_truth:
                     block.create_var(
@@ -231,14 +235,15 @@ class TestLayerNormOp(unittest.TestCase):
 
                 program._sync_with_cpp()
                 exe = base.Executor(place)
-                out = exe.run(
-                    program,
-                    feed={
-                        name: var_dict[name]
-                        for name in ["x", "scale", "bias", "y@GRAD"]
-                    },
-                    fetch_list=fetch_list,
-                )
+                with OldIrGuard():
+                    out = exe.run(
+                        program,
+                        feed={
+                            name: var_dict[name]
+                            for name in ["x", "scale", "bias", "y@GRAD"]
+                        },
+                        fetch_list=fetch_list,
+                    )
                 # CANN 7.0 changes the output mode of variance
                 if int(paddle_custom_device.npu.version()["cann"].split(".")[0]) >= 7:
                     out[2] = (1 / out[2]) ** 2 - epsilon

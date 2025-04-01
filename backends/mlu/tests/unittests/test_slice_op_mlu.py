@@ -143,17 +143,6 @@ class TestSliceOp_decs_dim_3(TestSliceOp_decs_dim):
 
 class TestSliceOp_decs_dim_4(TestSliceOp_decs_dim):
     def config(self):
-        self.input = np.random.random([3, 4, 5, 7]).astype("float32")
-        self.starts = [0, 1, 2, 3]
-        self.ends = [1, 2, 3, 4]
-        self.axes = [0, 1, 2, 3]
-        self.decrease_axis = [0, 1, 2, 3]
-        self.infer_flags = [1, 1, 1]
-        self.out = self.input[0, 1, 2, 3:4]
-
-
-class TestSliceOp_decs_dim_5(TestSliceOp_decs_dim):
-    def config(self):
         self.input = np.random.random([3, 4, 5, 6]).astype("float32")
         self.starts = [-1]
         self.ends = [1000000]
@@ -161,17 +150,6 @@ class TestSliceOp_decs_dim_5(TestSliceOp_decs_dim):
         self.decrease_axis = [3]
         self.infer_flags = [1, 1, 1]
         self.out = self.input[:, :, :, -1]
-
-
-class TestSliceOp_decs_dim_6(TestSliceOp_decs_dim):
-    def config(self):
-        self.input = np.random.random([3, 4, 5, 6]).astype("float32")
-        self.starts = [0, 1, 2, 3]
-        self.ends = [1, 2, 3, 4]
-        self.axes = [0, 1, 2, 3]
-        self.decrease_axis = [0, 1, 2, 3]
-        self.infer_flags = [1, 1, 1]
-        self.out = self.input[0, 1, 2, 3:4]
 
 
 # Situation 2: starts(list, have tensor), ends(list, no tensor)

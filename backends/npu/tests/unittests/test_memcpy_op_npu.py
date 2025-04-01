@@ -19,7 +19,8 @@ import unittest
 
 import paddle
 import paddle.base as base
-from paddle.base import Program, program_guard
+
+from paddle.pir_utils import OldIrGuard
 
 paddle.enable_static()
 SEED = 2021
@@ -29,8 +30,11 @@ class TestMemcpy_FillConstant(unittest.TestCase):
     def get_prog(self):
         self.__class__.use_custom_device = True
         paddle.enable_static()
-        main_program = Program()
-        with program_guard(main_program):
+
+        with OldIrGuard():
+            main_program = base.Program()
+            old_program_guard = base.program_guard
+        with old_program_guard(main_program):
             cpu_var_name = "tensor@Cpu"
             npu_var_name = "tensor@Npu"
             cpu_var = main_program.global_block().create_var(
@@ -79,9 +83,8 @@ class TestMemcpy_FillConstant(unittest.TestCase):
         )
         place = paddle.CustomPlace("npu", 0)
         exe = base.Executor(place)
-        npu_, cpu_ = exe.run(
-            main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]
-        )
+        with OldIrGuard():
+            npu_, cpu_ = exe.run(main_program, feed={}, fetch_list=[npu_var, cpu_var])
         np.testing.assert_allclose(npu_, cpu_)
         np.testing.assert_allclose(cpu_, np.ones((10, 10)))
 
@@ -96,9 +99,8 @@ class TestMemcpy_FillConstant(unittest.TestCase):
         )
         place = paddle.CustomPlace("npu", 0)
         exe = base.Executor(place)
-        npu_, cpu_ = exe.run(
-            main_program, feed={}, fetch_list=[npu_var.name, cpu_var.name]
-        )
+        with OldIrGuard():
+            npu_, cpu_ = exe.run(main_program, feed={}, fetch_list=[npu_var, cpu_var])
         np.testing.assert_allclose(npu_, cpu_)
         np.testing.assert_allclose(npu_, np.zeros((10, 10)))
 

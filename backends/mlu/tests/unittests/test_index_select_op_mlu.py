@@ -142,7 +142,7 @@ class TestMLUIndexSelectAPI(unittest.TestCase):
             exe = paddle.static.Executor(paddle.CustomPlace("mlu", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array(
@@ -158,7 +158,7 @@ class TestMLUIndexSelectAPI(unittest.TestCase):
             exe = paddle.static.Executor(paddle.CustomPlace("mlu", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array(

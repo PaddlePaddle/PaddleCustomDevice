@@ -169,3 +169,18 @@ class Fused_Rms_Mlp(paddle.nn.Layer):
             self.epsilon,
         )
         return fused_rms_mlp_out
+
+
+def rebuild_padding_v2(
+    multi_block_output,
+    cum_offsets,
+    seq_lens_decoder,
+    seq_lens_encoder,
+    output_padding_offset,
+    max_input_length,
+):
+    pass
+
+
+def rebuild_padding(multi_block_output, cum_offsets, seq_lens, input_ids):
+    return multi_block_output[:, -1:, :]

@@ -141,12 +141,13 @@ class TestElementwiseModOp_broadcast_2(TestElementwiseModOp):
 
 class TestRemainderOp(unittest.TestCase):
     def test_name(self):
-        paddle.set_device("npu:0")
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="int64")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="int64")
-            y_1 = paddle.remainder(x, y, name="div_res")
-            self.assertEqual(("div_res" in y_1.name), True)
+        with paddle.pir_utils.OldIrGuard():
+            paddle.set_device("npu:0")
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="int64")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="int64")
+                y_1 = paddle.remainder(x, y, name="div_res")
+                self.assertEqual(("div_res" in y_1.name), True)
 
     def test_dygraph(self):
         paddle.set_device("npu:0")
@@ -207,6 +208,7 @@ class TestRemainderZeroDim(unittest.TestCase):
         out_cls = np.remainder(nx, ny)
         np.testing.assert_array_equal(out_cls, out.numpy())
         self.assertEqual(out.shape, [2, 3, 4])
+        out.retain_grads()
         out.backward()
         if x.grad is not None:
             self.assertEqual(x.grad.shape, [2, 3, 4])

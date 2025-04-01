@@ -21,6 +21,7 @@ import paddle
 import paddle.base as base
 import paddle.base.core as core
 from paddle.tensor.manipulation import tensor_array_to_tensor
+from paddle.framework import use_pir_api
 
 paddle.enable_static()
 
@@ -610,11 +611,15 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
         self.idx = 0
         self.start = 0
         self.end = 2
-        self.axis = 1
+        self.axis = 0 if use_pir_api() else 1
 
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
         self.exe = base.Executor(self.place)
+
+        self.g_x0 = np.zeros_like(self.data)
+        self.g_x1 = np.zeros_like(self.data)
+        self.g_x2 = np.zeros_like(self.data)
 
     def set_program_and_run(self, main_program, case_num):
         with base.program_guard(main_program):
@@ -627,47 +632,63 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
             for each_x in x:
                 each_x.stop_gradient = False
 
-            arr = paddle.tensor.create_array(dtype="float32")
-            for i in range(3):
-                idx = paddle.tensor.array_length(arr)
-                arr = paddle.tensor.array_write(x=x[i], i=idx, array=arr)
+            if use_pir_api():
+                arr = paddle.stack(x, axis=0)
+            else:
+                arr = paddle.tensor.create_array(dtype="float32")
+                for i in range(3):
+                    idx = paddle.tensor.array_length(arr)
+                    arr = paddle.tensor.array_write(x=x[i], i=idx, array=arr)
 
             if case_num == 1:
                 self.sliced_arr = output = arr[0]
 
             elif case_num == 2:
-                end = paddle.tensor.array_length(arr) - 1  # dtype of end is int64
-                self.sliced_arr = slice_arr = arr[self.start : end]
-                output, _ = tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True
-                )
+                if use_pir_api():
+                    end = paddle.tensor.fill_constant([1], "int64", 3) - 1
+                    self.sliced_arr = output = arr[self.start : end]
+                else:
+                    end = paddle.tensor.array_length(arr) - 1  # dtype of end is int64
+                    self.sliced_arr = slice_arr = arr[self.start : end]
+                    output, _ = tensor_array_to_tensor(
+                        slice_arr, axis=self.axis, use_stack=True
+                    )
             elif case_num == 3:
-                value_int64 = paddle.tensor.fill_constant([1], "int64", 2147483648)
-                self.sliced_arr = slice_arr = arr[self.start : value_int64]
-                output, _ = tensor_array_to_tensor(
-                    slice_arr, axis=self.axis, use_stack=True
-                )
+                if use_pir_api():
+                    end = paddle.tensor.fill_constant([1], "int32", 0x7FFFFFFF)
+                else:
+                    end = paddle.tensor.fill_constant([1], "int64", 2147483648)
+                self.sliced_arr = output = slice_arr = arr[self.start : end]
+                if not use_pir_api():
+                    output, _ = tensor_array_to_tensor(
+                        slice_arr, axis=self.axis, use_stack=True
+                    )
 
             loss = paddle.sum(output)
+            g_vars = paddle.static.gradients(loss, x)
             base.backward.append_backward(loss)
-            g_vars = list(
-                map(
-                    main_program.global_block().var,
-                    [each_x.name + "@GRAD" for each_x in x],
-                )
-            )
-            self.out, self.g_x0, self.g_x1, self.g_x2 = self.exe.run(
+
+            g_vars = [g_var for g_var in g_vars if g_var is not None]
+
+            res = self.exe.run(
                 main_program,
                 feed={"x0": self.data, "x1": self.data, "x2": self.data},
-                fetch_list=[output] + g_vars,
+                fetch_list=[output] + [g_var for g_var in g_vars if g_var is not None],
             )
+
+            self.out = res[0]
+            res_index = 1
+            for i, g_var in enumerate(g_vars):
+                if g_var is not None:
+                    self.__setattr__(f"g_x{i}", res[res_index])
+                    res_index += 1
 
     def test_case_1(self):
         main_program = base.Program()
         self.set_program_and_run(main_program, 1)
-
-        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
+        if not use_pir_api():
+            self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR)
+            self.assertEqual(tuple(self.sliced_arr.shape), self.shape)
         np.testing.assert_array_equal(self.out, self.data)
         np.testing.assert_array_equal(self.g_x0, np.ones_like(self.data))
         np.testing.assert_array_equal(self.g_x1, np.zeros_like(self.data))
@@ -676,9 +697,13 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
     def test_case_2(self):
         main_program = base.Program()
         self.set_program_and_run(main_program, 2)
-
-        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR_ARRAY)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
+        if not use_pir_api():
+            self.assertTrue(
+                self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR_ARRAY
+            )
+            self.assertEqual(tuple(self.sliced_arr.shape), self.shape)
+        else:
+            self.assertEqual(tuple(self.sliced_arr.shape), (-1, 3, 4))
         np.testing.assert_array_equal(
             self.out, np.stack([self.data, self.data], axis=self.axis)
         )
@@ -689,9 +714,13 @@ class TestSliceApiWithTensorArray(unittest.TestCase):
     def test_case_3(self):
         main_program = base.Program()
         self.set_program_and_run(main_program, 3)
-
-        self.assertTrue(self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR_ARRAY)
-        self.assertEqual(self.sliced_arr.shape, self.shape)
+        if not use_pir_api():
+            self.assertTrue(
+                self.sliced_arr.type == core.VarDesc.VarType.DENSE_TENSOR_ARRAY
+            )
+            self.assertEqual(tuple(self.sliced_arr.shape), self.shape)
+        else:
+            self.assertEqual(tuple(self.sliced_arr.shape), (-1, 3, 4))
         np.testing.assert_array_equal(
             self.out,
             np.stack([self.data, self.data, self.data], axis=self.axis),

@@ -326,13 +326,6 @@ class RuntimeManager {
                status);
 
     } else if (flag == 1) {
-      if (stream_d2h == nullptr) {
-        status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2h), device->id, 0);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synStreamCreateGeneric() failed = ",
-                 status);
-      }
       // addCache(device, dst, size);
       void *ptr = getCachedHostMem(device, size);
       status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
@@ -345,7 +338,7 @@ class RuntimeManager {
                "[RUNTIME] synMemCopyAsync() failed = ",
                status);
       // TO BE NOTICED, still sync mode copy due to memory map issue.
-      status = synStreamSynchronize(stream_d2h);
+      status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synStreamSynchronize() failed = ",
                status);

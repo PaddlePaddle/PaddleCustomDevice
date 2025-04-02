@@ -68,7 +68,7 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     scaler.push_back(scaler_tensor);
     AddNodeFull<T>(scaler, params.const_params, guid_ + "full_scale");
 
-    auto q_tensor = createTensorFromCT(ct, 0);
+    auto q_tensor = createTensorFromCT(&ct, 0);
     std::vector<synTensor> scaled_q_in;
     scaled_q_in.push_back(q_tensor);
     scaled_q_in.push_back(scaler_tensor);
@@ -94,7 +94,7 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     /*******************************/
 
     std::vector<synTensor> map_q_in;
-    auto block_mapping = createTensorFromCT(ct, 5);
+    auto block_mapping = createTensorFromCT(&ct, 5);
     map_q_in.push_back(block_mapping);
     map_q_in.push_back(reshaped_q);
 
@@ -124,9 +124,9 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
 
     std::vector<synTensor> index_select_k_in;
     std::vector<synTensor> index_select_v_in;
-    auto key_cache = createTensorFromCT(ct, 1);
-    auto value_cache = createTensorFromCT(ct, 2);
-    auto block_list = createTensorFromCT(ct, 4);
+    auto key_cache = createTensorFromCT(&ct, 1);
+    auto value_cache = createTensorFromCT(&ct, 2);
+    auto block_list = createTensorFromCT(&ct, 4);
 
     index_select_k_in.push_back(key_cache);
     index_select_v_in.push_back(value_cache);
@@ -176,7 +176,7 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
 
     /*******************************/
 
-    auto block_bias = createTensorFromCT(ct, 6);
+    auto block_bias = createTensorFromCT(&ct, 6);
     std::vector<synTensor> block_bias_in;
     block_bias_in.push_back(block_bias);
 
@@ -243,7 +243,7 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
 
     AddNodeFull<T>(group_max_tensor, params.const_params, guid_ + "full_inf");
 
-    auto block_groups = createTensorFromCT(ct, 3);
+    auto block_groups = createTensorFromCT(&ct, 3);
     std::vector<synTensor> index_reduce_in;
     index_reduce_in.push_back(group_max);
     index_reduce_in.push_back(block_groups);
@@ -465,11 +465,11 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
 
     std::vector<synTensor> proj_in;
-    auto linear_weights = createTensorFromCT(ct, 7);
+    auto linear_weights = createTensorFromCT(&ct, 7);
     proj_in.push_back(attn);
     proj_in.push_back(linear_weights);
 
-    auto linear_out = createTensorFromCT(ct, 0, false);
+    auto linear_out = createTensorFromCT(&ct, 0, false);
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
@@ -523,7 +523,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     scaler.push_back(scaler_tensor);
     AddNodeFull<T>(scaler, params.const_params, guid_ + "full_scale");
 
-    auto q_tensor = createTensorFromCT(ct, 0);
+    auto q_tensor = createTensorFromCT(&ct, 0);
     std::vector<synTensor> scaled_q_in;
     scaled_q_in.push_back(q_tensor);
     scaled_q_in.push_back(scaler_tensor);
@@ -549,7 +549,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     /*******************************/
 
     std::vector<synTensor> map_q_in;
-    auto block_mapping = createTensorFromCT(ct, 5);
+    auto block_mapping = createTensorFromCT(&ct, 5);
     map_q_in.push_back(block_mapping);
     map_q_in.push_back(reshaped_q);
 
@@ -580,9 +580,9 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
 
     std::vector<synTensor> index_select_k_in;
     std::vector<synTensor> index_select_v_in;
-    auto key_cache = createTensorFromCT(ct, 1);
-    auto value_cache = createTensorFromCT(ct, 2);
-    auto block_list = createTensorFromCT(ct, 4);
+    auto key_cache = createTensorFromCT(&ct, 1);
+    auto value_cache = createTensorFromCT(&ct, 2);
+    auto block_list = createTensorFromCT(&ct, 4);
 
     index_select_k_in.push_back(key_cache);
     index_select_v_in.push_back(value_cache);
@@ -654,7 +654,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
 
     /*******************************/
 
-    auto block_bias = createTensorFromCT(ct, 6);
+    auto block_bias = createTensorFromCT(&ct, 6);
     std::vector<synTensor> block_bias_in;
     block_bias_in.push_back(block_bias);
 
@@ -725,7 +725,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
 
     AddNodeFull<T>(group_max_tensor, params.const_params, guid_ + "full_inf");
 
-    auto block_groups = createTensorFromCT(ct, 3);
+    auto block_groups = createTensorFromCT(&ct, 3);
     std::vector<synTensor> index_reduce_in;
     index_reduce_in.push_back(group_max);
     index_reduce_in.push_back(block_groups);
@@ -964,11 +964,11 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
 
     std::vector<synTensor> proj_in;
-    auto linear_weights = createTensorFromCT(ct, 7);
+    auto linear_weights = createTensorFromCT(&ct, 7);
     proj_in.push_back(attn);
     proj_in.push_back(linear_weights);
 
-    auto linear_out = createTensorFromCT(ct, 0, false);
+    auto linear_out = createTensorFromCT(&ct, 0, false);
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 

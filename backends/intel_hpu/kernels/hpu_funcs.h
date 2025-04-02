@@ -57,7 +57,7 @@ class HpuFusedOperator : public HpuOperator {
                                       bool is_input = true,
                                       synSectionHandle section = nullptr) {
     PD_CHECK(ct != nullptr, "[RUNTIME] input ct is a nullptr");
-    auto tensors = ct.GetTensors(is_input);
+    auto tensors = ct->GetTensors(is_input);
     synTensor t = createTensor(tensors[idx].dims.size(),
                                tensors[idx].type,
                                tensors[idx].dims,

@@ -311,6 +311,13 @@ void FlashAttnUnpaddedGradKernel(
   auto compute_dtype = CNNL_DTYPE_FLOAT;
   auto prefer = CNNL_ACTIVATION_HIGH_PRECISION;
   auto attn_mask_mode = causal ? CNNL_ATTN_MASK_CAUSAL : CNNL_ATTN_MASK_NONE;
+  if (attn_mask_mode == CNNL_ATTN_MASK_NONE) {
+    int32_t max_seq = std::max(max_seqlen_q, max_seqlen_k);
+    cnnlSetFlashAttentionSlidingWindowSize(desc_, max_seq, max_seq, 1);
+  } else if (attn_mask_mode == CNNL_ATTN_MASK_CAUSAL) {
+    int32_t max_seq = std::max(max_seqlen_q, max_seqlen_k);
+    cnnlSetFlashAttentionSlidingWindowSize(desc_, max_seq, 0, 1);
+  }
   cnnlSetFlashAttentionBackwardDescriptor(desc_,
                                           compute_dtype,
                                           prefer,

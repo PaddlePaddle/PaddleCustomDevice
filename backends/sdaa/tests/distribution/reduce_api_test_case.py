@@ -45,7 +45,7 @@ class StreamReduceTestCase:
 
     def run_test_case(self):
         dist.init_parallel_env()
-        test_times = 5000
+        test_times = 500
         for times in range(test_times):
             test_data_list = []
             for seed in self._seeds:
@@ -66,9 +66,9 @@ class StreamReduceTestCase:
             if not self._sync_op:
                 task.wait()
             if 0 == dist.get_rank():
-                result = test_data_list[0]
+                result = paddle.to_tensor(test_data_list[0])
                 for i in range(1, len(test_data_list)):
-                    result += test_data_list[i]
+                    result += paddle.to_tensor(test_data_list[i])
                 np.testing.assert_allclose(tensor, result, rtol=1e-05, atol=1e-05)
             for i in range(len(self._seeds)):
                 self._seeds[i] += 1

@@ -311,12 +311,6 @@ inline phi::DDim GetDecreasedDims(const phi::DDim slice_dims,
       }
     }
 
-    // NOTE(liym27): Paddle does not support that the rank of Tensor is 0, and
-    // uses [1] instead.
-    if (new_shape.size() == 0) {
-      new_shape.push_back(1);
-    }
-
     decreased_dims = phi::make_ddim(new_shape);
   }
   return decreased_dims;
@@ -365,15 +359,13 @@ void SliceRawKernel(const Context& dev_ctx,
   slice_dims = custom_kernel::GetSliceDims<int>(
       in_dims, axes, starts, ends, nullptr, nullptr);
   reset_slice_dims = true;
-  auto out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
-
-  out->Resize(out_dims);
 
   if (slice_dims.size() != in_dims.size() && !reset_slice_dims) {
     custom_kernel::CheckAndUpdateSliceAttrs(in_dims, axes, &starts, &ends);
     slice_dims = custom_kernel::GetSliceDims<int>(
         in_dims, axes, starts, ends, nullptr, nullptr);
   }
+  auto out_dims = custom_kernel::GetDecreasedDims(slice_dims, decrease_axis);
 
   int in_dim_size = x.dims().size();
   if (static_cast<int>(axes.size()) != in_dim_size) {
@@ -389,6 +381,7 @@ void SliceRawKernel(const Context& dev_ctx,
   }
   std::vector<int> strides(in_dim_size, 1);
 
+  out->Resize(slice_dims);
   dev_ctx.template Alloc<T>(out);
 
   MLUCnnlTensorDesc input_desc(x);
@@ -403,6 +396,8 @@ void SliceRawKernel(const Context& dev_ctx,
                         GetBasePtr(&x),
                         out_desc.get(),
                         GetBasePtr(out));
+
+  out->Resize(out_dims);
 }
 
 template <typename T, typename Context>

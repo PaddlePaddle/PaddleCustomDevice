@@ -18,11 +18,18 @@ import numpy as np
 import unittest
 import os
 
-from op_test import OpTest
+from op_test import OpTest, convert_uint16_to_float
 from unittest import mock
 import paddle
 
 paddle.enable_static()
+
+
+def gaussian_wrapper(dtype_=np.uint16):
+    def gauss_wrapper(shape, mean, std, seed, dtype=np.uint16, name=None):
+        return paddle.tensor.random.gaussian(shape, mean, std, seed, dtype, name)
+
+    return gauss_wrapper
 
 
 class TestGaussianRandomKernel(OpTest):
@@ -30,7 +37,7 @@ class TestGaussianRandomKernel(OpTest):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
         self.op_type = "gaussian_random"
-        self.python_api = paddle.normal
+        self.python_api = paddle.tensor.random.gaussian
         self.init_dtype()
         self.set_attrs()
         self.inputs = {}
@@ -40,11 +47,11 @@ class TestGaussianRandomKernel(OpTest):
             "mean": self.mean,
             "std": self.std,
             "seed": 10,
-            "dtype": int(paddle.float32),
+            "use_mkldnn": False,
         }
         paddle.seed(10)
 
-        self.outputs = {"Out": np.zeros((123, 92), dtype=self.dtype)}
+        self.outputs = {"Out": np.zeros((123, 92), dtype="float32")}
 
     def set_attrs(self):
         self.mean = 1.0
@@ -55,9 +62,6 @@ class TestGaussianRandomKernel(OpTest):
 
     def init_dtype(self):
         self.dtype = np.float32
-
-    def test_check_output(self):
-        self.check_output_with_place(self.place)
 
     def test_check_output(self):
         self.check_output_customized(self.verify_output, self.place)
@@ -77,12 +81,54 @@ class TestGaussianRandomKernel(OpTest):
         )
 
 
+class TestGaussianRandomBF16Op(OpTest):
+    def setUp(self):
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.op_type = "gaussian_random"
+        self.python_api = gaussian_wrapper(dtype_=np.uint16)
+        self.__class__.op_type = self.op_type
+        self.set_attrs()
+        self.inputs = {}
+        self.use_mkldnn = False
+        self.attrs = {
+            "shape": [123, 92],
+            "mean": self.mean,
+            "std": self.std,
+            "seed": 10,
+            "dtype": paddle.base.core.VarDesc.VarType.BF16,
+            "use_mkldnn": self.use_mkldnn,
+        }
+        paddle.seed(10)
+
+        self.outputs = {"Out": np.zeros((123, 92), dtype="float32")}
+
+    def set_attrs(self):
+        self.mean = 1.0
+        self.std = 2.0
+
+    def test_check_output(self):
+        self.check_output_with_place_customized(self.verify_output, place=self.place)
+
+    def verify_output(self, outs):
+        outs = convert_uint16_to_float(outs)
+        self.assertEqual(outs[0].shape, (123, 92))
+        hist, _ = np.histogram(outs[0], range=(-3, 5))
+        hist = hist.astype("float32")
+        hist /= float(outs[0].size)
+        data = np.random.normal(size=(123, 92), loc=1, scale=2)
+        hist2, _ = np.histogram(data, range=(-3, 5))
+        hist2 = hist2.astype("float32")
+        hist2 /= float(outs[0].size)
+        np.testing.assert_allclose(hist, hist2, rtol=0, atol=0.05)
+
+
 class TestGaussianRandomKernelFP16(TestGaussianRandomKernel):
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
         self.op_type = "gaussian_random"
-        self.python_api = paddle.normal
+        self.python_api = paddle.tensor.random.gaussian
         self.init_dtype()
         self.set_attrs()
         self.inputs = {}
@@ -92,11 +138,12 @@ class TestGaussianRandomKernelFP16(TestGaussianRandomKernel):
             "mean": self.mean,
             "std": self.std,
             "seed": 10,
-            "dtype": int(paddle.float16),
+            "dtype": paddle.float16,
+            "use_mkldnn": self.use_mkldnn,
         }
         paddle.seed(10)
 
-        self.outputs = {"Out": np.zeros((123, 92), dtype=self.dtype)}
+        self.outputs = {"Out": np.zeros((123, 92), dtype="float16")}
 
     def init_dtype(self):
         self.dtype = "float16"
@@ -120,11 +167,10 @@ class TestGaussianGPUAlign(unittest.TestCase):
     def setUp(self):
         pass
 
-        paddle.seed(10)
-
     @mock.patch.dict(os.environ, {"RANDOM_ALIGN_NV_DEVICE": "v100"})
     def test_output(self):
         paddle.disable_static(place=paddle.CustomPlace("sdaa", 0))
+        paddle.seed(10)
         result_gpu = np.array(
             [
                 [

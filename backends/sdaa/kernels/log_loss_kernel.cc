@@ -117,10 +117,12 @@ PD_REGISTER_PLUGIN_KERNEL(log_loss,
                           ALL_LAYOUT,
                           custom_kernel::LogLossKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 PD_REGISTER_PLUGIN_KERNEL(log_loss_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::LogLossGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

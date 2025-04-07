@@ -80,6 +80,12 @@
 #define FLAGS_DEFINE_string(name, value, meaning) \
   DEFINE_string(name, EnvToString("FLAGS_" #name, value), meaning)
 
+#define FLAGS_DEFINE_double(name, value, meaning) \
+  DEFINE_double(name, EnvToDouble("FLAGS_" #name, value), meaning)
+
+#define EnvToDouble(envname, dflt) \
+  (!getenv(envname) ? (dflt) : std::strtod(getenv(envname), nullptr))
+
 #define EnvToString(envname, dflt) (!getenv(envname) ? (dflt) : getenv(envname))
 
 #define EnvToBool(envname, dflt) \

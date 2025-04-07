@@ -20,7 +20,7 @@ import numpy as np
 import paddle
 import paddle.base as base
 import paddle.tensor as tensor
-from paddle.base.framework import Program, program_guard
+from paddle.base import Program, program_guard
 
 paddle.enable_static()
 
@@ -142,6 +142,7 @@ class TestTrilTriuOpAPI(unittest.TestCase):
 
                 place = paddle.CustomPlace("mlu", 0)
                 exe = base.Executor(place)
+                exe.run(base.default_startup_program())
                 tril_out, triu_out = exe.run(
                     base.default_main_program(),
                     feed={"x": data},

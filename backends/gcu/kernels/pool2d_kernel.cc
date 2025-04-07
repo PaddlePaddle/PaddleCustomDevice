@@ -185,20 +185,31 @@ void Pool2dKernel(const Context& dev_ctx,
         LAUNCH_TOPSATENOP(
             topsatenMean, dev_ctx, output, input_x, dims, true, out->dtype());
       } else {
-        auto divisor_override_none =
-            topsatenScalar_t({TOPSATEN_DATA_NONE, {.ival = 0}});
-        LAUNCH_TOPSATENOP(topsatenAvgPool2d,
-                          dev_ctx,
-                          output,
-                          input_x,
-                          kernel_size_v,
-                          strides_v,
-                          paddings_v,
-                          ceil_mode,
-                          !exclusive,
-                          divisor_override_none);
+        // for adaptive pooling
+        if (adaptive) {
+          std::vector<int64_t> target_size = {out_dims[2], out_dims[3]};
+          LAUNCH_TOPSATENOP(
+              topsatenAdaptiveAvgPool2d, dev_ctx, output, input_x, target_size);
+        } else {
+          auto divisor_override_none =
+              topsatenScalar_t({TOPSATEN_DATA_NONE, {.ival = 0}});
+          LAUNCH_TOPSATENOP(topsatenAvgPool2d,
+                            dev_ctx,
+                            output,
+                            input_x,
+                            kernel_size_v,
+                            strides_v,
+                            paddings_v,
+                            ceil_mode,
+                            !exclusive,
+                            divisor_override_none);
+        }
       }
     } else if (pooling_type == "max") {
+      if (adaptive) {
+        PADDLE_THROW(phi::errors::Unimplemented(
+            "Unsupported adaptive pooling_type string: %s.", pooling_type));
+      }
       std::vector<int64_t> dilation = {1};
       LAUNCH_TOPSATENOP(topsatenMaxPool2d,
                         dev_ctx,

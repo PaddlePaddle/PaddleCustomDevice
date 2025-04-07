@@ -29,10 +29,9 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 import paddle.base as base
-from paddle.framework import convert_np_dtype_to_dtype_
 
 paddle.enable_static()
 SEED = 2021
@@ -86,6 +85,64 @@ class TestReduceSum(OpTest):
     def test_check_grad(self):
         dx = np.divide(
             np.ones_like(self.inputs["X"], dtype=self.dtype), self.outputs["Out"].size
+        )
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            user_defined_grads=[dx],
+        )
+
+
+class TestReduceSumBF16(OpTest):
+    def setUp(self):
+        np.random.seed(SEED)
+        self.set_sdaa()
+        self.init_dtype()
+        self.python_api = paddle.sum
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.init_op_type()
+        self.initTestCase()
+
+        self.use_mkldnn = False
+        self.attrs = {
+            "dim": self.axis,
+            "keep_dim": self.keep_dim,
+            "reduce_all": self.reduce_all,
+        }
+        self.x = np.random.random(self.shape).astype(np.float32)
+        self.inputs = {"X": convert_float_to_uint16(self.x)}
+        if self.attrs["reduce_all"]:
+            self.outputs = {"Out": convert_float_to_uint16(self.x.sum())}
+        else:
+            self.outputs = {
+                "Out": convert_float_to_uint16(
+                    self.x.sum(axis=self.axis, keepdims=self.attrs["keep_dim"])
+                )
+            }
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_op_type(self):
+        self.op_type = "reduce_sum"
+        self.use_mkldnn = False
+        self.keep_dim = False
+        self.reduce_all = False
+
+    def initTestCase(self):
+        self.shape = (15, 16)
+        self.axis = (0,)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        dx = convert_float_to_uint16(
+            np.divide(np.ones_like(self.x, dtype=np.float32), self.outputs["Out"].size)
         )
         self.check_grad_with_place(
             self.place,
@@ -337,7 +394,7 @@ class API_TestSumOp(unittest.TestCase):
         paddle.device.set_device("sdaa")
         np_x = np.random.random([2, 3, 4]).astype("bool")
         with base.dygraph.guard():
-            x = base.dygraph.to_variable(np_x)
+            x = paddle.to_tensor(np_x)
             out0 = paddle.sum(x).numpy()
             out1 = paddle.sum(x, axis=0).numpy()
             out2 = paddle.sum(x, axis=(0, 1)).numpy()
@@ -410,8 +467,8 @@ class TestReduceWithSpecifyOutDtype(OpTest):
         self.attrs = {"reduce_all": True}
         self.attrs.update(
             {
-                "in_dtype": int(convert_np_dtype_to_dtype_(np.float32)),
-                "out_dtype": int(convert_np_dtype_to_dtype_(np.float64)),
+                "in_dtype": paddle.float32,
+                "out_dtype": paddle.float64,
             }
         )
 
@@ -444,8 +501,8 @@ class TestReduceWithSpecifyOutDtype1(TestReduceWithSpecifyOutDtype):
         self.attrs = {"dim": [1]}
         self.attrs.update(
             {
-                "in_dtype": int(convert_np_dtype_to_dtype_(np.float32)),
-                "out_dtype": int(convert_np_dtype_to_dtype_(np.float64)),
+                "in_dtype": paddle.float32,
+                "out_dtype": paddle.float64,
             }
         )
 
@@ -478,8 +535,8 @@ class TestReduceWithSpecifyOutDtype2(TestReduceWithSpecifyOutDtype):
         self.attrs = {"dim": [1], "keep_dim": True}
         self.attrs.update(
             {
-                "in_dtype": int(convert_np_dtype_to_dtype_(np.float32)),
-                "out_dtype": int(convert_np_dtype_to_dtype_(np.float64)),
+                "in_dtype": paddle.float32,
+                "out_dtype": paddle.float64,
             }
         )
 

@@ -121,27 +121,29 @@ class TestNonZeroAPI(unittest.TestCase):
         data = np.array([[True, False], [False, True]])
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1, 2], dtype="float32")
-            x.desc.set_need_check_feed(False)
+            if not paddle.framework.use_pir_api():
+                x.desc.set_need_check_feed(False)
             y = paddle.nonzero(x, as_tuple=True)
             self.assertEqual(type(y), tuple)
             self.assertEqual(len(y), 2)
             z = paddle.concat(list(y), axis=1)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
 
-            (res,) = exe.run(feed={"x": data}, fetch_list=[z.name], return_numpy=False)
+            (res,) = exe.run(feed={"x": data}, fetch_list=[z], return_numpy=False)
         expect_out = np.array([[0, 0], [1, 1]])
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
 
         data = np.array([True, True, False])
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1], dtype="float32")
-            x.desc.set_need_check_feed(False)
+            if not paddle.framework.use_pir_api():
+                x.desc.set_need_check_feed(False)
             y = paddle.nonzero(x, as_tuple=True)
             self.assertEqual(type(y), tuple)
             self.assertEqual(len(y), 1)
             z = paddle.concat(list(y), axis=1)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
-            (res,) = exe.run(feed={"x": data}, fetch_list=[z.name], return_numpy=False)
+            (res,) = exe.run(feed={"x": data}, fetch_list=[z], return_numpy=False)
         expect_out = np.array([[0], [1]])
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
 
@@ -149,27 +151,29 @@ class TestNonZeroAPI(unittest.TestCase):
         data = np.array([[True, False], [False, True]])
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1, 2], dtype="float32")
-            x.desc.set_need_check_feed(False)
+            if not paddle.framework.use_pir_api():
+                x.desc.set_need_check_feed(False)
             y = paddle.nonzero(x)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
-            (res,) = exe.run(feed={"x": data}, fetch_list=[y.name], return_numpy=False)
+            (res,) = exe.run(feed={"x": data}, fetch_list=[y], return_numpy=False)
         expect_out = np.array([[0, 0], [1, 1]])
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
 
         data = np.array([True, True, False])
         with program_guard(Program(), Program()):
             x = paddle.static.data(name="x", shape=[-1], dtype="float32")
-            x.desc.set_need_check_feed(False)
+            if not paddle.framework.use_pir_api():
+                x.desc.set_need_check_feed(False)
             y = paddle.nonzero(x)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
-            (res,) = exe.run(feed={"x": data}, fetch_list=[y.name], return_numpy=False)
+            (res,) = exe.run(feed={"x": data}, fetch_list=[y], return_numpy=False)
         expect_out = np.array([[0], [1]])
         np.testing.assert_allclose(expect_out, np.array(res), rtol=1e-05)
 
     def test_dygraph_api(self):
         data_x = np.array([[True, False], [False, True]])
         with base.dygraph.guard(paddle.CustomPlace("sdaa", 0)):
-            x = base.dygraph.to_variable(data_x)
+            x = paddle.to_tensor(data_x)
             z = paddle.nonzero(x)
             np_z = z.numpy()
         expect_out = np.array([[0, 0], [1, 1]])

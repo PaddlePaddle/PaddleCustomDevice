@@ -16,7 +16,7 @@ from __future__ import print_function
 import paddle
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 
 paddle.enable_static()
 SEED = 2021
@@ -28,6 +28,29 @@ def embedding_wrapper(x, w, padding_idx=None, sparse=False):
     else:
         padding_idx = padding_idx if padding_idx >= 0 else (w.shape[0] + padding_idx)
         return paddle._C_ops.embedding(x, w, padding_idx, sparse)
+
+
+def _lookup(weights, ids, flat_ids, op_version="lookup_table"):
+    w_shape = weights.shape
+    out_shape = (
+        list(ids.shape[:-1]) if op_version == "lookup_table" else list(ids.shape)
+    )
+    out_shape.append(w_shape[-1])
+    out = weights[flat_ids].reshape(out_shape)
+    return out
+
+
+def _get_grad(weights, ids, flat_ids, op_version="lookup_table"):
+    w_shape = weights.shape
+    w_grad = np.zeros((w_shape), dtype=weights.dtype)
+    out_shape = (
+        list(ids.shape[:-1]) if op_version == "lookup_table" else list(ids.shape)
+    )
+    out_grad_shape = (np.prod(out_shape), w_shape[-1])
+    out_grad = weights[flat_ids].reshape(out_grad_shape)
+    for i, idx in enumerate(flat_ids):
+        w_grad[idx, :] += out_grad[i]
+    return w_grad
 
 
 class TestLookupTableV2(OpTest):
@@ -97,6 +120,59 @@ class TestLookupTableV2(OpTest):
                 "Out",
                 numeric_place=paddle.CPUPlace(),
             )
+
+
+class TestLookupTableV2BF16Op(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def init_test(self):
+        self.set_sdaa()
+        self.op_type = "lookup_table_v2"
+        self.python_api = paddle.nn.functional.embedding
+        self.ids_shape = 4
+        self.mkldnn_data_type = "bfloat16"
+
+    def setUp(self):
+        self.init_test()
+        self.dtype = np.uint16
+
+        table = np.random.random((17, 31)).astype("float32")
+        self.ids = np.random.randint(0, 17, self.ids_shape).astype("int64")
+        self.flat_ids = self.ids.flatten()
+
+        self.w_bf16 = convert_float_to_uint16(table)
+        self.out_bf16 = _lookup(self.w_bf16, self.ids, self.flat_ids, self.op_type)
+        self.out_fp32 = _lookup(table, self.ids, self.flat_ids, self.op_type)
+        self.w_grad_fp32 = _get_grad(table, self.ids, self.flat_ids, self.op_type)
+
+        self.inputs = {"W": self.w_bf16, "Ids": self.ids}
+        self.outputs = {"Out": self.out_fp32}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, check_dygraph=False)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["W"],
+            "Out",
+            no_grad_set=set("Ids"),
+            check_dygraph=False,
+            max_relative_error=1.5e-2,
+            user_defined_grads=[self.w_grad_fp32],
+            user_defined_grad_outputs=[self.out_bf16],
+        )
+
+
+class TestLookupTableV2BF16OpIds3D(TestLookupTableV2BF16Op):
+    def init_test(self):
+        self.set_sdaa()
+        self.op_type = "lookup_table_v2"
+        self.python_api = paddle.nn.functional.embedding
+        self.ids_shape = (2, 4)
+        self.mkldnn_data_type = "bfloat16"
 
 
 class TestLookupTableV2FP16(TestLookupTableV2):

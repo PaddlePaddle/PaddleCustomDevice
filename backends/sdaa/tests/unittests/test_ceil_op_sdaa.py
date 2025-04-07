@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest
 import paddle
 from paddle.static import Program, program_guard
 
@@ -37,7 +37,6 @@ paddle.enable_static()
 SEED = 1024
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestCeilOp(OpTest):
     def setUp(self):
         self.op_type = "ceil"
@@ -65,6 +64,13 @@ class TestCeilOp(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    # the gradient on floor, ceil, round is undefined.
+    # we return zero as gradient, but the numpy return nan
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out", numeric_grad_delta=0.003)
 
 
 class TestCeil_ZeroDim(TestCeilOp):

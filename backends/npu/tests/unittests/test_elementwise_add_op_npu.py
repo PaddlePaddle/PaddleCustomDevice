@@ -23,6 +23,10 @@ from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 
+# Initialize NPU device
+exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
+exe.run(paddle.static.default_startup_program())
+
 
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
@@ -184,12 +188,13 @@ class TestFP16ElementwiseAddOp_scalar2(TestFP16ElementwiseAddOp):
 
 class TestAddAPI(unittest.TestCase):
     def test_name(self):
-        with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = paddle.add(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = paddle.add(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_static(self):
         with paddle.static.program_guard(paddle.static.Program()):
@@ -240,11 +245,11 @@ class TestAddError(unittest.TestCase):
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("npu", 0)
             )
             self.assertRaises(TypeError, paddle.add, x1, y1)
-
-            # the input dtype must be float16 or float32 or float64 or int32 or int64
-            x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.add, x2, y2)
+            if not paddle.framework.in_pir_mode():
+                # the input dtype must be float16 or float32 or float64 or int32 or int64
+                x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
+                y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
+                self.assertRaises(TypeError, paddle.add, x2, y2)
 
 
 class TestElementwiseAddOp_Vector(TestElementwiseAddOp):
@@ -507,12 +512,13 @@ class TestAddApi(unittest.TestCase):
         return paddle.add(x, y, name)
 
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = self._executed_api(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = self._executed_api(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_declarative(self):
         with base.program_guard(base.Program()):
@@ -529,7 +535,7 @@ class TestAddApi(unittest.TestCase):
 
             place = paddle.CustomPlace("npu", 0)
             exe = base.Executor(place)
-            z_value = exe.run(feed=gen_data(), fetch_list=[z.name])
+            z_value = exe.run(feed=gen_data(), fetch_list=[z])
             z_expected = np.array([3.0, 8.0, 6.0])
             self.assertEqual((z_value == z_expected).all(), True)
 
@@ -639,7 +645,7 @@ class TestAddAPIWithNPUStroageFormat(unittest.TestCase):
         exe.run(startup_program)
         result = exe.run(
             main_program,
-            feed={x_data.name: self.x, y_data.name: self.y},
+            feed={"data_x": self.x, "data_y": self.y},
             fetch_list=[out_expect, out_actual],
         )
 

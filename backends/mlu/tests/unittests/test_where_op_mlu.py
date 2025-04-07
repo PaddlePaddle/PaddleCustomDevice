@@ -19,7 +19,6 @@ import numpy as np
 import paddle
 import paddle.base as base
 from tests.op_test import OpTest
-from paddle.base.backward import append_backward
 from paddle.base import Program, program_guard
 
 paddle.enable_static()
@@ -106,16 +105,15 @@ class TestWhereAPI(unittest.TestCase):
 
                     result = paddle.where(cond, x, y)
                     result.stop_gradient = False
-                    append_backward(paddle.mean(result))
+                    loss = paddle.mean(result)
+                    grads = paddle.static.gradients(loss, [result, x, y])
 
                     exe = base.Executor(self.place)
                     exe.run(startup)
 
-                    fetch_list = [result, result.grad_name]
-                    if x_stop_gradient is False:
-                        fetch_list.append(x.grad_name)
-                    if y_stop_gradient is False:
-                        fetch_list.append(y.grad_name)
+                    fetch_list = [result]
+                    fetch_list.extend([x for x in grads if x is not None])
+
                     out = exe.run(
                         train_prog,
                         feed={"cond": self.cond, "x": self.x, "y": self.y},

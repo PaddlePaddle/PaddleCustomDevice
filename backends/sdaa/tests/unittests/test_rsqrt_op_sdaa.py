@@ -30,7 +30,7 @@ import unittest
 
 import numpy as np
 import paddle
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 from op_test_dy import TestDygraphInplace
 
 paddle.enable_static()
@@ -64,6 +64,32 @@ class TestRsqrt(OpTest):
 
     def test_check_grad(self):
         self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.02)
+
+
+class TestRsqrtBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "rsqrt"
+        self.python_api = paddle.rsqrt
+
+        self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [11, 17]).astype(np.float32)
+        out = 1.0 / np.sqrt(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.attrs = {}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
 
 
 class TestRsqrtFp16(TestRsqrt):

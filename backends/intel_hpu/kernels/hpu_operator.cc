@@ -30,12 +30,18 @@
 
 FLAGS_DEFINE_bool(intel_hpu_sync_execute, false, "set sync execute mode");
 
+FLAGS_DEFINE_int32(intel_hpu_execution_queue_size,
+                   -1,
+                   "Maximum size of the execution queue in RecipeRunner");
+
 typedef std::pair<synSectionHandle, bool> sectionWithFirstIndication;
 static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
 
 static uint64_t cached_workspaceSize = 0;
 static uint64_t cached_workspaceAddress = 0;
 static uint32_t recipe_count = 0;
+
+extern C_Status GetDeviceID(const C_Device device);
 
 void HpuOperator::Compile() {
   std::string recipe_name =
@@ -115,6 +121,8 @@ synTensor HpuOperator::createTensor(unsigned dims,
   return tensor;
 }
 
+std::queue<synEventHandle> RecipeRunner::executionQueue_;
+
 void RecipeRunner::prepareTensorInfo(synRecipeHandle recipe,
                                      synLaunchTensorInfo* tensorInfo,
                                      uint32_t totalNumOfTensors) {
@@ -167,6 +175,28 @@ void RecipeRunner::Run(C_Stream stream,
     concatTensors.push_back({tensor.first.c_str(), tensor.second});
   }
   prepareTensorInfo(recipeHandle_, &concatTensors[0], concatTensors.size());
+
+  bool use_queue_management = (FLAGS_intel_hpu_execution_queue_size > 0);
+
+  if (use_queue_management) {
+    bool queue_size_exceeded = isQueueSizeExceeded();
+
+    while (queue_size_exceeded && !executionQueue_.empty()) {
+      synEventHandle ee = executionQueue_.front();
+      executionQueue_.pop();
+
+      VLOG(6) << "use_queue_managment " << use_queue_management
+              << ", `pop` event, queue size: " << executionQueue_.size();
+      status = synEventSynchronize(ee);
+      PD_CHECK(status == synSuccess, "synEventSynchronize() failed = ", status);
+
+      status = synEventDestroy(ee);
+      PD_CHECK(status == synSuccess, "synEventDestroy() failed = ", status);
+
+      queue_size_exceeded = isQueueSizeExceeded();
+    }
+  }
+
   status = synLaunch(reinterpret_cast<synStreamHandle>(stream),
                      concatTensors.data(),
                      concatTensors.size(),
@@ -176,8 +206,39 @@ void RecipeRunner::Run(C_Stream stream,
 
   PD_CHECK(status == synSuccess, "synLaunch() failed = ", status);
   VLOG(6) << "synLaunch called ";
+
+  if (use_queue_management) {
+    synEventHandle e = nullptr;
+    status = synEventCreate(&e, deviceId_, 0);
+    PD_CHECK(status == synSuccess, "synEventCreate() failed = ", status);
+
+    status = synEventRecord(e, reinterpret_cast<synStreamHandle>(stream));
+    PD_CHECK(status == synSuccess, "synEventRecord() failed = ", status);
+
+    executionQueue_.push(e);
+    VLOG(6) << "executionQueue_ `push` event, queue size: "
+            << executionQueue_.size();
+  }
+
   if (FLAGS_intel_hpu_sync_execute) {
     status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
     PD_CHECK(status == synSuccess, "synStreamSynchronize() failed = ", status);
   }
+}
+
+synDeviceId RecipeRunner::getDevice() const {
+  C_Device_st device_struct{};
+  C_Device device = &device_struct;
+  C_Status c_status = GetDeviceID(device);
+  if (c_status != C_SUCCESS) {
+    LOG(ERROR) << "GetDeviceID() failed = " << c_status;
+    return static_cast<synDeviceId>(-1);
+  }
+  return static_cast<synDeviceId>(device->id);
+}
+
+bool RecipeRunner::isQueueSizeExceeded() const {
+  return (FLAGS_intel_hpu_execution_queue_size > 0) &&
+         (executionQueue_.size() >=
+          static_cast<size_t>(FLAGS_intel_hpu_execution_queue_size));
 }

@@ -40,6 +40,7 @@ void MergedAdamKernel(
     const std::vector<const phi::DenseTensor*>& learning_rate,
     const std::vector<const phi::DenseTensor*>& moment1,
     const std::vector<const phi::DenseTensor*>& moment2,
+    const paddle::optional<std::vector<const phi::DenseTensor*>>& moment2_max,
     const std::vector<const phi::DenseTensor*>& beta1_pow,
     const std::vector<const phi::DenseTensor*>& beta2_pow,
     const paddle::optional<std::vector<const phi::DenseTensor*>>& master_param,
@@ -48,13 +49,19 @@ void MergedAdamKernel(
     const phi::Scalar& epsilon,
     bool multi_precision,
     bool use_global_beta_pow,
+    bool amsgrad,
     std::vector<phi::DenseTensor*> param_out,
     std::vector<phi::DenseTensor*> moment1_out,
     std::vector<phi::DenseTensor*> moment2_out,
+    std::vector<phi::DenseTensor*> moment2_max_out,
     std::vector<phi::DenseTensor*> beta1_pow_out,
     std::vector<phi::DenseTensor*> beta2_pow_out,
     std::vector<phi::DenseTensor*> master_param_out) {
   VLOG(4) << "call sdaa MergedAdamKernel";
+  PADDLE_ENFORCE_NE(
+      amsgrad,
+      true,
+      phi::errors::Unimplemented("Operation amsgrad is not supported yet."));
   if (beta1_pow[0]->place().GetType() == phi::AllocationType::CPU) {
     VLOG(4) << "beta1_pow place is cpu!";
   }
@@ -132,6 +139,7 @@ void MergedAdamKernel(
     TensorCopy(dev_ctx, *moment2[i], false, moment2_out[i]);
     grad_in.push_back(const_cast<phi::DenseTensor*>(grad[i]));
   }
+
   for (int i = 0; i < M; i++) {
     data[0][i] = grad_in[i]->data();
     data[1][i] = param_out[i]->data();
@@ -139,7 +147,7 @@ void MergedAdamKernel(
     data[3][i] = moment2_out[i]->data();
   }
 
-  void* pointer[input_num];
+  void** pointer[input_num];
   std::vector<phi::DenseTensor> pointer_data(input_num);
   int64_t pointer_bytes = M * sizeof(void*);
   for (int i = 0; i < input_num; ++i) {
@@ -150,7 +158,7 @@ void MergedAdamKernel(
                    pointer_data[i].data(),
                    data[i],
                    pointer_bytes);
-    pointer[i] = pointer_data[i].data();
+    pointer[i] = reinterpret_cast<void**>(pointer_data[i].data());
   }
 
   float beta1_ = beta1.to<float>();  // cpu
@@ -166,19 +174,54 @@ void MergedAdamKernel(
   phi::DenseTensorMeta meta1 = {phi::DataType::INT64, dim};
   n_total.set_meta(meta1);
   TensorFromVector(dev_ctx, len, dev_ctx, &n_total);
-  sdaaStream_t custom_stream = GetStreamFromCTX(dev_ctx);
-  TCUS_CHECK(sdcops::merged_adam_ops(M,
-                                     n_total.data<int64_t>(),
-                                     pointer,
-                                     lr.data<T>(),
-                                     b1_pow.data<T>(),
-                                     b2_pow.data<T>(),
-                                     beta1_,
-                                     beta2_,
-                                     epsilon_,
-                                     0,
-                                     false,
-                                     custom_stream));
+
+  tecocustomHandle_t tecocustomHandle =
+      custom_kernel::GetTecoCustomHandleFromCTX(dev_ctx);
+
+  std::vector<int> total_n_dim = {M};
+  tecocustomTensorDescriptor_t lrDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          total_n_dim, lr.dtype(), custom_kernel::TensorFormat::Undefined);
+  tecocustomTensorDescriptor_t nTotalDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          total_n_dim, n_total.dtype(), custom_kernel::TensorFormat::Undefined);
+  tecocustomTensorDescriptor_t beta1Correction =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          total_n_dim, b1_pow.dtype(), custom_kernel::TensorFormat::Undefined);
+  tecocustomTensorDescriptor_t beta2Correction =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          total_n_dim, b2_pow.dtype(), custom_kernel::TensorFormat::Undefined);
+
+  tecocustomTensorListDescriptor_t vec_desc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorListDesc(grad_in, true);
+  TECOCUSTOM_CHECK(tecocustomMergedAdam(tecocustomHandle,
+                                        lrDesc,
+                                        lr.data(),
+                                        nTotalDesc,
+                                        n_total.data(),
+                                        beta1Correction,
+                                        b1_pow.data(),
+                                        beta2Correction,
+                                        b2_pow.data(),
+                                        vec_desc,
+                                        pointer[0],
+                                        vec_desc,
+                                        pointer[1],
+                                        vec_desc,
+                                        pointer[2],
+                                        vec_desc,
+                                        pointer[3],
+                                        beta1_,
+                                        beta2_,
+                                        epsilon_,
+                                        0,
+                                        false));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(lrDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(nTotalDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(beta1Correction));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(beta2Correction));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorListDescriptor(vec_desc));
+
   if (!use_global_beta_pow) {
     sdaa_ops::doScaleTensor(dev_ctx, b1_pow, beta1_, 0, true, false, &b1_pow);
     sdaa_ops::doScaleTensor(dev_ctx, b2_pow, beta2_, 0, true, false, &b2_pow);
@@ -205,6 +248,6 @@ void MergedAdamKernel(
 PD_REGISTER_PLUGIN_KERNEL(
     merged_adam, sdaa, ALL_LAYOUT, custom_kernel::MergedAdamKernel, float) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
-  kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);
 }

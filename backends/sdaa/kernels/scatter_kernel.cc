@@ -50,5 +50,7 @@ PD_REGISTER_PLUGIN_KERNEL(scatter,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::ScatterKernel,
+                          int64_t,
+                          int,
                           float,
                           phi::dtype::float16) {}

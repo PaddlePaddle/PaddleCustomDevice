@@ -36,6 +36,7 @@ include(paddle)
 include(generic)
 include(version)
 include(external/synapse)
+include(external/custom_tpc_lib)
 
 include_directories(${PADDLE_INC_DIR} ${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/kernels /usr/include/habanalabs)

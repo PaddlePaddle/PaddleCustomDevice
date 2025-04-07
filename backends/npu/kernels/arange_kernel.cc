@@ -114,9 +114,6 @@ void AclopArangeKernel(const Context& dev_ctx,
   int64_t size = 0;
   GetSize(start_value, end_value, step_value, &size);
 
-  out->Resize(phi::make_ddim({size}));
-  dev_ctx.template Alloc<T>(out);
-
   std::vector<T> odata;
   T value = start_value;
   for (int64_t i = 0; i < size; ++i) {
@@ -136,7 +133,16 @@ void ArangeKernel(const Context& dev_ctx,
   DO_COMPATIBILITY(aclnnArange,
                    (custom_kernel::AclopArangeKernel<T, Context>(
                        dev_ctx, start, end, step, out)));
+  T start_value = start.to<T>();
+  T end_value = end.to<T>();
+  T step_value = step.to<T>();
+
+  int64_t size = 0;
+  GetSize(start_value, end_value, step_value, &size);
+
+  out->Resize(phi::make_ddim({size}));
   dev_ctx.template Alloc<T>(out);
+
   EXEC_NPU_CMD(aclnnArange, dev_ctx, start, end, step, *out);
 }
 

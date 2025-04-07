@@ -167,7 +167,7 @@ std::vector<paddle::DataType> IndexCopyInferDtype(
   return {input_dtype};
 }
 
-PD_BUILD_OP(index_copy)
+PD_BUILD_OP(index_copy_)
     .Inputs({"input", "index", "source"})
     .Outputs({"out"})
     .Attrs({"dim: int"})

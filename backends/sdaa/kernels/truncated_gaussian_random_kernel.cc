@@ -30,22 +30,9 @@
 
 namespace custom_kernel {
 
-template <typename T, typename Context>
-void doTruncatedNormal(const Context& dev_ctx,
-                       const std::vector<int>& shape,
-                       float mean,
-                       float std,
-                       int seed,
-                       phi::DataType dtype,
-                       phi::DenseTensor* out) {
-  VLOG(4) << "Call TruncatedNormal Op";
-  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  tecodnnTensorDescriptor_t Desc =
-      sdaa_ops::GetTecodnnTensorDesc(shape, dtype, TensorFormat::NHWC);
-  TECODNN_CHECK(tecodnnTruncatedNormal(
-      tecodnnHandle, seed, mean, std, Desc, out->data()));
-
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc));
+template <typename T>
+T clamp(T val, T min, T max) {
+  return val < min ? min : (val > max ? max : val);
 }
 
 template <typename T, typename Context>
@@ -54,6 +41,8 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
                                    float mean,
                                    float std,
                                    int seed,
+                                   float a,
+                                   float b,
                                    phi::DataType dtype,
                                    phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA TruncatedGaussianRandomKernel";
@@ -66,12 +55,14 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
   cpu_out.set_meta(cpu_out_meta);
   T* cpu_data = dev_ctx.template HostAlloc<T>(&cpu_out);
 
-  double a_normal_cdf = (1.0 + erff(-2.0 / sqrtf(2.0))) / 2.0;
-  double b_normal_cdf = (1.0 + erff(2.0 / sqrtf(2.0))) / 2.0;
+  double a_normal_cdf =
+      (1.0 + std::erf((a - mean) / std / std::sqrt(2.0))) / 2.0;
+  double b_normal_cdf =
+      (1.0 + std::erf((b - mean) / std / std::sqrt(2.0))) / 2.0;
 
   auto gen_sdaa = dev_ctx.GetGenerator();
   std::minstd_rand rng;
-  std::uniform_real_distribution<T> dist(std::numeric_limits<T>::min(), 1);
+  std::uniform_real_distribution<T> dist(std::numeric_limits<T>::min(), 1.0);
   if (seed == 0) {
     // use global Generator seed
     auto seed_offset = gen_sdaa->IncrementOffset(1);
@@ -87,7 +78,8 @@ void TruncatedGaussianRandomKernel(const Context& dev_ctx,
   for (int64_t i = 0; i < size; i++) {
     T value = dist(rng);
     auto p = a_normal_cdf + (b_normal_cdf - a_normal_cdf) * value;
-    cpu_data[i] = std::sqrt(2.0) * Erfinv(2 * p - 1) * std + mean;
+    T res = std::sqrt(2.0) * Erfinv(2 * p - 1) * std + mean;
+    cpu_data[i] = clamp(res, a, b);
   }
 
   // 2. CPU copy to SDAA

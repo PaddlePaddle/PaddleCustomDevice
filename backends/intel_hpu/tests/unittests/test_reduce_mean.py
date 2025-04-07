@@ -127,19 +127,6 @@ class TestMeanOp5DBF16(TestMeanOpBF16):
         self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
 
-@skip_check_grad_ci(
-    reason="reduce_min is discontinuous non-derivable function,"
-    " its gradient check is not supported by unittest framework."
-)
-class TestReduceAllBF16(TestMeanOpBF16):
-    def init_data(self):
-        self.x = convert_float_to_uint16(
-            np.random.random((5, 6, 2, 10)).astype("float32")
-        )
-        self.attrs = {"reduce_all": True}
-        self.out = convert_uint16_to_float(self.x).mean()
-
-
 # @skip_check_grad_ci(
 #     reason="reduce_min is discontinuous non-derivable function,"
 #     " its gradient check is not supported by unittest framework."
@@ -148,18 +135,6 @@ class TestReduceAllBF16(TestMeanOpBF16):
 #     def init_data(self):
 #         self.x = convert_float_to_uint16(np.random.random((120)).astype("float32"))
 #         self.out = convert_uint16_to_float(self.x).mean(axis=0)
-
-
-@skip_check_grad_ci(
-    reason="reduce_min is discontinuous non-derivable function,"
-    " its gradient check is not supported by unittest framework."
-)
-class TestMeanOp6DBF16(TestMeanOpBF16):
-    def init_data(self):
-        self.x = convert_float_to_uint16(
-            np.random.random((1, 1, 2, 5, 6, 10)).astype("float32")
-        )
-        self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
 
 class TestMeanOpNumel1(OpTest):

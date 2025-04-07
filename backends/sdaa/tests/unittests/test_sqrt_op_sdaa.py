@@ -16,7 +16,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16, skip_check_grad_ci
 import paddle
 
 paddle.enable_static()
@@ -88,6 +88,37 @@ class TestSqrtFp16(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place, atol=1e-3)
+
+
+@skip_check_grad_ci(reason="The backward test is not supported for bf16.")
+class TestSqrtBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "sqrt"
+        self.python_api = paddle.sqrt
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+        x = np.random.uniform(1, 2, [3, 4]).astype(np.float32)
+        out = np.sqrt(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.attrs = {}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-2)
+
+    def test_check_grad(self):
+        pass
 
 
 class TestSqrtNet(unittest.TestCase):

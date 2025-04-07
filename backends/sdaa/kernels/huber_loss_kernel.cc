@@ -101,9 +101,7 @@ void HuberLossGradKernel(const Context& dev_ctx,
     label_grad_ptr = label_grad_temp.data();
   }
 
-  // Resize dims to {1, numel}, because tecodnnHuberLossBackward only
-  // support 2D.
-  std::vector<int> dout_dims = {1, static_cast<int>(out_grad.numel())};
+  std::vector<int> dout_dims = phi::vectorize<int>(out_grad.dims());
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnLossReductionMode_t HuberLossReductionMode =

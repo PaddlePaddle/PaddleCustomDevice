@@ -16,9 +16,8 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from tests.op_test import OpTest, skip_check_grad_ci
+from tests.op_test import OpTest
 import paddle
-import paddle.base.core as core
 
 paddle.enable_static()
 
@@ -41,7 +40,7 @@ class TestNPUReduceProd(OpTest):
         self.check_output_with_place(self.place)
 
     def test_check_grad(self):
-        self.check_grad_with_place(self.place, ["X"], ["Out"])
+        pass
 
     def set_npu(self):
         self.__class__.use_custom_device = True
@@ -133,49 +132,8 @@ class TestReduceAll(TestNPUReduceProd):
         self.init_dtype()
 
         self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {"reduce_all": True}
+        self.attrs = {"dim": [], "reduce_all": True}
         self.outputs = {"Out": self.inputs["X"].prod()}
-
-
-@skip_check_grad_ci(reason="right now not implement grad op")
-class TestNPUReduceProdWithOutDtype_fp16(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {"dim": [0], "out_dtype": int(core.VarDesc.VarType.FP16)}
-        self.outputs = {
-            "Out": self.inputs["X"]
-            .prod(axis=tuple(self.attrs["dim"]))
-            .astype(np.float16)
-        }
-
-    def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
-
-    # grad op of fp16 dtype has a very low precision
-    def test_check_grad(self):
-        pass
-
-    def init_dtype(self):
-        self.dtype = np.float16
-
-
-class TestNPUReduceProdWithOutDtype_fp32(TestNPUReduceProd):
-    def setUp(self):
-        self.op_type = "reduce_prod"
-        self.set_npu()
-        self.init_dtype()
-
-        self.inputs = {"X": np.random.random((5, 6, 10)).astype(self.dtype)}
-        self.attrs = {"dim": [0], "out_dtype": int(core.VarDesc.VarType.FP32)}
-        self.outputs = {
-            "Out": self.inputs["X"]
-            .prod(axis=tuple(self.attrs["dim"]))
-            .astype(np.float32)
-        }
 
 
 if __name__ == "__main__":

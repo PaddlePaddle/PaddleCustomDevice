@@ -1086,6 +1086,118 @@ class TestPool2D_Op_Ceil_Mode(OpTest):
         self.adaptive = False
 
 
+class TestPool2D_Op_Ceil_Mode2(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "pool2d"
+        self.python_api = pool2d_wrapper
+        self.init_kernel_type()
+        self.init_test_case()
+        self.padding_algorithm = "EXPLICIT"
+        self.init_paddings()
+        self.init_global_pool()
+        self.init_pool_type()
+        self.init_ceil_mode()
+        self.init_exclusive()
+        self.init_adaptive()
+        self.init_data_format()
+        self.init_shape()
+
+        input = np.random.random(self.shape).astype(self.dtype)
+        output = pool2D_forward_naive(
+            input,
+            self.ksize,
+            self.strides,
+            self.paddings,
+            self.global_pool,
+            self.ceil_mode,
+            self.exclusive,
+            self.adaptive,
+            self.data_format,
+            self.pool_type,
+            self.padding_algorithm,
+        ).astype(self.dtype)
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(input)}
+
+        self.attrs = {
+            "strides": self.strides,
+            "paddings": self.paddings,
+            "ksize": self.ksize,
+            "pooling_type": self.pool_type,
+            "global_pooling": self.global_pool,
+            "ceil_mode": self.ceil_mode,
+            "data_format": self.data_format,
+            "exclusive": self.exclusive,
+            "adaptive": self.adaptive,
+            "padding_algorithm": self.padding_algorithm,
+        }
+
+        self.outputs = {"Out": output}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-5)
+
+    def test_check_grad(self):
+        x_grad = pool2d_backward_navie(
+            self.inputs["X"],
+            ksize=self.ksize,
+            strides=self.strides,
+            paddings=self.paddings,
+            global_pool=self.global_pool,
+            ceil_mode=True,
+            exclusive=self.exclusive,
+            adaptive=self.adaptive,
+            data_format=self.data_format,
+            pool_type=self.pool_type,
+            padding_algorithm=self.padding_algorithm,
+        )
+        x_grad = x_grad / np.prod(self.outputs["Out"].shape)
+        self.check_grad_with_place(
+            self.place,
+            set(["X"]),
+            "Out",
+            max_relative_error=0.06,
+            user_defined_grads=[x_grad],
+        )
+
+    def init_data_format(self):
+        self.data_format = "NCHW"
+
+    def init_shape(self):
+        self.shape = [4, 8, 10, 10]
+
+    def init_test_case(self):
+        self.ksize = [2, 2]
+        self.strides = [2, 2]
+
+    def init_paddings(self):
+        self.paddings = [0, 0]
+        self.padding_algorithm = "EXPLICIT"
+
+    def init_kernel_type(self):
+        self.dtype = np.float32
+
+    def init_pool_type(self):
+        self.pool_type = "max"
+        self.pool2D_forward_naive = max_pool2D_forward_naive
+
+    def init_global_pool(self):
+        self.global_pool = False
+
+    def init_ceil_mode(self):
+        self.ceil_mode = True
+
+    def init_exclusive(self):
+        self.exclusive = True
+
+    def init_adaptive(self):
+        self.adaptive = False
+
+
 create_test_padding_SAME_class(TestPool2D_Op)
 create_test_padding_SAME_class(TestCase1)
 create_test_padding_SAME_class(TestCase2)

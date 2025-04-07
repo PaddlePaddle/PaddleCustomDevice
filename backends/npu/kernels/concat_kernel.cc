@@ -126,9 +126,15 @@ void ConcatKernel(const Context& dev_ctx,
                   const std::vector<const phi::DenseTensor*>& ins,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
+  if (out->numel() == 0) {
+    return;
+  }
+
   DO_COMPATIBILITY(aclnnCat,
                    (custom_kernel::AclopConcatKernel<T, Context>(
                        dev_ctx, ins, axis_scalar, out)));
+
   int axis = axis_scalar.to<int>();
   axis = ComputeAxis(static_cast<int64_t>(axis),
                      static_cast<int64_t>(ins[0]->dims().size()));
@@ -140,7 +146,6 @@ void ConcatKernel(const Context& dev_ctx,
       continue;
     }
   }
-  dev_ctx.template Alloc<T>(out);
   EXEC_NPU_CMD(aclnnCat, dev_ctx, inputs, axis, *out);
 }
 

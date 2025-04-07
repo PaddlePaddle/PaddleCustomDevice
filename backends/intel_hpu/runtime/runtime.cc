@@ -326,13 +326,6 @@ class RuntimeManager {
                status);
 
     } else if (flag == 1) {
-      if (stream_d2h == nullptr) {
-        status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2h), device->id, 0);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synStreamCreateGeneric() failed = ",
-                 status);
-      }
       // addCache(device, dst, size);
       void *ptr = getCachedHostMem(device, size);
       status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
@@ -345,7 +338,7 @@ class RuntimeManager {
                "[RUNTIME] synMemCopyAsync() failed = ",
                status);
       // TO BE NOTICED, still sync mode copy due to memory map issue.
-      status = synStreamSynchronize(stream_d2h);
+      status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synStreamSynchronize() failed = ",
                status);
@@ -485,13 +478,13 @@ class RuntimeManager {
            reinterpret_cast<void *>(uid.internal),
            uid.length);
     if (FLAGS_intel_hpu_runtime_debug) {
-      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id);
+      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id->data);
       std::ostringstream oss;
       for (size_t i = 0; i < unique_id->sz; ++i) {
         oss << std::hex << static_cast<int>(bytes[i]);
       }
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "unique_id =" << oss.str() << "uid size = " << unique_id->sz;
+          << "unique_id =" << oss.str() << ", uid size = " << unique_id->sz;
     }
     return C_SUCCESS;
   }
@@ -501,13 +494,13 @@ class RuntimeManager {
                         size_t rank,
                         C_CCLComm *comm) {
     if (FLAGS_intel_hpu_runtime_debug) {
-      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id);
+      const uint8_t *bytes = reinterpret_cast<uint8_t *>(unique_id->data);
       std::ostringstream oss;
       for (size_t i = 0; i < unique_id->sz; ++i) {
         oss << std::hex << static_cast<int>(bytes[i]);
       }
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-          << "unique_id =" << oss.str() << "uid size = " << unique_id->sz
+          << "unique_id =" << oss.str() << ", uid size = " << unique_id->sz
           << ", rank = " << rank;
     }
 

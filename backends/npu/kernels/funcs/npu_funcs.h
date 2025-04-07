@@ -281,6 +281,8 @@ inline void TensorToVector(const phi::CustomContext& ctx,
     AsyncMemCpyD2H(
         &device, static_cast<C_Stream>(ctx.stream()), dst_ptr, src_ptr, size);
     ctx.Wait();
+  } else if (src_place.GetType() == phi::AllocationType::CPU) {
+    std::memcpy(dst_ptr, src_ptr, size);
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
         "TensorToVector on %s is not supported.", src_place));

@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "./utills.h"
+#pragma once
 
-std::string ShowErrorMsg(synStatus s) {
-  char msg[STATUS_DESCRIPTION_MAX_SIZE] = {0};
+#include <string>
+#include <vector>
 
-  synStatusGetBriefDescription(s, msg, STATUS_DESCRIPTION_MAX_SIZE);
-  return std::string(msg);
-}
+const std::vector<std::string>* GetPirGcuPasses();

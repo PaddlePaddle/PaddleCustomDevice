@@ -29,7 +29,7 @@ import paddle
 from paddle.optimizer import Momentum
 from paddle.regularizer import L2Decay
 from paddle.framework import in_dynamic_mode
-from paddle.base import framework
+from paddle.base import framework, core
 import numpy as np
 import paddle.profiler as profiler
 from ..utils import *  # noqa
@@ -136,6 +136,9 @@ class DistributeMom(Momentum, DistributeOptimizer):
                 total_num = total_num_
 
             self.flat_accum[k] = paddle.empty(shape=[total_num], dtype=paddle.float32)
+            dtype = flatacc_list[0].dtype
+            if isinstance(dtype, core.DataType):
+                dtype = paddle.base.framework.paddle_type_to_proto_type[dtype]
             paddle._legacy_C_ops.coalesce_tensor(
                 flatacc_list,
                 flatacc_list,
@@ -147,12 +150,17 @@ class DistributeMom(Momentum, DistributeOptimizer):
                 "align_size",
                 128,
                 "dtype",
-                flatacc_list[0].dtype,
+                dtype,
             )
 
     def _append_optimize_op(self, block, param_and_grad):
-        if self.HIGH_PERFORMANCE_CONV:
-            return super()._append_optimize_op(block, param_and_grad)
+        if (
+            self.HIGH_PERFORMANCE_CONV
+            or self.group is None
+            or isinstance(param_and_grad, dict)
+        ):
+            super()._append_optimize_op(block, param_and_grad)
+            return
         assert isinstance(block, framework.Block)
         if isinstance(param_and_grad, dict):
             param_and_grad = self._update_param_group(param_and_grad)

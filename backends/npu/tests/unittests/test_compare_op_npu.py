@@ -23,15 +23,20 @@ from paddle.base import Program, program_guard
 from tests.op_test import OpTest, convert_float_to_uint16
 from npu_utils import get_cann_version
 
+with paddle.pir_utils.OldIrGuard():
+    from paddle.base import program_guard as old_program_guard, Program as OldProgram
+
+
 CANN_VERSION_CODE = get_cann_version()
 
 
 def create_test_class(op_type, typename, callback):
     class Cls(OpTest):
         def setUp(self):
-            self.set_npu()
-            self.place = paddle.CustomPlace("npu", 0)
+            self.device = "npu:0"
             self.op_type = op_type
+            self.python_api = eval("paddle." + op_type)
+            self.set_device()
 
         def init_input_output(self, shape1, shape2):
             if typename == "bfloat16":
@@ -48,8 +53,16 @@ def create_test_class(op_type, typename, callback):
             out = callback(x, y)
             self.outputs = {"Out": out}
 
-        def set_npu(self):
+        def set_device(self):
             self.__class__.use_custom_device = True
+            self.place = paddle.CustomPlace(
+                self.device.split(":")[0], int(self.device.split(":")[1])
+            )
+            paddle.set_device(self.device)
+            paddle.enable_static()
+            exe = paddle.static.Executor(self.place)
+            exe.run(paddle.static.default_startup_program())
+            paddle.disable_static()
 
         def test_output(self):
             self.init_input_output((10, 7), (10, 7))
@@ -65,38 +78,56 @@ def create_test_class(op_type, typename, callback):
 
         def test_errors(self):
             paddle.enable_static()
-            with program_guard(Program(), Program()):
-                a = paddle.static.data(name="a", shape=[-1, 2], dtype="float32")
-                b = paddle.static.data(name="b", shape=[-1, 2], dtype="float32")
-                c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
-                d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
+            op = eval("paddle." + self.op_type)
 
-                op = eval("paddle.%s" % self.op_type)
-                self.assertRaises(TypeError, op, x=a, y=b, axis=True)
-                self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
-                self.assertRaises(TypeError, op, x=a, y=b, cond=1)
+            # TODO(LittleHeroZZZX): Remove after CI switched to PIR
+            if not paddle.get_flags(["FLAGS_enable_pir_api"])["FLAGS_enable_pir_api"]:
+                cases = [
+                    {"x": "a", "y": "b", "args": {"axis": True}},
+                    {"x": "a", "y": "b", "args": {"force_cpu": 1}},
+                    {"x": "a", "y": "b", "args": {"cond": 1}},
+                    {"x": "a", "y": "c", "args": {}},
+                    {"x": "c", "y": "a", "args": {}},
+                    {"x": "a", "y": "d", "args": {}},
+                    {"x": "d", "y": "a", "args": {}},
+                    {"x": "c", "y": "d", "args": {}},
+                ]
 
-                try:
-                    result = op(x=a, y=c)
-                except TypeError:
-                    self.fail(
-                        "TypeError should not raised for float32 and int16 inputs"
-                    )
+                def build_op(case):
+                    with old_program_guard(OldProgram(), OldProgram()):
+                        a = paddle.static.data(name="a", shape=[-1, 2], dtype="float32")
+                        b = paddle.static.data(name="b", shape=[-1, 2], dtype="float32")
+                        c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
+                        d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
+                        inputs = {"a": a, "b": b, "c": c, "d": d}
 
-                try:
-                    result = op(x=c, y=a)
-                except TypeError:
-                    self.fail(
-                        "TypeError should not raised for int16 and float32 inputs"
-                    )
+                        op(x=inputs[case["x"]], y=inputs[case["y"]], **case["args"])
+                        exe = paddle.static.Executor(self.place)
 
-                self.assertRaises(TypeError, op, x=a, y=d)
-                self.assertRaises(TypeError, op, x=d, y=a)
-                self.assertRaises(TypeError, op, x=c, y=d)
+                        exe.run(paddle.static.default_startup_program())
+                        exe.run(paddle.static.default_main_program())
+
+                for case in cases:
+                    self.assertRaises(TypeError, build_op, case)
+            else:
+                with program_guard(Program(), Program()):
+                    a = paddle.static.data(name="a", shape=[-1, 2], dtype="float32")
+                    b = paddle.static.data(name="b", shape=[-1, 2], dtype="float32")
+                    c = paddle.static.data(name="c", shape=[-1, 2], dtype="int16")
+                    d = base.create_lod_tensor(np.array([[-1]]), [[1]], self.place)
+
+                    self.assertRaises(TypeError, op, x=a, y=b, axis=True)
+                    self.assertRaises(TypeError, op, x=a, y=b, force_cpu=1)
+                    self.assertRaises(TypeError, op, x=a, y=b, cond=1)
+                    self.assertRaises(TypeError, op, x=a, y=c)
+                    self.assertRaises(TypeError, op, x=c, y=a)
+                    self.assertRaises(TypeError, op, x=a, y=d)
+                    self.assertRaises(TypeError, op, x=d, y=a)
+                    self.assertRaises(TypeError, op, x=c, y=d)
+            paddle.disable_static()
 
         def test_dynamic_api(self):
             paddle.disable_static()
-            paddle.set_device("npu:0")
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
                 y = np.random.random(size=(10, 7)).astype(np.float32)
@@ -114,7 +145,6 @@ def create_test_class(op_type, typename, callback):
             if op_type != "equal":
                 return
             paddle.disable_static()
-            paddle.set_device("npu:0")
             y = np.random.random(size=(10, 7)).astype("int32")
             if typename == "bfloat16":
                 x = np.random.random(size=(10, 7)).astype(np.float32)
@@ -211,12 +241,13 @@ def create_test_class(op_type, typename, callback):
 
         def test_attr_name(self):
             paddle.enable_static()
-            with program_guard(Program(), Program()):
-                x = paddle.static.data(name="x", shape=[-1, 4], dtype=typename)
-                y = paddle.static.data(name="y", shape=[-1, 4], dtype=typename)
-                op = eval("paddle.%s" % (self.op_type))
-                out = op(x=x, y=y, name="name_%s" % (self.op_type))
-            self.assertEqual("name_%s" % (self.op_type) in out.name, True)
+            with paddle.pir_utils.OldIrGuard():
+                with old_program_guard(OldProgram(), OldProgram()):
+                    x = paddle.static.data(name="x", shape=[-1, 4], dtype=typename)
+                    y = paddle.static.data(name="y", shape=[-1, 4], dtype=typename)
+                    op = eval("paddle.%s" % (self.op_type))
+                    out = op(x=x, y=y, name="name_%s" % (self.op_type))
+                    self.assertEqual("name_%s" % (self.op_type) in out.name, True)
 
     cls_name = "{0}_{1}".format(op_type, typename)
     Cls.__name__ = cls_name

@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16, convert_uint16_to_float
 import paddle
 from op_test import skip_check_grad_ci
 import paddle.base.core as core
@@ -428,6 +428,82 @@ class TestCastOpFloat64ToINT32Case03(TestCast):
         self.attrs = {
             "in_dtype": int(core.VarDesc.VarType.FP64),
             "out_dtype": int(core.VarDesc.VarType.INT32),
+        }
+        self.op_type = "cast"
+        self.python_api = cast_wrapper
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
+class TestCastOpFloat32ToBfloat16(TestCast):
+    def setUp(self):
+        ipt = np.random.random([10, 10]).astype("float32") - 2.0
+        self.inputs = {"X": ipt.astype("float32")}
+        self.outputs = {"Out": convert_float_to_uint16(ipt)}
+        self.attrs = {
+            "in_dtype": int(core.VarDesc.VarType.FP32),
+            "out_dtype": int(core.VarDesc.VarType.BF16),
+        }
+        self.op_type = "cast"
+        self.python_api = cast_wrapper
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
+class TestCastOpBfloat16ToFloat32(TestCast):
+    def setUp(self):
+        ipt = np.array(np.random.randint(10, size=[10, 10])).astype("uint16")
+        self.inputs = {"X": ipt}
+        self.outputs = {"Out": convert_uint16_to_float(ipt)}
+        self.attrs = {
+            "in_dtype": int(core.VarDesc.VarType.BF16),
+            "out_dtype": int(core.VarDesc.VarType.FP32),
+        }
+        self.op_type = "cast"
+        self.python_api = cast_wrapper
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
+class TestCastOpFloat64ToBfloat16(TestCast):
+    def setUp(self):
+        ipt = np.random.random([10, 10]).astype("float64") - 2.0
+        self.inputs = {"X": ipt.astype("float64")}
+        self.outputs = {"Out": convert_float_to_uint16(ipt)}
+        self.attrs = {
+            "in_dtype": int(core.VarDesc.VarType.FP64),
+            "out_dtype": int(core.VarDesc.VarType.BF16),
+        }
+        self.op_type = "cast"
+        self.python_api = cast_wrapper
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+
+class TestCastOpBfloat16ToFloat64(TestCast):
+    def setUp(self):
+        ipt = np.array(np.random.randint(10, size=[10, 10])).astype("uint16")
+        self.inputs = {"X": ipt}
+        self.outputs = {"Out": convert_uint16_to_float(ipt)}
+        self.attrs = {
+            "in_dtype": int(core.VarDesc.VarType.BF16),
+            "out_dtype": int(core.VarDesc.VarType.FP64),
         }
         self.op_type = "cast"
         self.python_api = cast_wrapper

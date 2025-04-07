@@ -33,6 +33,8 @@ make -j8
 
 # using pip to install the output
 pip install dist/paddle_intel_hpu*.whl
+# set TPC kernel library path for Habana runtime. please note the path is a Python version-dependent path.
+export GC_KERNEL_PATH=/usr/local/lib/python3.10/dist-packages/paddle_custom_device/intel_hpu/libcustom_tpc_perf_lib.so:$GC_KERNEL_PATH
 ```
 
 ## Verification

@@ -34,6 +34,23 @@ void AddKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::DenseTensor& y,
                phi::DenseTensor* out) {
+  // In RPNFeat layer of mask-rcnn, five conv layers use the same filter
+  // weights, so out's storage properties will be eliminated while accumulating
+  // gradients and it must add storage properties to out.
+  /* for example, the states of storage properties are:
+      | x | y | out |
+      | 1 | 1 |   0 |
+  */
+  if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
+      (x.storage_properties_initialized() &&
+       y.storage_properties_initialized() &&
+       !out->storage_properties_initialized())) {
+    SDAAStorageProperties properties =
+        x.storage_properties<SDAAStorageProperties>();
+
+    sdaa_ops::doAddStorageProperties(dev_ctx, out, properties);
+  }
+
   if (x.dtype() == phi::DataType::FLOAT32 &&
       y.dtype() == phi::DataType::FLOAT16) {
     VLOG(4) << "Call SDAA Multi-Precision AddKernel";
@@ -118,6 +135,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -131,6 +149,7 @@ PD_REGISTER_PLUGIN_KERNEL(add,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -140,6 +159,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_grad,
                           custom_kernel::AddGradKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double,
                           int,
                           int64_t) {}
@@ -154,5 +174,6 @@ PD_REGISTER_PLUGIN_KERNEL(grad_add,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}

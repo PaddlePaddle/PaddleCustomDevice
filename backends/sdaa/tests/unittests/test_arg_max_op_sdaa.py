@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import unittest
 import numpy as np
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 import paddle.base.core as core
 
@@ -57,6 +57,24 @@ class BaseTestCase(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+
+class TestArgMaxBF16OP(BaseTestCase):
+    def initTestCase(self):
+        self.op_type = "arg_max"
+        self.dims = (3, 4, 5)
+        self.dtype = np.uint16
+        self.axis = 0
+
+    def setUp(self):
+        self.set_sdaa()
+        self.python_api = paddle.argmax
+        self.initTestCase()
+        x = (1000 * np.random.random(self.dims)).astype("float32")
+        self.x = convert_float_to_uint16(x)
+        self.inputs = {"X": self.x}
+        self.attrs = {"axis": self.axis}
+        self.outputs = {"Out": np.argmax(self.x, axis=self.axis)}
 
 
 class TestArgMaxSameValue1(BaseTestCase):

@@ -144,16 +144,29 @@ void LinspaceKernel(const Context& dev_ctx,
   custom_kernel::CastKernel<T, Context>(dev_ctx, start_n, cast_dtype, &start_t);
 
   custom_kernel::CastKernel<T, Context>(dev_ctx, stop_n, cast_dtype, &stop_t);
+  int32_t num = 0;
+  if (number_n.dtype() == phi::DataType::INT64) {
+    std::vector<int64_t> number_v;
+    TensorToVector(dev_ctx, number_n, dev_ctx, &number_v);
+    num = number_v[0];
+  } else if (number_n.dtype() == phi::DataType::INT32) {
+    std::vector<int32_t> number_v;
+    TensorToVector(dev_ctx, number_n, dev_ctx, &number_v);
+    num = number_v[0];
+  }
 
-  std::vector<int32_t> number_v;
-  TensorToVector(dev_ctx, number_n, dev_ctx, &number_v);
-  int64_t num = number_v[0];
-  PADDLE_ENFORCE_GT(
+  PADDLE_ENFORCE_GE(
       num,
       0,
       phi::errors::InvalidArgument("The num of linspace op should be larger "
                                    "than 0, but received num is %d",
-                                   number_v[0]));
+                                   num));
+  if (num == 0) {
+    out->Resize(common::make_ddim({0}));
+    dev_ctx.template Alloc<T>(out);
+    return;
+  }
+
   if (dtype == phi::DataType::INT64) {
     std::vector<int32_t> start_v, stop_v;
     TensorToVector(dev_ctx, start_t, dev_ctx, &start_v);

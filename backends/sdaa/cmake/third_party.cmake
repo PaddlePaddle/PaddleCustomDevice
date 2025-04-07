@@ -55,9 +55,9 @@ if(WITH_TESTING)
 endif()
 
 if(WITH_MKLDNN AND NOT WITH_ARM)
-  check_update_submodule(mkldnn)
-  include(external/mkldnn) # mkldnn
-  list(APPEND third_party_deps extern_mkldnn)
+  check_update_submodule(onednn)
+  include(external/onednn) # mkldnn
+  list(APPEND third_party_deps extern_onednn)
 endif()
 
 include(external/tabulate) # tabulate

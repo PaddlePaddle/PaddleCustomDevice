@@ -98,6 +98,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide_raw,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -111,6 +112,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -119,4 +121,5 @@ PD_REGISTER_PLUGIN_KERNEL(divide_grad,
                           ALL_LAYOUT,
                           custom_kernel::DivideGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

@@ -23,13 +23,13 @@ template <typename T, typename Context>
 void ScaleKernel(const Context& dev_ctx,
                  const phi::DenseTensor& x,
                  const phi::Scalar& in_scale,
-                 float bias,
+                 const phi::Scalar& bias,
                  bool bias_after_scale,
                  phi::DenseTensor* out) {
   VLOG(4) << "Call SDAA ScaleKernel";
   using MT = typename sdaa_ops::MPTypeTrait<T>::Type;
   auto scale = in_scale.to<MT>();
-  auto bias_MT = static_cast<MT>(bias);
+  auto bias_MT = bias.to<MT>();
 
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") && (&x != out) &&
       (x.storage_properties_initialized())) {
@@ -45,10 +45,10 @@ void ScaleKernel(const Context& dev_ctx,
   }
 
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
-  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  tecodnnTensorDescriptor_t x_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomHandle_t tecocustomHandle = GetTecoCustomHandleFromCTX(dev_ctx);
+  tecocustomTensorDescriptor_t x_Desc = sdaa_ops::GetTecocustomTensorDesc(
       x_dims, x.dtype(), TensorFormat::Undefined);
-  TECODNN_CHECK(tecodnnCustomScaleWithBias(tecodnnHandle,
+  TECOCUSTOM_CHECK(tecocustomScaleWithBias(tecocustomHandle,
                                            &scale,
                                            &bias_MT,
                                            bias_after_scale,
@@ -56,7 +56,7 @@ void ScaleKernel(const Context& dev_ctx,
                                            x.data(),
                                            x_Desc,
                                            out->data()));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(x_Desc));
 }
 
 }  // namespace custom_kernel

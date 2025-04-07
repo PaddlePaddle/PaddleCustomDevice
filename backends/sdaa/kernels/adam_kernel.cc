@@ -20,30 +20,40 @@
 #include "tecodnn.h"  // NOLINT
 namespace custom_kernel {
 template <typename T, typename Context>
-void AdamKernel(const Context& dev_ctx,
-                const phi::DenseTensor& param,
-                const phi::DenseTensor& grad,
-                const phi::DenseTensor& learning_rate,
-                const phi::DenseTensor& moment1,
-                const phi::DenseTensor& moment2,
-                const phi::DenseTensor& beta1_pow_in,
-                const phi::DenseTensor& beta2_pow_in,
-                const paddle::optional<phi::DenseTensor>& master_param,  // fp32
-                const paddle::optional<phi::DenseTensor>& skip_update,
-                const phi::Scalar& beta1_in,
-                const phi::Scalar& beta2_in,
-                const phi::Scalar& epsilon_in,
-                bool lazy_mode,
-                int64_t min_row_size_to_use_multithread,
-                bool multi_precision,
-                bool use_global_beta_pow,
-                phi::DenseTensor* param_out,
-                phi::DenseTensor* moment1_out,
-                phi::DenseTensor* moment2_out,
-                phi::DenseTensor* beta1_pow_out,
-                phi::DenseTensor* beta2_pow_out,
-                phi::DenseTensor* master_param_out) {
+void AdamKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& param,
+    const phi::DenseTensor& grad,
+    const phi::DenseTensor& learning_rate,
+    const phi::DenseTensor& moment1,
+    const phi::DenseTensor& moment2,
+    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
+    const phi::DenseTensor& beta1_pow_in,
+    const phi::DenseTensor& beta2_pow_in,
+    const paddle::optional<phi::DenseTensor>& master_param,  // fp32
+    const paddle::optional<phi::DenseTensor>& skip_update,
+    const phi::Scalar& beta1_in,
+    const phi::Scalar& beta2_in,
+    const phi::Scalar& epsilon_in,
+    bool lazy_mode,
+    int64_t min_row_size_to_use_multithread,
+    bool multi_precision,
+    bool use_global_beta_pow,
+    bool amsgrad,  // UNUSED
+    phi::DenseTensor* param_out,
+    phi::DenseTensor* moment1_out,
+    phi::DenseTensor* moment2_out,
+    phi::DenseTensor* moment2_max_out,  // UNUSED
+    phi::DenseTensor* beta1_pow_out,
+    phi::DenseTensor* beta2_pow_out,
+    phi::DenseTensor* master_param_out) {
   VLOG(4) << "call sdaa AdamKernel";
+
+  PADDLE_ENFORCE_NE(
+      amsgrad,
+      true,
+      phi::errors::Unimplemented("Operation amsgrad is not supported yet."));
+
   using MPDType = typename MPTypeTrait<T>::Type;  // fp32
 
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
@@ -52,18 +62,18 @@ void AdamKernel(const Context& dev_ctx,
     SDAAStorageProperties grad_properties =
         grad.storage_properties<SDAAStorageProperties>();
     PADDLE_ENFORCE_EQ(
-        &param,
-        param_out,
+        param.IsSharedWith(*param_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support param inplace update"));
     PADDLE_ENFORCE_EQ(
-        &moment1,
-        moment1_out,
+        moment1.IsSharedWith(*moment1_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support moment1 inplace update"));
     PADDLE_ENFORCE_EQ(
-        &moment2,
-        moment2_out,
+        moment2.IsSharedWith(*moment2_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support moment2 inplace update"));
 
@@ -75,6 +85,15 @@ void AdamKernel(const Context& dev_ctx,
     }
     if (!param.storage_properties_initialized()) {
       sdaa_ops::swapTensorData(dev_ctx, param, grad_properties);
+    }
+    if (!moment1_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *moment1_out, grad_properties);
+    }
+    if (!moment2_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *moment2_out, grad_properties);
+    }
+    if (!param_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *param_out, grad_properties);
     }
   }
   std::vector<bool> cpu_if_skip = {false};
@@ -185,33 +204,41 @@ void AdamKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
-void AdamwKernel(const Context& dev_ctx,
-                 const phi::DenseTensor& param,
-                 const phi::DenseTensor& grad,
-                 const phi::DenseTensor& learning_rate,
-                 const phi::DenseTensor& moment1,
-                 const phi::DenseTensor& moment2,
-                 const phi::DenseTensor& beta1_pow,
-                 const phi::DenseTensor& beta2_pow,
-                 const paddle::optional<phi::DenseTensor>& master_param,
-                 const paddle::optional<phi::DenseTensor>& skip_update,
-                 const phi::Scalar& beta1,
-                 const phi::Scalar& beta2,
-                 const phi::Scalar& epsilon,
-                 float lr_ratio,
-                 float coeff,
-                 bool with_decay,
-                 bool lazy_mode,
-                 int64_t min_row_size_to_use_multithread,
-                 bool multi_precision,
-                 bool use_global_beta_pow,
-                 phi::DenseTensor* param_out,
-                 phi::DenseTensor* moment1_out,
-                 phi::DenseTensor* moment2_out,
-                 phi::DenseTensor* beta1_pow_out,
-                 phi::DenseTensor* beta2_pow_out,
-                 phi::DenseTensor* master_param_outs) {
+void AdamwKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& param,
+    const phi::DenseTensor& grad,
+    const phi::DenseTensor& learning_rate,
+    const phi::DenseTensor& moment1,
+    const phi::DenseTensor& moment2,
+    const paddle::optional<phi::DenseTensor>& moment2_max,  // UNUSED
+    const phi::DenseTensor& beta1_pow,
+    const phi::DenseTensor& beta2_pow,
+    const paddle::optional<phi::DenseTensor>& master_param,
+    const paddle::optional<phi::DenseTensor>& skip_update,
+    const phi::Scalar& beta1,
+    const phi::Scalar& beta2,
+    const phi::Scalar& epsilon,
+    float lr_ratio,
+    float coeff,
+    bool with_decay,
+    bool lazy_mode,
+    int64_t min_row_size_to_use_multithread,
+    bool multi_precision,
+    bool use_global_beta_pow,
+    bool amsgrad,  // UNUSED
+    phi::DenseTensor* param_out,
+    phi::DenseTensor* moment1_out,
+    phi::DenseTensor* moment2_out,
+    phi::DenseTensor* moment2_max_out,  // UNUSED
+    phi::DenseTensor* beta1_pow_out,
+    phi::DenseTensor* beta2_pow_out,
+    phi::DenseTensor* master_param_outs) {
   VLOG(4) << "call sdaa AdamwKernel";
+  PADDLE_ENFORCE_NE(
+      amsgrad,
+      true,
+      phi::errors::Unimplemented("Operation amsgrad is not supported yet."));
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
       grad.storage_properties_initialized()) {
     VLOG(1) << "AdamW begin to update conv's filter at " << &grad;
@@ -219,18 +246,18 @@ void AdamwKernel(const Context& dev_ctx,
     SDAAStorageProperties grad_properties =
         grad.storage_properties<SDAAStorageProperties>();
     PADDLE_ENFORCE_EQ(
-        &param,
-        param_out,
+        param.IsSharedWith(*param_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support param inplace update"));
     PADDLE_ENFORCE_EQ(
-        &moment1,
-        moment1_out,
+        moment1.IsSharedWith(*moment1_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support moment1 inplace update"));
     PADDLE_ENFORCE_EQ(
-        &moment2,
-        moment2_out,
+        moment2.IsSharedWith(*moment2_out),
+        true,
         phi::errors::InvalidArgument(
             "HIGH_PERFORMANCE_CONV only support moment2 inplace update"));
 
@@ -242,6 +269,15 @@ void AdamwKernel(const Context& dev_ctx,
     }
     if (!param.storage_properties_initialized()) {
       sdaa_ops::swapTensorData(dev_ctx, param, grad_properties);
+    }
+    if (!moment1_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *moment1_out, grad_properties);
+    }
+    if (!moment2_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *moment2_out, grad_properties);
+    }
+    if (!param_out->storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, *param_out, grad_properties);
     }
   }
 
@@ -358,18 +394,19 @@ PD_REGISTER_PLUGIN_KERNEL(adam,
                           float,
                           phi::dtype::float16) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
-  kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
-  kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(9).SetBackend(phi::Backend::ALL_BACKEND);
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(6).SetDataType(phi::DataType::FLOAT32);
   }
-  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
   kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(5).SetBackend(phi::Backend::UNDEFINED);
 }
 
 PD_REGISTER_PLUGIN_KERNEL(adamw,
@@ -379,16 +416,17 @@ PD_REGISTER_PLUGIN_KERNEL(adamw,
                           float,
                           phi::dtype::float16) {
   // Skip beta1_pow, beta2_pow, skip_update data transform
-  kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->InputAt(6).SetBackend(phi::Backend::ALL_BACKEND);
-  kernel->InputAt(8).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->InputAt(9).SetBackend(phi::Backend::ALL_BACKEND);
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(4).SetDataType(phi::DataType::FLOAT32);
     kernel->OutputAt(5).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(6).SetDataType(phi::DataType::FLOAT32);
   }
-  kernel->OutputAt(3).SetBackend(phi::Backend::UNDEFINED);
   kernel->OutputAt(4).SetBackend(phi::Backend::UNDEFINED);
+  kernel->OutputAt(5).SetBackend(phi::Backend::UNDEFINED);
 }

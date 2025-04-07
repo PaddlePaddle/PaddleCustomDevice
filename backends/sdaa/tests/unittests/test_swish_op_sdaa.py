@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16, skip_check_grad_ci
 import paddle
 from scipy.special import expit
 import paddle.nn.functional as F
@@ -79,6 +79,39 @@ class TestSwishOp(OpTest):
 class TestSwishOpFp16(TestSwishOp):
     def init_dtype(self):
         self.dtype = np.float16
+
+
+@skip_check_grad_ci("swish_grad does not support bf16 for now!")
+class TestSwishOpBF16(OpTest):
+    def setUp(self):
+        self.op_type = "swish"
+        self.python_api = paddle.nn.functional.swish
+        self.set_sdaa()
+        self.init_dtype()
+        self.init_shape()
+        np.random.seed(1024)
+        x = np.random.uniform(-1, 1, self.shape).astype(np.float32)
+        out = ref_swish(x)
+
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.attrs = {"beta": 1.0}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        pass
 
 
 class TestSwish_ZeroDim(TestSwishOp):

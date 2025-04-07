@@ -39,25 +39,7 @@ void ClipKernel(const Context& dev_ctx,
                         static_cast<double>(min_),
                         static_cast<double>(max_)));
 
-  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
-  std::vector<int> out_dims = phi::vectorize<int>(out->dims());
-  tecodnnTensorDescriptor_t x_Desc = sdaa_ops::GetTecodnnTensorDesc(
-      x_dims, x.dtype(), TensorFormat::Undefined);
-  tecodnnTensorDescriptor_t out_Desc = sdaa_ops::GetTecodnnTensorDesc(
-      out_dims, out->dtype(), TensorFormat::Undefined);
-
-  phi::DenseTensor x_temp(x);
-
-  TECODNN_CHECK(tecodnnClampTensor(tecodnnHandle,
-                                   &min_,
-                                   &max_,
-                                   x_Desc,
-                                   x_temp.data(),
-                                   out_Desc,
-                                   out->data()));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
+  sdaa_ops::doClipTensor<T>(dev_ctx, x, min_, max_, out);
 }
 
 template <typename T, typename Context>
@@ -104,9 +86,12 @@ PD_REGISTER_PLUGIN_KERNEL(clip,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::ClipKernel,
-                          int64_t,
                           float,
-                          phi::dtype::float16) {}
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(clip_grad,
                           sdaa,

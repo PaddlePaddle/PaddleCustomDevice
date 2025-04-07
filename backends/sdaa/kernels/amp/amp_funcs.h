@@ -80,29 +80,6 @@ inline DataTypes_t ToExtendDataType(const DataType& dtype) {
 }
 
 template <typename T, typename Context>
-void AbnormCheck(const Context& dev_ctx,
-                 const phi::DenseTensor& x,
-                 AbnormalValueCheck check_type,
-                 phi::DenseTensor* out) {
-  VLOG(4) << "call custom uniform op.";
-
-  std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-
-  UniformOps_t mode = GetCustomUniformOpMode(check_type);
-  DataTypes_t dt = ToExtendDataType(x.dtype());
-
-  sdaaStream_t custom_stream = GetStreamFromCTX(dev_ctx);
-
-  TCUS_CHECK(sdcops::uniform_ops_t_ret_int(x.data(),
-                                           x_dims.data(),
-                                           x_dims.size(),
-                                           out->data(),
-                                           mode,
-                                           dt,
-                                           custom_stream));
-}
-
-template <typename T, typename Context>
 void AddOne(const Context& dev_ctx,
             const phi::DenseTensor* in_tensor,
             phi::DenseTensor* out_tensor) {

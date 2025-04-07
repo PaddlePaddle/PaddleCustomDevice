@@ -16,8 +16,13 @@
 #include <typeinfo>
 #include <vector>
 
+#include "kernels/funcs/sdaa_baseop.h"
 #include "kernels/funcs/tblas_baseop.h"
-#include "paddle/phi/extension.h"
+#include "runtime/flags.h"
+
+FLAGS_DEFINE_double(sdaa_matmul_scale,
+                    1.0,
+                    "scale matmul's input and unscale the output for sdaa.");
 
 namespace custom_kernel {
 
@@ -85,7 +90,20 @@ void MatmulKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp(y);
+  phi::DenseTensor x_temp(x), y_temp;
+
+  float unscale_alpha = 1.0 / FLAGS_sdaa_matmul_scale;
+
+  if (FLAGS_sdaa_matmul_scale != 1.0) {
+    VLOG(1) << "Scale Matmul Y: " << FLAGS_sdaa_matmul_scale;
+    y_temp.set_meta(y.meta());
+    dev_ctx.Alloc(&y_temp, y.dtype());
+    sdaa_ops::doScaleTensor(
+        dev_ctx, y, FLAGS_sdaa_matmul_scale, 0.0f, false, false, &y_temp);
+  } else {
+    y_temp = y;
+  }
+
   if (x_ndim == 1) {
     x_dims.insert(x_dims.begin(), 1);
     out_dims.insert(out_dims.end() - 1, 1);
@@ -128,20 +146,62 @@ void MatmulKernel(const Context& dev_ctx,
 
   // Case 3: [M, K] x [K, N] = [M, N]
   if (x_ndim == 2 && y_ndim == 2) {
+    if (x_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                x_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &x_temp);
+    }
+    if (y_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                y_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &y_temp);
+    }
     tblas_ops::MatMul2D<T>(
-        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out);
+        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out, unscale_alpha);
     return;
   }
 
   // Case 4: [A, B, ..., M, K] x [K, N] = [A, B, ..., M, N]
   // Case 4_1: [M, K] x [A, B, ..., K, N] = [A, B, ..., M, N]
   if (x_ndim > 2 && y_ndim == 2) {
+    if (x_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                x_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &x_temp);
+    }
+    if (y_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                y_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &y_temp);
+    }
     tblas_ops::BatchedMatmulWithSingleMat<T>(
-        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out);
+        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out, unscale_alpha);
     return;
   } else if (x_ndim == 2 && y_ndim > 2) {
+    if (x_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                x_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &x_temp);
+    }
+    if (y_temp.dtype() == phi::DataType::BFLOAT16) {
+      sdaa_ops::doClipTensor<T>(dev_ctx,
+                                y_temp,
+                                static_cast<T>(-65504.0),
+                                static_cast<T>(65504.0),
+                                &y_temp);
+    }
     tblas_ops::SingleMatmulWithBatchedMat<T>(
-        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out);
+        dev_ctx, x_temp, y_temp, transpose_x, transpose_y, out, unscale_alpha);
     return;
   }
 
@@ -152,7 +212,27 @@ void MatmulKernel(const Context& dev_ctx,
     auto y_non_mat_dims =
         phi::slice_ddim(y_temp.dims(), 0, y_temp.dims().size() - 2);
     if (x_non_mat_dims == y_non_mat_dims) {
-      tblas_ops::BatchMatmul<T>(dev_ctx, x, y, transpose_x, transpose_y, out);
+      if (x_temp.dtype() == phi::DataType::BFLOAT16) {
+        sdaa_ops::doClipTensor<T>(dev_ctx,
+                                  x_temp,
+                                  static_cast<T>(-65504.0),
+                                  static_cast<T>(65504.0),
+                                  &x_temp);
+      }
+      if (y_temp.dtype() == phi::DataType::BFLOAT16) {
+        sdaa_ops::doClipTensor<T>(dev_ctx,
+                                  y_temp,
+                                  static_cast<T>(-65504.0),
+                                  static_cast<T>(65504.0),
+                                  &y_temp);
+      }
+      tblas_ops::BatchMatmul<T>(dev_ctx,
+                                x_temp,
+                                y_temp,
+                                transpose_x,
+                                transpose_y,
+                                out,
+                                unscale_alpha);
       return;
     }
   }
@@ -186,14 +266,38 @@ void MatmulKernel(const Context& dev_ctx,
                                      x_dims[x_dims.size() - 1]};
   std::vector<int64_t> b_mat_dims = {y_dims[y_dims.size() - 2],
                                      y_dims[y_dims.size() - 1]};
-  T* x_ptr = const_cast<T*>(x.data<T>());
-  T* y_ptr = const_cast<T*>(y.data<T>());
+
+  if (x_temp.dtype() == phi::DataType::BFLOAT16) {
+    sdaa_ops::doClipTensor<T>(dev_ctx,
+                              x_temp,
+                              static_cast<T>(-65504.0),
+                              static_cast<T>(65504.0),
+                              &x_temp);
+  }
+  if (y_temp.dtype() == phi::DataType::BFLOAT16) {
+    sdaa_ops::doClipTensor<T>(dev_ctx,
+                              y_temp,
+                              static_cast<T>(-65504.0),
+                              static_cast<T>(65504.0),
+                              &y_temp);
+  }
+
+  T* x_ptr = const_cast<T*>(x_temp.data<T>());
+  T* y_ptr = const_cast<T*>(y_temp.data<T>());
   T* out_ptr = out->data<T>();
 
   tblas_ops::doBroadcastTo<T>(
       x_ptr, y_ptr, out_ptr, &x_dims, &y_dims, &out_dims, &a, &b, &c);
-  tblas_ops::MatMulND<T>(
-      dev_ctx, a, a_mat_dims, b, b_mat_dims, c, transpose_x, transpose_y, out);
+  tblas_ops::MatMulND<T>(dev_ctx,
+                         a,
+                         a_mat_dims,
+                         b,
+                         b_mat_dims,
+                         c,
+                         transpose_x,
+                         transpose_y,
+                         out,
+                         unscale_alpha);
 }
 
 template <typename T, typename Context>
@@ -238,7 +342,19 @@ void MatmulGradKernel(const Context& dev_ctx,
   }
 
   // Resize dim 1 to 2
-  phi::DenseTensor x_temp(x), y_temp(y), dout_temp(dout), dx_temp, dy_temp;
+  phi::DenseTensor x_temp(x), y_temp(y), dout_temp, dx_temp, dy_temp;
+
+  float unscale_alpha = 1.0 / FLAGS_sdaa_matmul_scale;
+  if (FLAGS_sdaa_matmul_scale != 1.0) {
+    VLOG(1) << "Scale Matmul Dout: " << FLAGS_sdaa_matmul_scale;
+    dout_temp.set_meta(dout.meta());
+    dev_ctx.Alloc(&dout_temp, dout.dtype());
+    sdaa_ops::doScaleTensor(
+        dev_ctx, dout, FLAGS_sdaa_matmul_scale, 0.0f, false, false, &dout_temp);
+  } else {
+    dout_temp = dout;
+  }
+
   if (dx) {
     dx_temp = *dx;
   }
@@ -273,10 +389,10 @@ void MatmulGradKernel(const Context& dev_ctx,
       dx->Resize(phi::make_ddim(x_dims));
       if (transpose_x) {
         tblas_ops::MatMul2D<T>(
-            dev_ctx, y_temp, dout_temp, transpose_y, true, dx);
+            dev_ctx, y_temp, dout_temp, transpose_y, true, dx, unscale_alpha);
       } else {
         tblas_ops::MatMul2D<T>(
-            dev_ctx, dout_temp, y_temp, false, !transpose_y, dx);
+            dev_ctx, dout_temp, y_temp, false, !transpose_y, dx, unscale_alpha);
       }
       dx->Resize(x.dims());
     }
@@ -284,10 +400,10 @@ void MatmulGradKernel(const Context& dev_ctx,
       dy->Resize(phi::make_ddim(y_dims));
       if (transpose_y) {
         tblas_ops::MatMul2D<T>(
-            dev_ctx, dout_temp, x_temp, true, transpose_x, dy);
+            dev_ctx, dout_temp, x_temp, true, transpose_x, dy, unscale_alpha);
       } else {
         tblas_ops::MatMul2D<T>(
-            dev_ctx, x_temp, dout_temp, !transpose_x, false, dy);
+            dev_ctx, x_temp, dout_temp, !transpose_x, false, dy, unscale_alpha);
       }
       dy->Resize(y.dims());
     }
@@ -298,11 +414,21 @@ void MatmulGradKernel(const Context& dev_ctx,
   if (x_ndim > 2 && y_ndim == 2) {
     if (dx) {
       if (transpose_x) {
-        tblas_ops::SingleMatmulWithBatchedMat<T>(
-            dev_ctx, y_temp, dout_temp, transpose_y, true, &dx_temp);
+        tblas_ops::SingleMatmulWithBatchedMat<T>(dev_ctx,
+                                                 y_temp,
+                                                 dout_temp,
+                                                 transpose_y,
+                                                 true,
+                                                 &dx_temp,
+                                                 unscale_alpha);
       } else {
-        tblas_ops::BatchedMatmulWithSingleMat<T>(
-            dev_ctx, dout_temp, y_temp, false, !transpose_y, &dx_temp);
+        tblas_ops::BatchedMatmulWithSingleMat<T>(dev_ctx,
+                                                 dout_temp,
+                                                 y_temp,
+                                                 false,
+                                                 !transpose_y,
+                                                 &dx_temp,
+                                                 unscale_alpha);
       }
     }
     if (dy) {
@@ -316,8 +442,13 @@ void MatmulGradKernel(const Context& dev_ctx,
         auto first_temp = transpose_y ? dout_temp : x_temp;
         auto second_temp = transpose_y ? x_temp : dout_temp;
         // trans_a and trans_b is fixed in this situation.
-        tblas_ops::MatMul2D<T>(
-            dev_ctx, first_temp, second_temp, true, false, &dy_temp);
+        tblas_ops::MatMul2D<T>(dev_ctx,
+                               first_temp,
+                               second_temp,
+                               true,
+                               false,
+                               &dy_temp,
+                               unscale_alpha);
       } else {
         // 1. [batch, K, M] x [batch, M, N] = [batch, K, N]
         // 2. [batch, K, N] --> [K, N]
@@ -332,8 +463,13 @@ void MatmulGradKernel(const Context& dev_ctx,
         auto second_temp = transpose_y ? x_temp : dout_temp;
         auto trans_a = transpose_y ? true : !transpose_x;
         auto trans_b = transpose_y ? transpose_x : false;
-        tblas_ops::BatchMatmul<T>(
-            dev_ctx, first_temp, second_temp, trans_a, trans_b, &dy_unreduced);
+        tblas_ops::BatchMatmul<T>(dev_ctx,
+                                  first_temp,
+                                  second_temp,
+                                  trans_a,
+                                  trans_b,
+                                  &dy_unreduced,
+                                  unscale_alpha);
         sdaa_ops::doSumTensor(dev_ctx, dy_unreduced, {0}, &dy_temp);
       }
     }
@@ -356,17 +492,32 @@ void MatmulGradKernel(const Context& dev_ctx,
       auto second_temp = transpose_x ? dout_temp : y_temp;
       auto trans_a = transpose_x ? transpose_y : false;
       auto trans_b = transpose_x ? true : !transpose_y;
-      tblas_ops::BatchMatmul<T>(
-          dev_ctx, first_temp, second_temp, trans_a, trans_b, &dx_unreduced);
+      tblas_ops::BatchMatmul<T>(dev_ctx,
+                                first_temp,
+                                second_temp,
+                                trans_a,
+                                trans_b,
+                                &dx_unreduced,
+                                unscale_alpha);
       sdaa_ops::doSumTensor(dev_ctx, dx_unreduced, {0}, &dx_temp);
     }
     if (dy) {
       if (transpose_y) {
-        tblas_ops::BatchedMatmulWithSingleMat<T>(
-            dev_ctx, dout_temp, x_temp, true, transpose_x, &dy_temp);
+        tblas_ops::BatchedMatmulWithSingleMat<T>(dev_ctx,
+                                                 dout_temp,
+                                                 x_temp,
+                                                 true,
+                                                 transpose_x,
+                                                 &dy_temp,
+                                                 unscale_alpha);
       } else {
-        tblas_ops::SingleMatmulWithBatchedMat<T>(
-            dev_ctx, x_temp, dout_temp, !transpose_x, false, &dy_temp);
+        tblas_ops::SingleMatmulWithBatchedMat<T>(dev_ctx,
+                                                 x_temp,
+                                                 dout_temp,
+                                                 !transpose_x,
+                                                 false,
+                                                 &dy_temp,
+                                                 unscale_alpha);
       }
     }
     return;
@@ -381,20 +532,40 @@ void MatmulGradKernel(const Context& dev_ctx,
   if (x_ndim > 2 && y_ndim > 2 && x_non_mat_dims == y_non_mat_dims) {
     if (dx) {
       if (transpose_x) {
-        tblas_ops::BatchMatmul<T>(
-            dev_ctx, y_temp, dout_temp, transpose_y, true, &dx_temp);
+        tblas_ops::BatchMatmul<T>(dev_ctx,
+                                  y_temp,
+                                  dout_temp,
+                                  transpose_y,
+                                  true,
+                                  &dx_temp,
+                                  unscale_alpha);
       } else {
-        tblas_ops::BatchMatmul<T>(
-            dev_ctx, dout_temp, y_temp, false, !transpose_y, &dx_temp);
+        tblas_ops::BatchMatmul<T>(dev_ctx,
+                                  dout_temp,
+                                  y_temp,
+                                  false,
+                                  !transpose_y,
+                                  &dx_temp,
+                                  unscale_alpha);
       }
     }
     if (dy) {
       if (transpose_y) {
-        tblas_ops::BatchMatmul<T>(
-            dev_ctx, dout_temp, x_temp, true, transpose_x, &dy_temp);
+        tblas_ops::BatchMatmul<T>(dev_ctx,
+                                  dout_temp,
+                                  x_temp,
+                                  true,
+                                  transpose_x,
+                                  &dy_temp,
+                                  unscale_alpha);
       } else {
-        tblas_ops::BatchMatmul<T>(
-            dev_ctx, x_temp, dout_temp, !transpose_x, false, &dy_temp);
+        tblas_ops::BatchMatmul<T>(dev_ctx,
+                                  x_temp,
+                                  dout_temp,
+                                  !transpose_x,
+                                  false,
+                                  &dy_temp,
+                                  unscale_alpha);
       }
     }
     return;
@@ -478,7 +649,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dx_address,
                                transpose_y,
                                true,
-                               dx);
+                               dx,
+                               unscale_alpha);
       } else {
         tblas_ops::MatMulND<T>(dev_ctx,
                                dout_address_dx,
@@ -488,7 +660,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dx_address,
                                false,
                                !transpose_y,
-                               dx);
+                               dx,
+                               unscale_alpha);
       }
     } else {
       tblas_ops::doBroadcastTo<T>(y_ptr,
@@ -509,7 +682,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dx_address,
                                transpose_y,
                                true,
-                               &dx_brd);
+                               &dx_brd,
+                               unscale_alpha);
       } else {
         tblas_ops::MatMulND<T>(dev_ctx,
                                dout_address_dx,
@@ -519,7 +693,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dx_address,
                                false,
                                !transpose_y,
-                               &dx_brd);
+                               &dx_brd,
+                               unscale_alpha);
       }
       // need to reduce dx_brd dimension to dx dimension if x_dims !=
       // x_broadcast_dims
@@ -553,7 +728,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dy_address,
                                true,
                                transpose_x,
-                               dy);
+                               dy,
+                               unscale_alpha);
       } else {
         tblas_ops::MatMulND<T>(dev_ctx,
                                x_brd_address,
@@ -563,7 +739,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dy_address,
                                !transpose_x,
                                false,
-                               dy);
+                               dy,
+                               unscale_alpha);
       }
     } else {
       tblas_ops::doBroadcastTo<T>(x_ptr,
@@ -584,7 +761,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dy_address,
                                true,
                                transpose_x,
-                               &dy_brd);
+                               &dy_brd,
+                               unscale_alpha);
       } else {
         tblas_ops::MatMulND<T>(dev_ctx,
                                x_brd_address,
@@ -594,7 +772,8 @@ void MatmulGradKernel(const Context& dev_ctx,
                                dy_address,
                                !transpose_x,
                                false,
-                               &dy_brd);
+                               &dy_brd,
+                               unscale_alpha);
       }
       // need to reduce dy_brd dimension to dy dimension if y_dims !=
       // y_broadcast_dims
@@ -748,14 +927,16 @@ PD_REGISTER_PLUGIN_KERNEL(matmul,
                           ALL_LAYOUT,
                           custom_kernel::MatmulKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::MatmulGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten,
                           sdaa,

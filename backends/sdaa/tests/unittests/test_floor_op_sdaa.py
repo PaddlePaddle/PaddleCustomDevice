@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 from paddle.static import Program, program_guard
 
@@ -45,7 +45,6 @@ class TestFloor(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
         self.init_dtype()
         self.init_shape()
-        self.__class__.no_need_check_grad = True
 
         np.random.seed(SEED)
         x = np.random.uniform(-1, 1, self.shape).astype(self.dtype)
@@ -65,6 +64,47 @@ class TestFloor(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+    # the gradient on floor, ceil, round is undefined.
+    # we return zero as gradient, but the numpy return nan
+    def test_check_grad(self):
+        if self.dtype == np.float16:
+            return
+        self.check_grad_with_place(self.place, ["X"], "Out", numeric_grad_delta=0.003)
+
+
+class TestFloorBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "floor"
+        self.python_api = paddle.floor
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.init_dtype()
+        self.init_shape()
+
+        np.random.seed(SEED)
+        x = np.random.uniform(-1, 1, self.shape).astype(np.float32)
+        out = np.floor(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_shape(self):
+        self.shape = [10, 12]
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    # the gradient on floor, ceil, round is undefined.
+    # we return zero as gradient, but the numpy return nan
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", numeric_grad_delta=0.003)
 
 
 class TestFloorFP16(TestFloor):

@@ -50,6 +50,36 @@ void ReluGradKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void Relu6Kernel(const Context& dev_ctx,
+                 const phi::DenseTensor& x,
+                 phi::DenseTensor* out) {
+  VLOG(4) << "Call SDAA Relu6Kernel";
+  dev_ctx.template Alloc<T>(out);
+  sdaa_ops::doActivationForward(dev_ctx,
+                                x,
+                                0.,
+                                ActivationMode::relu6,
+                                NanPropagation::not_propagate_nan,
+                                out);
+}
+
+template <typename T, typename Context>
+void Relu6GradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& out,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  VLOG(4) << "Call SDAA Relu6GradKernel";
+  dev_ctx.template Alloc<T>(dx);
+  sdaa_ops::doActivationBackward(dev_ctx,
+                                 out,
+                                 dout,
+                                 0.,
+                                 ActivationMode::relu6,
+                                 NanPropagation::not_propagate_nan,
+                                 dx);
+}
+
+template <typename T, typename Context>
 void SigmoidKernel(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DenseTensor* out) {
@@ -105,6 +135,39 @@ void TanhGradKernel(const Context& dev_ctx,
                                  dout,
                                  0.,
                                  ActivationMode::tanh,
+                                 NanPropagation::not_propagate_nan,
+                                 dx);
+}
+
+template <typename T, typename Context>
+void EluKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               float alpha,
+               phi::DenseTensor* out) {
+  VLOG(4) << "Call SDAA ELUKernel";
+  dev_ctx.template Alloc<T>(out);
+  sdaa_ops::doActivationForward(dev_ctx,
+                                x,
+                                alpha,
+                                ActivationMode::elu,
+                                NanPropagation::not_propagate_nan,
+                                out);
+}
+
+template <typename T, typename Context>
+void EluGradKernel(const Context& dev_ctx,
+                   const phi::DenseTensor& x UNUSED,
+                   const phi::DenseTensor& out,
+                   const phi::DenseTensor& dout,
+                   float alpha,
+                   phi::DenseTensor* dx) {
+  VLOG(4) << "Call SDAA EluGradKernel";
+  dev_ctx.template Alloc<T>(dx);
+  sdaa_ops::doActivationBackward(dev_ctx,
+                                 out,
+                                 dout,
+                                 alpha,
+                                 ActivationMode::elu,
                                  NanPropagation::not_propagate_nan,
                                  dx);
 }
@@ -179,6 +242,29 @@ void GeluGradKernel(const Context& dev_ctx,
                                    NanPropagation::not_propagate_nan,
                                    x_grad);
   }
+}
+template <typename T, typename Context>
+void ErfKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               phi::DenseTensor* out) {
+  VLOG(4) << "CALL SDAA ErfKernel";
+  int64_t numel = x.numel();
+  std::vector<T> dataTemp;
+  TensorToVector(dev_ctx, x, dev_ctx, &dataTemp);
+  for (int i = 0; i < numel; ++i) {
+    if (dataTemp[i] < static_cast<T>(-2) || dataTemp[i] > static_cast<T>(2)) {
+      LOG(WARNING) << "Input data is out of the recommended range (-2, 2), "
+                      "which may lead to precision issues.";
+      break;
+    }
+  }
+  dev_ctx.template Alloc<T>(out);
+  sdaa_ops::doActivationForward(dev_ctx,
+                                x,
+                                0.,
+                                ActivationMode::erf,
+                                NanPropagation::not_propagate_nan,
+                                out);
 }
 
 template <typename T, typename Context>
@@ -787,6 +873,16 @@ void CeilKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void CeilGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  VLOG(4) << "CALL SDAA CeilGradKernel.";
+
+  dev_ctx.template Alloc<T>(dx);
+  sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(0.), dx->dtype(), dx);
+}
+
+template <typename T, typename Context>
 void SwishRawKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     float beta,
@@ -845,6 +941,154 @@ void FloorKernel(const Context& dev_ctx,
   sdaa_ops::doUnaryOpTensor(dev_ctx, x, 0.0, UnaryOpMode::FLOOR, out);
 }
 
+template <typename T, typename Context>
+void FloorGradKernel(const Context& dev_ctx,
+                     const phi::DenseTensor& dout,
+                     phi::DenseTensor* dx) {
+  VLOG(4) << "CALL SDAA FloorGradKernel.";
+
+  dev_ctx.template Alloc<T>(dx);
+  sdaa_ops::doFillTensor<T>(dev_ctx, static_cast<T>(0.), dx->dtype(), dx);
+}
+
+template <typename T, typename Context>
+void Log2Kernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                phi::DenseTensor* out) {
+  VLOG(4) << "Call SDAA Log2Kernel";
+  dev_ctx.template Alloc<T>(out);
+
+  std::vector<int> dims = phi::vectorize<int>(x.dims());
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  tecodnnTensorDescriptor_t Desc =
+      sdaa_ops::GetTecodnnTensorDesc(dims, x.dtype(), TensorFormat::Undefined);
+  TECODNN_CHECK(tecodnnLog2(tecodnnHandle, Desc, x.data(), Desc, out->data()));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc));
+}
+
+template <typename T, typename Context>
+void Log2GradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    phi::DenseTensor* dx) {
+  VLOG(4) << "CALL SDAA Log2GradKernel.";
+
+  dev_ctx.template Alloc<T>(dx);
+
+  phi::DenseTensor x_log2;
+  x_log2.Resize(x.dims());
+  dev_ctx.template Alloc<T>(&x_log2);
+
+  sdaa_ops::doUnaryOpTensor(
+      dev_ctx, x, static_cast<float>(log(2)), UnaryOpMode::MUL_A, &x_log2);
+  sdaa_ops::doElementDiv(dev_ctx, dout, x_log2, -1, dx);
+}
+
+template <typename T, typename Context>
+void MishKernel(const Context& dev_ctx,
+                const phi::DenseTensor& x,
+                float threshold,
+                phi::DenseTensor* out) {
+  VLOG(4) << "Call SDAA MishKernel.";
+  dev_ctx.template Alloc<T>(out);
+
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
+      x_dims, x.dtype(), TensorFormat::Undefined);
+  TECODNN_CHECK(tecodnnMishForward(
+      tecodnnHandle, threshold, Desc, x.data(), Desc, out->data()));
+
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc));
+}
+
+template <typename T, typename Context>
+void MishGradKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::DenseTensor& dout,
+                    float threshold,
+                    phi::DenseTensor* dx) {
+  VLOG(4) << "Call SDAA MishGradKernel.";
+  dev_ctx.template Alloc<T>(dx);
+
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
+      x_dims, x.dtype(), TensorFormat::Undefined);
+  TECODNN_CHECK(tecodnnMishBackward(tecodnnHandle,
+                                    threshold,
+                                    Desc,
+                                    x.data(),
+                                    Desc,
+                                    dout.data(),
+                                    Desc,
+                                    dx->data()));
+
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc));
+}
+
+template <typename T, typename Context>
+void HardTanhKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    float min,
+                    float max,
+                    phi::DenseTensor* out) {
+  VLOG(4) << "CALL SDAA HardTanhKernel.";
+
+  dev_ctx.template Alloc<T>(out);
+
+  auto min_value = static_cast<T>(min);
+  auto max_value = static_cast<T>(max);
+
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+
+  phi::DenseTensor x_temp(x);
+
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  tecodnnTensorDescriptor_t Desc = sdaa_ops::GetTecodnnTensorDesc(
+      x_dims, x.dtype(), TensorFormat::Undefined);
+
+  TECODNN_CHECK(tecodnnClampTensor(tecodnnHandle,
+                                   &min_value,
+                                   &max_value,
+                                   Desc,
+                                   x_temp.data(),
+                                   Desc,
+                                   out->data()));
+
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc));
+}
+
+template <typename T, typename Context>
+void LogSigmoidKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      phi::DenseTensor* out) {
+  VLOG(4) << "Call SDAA LogSigmoidKernel";
+  dev_ctx.template Alloc<T>(out);
+  sdaa_ops::doActivationForward(dev_ctx,
+                                x,
+                                0.,
+                                ActivationMode::logsigmoid,
+                                NanPropagation::not_propagate_nan,
+                                out);
+}
+
+template <typename T, typename Context>
+void LogSigmoidGradKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& dout,
+                          phi::DenseTensor* dx) {
+  VLOG(4) << "Call SDAA LogSigmoidGradKernel";
+  dev_ctx.template Alloc<T>(dx);
+  sdaa_ops::doActivationBackward(dev_ctx,
+                                 x,
+                                 dout,
+                                 0.,
+                                 ActivationMode::logsigmoid,
+                                 NanPropagation::not_propagate_nan,
+                                 dx);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(relu,
@@ -852,12 +1096,28 @@ PD_REGISTER_PLUGIN_KERNEL(relu,
                           ALL_LAYOUT,
                           custom_kernel::ReluKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(relu_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::ReluGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(relu6,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6Kernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(relu6_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::Relu6GradKernel,
                           float,
                           phi::dtype::float16) {}
 
@@ -866,26 +1126,44 @@ PD_REGISTER_PLUGIN_KERNEL(sigmoid,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sigmoid_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SigmoidGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::TanhKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tanh_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::TanhGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::EluKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(elu_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::EluGradKernel,
                           float,
                           phi::dtype::float16) {}
 
@@ -894,26 +1172,36 @@ PD_REGISTER_PLUGIN_KERNEL(exp,
                           ALL_LAYOUT,
                           custom_kernel::ExpKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(exp_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::ExpGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::GeluKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gelu_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::GeluGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+PD_REGISTER_PLUGIN_KERNEL(erf,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::ErfKernel,
                           float,
                           phi::dtype::float16) {}
 
@@ -936,7 +1224,8 @@ PD_REGISTER_PLUGIN_KERNEL(sqrt,
                           ALL_LAYOUT,
                           custom_kernel::SqrtKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sqrt_grad,
                           sdaa,
@@ -950,7 +1239,8 @@ PD_REGISTER_PLUGIN_KERNEL(pow,
                           ALL_LAYOUT,
                           custom_kernel::PowKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pow_grad,
                           sdaa,
@@ -964,14 +1254,16 @@ PD_REGISTER_PLUGIN_KERNEL(log,
                           ALL_LAYOUT,
                           custom_kernel::LogKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(log_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::LogGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(reciprocal,
                           sdaa,
@@ -993,14 +1285,16 @@ PD_REGISTER_PLUGIN_KERNEL(silu,
                           ALL_LAYOUT,
                           custom_kernel::SiluKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(silu_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SiluGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(hardswish,
                           sdaa,
@@ -1063,42 +1357,48 @@ PD_REGISTER_PLUGIN_KERNEL(sin,
                           ALL_LAYOUT,
                           custom_kernel::SinKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sin_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SinGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cos,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::CosKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cos_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::CosGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SquareKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(square_grad,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SquareGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(atan,
                           sdaa,
@@ -1122,19 +1422,29 @@ PD_REGISTER_PLUGIN_KERNEL(ceil,
                           float,
                           phi::dtype::float16) {}
 
+PD_REGISTER_PLUGIN_KERNEL(ceil_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::CeilGradKernel,
+                          double,
+                          float,
+                          phi::dtype::float16) {}
+
 PD_REGISTER_PLUGIN_KERNEL(swish,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SwishKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish_raw,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::SwishRawKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(swish_grad,
                           sdaa,
@@ -1148,7 +1458,8 @@ PD_REGISTER_PLUGIN_KERNEL(rsqrt,
                           ALL_LAYOUT,
                           custom_kernel::RsqrtKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(rsqrt_grad,
                           sdaa,
@@ -1162,4 +1473,65 @@ PD_REGISTER_PLUGIN_KERNEL(floor,
                           ALL_LAYOUT,
                           custom_kernel::FloorKernel,
                           float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(floor_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::FloorGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2Kernel,
+                          float,
                           phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(log2_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::Log2GradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(mish,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::MishKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(mish_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::MishGradKernel,
+                          float,
+                          phi::dtype::float16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(hardtanh,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::HardTanhKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(logsigmoid,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::LogSigmoidKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(logsigmoid_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::LogSigmoidGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

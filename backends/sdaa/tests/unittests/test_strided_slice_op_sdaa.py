@@ -27,7 +27,6 @@
 from op_test import OpTest
 import numpy as np
 import unittest
-import paddle.base as base
 import paddle
 
 paddle.enable_static()
@@ -647,57 +646,64 @@ class TestStridedSliceOp_strides_Tensor(OpTest):
 # Test python API
 class TestStridedSliceAPI(unittest.TestCase):
     def test_1(self):
+        paddle.enable_static()
         input = np.random.random([3, 4, 5, 6]).astype("float32")
-        minus_1 = paddle.tensor.fill_constant([], "int32", -1)
-        minus_3 = paddle.tensor.fill_constant([], "int32", -3)
-        starts = paddle.static.data(name="starts", shape=[3], dtype="int32")
-        ends = paddle.static.data(name="ends", shape=[3], dtype="int32")
-        strides = paddle.static.data(name="strides", shape=[3], dtype="int32")
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                minus_1 = paddle.tensor.fill_constant([], "int32", -1)
+                minus_3 = paddle.tensor.fill_constant([], "int32", -3)
+                starts = paddle.static.data(name="starts", shape=[3], dtype="int32")
+                ends = paddle.static.data(name="ends", shape=[3], dtype="int32")
+                strides = paddle.static.data(name="strides", shape=[3], dtype="int32")
 
-        x = paddle.static.data(name="x", shape=[3, 4, 5, 6], dtype="float32")
-        out_1 = paddle.strided_slice(
-            x, axes=[0, 1, 2], starts=[-3, 0, 2], ends=[3, 100, -1], strides=[1, 1, 1]
-        )
-        out_2 = paddle.strided_slice(
-            x,
-            axes=[0, 1, 3],
-            starts=[minus_3, 0, 2],
-            ends=[3, 100, -1],
-            strides=[1, 1, 1],
-        )
-        out_3 = paddle.strided_slice(
-            x,
-            axes=[0, 1, 3],
-            starts=[minus_3, 0, 2],
-            ends=[3, 100, minus_1],
-            strides=[1, 1, 1],
-        )
-        out_4 = paddle.strided_slice(
-            x, axes=[0, 1, 2], starts=starts, ends=ends, strides=strides
-        )
+                x = paddle.static.data(name="x", shape=[3, 4, 5, 6], dtype="float32")
+                out_1 = paddle.strided_slice(
+                    x,
+                    axes=[0, 1, 2],
+                    starts=[-3, 0, 2],
+                    ends=[3, 100, -1],
+                    strides=[1, 1, 1],
+                )
+                out_2 = paddle.strided_slice(
+                    x,
+                    axes=[0, 1, 3],
+                    starts=[minus_3, 0, 2],
+                    ends=[3, 100, -1],
+                    strides=[1, 1, 1],
+                )
+                out_3 = paddle.strided_slice(
+                    x,
+                    axes=[0, 1, 3],
+                    starts=[minus_3, 0, 2],
+                    ends=[3, 100, minus_1],
+                    strides=[1, 1, 1],
+                )
+                out_4 = paddle.strided_slice(
+                    x, axes=[0, 1, 2], starts=starts, ends=ends, strides=strides
+                )
 
-        out_5 = x[-3:3, 0:100:2, -1:2:-1]
-        out_6 = x[minus_3:3:1, 0:100:2, :, minus_1:2:minus_1]
-        out_7 = x[minus_1, 0:100:2, :, -1:2:-1]
+                out_5 = x[-3:3, 0:100:2, -1:2:-1]
+                out_6 = x[minus_3:3:1, 0:100:2, :, minus_1:2:minus_1]
+                out_7 = x[minus_1, 0:100:2, :, -1:2:-1]
 
-        exe = base.Executor(place=paddle.CustomPlace("sdaa", 0))
-        res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
-            base.default_main_program(),
-            feed={
-                "x": input,
-                "starts": np.array([-3, 0, 2]).astype("int32"),
-                "ends": np.array([3, 2147483647, -1]).astype("int32"),
-                "strides": np.array([1, 1, 1]).astype("int32"),
-            },
-            fetch_list=[out_1, out_2, out_3, out_4, out_5, out_6, out_7],
-        )
-        assert np.array_equal(res_1, input[-3:3, 0:100, 2:-1, :])
-        assert np.array_equal(res_2, input[-3:3, 0:100, :, 2:-1])
-        assert np.array_equal(res_3, input[-3:3, 0:100, :, 2:-1])
-        assert np.array_equal(res_4, input[-3:3, 0:100, 2:-1, :])
-        assert np.array_equal(res_5, input[-3:3, 0:100:2, -1:2:-1, :])
-        assert np.array_equal(res_6, input[-3:3, 0:100:2, :, -1:2:-1])
-        assert np.array_equal(res_7, input[-1, 0:100:2, :, -1:2:-1])
+                exe = paddle.static.Executor(place=paddle.CustomPlace("sdaa", 0))
+                res_1, res_2, res_3, res_4, res_5, res_6, res_7 = exe.run(
+                    paddle.static.default_main_program(),
+                    feed={
+                        "x": input,
+                        "starts": np.array([-3, 0, 2]).astype("int32"),
+                        "ends": np.array([3, 2147483647, -1]).astype("int32"),
+                        "strides": np.array([1, 1, 1]).astype("int32"),
+                    },
+                    fetch_list=[out_1, out_2, out_3, out_4, out_5, out_6, out_7],
+                )
+                np.testing.assert_array_equal(res_1, input[-3:3, 0:100, 2:-1, :])
+                np.testing.assert_array_equal(res_2, input[-3:3, 0:100, :, 2:-1])
+                np.testing.assert_array_equal(res_3, input[-3:3, 0:100, :, 2:-1])
+                np.testing.assert_array_equal(res_4, input[-3:3, 0:100, 2:-1, :])
+                np.testing.assert_array_equal(res_5, input[-3:3, 0:100:2, -1:2:-1, :])
+                np.testing.assert_array_equal(res_6, input[-3:3, 0:100:2, :, -1:2:-1])
+                np.testing.assert_array_equal(res_7, input[-1, 0:100:2, :, -1:2:-1])
 
     def test_dygraph_op(self):
         x = paddle.zeros(shape=[3, 4, 5, 6], dtype="float32")
@@ -708,7 +714,7 @@ class TestStridedSliceAPI(unittest.TestCase):
         sliced_1 = paddle.strided_slice(
             x, axes=axes, starts=starts, ends=ends, strides=strides_1
         )
-        assert sliced_1.shape == (3, 2, 2, 2)
+        assert sliced_1.shape == [3, 2, 2, 2]
 
 
 if __name__ == "__main__":

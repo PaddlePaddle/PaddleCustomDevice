@@ -368,6 +368,39 @@ class TestGatherOp4Bool(TestGatherOp4):
         pass
 
 
+class TestGatherOp_Index(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.op_type = "gather"
+        self.python_api = paddle.gather
+        self.init_dtype()
+        self.config()
+        xnp = np.random.random(self.x_shape).astype(self.x_type)
+        self.inputs = {"X": xnp, "Index": np.array(self.index).astype(self.index_type)}
+        self.outputs = {"Out": self.inputs["X"][self.inputs["Index"].flatten()]}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+    def init_dtype(self):
+        self.x_type = np.float32
+
+    def config(self):
+        """
+        For index-dimension is [N, 1]
+        """
+        self.x_shape = (2, 10, 10)
+        self.index = [[0], [1]]
+        self.index_type = np.int32
+
+
 class API_TestGather(unittest.TestCase):
     def test_out1(self):
         with base.program_guard(base.Program(), base.Program()):
@@ -446,22 +479,22 @@ class TestGathertError(unittest.TestCase):
             def test_x_type():
                 paddle.gather(x, index)
 
-            self.assertRaises(TypeError, test_x_type)
+            self.assertRaises((TypeError, ValueError), test_x_type)
 
             def test_index_type():
                 paddle.gather(x, index_float)
 
-            self.assertRaises(TypeError, test_index_type)
+            self.assertRaises((TypeError, ValueError), test_index_type)
 
             def test_axis_dtype():
                 paddle.gather(x, index, axis=1.11)
 
-            self.assertRaises(TypeError, test_axis_dtype)
+            self.assertRaises((TypeError, ValueError), test_axis_dtype)
 
             def test_axis_dtype1():
                 paddle.gather(x, index, axis=axis)
 
-            self.assertRaises(TypeError, test_axis_dtype1)
+            self.assertRaises((TypeError, ValueError), test_axis_dtype1)
 
     def test_error2(self):
         paddle.device.set_device("sdaa")
@@ -477,12 +510,12 @@ class TestGathertError(unittest.TestCase):
             def test_x_type():
                 paddle.gather(x, index)
 
-            self.assertRaises(TypeError, test_x_type)
+            self.assertRaises((TypeError, ValueError), test_x_type)
 
             def test_index_type():
                 paddle.gather(x, index_float)
 
-            self.assertRaises(TypeError, test_index_type)
+            self.assertRaises((TypeError, ValueError), test_index_type)
 
     def test_error3(self):
         paddle.device.set_device("sdaa")
@@ -515,7 +548,7 @@ class TestCheckOutType(unittest.TestCase):
         data = paddle.static.data(shape=[16, 10], dtype="int64", name="x")
         index = paddle.static.data(shape=[4], dtype="int64", name="index")
         out = paddle.gather(data, index)
-        self.assertTrue(out.dtype == core.VarDesc.VarType.INT64)
+        self.assertTrue(out.dtype == paddle.int64 or out.dtype == core.DataType.INT64)
 
 
 if __name__ == "__main__":

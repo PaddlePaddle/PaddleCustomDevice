@@ -110,6 +110,27 @@ class TestMaskedSelectOpFp16(TestMaskedSelectOp):
         self.dtype = np.float16
 
 
+class TestMaskedSelectOpDouble(TestMaskedSelectOp):
+    def init_dtype(self):
+        self.dtype = np.double
+
+
+class TestMaskedSelectOpInt32(TestMaskedSelectOp):
+    def init_dtype(self):
+        self.dtype = np.int32
+
+    def test_check_grad(self):
+        return
+
+
+class TestMaskedSelectOpInt64(TestMaskedSelectOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+    def test_check_grad(self):
+        return
+
+
 class TestMaskedSelectAPI(unittest.TestCase):
     def test_imperative_mode(self):
         paddle.disable_static(paddle.CustomPlace("sdaa", 0))

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/funcs/concat_func.h"
 #include "kernels/funcs/mlu_baseop.h"
 
 namespace custom_kernel {
@@ -37,6 +36,7 @@ void ConcatKernel(const Context& dev_ctx,
                   const std::vector<const phi::DenseTensor*>& ins,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out) {
+  dev_ctx.template Alloc<T>(out);
   auto axis = axis_scalar.to<int>();
   auto ins_size = ins.size();
 

@@ -88,13 +88,21 @@ void MaskedSelectKernel(const Context& dev_ctx,
                         const phi::DenseTensor& x,
                         const phi::DenseTensor& mask,
                         phi::DenseTensor* out) {
+  if (x.numel() == 0 || mask.numel() == 0) {
+    out->Resize({0});
+    dev_ctx.template Alloc<T>(out);
+    return;
+  }
+
   DO_COMPATIBILITY(aclnnMaskedSelect,
                    (custom_kernel::AclopMaskedSelectKernel<T, Context>(
                        dev_ctx, x, mask, out)));
+
   if (x.storage_properties_initialized()) {
     custom_kernel::AclopMaskedSelectKernel<T, Context>(dev_ctx, x, mask, out);
     return;
   }
+
   auto input_dim = x.dims();
   auto mask_dim = mask.dims();
   PADDLE_ENFORCE_EQ(input_dim,

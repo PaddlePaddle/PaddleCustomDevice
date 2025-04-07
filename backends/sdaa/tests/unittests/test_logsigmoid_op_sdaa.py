@@ -1,0 +1,102 @@
+# BSD 3- Clause License Copyright (c) 2024, Tecorigin Co., Ltd. All rights
+# reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+# Neither the name of the copyright holder nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY,OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY
+# WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+# OF SUCH DAMAGE.
+
+import numpy as np
+import unittest
+
+from op_test import OpTest, convert_float_to_uint16
+import paddle
+
+paddle.enable_static()
+SEED = 2021
+
+
+class TestLogSigmoid(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "logsigmoid"
+        self.python_api = paddle.nn.functional.log_sigmoid
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        x = np.random.uniform(-1, 1, [11, 17]).astype(self.dtype)
+        out = np.log(1 / (1 + np.exp(-x)))
+        self.inputs = {"X": x}
+        self.outputs = {"Out": out}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.009)
+
+
+class TestLogSigmoidFp16(TestLogSigmoid):
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-3)
+
+    def init_dtype(self):
+        self.dtype = np.float16
+
+
+class TestLogSigmoidBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "logsigmoid"
+        self.python_api = paddle.nn.functional.log_sigmoid
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        x = np.random.uniform(-1, 1, [11, 17]).astype(np.float32)
+        out = np.log(1 / (1 + np.exp(-x)))
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.001)
+
+
+if __name__ == "__main__":
+    unittest.main()

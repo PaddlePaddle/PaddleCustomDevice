@@ -134,12 +134,13 @@ class TestElementwiseSubOpInt64(TestElementwiseSubOp):
 
 class TestSubtractAPI(unittest.TestCase):
     def test_name(self):
-        with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = paddle.subtract(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = paddle.subtract(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_static(self):
         with paddle.static.program_guard(paddle.static.Program()):

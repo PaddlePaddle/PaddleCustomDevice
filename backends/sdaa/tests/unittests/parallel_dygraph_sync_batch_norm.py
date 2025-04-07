@@ -28,7 +28,6 @@ import numpy as np
 from test_dist_base import TestParallelDyGraphRunnerBase, runtime_main
 
 import paddle
-from paddle.base.dygraph.base import to_variable
 from paddle.nn import Conv2D, SyncBatchNorm, BatchNorm
 
 
@@ -109,7 +108,7 @@ class TestSyncBatchNorm(TestParallelDyGraphRunnerBase):
     ):
         batch_size = len(data)
         dy_x_data = np.array([x[0].reshape(1, 28, 28) for x in data]).astype("float32")
-        img = to_variable(dy_x_data)
+        img = paddle.to_tensor(dy_x_data)
         if data_format == "NHWC":
             img = paddle.transpose(img, perm=[0, 2, 3, 1])
 

@@ -111,4 +111,5 @@ PD_REGISTER_PLUGIN_KERNEL(cumsum,
                           custom_kernel::CumsumKernel,
                           float,
                           int64_t,
+                          int32_t,
                           phi::dtype::float16) {}

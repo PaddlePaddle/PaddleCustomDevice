@@ -125,9 +125,9 @@ void RecordEvent::ProcessKernelRecord(const TraceEvent *record) {
   event.process_id = GetProcessId();
   event.correlation_id = record->correlation_id;
   event.thread_id = record->thread_id;
-  if (GetAttributeDumpMode()) {
-    event.msg = record->msg;
-  }
+  // if (GetAttributeDumpMode()) {
+  //   event.msg = record->msg;
+  // }
   profiler_add_runtime_trace_event(prof, &event);
 }
 

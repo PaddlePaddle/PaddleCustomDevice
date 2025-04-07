@@ -53,7 +53,7 @@ class KVCache(paddle.nn.Layer):
             return orig_cur
         if idx is not None:
             # prev.index_copy_(dim, idx - 1, cur)
-            paddlenlp_ops.index_copy(input=prev, dim=dim, index=idx - 1, source=cur)
+            paddlenlp_ops.index_copy_(input=prev, dim=dim, index=idx - 1, source=cur)
             return prev
         else:
             return paddle.concat((prev, cur), dim=dim)

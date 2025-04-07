@@ -31,7 +31,15 @@ if(WITH_SW)
   string(REPLACE "test_parallel_dygraph_mp_layers" "" TEST_OPS "${TEST_OPS}")
   string(REPLACE "test_dygraph_sharding_stage_3" "" TEST_OPS "${TEST_OPS}")
   string(REPLACE "test_dygraph_sharding_stage_2" "" TEST_OPS "${TEST_OPS}")
+  string(REPLACE "test_parallel_dygraph_pipeline_parallel" "" TEST_OPS
+                 "${TEST_OPS}")
+  string(REPLACE "test_parallel_dygraph_tensor_parallel" "" TEST_OPS
+                 "${TEST_OPS}")
+  string(REPLACE "test_parallel_dygraph_sep_parallel" "" TEST_OPS "${TEST_OPS}")
 endif()
+
+string(REPLACE "test_parallel_dygraph_tensor_parallel" "" TEST_OPS
+               "${TEST_OPS}")
 
 foreach(TEST_OP ${TEST_OPS})
   py_test_modules(${TEST_OP} MODULES ${TEST_OP})

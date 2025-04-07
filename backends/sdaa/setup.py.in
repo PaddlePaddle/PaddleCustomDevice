@@ -23,6 +23,7 @@ setup(
     license='Apache Software License',
     packages= packages,
     include_package_data=True,
+    install_requires=['scipy', 'numpy>=1.13,<2.0.0'],
     package_data = {
         '': ['*.so', '*.h', '*.py', '*.hpp'],
     },

@@ -38,3 +38,4 @@ static GcuOpPtr TranslateReshape(
 }  // namespace custom_engine
 
 REGISTER_OP_TRANSLATOR(pd_op_reshape, custom_engine::TranslateReshape)
+REGISTER_OP_TRANSLATOR(pd_op_reshape_, custom_engine::TranslateReshape)

@@ -131,6 +131,23 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
     THROW_JIT_UNIMPLEMENTED();
   }
 }
+
+template <typename T, typename Context>
+void FullWithTensorKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& value,
+                          const phi::IntArray& shape,
+                          phi::DataType dtype,
+                          phi::DenseTensor* out) {
+  if (LaunchAOTKernel()) {
+    out->Resize(common::make_ddim(shape.GetData()));
+    custom_kernel::FullKernel<T, Context>(
+        dev_ctx, shape, phi::Scalar(value), dtype, out);
+
+  } else {  // kernel impl base on JIT
+    THROW_JIT_UNIMPLEMENTED();
+  }
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
@@ -168,4 +185,17 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           double,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(full_with_tensor,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::FullWithTensorKernel,
+                          bool,
+                          int,
+                          int64_t,
+                          float,
+                          double,
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetBackend(phi::Backend::CPU);
 }

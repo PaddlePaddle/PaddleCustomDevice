@@ -28,6 +28,10 @@ void RoiAlignKernel(const Context& dev_ctx,
                     int sampling_ratio,
                     bool aligned,
                     phi::DenseTensor* out) {
+  if (boxes.dims()[0] == 0) {
+    dev_ctx.template Alloc<T>(out);
+    return;
+  }
   dev_ctx.template Alloc<T>(out);
   auto roi_end_mode = 0;
   PADDLE_ENFORCE_EQ(
@@ -186,14 +190,19 @@ void RoiAlignGradKernel(const Context& dev_ctx,
                         int sampling_ratio,
                         bool aligned,
                         phi::DenseTensor* dx) {
-  auto in_dims = x.dims();
-  int rois_num = boxes.dims()[0];
-  auto stream = dev_ctx.stream();
-
   if (!dx) {
     return;
   }
   dev_ctx.template Alloc<T>(dx);
+
+  if (x.numel() == 0 || boxes.numel() == 0) {
+    EXEC_NPU_CMD(aclnnInplaceZero, dev_ctx, *dx);
+    return;
+  }
+
+  auto in_dims = x.dims();
+  int rois_num = boxes.dims()[0];
+  auto stream = dev_ctx.stream();
 
   PADDLE_ENFORCE_EQ(
       aligned,

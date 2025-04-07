@@ -151,19 +151,64 @@ Version GetSdaaDriverVersion() {
 
 Version GetTecoDNNVersion() {
   int teco_dnn_version = tecodnnGetVersion();
-
   auto items = GetVersionItems(teco_dnn_version, DNN_BLAS_DETAILED_FORMULA);
+
+  // Get gitCommitId for daily&weekly package debug
+  void *handle = dlopen("libtecodnn.so", RTLD_LAZY);
+  if (!handle) {
+    return {TECO_DNN_NAME, GetVersionStr(items), teco_dnn_version};
+  }
+  dlerror();
+
+  // Check if gitCommitId symbol exist
+  const char **gitCommitId = (const char **)dlsym(handle, "gitCommitId");
+  const char *error = dlerror();
+  if (error != nullptr) {
+    std::cout << "Failed to find TecoDNN gitCommitId: " << error << std::endl;
+    dlclose(handle);
+    return {TECO_DNN_NAME, GetVersionStr(items), teco_dnn_version};
+  }
+
+  // Print gitCommitId
+  if (*gitCommitId != nullptr) {
+    std::cout << "TecoDNN gitCommitId: " << *gitCommitId << std::endl;
+  }
+
+  dlclose(handle);
+
+  // Return version info
   return {TECO_DNN_NAME, GetVersionStr(items), teco_dnn_version};
 }
 
 Version GetTecoBLASVersion() {
   int teco_blas_version = 0;
-  tblasHandle_t handle;
-  tecoblasCreate(&handle);
-  tecoblasGetVersion(handle, &teco_blas_version);
-  tecoblasDestroy(handle);
-
+  tecoblasGetVersion(nullptr, &teco_blas_version);
   auto items = GetVersionItems(teco_blas_version, DNN_BLAS_DETAILED_FORMULA);
+
+  // Get gitCommitId for daily&weekly package debug
+  void *handle = dlopen("libtecoblas.so", RTLD_LAZY);
+  if (!handle) {
+    return {TECO_BLAS_NAME, GetVersionStr(items), teco_blas_version};
+  }
+  dlerror();
+
+  // Check if gitCommitId symbol exist
+  const char **gitCommitId = (const char **)dlsym(handle, "gitCommitId");
+  const char *error = dlerror();
+  if (error != nullptr) {
+    std::cerr << "Failed to find TecoBlas gitCommitId: " << error << std::endl;
+    dlclose(handle);
+    return {TECO_BLAS_NAME, GetVersionStr(items), teco_blas_version};
+  }
+
+  // Print gitCommitId
+  if (*gitCommitId != nullptr) {
+    std::cout << "TecoBlas gitCommitId: " << *gitCommitId << std::endl;
+  }
+
+  dlclose(handle);
+
+  // Return version info
   return {TECO_BLAS_NAME, GetVersionStr(items), teco_blas_version};
 }
 
@@ -228,6 +273,14 @@ Version GetPaddlePaddleSDAACommit() {
 #endif
 }
 
+Version GetPaddlePaddleSDAAVersion() {
+#ifdef TECO_PADDLE_VERSION
+  return {PLUGIN_VERSION, TECO_PADDLE_VERSION};
+#else
+  return {PLUGIN_VERSION, ""};
+#endif
+}
+
 Version GetPaddlePaddleCommit() {
 #ifdef PADDLE_COMMIT_ID
   return {PADDLE_COMMIT, PADDLE_COMMIT_ID};
@@ -269,6 +322,9 @@ std::vector<Version> GetAllDepVersions() {
                               GetTCCLVersion,
                               GetTecoCustomVersion,
                               GetSDptiVersion};
+#ifdef TECO_PADDLE_VERSION
+  version_func.push_back(GetPaddlePaddleSDAAVersion);
+#endif
 #ifdef GIT_COMMIT_ID
   version_func.push_back(GetPaddlePaddleSDAACommit);
 #endif
@@ -404,6 +460,8 @@ void PrintEnvFlags() {
   ADD_ENV_FLAGS_HELPER(HIGH_PRECISION_OP_LIST, );  // NOLINT
   ADD_ENV_FLAGS_HELPER(FLAGS_sdaa_reuse_event, true);
   ADD_ENV_FLAGS_HELPER(FLAGS_sdaa_runtime_debug, false);
+  ADD_ENV_FLAGS_HELPER(FLAGS_sdaa_matmul_scale, 1.0);
+  ADD_ENV_FLAGS_HELPER(DUMP_INTO_PROFILER, 0);
 
 #undef ADD_ENV_FLAGS_HELPER
 

@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -50,19 +50,27 @@ class TestCase1(SDAAOpTest):
         self.op_type = "split"
         self.python_api = paddle.split
         self.python_out_sig = ["out0", "out1"]
-        ipt = self.x.astype(self.dtype)
         axis = self.axis if isinstance(self.axis, int) else int(self.axis[0])
-        tmp_outs = np.split(ipt, axis=axis, indices_or_sections=self.num_or_sections)
+        tmp_outs = np.split(self.x, axis=axis, indices_or_sections=self.num_or_sections)
         tmp_outs = [o.astype(self.dtype) for o in tmp_outs]
         self.outputs = {"Out": []}
         self.outs = []
         for i, o in enumerate(tmp_outs):
-            self.outputs["Out"].append((str(i), o))
+            if self.dtype != np.uint16:
+                self.outputs["Out"].append((str(i), o))
+            else:
+                self.outputs["Out"].append((str(i), convert_float_to_uint16(o)))
             self.outs.append(str(i))
 
         self.attrs = {"axis": self.axis, "num": self.num_or_sections}
         self.inputs = {}
-        self.inputs.update({"X": ipt.astype(self.dtype)})
+        self.inputs.update(
+            {
+                "X": self.x
+                if self.dtype != np.uint16
+                else convert_float_to_uint16(self.x)
+            }
+        )
 
     def init_dtype(self):
         self.dtype = np.float32
@@ -71,14 +79,22 @@ class TestCase1(SDAAOpTest):
         self.check_output_with_place(self.place)
 
     def set_example(self):
-        self.x = np.random.random((2, 4, 6)).astype(self.dtype)
+        self.x = (
+            np.random.random((2, 4, 6)).astype(self.dtype)
+            if self.dtype != np.uint16
+            else np.random.random((2, 4, 6)).astype(np.float32)
+        )
         self.axis = 1
         self.num_or_sections = 2
 
 
 class TestCase2(TestCase1):
     def set_example(self):
-        self.x = np.random.random((20, 4, 50)).astype(self.dtype)
+        self.x = (
+            np.random.random((20, 4, 50)).astype(self.dtype)
+            if self.dtype != np.uint16
+            else np.random.random((20, 4, 50)).astype(np.float32)
+        )
         self.axis = 0
         self.num_or_sections = 4
 
@@ -89,7 +105,11 @@ class TestCase2(TestCase1):
 
 class TestCase3(TestCase1):
     def set_example(self):
-        self.x = np.random.random((4, 50, 20)).astype(self.dtype)
+        self.x = (
+            np.random.random((4, 50, 20)).astype(self.dtype)
+            if self.dtype != np.uint16
+            else np.random.random((4, 50, 20)).astype(np.float32)
+        )
         self.axis = 2
         self.num_or_sections = 4
 
@@ -102,7 +122,11 @@ class TestCase3(TestCase1):
 class TestCase4(TestCase1):
     def set_example(self):
         super().set_example()
-        self.x = np.random.random((2, 10, 4)).astype(self.dtype)
+        self.x = (
+            np.random.random((2, 10, 4)).astype(self.dtype)
+            if self.dtype != np.uint16
+            else np.random.random((2, 10, 4)).astype(np.float32)
+        )
         self.axis = 1
         self.num_or_sections = [2, 4, 8]
 
@@ -114,7 +138,11 @@ class TestCase4(TestCase1):
 
 class TestCase5(TestCase1):
     def set_example(self):
-        self.x = np.random.random((20, 4, 50)).astype(self.dtype)
+        self.x = (
+            np.random.random((20, 4, 50)).astype(self.dtype)
+            if self.dtype != np.uint16
+            else np.random.random((20, 4, 50)).astype(np.float32)
+        )
         self.axis = 0
         self.num_or_sections = 1
 
@@ -221,6 +249,26 @@ create_test_uint8(TestCase1)
 create_test_uint8(TestCase2)
 create_test_uint8(TestCase3)
 create_test_uint8(TestCase4)
+
+
+# ----------------Split BF16----------------
+def create_test_bf16(parent):
+    class TestSplitBF16Op(parent):
+        def init_dtype(self):
+            self.dtype = np.uint16
+
+        def test_check_grad(self):
+            pass
+
+    cls_name = "{0}_{1}".format(parent.__name__, "BF16")
+    TestSplitBF16Op.__name__ = cls_name
+    globals()[cls_name] = TestSplitBF16Op
+
+
+create_test_bf16(TestCase1)
+create_test_bf16(TestCase2)
+create_test_bf16(TestCase3)
+create_test_bf16(TestCase4)
 
 
 # attr(axis) is Tensor

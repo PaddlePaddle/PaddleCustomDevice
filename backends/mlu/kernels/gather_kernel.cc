@@ -25,6 +25,20 @@ void GatherKernel(const Context& dev_ctx,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
+  PADDLE_ENFORCE_EQ(
+      axis.dtype() == DataType::INT32 || axis.dtype() == DataType::INT64,
+      true,
+      phi::errors::InvalidArgument(
+          "The axis should be INT32 or INT64, but we get %s",
+          DataTypeToString(axis.dtype())));
+
+  PADDLE_ENFORCE_EQ(
+      index.dtype() == DataType::INT32 || index.dtype() == DataType::INT64,
+      true,
+      phi::errors::InvalidArgument(
+          "The index should be INT32 or INT64, but we get %s",
+          DataTypeToString(index.dtype())));
+
   const auto index_dims = index.dims();
   if (index_dims.size() == 2) {
     PADDLE_ENFORCE_EQ(
@@ -116,6 +130,10 @@ PD_REGISTER_PLUGIN_KERNEL(gather,
                           ALL_LAYOUT,
                           custom_kernel::GatherKernel,
                           float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int32_t,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(gather_grad,
@@ -123,4 +141,8 @@ PD_REGISTER_PLUGIN_KERNEL(gather_grad,
                           ALL_LAYOUT,
                           custom_kernel::GatherGradKernel,
                           float,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
+                          int32_t,
                           phi::dtype::float16) {}

@@ -70,36 +70,65 @@ endif()
 
 include_directories(${TBLAS_INC})
 
-if(NOT DEFINED ENV{TECODNN_CUSTOM_ROOT})
+if(NOT DEFINED ENV{TECOCUSTOM_EXT_ROOT})
   message(
     FATAL
-    "Cannot find tecodnn-custom Library, please set TECODNN_CUSTOM_ROOT correctly."
+    "Cannot find tecocustom-ext Library, please set TECOCUSTOM_EXT_ROOT correctly."
   )
 endif()
-set(TECODNN_CUSTOM_PATH $ENV{TECODNN_CUSTOM_ROOT})
+set(TECOCUSTOM_EXT_PATH $ENV{TECOCUSTOM_EXT_ROOT})
 
 find_path(
-  TECODNN_CUSTOM_INC
+  TECOCUSTOM_EXT_INC
   NAMES "tecodnn_custom.h"
-  PATHS ${TECODNN_CUSTOM_PATH}/include
+  PATHS ${TECOCUSTOM_EXT_PATH}/include
   NO_DEFAULT_PATH)
 find_library(
-  TECODNN_CUSTOM_LIB
+  TECOCUSTOM_EXT_LIB
   NAMES "tecodnn_ext"
-  PATHS ${TECODNN_CUSTOM_PATH}/lib64
+  PATHS ${TECOCUSTOM_EXT_PATH}/lib64
   NO_DEFAULT_PATH)
 
-if(TECODNN_CUSTOM_INC AND TECODNN_CUSTOM_LIB)
-  message(STATUS "Found TECODNN_CUSTOM_INC: ${TECODNN_CUSTOM_INC}")
-  message(STATUS "Found TECODNN_CUSTOM_LIB: ${TECODNN_CUSTOM_LIB}")
-elseif(NOT TECODNN_CUSTOM_INC)
+if(TECOCUSTOM_EXT_INC AND TECOCUSTOM_EXT_LIB)
+  message(STATUS "Found TECOCUSTOM_EXT_INC: ${TECOCUSTOM_EXT_INC}")
+  message(STATUS "Found TECOCUSTOM_EXT_LIB: ${TECOCUSTOM_EXT_LIB}")
+elseif(NOT TECOCUSTOM_EXT_INC)
   message(FATAL
-          "Cannot find tecodnn_custom.h in ${TECODNN_CUSTOM_PATH}/include")
-elseif(NOT TECODNN_CUSTOM_LIB)
-  message(FATAL "Cannot find libtecodnn_ext in ${TECODNN_CUSTOM_PATH}/lib")
+          "Cannot find tecodnn_custom.h in ${TECOCUSTOM_EXT_PATH}/include")
+elseif(NOT TECOCUSTOM_EXT_LIB)
+  message(FATAL "Cannot find libtecodnn_ext in ${TECOCUSTOM_EXT_PATH}/lib")
 endif()
 
-include_directories(${TECODNN_CUSTOM_INC})
+include_directories(${TECOCUSTOM_EXT_INC})
+
+if(NOT DEFINED ENV{TECOCUSTOM_ROOT})
+  message(
+    FATAL
+    "Cannot find tecocustom Library, please set TECOCUSTOM_ROOT correctly.")
+endif()
+set(TECOCUSTOM_PATH $ENV{TECOCUSTOM_ROOT})
+
+find_path(
+  TECOCUSTOM_INC
+  NAMES "tecocustom.h"
+  PATHS ${TECOCUSTOM_PATH}/include
+  NO_DEFAULT_PATH)
+find_library(
+  TECOCUSTOM_LIB
+  NAMES "tecocustom"
+  PATHS ${TECOCUSTOM_PATH}/lib64
+  NO_DEFAULT_PATH)
+
+if(TECOCUSTOM_INC AND TECOCUSTOM_LIB)
+  message(STATUS "Found TECOCUSTOM_INC: ${TECOCUSTOM_INC}")
+  message(STATUS "Found TECOCUSTOM_LIB: ${TECOCUSTOM_LIB}")
+elseif(NOT TECOCUSTOM_INC)
+  message(FATAL "Cannot find tecocustom.h in ${TECOCUSTOM_PATH}/include")
+elseif(NOT TECOCUSTOM_LIB)
+  message(FATAL "Cannot find libtecocustom in ${TECOCUSTOM_PATH}/lib")
+endif()
+
+include_directories(${TECOCUSTOM_INC})
 
 if(NOT DEFINED ENV{SDPTI_ROOT})
   message(FATAL "Cannot find SDPTI_ROOT, please set SDPTI_ROOT correctly.")

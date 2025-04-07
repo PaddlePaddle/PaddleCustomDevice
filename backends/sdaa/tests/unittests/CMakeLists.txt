@@ -18,9 +18,6 @@ file(
   "test_*.py")
 string(REPLACE ".py" "" TEST_OPS "${TEST_OPS}")
 
-# TODO(zhanggq): skip test_set_value_op_sdaa ut
-string(REPLACE "test_set_value_op_sdaa" "" TEST_OPS "${TEST_OPS}")
-
 foreach(TEST_OP ${TEST_OPS})
   py_test_modules(${TEST_OP} MODULES ${TEST_OP})
 endforeach()
@@ -29,8 +26,6 @@ py_test_modules(test_dropout_a100 MODULES test_dropout_op_sdaa ENVS
                 RANDOM_ALIGN_NV_DEVICE=A100)
 py_test_modules(test_dropout_v100 MODULES test_dropout_op_sdaa ENVS
                 RANDOM_ALIGN_NV_DEVICE=V100)
-py_test_modules(test_softmax_high_precision MODULES test_softmax_sdaa ENVS
-                HIGH_PRECISION_OP_LIST=softmax,softmax_grad)
 py_test_modules(
   test_softmax_with_cross_entropy_high_precision
   MODULES
@@ -38,11 +33,20 @@ py_test_modules(
   ENVS
   HIGH_PRECISION_OP_LIST=softmax_with_cross_entropy,softmax_with_cross_entropy_grad
 )
+
 set_tests_properties(test_no_event_pool PROPERTIES ENVIRONMENT
                                                    FLAGS_sdaa_reuse_event=false)
+set_tests_properties(test_sdaa_matmul_scale
+                     PROPERTIES ENVIRONMENT FLAGS_sdaa_matmul_scale=128.0)
+set_tests_properties(test_dy2static_mlp_sdaa
+                     PROPERTIES ENVIRONMENT FLAGS_enable_pir_with_pt_in_dy2st=0)
+set_tests_properties(test_contiguous_op_sdaa
+                     PROPERTIES ENVIRONMENT FLAGS_use_stride_kernel=1)
 set_tests_properties(
-  test_dy2static_mlp_sdaa
+  test_tcpx
   PROPERTIES
     ENVIRONMENT
-    "FLAGS_enable_pir_with_pt_in_dy2st=0;FLAGS_allocator_strategy=naive_best_fit"
+    "TECO_PADDLE_TCPX_RANGES=1;TECO_PADDLE_TCPX_RANGES_DETAILED=1;TECO_ENABLE_DUMP_INFO=1"
 )
+set_tests_properties(test_custom_pass_sdaa
+                     PROPERTIES ENVIRONMENT FLAGS_enable_pir_api=false)

@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "glog/logging.h"
+#include "paddle/common/flags.h"
 #include "paddle/phi/core/enforce.h"
-#include "paddle/phi/core/flags.h"
 
 namespace custom_dynload {
 

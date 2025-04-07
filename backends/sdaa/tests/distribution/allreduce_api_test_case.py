@@ -62,9 +62,9 @@ class StreamAllReduceTestCase:
         if not self._sync_op:
             task.wait()
 
-        result = test_data_list[0]
+        result = paddle.to_tensor(test_data_list[0])
         for i in range(1, len(test_data_list)):
-            result += test_data_list[i]
+            result += paddle.to_tensor(test_data_list[i])
 
         np.testing.assert_allclose(tensor, result, rtol=1e-05, atol=1e-05)
 

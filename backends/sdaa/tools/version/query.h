@@ -63,12 +63,14 @@ static const char *const TECO_CUSTOM_NAME = "teco_custom";
 static const char *const TCCL_NAME = "teco_tccl";
 static const char *const SDPTI_NAME = "sdpti";
 static const char *const PLUGIN_COMMIT = "paddle_sdaa_commit";
+static const char *const PLUGIN_VERSION = "paddle_sdaa_version";
 static const char *const PADDLE_COMMIT = "compilation_paddle_commit";
 static const char *const PADDLE_VERSION = "compilation_paddle_version";
 static const char *const PADDLE_CURRENT_COMMIT = "paddle_commit";
 static const char *const PADDLE_CURRENT_VERSION = "paddle";
+
 static const std::unordered_set<std::string> UNCOMPARE_KER{
-    PLUGIN_COMMIT, PADDLE_CURRENT_COMMIT};
+    PLUGIN_COMMIT, PLUGIN_VERSION, PADDLE_CURRENT_COMMIT};
 static const std::unordered_map<std::string, std::string>
     MINIMUM_SUPPORTED_VERSIONS{
         {PADDLE_CURRENT_VERSION, PADDLE_MINIMUM_SUPPORTED_VERSION},
@@ -115,6 +117,8 @@ Version GetTCCLVersion();
 Version GetSDptiVersion();
 
 Version GetPaddlePaddleSDAACommit();
+
+Version GetPaddlePaddleSDAAVersion();
 
 Version GetPaddlePaddleCommit();
 

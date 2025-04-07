@@ -27,14 +27,18 @@
 import unittest
 
 import numpy as np
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest
 
 import paddle
-from paddle import base
+
+
+def scatter_nd_add_numpy(target, indices, updates):
+    indices = tuple(indices.reshape(-1, indices.shape[-1]).T)
+    np.add.at(target, indices, updates)
+    return target
 
 
 def test_class1(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithIndex1(OpTest):
         def setUp(self):
             self.set_sdaa()
@@ -51,13 +55,22 @@ def test_class1(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_1".format(op_type, typename)
     TestGatherNdOpWithIndex1.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithIndex1
 
 
 def test_class2(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithLowIndex(OpTest):
         # Index has low rank, X has high rank
 
@@ -78,13 +91,26 @@ def test_class2(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            out_grad = np.ones(shape=(2, 10)).astype(typename)
+            out_grad = out_grad / out_grad.sum()
+            x_grad = np.zeros(shape=(10, 10))
+            index = np.array([[1], [2]]).astype("int64")
+            x_grad = scatter_nd_add_numpy(x_grad, index, out_grad)
+
+            self.check_grad_with_place(
+                self.place, ["X"], "Out", user_defined_grads=[x_grad]
+            )
+
     cls_name = "{0}_{1}_2".format(op_type, typename)
     TestGatherNdOpWithLowIndex.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithLowIndex
 
 
 def test_class3(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithEmptyIndex(OpTest):
         # Index has empty element, which means copy entire tensor
 
@@ -103,13 +129,22 @@ def test_class3(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_3".format(op_type, typename)
     TestGatherNdOpWithEmptyIndex.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithEmptyIndex
 
 
 def test_class4(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithSameIndexAsX(OpTest):
         # Index has same rank as X's rank
 
@@ -130,13 +165,22 @@ def test_class4(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_4".format(op_type, typename)
     TestGatherNdOpWithSameIndexAsX.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithSameIndexAsX
 
 
 def test_class5(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithHighRankSame(OpTest):
         # Both Index and X have high rank, and Rank(Index) = Rank(X)
 
@@ -158,13 +202,22 @@ def test_class5(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_5".format(op_type, typename)
     TestGatherNdOpWithHighRankSame.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithHighRankSame
 
 
 def test_class6(op_type, typename):
-    @skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
     class TestGatherNdOpWithHighRankDiff(OpTest):
         # Both Index and X have high rank, and Rank(Index) < Rank(X)
 
@@ -187,15 +240,22 @@ def test_class6(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_6".format(op_type, typename)
     TestGatherNdOpWithHighRankDiff.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpWithHighRankDiff
 
 
 def test_class7(op_type, typename):
-    @skip_check_grad_ci(
-        reason="The backward test is not supported yet for float16 type on sdaa."
-    )
     class TestGatherNdOpIndex1(OpTest):
         # Index has low rank, X has high rank
 
@@ -215,9 +275,53 @@ def test_class7(op_type, typename):
         def test_check_output(self):
             self.check_output_with_place(self.place)
 
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
     cls_name = "{0}_{1}_7".format(op_type, typename)
     TestGatherNdOpIndex1.__name__ = cls_name
     globals()[cls_name] = TestGatherNdOpIndex1
+
+
+def test_class8(op_type, typename):
+    class TestGatherNdOpWithEmptyIndex(OpTest):
+        # Index has empty element, which means copy entire tensor
+
+        def setUp(self):
+            self.set_sdaa()
+            self.place = paddle.CustomPlace("sdaa", 0)
+            self.op_type = "gather_nd"
+            self.python_api = paddle.gather_nd
+            xnp = np.random.random((5, 20)).astype(typename)
+            self.inputs = {"X": xnp, "Index": np.array([]).astype("int32")}
+            self.outputs = {"Out": np.vstack(xnp)}
+
+        def set_sdaa(self):
+            self.__class__.use_custom_device = True
+
+        def test_check_output(self):
+            self.check_output_with_place(self.place)
+
+        def test_check_grad(self):
+            if typename == "int32" or typename == "int64":
+                return
+
+            self.check_grad_with_place(
+                self.place,
+                ["X"],
+                "Out",
+            )
+
+    cls_name = "{0}_{1}_8".format(op_type, typename)
+    TestGatherNdOpWithEmptyIndex.__name__ = cls_name
+    globals()[cls_name] = TestGatherNdOpWithEmptyIndex
 
 
 # Test Python API
@@ -227,8 +331,8 @@ class TestGatherNdAPI(unittest.TestCase):
         paddle.set_device("sdaa")
         input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
         index_1 = np.array([[1]]).astype("int32")
-        input = base.dygraph.to_variable(input_1)
-        index = base.dygraph.to_variable(index_1)
+        input = paddle.to_tensor(input_1)
+        index = paddle.to_tensor(index_1)
         output = paddle.gather(input, index)
         output_np = output.numpy()
         expected_output = np.array([3, 4])
@@ -244,9 +348,9 @@ for _typename in {"float32", "float16", "int32", "int64"}:
     test_class5("gather_nd", _typename)
     test_class6("gather_nd", _typename)
     test_class7("gather_nd", _typename)
+    test_class8("gather_nd", _typename)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithEmptyIndex(OpTest):
     # Index has empty element, which means copy entire tensor
 
@@ -283,7 +387,6 @@ class TestGatherNdOpWithEmptyIndex(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithIndex1(OpTest):
     def setUp(self):
         self.set_sdaa()
@@ -320,7 +423,6 @@ class TestGatherNdOpWithIndex1(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithIndex1_ZeroDim(TestGatherNdOpWithIndex1):
     def setUp(self):
         self.set_sdaa()
@@ -351,7 +453,6 @@ class TestGatherNdOpWithIndex1_ZeroDim(TestGatherNdOpWithIndex1):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithLowIndex(OpTest):
     # Index has low rank, X has high rank
 
@@ -386,7 +487,6 @@ class TestGatherNdOpWithLowIndex(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpIndex1(OpTest):
     # Index has low rank, X has high rank
 
@@ -426,7 +526,6 @@ class TestGatherNdOpIndex1(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithSameIndexAsX(OpTest):
     # Index has same rank as X's rank
     def setUp(self):
@@ -460,7 +559,6 @@ class TestGatherNdOpWithSameIndexAsX(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithHighRankSame(OpTest):
     # Both Index and X have high rank, and Rank(Index) = Rank(X)
 
@@ -496,7 +594,6 @@ class TestGatherNdOpWithHighRankSame(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
 
 
-@skip_check_grad_ci(reason="The backward test is not supported yet on sdaa.")
 class TestGatherNdOpWithHighRankDiff(OpTest):
     # Both Index and X have high rank, and Rank(Index) < Rank(X)
 
@@ -528,9 +625,31 @@ class TestGatherNdOpWithHighRankDiff(OpTest):
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+        )
+
     def set_sdaa(self):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("sdaa", 0)
+
+
+class TestGatherNdGradAPI(unittest.TestCase):
+    def test_imperative(self):
+        paddle.disable_static()
+        paddle.set_device("sdaa")
+        input_1 = np.array([[1, 2], [3, 4], [5, 6]]).astype("float32")
+        index_1 = np.array([[1]]).astype("int32")
+        input = paddle.to_tensor(input_1)
+        index = paddle.to_tensor(index_1)
+        output = paddle.gather(input, index)
+        output_np = output.numpy()
+        expected_output = np.array([3, 4])
+        np.testing.assert_allclose(output_np[0], expected_output, rtol=1e-6)
+        paddle.enable_static()
 
 
 if __name__ == "__main__":

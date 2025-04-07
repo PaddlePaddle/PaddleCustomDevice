@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -42,11 +42,16 @@ class TestSqueeze2Op(OpTest):
         self.python_api = paddle.squeeze
         self.python_out_sig = ["Out"]  # python out sig is customized output signature.
         self.init_test_case()
-        self.inputs = {"X": np.random.random(self.ori_shape).astype("float32")}
+        x = np.random.random(self.ori_shape).astype("float32")
+        xshape = np.random.random(self.ori_shape).astype("float32")
+        if hasattr(self, "dtype") and self.dtype == np.uint16:
+            x = convert_float_to_uint16(x.astype(np.float32))
+            xshape = convert_float_to_uint16(xshape.astype(np.float32))
+        self.inputs = {"X": x}
         self.init_attrs()
         self.outputs = {
             "Out": self.inputs["X"].reshape(self.new_shape),
-            "XShape": np.random.random(self.ori_shape).astype("float32"),
+            "XShape": xshape,
         }
 
     def set_sdaa(self):
@@ -96,6 +101,11 @@ class TestSqueeze2Op3(TestSqueeze2Op):
         self.ori_shape = (6, 1, 5, 1, 4, 1)
         self.axes = (1, -1)
         self.new_shape = (6, 5, 1, 4)
+
+
+class TestSqueezeOpBF16OP(TestSqueeze2Op):
+    def init_dtype(self):
+        self.dtype = np.uint16
 
 
 if __name__ == "__main__":

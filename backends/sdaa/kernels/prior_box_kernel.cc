@@ -100,22 +100,28 @@ void PriorBoxKernel(const Context& ctx,
   phi::DenseTensor r;
   phi::TensorFromVector(new_aspect_ratios, ctx, &r);
   auto aspect_ratios_desc = sdaa_ops::GetTecodnnTensorDesc(
-      {new_aspect_ratios.size()}, r.dtype(), TensorFormat::Undefined);
+      {static_cast<int>(new_aspect_ratios.size())},
+      r.dtype(),
+      TensorFormat::Undefined);
 
   phi::DenseTensor min;
   phi::TensorFromVector(min_sizes, ctx, &min);
-  auto min_desc = sdaa_ops::GetTecodnnTensorDesc(
-      {min_sizes.size()}, min.dtype(), TensorFormat::Undefined);
+  auto min_desc =
+      sdaa_ops::GetTecodnnTensorDesc({static_cast<int>(min_sizes.size())},
+                                     min.dtype(),
+                                     TensorFormat::Undefined);
 
   phi::DenseTensor max;
   phi::TensorFromVector(max_sizes, ctx, &max);
-  auto max_desc = sdaa_ops::GetTecodnnTensorDesc(
-      {max_sizes.size()}, max.dtype(), TensorFormat::Undefined);
+  auto max_desc =
+      sdaa_ops::GetTecodnnTensorDesc({static_cast<int>(max_sizes.size())},
+                                     max.dtype(),
+                                     TensorFormat::Undefined);
 
   phi::DenseTensor v;
   phi::TensorFromVector(variances, ctx, &v);
   auto variances_desc = sdaa_ops::GetTecodnnTensorDesc(
-      {variances.size()}, v.dtype(), TensorFormat::Undefined);
+      {static_cast<int>(variances.size())}, v.dtype(), TensorFormat::Undefined);
   PADDLE_ENFORCE_EQ(
       variances.size() == 4UL,
       true,

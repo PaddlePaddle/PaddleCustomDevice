@@ -56,7 +56,7 @@ def filter_kernel(event: dict):
     if not isinstance(event, dict):
         return False
     cat = event.get("cat")
-    return isinstance(cat, str) and "kernel" in cat.lower()
+    return isinstance(cat, str) and cat == "Kernel"
 
 
 class SimpleNet(nn.Layer):

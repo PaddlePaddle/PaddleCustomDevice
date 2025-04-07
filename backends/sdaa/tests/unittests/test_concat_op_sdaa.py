@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 import paddle
 from white_list import no_grad_set_white_list
 
@@ -46,18 +46,34 @@ class TestConcatOp(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
         self.init_dtype()
         self.init_test_data()
-
-        self.inputs = {"X": [("x0", self.x0), ("x1", self.x1), ("x2", self.x2)]}
+        if self.dtype == np.uint16:
+            self.inputs = {
+                "X": [
+                    ("x0", convert_float_to_uint16(self.x0)),
+                    ("x1", convert_float_to_uint16(self.x1)),
+                    ("x2", convert_float_to_uint16(self.x2)),
+                ]
+            }
+        else:
+            self.inputs = {"X": [("x0", self.x0), ("x1", self.x1), ("x2", self.x2)]}
         self.attrs = {"axis": self.axis}
         if self.axis < 0:
             self.actual_axis = self.axis + len(self.x0.shape)
             self.actual_axis = self.actual_axis if self.actual_axis > 0 else 0
         else:
             self.actual_axis = self.axis
-
-        self.outputs = {
-            "Out": np.concatenate((self.x0, self.x1, self.x2), axis=self.actual_axis)
-        }
+        if self.dtype == np.uint16:
+            self.outputs = {
+                "Out": convert_float_to_uint16(
+                    np.concatenate((self.x0, self.x1, self.x2), axis=self.actual_axis)
+                )
+            }
+        else:
+            self.outputs = {
+                "Out": np.concatenate(
+                    (self.x0, self.x1, self.x2), axis=self.actual_axis
+                )
+            }
 
     def set_sdaa(self):
         self.__class__.use_custom_device = True
@@ -66,9 +82,14 @@ class TestConcatOp(OpTest):
         self.dtype = np.float32
 
     def init_test_data(self):
-        self.x0 = np.random.random((1, 4, 50)).astype(self.dtype)
-        self.x1 = np.random.random((2, 4, 50)).astype(self.dtype)
-        self.x2 = np.random.random((3, 4, 50)).astype(self.dtype)
+        if self.dtype == np.uint16:
+            self.x0 = np.random.random((1, 4, 50)).astype(np.float32)
+            self.x1 = np.random.random((2, 4, 50)).astype(np.float32)
+            self.x2 = np.random.random((3, 4, 50)).astype(np.float32)
+        else:
+            self.x0 = np.random.random((1, 4, 50)).astype(self.dtype)
+            self.x1 = np.random.random((2, 4, 50)).astype(self.dtype)
+            self.x2 = np.random.random((3, 4, 50)).astype(self.dtype)
         self.axis = 0
 
     def test_check_output(self):
@@ -148,6 +169,17 @@ def create_test_fp16(parent):
     globals()[cls_name] = TestConcatFp16
 
 
+# ----------------Concat Bf16----------------
+def create_test_bf16(parent):
+    class TestConcatBf16(parent):
+        def init_dtype(self):
+            self.dtype = np.uint16
+
+    cls_name = "{0}_{1}".format(parent.__name__, "Bf16")
+    TestConcatBf16.__name__ = cls_name
+    globals()[cls_name] = TestConcatBf16
+
+
 # ----------------Concat Int64----------------
 def create_test_int64(parent):
     class TestConcatInt64(parent):
@@ -196,6 +228,13 @@ create_test_fp16(TestConcatOp3)
 create_test_fp16(TestConcatOp4)
 create_test_fp16(TestConcatOp5)
 create_test_fp16(TestConcatOp6)
+
+create_test_bf16(TestConcatOp)
+create_test_bf16(TestConcatOp2)
+create_test_bf16(TestConcatOp3)
+create_test_bf16(TestConcatOp4)
+create_test_bf16(TestConcatOp5)
+create_test_bf16(TestConcatOp6)
 
 create_test_int32(TestConcatOp)
 create_test_int32(TestConcatOp2)

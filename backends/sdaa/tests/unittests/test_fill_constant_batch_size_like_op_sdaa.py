@@ -139,6 +139,14 @@ class TestFillConstantBatchSizeFloat16(TestFillConstantBatchSizeLike):
         self.check_output_with_place(self.place, atol=1e-2)
 
 
+class TestFillConstantBatchSizeBF16(TestFillConstantBatchSizeLike):
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, atol=1e-2)
+
+
 class TestFillConstantBatchSizeFloat64(TestFillConstantBatchSizeLike):
     def init_dtype(self):
         self.dtype = np.float64

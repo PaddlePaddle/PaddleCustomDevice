@@ -37,22 +37,41 @@ void NPUIdentityKernel(const Context& dev_ctx,
                        const int format,
                        phi::DenseTensor* out) {
   PADDLE_ENFORCE_EQ(
-      format,
-      -1,
-      phi::errors::InvalidArgument("tecodnn only support format=-1"));
-  VLOG(4) << "NPUIdentityKernel -1";
-  PADDLE_ENFORCE_EQ(x.storage_properties_initialized(),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "sdaa identity kernel only support tensor with "
-                        "storage_properties when format == -1"));
-  auto storages = x.storage_properties<SDAAStorageProperties>();
-  phi::DDim x_dims = storages.storage_dims;  // CHWN
-  phi::DenseTensorMeta out_meta;
-  out_meta = {x.dtype(), {x_dims[3], x_dims[0], x_dims[1], x_dims[2]}};
-  out->set_meta(out_meta);
-  dev_ctx.template Alloc<T>(out, x.numel() * sizeof(T));
-  sdaa_ops::doTransformTensor(dev_ctx, x, Convert_TF::CHWN2NCHW, out);
+      format == -1 || format == 0,
+      true,
+      phi::errors::InvalidArgument("tecodnn only support format=-1 or 0"));
+  VLOG(4) << "Call SDAA NPUIdentityKernel!";
+  if (format == -1) {
+    if (!x.storage_properties_initialized()) {
+      out->set_meta(x.meta());
+      dev_ctx.template Alloc<T>(out);
+      TensorCopy(dev_ctx, x, false, out);
+      return;
+    }
+    auto storages = x.storage_properties<SDAAStorageProperties>();
+    phi::DDim x_dims = storages.storage_dims;  // CHWN
+    phi::DenseTensorMeta out_meta;
+    out_meta = {x.dtype(), {x_dims[3], x_dims[0], x_dims[1], x_dims[2]}};
+    out->set_meta(out_meta);
+    dev_ctx.template Alloc<T>(out, x.numel() * sizeof(T));
+    sdaa_ops::doTransformTensor(dev_ctx, x, Convert_TF::CHWN2NCHW, out);
+  } else {
+    PADDLE_ENFORCE_EQ(x.storage_properties_initialized(),
+                      false,
+                      phi::errors::InvalidArgument(
+                          "sdaa identity kernel only support tensor without "
+                          "storage_properties when format == 0"));
+    SDAAStorageProperties storage_property;
+    phi::DDim out_dims = sdaa_ops::doDimPermute(x, Convert_TF::NCHW2CHWN);
+    storage_property.storage_format = 0;
+    storage_property.storage_dims = out_dims;
+
+    if (out->initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, x, storage_property);
+    } else {
+      sdaa_ops::swapTensorData(dev_ctx, x, storage_property, out);
+    }
+  }
 }
 
 }  // namespace custom_kernel
@@ -61,5 +80,12 @@ PD_REGISTER_PLUGIN_KERNEL(npu_identity,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::NPUIdentityKernel,
+                          double,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          int64_t,
+                          int32_t,
+                          int16_t,
+                          int8_t,
+                          uint8_t,
+                          bool) {}

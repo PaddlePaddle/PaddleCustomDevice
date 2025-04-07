@@ -73,7 +73,9 @@ void FullKernel(const Context& dev_ctx,
   auto numel = out->numel();
   dev_ctx.template Alloc<T>(out);
 
-  sdaa_ops::doFillTensor<T>(dev_ctx, val.to<T>(), dtype, out);
+  if (out->numel() != 0) {
+    sdaa_ops::doFillTensor<T>(dev_ctx, val.to<T>(), dtype, out);
+  }
 }
 
 template <typename T, typename Context>
@@ -125,6 +127,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           int,
                           int64_t,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
@@ -139,6 +142,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           int,
                           int64_t,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
@@ -153,6 +157,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           int,
                           int64_t,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }

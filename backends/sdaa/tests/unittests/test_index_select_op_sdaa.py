@@ -182,7 +182,7 @@ class TestIndexSelectAPI(unittest.TestCase):
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array([[1.0, 2.0, 2.0], [5.0, 6.0, 6.0], [9.0, 10.0, 10.0]])
@@ -196,7 +196,7 @@ class TestIndexSelectAPI(unittest.TestCase):
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
             (res,) = exe.run(
                 feed={"x": self.data_x, "index": self.data_index},
-                fetch_list=[z.name],
+                fetch_list=[z],
                 return_numpy=False,
             )
         expect_out = np.array(
@@ -210,8 +210,8 @@ class TestIndexSelectAPI(unittest.TestCase):
         self.input_data()
         # case 1:
         with base.dygraph.guard():
-            x = base.dygraph.to_variable(self.data_x)
-            index = base.dygraph.to_variable(self.data_index)
+            x = paddle.to_tensor(self.data_x)
+            index = paddle.to_tensor(self.data_index)
             z = paddle.index_select(x, index)
             np_z = z.numpy()
         expect_out = np.array(
@@ -221,8 +221,8 @@ class TestIndexSelectAPI(unittest.TestCase):
 
         # case 2:
         with base.dygraph.guard():
-            x = base.dygraph.to_variable(self.data_x)
-            index = base.dygraph.to_variable(self.data_index)
+            x = paddle.to_tensor(self.data_x)
+            index = paddle.to_tensor(self.data_index)
             z = paddle.index_select(x, index, axis=1)
             np_z = z.numpy()
         expect_out = np.array([[1.0, 2.0, 2.0], [5.0, 6.0, 6.0], [9.0, 10.0, 10.0]])

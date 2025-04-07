@@ -39,7 +39,7 @@ class TestNewIrPrint(unittest.TestCase):
                 z = x + y
                 z = paddle.static.Print(z)
 
-            out = exe.run(main_program, {}, fetch_list=[z.name])
+            out = exe.run(main_program, {}, fetch_list=[z])
 
         gold_res = np.ones([2, 2], dtype="float32") * 2
 

@@ -1,0 +1,264 @@
+// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#pragma once
+
+#include "habanalabs/perf_lib_layer_params.h"
+#include "kernels/funcs.h"
+#include "kernels/hpu_operator.h"
+#include "utils/utils.h"
+
+namespace custom_kernel {
+
+class HpuFusedOperator : public HpuOperator {
+ public:
+  explicit HpuFusedOperator(const std::string& guid, bool is_eager = true)
+      : HpuOperator(guid, is_eager) {}
+
+  template <typename T>
+  std::string guid_dtype() {
+    if (std::is_same<T, phi::dtype::float16>::value) {
+      return "f16";
+    } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+      return "bf16";
+    } else if (std::is_same<T, float>::value) {
+      return "f32";
+    } else if (std::is_same<T, phi::dtype::float8_e4m3fn>::value) {
+      return "hf8";
+    } else if (std::is_same<T, int16_t>::value) {
+      return "i16";
+    } else if (std::is_same<T, int32_t>::value) {
+      return "i32";
+    } else if (std::is_same<T, bool>::value) {
+      return "i8";
+    } else if (std::is_same<T, int8_t>::value) {
+      return "i8";
+    } else if (std::is_same<T, int64_t>::value) {
+      return "i64";
+    } else {
+      PD_CHECK(
+          false, "[RUNTIME] synDataType not supported = %s", typeid(T).name());
+    }
+  }
+
+  inline synTensor createTensorFromCT(ConvertTensors* ct,
+                                      int idx,
+                                      bool is_input = true,
+                                      synSectionHandle section = nullptr) {
+    PD_CHECK(ct != nullptr, "[RUNTIME] input ct is a nullptr");
+    auto tensors = ct->GetTensors(is_input);
+    synTensor t = createTensor(tensors[idx].dims.size(),
+                               tensors[idx].type,
+                               tensors[idx].dims,
+                               true,
+                               tensors[idx].name,
+                               section);
+    return t;
+  }
+
+  inline synTensor createTensorNoPresist(std::string name,
+                                         synDataType dtype,
+                                         std::vector<int64_t> dims,
+                                         synSectionHandle section = nullptr) {
+    synTensor t =
+        createTensor(dims.size(), dtype, dims, false, name.c_str(), section);
+    return t;
+  }
+
+  template <typename T>
+  inline void AddNode_OP(std::vector<synTensor> outputs,
+                         T params,
+                         std::string guid,
+                         std::string node_name) {
+    synStatus status = synNodeCreate(graphHandle_,
+                                     nullptr,
+                                     outputs.data(),
+                                     0,
+                                     outputs.size(),
+                                     &params,
+                                     sizeof(params),
+                                     guid.c_str(),
+                                     node_name.c_str(),
+                                     nullptr,
+                                     nullptr);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synNodeCreate (",
+             node_name,
+             ") failed = ",
+             status);
+  }
+
+  inline void AddNode_IO(std::vector<synTensor> inputs,
+                         std::vector<synTensor> outputs,
+                         std::string guid,
+                         std::string node_name) {
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs.data(),
+                                     outputs.data(),
+                                     inputs.size(),
+                                     outputs.size(),
+                                     nullptr,
+                                     0,
+                                     guid.c_str(),
+                                     node_name.c_str(),
+                                     nullptr,
+                                     nullptr);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synNodeCreate (",
+             node_name,
+             ") failed = ",
+             status);
+  }
+
+  template <typename T>
+  inline void AddNode_IOP(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          T params,
+                          std::string guid,
+                          std::string node_name) {
+    synStatus status = synNodeCreate(graphHandle_,
+                                     inputs.data(),
+                                     outputs.data(),
+                                     inputs.size(),
+                                     outputs.size(),
+                                     &params,
+                                     sizeof(params),
+                                     guid.c_str(),
+                                     node_name.c_str(),
+                                     nullptr,
+                                     nullptr);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synNodeCreate (",
+             node_name,
+             ") failed = ",
+             status);
+  }
+
+  template <typename T>
+  inline void AddNodeFull(std::vector<synTensor> outputs,
+                          ns_ConstantKernel::Params params,
+                          std::string node_name) {
+    std::string guid = "constant_" + guid_dtype<T>();
+    AddNode_OP<ns_ConstantKernel::Params>(outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeAdd(std::vector<synTensor> inputs,
+                         std::vector<synTensor> outputs,
+                         std::string node_name) {
+    std::string guid = "add_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSub(std::vector<synTensor> inputs,
+                         std::vector<synTensor> outputs,
+                         std::string node_name) {
+    std::string guid = "sub_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeMultiply(std::vector<synTensor> inputs,
+                              std::vector<synTensor> outputs,
+                              std::string node_name) {
+    std::string guid = "mult_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeDivide(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            std::string node_name) {
+    std::string guid = "div_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeMaximum(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             std::string node_name) {
+    std::string guid = "max_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeExp(std::vector<synTensor> inputs,
+                         std::vector<synTensor> outputs,
+                         std::string node_name) {
+    std::string guid = "exp_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  inline void AddNodeReshape(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             std::string node_name) {
+    AddNode_IO(inputs, outputs, "reshape", node_name);
+  }
+
+  inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               synGEMMParams params,
+                               std::string node_name) {
+    AddNode_IOP<synGEMMParams>(
+        inputs, outputs, params, "batch_gemm", node_name);
+  }
+
+  inline void AddNodeGemm(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          synGEMMParams params,
+                          std::string node_name) {
+    AddNode_IOP<synGEMMParams>(inputs, outputs, params, "gemm", node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeIndexSelect(std::vector<synTensor> inputs,
+                                 std::vector<synTensor> outputs,
+                                 ns_GatherKernel::Params params,
+                                 std::string node_name) {
+    std::string guid = "gather_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_GatherKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeIndexReduce(std::vector<synTensor> inputs,
+                                 std::vector<synTensor> outputs,
+                                 ns_IndexReduce::Params params,
+                                 std::string node_name) {
+    std::string guid = "index_reduce_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_IndexReduce::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeReduceSum(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               ns_Reduction::Params params,
+                               std::string node_name) {
+    std::string guid = "reduce_sum_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Reduction::Params>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeReduceMax(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               ns_Reduction::Params params,
+                               std::string node_name) {
+    std::string guid = "reduce_max_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Reduction::Params>(inputs, outputs, params, guid, node_name);
+  }
+};
+
+}  // namespace custom_kernel

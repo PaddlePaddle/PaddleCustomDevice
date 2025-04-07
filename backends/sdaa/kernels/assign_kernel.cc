@@ -117,6 +117,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign,
                           uint8_t,
                           bool,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -131,6 +132,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_raw,
                           uint8_t,
                           bool,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
@@ -147,6 +149,7 @@ PD_REGISTER_PLUGIN_KERNEL(assign_array,
                           uint8_t,
                           bool,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -157,4 +160,5 @@ PD_REGISTER_PLUGIN_KERNEL(assign_value,
                           bool,
                           int,
                           int64_t,
-                          float) {}
+                          float,
+                          phi::dtype::bfloat16) {}

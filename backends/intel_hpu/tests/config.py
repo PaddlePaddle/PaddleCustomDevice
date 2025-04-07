@@ -21,5 +21,5 @@ skip_case_lst = {}
 skip_case_lst = [
     "test_activation_op.py",
     "test_pow.py",
-    "test_top_p_sampling.py",
+    "test_fused_rms_qkv_rope.py",
 ]

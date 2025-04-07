@@ -204,6 +204,7 @@ def main(args):
     model = paddle.jit.to_static(
         model,
         input_spec=[paddle.static.InputSpec(shape=[None, 1, 28, 28], dtype="float32")],
+        full_graph=True,
     )
     paddle.jit.save(model, "output/model")
 

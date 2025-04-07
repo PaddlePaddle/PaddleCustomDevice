@@ -48,12 +48,24 @@ void GenerateProposalsKernel(const Context& dev_ctx,
                              phi::DenseTensor* rpn_roi_probs,
                              phi::DenseTensor* rpn_rois_num) {
   VLOG(4) << "Call Sdaa GenerateProposalkKernel";
+  PADDLE_ENFORCE_EQ(
+      scores.dims().size(),
+      4,
+      phi::errors::InvalidArgument("The scores dims must equal to 4 "
+                                   "but accept the dims is %d.",
+                                   scores.dims().size()));
+  PADDLE_ENFORCE_EQ(
+      bbox_deltas.dims().size(),
+      4,
+      phi::errors::InvalidArgument("The bbox_deltas dims must equal to 4 "
+                                   "but accept the dims is %d.",
+                                   bbox_deltas.dims().size()));
   // N,C,H,W
-  auto scores_dim = scores.dims();
-  int64_t num = scores_dim[0];
-  int64_t c_score = scores_dim[1];
-  int64_t h_score = scores_dim[2];
-  int64_t w_score = scores_dim[3];
+  std::vector<int> scores_dim = phi::vectorize<int>(scores.dims());
+  int num = scores_dim[0];
+  int c_score = scores_dim[1];
+  int h_score = scores_dim[2];
+  int w_score = scores_dim[3];
   // [N*C*H*W,4] , Rois
   rpn_rois->Resize({bbox_deltas.numel() / 4, 4});
   dev_ctx.template Alloc<T>(rpn_rois);
@@ -100,15 +112,52 @@ void GenerateProposalsKernel(const Context& dev_ctx,
                                      im_shape.dtype(),
                                      TensorFormat::Undefined);
   // anchors [H,W,C,4]
-  tecodnnTensorDescriptor_t anchor_Desc =
-      sdaa_ops::GetTecodnnTensorDesc(phi::vectorize<int>(anchors.dims()),
-                                     anchors.dtype(),
-                                     TensorFormat::Undefined);
+  std::vector<int> anchors_dims = phi::vectorize<int>(anchors.dims());
+  if (anchors_dims.size() != 4) {
+    int len = 1;
+    PADDLE_ENFORCE_EQ(
+        anchors_dims.size(),
+        2,
+        phi::errors::InvalidArgument("The anchors dims must equal to 2 or 4 "
+                                     "but accept the dims is %d.",
+                                     anchors_dims.size()));
+    for (int i = 0; i < anchors_dims.size() - 1; i++) {
+      len = len * anchors_dims[i];
+    }
+    PADDLE_ENFORCE_EQ(
+        len,
+        c_score * h_score * w_score,
+        phi::errors::InvalidArgument("The anchors numel must equal to h*w*c "
+                                     "but accept the numel is %d.",
+                                     len));
+    anchors_dims = {h_score, w_score, c_score, 4};
+  }
+  tecodnnTensorDescriptor_t anchor_Desc = sdaa_ops::GetTecodnnTensorDesc(
+      anchors_dims, anchors.dtype(), TensorFormat::Undefined);
   // variances [H,W,C,4]
-  tecodnnTensorDescriptor_t var_Desc =
-      sdaa_ops::GetTecodnnTensorDesc(phi::vectorize<int>(variances.dims()),
-                                     variances.dtype(),
-                                     TensorFormat::Undefined);
+  // anchors [H,W,C,4]
+  std::vector<int> var_dims = phi::vectorize<int>(variances.dims());
+  if (var_dims.size() != 4) {
+    int len = 1;
+    PADDLE_ENFORCE_EQ(
+        var_dims.size(),
+        2,
+        phi::errors::InvalidArgument("The var dims must equal to 2 or 4 "
+                                     "but accept the dims is %d.",
+                                     var_dims.size()));
+    for (int i = 0; i < var_dims.size() - 1; i++) {
+      len = len * var_dims[i];
+    }
+    PADDLE_ENFORCE_EQ(
+        len,
+        c_score * h_score * w_score,
+        phi::errors::InvalidArgument("The var numel must equal to h*w*c "
+                                     "but accept the numel is %d.",
+                                     len));
+    var_dims = {h_score, w_score, c_score, 4};
+  }
+  tecodnnTensorDescriptor_t var_Desc = sdaa_ops::GetTecodnnTensorDesc(
+      var_dims, variances.dtype(), TensorFormat::Undefined);
 
   tecodnnTensorDescriptor_t rpn_Desc =
       sdaa_ops::GetTecodnnTensorDesc(phi::vectorize<int>(rpn_rois->dims()),
@@ -192,11 +241,11 @@ void GenerateProposalsKernel(const Context& dev_ctx,
 }
 
 }  // namespace custom_kernel
-PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
-                          sdaa,
-                          ALL_LAYOUT,
-                          custom_kernel::GenerateProposalsKernel,
-                          float,
-                          double) {
-  kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
-}
+// PD_REGISTER_PLUGIN_KERNEL(generate_proposals,
+//                           sdaa,
+//                           ALL_LAYOUT,
+//                           custom_kernel::GenerateProposalsKernel,
+//                           float,
+//                           double) {
+//   kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
+// }

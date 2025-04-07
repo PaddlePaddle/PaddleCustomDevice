@@ -1,15 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(paddle-sdaa CXX C)
-add_definitions(-std=c++14)
+add_definitions(-std=c++17)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_TESTING "compile with unit testing" ON)
 option(NATIVE_SDAA "use native sdaa lib" ON)
 option(WITH_MKLDNN "compile with MKLDNN support" ON)
 option(WITH_SW "compile with sw arch support" OFF)
+option(WITH_LOONGARCH "compile with loong arch support" OFF)
 option(WITH_GIT_COMMIT "compile with git commit print" ON)
 option(WITH_PADDLE_INFO "compile with paddle commit/version print" ON)
+option(WITH_TECO_PADDLE_VERSION "compile with plugin version print" ON)
 
 set(PLUGIN_NAME "paddle-sdaa")
 if(DEFINED ENV{PLUGIN_VERSION})
@@ -21,7 +23,6 @@ endif()
 include(paddle)
 include(generic)
 include(teco)
-include(third_party)
 
 include_directories(
   ${PADDLE_INC_DIR}
@@ -30,7 +31,8 @@ include_directories(
   ${EXTEND_OP_INC}
   ${SDPTI_INC}
   ${TBLAS_INC}
-  ${TECODNN_CUSTOM_INC}
+  ${TECOCUSTOM_EXT_INC}
+  ${TECOCUSTOM_INC}
   ${TCCL_INC}
   ${CLANG_INC})
 
@@ -46,12 +48,20 @@ if(WITH_SW)
   add_definitions(-DPADDLE_WITH_SW)
 endif()
 
+if(WITH_LOONGARCH)
+  add_definitions(-DPADDLE_WITH_LOONGARCH)
+endif()
+
 if(WITH_GIT_COMMIT)
   execute_process(
     COMMAND git rev-parse --short HEAD
     OUTPUT_VARIABLE GIT_COMMIT_ID
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   add_definitions(-DGIT_COMMIT_ID=\"${GIT_COMMIT_ID}\")
+endif()
+
+if(WITH_TECO_PADDLE_VERSION)
+  add_definitions(-DTECO_PADDLE_VERSION=\"${PLUGIN_VERSION}\")
 endif()
 
 if(WITH_PADDLE_INFO)
@@ -95,7 +105,8 @@ target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TCCL_LIB})
 target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${SDAA_LIB})
 target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TECODNN_LIB})
 target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TBLAS_LIB})
-target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TECODNN_CUSTOM_LIB})
+target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TECOCUSTOM_EXT_LIB})
+target_link_libraries(${VERSION_DUMP_TARGET} PRIVATE ${TECOCUSTOM_LIB})
 
 add_custom_command(
   TARGET ${VERSION_DUMP_TARGET}
@@ -114,6 +125,8 @@ set_target_properties(
 target_include_directories(${PLUGIN_NAME} PRIVATE ${PADDLE_SDAA_TOOLS_DIR})
 
 # link third_party
+include(third_party)
+add_dependencies(${VERSION_DUMP_TARGET} third_party)
 add_dependencies(${PLUGIN_NAME} third_party)
 target_link_libraries(${PLUGIN_NAME} PRIVATE gflags glog)
 
@@ -127,7 +140,8 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${TBLAS_LIB})
 target_link_libraries(${PLUGIN_NAME} PRIVATE stdc++fs)
 target_link_libraries(${PLUGIN_NAME} PRIVATE ${TCCL_LIB})
-target_link_libraries(${PLUGIN_NAME} PRIVATE ${TECODNN_CUSTOM_LIB})
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${TECOCUSTOM_EXT_LIB})
+target_link_libraries(${PLUGIN_NAME} PRIVATE ${TECOCUSTOM_LIB})
 
 # testing
 if(WITH_TESTING)

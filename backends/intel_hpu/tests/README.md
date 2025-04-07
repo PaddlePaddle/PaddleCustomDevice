@@ -11,3 +11,11 @@ python pr-test-run.py --test_path /workspace/pdpd_ci/PaddleCustomDevice/backends
 # to run special test cases
 python pr-test-run.py --test_path /workspace/pdpd_ci/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --junit test_result.xml --platform gaudi2 --k test_abs_op
 python pr-test-run.py --test_path /workspace/pdpd_ci/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --junit test_result.xml --platform gaudi2 --k test_abs_op.py
+
+#how to run all, stable, or unstable test cases
+stable: all passed test cases suits
+unstable: test sub suites which have failed cases
+python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --junit test_result.xml --platform gaudi2
+python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter all --junit test_result.xml --platform gaudi2
+python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter stable --junit test_result.xml --platform gaudi2
+python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter unstable --junit test_result.xml --platform gaudi2

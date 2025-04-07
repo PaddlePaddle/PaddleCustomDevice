@@ -59,6 +59,12 @@ class TestFillConstant(OpTest):
         self.check_output_with_place(self.place)
 
 
+class TestFillConstantBF16(TestFillConstant):
+    def init_case(self):
+        self.dtype = np.uint16
+        self.input = 4
+
+
 class TestFillConstantInt8(TestFillConstant):
     def init_case(self):
         self.dtype = np.int8
@@ -160,6 +166,37 @@ class TestFillConstantWithPlaceType(OpTest):
 
     def init_dtype(self):
         self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+
+class TestFillConstantZeroNumel(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "fill_constant"
+        self.python_api = fill_wrapper
+        self.dtype = np.float32
+        self.input = 9.0
+        self.init_case()
+
+        self.inputs = {}
+        self.attrs = {
+            "shape": [
+                0,
+            ],
+            "value": self.input,
+            "dtype": convert_np_dtype_to_dtype_(self.dtype),
+        }
+        self.outputs = {"Out": np.full((0,), self.input)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def init_case(self):
+        self.dtype = np.float32
+        self.input = 9.0
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

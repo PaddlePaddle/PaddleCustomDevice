@@ -23,14 +23,13 @@ struct LogicalParams {
 class Logical : public HpuOperator {
  public:
   Logical() : HpuOperator("logical") {}
-  void AddNode(ConvertTensors& ct, LogicalParams& params) {
+  void AddNode(ConvertTensors& ct,
+               LogicalParams& params,
+               bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -110,7 +109,6 @@ void LogicalOrKernel(const Context& dev_ctx,
                      const phi::DenseTensor& y,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  OpCacheOperator op_info;
   ConvertTensors ct;
   ct.Add(x);
   ct.Add(y);
@@ -120,15 +118,18 @@ void LogicalOrKernel(const Context& dev_ctx,
   LogicalParams params = {};
   snprintf(params.op, MAX_OPNAME_LEN, "%s", "or");
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  std::string op_name =
-      (x.data() == out->data()) ? "_LogicalOrKernel" : "LogicalOrKernel";
-  op_info.prepareOpInfo<T, nullptr_t>(op_name, inputs_dims, nullptr);
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalOrKernel_" : "LogicalOrKernel", inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Logical op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 
@@ -146,7 +147,6 @@ void LogicalAndKernel(const Context& dev_ctx,
                       const phi::DenseTensor& y,
                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  OpCacheOperator op_info;
   ConvertTensors ct;
   ct.Add(x);
   ct.Add(y);
@@ -155,15 +155,20 @@ void LogicalAndKernel(const Context& dev_ctx,
   LogicalParams params = {};
   snprintf(params.op, MAX_OPNAME_LEN, "%s", "and");
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  std::string op_name =
-      (x.data() == out->data()) ? "_LogicalAndKernel" : "LogicalAndKernel";
-  op_info.prepareOpInfo<T, nullptr_t>(op_name, inputs_dims, nullptr);
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalAndKernel_" : "LogicalAndKernel",
+      inputs_dims,
+      nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Logical op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 
@@ -181,7 +186,6 @@ void LogicalXorKernel(const Context& dev_ctx,
                       const phi::DenseTensor& y,
                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  OpCacheOperator op_info;
   ConvertTensors ct;
   ct.Add(x);
   ct.Add(y);
@@ -190,15 +194,20 @@ void LogicalXorKernel(const Context& dev_ctx,
   LogicalParams params = {};
   snprintf(params.op, MAX_OPNAME_LEN, "%s", "xor");
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  std::string op_name =
-      (x.data() == out->data()) ? "_LogicalXorKernel" : "LogicalXorKernel";
-  op_info.prepareOpInfo<T, nullptr_t>(op_name, inputs_dims, nullptr);
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalXorKernel_" : "LogicalXorKernel",
+      inputs_dims,
+      nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Logical op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 

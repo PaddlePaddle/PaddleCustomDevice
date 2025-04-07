@@ -21,14 +21,11 @@ class Where : public HpuOperator {
  public:
   Where() : HpuOperator("where_fwd_") {}
 
-  void AddNode(ConvertTensors& ct) {
+  void AddNode(ConvertTensors& ct, bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[1].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -84,15 +81,15 @@ void WhereKernel(const Context& dev_ctx,
   ct.Add(out, false);
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
+  bool in_place = (x.data() == out->data());
   OpCacheOperator op_info;
-  std::string op_name =
-      (x.data() == out->data()) ? "_WhereKernel" : "WhereKernel";
-  op_info.prepareOpInfo<T, nullptr_t>(op_name, inputs_dims, nullptr);
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "WhereKernel_" : "WhereKernel", inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Where op;
-    op.AddNode(ct);
+    op.AddNode(ct, in_place);
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();

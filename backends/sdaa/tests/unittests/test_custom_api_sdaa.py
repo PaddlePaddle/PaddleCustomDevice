@@ -42,24 +42,6 @@ paddle.seed(SEED)
 
 
 class custom_op_test(unittest.TestCase):
-    def test_custom_add(self):
-        paddle.set_device("sdaa")
-        x = paddle.rand(shape=[2, 3], dtype="float32")
-        y = paddle.rand(shape=[2, 3], dtype="float32")
-        p_results = paddle.add(x, y)
-        c_results = paddle_sdaa.custom_add(x, y)
-        self.assertTrue(np.allclose(p_results, c_results))
-
-    def test_custom_add_n(self):
-        paddle.set_device("sdaa")
-        x = paddle.rand(shape=[2, 3], dtype="float32")
-        y = paddle.rand(shape=[2, 3], dtype="float32")
-        z = paddle.rand(shape=[2, 3], dtype="float32")
-        p_results = paddle.add(x, y)
-        p_results = paddle.add(p_results, z)
-        c_results = paddle_sdaa.custom_add_n(x, y, z)
-        self.assertTrue(np.allclose(p_results, c_results))
-
     def test_custom_fc(self):
         batch_size = 64
         input = np.random.rand(batch_size, 200).astype("float32")

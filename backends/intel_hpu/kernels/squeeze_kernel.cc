@@ -31,16 +31,15 @@ struct UnsqueezParams {
 
 class Squeeze : public HpuOperator {
  public:
-  Squeeze() : HpuOperator("squeeze") {}
+  Squeeze() : HpuOperator("squeeze_") {}
 
-  void AddNode(ConvertTensors& ct, SqueezeParams& params) {
+  void AddNode(ConvertTensors& ct,
+               SqueezeParams& params,
+               bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -62,6 +61,7 @@ class Squeeze : public HpuOperator {
                                          section));
     }
 
+    guid_ = guid_ + SynDataTypeToStr(inputs[0].type);
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
                                      syn_outputs.data(),
@@ -80,16 +80,13 @@ class Squeeze : public HpuOperator {
 
 class SqueezeNull : public HpuOperator {
  public:
-  SqueezeNull() : HpuOperator("squeeze") {}
+  SqueezeNull() : HpuOperator("squeeze_") {}
 
-  void AddNode(ConvertTensors& ct) {
+  void AddNode(ConvertTensors& ct, bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -111,6 +108,7 @@ class SqueezeNull : public HpuOperator {
                                          section));
     }
 
+    guid_ = guid_ + SynDataTypeToStr(inputs[0].type);
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
                                      syn_outputs.data(),
@@ -131,14 +129,13 @@ class Unsqueeze : public HpuOperator {
  public:
   Unsqueeze() : HpuOperator("expand_dims") {}
 
-  void AddNode(ConvertTensors& ct, UnsqueezParams& params) {
+  void AddNode(ConvertTensors& ct,
+               UnsqueezParams& params,
+               bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synSectionHandle section = nullptr;
-    if (inputs[0].device_addr == outputs[0].device_addr) {
-      section = createSection();
-    }
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
     synTensor syn_inputs[1] = {createTensor(inputs[0].dims.size(),
                                             inputs[0].type,
@@ -193,18 +190,20 @@ void SqueezeKernel(const Context& dev_ctx,
   ct.Add(out, false);
 
   synRecipeHandle recipe = nullptr;
+  bool in_place = (x.data() == out->data());
 
-  std::string op_name =
-      (x.data() == out->data()) ? "_SqueezeKernel" : "SqueezeKernel";
   if (axes.size() == 0) {
     OpCacheOperator op_info;
     std::vector<DIMS> inputs_dims = ct.GetDims();
-    op_info.prepareOpInfo<T, nullptr_t>(op_name, inputs_dims, nullptr);
+    op_info.prepareOpInfo<T, nullptr_t>(
+        in_place ? "SqueezeNullKernel_" : "SqueezeNullKernel",
+        inputs_dims,
+        nullptr);
     recipe = op_info.GetRecipe();
     if (recipe == nullptr) {
       SqueezeNull op;
 
-      op.AddNode(ct);
+      op.AddNode(ct, in_place);
       op.Compile();
       op_info.setOp(op);
 
@@ -221,12 +220,13 @@ void SqueezeKernel(const Context& dev_ctx,
     SqueezeParams params;
     params.params.axis = static_cast<int32_t>(x.dims().size()) - 1 - dim;
     std::vector<DIMS> inputs_dims = ct.GetDims();
-    op_info.prepareOpInfo<T, SqueezeParams>(op_name, inputs_dims, &params);
+    op_info.prepareOpInfo<T, SqueezeParams>(
+        in_place ? "SqueezeKernel_" : "SqueezeKernel", inputs_dims, &params);
     recipe = op_info.GetRecipe();
     if (recipe == nullptr) {
       Squeeze op;
 
-      op.AddNode(ct, params);
+      op.AddNode(ct, params, in_place);
       op.Compile();
       op_info.setOp(op);
 
@@ -270,9 +270,6 @@ void UnsqueezeKernel(const Context& dev_ctx,
 
   synRecipeHandle recipe = nullptr;
 
-  std::string op_name =
-      (x.data() == out->data()) ? "_UnsqueezeKernel" : "UnsqueezeKernel";
-
   std::vector<int32_t> dims = axes;
   for (auto& dim : dims) {
     if (dim < 0) {
@@ -280,17 +277,20 @@ void UnsqueezeKernel(const Context& dev_ctx,
     }
   }
 
+  bool in_place = (x.data() == out->data());
+
   OpCacheOperator op_info;
   UnsqueezParams params;
   params.params.axis = dims[0];
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  op_info.prepareOpInfo<T, UnsqueezParams>(op_name, inputs_dims, &params);
+  op_info.prepareOpInfo<T, UnsqueezParams>(
+      in_place ? "_UnsqueezeKernel" : "UnsqueezeKernel", inputs_dims, &params);
   recipe = op_info.GetRecipe();
   if (recipe == nullptr) {
     Unsqueeze op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 

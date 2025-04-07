@@ -46,7 +46,8 @@ class TestElementwiseDiv(OpTest):
         out = self.compute_output(x, y).astype(self.val_dtype)
         grad_out = np.ones(out.shape).astype(self.val_dtype)
         grad_x = self.compute_gradient_x(grad_out, y).astype(self.val_dtype)
-        grad_y = self.compute_gradient_y(grad_out, out, y).astype(self.val_dtype)
+        if self.dtype != np.uint8:
+            grad_y = self.compute_gradient_y(grad_out, out, y).astype(self.val_dtype)
 
         # Convert np.float32 data to np.uint16 for bfloat16 Paddle OP
         if self.dtype == np.uint16:
@@ -61,7 +62,8 @@ class TestElementwiseDiv(OpTest):
         self.outputs = {"Out": out}
         self.grad_out = grad_out
         self.grad_x = grad_x
-        self.grad_y = grad_y
+        if self.dtype != np.uint8:
+            self.grad_y = grad_y
 
     def init_args(self):
         self.check_dygraph = True
@@ -125,6 +127,49 @@ class TestElementwiseDiv(OpTest):
             else:
                 check_args.insert(0, self.place)
                 self.check_grad_with_place(*check_args, **check_kwargs)
+
+
+class TestElementwiseDivOpBF16(TestElementwiseDiv):
+    def init_args(self):
+        # In due to output data type inconsistence of bfloat16 paddle op, we disable the dygraph check.
+        self.check_dygraph = False
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+        self.val_dtype = np.float32
+
+    def init_shape(self):
+        self.x_shape = [12, 13]
+        self.y_shape = [12, 13]
+
+    def test_check_gradient(self):
+        check_list = []
+        check_list.append(
+            {
+                "grad": ["X", "Y"],
+                "no_grad": None,
+                "val_grad": [self.grad_x, self.grad_y],
+            }
+        )
+        check_list.append(
+            {"grad": ["Y"], "no_grad": set("X"), "val_grad": [self.grad_y]}
+        )
+        check_list.append(
+            {"grad": ["X"], "no_grad": set("Y"), "val_grad": [self.grad_x]}
+        )
+        for check_option in check_list:
+            check_args = [check_option["grad"], "Out"]
+            check_kwargs = {
+                "no_grad_set": check_option["no_grad"],
+                "check_dygraph": self.check_dygraph,
+                "check_prim": self.check_prim,
+            }
+            if self.place is None:
+                self.check_grad(*check_args, **check_kwargs, check_pir=True)
+            else:
+                check_args.insert(0, self.place)
+                self.check_grad_with_place(*check_args, **check_kwargs, check_pir=True)
 
 
 @skip_check_grad_ci(reason="[skip shape check] Use y_shape(1) to test broadcast.")
@@ -593,12 +638,13 @@ class TestElementwiseDivBroadcast(unittest.TestCase):
 
 class TestDivideOp(unittest.TestCase):
     def test_name(self):
-        with base.program_guard(base.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with base.program_guard(base.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = paddle.divide(x, y, name="div_res")
-            self.assertEqual(("div_res" in y_1.name), True)
+                y_1 = paddle.divide(x, y, name="div_res")
+                self.assertEqual(("div_res" in y_1.name), True)
 
     def test_dygraph(self):
         with base.dygraph.guard():

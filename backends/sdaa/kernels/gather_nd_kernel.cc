@@ -69,13 +69,13 @@ void GatherNdKernel(const Context &dev_ctx,
   tecodnnTensorDescriptor_t outDesc = sdaa_ops::GetTecodnnTensorDesc(
       out_dims, out->dtype(), TensorFormat::Undefined);
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  TECODNN_CHECK(tecodnnCustomGatherNdForward(tecodnnHandle,
-                                             xDesc,
-                                             x.data(),
-                                             indexDesc,
-                                             index.data(),
-                                             outDesc,
-                                             out->data()));
+  TECODNN_CHECK(tecodnnGatherNdForward(tecodnnHandle,
+                                       xDesc,
+                                       x.data(),
+                                       indexDesc,
+                                       index.data(),
+                                       outDesc,
+                                       out->data()));
 
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(xDesc));
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(indexDesc));
@@ -89,19 +89,67 @@ void GatherNdGradKernel(const Context &ctx,
                         const phi::DenseTensor &out_grad,
                         phi::DenseTensor *x_grad) {
   VLOG(4) << "Call SDAA GatherNdGradKernel";
+
   ctx.template Alloc<T>(x_grad);
-  sdaa_ops::doFillTensor(ctx, static_cast<T>(0), x_grad->dtype(), x_grad);
+
   if (out_grad.numel() == 0) return;
 
-  auto r_index_dims = phi::vectorize(index.dims());
-  PADDLE_ENFORCE_EQ(r_index_dims[r_index_dims.size() - 1],
-                    x.dims().size(),
-                    phi::errors::InvalidArgument(
-                        "The last dimension of index's shape not equal "
-                        "dimension size of x is not support on %s.",
-                        ctx.GetPlace()));
+  if (index.numel() == 0) {
+    int diff = out_grad.dims().size() - x_grad->dims().size();
+    if (diff == 0) {
+      TensorCopy(ctx, out_grad, false, x_grad);
+    } else {
+      std::vector<int64_t> axes;
+      for (size_t i = 0; i < diff; ++i) {
+        axes.push_back(i);
+      }
+      sdaa_ops::doSumTensor(ctx, out_grad, axes, x_grad);
+    }
+    return;
+  }
 
-  sdaa_ops::doScatterNdAdd<T>(ctx, index, out_grad, x_grad);
+  auto index_type = index.dtype();
+  bool index_type_match =
+      index_type == phi::DataType::INT32 || index_type == phi::DataType::INT64;
+  PADDLE_ENFORCE_EQ(
+      index_type_match,
+      true,
+      phi::errors::InvalidArgument("Index holds the wrong type, it holds [%s],"
+                                   "but desires to be [%s] or [%s]",
+                                   index_type,
+                                   phi::DataType::INT32,
+                                   phi::DataType::INT64));
+
+  std::vector<int> index_dims = phi::vectorize<int>(index.dims());
+  std::vector<int> out_grad_dims = phi::vectorize<int>(out_grad.dims());
+  tecodnnTensorDescriptor_t index_desc = sdaa_ops::GetTecodnnTensorDesc(
+      index_dims, index.dtype(), TensorFormat::Undefined);
+  tecodnnTensorDescriptor_t out_grad_desc = sdaa_ops::GetTecodnnTensorDesc(
+      out_grad_dims, out_grad.dtype(), TensorFormat::Undefined);
+
+  std::vector<int> x_grad_dims = phi::vectorize<int>(x_grad->dims());
+  tecodnnTensorDescriptor_t x_grad_desc = sdaa_ops::GetTecodnnTensorDesc(
+      x_grad_dims, x_grad->dtype(), TensorFormat::Undefined);
+
+  phi::DenseTensor x_tmp;
+  phi::DenseTensorMeta temp_x_meta = {x_grad->dtype(), x_grad->dims()};
+  x_tmp.set_meta(temp_x_meta);
+  ctx.template Alloc<T>(&x_tmp);
+  sdaa_ops::doFillTensor<T>(ctx, static_cast<T>(0), x_grad->dtype(), &x_tmp);
+
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(ctx);
+  TECODNN_CHECK(tecodnnScatterNdAdd(tecodnnHandle,
+                                    x_grad_desc,
+                                    x_tmp.data(),
+                                    index_desc,
+                                    index.data(),
+                                    out_grad_desc,
+                                    out_grad.data(),
+                                    x_grad_desc,
+                                    x_grad->data()));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(index_desc));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_grad_desc));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_grad_desc));
 }
 
 }  // namespace custom_kernel
@@ -115,9 +163,11 @@ PD_REGISTER_PLUGIN_KERNEL(gather_nd,
                           int,
                           int64_t) {}
 
-// TODO(zhangrb): sdcops scatter_nd_add not support yolov5/v7
-// PD_REGISTER_PLUGIN_KERNEL(gather_nd_grad,
-//                           sdaa,
-//                           ALL_LAYOUT,
-//                           custom_kernel::GatherNdGradKernel,
-//                           float) {}
+PD_REGISTER_PLUGIN_KERNEL(gather_nd_grad,
+                          sdaa,
+                          ALL_LAYOUT,
+                          custom_kernel::GatherNdGradKernel,
+                          float,
+                          phi::dtype::float16,
+                          int,
+                          int64_t) {}

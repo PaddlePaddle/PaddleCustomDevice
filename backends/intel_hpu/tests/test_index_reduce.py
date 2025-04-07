@@ -1,0 +1,456 @@
+# Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import math
+
+# x = torch.empty(5, 3).fill_(2)
+# t = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=torch.float)
+# index = torch.tensor([0, 4, 2, 0])
+# x.index_reduce_(0, index, t, 'prod')
+
+# x = torch.empty(5, 3).fill_(2)
+# x.index_reduce_(0, index, t, 'prod', include_self=False)
+
+
+# (Pdb) p block_groups.shape
+# torch.Size([128])
+# (Pdb) p block_groups
+# tensor([-1,  0,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#         -1, -1], device='hpu:0', dtype=torch.int32)
+
+# (Pdb) p block_max
+# tensor([[-0., -0., -0.,  ..., 4., 6., -0.],
+#         [4., 5., -0.,  ..., 10., 4., 9.],
+#         [4., 5., 9.,  ..., 8., 9., -1.],
+#         ...,
+#         [-1., 1., -3.,  ..., -1., 0., 1.],
+#         [-1., -0., -1.,  ..., -0., -0., 3.],
+#         [1., 4., 0.,  ..., -0., 0., -2.]], device='hpu:0',
+#        dtype=torch.bfloat16)
+# (Pdb) p block_max.shape
+# torch.Size([128, 32])
+
+# (Pdb) p group_max.shape
+# torch.Size([3, 32])
+# (Pdb) p group_max
+# tensor([[-0., -0., -1., -0., 1., -1., 0., -1., -1., -0., -0., -0., -0., 1., -0., -1., -1., -0., -1., -0., -1., -1., -1., -1.,
+#          -1., -2., -0., -1., 2., 1., -1., 0.],
+#         [-1., 0., -0., -3., -2., 1., -0., -1., -2., 0., 0., 0., -0., -1., -1., -1., -1., -0., -2., -1., -1., -1., -2., 0.,
+#          0., 1., -0., 2., 1., 1., 1., -0.],
+#         [0., -2., -0., -0., -0., 0., -0., -2., 0., -1., -1., -0., -1., -1., -2., -2., -1., -1., -0., -0., 0., 1., 0., -1.,
+#          0., -1., -2., -1., -2., -0., -1., -0.]], device='hpu:0',
+#        dtype=torch.bfloat16)
+
+# .....
+
+if 0:
+    import torch
+    import habana_frameworks.torch as htorch
+
+    device = "hpu"
+    batch_size = 2
+    block_max = torch.tensor(
+        [
+            [
+                -0.0,
+                -0.0,
+                -0.0,
+                4.0,
+                5.0,
+                1.0,
+                1.0,
+                5.0,
+                -0.0,
+                -0.0,
+                3.0,
+                0.0,
+                3.0,
+                5.0,
+                5.0,
+                -0.0,
+                -0.0,
+                0.0,
+                5.0,
+                -0.0,
+                0.0,
+                -0.0,
+                5.0,
+                0.0,
+                -0.0,
+                4.0,
+                5.0,
+                -0.0,
+                -0.0,
+                4.0,
+                6.0,
+                -0.0,
+            ],
+            [
+                4.0,
+                5.0,
+                -0.0,
+                -1.0,
+                -0.0,
+                -1.0,
+                0.0,
+                1.0,
+                -2.0,
+                4.0,
+                5.0,
+                -0.0,
+                -0.0,
+                5.0,
+                5.0,
+                -0.0,
+                4.0,
+                -0.0,
+                7.0,
+                0.0,
+                1.0,
+                -1.0,
+                3.0,
+                -1.0,
+                -0.0,
+                8.0,
+                1.0,
+                9.0,
+                3.0,
+                10.0,
+                4.0,
+                9.0,
+            ],
+            [
+                4.0,
+                5.0,
+                9.0,
+                10.0,
+                0.0,
+                4.0,
+                -1.0,
+                -1.0,
+                0.0,
+                -2.0,
+                5.0,
+                1.0,
+                -1.0,
+                -1.0,
+                8.0,
+                -1.0,
+                0.0,
+                3.0,
+                5.0,
+                -2.0,
+                -0.0,
+                9.0,
+                -0.0,
+                5.0,
+                -0.0,
+                -1.0,
+                -0.0,
+                1.0,
+                -1.0,
+                8.0,
+                9.0,
+                -1.0,
+            ],
+            [
+                -1.0,
+                3.0,
+                -0.0,
+                -0.0,
+                -1.0,
+                -1.0,
+                -1.0,
+                0.0,
+                9.0,
+                -1.0,
+                -2.0,
+                3.0,
+                4.0,
+                10.0,
+                3.0,
+                4.0,
+                -0.0,
+                -0.0,
+                0.0,
+                -0.0,
+                2.0,
+                4.0,
+                -1.0,
+                -1.0,
+                5.0,
+                3.0,
+                2.0,
+                8.0,
+                4.0,
+                -1.0,
+                8.0,
+                8.0,
+            ],
+            [
+                -0.0,
+                4.0,
+                -1.0,
+                -2.0,
+                -1.0,
+                -0.0,
+                9.0,
+                -1.0,
+                3.0,
+                2.0,
+                4.0,
+                4.0,
+                4.0,
+                -0.0,
+                0.0,
+                8.0,
+                -0.0,
+                -0.0,
+                8.0,
+                0.0,
+                0.0,
+                9.0,
+                -2.0,
+                -1.0,
+                4.0,
+                4.0,
+                2.0,
+                3.0,
+                -1.0,
+                6.0,
+                0.0,
+                -1.0,
+            ],
+        ],
+        device=device,
+        dtype=torch.bfloat16,
+    )
+    block_groups = torch.tensor([-1, 0, 1, -1, -1], device=device, dtype=torch.int32)
+
+    group_max = torch.full(
+        [batch_size + 1, *block_max.shape[1:]],
+        -math.inf,
+        dtype=block_max.dtype,
+        device=block_max.device,
+    )
+    htorch.core.mark_step()
+    torch.hpu.synchronize()
+    group_max = group_max.index_reduce_(0, block_groups, block_max, "amax")
+    htorch.core.mark_step()
+    torch.hpu.synchronize()
+    # print(group_max[0])
+
+else:
+    import paddle
+    import paddlenlp_ops
+
+    paddle.set_device("intel_hpu")
+    batch_size = 2
+    block_max = paddle.to_tensor(
+        [
+            [
+                -0.0,
+                -0.0,
+                -0.0,
+                4.0,
+                5.0,
+                1.0,
+                1.0,
+                5.0,
+                -0.0,
+                -0.0,
+                3.0,
+                0.0,
+                3.0,
+                5.0,
+                5.0,
+                -0.0,
+                -0.0,
+                0.0,
+                5.0,
+                -0.0,
+                0.0,
+                -0.0,
+                5.0,
+                0.0,
+                -0.0,
+                4.0,
+                5.0,
+                -0.0,
+                -0.0,
+                4.0,
+                6.0,
+                -0.0,
+            ],
+            [
+                4.0,
+                5.0,
+                -0.0,
+                -1.0,
+                -0.0,
+                -1.0,
+                0.0,
+                1.0,
+                -2.0,
+                4.0,
+                5.0,
+                -0.0,
+                -0.0,
+                5.0,
+                5.0,
+                -0.0,
+                4.0,
+                -0.0,
+                7.0,
+                0.0,
+                1.0,
+                -1.0,
+                3.0,
+                -1.0,
+                -0.0,
+                8.0,
+                1.0,
+                9.0,
+                3.0,
+                10.0,
+                4.0,
+                9.0,
+            ],
+            [
+                4.0,
+                5.0,
+                9.0,
+                10.0,
+                0.0,
+                4.0,
+                -1.0,
+                -1.0,
+                0.0,
+                -2.0,
+                5.0,
+                1.0,
+                -1.0,
+                -1.0,
+                8.0,
+                -1.0,
+                0.0,
+                3.0,
+                5.0,
+                -2.0,
+                -0.0,
+                9.0,
+                -0.0,
+                5.0,
+                -0.0,
+                -1.0,
+                -0.0,
+                1.0,
+                -1.0,
+                8.0,
+                9.0,
+                -1.0,
+            ],
+            [
+                -1.0,
+                3.0,
+                -0.0,
+                -0.0,
+                -1.0,
+                -1.0,
+                -1.0,
+                0.0,
+                9.0,
+                -1.0,
+                -2.0,
+                3.0,
+                4.0,
+                10.0,
+                3.0,
+                4.0,
+                -0.0,
+                -0.0,
+                0.0,
+                -0.0,
+                2.0,
+                4.0,
+                -1.0,
+                -1.0,
+                5.0,
+                3.0,
+                2.0,
+                8.0,
+                4.0,
+                -1.0,
+                8.0,
+                8.0,
+            ],
+            [
+                -0.0,
+                4.0,
+                -1.0,
+                -2.0,
+                -1.0,
+                -0.0,
+                9.0,
+                -1.0,
+                3.0,
+                2.0,
+                4.0,
+                4.0,
+                4.0,
+                -0.0,
+                0.0,
+                8.0,
+                -0.0,
+                -0.0,
+                8.0,
+                0.0,
+                0.0,
+                9.0,
+                -2.0,
+                -1.0,
+                4.0,
+                4.0,
+                2.0,
+                3.0,
+                -1.0,
+                6.0,
+                0.0,
+                -1.0,
+            ],
+        ],
+        dtype="bfloat16",
+    )
+    block_groups = paddle.to_tensor([-1, 0, 1, -1, -1], dtype="int32")
+
+    group_max = paddle.full(
+        [batch_size + 1, *block_max.shape[1:]], -math.inf, dtype=block_max.dtype
+    )
+
+    paddlenlp_ops.index_reduce_(
+        input=group_max,
+        dim=0,
+        index=block_groups,
+        source=block_max,
+        reduce="amax",
+        include_self=True,
+    )
+
+    # print(group_max[0] == block_max[1])

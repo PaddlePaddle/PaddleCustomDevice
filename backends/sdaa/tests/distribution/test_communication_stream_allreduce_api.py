@@ -60,5 +60,35 @@ class TestCommunicationStreamAllreduceAPI(test_base.CommunicationTestDistBase):
         super().tearDown()
 
 
+class TestCommunicationStreamAllreduceAPIBF16(test_base.CommunicationTestDistBase):
+    def setUp(self):
+        super().setUp(num_of_devices=DEVICE_COUNT, timeout=300)
+        self._default_envs = {
+            "backend": "xccl",
+            "dtype": "bfloat16",
+            "seeds": str(self._seeds),
+        }
+        self._changeable_envs = {
+            "sync_op": ["False"],
+            "use_calc_stream": ["True", "False"],
+            "shape": ["(100, 200)", "1"],
+        }
+
+    def test_allreduce_stream(self):
+        envs_list = test_base.gen_product_envs_list(
+            self._default_envs, self._changeable_envs
+        )
+        for envs in envs_list:
+            if eval(envs["use_calc_stream"]) and not eval(envs["sync_op"]):
+                continue
+            self.run_test_case(
+                "allreduce_api_test_case.py",
+                user_defined_envs=envs,
+            )
+
+    def tearDown(self):
+        super().tearDown()
+
+
 if __name__ == "__main__":
     unittest.main()

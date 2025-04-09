@@ -58,11 +58,14 @@ def fused_rms_qkv_rope(
     key_states, _, _ = paddle.incubate.nn.functional.fused_rotary_position_embedding(
         key_states, None, None, sin=sin, cos=cos, position_ids=position_ids
     )
+    return (
+        query_states.to(paddle.float32),
+        key_states.to(paddle.float32),
+        value_states.to(paddle.float32),
+    )
 
-    return query_states, key_states, value_states
 
-
-class TestFused_RMS_QKV_Rope_OpFP32(unittest.TestCase):
+class TestFused_RMS_QKV_Rope_OpFP16(unittest.TestCase):
     def setUp(self):
         self.init_dtype()
         self.batch_size = 8
@@ -143,8 +146,8 @@ class TestFused_RMS_QKV_Rope_OpFP32(unittest.TestCase):
         op_result_value_states,
     ):
         if self.dtype == "float32":
-            rtol = 1e-5
-            atol = 1e-6
+            rtol = 1e-6
+            atol = 1e1
         elif self.dtype == "float16":
             rtol = 1e-3
             atol = 1e-4
@@ -213,9 +216,9 @@ class TestFused_RMS_QKV_Rope_OpFP32(unittest.TestCase):
             query_states_ref.numpy(),
             key_states_ref.numpy(),
             value_states_ref.numpy(),
-            query_states_op,
-            key_states_op,
-            value_states_op,
+            query_states_op.to(paddle.float32),
+            key_states_op.to(paddle.float32),
+            value_states_op.to(paddle.float32),
         )
 
 

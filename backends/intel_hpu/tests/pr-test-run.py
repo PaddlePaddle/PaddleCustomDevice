@@ -18,6 +18,7 @@ import subprocess
 import os
 import argparse
 import fnmatch
+import sys
 
 realwd = os.path.dirname(os.path.realpath(__file__))
 pdpd_pcd_unit_test_path = os.environ.get(
@@ -81,6 +82,7 @@ def run_unit_test(test_suite, test_case, cmd_env=""):
         testcase = None
 
     ret, output = case_command(run_cmd, testcase, test_suite)
+    return ret, output
 
 
 cmd_args = {}
@@ -96,6 +98,9 @@ parser.add_argument(
     default=pdpd_pcd_unit_test_path,
 )
 parser.add_argument("--platform", type=str, help="platform name")
+parser.add_argument(
+    "--force_exit", action="store_true", help="force exit if run into any failed case"
+)
 parser.add_argument("--junit", type=str, help="junit result file")
 parser.add_argument(
     "--filter",
@@ -124,6 +129,10 @@ if os.path.exists(cmd_args["test_path"]) is False:
         "test path not exist, please check for parameter: test_path / environment PDPD_PCD_UNITTEST_DIR"
     )
     exit(2)
+
+test_force_exit = False
+if cmd_args["force_exit"]:
+    test_force_exit = True
 
 test_case_dict_lst = []
 
@@ -181,7 +190,12 @@ for test_case in test_case_dict_lst:
         continue
 
     test_case["testcase_subcase_name"] = match_sub_test_case_name
-    run_unit_test(ts, test_case)
+    ret, output = run_unit_test(ts, test_case)
+    if ret != 0 and test_force_exit is True:
+        if cmd_args["junit"]:
+            with open(cmd_args["junit"], "w+") as f:
+                f.write(ts.toString())
+        sys.exit(ret)
 
 if cmd_args["junit"]:
     with open(cmd_args["junit"], "w+") as f:

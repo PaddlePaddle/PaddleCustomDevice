@@ -19,3 +19,6 @@ python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backen
 python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter all --junit test_result.xml --platform gaudi2
 python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter stable --junit test_result.xml --platform gaudi2
 python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter unstable --junit test_result.xml --platform gaudi2
+
+#force exit if run into any failed case
+python pr-test-run.py --test_path /workspace_pdpd/repo/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --filter stable --junit test_result.xml --platform gaudi2 --force_exit

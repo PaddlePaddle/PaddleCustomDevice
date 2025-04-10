@@ -65,6 +65,9 @@ class TestDropoutOp(OpTest):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
 
+        exe = paddle.static.Executor(self.place)
+        exe.run(paddle.static.default_startup_program())
+
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
@@ -231,6 +234,9 @@ class TestDropoutOpInference(OpTest):
         self.__class__.use_custom_device = True
         self.place = paddle.CustomPlace("npu", 0)
 
+        exe = paddle.static.Executor(self.place)
+        exe.run(paddle.static.default_startup_program())
+
     def test_check_output(self):
         self.check_output_with_place(self.place)
 
@@ -317,6 +323,9 @@ class TestDropoutOpFp16(TestDropoutOp):
         self.__class__.no_need_check_grad = True
         self.place = paddle.CustomPlace("npu", 0)
 
+        exe = paddle.static.Executor(self.place)
+        exe.run(paddle.static.default_startup_program())
+
 
 class TestDropoutOpFp64(TestDropoutOp):
     # float64
@@ -327,6 +336,9 @@ class TestDropoutOpFp64(TestDropoutOp):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
         self.place = paddle.CustomPlace("npu", 0)
+
+        exe = paddle.static.Executor(self.place)
+        exe.run(paddle.static.default_startup_program())
 
 
 _list = [
@@ -340,6 +352,9 @@ class TestDropoutAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
         self.places = [base.CPUPlace(), paddle.CustomPlace("npu", 0)]
+
+        exe = paddle.static.Executor(self.places[-1])
+        exe.run(paddle.static.default_startup_program())
 
     def check_static_result(self, place):
         with base.program_guard(base.Program(), base.Program()):

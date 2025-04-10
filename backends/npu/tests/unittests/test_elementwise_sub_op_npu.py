@@ -192,10 +192,13 @@ class TestSubtractError(unittest.TestCase):
             )
             self.assertRaises(TypeError, paddle.subtract, x1, y1)
 
+            # TypeError won't be raised on X86_64 when uint8-supported onednn kernel
+            # is available, but will be raised on ARM due to lack of uint8 kernel support.
+
             # the input dtype must be float16 or float32 or float64 or int32 or int64
-            x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.subtract, x2, y2)
+            # x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
+            # y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
+            # self.assertRaises(TypeError, paddle.subtract, x2, y2)
 
 
 class TestSubtractNet(unittest.TestCase):

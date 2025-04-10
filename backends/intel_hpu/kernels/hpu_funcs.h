@@ -215,6 +215,13 @@ class HpuFusedOperator : public HpuOperator {
         inputs, outputs, params, "batch_gemm", node_name);
   }
 
+  void AddNodeCast(std::vector<synTensor> inputs,
+                   std::vector<synTensor> outputs,
+                   std::string guid,
+                   std::string node_name) {
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
   inline void AddNodeGemm(std::vector<synTensor> inputs,
                           std::vector<synTensor> outputs,
                           synGEMMParams params,
@@ -258,6 +265,16 @@ class HpuFusedOperator : public HpuOperator {
                                std::string node_name) {
     std::string guid = "reduce_max_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_Reduction::Params>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeScatterAdd(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                ns_ScatterKernel::Params params,
+                                std::string node_name) {
+    std::string guid = "unsorted_scatter_add_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_ScatterKernel::Params>(
+        inputs, outputs, params, guid, node_name);
   }
 };
 

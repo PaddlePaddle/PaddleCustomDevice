@@ -412,6 +412,7 @@ class TestDropoutAPI(unittest.TestCase):
             res_np2 = np.zeros_like(in_np)
 
             exe = base.Executor(place)
+            exe.run(base.default_startup_program())
             res_list = [
                 res1,
                 res2,

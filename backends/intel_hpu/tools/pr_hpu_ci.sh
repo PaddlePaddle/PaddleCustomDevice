@@ -39,6 +39,6 @@ python -m pip install --force-reinstall -U dist/paddle*.whl
 export PYTHONPATH=/workspace/PaddleCustomDevice/python:/workspace/PaddleCustomDevice/python/tests:$PYTHONPATH
 
 echo "Start Test"
-python ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/tests/pr-test-run.py --test_path ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --junit ${WORKSPACE}/ci.xml --filter stable --platform gaudi2
+python ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/tests/pr-test-run.py --test_path ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/tests/unittests/ --junit ${WORKSPACE}/ci.xml --filter stable --platform gaudi2 --force_exit
 python ${WORKSPACE}/PaddleCustomDevice/backends/intel_hpu/tools/testresult_analyse.py --input_file ${WORKSPACE}/ci.xml >>${WORKSPACE}/ci.log
 cat ${WORKSPACE}/ci.log

@@ -30,7 +30,7 @@ block_size = 64
 num_of_block = 12
 scaling_factor = head_dim**-0.5
 
-query = paddle.rand([batch_size, q_head, 1, head_dim], dtype=paddle.bfloat16)
+query = paddle.rand([batch_size, 1, q_head, head_dim], dtype=paddle.bfloat16)
 block_list = paddle.rand([num_of_block], dtype=paddle.int32)
 block_groups = paddle.rand([num_of_block], dtype=paddle.int32)
 block_mapping = paddle.rand([num_of_block, batch_size], dtype=paddle.bfloat16)
@@ -40,10 +40,10 @@ linear_weights = paddle.rand([hidden_size, hidden_size], dtype=paddle.bfloat16)
 
 def test_fused_flatpa_proj(kv_head, testcase):
     key_cache = paddle.rand(
-        [total_block_num, kv_head, block_size, head_dim], dtype=paddle.bfloat16
+        [total_block_num, block_size, kv_head, head_dim], dtype=paddle.bfloat16
     )
     value_cache = paddle.rand(
-        [total_block_num, kv_head, block_size, head_dim], dtype=paddle.bfloat16
+        [total_block_num, block_size, kv_head, head_dim], dtype=paddle.bfloat16
     )
 
     out_linear_ref = paddlenlp_ops.fused_flatpa_proj_ref(

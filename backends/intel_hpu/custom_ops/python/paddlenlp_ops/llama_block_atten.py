@@ -94,18 +94,20 @@ def fused_flatpa_proj_ref(
     scaling_factor,
 ):
     batch_size = query.shape[0]
-    q_heads = query.shape[1]
+    q_heads = query.shape[2]
     head_size = query.shape[3]
-    kv_heads = key_cache.shape[1]
+    kv_heads = key_cache.shape[2]
     hidden_size = q_heads * head_size
 
     shape = tuple(query.shape)
-    query = paddle.matmul(
-        block_mapping, (scaling_factor * query).view([shape[0], -1])
-    ).view([-1, *shape[1:]])
+    query = (
+        paddle.matmul(block_mapping, (scaling_factor * query).view([shape[0], -1]))
+        .view([-1, *shape[2:]])
+        .unsqueeze(-2)
+    )
 
-    key = key_cache.index_select(block_list)
-    value = value_cache.index_select(block_list)
+    key = key_cache.index_select(block_list).transpose([0, 2, 1, 3])
+    value = value_cache.index_select(block_list).transpose([0, 2, 1, 3])
     block_bias = block_bias.unsqueeze(1).unsqueeze(1)
     if kv_heads != q_heads:
         block_bias = block_bias.unsqueeze(1)

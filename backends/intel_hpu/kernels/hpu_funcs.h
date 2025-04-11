@@ -207,6 +207,14 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, "reshape", node_name);
   }
 
+  inline void AddNodeTranspose(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               synTransposeParams params,
+                               std::string node_name) {
+    AddNode_IOP<synTransposeParams>(
+        inputs, outputs, params, "transpose", node_name);
+  }
+
   inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
                                std::vector<synTensor> outputs,
                                synGEMMParams params,

@@ -15,7 +15,10 @@
 import paddle
 import paddlenlp_ops
 
-paddle.device.set_device("intel_hpu")
+import os
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
+paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(105)
 
@@ -51,21 +54,23 @@ num_head = 32
 kv_num_heads = num_head
 hidden_size = num_head * head_dim
 
-batch_size = 5
-seq_len = 1
-# seq_len = 25
-kv_seq_len = 25
+batch_size = 4
+seq_len = 16
+kv_seq_len = 16
 max_seq_length = 2048
 
+scaling_factor = head_dim**-0.5
+
 query_states = paddle.rand(
-    [batch_size, num_head, seq_len, head_dim], dtype=paddle.float32
+    [batch_size, seq_len, num_head, head_dim], dtype=paddle.float32
 ).to(paddle.bfloat16)
 key_states = paddle.rand(
-    [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
+    [batch_size, kv_seq_len, kv_num_heads, head_dim], dtype=paddle.float32
 ).to(paddle.bfloat16)
 value_states = paddle.rand(
-    [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
+    [batch_size, kv_seq_len, kv_num_heads, head_dim], dtype=paddle.float32
 ).to(paddle.bfloat16)
+key_value_states = paddle.stack([key_states, value_states], axis=0)
 
 attn_mask = paddle.ones([1, 1, max_seq_length, max_seq_length], dtype=paddle.bfloat16)
 attn_mask = paddle.tril(attn_mask)
@@ -81,26 +86,61 @@ def main():
     attention_mask = attention_mask.astype(query_states.dtype)
 
     out_linear_out_op = paddlenlp_ops.fused_sdpa_proj(
-        query_states,
-        key_states,
-        value_states,
-        attention_mask,
-        linear_weights,
-        scaling_factor=head_dim**-0.5,
-    )
-
-    out_linear_out_ref = ref_result(
         query_states.transpose([0, 2, 1, 3]),
         key_states.transpose([0, 2, 1, 3]),
         value_states.transpose([0, 2, 1, 3]),
         attention_mask,
         linear_weights,
-        scaling_factor=head_dim**-0.5,
+        scaling_factor,
     )
 
-    print(out_linear_out_ref)
-    print(out_linear_out_op)
-    print((out_linear_out_op == out_linear_out_ref).all())
+    out_linear_v2_op_mask = paddlenlp_ops.fused_sdpa_proj_v2(
+        query_states.transpose([0, 2, 1, 3]),
+        key_value_states.transpose([0, 1, 3, 2, 4]),
+        attention_mask,
+        linear_weights,
+        scaling_factor,
+        causal=False,
+    )
+
+    out_linear_v2_op_causal = paddlenlp_ops.fused_sdpa_proj_v2(
+        query_states.transpose([0, 2, 1, 3]),
+        key_value_states.transpose([0, 1, 3, 2, 4]),
+        None,
+        linear_weights,
+        scaling_factor,
+        causal=True,
+    )
+
+    out_linear_t_op = paddlenlp_ops.fused_sdpa_proj_t(
+        query_states,
+        key_value_states,
+        None,
+        None,
+        linear_weights,
+        scaling_factor,
+        causal=True,
+    )
+
+    out_linear_out_ref = ref_result(
+        query_states,
+        key_states,
+        value_states,
+        attention_mask,
+        linear_weights,
+        scaling_factor,
+    )
+
+    print((out_linear_out_ref == out_linear_out_op).all())
+    print((out_linear_out_ref == out_linear_v2_op_mask).all())
+    print((out_linear_v2_op_causal == out_linear_t_op).all())
+    print(
+        paddle.allclose(
+            out_linear_out_ref.to("cpu").to("float32"),
+            out_linear_t_op.to("cpu").to("float32"),
+            rtol=1e-2,
+        )
+    )
 
 
 if __name__ == "__main__":

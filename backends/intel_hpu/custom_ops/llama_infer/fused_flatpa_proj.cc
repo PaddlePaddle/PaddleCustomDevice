@@ -43,9 +43,10 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     std::vector<int64_t> linear_weights_dims =
         std::vector<int64_t>(inputs[7].dims);
     int64_t batch_size = q_dims[0];
-    int64_t num_head = q_dims[1];
+    int64_t num_head = q_dims[2];
     int64_t head_dim = q_dims[3];
-    int64_t block_size = kv_dims[2];
+    int64_t block_size = kv_dims[1];
+    int64_t num_kv_head = kv_dims[2];
     int64_t num_of_block = block_list_dims[0];
     int64_t hidden_size = linear_weights_dims[0];
 
@@ -135,33 +136,65 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
 
     std::vector<int64_t> index_selected_dims;
     index_selected_dims.push_back(num_of_block);
-    index_selected_dims.push_back(num_head);
     index_selected_dims.push_back(block_size);
+    index_selected_dims.push_back(num_kv_head);
     index_selected_dims.push_back(head_dim);
 
-    auto index_select_k =
-        createTensorNoPresist("index_select_k", dtype_, index_selected_dims);
-    auto index_select_v =
-        createTensorNoPresist("index_select_v", dtype_, index_selected_dims);
+    auto index_select_k_i =
+        createTensorNoPresist("index_select_k_i", dtype_, index_selected_dims);
+    auto index_select_v_i =
+        createTensorNoPresist("index_select_v_i", dtype_, index_selected_dims);
     std::vector<synTensor> index_select_k_out;
-    index_select_k_out.push_back(index_select_k);
+    index_select_k_out.push_back(index_select_k_i);
     std::vector<synTensor> index_select_v_out;
-    index_select_v_out.push_back(index_select_v);
+    index_select_v_out.push_back(index_select_v_i);
 
     AddNodeIndexSelect<T>(index_select_k_in,
                           index_select_k_out,
                           params.index_select_params,
-
-                          guid_ + "index_select_k");
+                          guid_ + "index_select_k_i");
     AddNodeIndexSelect<T>(index_select_v_in,
                           index_select_v_out,
                           params.index_select_params,
+                          guid_ + "index_select_v_i");
 
-                          guid_ + "index_select_v");
+    std::vector<int> axis = {0, 2, 1, 3};
+    synTransposeParams trans_params;
+    for (size_t i = 0; i < axis.size(); i++) {
+      trans_params.permutation[i] =
+          static_cast<TransposePermutationDim>(axis[i]);
+    }
+    trans_params.tensorDim = 4;
+
+    std::vector<int64_t> transpose_dims;
+    transpose_dims.push_back(num_of_block);
+    transpose_dims.push_back(num_kv_head);
+    transpose_dims.push_back(block_size);
+    transpose_dims.push_back(head_dim);
+
+    auto transpose_k =
+        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_k;
+    trans_index_select_k.push_back(transpose_k);
+
+    AddNodeTranspose(index_select_k_out,
+                     trans_index_select_k,
+                     trans_params,
+                     guid_ + "transpose_k");
+
+    auto transpose_v =
+        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_v;
+    trans_index_select_v.push_back(transpose_v);
+
+    AddNodeTranspose(index_select_v_out,
+                     trans_index_select_v,
+                     trans_params,
+                     guid_ + "transpose_v");
 
     std::vector<synTensor> q_k_in;
     q_k_in.push_back(reshaped_map_q);
-    q_k_in.push_back(index_select_k);
+    q_k_in.push_back(transpose_k);
 
     std::vector<int64_t> q_k_dims;
     q_k_dims.push_back(num_of_block);
@@ -313,7 +346,7 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
 
     std::vector<synTensor> score_v_in;
     score_v_in.push_back(score);
-    score_v_in.push_back(index_select_v);
+    score_v_in.push_back(transpose_v);
 
     auto score_v = createTensorNoPresist("score_v", dtype_, reshape_map_q_dims);
     std::vector<synTensor> score_v_out;
@@ -496,10 +529,10 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     std::vector<int64_t> linear_weights_dims =
         std::vector<int64_t>(inputs[7].dims);
     int64_t batch_size = q_dims[0];
-    int64_t num_head = q_dims[1];
+    int64_t num_head = q_dims[2];
     int64_t head_dim = q_dims[3];
-    int64_t num_kv_head = kv_dims[1];
-    int64_t block_size = kv_dims[2];
+    int64_t block_size = kv_dims[1];
+    int64_t num_kv_head = kv_dims[2];
     int64_t num_of_block = block_list_dims[0];
     int64_t hidden_size = linear_weights_dims[0];
     int64_t ngroups = num_head / num_kv_head;
@@ -591,8 +624,8 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
 
     std::vector<int64_t> index_selected_dims;
     index_selected_dims.push_back(num_of_block);
-    index_selected_dims.push_back(num_kv_head);
     index_selected_dims.push_back(block_size);
+    index_selected_dims.push_back(num_kv_head);
     index_selected_dims.push_back(head_dim);
 
     auto index_select_k_i =
@@ -613,6 +646,40 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
                           params.index_select_params,
                           guid_ + "index_select_v_i");
 
+    std::vector<int> axis = {0, 2, 1, 3};
+    synTransposeParams trans_params;
+    for (size_t i = 0; i < axis.size(); i++) {
+      trans_params.permutation[i] =
+          static_cast<TransposePermutationDim>(axis[i]);
+    }
+    trans_params.tensorDim = 4;
+
+    std::vector<int64_t> transpose_dims;
+    transpose_dims.push_back(num_of_block);
+    transpose_dims.push_back(num_kv_head);
+    transpose_dims.push_back(block_size);
+    transpose_dims.push_back(head_dim);
+
+    auto transpose_k =
+        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_k;
+    trans_index_select_k.push_back(transpose_k);
+
+    AddNodeTranspose(index_select_k_out,
+                     trans_index_select_k,
+                     trans_params,
+                     guid_ + "transpose_k");
+
+    auto transpose_v =
+        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_v;
+    trans_index_select_v.push_back(transpose_v);
+
+    AddNodeTranspose(index_select_v_out,
+                     trans_index_select_v,
+                     trans_params,
+                     guid_ + "transpose_v");
+
     std::vector<int64_t> reshape_kv_dims;
     reshape_kv_dims.push_back(num_of_block);
     reshape_kv_dims.push_back(num_kv_head);
@@ -626,7 +693,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     reshape_index_select_k.push_back(index_select_k);
 
     AddNodeReshape(
-        index_select_k_out, reshape_index_select_k, guid_ + "reshape_k");
+        trans_index_select_k, reshape_index_select_k, guid_ + "reshape_k");
 
     auto index_select_v =
         createTensorNoPresist("index_select_v", dtype_, reshape_kv_dims);
@@ -634,7 +701,7 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     reshape_index_select_v.push_back(index_select_v);
 
     AddNodeReshape(
-        index_select_v_out, reshape_index_select_v, guid_ + "reshape_v");
+        trans_index_select_v, reshape_index_select_v, guid_ + "reshape_v");
 
     std::vector<synTensor> q_k_in;
     q_k_in.push_back(reshaped_map_q);
@@ -753,7 +820,6 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     AddNodeIndexSelect<T>(index_select_groupmax_in,
                           index_select_groupmax_out,
                           params.index_select_params,
-
                           guid_ + "index_select_groupmax");
 
     std::vector<synTensor> sub_group_max_in;

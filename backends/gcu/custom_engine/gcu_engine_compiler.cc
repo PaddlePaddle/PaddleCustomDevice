@@ -364,11 +364,11 @@ void GCUEngineCompiler::GCUEngineCompilerImpl::SetGraphOutputs() {
             inner_value_name.c_str()));
     graph_outputs.emplace_back(*(gcu_op_cache_.at(tensor)));
 
+    *(outputs_[i]) = *tensor;
     // set output shapes
     auto gcu_shape = gcu_op_cache_.at(tensor)->GetType().GetShape();
     tensor->Resize(common::make_ddim(gcu_shape));
     outputs_[i]->Resize(common::make_ddim(gcu_shape));
-    // *(outputs_[i]) = *tensor;
     VLOG(6) << "Found gcu builder output[" << i << "]: " << inner_value_name
             << ", external var name:" << external_value_name
             << ", dims:" << tensor->dims();

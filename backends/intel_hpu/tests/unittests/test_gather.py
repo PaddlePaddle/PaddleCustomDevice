@@ -125,7 +125,25 @@ class TestCase4(TestGatherOp):
 
 
 class API_TestGather(unittest.TestCase):
+    def test_out0(self):
+        paddle.disable_static()
+        input = paddle.to_tensor(np.array([[1, 2], [3, 4], [5, 6]]).astype("float32"))
+        index_1 = paddle.to_tensor(np.array([1, 2]).astype("int32"))
+
+        # Execute and fetch the result
+        place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        # Perform gather operation
+        result = paddle.gather(input, index_1)
+
+        # Expected output
+        expected_output = np.array([[3, 4], [5, 6]])
+
+        # Assert the result
+        self.assertTrue(np.allclose(result.numpy(), expected_output))
+        paddle.enable_static()
+
     def test_out1(self):
+        paddle.enable_static()
         with base.program_guard(base.Program(), base.Program()):
             data1 = paddle.static.data("data1", shape=[-1, 2], dtype="float32")
             index = paddle.static.data("index", shape=[-1, 1], dtype="int32")
@@ -141,6 +159,7 @@ class API_TestGather(unittest.TestCase):
         self.assertTrue(np.allclose(result, expected_output))
 
     def test_out2(self):
+        paddle.enable_static()
         with paddle.static.program_guard(
             paddle.static.Program(), paddle.static.Program()
         ):

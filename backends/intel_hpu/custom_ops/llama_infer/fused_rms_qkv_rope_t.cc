@@ -250,45 +250,59 @@ class FusedRmsQkvRopeT : public HpuOperator {
         "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (slice/sin) failed = ",
         status);
 
-    reshape_dims[2] = 1;
+    synSqueezeParams squeezeParams;
+    squeezeParams.axis = 4;
+    std::string squeeze_guid = "squeeze";
+    std::string squeeze_name = guid_ + "squeeze";
+
+    rotary_embs_dims.erase(rotary_embs_dims.begin());
+
     std::vector<synTensor> sin_squeezed;
-    auto sin_sq = createTensor(
-        reshape_dims.size(), dtype_, reshape_dims, false, "sin_squeezed");
+    auto sin_sq = createTensor(rotary_embs_dims.size(),
+                               dtype_,
+                               rotary_embs_dims,
+                               false,
+                               "sin_squeezed");
     sin_squeezed.push_back(sin_sq);
+    std::string squeeze_name_sin = squeeze_name + "_sin";
     status = synNodeCreate(graphHandle_,
                            sin_inputs.data(),
                            sin_squeezed.data(),
                            1,
                            1,
-                           nullptr,
-                           0,
-                           guid_reshape.c_str(),
-                           name_reshape.c_str(),
+                           &squeezeParams,
+                           sizeof(squeezeParams),
+                           squeeze_guid.c_str(),
+                           squeeze_name_sin.c_str(),
                            nullptr,
                            nullptr);
     PD_CHECK(
         status == synSuccess,
-        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (reshape/sin) failed = ",
+        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (squeeze/sin) failed = ",
         status);
 
     std::vector<synTensor> cos_squeezed;
-    auto cos_sq = createTensor(
-        reshape_dims.size(), dtype_, reshape_dims, false, "cos_squeezed");
+    auto cos_sq = createTensor(rotary_embs_dims.size(),
+                               dtype_,
+                               rotary_embs_dims,
+                               false,
+                               "cos_squeezed");
     cos_squeezed.push_back(cos_sq);
+    std::string squeeze_name_cos = squeeze_name + "_cos";
     status = synNodeCreate(graphHandle_,
                            cos_inputs.data(),
                            cos_squeezed.data(),
                            1,
                            1,
-                           nullptr,
-                           0,
-                           guid_reshape.c_str(),
-                           name_reshape.c_str(),
+                           &squeezeParams,
+                           sizeof(squeezeParams),
+                           squeeze_guid.c_str(),
+                           squeeze_name_cos.c_str(),
                            nullptr,
                            nullptr);
     PD_CHECK(
         status == synSuccess,
-        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (reshape/cos) failed = ",
+        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (squeeze/cos) failed = ",
         status);
 
     std::vector<synTensor> inputs_q;

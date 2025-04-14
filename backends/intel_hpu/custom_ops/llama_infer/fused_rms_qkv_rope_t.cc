@@ -109,7 +109,7 @@ class FusedRmsQkvRopeT : public HpuOperator {
     synGEMMParams gemm_params;
     gemm_params.transpose_a = false;
     gemm_params.transpose_b = true;
-    std::string guid_gemm = "gemm";
+    std::string guid_gemm = "batch_gemm";
     std::string gemm_name = guid_ + "gemm";
     status = synNodeCreate(graphHandle_,
                            mul_inputs.data(),

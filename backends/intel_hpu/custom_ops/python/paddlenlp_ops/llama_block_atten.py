@@ -16,6 +16,177 @@ import paddle
 import paddlenlp_ops
 
 
+def round_up(value: int, k: int = 128) -> int:
+    return (value + k - 1) // k * k
+
+
+def pad_list(input, target_len, v):
+    input_len = len(input)
+    padding = target_len - input_len
+    return input + [v] * padding
+
+
+def prepare_input_hpu(
+    input_ids,
+    rope_emb,
+    block_tables,
+    block_size,
+    seq_lens_this_time,
+    seq_lens_encoder,
+    seq_lens_decoder,
+):
+    max_seq_lens_this_time = paddle.max(seq_lens_this_time, axis=0).item()
+    max_enc_len = paddle.max(seq_lens_encoder, axis=0).item()
+    max_dec_len = paddle.max(seq_lens_decoder, axis=0).item()
+
+    batch_step = 4
+    block_step = 16
+
+    # prefill
+    if max_enc_len > 0:
+        batch_ids = paddle.where(seq_lens_encoder > 0)[0].flatten()
+        valid_batch = batch_ids.shape[0]
+
+        input_tokens = paddle.index_select(input_ids, batch_ids)
+        block_tables_seg = paddle.index_select(block_tables, batch_ids)
+
+        total_batch = round_up(valid_batch, batch_step)
+
+        max_buckets = (max_enc_len + block_size - 1) // block_size
+        max_prompt_len = max_buckets * block_size
+
+        src_padded = paddle.full(
+            (total_batch, max_prompt_len), 0, dtype=input_ids.dtype
+        ).to("CPU")
+        blk_padded = paddle.full(
+            (total_batch, max_buckets), -1, dtype=block_tables.dtype
+        ).to("CPU")
+
+        src_padded[:valid_batch, :max_prompt_len] = input_tokens[:, :max_prompt_len]
+        blk_padded[:valid_batch, :max_buckets] = block_tables_seg[:, :max_buckets]
+        block_indices_padded = blk_padded.flatten().to("intel_hpu")
+
+        # rope_emb: [2, B=1, T=4096, 1, 128] --> [2, B=1, T=max_prompt_len, 1, 128]
+        # Prefill:  [2, 1, T, 1, 128]
+        rope_emb_seg = rope_emb[..., :max_prompt_len, :, :]
+
+        block_offset_padded = None
+        block_groups = None
+        block_list = None
+        block_mapping = None
+        attn_bias = None
+        seq_lens_padded = None
+    # decoding
+    elif max_dec_len > 0:
+        batch_ids = paddle.where(seq_lens_decoder > 0)[0].flatten()
+        valid_batch = batch_ids.shape[0]
+
+        input_tokens = paddle.index_select(input_ids, batch_ids)[:, 0].to("CPU")
+        seq_lens = paddle.index_select(seq_lens_decoder, batch_ids).flatten().to("CPU")
+        block_tables_seg = paddle.index_select(block_tables, batch_ids).to("CPU")
+
+        total_batch = round_up(valid_batch, batch_step)
+
+        src_padded = paddle.full((total_batch), 0, dtype=input_ids.dtype).to("CPU")
+        seq_lens_padded = paddle.full(
+            (total_batch), 0, dtype=seq_lens_decoder.dtype
+        ).to("CPU")
+        block_indices_padded = paddle.full(
+            (total_batch), -1, dtype=block_tables.dtype
+        ).to("CPU")
+        block_offset_padded = paddle.full(
+            (total_batch), 0, dtype=block_tables.dtype
+        ).to("CPU")
+
+        src_padded[:valid_batch] = input_tokens[:]
+        seq_lens_padded[:valid_batch] = seq_lens[:]
+
+        last_block_pos = (seq_lens - 1) // block_size
+        block_indices = (
+            paddle.index_sample(block_tables_seg, last_block_pos.unsqueeze(1))
+            .squeeze(1)
+            .to("CPU")
+        )
+        block_offset = (seq_lens - 1) % block_size
+
+        block_indices_padded[:valid_batch] = block_indices[:]
+        block_offset_padded[:valid_batch] = block_offset[:]
+
+        # rope_emb: [2, B=1, T=4096, 1, 128] --> [2, B=1, T=batch_size, 1, 128]
+        # Decode : [2, 1, T, 1, 128] --> [2, T, 1, 1, 128]
+        rope_emb_seg = (
+            paddle.index_select(rope_emb, seq_lens_padded.to("intel_hpu"), 2)
+            .squeeze(1)
+            .unsqueeze(2)
+        )
+
+        block_list = []
+        block_groups = []
+        for group_index in range(valid_batch):
+            block_list = block_list + (
+                [
+                    int(x)
+                    for x in block_tables_seg[
+                        group_index, : last_block_pos[group_index] + 1
+                    ]
+                ]
+            )
+            block_groups.extend(
+                [group_index] * (last_block_pos[group_index].item() + 1)
+            )
+
+        block_bucket_size = round_up(len(block_list), block_step)
+        padding_fn = lambda tensor, pad_value: pad_list(
+            tensor, block_bucket_size, pad_value
+        )
+
+        block_list = padding_fn(block_list, -1)
+        block_groups = padding_fn(block_groups, -1)
+
+        block_list = paddle.to_tensor(block_list)
+        block_groups = paddle.to_tensor(block_groups)
+
+        block_groups_host = block_groups.to("cpu").to("float32")
+        block_mapping = paddle.nn.functional.relu(block_groups_host)
+        block_mapping = block_mapping.to("int32")
+        block_mapping = paddle.nn.functional.one_hot(
+            block_mapping, num_classes=total_batch
+        )
+        oob_values = block_groups_host.less_than(paddle.to_tensor(0))
+        block_mapping.masked_fill_(oob_values.unsqueeze(-1), 0)
+
+        block_usage = []
+        for group_idx, length in enumerate(seq_lens):
+            while length > 0:
+                if length >= block_size:
+                    block_usage.append(block_size)
+                    length -= block_size
+                else:
+                    block_usage.append(length.item())
+                    length = 0
+        block_usage = padding_fn(block_usage, 1)
+        block_usage = paddle.to_tensor(block_usage, dtype="int32", place="cpu")
+
+        mask = paddle.arange(0, block_size, dtype="int32").cpu()
+        mask = mask >= block_usage.unsqueeze(-1)
+        attn_bias = paddle.zeros_like(mask, dtype="float32").masked_fill_(
+            mask, float("-inf")
+        )
+
+    return (
+        src_padded,
+        rope_emb_seg,
+        block_groups,
+        block_list,
+        block_indices_padded,
+        block_offset_padded,
+        block_mapping,
+        attn_bias,
+        batch_ids,
+        seq_lens_padded,
+    )
+
+
 def get_padding_offset_v2(
     input_ids, cum_offset, token_num, seq_lens, draft_tokens=None, seq_lens_encoder=None
 ):

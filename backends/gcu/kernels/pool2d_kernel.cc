@@ -94,6 +94,19 @@ void Pool2dKernel(const Context& dev_ctx,
   phi::DDim data_dims;
   phi::DDim out_data_dims;
 
+  VLOG(6) << "Enter Pool2dKernel, pooling_type:" << pooling_type
+          << ", out dims:"
+          << custom_kernel::VectorToStr<int64_t>(phi::vectorize(out_dims))
+          << ", in_x dims:"
+          << custom_kernel::VectorToStr<int64_t>(phi::vectorize(in_x_dims))
+          << ", kernel_size:" << custom_kernel::VectorToStr<int>(ksize)
+          << ", strides:" << custom_kernel::VectorToStr<int>(strides)
+          << ", paddings:" << custom_kernel::VectorToStr<int>(paddings)
+          << ", ceil_mode:" << ceil_mode << ", exclusive:" << exclusive
+          << ", data_format:" << data_format
+          << ", padding_algorithm:" << padding_algorithm
+          << ", global_pooling:" << global_pooling << ", adaptive:" << adaptive;
+
   phi::DenseTensor in_x_tensor(in_x), out_tensor(*out);
   std::vector<int> ksize_vec(4, 1);
   std::vector<int> strides_vec(4, 1);
@@ -151,6 +164,9 @@ void Pool2dKernel(const Context& dev_ctx,
     if (DataPdCustomNHWC(in_x)) {
       PdCustomNHWCRepresentAsAtenNHWC(input_x);
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
+    } else if (data_format == "NHWC") {
+      OriginNHWCRepresentAsAtenNHWC(input_x);
+      OriginNHWCRepresentAsAtenNHWC(output);
     }
 
     if (pooling_type == "avg") {
@@ -228,6 +244,8 @@ void Pool2dKernel(const Context& dev_ctx,
     if (DataPdCustomNHWC(in_x)) {
       AtenNHWCRepresentAsPdCustomNHWC(output);
       AtenNHWCRepresentAsPdCustomNHWC(*out, true);
+    } else if (data_format == "NHWC") {
+      AtenNHWCRepresentAsOriginNHWC(output);
     }
     MaybeTransResult(dev_ctx, output, out);
   } else {  // kernel impl base on JIT

@@ -278,10 +278,10 @@ void AtenNHWCRepresentAsPdCustomNHWC(phi::DenseTensor& x,  // NOLINT
 }
 
 void OriginNHWCRepresentAsAtenNHWC(phi::DenseTensor& x) {  // NOLINT
-  PADDLE_ENFORCE_EQ(
-      x.layout(),
-      common::DataLayout::kNCHW,
-      phi::errors::InvalidArgument("Layout of x should be origin NHWC."));
+  //   PADDLE_ENFORCE_EQ(
+  //       x.layout(),
+  //       common::DataLayout::kNCHW,
+  //       phi::errors::InvalidArgument("Layout of x should be origin NHWC."));
   // input x shape is NHWC, strides is NHWC, contiguous
   // output x shape is NCHW, strides is NHWC_perm, NOT contiguous
   PermutedShapeAndStrides(

@@ -15,10 +15,9 @@
 cmake_minimum_required(VERSION 3.10)
 set(PYTHON_VERSION "3.8")
 project(paddle-custom-gpu CXX C)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Paddle/cmake")
 set(CMAKE_VERBOSE_MAKEFILE ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -H")
 
@@ -34,15 +33,12 @@ add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 # # TODO(qiil93): avoid compile error, to be removed
 # add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
 
-# add_definitions(-DPADDLE_WITH_GPGPU)
-# add_definitions(-DMOVE_TO_GPGPU)
 add_definitions(-DPADDLE_CUDA_FP16)
 add_definitions(-DGPUContext=CustomContext)
 
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
 
-add_definitions(-DUSE_CUDA_STREAM_TYPE)
 add_definitions(-DSTREAM_TYPE=cudaStream_t)
 
 message(STATUS "CUDA_INCLUDE_DIRS:${CUDA_INCLUDE_DIRS}")
@@ -60,16 +56,8 @@ set(PLUGIN_NAME "paddle-custom-gpu")
 set(TEST_TARGET "paddle-custom-gpu-test")
 set(PLUGIN_VERSION "0.0.1")
 
-if(NOT WITH_TESTING)
-  set(NO_PADDLE_SUBMODULE ON)
-endif()
-# include(paddle)
-
 set(RUNTIME_SRCS runtime/runtime.cc)
 
-message(STATUS "PADDLE_SOURCE_DIR = ${PADDLE_SOURCE_DIR}")
-set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" CACHE PATH "Third party libraries directory.")
-message(STATUS "THIRD_PARTY_PATH = ${THIRD_PARTY_PATH}")
 include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/kernels)
 # link_directories(${PADDLE_LIB_DIR})
@@ -92,71 +80,36 @@ include(${PP_gflags})
 include(${PP_glog})
 include(${PP_eigen})
 
-
+message(STATUS "CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
 set(CU_FILE_FOLDER ${PADDLE_SOURCE_DIR}/Paddle/paddle/phi/kernels/gpu/)
 file(
-  GLOB TEST_SRCS
+  GLOB CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
-  list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu)
-  # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/l1_norm_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu) #blas
 
-# list(REMOVE_ITEM TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu)
-# list(REMOVE_ITEM TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adagrad_kernel.cu)
+file(
+    GLOB CC_SRCS
+    ${CMAKE_SOURCE_DIR}/kernel_register/index_add_kernel_register.cc)
 
-set(TEST_SRCS ${FILE_NAME})
-set(TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_grad_kernel.cu)
-set(TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arg_min_max_kernel.cu) #ok
-# set(TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu)
+message(STATUS "CUDA_SRCS = ${CUDA_SRCS}")
+message(STATUS "CC_SRCS = ${CC_SRCS}")
 
-message(STATUS "TEST_SRCS = ${TEST_SRCS}")
-
-
-# set(CPU_RUN runtime/runtime.cc)
-
-# set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu")
-set(TEST_SRCS "${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu")
-# set_source_files_properties(/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpu/index_add_kernel.cu PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
-# set_source_files_properties(${TEST_SRCS} PROPERTIES COMPILE_DEFINITIONS "PADDLE_WITH_CUDA")
-
-# set(TEST_SRCS "/ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpudnn/conv_transpose_kernel.cu")
-# list(APPEND TEST_SRCS /ssS·d3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/kernels/gpudnn/conv_transpose_kernel.cu)
-# message(STATUS "TEST_SRCS = ${TEST_SRCS}")
-# list(APPEND TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/core/dense_tensor.cc)
-# list(APPEND TEST_SRCS /ssd3/mayongqiang/cpu/PaddleCustomDevice/Paddle/paddle/phi/core/dense_tensor.inl)
-
-set(CUSTOM_GPU_SRCS ${TEST_SRCS})
-list(APPEND CUSTOM_GPU_SRCS ${RUNTIME_SRCS})
+# set(CUSTOM_GPU_SRCS ${TEST_SRCS})
+# list(APPEND CUSTOM_GPU_SRCS ${RUNTIME_SRCS})
+set(CUSTOM_GPU_SRCS ${CUDA_SRCS} ${CC_SRCS} ${RUNTIME_SRCS})
 
 add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
 target_link_libraries(${TEST_TARGET} PRIVATE glog)
 target_link_libraries(${TEST_TARGET} PRIVATE ${PADDLE_CORE_LIB})
 
-include_directories(BEFORE /home/PaddleCustomDevice/Paddle)
-# set_property(
-#   TEST ${TEST_TARGET}
-#   PROPERTY
-#     ENVIRONMENT
-#     FLAGS_init_allocated_mem=true
-#     FLAGS_cudnn_deterministic=true
-#     FLAGS_enable_pir_api=0
-#     # LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PADDLE_BINARY_DIR}/python/paddle/libs:${PADDLE_BINARY_DIR}/python/paddle/base
-# )
+include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1 
-    USE_CUDA_STREAM_TYPE 
     STREAM_TYPE=cudaStream_t )
 
 add_custom_command(
-  # OUTPUT index_add_kernel_preprocessed.cc
-  OUTPUT bincount_kernel_preprocessed.cc
-  COMMAND nvcc -E ${TEST_SRCS}
-    -include complex
+  OUTPUT index_add_kernel_preprocessed.cc
+  COMMAND nvcc -E ${CUDA_SRCS}
+    -DPADDLE_WITH_CUSTOM_DEVICE
     -I${PADDLE_SOURCE_DIR}
     -I${POPART_DIR}/include
     -I${JEMALLOC_INCLUDE_DIR} 
@@ -178,30 +131,16 @@ add_custom_command(
     -I${PADDLE_SOURCE_DIR}/third_party/eigen3
     -I${PADDLE_SOURCE_DIR}/build/third_party/install/glog/include
     -I${PADDLE_SOURCE_DIR}/build/third_party/install/gflags
-    # -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
-    -o ${CMAKE_CURRENT_BINARY_DIR}/bincount_kernel_preprocessed.cc
+    -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
     DEPENDS ${PHI_DEPS})
 message("------------------- ${PHI_DEPS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}")
 
 
 add_custom_target(mypreprocess
-    DEPENDS bincount_kernel_preprocessed.cc
+    DEPENDS index_add_kernel_preprocessed.cc
 )
 add_dependencies(${TEST_TARGET} mypreprocess)
-
-#################################################################################
-
-# # build shared library
-# add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SRCS})
-# if(ON_INFER)
-#   target_link_directories(${PLUGIN_NAME} PRIVATE ${PADDLE_INFERENCE_LIB_DIR})
-#   target_link_libraries(${PLUGIN_NAME} PRIVATE paddle_inference)
-# else()
-#   target_link_libraries(${PLUGIN_NAME} PRIVATE ${PADDLE_CORE_LIB})
-# endif()
-
-
 
 
 #################################################################################
@@ -221,30 +160,6 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/lib${TEST_TARGET}.so
     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
   COMMENT "Creating plugin directories------>>>")
-#################################################################################
-
-
-# add_custom_command(
-#   TARGET ${PLUGIN_NAME}
-#   POST_BUILD
-#   COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_CURRENT_BINARY_DIR}/python/
-#   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/python/
-#   COMMAND ${CMAKE_COMMAND} -E make_directory
-#           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-#   COMMAND
-#     ${CMAKE_COMMAND} -E copy_if_different
-#     ${CMAKE_CURRENT_BINARY_DIR}/lib${PLUGIN_NAME}.so
-#     ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/
-#   COMMENT "Creating plugin directories------>>>")
-
-
-
-
-
-# find_package(
-#   Python
-#   COMPONENTS Interpreter
-#   REQUIRED)
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp
@@ -255,15 +170,6 @@ add_custom_command(
 add_custom_target(python_package ALL
                   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/python/.timestamp)
 
-# if(WITH_TESTING)
-#   set(PYTHON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../python")
-#   add_subdirectory(tests)
-#   add_custom_command(
-#     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tests/.timestamp
-#     COMMAND cp -r ${CMAKE_SOURCE_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR})
-#   add_custom_target(python_tests ALL
-#                     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/tests/.timestamp)
-# endif()
 
 
 

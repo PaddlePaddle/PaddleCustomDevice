@@ -47,14 +47,19 @@ def prepare_input_hpu(
         batch_ids = paddle.where(seq_lens_encoder > 0)[0].flatten()
         valid_batch = batch_ids.shape[0]
 
-        input_tokens = paddle.index_select(input_ids, batch_ids)
-        block_tables_seg = paddle.index_select(block_tables, batch_ids)
+        input_tokens = paddle.index_select(input_ids, batch_ids).to("CPU")
+        seq_lens = paddle.index_select(seq_lens_encoder, batch_ids).flatten().to("CPU")
+        block_tables_seg = paddle.index_select(block_tables, batch_ids).to("CPU")
 
         total_batch = round_up(valid_batch, batch_step)
 
         max_buckets = (max_enc_len + block_size - 1) // block_size
         max_prompt_len = max_buckets * block_size
 
+        # batch_ids_padded = paddle.full((total_batch), 0, dtype=seq_lens_encoder.dtype).to('CPU')
+        seq_lens_padded = paddle.full(
+            (total_batch), 0, dtype=seq_lens_encoder.dtype
+        ).to("CPU")
         src_padded = paddle.full(
             (total_batch, max_prompt_len), 0, dtype=input_ids.dtype
         ).to("CPU")
@@ -62,6 +67,8 @@ def prepare_input_hpu(
             (total_batch, max_buckets), -1, dtype=block_tables.dtype
         ).to("CPU")
 
+        # batch_ids_padded[:valid_batch] = batch_ids[:]
+        seq_lens_padded[:valid_batch] = seq_lens[:]
         src_padded[:valid_batch, :max_prompt_len] = input_tokens[:, :max_prompt_len]
         blk_padded[:valid_batch, :max_buckets] = block_tables_seg[:, :max_buckets]
         block_indices_padded = blk_padded.flatten().to("intel_hpu")
@@ -75,7 +82,6 @@ def prepare_input_hpu(
         block_list = None
         block_mapping = None
         attn_bias = None
-        seq_lens_padded = None
     # decoding
     elif max_dec_len > 0:
         batch_ids = paddle.where(seq_lens_decoder > 0)[0].flatten()
@@ -182,7 +188,6 @@ def prepare_input_hpu(
         block_offset_padded,
         block_mapping,
         attn_bias,
-        batch_ids,
         seq_lens_padded,
     )
 
@@ -230,27 +235,7 @@ def rebuild_padding_v2(
     output_padding_offset=None,
     max_len=-1,
 ):
-    # tmp_out, // [token_num, dim_embed]
-    # cum_offsets, // [bsz, 1]
-    bs = seq_len_encoder.shape[0]
-    dim_emb = tmp_out.shape[1]
-    output_data = paddle.zeros((bs, dim_emb)).flatten()
-    seq_len = max_len
-    tmp_out = tmp_out.flatten()
-    for i in range(bs * dim_emb):
-        bi = i // dim_emb
-        bias_idx = i % dim_emb
-        seq_id = 0
-        # just encoder or stop, get last token; just decoder, get first token.
-        if seq_lens_decoder[bi] == 0:
-            if seq_len_encoder[bi] != 0:
-                seq_id = seq_len_encoder[bi] - 1
-            else:
-                continue
-        ori_token_idx = bi * seq_len - cum_offsets[bi] + seq_id
-        src_offset = ori_token_idx * dim_emb + bias_idx
-        output_data[i] = tmp_out[src_offset]
-    return output_data.reshape([bs, dim_emb])
+    return tmp_out
 
 
 def fused_flatpa_proj_ref(

@@ -359,14 +359,13 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 
     err = cudaMalloc(ptr, size);
     if (err != cudaSuccess) {
-        // cudaSetDevice(original_device); // 尝试恢复设备
+        // cudaSetDevice(original_device);
         *ptr = NULL;
         return C_ERROR;
     }
 
     // cudaError_t restore_err = cudaSetDevice(original_device);
     // if (restore_err != cudaSuccess) {
-    //     // 异常处理：释放已分配内存
     //     cudaError_t temp_err = cudaSetDevice(device->id);
     //     if (temp_err == cudaSuccess) {
     //         cudaFree(*ptr);

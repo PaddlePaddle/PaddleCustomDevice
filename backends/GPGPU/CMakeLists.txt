@@ -93,7 +93,7 @@ file(
 
 file(
     GLOB CC_SRCS
-    ${CMAKE_SOURCE_DIR}/kernel_register/index_add_kernel_register.cc)
+    ${CMAKE_SOURCE_DIR}/kernels/cuda_kernels/index_add_kernel_register.cc)
 
 message(STATUS "CUDA_SRCS = ${CUDA_SRCS}")
 message(STATUS "CC_SRCS = ${CC_SRCS}")

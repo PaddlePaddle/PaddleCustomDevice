@@ -23,6 +23,7 @@
 #include "kernels/funcs/format_utils.h"
 #include "kernels/funcs/npu_op_prepare.h"
 #include "paddle/phi/common/amp_type_traits.h"
+#include "paddle/phi/common/data_type.h"
 #include "paddle/phi/extension.h"
 #include "paddle/utils/blank.h"
 #include "paddle/utils/variant.h"
@@ -206,6 +207,18 @@ inline aclScalar* ConvertType(const phi::Scalar& at_scalar) {
   aclDataType acl_data_type = ConvertToNpuDtype(scalar_data_type);
   aclScalar* acl_scalar = nullptr;
   switch (scalar_data_type) {
+    case phi::DataType::FLOAT16: {
+      float value_f32 = at_scalar.to<float>();
+      phi::float16 value_f16 = phi::float16(value_f32);
+      acl_scalar = aclCreateScalar(&value_f16.x, acl_data_type);
+      break;
+    }
+    case phi::DataType::BFLOAT16: {
+      float value_f32 = at_scalar.to<float>();
+      phi::bfloat16 value_bf16 = phi::bfloat16(value_f32);
+      acl_scalar = aclCreateScalar(&value_bf16.x, acl_data_type);
+      break;
+    }
     case phi::DataType::FLOAT32: {
       float value = at_scalar.to<float>();
       acl_scalar = aclCreateScalar(&value, acl_data_type);

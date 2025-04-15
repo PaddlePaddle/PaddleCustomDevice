@@ -61,11 +61,6 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void FillKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& val);
-
-template <typename T, typename Context>
 void AclopLayerNormNPUKernel(
     const Context& dev_ctx,
     const phi::DenseTensor& x,
@@ -332,7 +327,6 @@ void AclnnLayerNormNPUKernel(
           .AddInput(value)
           .AddOutput(default_bias);
       runner.Run(stream);
-      // custom_kernel::FillKernel<T, Context>(dev_ctx, default_bias, value);
 
     } else {
       // CANN op Fill/FillD would raise error when output's numel is 1.

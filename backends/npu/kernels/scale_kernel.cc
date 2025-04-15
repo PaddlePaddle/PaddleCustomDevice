@@ -23,11 +23,6 @@ void CastKernel(const Context& dev_ctx,
                 phi::DenseTensor* out);
 
 template <typename T, typename Context>
-void FillKernel(const Context& dev_ctx,
-                const phi::DenseTensor& x,
-                const phi::Scalar& val);
-
-template <typename T, typename Context>
 void AclopScaleKernel(const Context& dev_ctx,
                       const phi::DenseTensor& x,
                       const phi::Scalar& in_scale,

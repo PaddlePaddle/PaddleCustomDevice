@@ -192,52 +192,6 @@ def prepare_input_hpu(
     )
 
 
-def get_padding_offset_v2(
-    input_ids, cum_offset, token_num, seq_lens, draft_tokens=None, seq_lens_encoder=None
-):
-    bsz, max_seq_len = input_ids.shape
-    cum_offsets_now = paddle.cumsum(max_seq_len - seq_lens)
-    cum_offsets = paddle.zeros(shape=(bsz + 1), dtype="int32")
-    cum_offsets[1:] = cum_offsets_now
-    token_num = paddle.sum(seq_lens)
-    x_remove_padding = paddle.zeros(shape=(token_num), dtype=input_ids.dtype)
-    padding_offsets = paddle.zeros(shape=(token_num), dtype="int32")
-    cu_seqlens_q = paddle.zeros(shape=(bsz + 1), dtype="int32")
-    cu_seqlens_k = paddle.zeros(shape=(bsz + 1), dtype="int32")
-    current_index = 0
-    for i in range(bsz):
-        seq_len_now = seq_lens[i].item()
-        cum_offset = cum_offsets[i].item()
-        # x_remove_padding = paddle.concat((x_remove_padding, input_ids[i, :seq_len_now]))
-        x_remove_padding[current_index : current_index + seq_len_now] = input_ids[
-            i, :seq_len_now
-        ]
-        current_index += seq_len_now
-        for j in range(seq_len_now):
-            padding_offsets[i * max_seq_len - cum_offset + j] = cum_offset
-        cum_seq_len = (i + 1) * max_seq_len - cum_offsets[i + 1].item()
-        cu_seqlens_q[i + 1] = cum_seq_len
-        cu_seqlens_k[i + 1] = cum_seq_len
-    return (
-        x_remove_padding,
-        cum_offsets[:-1],
-        padding_offsets,
-        cu_seqlens_q,
-        cu_seqlens_k,
-    )
-
-
-def rebuild_padding_v2(
-    tmp_out,
-    cum_offsets,
-    seq_lens_decoder,
-    seq_len_encoder,
-    output_padding_offset=None,
-    max_len=-1,
-):
-    return tmp_out
-
-
 def fused_flatpa_proj_ref(
     query,
     key_cache,

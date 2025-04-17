@@ -30,7 +30,6 @@ class TestUnbind(unittest.TestCase):
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
         exe = base.Executor(place=paddle.CustomPlace("npu", 0))
-        exe.run(base.default_startup_program())
 
         [res_1, res_2] = exe.run(
             base.default_main_program(),
@@ -52,7 +51,6 @@ class TestUnbind(unittest.TestCase):
             y = paddle.unbind(x)
 
             exe = paddle.static.Executor(place)
-            exe.run(base.default_startup_program())
 
             res = exe.run(
                 paddle.static.default_main_program(),
@@ -90,7 +88,6 @@ class TestLayersUnbind(unittest.TestCase):
         input_1 = np.random.random([2, 3]).astype("float32")
         axis = paddle.static.data(shape=[], dtype="int32", name="axis")
         exe = base.Executor(place=paddle.CustomPlace("npu", 0))
-        exe.run(base.default_startup_program())
 
         [res_1, res_2] = exe.run(
             base.default_main_program(),

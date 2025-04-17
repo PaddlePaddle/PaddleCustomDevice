@@ -44,7 +44,7 @@ void SaveOutMmsg(const paddle::Tensor& x,
   int bsz = x.shape()[0];
   msg_sed.mtext[1] = bsz;
   for (int i = 2; i < bsz + 2; i++) {
-    msg_sed.mtext[i] = static_cast<int> x_data[i - 2];
+    msg_sed.mtext[i] = static_cast<int>(x_data[i - 2]);
   }
   if ((msgsnd(msgid, &msg_sed, (MAX_BSZ + 2) * 4, 0)) == -1) {
     //   printf("full msg buffer\n");

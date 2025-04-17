@@ -61,7 +61,6 @@ def create_test_class(op_type, typename, callback):
             paddle.set_device(self.device)
             paddle.enable_static()
             exe = paddle.static.Executor(self.place)
-            exe.run(paddle.static.default_startup_program())
             paddle.disable_static()
 
         def test_output(self):

@@ -103,7 +103,6 @@ def create_test_class(op_type, typename, callback):
                         op(x=inputs[case["x"]], y=inputs[case["y"]], **case["args"])
                         exe = paddle.static.Executor(self.place)
 
-                        exe.run(paddle.static.default_startup_program())
                         exe.run(paddle.static.default_main_program())
 
                 for case in cases:

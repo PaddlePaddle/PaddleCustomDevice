@@ -23,10 +23,6 @@ from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 
-# Initialize NPU device
-exe = paddle.static.Executor(paddle.CustomPlace("npu", 0))
-exe.run(paddle.static.default_startup_program())
-
 
 class TestElementwiseAddOp(OpTest):
     def setUp(self):

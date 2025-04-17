@@ -115,7 +115,6 @@ class TestRandpermOpError(unittest.TestCase):
                 with program_guard(Program(), Program()):
                     paddle.randperm(-3)
                     exe = paddle.static.Executor()
-                    exe.run(paddle.static.default_startup_program())
                     exe.run(paddle.static.default_main_program())
 
             self.assertRaises(RuntimeError, test_invalid_n)
@@ -124,7 +123,6 @@ class TestRandpermOpError(unittest.TestCase):
                 with program_guard(Program(), Program()):
                     paddle.randperm(10, "int8")
                     exe = paddle.static.Executor()
-                    exe.run(paddle.static.default_startup_program())
                     exe.run(paddle.static.default_main_program())
 
             self.assertRaises(TypeError, test_invalid_dtype)

@@ -31,7 +31,6 @@ def prepare_input_hpu(
     rope_emb,
     block_tables,
     block_size,
-    seq_lens_this_time,
     seq_lens_encoder,
     seq_lens_decoder,
     device_dtype,
@@ -182,6 +181,37 @@ def prepare_input_hpu(
         attn_bias,
         seq_lens,
     )
+
+
+def rebuild_padding_v2(
+    tmp_out,
+    cum_offsets,
+    seq_lens_decoder,
+    seq_lens_encoder,
+    output_padding_offset=None,
+    max_len=-1,
+):
+    max_enc_len = paddle.max(seq_lens_encoder, axis=0).item()
+    max_dec_len = paddle.max(seq_lens_decoder, axis=0).item()
+
+    max_batch = seq_lens_encoder.shape[0]
+    dim_emb = tmp_out.shape[2]
+    output_data = paddle.zeros((max_batch, dim_emb))
+
+    if max_enc_len > 0:  # context
+        j = 0
+        for i in range(max_batch):
+            if seq_lens_encoder[i].item() > 0:
+                seq_len = seq_lens_encoder[i].item()
+                output_data[i] = tmp_out[j, seq_len - 1]
+                j = j + 1
+    elif max_dec_len > 0:
+        batch_ids = paddle.where(seq_lens_decoder > 0)[0].flatten()
+        output_data = paddle.scatter(
+            output_data, batch_ids, tmp_out.squeeze(axis=1)[: batch_ids.shape[0], :]
+        )
+
+    return output_data
 
 
 def fused_flatpa_proj_ref(

@@ -10,7 +10,7 @@ class BinaryDistribution(Distribution):
 setup(
     name = '@CMAKE_PROJECT_NAME@',
     version='@PLUGIN_VERSION@',
-    description='Paddle CustomCPU plugin',
+    description='Paddle metax_gpu plugin',
     long_description='',
     long_description_content_type="text/markdown",
     author_email="Paddle-better@baidu.com",
@@ -36,5 +36,5 @@ setup(
     },
     classifiers=[
     ],
-    keywords='Paddle CustomCPU plugin',
+    keywords='Paddle metax_gpu plugin',
 )

@@ -1,8 +1,8 @@
-#include "paddle/phi/kernels/index_add_kernel.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/index_add_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(index_add,
-                          GPGPU,
+                          metax_gpu,
                           ALL_LAYOUT,
                           phi::IndexAddKernel,
                           float,

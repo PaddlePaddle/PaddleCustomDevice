@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 set(PYTHON_VERSION "3.8")
-project(paddle-custom-gpu CXX C)
+project(paddle-metax-gpu CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Paddle/cmake")
@@ -51,15 +51,15 @@ message(STATUS "CUDA_TOOLKIT_ROOT_DIR:${CUDA_TOOLKIT_ROOT_DIR}")
 message(STATUS "PADDLE INIT DONE!")
 option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
-option(WITH_GPU "Compile PaddlePaddle with NVIDIA GPU" ON)
+option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
 enable_language(CUDA)
 include(../../Paddle/cmake/cuda.cmake)
 
 message(STATUS "CMAKE_CUDA_FLAGS = ${CMAKE_CUDA_FLAGS}")
 
-set(PLUGIN_NAME "paddle-custom-gpu")
-set(TEST_TARGET "paddle-custom-gpu-test")
+set(PLUGIN_NAME "paddle-metax-gpu")
+set(TEST_TARGET "paddle-metax-gpu-test")
 set(PLUGIN_VERSION "0.0.1")
 
 set(RUNTIME_SRCS runtime/runtime.cc)
@@ -69,6 +69,12 @@ include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
 # link_directories(${PADDLE_LIB_DIR})
 
 add_definitions(-std=c++14)
+
+message(STATUS "PADDLE_SOURCE_DIR = ${PADDLE_SOURCE_DIR}")
+set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" CACHE PATH "Third party libraries directory.")
+message(STATUS "THIRD_PARTY_PATH = ${THIRD_PARTY_PATH}")
+include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
+                    ${CMAKE_SOURCE_DIR}/kernels)
 
 file(
   GLOB_RECURSE PLUGIN_SRCS

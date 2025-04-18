@@ -1,8 +1,8 @@
-#include "paddle/phi/kernels/eye_kernel.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/eye_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(eye,
-                          GPGPU,
+                          metax_gpu,
                           ALL_LAYOUT,
                           phi::EyeKernel,
                           float,

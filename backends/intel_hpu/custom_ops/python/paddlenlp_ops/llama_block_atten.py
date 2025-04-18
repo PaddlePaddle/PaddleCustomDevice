@@ -35,7 +35,6 @@ def prepare_input_hpu(
     seq_lens_decoder,
     device_dtype,
 ):
-    paddle.device.set_device("cpu")
     max_enc_len = paddle.max(seq_lens_encoder, axis=0).item()
     max_dec_len = paddle.max(seq_lens_decoder, axis=0).item()
 
@@ -56,11 +55,11 @@ def prepare_input_hpu(
         max_buckets = (max_enc_len + block_size - 1) // block_size
         max_prompt_len = max_buckets * block_size
 
-        src_padded = paddle.full(
-            (total_batch, max_prompt_len), 0, dtype=input_ids.dtype
+        src_padded = paddle.tensor.fill_constant(
+            (total_batch, max_prompt_len), input_ids.dtype, 0, force_cpu=True
         )
-        blk_padded = paddle.full(
-            (total_batch, max_buckets), -1, dtype=block_tables.dtype
+        blk_padded = paddle.tensor.fill_constant(
+            (total_batch, max_buckets), block_tables.dtype, -1, force_cpu=True
         )
 
         src_padded[:valid_batch, :max_prompt_len] = input_tokens[:, :max_prompt_len]
@@ -77,7 +76,6 @@ def prepare_input_hpu(
         block_list = None
         block_mapping = None
         attn_bias = None
-        paddle.device.set_device("intel_hpu")
     # decoding
     elif max_dec_len > 0:
         batch_ids = paddle.where(seq_lens_decoder > 0)[0].flatten()
@@ -89,10 +87,18 @@ def prepare_input_hpu(
 
         total_batch = round_up(valid_batch, batch_step)
 
-        src_padded = paddle.full((total_batch), 0, dtype=input_ids.dtype)
-        seq_lens_padded = paddle.full((total_batch), 0, dtype=seq_lens_decoder.dtype)
-        block_indices_padded = paddle.full((total_batch), -1, dtype=block_tables.dtype)
-        block_offset_padded = paddle.full((total_batch), 0, dtype=block_tables.dtype)
+        src_padded = paddle.tensor.fill_constant(
+            (total_batch), input_ids.dtype, 0, force_cpu=True
+        )
+        seq_lens_padded = paddle.tensor.fill_constant(
+            (total_batch), seq_lens_decoder.dtype, 0, force_cpu=True
+        )
+        block_indices_padded = paddle.tensor.fill_constant(
+            (total_batch), block_tables.dtype, -1, force_cpu=True
+        )
+        block_offset_padded = paddle.tensor.fill_constant(
+            (total_batch), block_tables.dtype, 0, force_cpu=True
+        )
 
         src_padded[:valid_batch] = input_tokens[:]
         seq_lens_padded[:valid_batch] = seq_lens[:]
@@ -137,14 +143,16 @@ def prepare_input_hpu(
 
         block_list = padding_fn(block_list, -1)
         block_groups = padding_fn(block_groups, -1)
-        block_groups_host = paddle.to_tensor(block_groups)
-        block_groups_host = block_groups_host.to("float32")
+        block_groups_host = paddle.to_tensor(block_groups, dtype="float32", place="cpu")
+
         block_mapping = paddle.nn.functional.relu(block_groups_host)
         block_mapping = block_mapping.to("int32")
         block_mapping = paddle.nn.functional.one_hot(
             block_mapping, num_classes=total_batch
         )
-        oob_values = block_groups_host.less_than(paddle.to_tensor(0))
+        oob_values = block_groups_host.less_than(
+            paddle.to_tensor(0, dtype="float32", place="cpu")
+        )
         block_mapping.masked_fill_(oob_values.unsqueeze(-1), 0)
 
         block_usage = []
@@ -162,12 +170,11 @@ def prepare_input_hpu(
         mask = paddle.arange(0, block_size, dtype="int32")
         mask = mask >= block_usage.unsqueeze(-1)
 
-        paddle.device.set_device("intel_hpu")
         block_groups = paddle.to_tensor(block_groups)
         block_list = paddle.to_tensor(block_list)
-        block_mapping = block_mapping.to(device_dtype).to("intel_hpu")
+        block_mapping = block_mapping.to(device_dtype)
         attn_bias = paddle.zeros_like(mask, dtype=device_dtype).masked_fill_(
-            mask, paddle.cast(paddle.to_tensor(float("-inf")), device_dtype).item()
+            mask, float("-inf")
         )
 
     return (

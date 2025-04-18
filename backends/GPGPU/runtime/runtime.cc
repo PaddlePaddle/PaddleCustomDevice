@@ -57,7 +57,6 @@ C_Status GetRuntimeVersion(const C_Device device, size_t* version) {
   int runtime_version = 0;
   cudaError_t status = cudaRuntimeGetVersion(&runtime_version);
   *version = runtime_version;
-  *version = 98765;
   return C_SUCCESS;
 }
 
@@ -98,15 +97,10 @@ C_Status GetMaxGridDimSize(const C_Device device, std::array<unsigned int, 3>* g
   int size;
   auto error_code_x = cudaDeviceGetAttribute(&size, cudaDevAttrMaxGridDimX, id);
   ret[0] = size;
-  LOG(INFO) << "MaxGridDimSize0000" <<size;
-
   auto error_code_y = cudaDeviceGetAttribute(&size, cudaDevAttrMaxGridDimY, id);
   ret[1] = size;
-  LOG(INFO) << "MaxGridDimSize1111" <<size;
-
   auto error_code_z = cudaDeviceGetAttribute(&size, cudaDevAttrMaxGridDimZ, id);
   ret[2] = size;
-  LOG(INFO) << "MaxGridDimSize2222" <<size;
 
   *grid_dim_size = ret;
   return C_SUCCESS;
@@ -133,11 +127,13 @@ C_Status InitDevice(const C_Device device) {
 
 
 C_Status SetDevice(const C_Device device) {
-    if (!device) {
+    VLOG(1)<< "SetDevice1: " << device->id;
+    if (device == nullptr) {
         return C_ERROR;
     }
-    
+    VLOG(1)<< "SetDevice2: " << device->id;
     cudaError_t err = cudaSetDevice(device->id);
+    VLOG(1)<< "SetDevice3: " << cudaGetErrorString(err);
     return (err == cudaSuccess) ? C_SUCCESS : C_ERROR;
 }
 
@@ -158,23 +154,33 @@ C_Status GetDevice(const C_Device device) {
 }
 
 C_Status DestroyDevice(const C_Device device) {
-    if (device) {
-        // free(device);
-        return C_SUCCESS;
+    if (device == NULL) {
+        return C_ERROR;
     }
-    return C_ERROR;
+
+    int current_device;
+    cudaGetDevice(&current_device);
+    if (current_device == device->id) {
+        cudaDeviceReset();
+    }
+
+    free(device);
+
+    return C_SUCCESS;
 }
 
 C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
-  *count = 1;
+  *count = 4;
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
   devices[0] = 0;
-  // devices[1] = 1;
+  devices[1] = 1;
+  devices[2] = 2;
+  devices[3] = 3;
   return C_SUCCESS;
 }
 
@@ -378,6 +384,7 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 }
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
+  cudaSetDevice(device->id);
   cudaFree(ptr);
   return C_SUCCESS;
 }
@@ -419,15 +426,105 @@ C_Status DestroyStream(const C_Device device, C_Stream stream) {
 }
 
 C_Status CreateEvent(const C_Device device, C_Event *event) {
-  return C_ERROR;
+    if (device == NULL || event == NULL) {
+        return C_ERROR;
+    }
+
+    *event = NULL; 
+
+    int previous_device;
+    cudaError_t cuda_status;
+
+    cuda_status = cudaGetDevice(&previous_device);
+    if (cuda_status != cudaSuccess) {
+        return C_ERROR;
+    }
+
+    cuda_status = cudaSetDevice(device->id);
+    if (cuda_status != cudaSuccess) {
+        return C_ERROR;
+    }
+
+    cudaEvent_t evt;
+    cuda_status = cudaEventCreate(&evt);
+    if (cuda_status != cudaSuccess) {
+        cudaSetDevice(previous_device);
+        return C_ERROR;
+    }
+
+    cuda_status = cudaSetDevice(previous_device);
+    if (cuda_status != cudaSuccess) {
+        cudaSetDevice(device->id); 
+        cudaEventDestroy(evt);
+        return C_ERROR;
+    }
+
+    *event = (C_Event)evt;
+    return C_SUCCESS;
 }
 
 C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
-  return C_ERROR;
+  if (device == NULL || event == NULL) {
+    return C_ERROR;
+  }
+
+  int previous_device;
+  cudaError_t cuda_status;
+
+  cuda_status = cudaGetDevice(&previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(device->id);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
+  if (cuda_status != cudaSuccess) {
+    cudaSetDevice(previous_device);
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  return C_ERROR;
+  if (device == NULL || event == NULL) {
+    return C_ERROR;
+  }
+
+  int previous_device;
+  cudaError_t cuda_status;
+
+  cuda_status = cudaGetDevice(&previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(device->id);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaEventDestroy(cudaEvent_t(event));
+  if (cuda_status != cudaSuccess) {
+    cudaSetDevice(previous_device);
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
 }
 
 C_Status SyncDevice(const C_Device device) {
@@ -475,12 +572,74 @@ C_Status SyncStream(const C_Device device, C_Stream stream) {
     return C_SUCCESS;
 }
 
-C_Status SyncEvent(const C_Device device, C_Event event) { return C_ERROR; }
+C_Status SyncEvent(const C_Device device, C_Event event) {
+  VLOG(1)<< "SyncEvent0: " << device->id;
+  if (device == NULL || event == NULL) {
+    return C_ERROR;
+  }
+
+  int previous_device;
+  cudaError_t cuda_status;
+
+  cuda_status = cudaGetDevice(&previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+  VLOG(1)<< "SyncEvent1: " << device->id;
+  cuda_status = cudaSetDevice(device->id);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+  VLOG(1)<< "SyncEvent2: " << device->id;
+  cuda_status = cudaEventSynchronize(cudaEvent_t(event));
+  if (cuda_status != cudaSuccess) {
+    cudaSetDevice(previous_device);
+    return C_ERROR;
+  }
+  VLOG(1) << "SyncEvent3: " << device->id;
+
+  cuda_status = cudaSetDevice(previous_device);
+  VLOG(1) << "SyncEvent4: " << previous_device;
+  VLOG(1) << "SyncEvent4: " << cudaGetErrorString(cuda_status);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS; 
+}
 
 C_Status StreamWaitEvent(const C_Device device,
                          C_Stream stream,
                          C_Event event) {
-  return C_ERROR;
+  if (device == NULL || event == NULL) {
+    return C_ERROR;
+  }
+
+  int previous_device;
+  cudaError_t cuda_status;
+
+  cuda_status = cudaGetDevice(&previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(device->id);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cuda_status = cudaStreamWaitEvent(cudaStream_t(stream),cudaEvent_t(event), 0);
+  if (cuda_status != cudaSuccess) {
+    cudaSetDevice(previous_device);
+    return C_ERROR;
+  }
+
+  cuda_status = cudaSetDevice(previous_device);
+  if (cuda_status != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
 }
 
 C_Status VisibleDevices(size_t *devices) { return C_ERROR; }
@@ -536,10 +695,11 @@ C_Status DestoryEigenDevice(const C_Device device, Eigen::GpuDevice* eigen_devic
 //   return C_SUCCESS;
 // }
 
-// C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
-//   *size = 512;
-//   return C_SUCCESS;
-// }
+C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
+  VLOG(10) << "Runtime: GPU min chunk size is " << (1 << 8);
+  *size = 1 << 8;
+  return C_SUCCESS;
+}
 
 // struct C_CCLComm_st {
 //   size_t rank;
@@ -713,7 +873,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destory_eigen_device = DestoryEigenDevice;
 //   params->interface->device_memory_stats = DeviceMemStats;
-//   params->interface->device_min_chunk_size = DeviceMinChunkSize;
+  params->interface->device_min_chunk_size = DeviceMinChunkSize;
 
 //   params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
 //   params->interface->xccl_get_unique_id = XcclGetUniqueId;

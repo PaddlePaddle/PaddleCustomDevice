@@ -28,6 +28,7 @@ export CODE_ROOT
 
 # For paddle easy debugging
 export FLAGS_call_stack_level=2
+export FLAGS_enable_pir_api=1
 
 failed_test_lists=''
 tmp_dir=`mktemp -d`

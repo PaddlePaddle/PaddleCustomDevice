@@ -64,14 +64,14 @@ def prepare_input_hpu(
 
         src_padded[:valid_batch, :max_prompt_len] = input_tokens[:, :max_prompt_len]
         blk_padded[:valid_batch, :max_buckets] = block_tables_seg[:, :max_buckets]
-        block_indices_padded = blk_padded.flatten().to("intel_hpu")
+        block_indices = blk_padded.flatten().to("intel_hpu")
 
         # rope_emb: [2, B=1, T=4096, 1, 128] --> [2, B=1, T=max_prompt_len, 1, 128]
         # Prefill:  [2, 1, T, 1, 128]
         rope_emb_seg = rope_emb[..., :max_prompt_len, :, :]
         rope_emb_seg = rope_emb_seg.to(device_dtype)
 
-        block_offset_padded = None
+        block_offset = None
         block_groups = None
         block_list = None
         block_mapping = None
@@ -173,6 +173,8 @@ def prepare_input_hpu(
         block_groups = paddle.to_tensor(block_groups)
         block_list = paddle.to_tensor(block_list)
         block_mapping = block_mapping.to(device_dtype)
+        block_indices = block_indices_padded.to("intel_hpu")
+        block_offset = block_offset_padded.to("intel_hpu")
         attn_bias = paddle.zeros_like(mask, dtype=device_dtype).masked_fill_(
             mask, float("-inf")
         )
@@ -182,8 +184,8 @@ def prepare_input_hpu(
         rope_emb_seg,
         block_groups,
         block_list,
-        block_indices_padded,
-        block_offset_padded,
+        block_indices,
+        block_offset,
         block_mapping,
         attn_bias,
         seq_lens,

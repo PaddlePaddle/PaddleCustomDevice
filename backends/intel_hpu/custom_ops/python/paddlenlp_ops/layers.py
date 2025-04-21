@@ -114,6 +114,26 @@ class Fused_Sdpa_Proj_v2(paddle.nn.Layer):
             attention_mask,
             self.linear_weights[i],
             self.scaling_factor,
+            causal=False,
+        )
+        return out_linear_out
+
+
+class Fused_Sdpa_Proj_t(paddle.nn.Layer):
+    def __init__(self, scaling_factor, linear_weights):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        self.linear_weights = linear_weights
+
+    def forward(self, i, query_states, kv_states, attention_mask):
+        out_linear_out = fused_sdpa_proj_t(
+            query_states,
+            kv_states,
+            attention_mask,
+            None,
+            self.linear_weights[i],
+            self.scaling_factor,
+            causal=True,
         )
         return out_linear_out
 
@@ -129,6 +149,37 @@ class Fused_Sdpa_Dec_Proj(paddle.nn.Layer):
             query_states,
             kv_states,
             attention_mask,
+            self.linear_weights[i],
+            self.scaling_factor,
+        )
+        return out_linear_out
+
+
+class Fused_Flatpa_Proj(paddle.nn.Layer):
+    def __init__(self, scaling_factor, linear_weights):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        self.linear_weights = linear_weights
+
+    def forward(
+        self,
+        i,
+        query_states,
+        k_caches,
+        v_caches,
+        block_groups,
+        block_list,
+        block_mapping,
+        block_bias,
+    ):
+        out_linear_out = fused_flatpa_proj(
+            query_states,
+            k_caches,
+            v_caches,
+            block_groups,
+            block_list,
+            block_mapping,
+            block_bias,
             self.linear_weights[i],
             self.scaling_factor,
         )
@@ -169,17 +220,6 @@ class Fused_Rms_Mlp(paddle.nn.Layer):
             self.epsilon,
         )
         return fused_rms_mlp_out
-
-
-def rebuild_padding_v2(
-    multi_block_output,
-    cum_offsets,
-    seq_lens_decoder,
-    seq_lens_encoder,
-    output_padding_offset,
-    max_input_length,
-):
-    pass
 
 
 def rebuild_padding(multi_block_output, cum_offsets, seq_lens, input_ids):

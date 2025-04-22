@@ -194,7 +194,6 @@ C_Status MemCpyH2D(const C_Device device,
   }
 
   return C_SUCCESS;
-  return C_SUCCESS;
 }
 
 C_Status MemCpyD2D(const C_Device device,
@@ -248,12 +247,30 @@ C_Status MemCpy(const C_Device device,
   return C_ERROR;
 }
 
-C_Status AsyncMemCpy(const C_Device device,
-                     C_Stream stream,
-                     void *dst,
-                     const void *src,
-                     size_t size) {
-  return C_ERROR;
+C_Status AsyncMemCpyH2D(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
+  if (dst == NULL || src == NULL) {
+    return C_ERROR;
+  }
+
+  if (size == 0) {
+    return C_SUCCESS;
+  }
+
+  cudaError_t cudaErr = cudaSetDevice(device->id);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
 }
 
 C_Status MemCpyP2P(const C_Device dst_device,
@@ -479,12 +496,14 @@ C_Status StreamWaitEvent(const C_Device device,
   return C_SUCCESS;
 }
 
-C_Status VisibleDevices(size_t *devices) { return C_ERROR; }
-
 C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
   VLOG(10) << "Runtime: GPU min chunk size is " << (1 << 8);
   *size = 1 << 8;
   return C_SUCCESS;
+}
+
+C_Status DeviceMaxChunkSize(const C_Device device, size_t *size) {
+  return C_ERROR;
 }
 
 void InitPlugin(CustomRuntimeParams *params) {
@@ -503,7 +522,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_max_threads_per_mp = GetMaxThreadsPerMultiProcessor;
   params->interface->get_max_threads_per_block = GetMaxThreadsPerBlock;
   params->interface->get_max_grid_dim_size = GetMaxGridDimSize;
-  //   params->interface->initialize = Init;
+  // params->interface->initialize = Init;
   //   params->interface->finalize = Finalize;
 
   params->interface->init_device = InitDevice;
@@ -527,7 +546,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->memory_copy_d2d = MemCpyD2D;
   params->interface->memory_copy_d2h = MemCpyD2H;
   params->interface->memory_copy_p2p = MemCpyP2P;
-  // params->interface->async_memory_copy_h2d = AsyncMemCpy;
+  params->interface->async_memory_copy_h2d = AsyncMemCpyH2D;
   // params->interface->async_memory_copy_d2d = AsyncMemCpyD2D;
   // params->interface->async_memory_copy_d2h = AsyncMemCpy;
   // params->interface->async_memory_copy_p2p = AsyncMemCpyP2P;
@@ -541,10 +560,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;
 
-  params->interface->init_eigen_device = InitEigenDevice;
-  params->interface->destory_eigen_device = DestoryEigenDevice;
   //   params->interface->device_memory_stats = DeviceMemStats;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
+  params->interface->device_max_chunk_size = DeviceMaxChunkSize;
 
   // params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
   // params->interface->xccl_get_unique_id = XcclGetUniqueId;

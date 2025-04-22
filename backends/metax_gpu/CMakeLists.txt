@@ -91,7 +91,6 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
   EVENT_TYPE=cudaEvent_t
 )
 
-#################################################################################
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)

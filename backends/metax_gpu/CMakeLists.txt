@@ -13,37 +13,34 @@
 # the License
 
 cmake_minimum_required(VERSION 3.10)
-set(PYTHON_VERSION "3.8")
-project(paddle-metax-gpu CXX C)
+project(paddle-metax-gpu CXX C) # define string name
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Paddle/cmake")
+list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake")
 set(CMAKE_VERBOSE_MAKEFILE ON)
-
 
 include(paddle)
 include(version)
 include(generic)
 
-add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
-
-add_definitions(-DGPUContext=CustomContext)
-
+enable_language(CUDA)
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
+message(STATUS "CUDA_INCLUDE_DIRS:${CUDA_INCLUDE_DIRS}")
+message(STATUS "CUDA_TOOLKIT_ROOT_DIR:${CUDA_TOOLKIT_ROOT_DIR}")
 
+add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
+add_definitions(-DGPUContext=CustomContext)
 add_definitions(-DSTREAM_TYPE=cudaStream_t)
 add_definitions(-DEVENT_TYPE=cudaEvent_t)
 
-message(STATUS "CUDA_INCLUDE_DIRS:${CUDA_INCLUDE_DIRS}")
-message(STATUS "CUDA_TOOLKIT_ROOT_DIR:${CUDA_TOOLKIT_ROOT_DIR}")
 message(STATUS "PADDLE INIT DONE!")
 option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
-enable_language(CUDA)
-include(../../Paddle/cmake/cuda.cmake)
+
+# include(../../Paddle/cmake/cuda.cmake)
 
 message(STATUS "CMAKE_CUDA_FLAGS = ${CMAKE_CUDA_FLAGS}")
 
@@ -92,14 +89,9 @@ file(
     ${CMAKE_SOURCE_DIR}/kernels/cuda_kernels/index_add_kernel_register.cc)
     list(APPEND CC_SRCS ${CMAKE_SOURCE_DIR}/kernels/cuda_kernels/eye_kernel_register.cc)
 
-message(STATUS "CUDA_SRCS = ${CUDA_SRCS}")
-message(STATUS "CC_SRCS = ${CC_SRCS}")
-
 set(CUSTOM_GPU_SRCS ${CUDA_SRCS} ${CC_SRCS} ${RUNTIME_SRCS})
 
 message(STATUS "PADDLE_CORE_LIB = ${PADDLE_CORE_LIB}")
-include_directories(/opt/conda/lib/python3.8/site-packages/paddle/include)
-link_directories(/opt/conda/lib/python3.8/site-packages/paddle/libs)
 add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
 target_link_libraries(${TEST_TARGET} PRIVATE
     glog
@@ -112,46 +104,46 @@ target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1
     PADDLE_WITH_CUSTOM_DEVICE=1
     STREAM_TYPE=cudaStream_t )
 
-set(PREPROCESSED_FILES)
-foreach(cuda_src ${CUDA_SRCS})
-  get_filename_component(cuda_name ${cuda_src} NAME_WE)
-  set(preprocessed_file ${cuda_name}_preprocessed.cc)
-  add_custom_command(
-    OUTPUT ${preprocessed_file}
-    COMMAND nvcc -E ${cuda_src}
-      -I${PADDLE_SOURCE_DIR}
-      -I${POPART_DIR}/include
-      -I${JEMALLOC_INCLUDE_DIR} 
-      -I${UTF8PROC_INSTALL_DIR}/include
-      -I${XBYAK_INC_DIR} 
-      -I${XBYAK_INC_DIR}/xbyak
-      -I${SOURCE_INCLUDE_DIR}
-      -I${GLOG_INCLUDE_DIR}
-      -I${DIRENT_INCLUDE_DIR}
-      -I${PROTOBUF_INCLUDE_DIR}
-      -I${POCKETFFT_INCLUDE_DIR}
-      -I${GFLAGS_INCLUDE_DIR}
-      -I${GLOO_INCLUDE_DIR}
-      -I${YAML_INCLUDE_DIR}
-      -I${PSLIB_BRPC_INC_DIR}
-      -I${XXHASH_INCLUDE_DIR}
-      -I${ZLIB_INCLUDE_DIR}
-      -I${GTEST_INCLUDE_DIR}
-      -I${PADDLE_SOURCE_DIR}/third_party/eigen3
-      -I${PADDLE_SOURCE_DIR}/build/third_party/install/glog/include
-      -I${PADDLE_SOURCE_DIR}/build/third_party/install/gflags
-      -o ${CMAKE_CURRENT_BINARY_DIR}/${preprocessed_file}
-      DEPENDS ${PHI_DEPS})
-  message("------------------- ${PHI_DEPS}")
-  list(APPEND PREPROCESSED_FILES ${preprocessed_file})
-endforeach()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}")
+# set(PREPROCESSED_FILES)
+# foreach(cuda_src ${CUDA_SRCS})
+#   get_filename_component(cuda_name ${cuda_src} NAME_WE)
+#   set(preprocessed_file ${cuda_name}_preprocessed.cc)
+#   add_custom_command(
+#     OUTPUT ${preprocessed_file}
+#     COMMAND nvcc -E ${cuda_src}
+#       -I${PADDLE_SOURCE_DIR}
+#       -I${POPART_DIR}/include
+#       -I${JEMALLOC_INCLUDE_DIR} 
+#       -I${UTF8PROC_INSTALL_DIR}/include
+#       -I${XBYAK_INC_DIR} 
+#       -I${XBYAK_INC_DIR}/xbyak
+#       -I${SOURCE_INCLUDE_DIR}
+#       -I${GLOG_INCLUDE_DIR}
+#       -I${DIRENT_INCLUDE_DIR}
+#       -I${PROTOBUF_INCLUDE_DIR}
+#       -I${POCKETFFT_INCLUDE_DIR}
+#       -I${GFLAGS_INCLUDE_DIR}
+#       -I${GLOO_INCLUDE_DIR}
+#       -I${YAML_INCLUDE_DIR}
+#       -I${PSLIB_BRPC_INC_DIR}
+#       -I${XXHASH_INCLUDE_DIR}
+#       -I${ZLIB_INCLUDE_DIR}
+#       -I${GTEST_INCLUDE_DIR}
+#       -I${PADDLE_SOURCE_DIR}/third_party/eigen3
+#       -I${PADDLE_SOURCE_DIR}/build/third_party/install/glog/include
+#       -I${PADDLE_SOURCE_DIR}/build/third_party/install/gflags
+#       -o ${CMAKE_CURRENT_BINARY_DIR}/${preprocessed_file}
+#       DEPENDS ${PHI_DEPS})
+#   message("------------------- ${PHI_DEPS}")
+#   list(APPEND PREPROCESSED_FILES ${preprocessed_file})
+# endforeach()
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-add_custom_target(mypreprocess
-    DEPENDS ${PREPROCESSED_FILES}
-)
-add_dependencies(${TEST_TARGET} mypreprocess)
+# add_custom_target(mypreprocess
+#     DEPENDS ${PREPROCESSED_FILES}
+# )
+# add_dependencies(${TEST_TARGET} mypreprocess)
 
 
 #################################################################################

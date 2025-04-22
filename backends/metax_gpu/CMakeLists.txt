@@ -86,7 +86,6 @@ file(
   GLOB CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
   list(APPEND CUDA_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eye_kernel.cu)
-  # list(APPEND CUDA_SRCS ${PADDLE_SOURCE_DIR}/paddle/common/flags.cc)
 
 file(
     GLOB CC_SRCS
@@ -105,10 +104,7 @@ add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
 target_link_libraries(${TEST_TARGET} PRIVATE
     glog
     ${PADDLE_CORE_LIB}
-    /opt/conda/lib/python3.8/site-packages/paddle/libs/libcommon.so
-    /opt/conda/lib/python3.8/site-packages/paddle/libs/libphi_core.so
 )
-# set(CMAKE_INSTALL_RPATH "$ORIGIN:/opt/conda/lib/python3.8/site-packages/paddle/libs")
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 

@@ -19,26 +19,15 @@ project(paddle-metax-gpu CXX C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../Paddle/cmake")
 set(CMAKE_VERBOSE_MAKEFILE ON)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -H")
 
 
 include(paddle)
 include(version)
 include(generic)
 
-# 在CMakeLists.txt中添加PADDLE_WITH_CUDA宏定义
-# add_definitions(-DPADDLE_WITH_CUDA)
 add_definitions(-DPADDLE_WITH_CUSTOM_DEVICE)
 
-# # TODO(qiil93): avoid compile error, to be removed
-# add_definitions(-DPADDLE_WITH_CUSTOM_KERNEL)
-
-# add_definitions(-DPADDLE_CUDA_FP16)
 add_definitions(-DGPUContext=CustomContext)
-
-# set(CUDA_TOOLKIT_ROOT_DIR "/root/cu-bridge/CUDA_DIR" CACHE PATH "CUDA Toolkit Path" FORCE)
-# set(CUDA_INCLUDE_DIRS "${CUDA_TOOLKIT_ROOT_DIR}/include" CACHE PATH "CUDA Include Path" FORCE)
-# include_directories(${CUDA_INCLUDE_DIRS} ${CUDA_TOOLKIT_ROOT_DIR}/include/thrust)
 
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
@@ -66,7 +55,6 @@ set(RUNTIME_SRCS runtime/runtime.cc)
 
 include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/kernels)
-# link_directories(${PADDLE_LIB_DIR})
 
 add_definitions(-std=c++14)
 
@@ -81,7 +69,7 @@ file(
   RELATIVE ${CMAKE_SOURCE_DIR}
   kernels/*.cc)
 list(APPEND PLUGIN_SRCS runtime/runtime.cc)
-#################################################################################
+
 include_directories(${PADDLE_SOURCE_DIR})
 
 set(PP_3RD ${PADDLE_SOURCE_DIR}/cmake/external/)
@@ -98,16 +86,7 @@ file(
   GLOB CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu)
   list(APPEND CUDA_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eye_kernel.cu)
-  # list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/l1_norm_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu)
-# list(APPEND TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu) #blas
-
-# list(REMOVE_ITEM TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu)
-# list(REMOVE_ITEM TEST_SRCS ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adagrad_kernel.cu)
+  # list(APPEND CUDA_SRCS ${PADDLE_SOURCE_DIR}/paddle/common/flags.cc)
 
 file(
     GLOB CC_SRCS
@@ -117,48 +96,25 @@ file(
 message(STATUS "CUDA_SRCS = ${CUDA_SRCS}")
 message(STATUS "CC_SRCS = ${CC_SRCS}")
 
-# set(CUSTOM_GPU_SRCS ${TEST_SRCS})
-# list(APPEND CUSTOM_GPU_SRCS ${RUNTIME_SRCS})
 set(CUSTOM_GPU_SRCS ${CUDA_SRCS} ${CC_SRCS} ${RUNTIME_SRCS})
 
+message(STATUS "PADDLE_CORE_LIB = ${PADDLE_CORE_LIB}")
+include_directories(/opt/conda/lib/python3.8/site-packages/paddle/include)
+link_directories(/opt/conda/lib/python3.8/site-packages/paddle/libs)
 add_library(${TEST_TARGET} SHARED ${CUSTOM_GPU_SRCS})
-target_link_libraries(${TEST_TARGET} PRIVATE glog)
-target_link_libraries(${TEST_TARGET} PRIVATE ${PADDLE_CORE_LIB})
+target_link_libraries(${TEST_TARGET} PRIVATE
+    glog
+    ${PADDLE_CORE_LIB}
+    /opt/conda/lib/python3.8/site-packages/paddle/libs/libcommon.so
+    /opt/conda/lib/python3.8/site-packages/paddle/libs/libphi_core.so
+)
+# set(CMAKE_INSTALL_RPATH "$ORIGIN:/opt/conda/lib/python3.8/site-packages/paddle/libs")
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(${TEST_TARGET} PUBLIC PADDLE_WITH_CUDA=1 
     PADDLE_WITH_CUSTOM_DEVICE=1
     STREAM_TYPE=cudaStream_t )
-
-# add_custom_command(
-#   OUTPUT index_add_kernel_preprocessed.cc
-#   COMMAND nvcc -E ${CUDA_SRCS}
-#     -DPADDLE_WITH_CUSTOM_DEVICE
-#     -I${PADDLE_SOURCE_DIR}
-#     -I${POPART_DIR}/include
-#     -I${JEMALLOC_INCLUDE_DIR} 
-#     -I${UTF8PROC_INSTALL_DIR}/include
-#     -I${XBYAK_INC_DIR} 
-#     -I${XBYAK_INC_DIR}/xbyak
-#     -I${SOURCE_INCLUDE_DIR}
-#     -I${GLOG_INCLUDE_DIR}
-#     -I${DIRENT_INCLUDE_DIR}
-#     -I${PROTOBUF_INCLUDE_DIR}
-#     -I${POCKETFFT_INCLUDE_DIR}
-#     -I${GFLAGS_INCLUDE_DIR}
-#     -I${GLOO_INCLUDE_DIR}
-#     -I${YAML_INCLUDE_DIR}
-#     -I${PSLIB_BRPC_INC_DIR}
-#     -I${XXHASH_INCLUDE_DIR}
-#     -I${ZLIB_INCLUDE_DIR}
-#     -I${GTEST_INCLUDE_DIR}
-#     -I${PADDLE_SOURCE_DIR}/third_party/eigen3
-#     -I${PADDLE_SOURCE_DIR}/build/third_party/install/glog/include
-#     -I${PADDLE_SOURCE_DIR}/build/third_party/install/gflags
-#     -o ${CMAKE_CURRENT_BINARY_DIR}/index_add_kernel_preprocessed.cc
-#     DEPENDS ${PHI_DEPS})
-# message("------------------- ${PHI_DEPS}")
 
 set(PREPROCESSED_FILES)
 foreach(cuda_src ${CUDA_SRCS})

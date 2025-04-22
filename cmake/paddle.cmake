@@ -83,13 +83,13 @@ else()
   message(
     STATUS "Run 'git submodule update --init Paddle' in ${REPO_SOURCE_DIR}")
   execute_process(
-   COMMAND git submodule update --init Paddle
-   WORKING_DIRECTORY ${REPO_SOURCE_DIR}
-   RESULT_VARIABLE result_var)
+    COMMAND git submodule update --init Paddle
+    WORKING_DIRECTORY ${REPO_SOURCE_DIR}
+    RESULT_VARIABLE result_var)
   if(NOT result_var EQUAL 0)
-   message(
-     FATAL_ERROR "Failed to get submodule Paddle', please check your network !"
-   )
+    message(
+      FATAL_ERROR "Failed to get submodule Paddle', please check your network !"
+    )
   endif()
 
   get_filename_component(PADDLE_SOURCE_DIR "${REPO_SOURCE_DIR}/Paddle" ABSOLUTE)

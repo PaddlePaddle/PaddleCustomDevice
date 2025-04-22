@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#define EIGEN_USE_GPU
 #include <cuda_runtime.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -27,7 +26,6 @@
 
 #include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
-#include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f
 

@@ -19,7 +19,6 @@ set(PLUGIN_VERSION "0.0.1")
 set(TARGET_NAME ${PROJ_NAME})
 
 set(CMAKE_MODULE_PATH 
-    ${CMAKE_MODULE_PATH} 
     "${CMAKE_SOURCE_DIR}/cmake"
 )
 
@@ -27,7 +26,11 @@ include(paddle)
 include(version)
 include(generic)
 
-list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake")
+
+list(APPEND CMAKE_MODULE_PATH
+    "${PADDLE_SOURCE_DIR}/cmake"
+    "${PADDLE_SOURCE_DIR}/cmake/external"
+)
 
 enable_language(CUDA)
 find_package(CUDA REQUIRED)
@@ -39,21 +42,14 @@ option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
-include(${PADDLE_SOURCE_DIR}/cmake/cuda.cmake)
-
-include_directories(${CMAKE_SOURCE_DIR} ${PADDLE_SOURCE_DIR}
-                    ${CMAKE_SOURCE_DIR}/kernels)
+include(cuda)
 
 set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" 
     CACHE PATH "Third party libraries directory.")
 
-set(PP_3RD ${PADDLE_SOURCE_DIR}/cmake/external/)
-set(PP_gflags ${PADDLE_SOURCE_DIR}/cmake/external/gflags.cmake)
-set(PP_glog ${PADDLE_SOURCE_DIR}/cmake/external/glog.cmake)
-set(PP_eigen ${PADDLE_SOURCE_DIR}/cmake/external/eigen.cmake)
-include(${PP_gflags})
-include(${PP_glog})
-include(${PP_eigen})
+include(gflags)
+include(glog)
+include(eigen)
 
 
 file(
@@ -75,8 +71,8 @@ set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-    ${CMAKE_SOURCE_DIR}
     ${PADDLE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/kernels
     ${CUDA_INCLUDE_DIRS}
 )

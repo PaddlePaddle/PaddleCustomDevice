@@ -24,3 +24,4 @@ PD_CUSTOM_KERNEL_REGISTER(index_add,
                           phi::dtype::bfloat16,
                           int,
                           int64_t) {}
+                          

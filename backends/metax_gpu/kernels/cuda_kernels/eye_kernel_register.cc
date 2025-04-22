@@ -24,3 +24,4 @@ PD_CUSTOM_KERNEL_REGISTER(eye,
                           int,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
+                          

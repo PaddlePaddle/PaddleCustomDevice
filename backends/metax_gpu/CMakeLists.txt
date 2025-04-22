@@ -42,11 +42,10 @@ option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
-include(cuda)
-
 set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" 
     CACHE PATH "Third party libraries directory.")
 
+include(cuda)
 include(gflags)
 include(glog)
 include(eigen)

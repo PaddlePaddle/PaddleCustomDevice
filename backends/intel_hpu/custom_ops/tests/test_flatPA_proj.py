@@ -21,24 +21,28 @@ paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 paddle.seed(102)
 
-batch_size = 8
-q_head = 32
-head_dim = 128
-hidden_size = q_head * head_dim
-total_block_num = 40
-block_size = 64
-num_of_block = 12
-scaling_factor = head_dim**-0.5
 
-query = paddle.rand([batch_size, 1, q_head, head_dim], dtype=paddle.bfloat16)
-block_list = paddle.rand([num_of_block], dtype=paddle.int32)
-block_groups = paddle.rand([num_of_block], dtype=paddle.int32)
-block_mapping = paddle.rand([num_of_block, batch_size], dtype=paddle.bfloat16)
-attn_bias = paddle.rand([num_of_block, block_size], dtype=paddle.bfloat16)
-linear_weights = paddle.rand([hidden_size, hidden_size], dtype=paddle.bfloat16)
+def test_fused_flatpa_proj(
+    testcase,
+    batch_size=8,
+    q_head=32,
+    kv_head=32,
+    head_dim=128,
+    total_block_num=40,
+    block_size=64,
+    num_of_block=12,
+    out_features=4096,
+):
+    hidden_size = q_head * head_dim
+    scaling_factor = head_dim**-0.5
 
+    query = paddle.rand([batch_size, 1, q_head, head_dim], dtype=paddle.bfloat16)
+    block_list = paddle.rand([num_of_block], dtype=paddle.int32)
+    block_groups = paddle.rand([num_of_block], dtype=paddle.int32)
+    block_mapping = paddle.rand([num_of_block, batch_size], dtype=paddle.bfloat16)
+    attn_bias = paddle.rand([num_of_block, block_size], dtype=paddle.bfloat16)
+    linear_weights = paddle.rand([hidden_size, out_features], dtype=paddle.bfloat16)
 
-def test_fused_flatpa_proj(kv_head, testcase):
     key_cache = paddle.rand(
         [total_block_num, block_size, kv_head, head_dim], dtype=paddle.bfloat16
     )
@@ -76,5 +80,6 @@ def test_fused_flatpa_proj(kv_head, testcase):
     print(f"Test Pass for {testcase} testcase")
 
 
-test_fused_flatpa_proj(kv_head=32, testcase="MHA")
-test_fused_flatpa_proj(kv_head=8, testcase="GQA")
+test_fused_flatpa_proj(testcase="MHA", kv_head=32)
+test_fused_flatpa_proj(testcase="GQA", kv_head=8)
+test_fused_flatpa_proj(testcase="65B", q_head=16, kv_head=16, out_features=8192)

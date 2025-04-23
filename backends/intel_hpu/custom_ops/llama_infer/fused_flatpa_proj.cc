@@ -491,7 +491,11 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     AddNodeGemm(
         map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
 
-    auto attn = createTensorNoPresist("attn", dtype_, outputs[0].dims);
+    std::vector<int64_t> reshape_attn_dims;
+    reshape_attn_dims.push_back(batch_size);
+    reshape_attn_dims.push_back(1);
+    reshape_attn_dims.push_back(hidden_size);
+    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
     std::vector<synTensor> attn_out;
     attn_out.push_back(attn);
 
@@ -1023,7 +1027,11 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     AddNodeGemm(
         map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
 
-    auto attn = createTensorNoPresist("attn", dtype_, outputs[0].dims);
+    std::vector<int64_t> reshape_attn_dims;
+    reshape_attn_dims.push_back(batch_size);
+    reshape_attn_dims.push_back(1);
+    reshape_attn_dims.push_back(hidden_size);
+    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
     std::vector<synTensor> attn_out;
     attn_out.push_back(attn);
 
@@ -1184,13 +1192,13 @@ std::vector<paddle::Tensor> FusedFlatPaProj(
 
   // allocate memory on device.
   int64_t batch_size = query.dims()[0];
-  int hidden_size = linear_weights.dims()[0];
+  int out_features = linear_weights.dims()[1];
   // int64_t block_size = key_cache.dims()[2];
   // int64_t num_of_block = block_mapping.dims()[0];
 
   std::shared_ptr<phi::DenseTensor> out_linear =
       std::make_shared<phi::DenseTensor>();
-  out_linear->Resize(phi::make_ddim({batch_size, 1, hidden_size}));
+  out_linear->Resize(phi::make_ddim({batch_size, 1, out_features}));
 
   dev_ctx->Alloc(out_linear.get(), query_tensor->dtype());
 
@@ -1218,8 +1226,8 @@ std::vector<std::vector<int64_t>> FusedFlatPaProjShape(
     const std::vector<int64_t>& block_bias_shape,
     const std::vector<int64_t>& linear_weights_shape) {
   int64_t batch_size = query_shape[0];
-  int hidden_size = linear_weights_shape[0];
-  return {{batch_size, 1, hidden_size}};
+  int out_features = linear_weights_shape[1];
+  return {{batch_size, 1, out_features}};
 }
 
 std::vector<paddle::DataType> FusedFlatPaProjDtype(

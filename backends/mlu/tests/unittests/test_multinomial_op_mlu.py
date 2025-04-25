@@ -169,7 +169,11 @@ class TestMultinomialApi(unittest.TestCase):
         train_program = base.Program()
         with base.program_guard(train_program, startup_program):
             x = paddle.static.data("x", shape=[4], dtype="float32")
-            out = paddle.multinomial(x, num_samples=100000, replacement=True)
+            outs = [
+                paddle.multinomial(x, num_samples=100000, replacement=True)
+                for _ in range(10)
+            ]
+            out = paddle.concat(outs, axis=0)
 
             place = base.CustomPlace("mlu", 0)
             exe = base.Executor(place)

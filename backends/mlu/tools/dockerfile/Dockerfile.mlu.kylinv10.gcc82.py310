@@ -41,6 +41,7 @@ ENV FLAGS_use_stride_kernel=0
 ENV FLAGS_allocator_strategy=auto_growth
 ENV CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
 ENV PADDLE_XCCL_BACKEND=mlu
+ENV FLAGS_use_stream_safe_cuda_allocator=false
 
 # yum and pip clean
 RUN yum clean all && \

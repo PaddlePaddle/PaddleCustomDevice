@@ -37,7 +37,6 @@
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
 // #include "paddle/phi/core/memory/allocation/allocator_facade.h"
-#define EIGEN_USE_GPU
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f

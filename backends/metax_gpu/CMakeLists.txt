@@ -55,6 +55,8 @@ file(
   GLOB CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eye_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu
 )
 
 file(
@@ -89,6 +91,7 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
   GPUContext=CustomContext
   STREAM_TYPE=cudaStream_t
   EVENT_TYPE=cudaEvent_t
+  EIGEN_USE_GPU=1
 )
 
 # packing wheel package

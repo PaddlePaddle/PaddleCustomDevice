@@ -19,17 +19,168 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
+#include <future>
 #include <iostream>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 
 #include "glog/logging.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/common/place.h"
+#include "paddle/phi/core/allocator.h"
+#include "paddle/phi/core/enforce.h"
+// #include "paddle/phi/core/memory/allocation/allocator_facade.h"
+#define EIGEN_USE_GPU
+#include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f
 
 static int global_current_device = 0;
+
+namespace phi {
+
+namespace internal {
+
+class EigenGpuStreamDevice : public Eigen::StreamInterface {
+ public:
+  EigenGpuStreamDevice()
+      : stream_(nullptr),
+        allocator_(nullptr),
+        device_prop_(nullptr),
+        scratch_(nullptr),
+        semaphore_(nullptr),
+        allocations_() {
+    Eigen::GetGpuDeviceProperties();
+    VLOG(4) << "runtime EigenGpuStreamDevice() called";
+  }
+  ~EigenGpuStreamDevice() override = default;
+
+  void Reinitialize(cudaStream_t cuda_stream,
+                    Allocator *allocator,
+                    CustomPlace place) {
+    stream_ = cuda_stream;
+    place_ = place;
+    allocator_ = allocator;
+    // device_prop_ = &Eigen::m_deviceProperties[place.device];
+    device_prop_ = &Eigen::GetGpuDeviceProperties(place.device);
+  }
+
+  const cudaStream_t &stream() const override { return stream_; }
+
+  const gpuDeviceProp &deviceProperties() const override {
+    return *device_prop_;
+  }
+
+  void *allocate(size_t num_bytes) const override {
+    if (UNLIKELY(num_bytes == 0)) {
+      return nullptr;
+    }
+    auto buf = allocator_->Allocate(num_bytes);
+    VLOG(4) << "Eigen allocated at " << buf->ptr() << " requested "
+            << num_bytes;
+    void *retv = buf->ptr();
+    {
+      std::lock_guard<std::mutex> lock(mtx_);
+      allocations_.emplace(retv, std::move(buf));
+    }
+    return retv;
+  }
+
+  void deallocate(void *buffer) const override {
+    if (LIKELY(buffer)) {
+      std::lock_guard<std::mutex> lock(mtx_);
+      allocations_.erase(buffer);
+    }
+  }
+
+  void *scratchpad() const override {
+    if (scratch_ == nullptr) {
+      scratch_ = allocate(Eigen::kGpuScratchSize + sizeof(unsigned int));
+    }
+    return scratch_;
+  }
+
+  unsigned int *semaphore() const override {
+    if (semaphore_ == nullptr) {
+      char *scratch =
+          static_cast<char *>(scratchpad()) + Eigen::kGpuScratchSize;
+      semaphore_ = reinterpret_cast<unsigned int *>(scratch);
+#ifdef PADDLE_WITH_HIP
+      PADDLE_ENFORCE_GPU_SUCCESS(
+          hipMemsetAsync(semaphore_, 0, sizeof(unsigned int), stream()));
+#else
+      PADDLE_ENFORCE_GPU_SUCCESS(
+          cudaMemsetAsync(semaphore_, 0, sizeof(unsigned int), stream()));
+#endif
+    }
+    return semaphore_;
+  }
+
+ private:
+  CustomPlace place_;
+  cudaStream_t stream_;               // not owned;
+  Allocator *allocator_;              // not owned;
+  const gpuDeviceProp *device_prop_;  // not owned;
+  mutable void *scratch_;
+  mutable unsigned int *semaphore_;
+  mutable std::mutex mtx_;  // to protect allocations_
+  mutable std::unordered_map<void *, Allocator::AllocationPtr> allocations_;
+};
+
+}  // namespace internal
+}  // namespace phi
+
+C_Status InitEigenDevice(const C_Place place,
+                         C_EigenDevice *eigen_device,
+                         C_Stream stream,
+                         C_Allocator allocator) {
+  cudaStream_t stream_t = (cudaStream_t)stream;
+  phi::Allocator *allocator_t = (phi::Allocator *)allocator;
+  phi::Place *place_t = (phi::Place *)(place);
+  VLOG(4) << "allocator: " << allocator;
+  VLOG(4) << "allocator is nullptr " << (allocator == nullptr);
+  VLOG(4) << "stream: " << stream;
+  VLOG(4) << "stream is nullptr " << (stream == nullptr);
+  VLOG(4) << "place is nullptr " << (place == nullptr);
+  PADDLE_ENFORCE_NOT_NULL(
+      allocator,
+      common::errors::InvalidArgument(
+          "The allocator for eigen device is nullptr. It must not be null."));
+  // std::unique_ptr<phi::internal::EigenGpuStreamDevice> eigen_stream_ =
+  //     std::make_unique<phi::internal::EigenGpuStreamDevice>();
+  phi::internal::EigenGpuStreamDevice *eigen_stream_ =
+      new phi::internal::EigenGpuStreamDevice();
+  eigen_stream_->Reinitialize(stream_t, allocator_t, *place_t);
+  Eigen::GpuDevice *eigen_device_ = new Eigen::GpuDevice(eigen_stream_);
+  *eigen_device = reinterpret_cast<C_EigenDevice>(eigen_device_);
+  VLOG(4) << "eigen_device:" << eigen_device;
+  return C_SUCCESS;
+}
+
+C_Status DestoryEigenDevice(const C_Device device,
+                            C_EigenDevice *eigen_device) {
+  if (eigen_device == nullptr) {
+    VLOG(4) << "Invalid eigen_device pointer (nullptr).";
+    return C_ERROR;
+  }
+
+  Eigen::GpuDevice *gpu_device =
+      reinterpret_cast<Eigen::GpuDevice *>(*eigen_device);
+
+  delete gpu_device;
+
+  *eigen_device = nullptr;
+
+  VLOG(4) << "destroyed Eigen::GpuDevice.";
+  return C_SUCCESS;
+}
 
 C_Status Init() {
   std::cout << "matex_gpu plugin";
@@ -561,6 +712,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   //   params->interface->device_memory_stats = DeviceMemStats;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
   params->interface->device_max_chunk_size = DeviceMaxChunkSize;
+
+  params->interface->init_eigen_device = InitEigenDevice;
+  params->interface->destory_eigen_device = DestoryEigenDevice;
 
   // params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
   // params->interface->xccl_get_unique_id = XcclGetUniqueId;

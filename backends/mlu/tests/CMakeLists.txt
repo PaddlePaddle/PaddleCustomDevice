@@ -22,7 +22,7 @@ function(py_test_modules TARGET_NAME)
   add_test(
     NAME ${TARGET_NAME}
     COMMAND
-      ${CMAKE_COMMAND} -E env FLAGS_use_stream_safe_cuda_allocator=false
+      ${CMAKE_COMMAND} -E env
       CUSTOM_DEVICE_ROOT=${CMAKE_BINARY_DIR}/python/paddle_custom_device/
       PYTHONPATH=${PYTHON_SOURCE_DIR}:${PYTHON_SOURCE_DIR}/tests:$ENV{PYTHONPATH}
       ${py_test_modules_ENVS} python ${PYTHON_SOURCE_DIR}/tools/test_runner.py

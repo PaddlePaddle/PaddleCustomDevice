@@ -5985,6 +5985,9 @@ NormalizeDesc::~NormalizeDesc() {
                                                             workspace_size,
                                                             output_desc,
                                                             out));
+  cnrtQueue_t queue;
+  PADDLE_ENFORCE_MLU_SUCCESS(cnnlGetQueue(handle, &queue));
+  PADDLE_ENFORCE_MLU_SUCCESS(cnrtQueueSync(queue));
 }
 
 /* static */ void MLUOP::OpYoloBox(const Context& ctx,

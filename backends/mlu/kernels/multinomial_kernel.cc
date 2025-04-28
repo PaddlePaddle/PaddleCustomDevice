@@ -12,16 +12,68 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+#include <cstdint>
+#include <iostream>
+#include <thread>
+#include <vector>
 #include "kernels/funcs/mlu_funcs.h"
+#include "paddle/phi/core/dense_tensor.h"
 
 namespace custom_kernel {
+using phi::CPUPlace;
+using phi::DenseTensor;
+const int64_t SAMPLE_MAX = 4;
+template <typename T, typename Context>
+void printInfo(const Context &dev_ctx, const DenseTensor &x, const std::string& name, bool frequency=false, bool shoud_sleep=false) {
+    std::cout << "========================== START PRINT " << name << " ==========================" << std::endl;
+    std::cout << "numel: "
+              << x.numel()
+              << std::endl;
+    std::cout << "place: "
+              << x.place()
+              << std::endl;
+
+    phi::DenseTensor tensor_tmp;
+    phi::Copy(
+        dev_ctx,
+        x,
+        CPUPlace(),
+        true,
+        &tensor_tmp);
+    if constexpr (std::is_same_v<T, int> || std::is_same_v<T, int64_t>) {
+    T* data_p = static_cast<T*>(tensor_tmp.data());
+
+    if(frequency){
+      std::vector<int64_t> frequency(SAMPLE_MAX, 0);
+      for (int i = 0; i < x.numel(); ++i) {
+        if (data_p[i] >= 0 && data_p[i] < SAMPLE_MAX) {
+          frequency[data_p[i]]++;
+        } else {
+          std::cout << "FOUND INVALID SAMPLE!" << std::endl;
+          return ;
+        }
+      }
+      std::cout << "frequency: " << std::endl;
+      for (int i = 0; i < SAMPLE_MAX; ++i) {
+        std::cout <<i << ": " << static_cast<float>(frequency[i]) / x.numel() << "\t";
+      }
+      std::cout << std::endl;
+    }
+    }
+
+  std::cout<< "========================== END PRINT " << name << " ==========================" << std::endl << std::endl;
+  if(shoud_sleep)
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+}
 
 template <typename T, typename Context>
-void MultinomialKernel(const Context& dev_ctx,
-                       const phi::DenseTensor& x,
-                       const phi::Scalar& num,
+void MultinomialKernel(const Context &dev_ctx,
+                       const phi::DenseTensor &x,
+                       const phi::Scalar &num,
                        bool replacement,
-                       phi::DenseTensor* out) {
+                       phi::DenseTensor *out) {
+  // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
   dev_ctx.template Alloc<int64_t>(out);
   MLUCnnlTensorDesc desc_x(x);
   MLUCnnlTensorDesc desc_out(*out);
@@ -39,6 +91,9 @@ void MultinomialKernel(const Context& dev_ctx,
                                    GetBasePtr(&generator_desc->get_state()),
                                    desc_out.get(),
                                    GetBasePtr(out));
+  std::cout << "End MultinomialKernel" << std::endl;
+  // printInfo<T, Context>(dev_ctx, x, "x");
+  // printInfo<int64_t, Context>(dev_ctx, *out, "out", true, false);
 }
 
 }  // namespace custom_kernel

@@ -12,11 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
 #include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/mlu_funcs.h"
 
 namespace custom_kernel {
+using phi::CPUPlace;
+using phi::DenseTensor;
+const int64_t SAMPLE_MAX = 4;
+template <typename T, typename Context>
+void printInfo(const Context &dev_ctx, const DenseTensor &x, const std::string& name, bool frequency=false, bool shoud_sleep=false) {
+    std::cout << "========================== START PRINT " << name << " ==========================" << std::endl;
+    std::cout << "numel: "
+              << x.numel()
+              << std::endl;
+    std::cout << "place: "
+              << x.place()
+              << std::endl;
 
+    if constexpr (std::is_same_v<T, int> || std::is_same_v<T, int64_t>) {
+    const T* data_p = static_cast<const T*>(x.data());
+
+    if(frequency){
+      std::vector<int64_t> frequency(SAMPLE_MAX, 0);
+      for (int i = 0; i < x.numel(); ++i) {
+        if (data_p[i] >= 0 && data_p[i] < SAMPLE_MAX) {
+          frequency[data_p[i]]++;
+        } else {
+          std::cout << "FOUND INVALID SAMPLE!" << std::endl;
+          return ;
+        }
+      }
+      std::cout << "frequency: " << std::endl;
+      for (int i = 0; i < SAMPLE_MAX; ++i) {
+        std::cout <<i << ": " << static_cast<float>(frequency[i]) / x.numel() << "\t";
+      }
+      std::cout << std::endl;
+    }
+    }
+
+  std::cout<< "========================== END PRINT " << name << " ==========================" << std::endl << std::endl;
+  if(shoud_sleep)
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+}
 template <typename T, typename Context>
 void MemcpyKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
@@ -53,7 +91,9 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
+  std::cout << "Begin MemcpyD2HKernel" << std::endl;
   TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+  // printInfo<int64_t>(dev_ctx, *out, "Memcpy out", true, false);
 }
 
 template <typename T, typename Context>

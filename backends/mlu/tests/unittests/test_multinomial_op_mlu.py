@@ -22,7 +22,7 @@ from tests.op_test import OpTest
 import numpy as np
 
 paddle.enable_static()
-
+paddle.seed(1000)
 
 def sample_output_one_dimension(out, dim):
     # count numbers of different categories
@@ -164,30 +164,32 @@ class TestMultinomialApi(unittest.TestCase):
         paddle.enable_static()
 
     def test_static(self):
-        paddle.set_device("mlu:0")
-        startup_program = base.Program()
-        train_program = base.Program()
-        with base.program_guard(train_program, startup_program):
-            x = paddle.static.data("x", shape=[4], dtype="float32")
-            outs = [
-                paddle.multinomial(x, num_samples=100000, replacement=True)
-                for _ in range(10)
-            ]
-            out = paddle.concat(outs, axis=0)
+        for _ in range(10000):
+            print(f"start {_}")
+            paddle.set_device("mlu:0")
+            startup_program = base.Program()
+            train_program = base.Program()
+            with base.program_guard(train_program, startup_program):
+                x = paddle.static.data("x", shape=[4], dtype="float32")
+                outs = [
+                    paddle.multinomial(x, num_samples=100000, replacement=True)
+                    for _ in range(10)
+                ]
+                out = paddle.concat(outs, axis=0)
 
-            place = base.CustomPlace("mlu", 0)
-            exe = base.Executor(place)
+                place = base.CustomPlace("mlu", 0)
+                exe = base.Executor(place)
 
-        exe.run(startup_program)
-        x_np = np.random.rand(4).astype("float32")
-        out = exe.run(train_program, feed={"x": x_np}, fetch_list=[out])
+            exe.run(startup_program)
+            x_np = np.random.rand(4).astype("float32")
+            out = exe.run(train_program, feed={"x": x_np}, fetch_list=[out])
 
-        sample_prob = sample_output_one_dimension(out, 4)
-        prob = x_np / x_np.sum(axis=-1, keepdims=True)
-        self.assertTrue(
-            np.allclose(sample_prob, prob, rtol=0, atol=0.01),
-            "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
-        )
+            sample_prob = sample_output_one_dimension(out, 4)
+            prob = x_np / x_np.sum(axis=-1, keepdims=True)
+            self.assertTrue(
+                np.allclose(sample_prob, prob, rtol=0, atol=0.01),
+                "sample_prob: " + str(sample_prob) + "\nprob: " + str(prob),
+            )
 
 
 class TestMultinomialFP16Op(OpTest):

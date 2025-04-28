@@ -70,7 +70,7 @@ endif()
 
 # submodule Paddle first
 set(paddle_submodule $ENV{paddle_submodule})
-if(paddle_submodule)
+if(NOT paddle_submodule)
   get_filename_component(REPO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../"
                          ABSOLUTE)
   get_filename_component(PADDLE_SOURCE_DIR "${REPO_SOURCE_DIR}/Paddle" ABSOLUTE)

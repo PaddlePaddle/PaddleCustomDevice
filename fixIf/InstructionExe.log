@@ -1,0 +1,267 @@
+
+Begin run op pd_op.slice kernel in Place(cpu)
+End run op pd_op.slice kernel.
+Begin run op pd_op.slice kernel in Place(cpu)
+End run op pd_op.slice kernel.
+Begin run op pd_op.cast kernel in Place(cpu)
+End run op pd_op.cast kernel.
+Begin run op pd_op.memcpy_h2d kernel in Place(mlu:0)
+End run op pd_op.memcpy_h2d kernel.
+Begin run op pd_op.memcpy_h2d kernel in Place(mlu:0)
+End run op pd_op.memcpy_h2d kernel.
+Begin run op pd_op.roi_align kernel in Place(mlu:0)
+End run op pd_op.roi_align kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.add_ kernel in Place(mlu:0)
+End run op pd_op.add_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.add_ kernel in Place(mlu:0)
+End run op pd_op.add_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.batch_norm_ kernel in Place(mlu:0)
+End run op pd_op.batch_norm_ kernel.
+Begin run op pd_op.add_ kernel in Place(mlu:0)
+End run op pd_op.add_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d_transpose kernel in Place(mlu:0)
+End run op pd_op.conv2d_transpose kernel.
+Begin run op pd_op.add_ kernel in Place(mlu:0)
+End run op pd_op.add_ kernel.
+Begin run op pd_op.relu_ kernel in Place(mlu:0)
+End run op pd_op.relu_ kernel.
+Begin run op pd_op.conv2d kernel in Place(mlu:0)
+End run op pd_op.conv2d kernel.
+Begin run op pd_op.add_ kernel in Place(mlu:0)
+End run op pd_op.add_ kernel.
+Begin run op pd_op.shape64 kernel in Place(mlu:0)
+End run op pd_op.shape64 kernel.
+Begin run op pd_op.slice kernel in Place(cpu)
+End run op pd_op.slice kernel.
+Begin run op pd_op.arange kernel in Place(mlu:0)
+End run op pd_op.arange kernel.
+Begin run op pd_op.cast kernel in Place(mlu:0)
+End run op pd_op.cast kernel.
+Begin run op pd_op.memcpy_d2h kernel in Place(mlu:0)
+End run op pd_op.memcpy_d2h kernel.
+Begin run op pd_op.broadcast_tensors kernel in Place(cpu)
+End run op pd_op.broadcast_tensors kernel.
+Begin run op pd_op.stack kernel in Place(cpu)
+End run op pd_op.stack kernel.
+Begin run op pd_op.memcpy_h2d kernel in Place(mlu:0)
+End run op pd_op.memcpy_h2d kernel.
+Begin run op pd_op.gather_nd kernel in Place(mlu:0)
+End run op pd_op.gather_nd kernel.
+Begin run op pd_op.shape64 kernel in Place(mlu:0)
+End run op pd_op.shape64 kernel.
+Begin run op pd_op.slice kernel in Place(cpu)
+End run op pd_op.slice kernel.
+Begin run op pd_op.stack kernel in Place(cpu)
+End run op pd_op.stack kernel.
+Begin run op pd_op.reshape_ kernel in Place(mlu:0)
+End run op pd_op.reshape_ kernel.
+Begin run op pd_op.sigmoid_ kernel in Place(mlu:0)
+End run op pd_op.sigmoid_ kernel.
+2025-04-21 14:49:05.097072: [cnrtError] [17444] [Card: 0] Error occurred during calling 'cnQueueSync' in CNDrv interface.
+2025-04-21 14:49:05.097128: [cnrtError] [17444] [Card: 0] Return value is 100124, CN_INVOKE_ERROR_ADDRESS_SPACE.
+2025-04-21 14:49:05.097136: [cnrtError] [17444] [Card: 0] cnrtQueueSync: MLU queue sync failed.
+I0421 14:49:05.097790 17444 op_call_stack.cc:127] MLU CNRT error(632015), cnrtErrorCndrvFuncCall: failed to call the driver-api function. (at /paddle/backends/mlu/runtime/runtime.cc:229)
+W0421 14:49:05.097824 17444 pir_interpreter.cc:1990] Instruction OP id: 341, Ir OP id is null, if_instruction raises an EnforceNotMet exception common::enforce::EnforceNotMet
+I0421 14:49:05.097908 17444 pir_interpreter.cc:1712] Exception caught EnforceNotMet
+Traceback (most recent call last):
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/utils/result_saver.py", line 28, in wrap
+    result = func(self, *args, **kwargs)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/engine.py", line 49, in run
+    for res in self._model.predict():
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/model.py", line 131, in predict
+    yield from predictor(**predict_kwargs)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/inference/models/base/predictor/base_predictor.py", line 213, in __call__
+    yield from self.apply(input, **kwargs)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/inference/models/base/predictor/base_predictor.py", line 269, in apply
+    prediction = self.process(batch_data, **kwargs)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/inference/models/instance_segmentation/predictor.py", line 130, in process
+    batch_preds = self.infer(batch_inputs)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/inference/models/common/static_infer.py", line 334, in __call__
+    pred = self.infer(x)
+  File "/work/PaddleX/PaddleCustomDevice/../paddlex/inference/models/common/static_infer.py", line 291, in __call__
+    self.predictor.run()
+paddle.base.libpaddle.EnforceNotMet: In user code:
+
+
+    MLU CNRT error(632015), cnrtErrorCndrvFuncCall: failed to call the driver-api function. (at /paddle/backends/mlu/runtime/runtime.cc:229)
+      [operator < pd_op.if > error]
+
+
+I0421 14:04:07.625958  5615 pir_interpreter.cc:1587] ======================== The network executed by pir interpreter ========================
+{
+    (%0) = "memcpy_d2h(phi_kernel)" (%arg_0 {stop_gradient:true}) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3102} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%1) = "scale_(phi_kernel)" (%0, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3103,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%3) = "builtin.combine" [id:3104] (%arg_0) {origin_id:1184,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%4) = "stack(phi_kernel)" (%3) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3105,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%5) = "builtin.combine" [id:3106] (%1) {origin_id:1186,stop_gradient:[true]} : (cpu_tensor<i64>) -> vec[cpu_tensor<i64>]
+    (%6) = "stack(phi_kernel)" (%5) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3107,stop_gradient:[true]} : (vec[cpu_tensor<i64>]) -> cpu_tensor<1xi64>
+    (%7) = "slice(phi_kernel)" (%8, %4, %6) {axes:[0],decrease_axis:[0],infer_flags:[-1],kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3108,stop_gradient:[true]} : (custom_device_tensor<-1xi64>, custom_device_tensor<1xi64>, cpu_tensor<1xi64>) -> custom_device_tensor<i64>
+    (%9) = "memcpy_d2h(phi_kernel)" (%7) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3109} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%10) = "scale_(phi_kernel)" (%9, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3110,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%11) = "builtin.combine" [id:3111] (%7) {origin_id:1191,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%12) = "stack(phi_kernel)" (%11) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3112,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%13) = "builtin.combine" [id:3113] (%10) {origin_id:1193,stop_gradient:[true]} : (cpu_tensor<i64>) -> vec[cpu_tensor<i64>]
+    (%14) = "stack(phi_kernel)" (%13) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3114,stop_gradient:[true]} : (vec[cpu_tensor<i64>]) -> cpu_tensor<1xi64>
+    (%15) = "slice(phi_kernel)" (%16, %12, %14) {axes:[0],decrease_axis:[0],infer_flags:[-1],kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3115,stop_gradient:[true]} : (cpu_tensor<-1xi32>, custom_device_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i32>
+    (%17) = "cast(phi_kernel)" (%15) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3116,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%18) = "memcpy_h2d(phi_kernel)" (%17) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3117} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%19) = "add(phi_kernel)" (%arg_1 {stop_gradient:true}, %18) {kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"add",op_name:"pd_op.add",origin_id:3118,stop_gradient:[true]} : (custom_device_tensor<i64>, custom_device_tensor<i64>) -> custom_device_tensor<i64>
+    (%20) = "builtin.combine" [id:3119] (%arg_1) {origin_id:1198,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%21) = "stack(phi_kernel)" (%20) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3120,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%22) = "builtin.combine" [id:3121] (%19) {origin_id:1200,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%23) = "stack(phi_kernel)" (%22) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3122,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%24) = "slice(phi_kernel)" (%25, %21, %23) {axes:[0],decrease_axis:[],infer_flags:[-1],kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3123,stop_gradient:[true]} : (custom_device_tensor<-1x6xf32>, custom_device_tensor<1xi64>, custom_device_tensor<1xi64>) -> custom_device_tensor<-1x6xf32>
+    (%26) = "memcpy_d2h(phi_kernel)" (%7) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3124} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%27) = "scale_(phi_kernel)" (%26, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3125,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%28) = "builtin.combine" [id:3126] (%7) {origin_id:1205,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%29) = "stack(phi_kernel)" (%28) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3127,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%30) = "builtin.combine" [id:3128] (%27) {origin_id:1207,stop_gradient:[true]} : (cpu_tensor<i64>) -> vec[cpu_tensor<i64>]
+    (%31) = "stack(phi_kernel)" (%30) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3129,stop_gradient:[true]} : (vec[cpu_tensor<i64>]) -> cpu_tensor<1xi64>
+    (%32) = "slice(phi_kernel)" (%16, %29, %31) {axes:[0],decrease_axis:[0],infer_flags:[-1],kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3130,stop_gradient:[true]} : (cpu_tensor<-1xi32>, custom_device_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i32>
+    (%33) = "cast(phi_kernel)" (%32) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3131,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%34) = "memcpy_h2d(phi_kernel)" (%33) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3132} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%35) = "add(phi_kernel)" (%arg_1, %34) {kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"add",op_name:"pd_op.add",origin_id:3133,stop_gradient:[true]} : (custom_device_tensor<i64>, custom_device_tensor<i64>) -> custom_device_tensor<i64>
+    (%36) = "builtin.combine" [id:3134] (%35) {origin_id:1214,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%37) = "stack(phi_kernel)" (%36) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3135,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%38) = "slice(phi_kernel)" (%39, %21, %37) {axes:[0],decrease_axis:[],infer_flags:[-1],kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3136,stop_gradient:[true]} : (custom_device_tensor<-1x-1x-1xf32>, custom_device_tensor<1xi64>, custom_device_tensor<1xi64>) -> custom_device_tensor<-1x-1x-1xf32>
+    (%40) = "memcpy_d2h(phi_kernel)" (%7) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3137} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%41) = "scale_(phi_kernel)" (%40, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3138,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%42) = "builtin.combine" [id:3139] (%7, %43) {origin_id:1225,stop_gradient:[true]} : (custom_device_tensor<i64>, cpu_tensor<i64>) -> vec[custom_device_tensor<i64>,cpu_tensor<i64>]
+    (%44) = "memcpy_h2d(phi_kernel)" (%43) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3140,persistable:[true]} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%45) = "builtin.combine" [id:3141] (%7, %44) {origin_id:3141} : (custom_device_tensor<i64>, custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>,custom_device_tensor<i64>]
+    (%46) = "stack(phi_kernel)" (%45) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3142,stop_gradient:[true]} : (vec[custom_device_tensor<i64>,custom_device_tensor<i64>]) -> custom_device_tensor<2xi64>
+    (%47) = "builtin.combine" [id:3143] (%41, %48) {origin_id:1227,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<i64>) -> vec[cpu_tensor<i64>,cpu_tensor<i64>]
+    (%49) = "stack(phi_kernel)" (%47) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3144,stop_gradient:[true]} : (vec[cpu_tensor<i64>,cpu_tensor<i64>]) -> cpu_tensor<2xi64>
+    (%50) = "slice(phi_kernel)" (%51, %46, %49) {axes:[0,1],decrease_axis:[0,1],infer_flags:[-1,1],kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3145,stop_gradient:[true]} : (cpu_tensor<-1x2xi32>, custom_device_tensor<2xi64>, cpu_tensor<2xi64>) -> cpu_tensor<i32>
+    (%52) = "memcpy_d2h(phi_kernel)" (%7) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3146} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%53) = "scale_(phi_kernel)" (%52, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3147,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%54) = "builtin.combine" [id:3148] (%7, %48) {origin_id:1238,stop_gradient:[true]} : (custom_device_tensor<i64>, cpu_tensor<i64>) -> vec[custom_device_tensor<i64>,cpu_tensor<i64>]
+    (%55) = "memcpy_h2d(phi_kernel)" (%48) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3149,persistable:[true]} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%56) = "builtin.combine" [id:3150] (%7, %55) {origin_id:3150} : (custom_device_tensor<i64>, custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>,custom_device_tensor<i64>]
+    (%57) = "stack(phi_kernel)" (%56) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3151,stop_gradient:[true]} : (vec[custom_device_tensor<i64>,custom_device_tensor<i64>]) -> custom_device_tensor<2xi64>
+    (%58) = "builtin.combine" [id:3152] (%53, %59) {origin_id:1240,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<i64>) -> vec[cpu_tensor<i64>,cpu_tensor<i64>]
+    (%60) = "stack(phi_kernel)" (%58) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3153,stop_gradient:[true]} : (vec[cpu_tensor<i64>,cpu_tensor<i64>]) -> cpu_tensor<2xi64>
+    (%61) = "slice(phi_kernel)" (%51, %57, %60) {axes:[0,1],decrease_axis:[0,1],infer_flags:[-1,1],kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3154,stop_gradient:[true]} : (cpu_tensor<-1x2xi32>, custom_device_tensor<2xi64>, cpu_tensor<2xi64>) -> cpu_tensor<i32>
+    (%62) = "unsqueeze(phi_kernel)" (%38, %63) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"unsqueeze",op_name:"pd_op.unsqueeze",origin_id:3155,stop_gradient:[true]} : (custom_device_tensor<-1x-1x-1xf32>, cpu_tensor<1xi64>) -> custom_device_tensor<-1x1x-1x-1xf32>
+    (%64) = "slice(phi_kernel)" (%24, %65, %66) {axes:[1],decrease_axis:[],infer_flags:[1],kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3156,stop_gradient:[true]} : (custom_device_tensor<-1x6xf32>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> custom_device_tensor<-1x4xf32>
+    (%67) = "split_with_num(phi_kernel)" (%64, %68) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"split_with_num",num:4,op_name:"pd_op.split_with_num",origin_id:3157,stop_gradient:[true]} : (custom_device_tensor<-1x4xf32>, cpu_tensor<1xi32>) -> vec[custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>]
+    (%69, %70, %71, %72) = "builtin.split" [id:3158] (%67) {origin_id:1250,stop_gradient:[true,true,true,true]} : (vec[custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>,custom_device_tensor<-1x1xf32>]) -> custom_device_tensor<-1x1xf32>, custom_device_tensor<-1x1xf32>, custom_device_tensor<-1x1xf32>, custom_device_tensor<-1x1xf32>
+    (%73) = "shape64(phi_kernel)" (%62) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"shape64",op_name:"pd_op.shape64",origin_id:3159,stop_gradient:[true]} : (custom_device_tensor<-1x1x-1x-1xf32>) -> cpu_tensor<4xi64>
+    (%74) = "slice(phi_kernel)" (%73, %75, %63) {axes:[0],decrease_axis:[0],infer_flags:[1],kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3160,stop_gradient:[true]} : (cpu_tensor<4xi64>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i64>
+    (%76) = "cast(phi_kernel)" (%50) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3161,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%77) = "arange(phi_kernel)" (%78, %76, %79) {dtype:int64,kernel_key:<backend:mlu|layout:Undefined(AnyLayout)|dtype:int64>,kernel_name:"arange",op_name:"pd_op.arange",origin_id:3162,place:Place(undefined:0),stop_gradient:[true]} : (cpu_tensor<1xi64>, cpu_tensor<i64>, cpu_tensor<1xi64>) -> custom_device_tensor<-1xi64>
+    (%80) = "cast(phi_kernel)" (%77) {dtype:float32,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3163,stop_gradient:[true]} : (custom_device_tensor<-1xi64>) -> custom_device_tensor<-1xf32>
+    (%81) = "scale(phi_kernel)" (%80, %2) {bias:0.5,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3164,stop_gradient:[true]} : (custom_device_tensor<-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1xf32>
+    (%82) = "cast(phi_kernel)" (%61) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3165,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%83) = "arange(phi_kernel)" (%78, %82, %79) {dtype:int64,kernel_key:<backend:mlu|layout:Undefined(AnyLayout)|dtype:int64>,kernel_name:"arange",op_name:"pd_op.arange",origin_id:3166,place:Place(undefined:0),stop_gradient:[true]} : (cpu_tensor<1xi64>, cpu_tensor<i64>, cpu_tensor<1xi64>) -> custom_device_tensor<-1xi64>
+    (%84) = "cast(phi_kernel)" (%83) {dtype:float32,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3167,stop_gradient:[true]} : (custom_device_tensor<-1xi64>) -> custom_device_tensor<-1xf32>
+    (%85) = "scale(phi_kernel)" (%84, %2) {bias:0.5,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3168,stop_gradient:[true]} : (custom_device_tensor<-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1xf32>
+    (%86) = "subtract(phi_kernel)" (%81, %70) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"subtract",op_name:"pd_op.subtract",origin_id:3169,stop_gradient:[true]} : (custom_device_tensor<-1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%87) = "subtract_(phi_kernel)" (%72, %70) {is_inplace:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"subtract",op_name:"pd_op.subtract_",origin_id:3170,stop_gradient:[true]} : (custom_device_tensor<-1x1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x1xf32>
+    (%88) = "divide(phi_kernel)" (%86, %87) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"divide",op_name:"pd_op.divide",origin_id:3171,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%89) = "scale(phi_kernel)" (%88, %90) {bias:0,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3172,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%91) = "scale(phi_kernel)" (%89, %2) {bias:-1,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3173,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%92) = "subtract(phi_kernel)" (%85, %69) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"subtract",op_name:"pd_op.subtract",origin_id:3174,stop_gradient:[true]} : (custom_device_tensor<-1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%93) = "subtract_(phi_kernel)" (%71, %69) {is_inplace:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"subtract",op_name:"pd_op.subtract_",origin_id:3175,stop_gradient:[true]} : (custom_device_tensor<-1x1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x1xf32>
+    (%94) = "divide(phi_kernel)" (%92, %93) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"divide",op_name:"pd_op.divide",origin_id:3176,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, custom_device_tensor<-1x1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%95) = "scale(phi_kernel)" (%94, %90) {bias:0,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3177,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%96) = "scale(phi_kernel)" (%95, %2) {bias:-1,bias_after_scale:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"scale",op_name:"pd_op.scale",origin_id:3178,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xf32>) -> custom_device_tensor<-1x-1xf32>
+    (%97) = "unsqueeze_(phi_kernel)" (%96, %63) {is_inplace:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"unsqueeze",op_name:"pd_op.unsqueeze_",origin_id:3179,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xi64>) -> custom_device_tensor<-1x1x-1xf32>
+    (%98) = "shape64(phi_kernel)" (%91) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"shape64",op_name:"pd_op.shape64",origin_id:3180,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>) -> cpu_tensor<2xi64>
+    (%99) = "slice(phi_kernel)" (%98, %63, %65) {axes:[0],decrease_axis:[0],infer_flags:[1],kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3181,stop_gradient:[true]} : (cpu_tensor<2xi64>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i64>
+    (%100) = "shape64(phi_kernel)" (%96) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"shape64",op_name:"pd_op.shape64",origin_id:3182,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>) -> cpu_tensor<2xi64>
+    (%101) = "slice(phi_kernel)" (%100, %63, %65) {axes:[0],decrease_axis:[0],infer_flags:[1],kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3183,stop_gradient:[true]} : (cpu_tensor<2xi64>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i64>
+    (%102) = "builtin.combine" [id:3184] (%74, %99, %101) {origin_id:1305,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<i64>, cpu_tensor<i64>) -> vec[cpu_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]
+    (%103) = "stack(phi_kernel)" (%102) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3185,stop_gradient:[true]} : (vec[cpu_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]) -> cpu_tensor<3xi64>
+    (%104) = "expand(phi_kernel)" (%97, %103) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"expand",op_name:"pd_op.expand",origin_id:3186,stop_gradient:[true]} : (custom_device_tensor<-1x1x-1xf32>, cpu_tensor<3xi64>) -> custom_device_tensor<-1x-1x-1xf32>
+    (%105) = "unsqueeze_(phi_kernel)" (%91, %65) {is_inplace:true,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"unsqueeze",op_name:"pd_op.unsqueeze_",origin_id:3187,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>, cpu_tensor<1xi64>) -> custom_device_tensor<-1x-1x1xf32>
+    (%106) = "shape64(phi_kernel)" (%91) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"shape64",op_name:"pd_op.shape64",origin_id:3188,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>) -> cpu_tensor<2xi64>
+    (%107) = "slice(phi_kernel)" (%106, %63, %65) {axes:[0],decrease_axis:[0],infer_flags:[1],kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3189,stop_gradient:[true]} : (cpu_tensor<2xi64>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i64>
+    (%108) = "shape64(phi_kernel)" (%96) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"shape64",op_name:"pd_op.shape64",origin_id:3190,stop_gradient:[true]} : (custom_device_tensor<-1x-1xf32>) -> cpu_tensor<2xi64>
+    (%109) = "slice(phi_kernel)" (%108, %63, %65) {axes:[0],decrease_axis:[0],infer_flags:[1],kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3191,stop_gradient:[true]} : (cpu_tensor<2xi64>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i64>
+    (%110) = "builtin.combine" [id:3192] (%74, %107, %109) {origin_id:1324,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<i64>, cpu_tensor<i64>) -> vec[cpu_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]
+    (%111) = "stack(phi_kernel)" (%110) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3193,stop_gradient:[true]} : (vec[cpu_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]) -> cpu_tensor<3xi64>
+    (%112) = "expand(phi_kernel)" (%105, %111) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"expand",op_name:"pd_op.expand",origin_id:3194,stop_gradient:[true]} : (custom_device_tensor<-1x-1x1xf32>, cpu_tensor<3xi64>) -> custom_device_tensor<-1x-1x-1xf32>
+    (%113) = "builtin.combine" [id:3195] (%104, %112) {origin_id:1327,stop_gradient:[true]} : (custom_device_tensor<-1x-1x-1xf32>, custom_device_tensor<-1x-1x-1xf32>) -> vec[custom_device_tensor<-1x-1x-1xf32>,custom_device_tensor<-1x-1x-1xf32>]
+    (%114) = "stack(phi_kernel)" (%113) {axis:3,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3196,stop_gradient:[true]} : (vec[custom_device_tensor<-1x-1x-1xf32>,custom_device_tensor<-1x-1x-1xf32>]) -> custom_device_tensor<-1x-1x-1x2xf32>
+    (%115) = "grid_sample(phi_kernel)" (%62, %114) {align_corners:false,kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"grid_sample",mode:"bilinear",op_name:"pd_op.grid_sample",origin_id:3197,padding_mode:"zeros",stop_gradient:[true]} : (custom_device_tensor<-1x1x-1x-1xf32>, custom_device_tensor<-1x-1x-1x2xf32>) -> custom_device_tensor<-1x1x-1x-1xf32>
+    (%116) = "slice(phi_kernel)" (%115, %75, %63) {axes:[1],decrease_axis:[1],infer_flags:[1],kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3198,stop_gradient:[true]} : (custom_device_tensor<-1x1x-1x-1xf32>, cpu_tensor<1xi64>, cpu_tensor<1xi64>) -> custom_device_tensor<-1x-1x-1xf32>
+    (%117) = "greater_equal(phi_kernel)" (%116, %118) {kernel_key:<backend:mlu|layout:NCHW|dtype:float32>,kernel_name:"greater_equal",op_name:"pd_op.greater_equal",origin_id:3199,stop_gradient:[true]} : (custom_device_tensor<-1x-1x-1xf32>, custom_device_tensor<f32>) -> custom_device_tensor<-1x-1x-1xb>
+    (%119) = "cast(phi_kernel)" (%117) {dtype:int32,kernel_key:<backend:mlu|layout:NCHW|dtype:bool>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3200,stop_gradient:[true]} : (custom_device_tensor<-1x-1x-1xb>) -> custom_device_tensor<-1x-1x-1xi32>
+    (%120) = "memcpy_d2h(phi_kernel)" (%7) {dst_place_type:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"memcpy_d2h",op_name:"pd_op.memcpy_d2h",origin_id:3201} : (custom_device_tensor<i64>) -> cpu_tensor<i64>
+    (%121) = "scale_(phi_kernel)" (%120, %2) {bias:1,bias_after_scale:true,is_inplace:true,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"scale",op_name:"pd_op.scale_",origin_id:3202,stop_gradient:[true]} : (cpu_tensor<i64>, cpu_tensor<1xf32>) -> cpu_tensor<i64>
+    (%122) = "builtin.combine" [id:3203] (%7) {origin_id:1338,stop_gradient:[true]} : (custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>]
+    (%123) = "stack(phi_kernel)" (%122) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3204,stop_gradient:[true]} : (vec[custom_device_tensor<i64>]) -> custom_device_tensor<1xi64>
+    (%124) = "builtin.combine" [id:3205] (%121) {origin_id:1340,stop_gradient:[true]} : (cpu_tensor<i64>) -> vec[cpu_tensor<i64>]
+    (%125) = "stack(phi_kernel)" (%124) {axis:0,kernel_key:<backend:CPU|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3206,stop_gradient:[true]} : (vec[cpu_tensor<i64>]) -> cpu_tensor<1xi64>
+    (%126) = "slice(phi_kernel)" (%16, %123, %125) {axes:[0],decrease_axis:[0],infer_flags:[-1],kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"slice",op_name:"pd_op.slice",origin_id:3207,stop_gradient:[true]} : (cpu_tensor<-1xi32>, custom_device_tensor<1xi64>, cpu_tensor<1xi64>) -> cpu_tensor<i32>
+    (%127) = "cast(phi_kernel)" (%126) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3208,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%128) = "memcpy_h2d(phi_kernel)" (%127) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3209} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%129) = "add(phi_kernel)" (%arg_1, %128) {kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"add",op_name:"pd_op.add",origin_id:3210,stop_gradient:[true]} : (custom_device_tensor<i64>, custom_device_tensor<i64>) -> custom_device_tensor<i64>
+    (%130) = "cast(phi_kernel)" (%50) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3211,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%131) = "cast(phi_kernel)" (%61) {dtype:int64,kernel_key:<backend:CPU|layout:NCHW|dtype:int32>,kernel_name:"cast",op_name:"pd_op.cast",origin_id:3212,stop_gradient:[true]} : (cpu_tensor<i32>) -> cpu_tensor<i64>
+    (%132) = "builtin.combine" [id:3213] (%arg_1, %133, %133) {origin_id:1351,stop_gradient:[true]} : (custom_device_tensor<i64>, cpu_tensor<i64>, cpu_tensor<i64>) -> vec[custom_device_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]
+    (%134) = "memcpy_h2d(phi_kernel)" (%133) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3214,persistable:[true]} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%135) = "memcpy_h2d(phi_kernel)" (%133) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3215,persistable:[true]} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%136) = "builtin.combine" [id:3216] (%arg_1, %134, %135) {origin_id:3216} : (custom_device_tensor<i64>, custom_device_tensor<i64>, custom_device_tensor<i64>) -> vec[custom_device_tensor<i64>,custom_device_tensor<i64>,custom_device_tensor<i64>]
+    (%137) = "stack(phi_kernel)" (%136) {axis:0,kernel_key:<backend:mlu|layout:NCHW|dtype:int64>,kernel_name:"stack",op_name:"pd_op.stack",origin_id:3217,stop_gradient:[true]} : (vec[custom_device_tensor<i64>,custom_device_tensor<i64>,custom_device_tensor<i64>]) -> custom_device_tensor<3xi64>
+    (%138) = "builtin.combine" [id:3218] (%129, %130, %131) {origin_id:1353,stop_gradient:[true]} : (custom_device_tensor<i64>, cpu_tensor<i64>, cpu_tensor<i64>) -> vec[custom_device_tensor<i64>,cpu_tensor<i64>,cpu_tensor<i64>]
+    (%139) = "memcpy_h2d(phi_kernel)" (%130) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3219} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%140) = "memcpy_h2d(phi_kernel)" (%131) {dst_place_type:1,kernel_key:<backend:CUSTOM|layout:NCHW|dtype:int64>,kernel_name:"memcpy_h2d",op_name:"pd_op.memcpy_h2d",origin_id:3220} : (cpu_tensor<i64>) -> custom_device_tensor<i64>
+    (%141) = "builtin.combine" [id:3221] (

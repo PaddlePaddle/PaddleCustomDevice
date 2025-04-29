@@ -28,6 +28,13 @@ intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 def swiglu_naive(x, y=None):
     if y is None:
         x, y = paddle.chunk(x, chunks=2, axis=-1)
+
+    # F.silu doesn't support f16
+    if x.dtype == paddle.float16:
+        x = x.to("float32")
+        if y is not None:
+            y = y.to("float32")
+
     return F.silu(x) * y
 
 
@@ -150,6 +157,16 @@ class TestSwigluBF16BothXY(TestSwigluFP32BothXY):
         self.dtype = "bfloat16"
 
 
+class TestSwigluFP16OnlyX(TestSwigluFP32OnlyX):
+    def init_dtype(self):
+        self.dtype = "float16"
+
+
+class TestSwigluFP16BothXY(TestSwigluFP32BothXY):
+    def init_dtype(self):
+        self.dtype = "float16"
+
+
 class TestSwigluFP32OnlyX3D(TestSwigluFP32OnlyX):
     def setUp(self):
         self.hpu_place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
@@ -181,6 +198,16 @@ class TestSwigluBF16OnlyX3D(TestSwigluFP32OnlyX3D):
 class TestSwigluBF16BothXY3D(TestSwigluFP32BothXY3D):
     def init_dtype(self):
         self.dtype = "bfloat16"
+
+
+class TestSwigluFP16OnlyX3D(TestSwigluFP32OnlyX3D):
+    def init_dtype(self):
+        self.dtype = "float16"
+
+
+class TestSwigluFP16BothXY3D(TestSwigluFP32BothXY3D):
+    def init_dtype(self):
+        self.dtype = "float16"
 
 
 if __name__ == "__main__":

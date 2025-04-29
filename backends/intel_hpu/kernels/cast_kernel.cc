@@ -15,6 +15,7 @@
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "utils/utils.h"
 
@@ -25,53 +26,26 @@ struct CastParams {
   phi::DataType dst_type;
 };
 
-class Cast : public HpuOperator {
+class Cast : public HpuFusedOperator {
  public:
-  Cast() : HpuOperator("cast") {}
+  Cast() : HpuFusedOperator("cast") {}
 
-  void AddNode(ConvertTensors& ct) {
-    auto inputs = ct.GetTensors();
-    auto outputs = ct.GetTensors(false);
+  bool NeedIntermediateTensor(ConvertTensors& ct, synDataType& type) {
+    auto src_type = ct.GetTensors()[0].type;
+    auto dst_type = ct.GetTensors(false)[0].type;
 
-    std::vector<synTensor> syn_inputs;
-    for (size_t i = 0; i < inputs.size(); i++) {
-      syn_inputs.push_back(createTensor(inputs[i].dims.size(),
-                                        inputs[i].type,
-                                        inputs[i].dims,
-                                        true,
-                                        inputs[i].name));
+    if ((src_type == syn_type_fp16 && dst_type == syn_type_fp8_143) ||
+        (src_type == syn_type_fp8_143 && dst_type == syn_type_fp16)) {
+      type = syn_type_bf16;
+      return true;
     }
 
-    std::vector<synTensor> syn_outputs;
-    for (size_t i = 0; i < outputs.size(); i++) {
-      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
-                                         outputs[i].type,
-                                         outputs[i].dims,
-                                         true,
-                                         outputs[i].name));
-    }
-
-    guid_ = guid_ + "_" + SynDataTypeToStr(inputs[0].type) + "_to_";
-    guid_ = guid_ + SynDataTypeToStr(outputs[0].type);
-
-    synStatus status = synNodeCreate(graphHandle_,
-                                     syn_inputs.data(),
-                                     syn_outputs.data(),
-                                     syn_inputs.size(),
-                                     syn_outputs.size(),
-                                     nullptr,
-                                     0,
-                                     guid_.c_str(),
-                                     "CAST",
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(
-        status == synSuccess, "[RUNTIME] synNodeCreate () failed = %d", status);
+    return false;
   }
 };
 
 template <typename T, typename Context>
-void CastKernelF32(const Context& dev_ctx,
+void CastKernelHpu(const Context& dev_ctx,
                    const phi::DenseTensor& x,
                    phi::DataType dtype,
                    phi::DenseTensor* out) {
@@ -100,6 +74,8 @@ void CastKernelF32(const Context& dev_ctx,
     dev_ctx.template Alloc<bool>(out);
   } else if (dtype == phi::DataType::INT8) {
     dev_ctx.template Alloc<int8_t>(out);
+  } else if (dtype == phi::DataType::FLOAT8_E4M3FN) {
+    dev_ctx.template Alloc<phi::dtype::float8_e4m3fn>(out);
   } else {
     phi::errors::InvalidArgument("Unsupported cast dtype %s", dtype);
   }
@@ -119,8 +95,38 @@ void CastKernelF32(const Context& dev_ctx,
 
   if (recipe == nullptr) {
     Cast op;
+    auto inputs = ct.GetTensors();
+    auto outputs = ct.GetTensors(false);
+    synTensor src_tensor = op.createTensorFromCT(&ct, 0);
+    synTensor dst_tensor = op.createTensorFromCT(&ct, 0, false);
+    synDataType inter_type;
 
-    op.AddNode(ct);
+    if (op.NeedIntermediateTensor(ct, inter_type)) {
+      ns_CastKernel::Params params{};
+      params.round_mode = CAST_ROUND_HALF_NE;
+
+      synTensor inter_tensor =
+          op.createTensorNoPresist("inter_tensor", inter_type, inputs_dims[0]);
+
+      std::vector<synTensor> in1 = {src_tensor};
+      std::vector<synTensor> out1 = {inter_tensor};
+      std::string guid1 = "cast_" + SynDataTypeToStr(inputs[0].type) + "_to_" +
+                          SynDataTypeToStr(inter_type);
+      op.AddNodeCast(in1, out1, params, guid1, guid1);
+
+      std::vector<synTensor> in2 = {inter_tensor};
+      std::vector<synTensor> out2 = {dst_tensor};
+      std::string guid2 = "cast_" + SynDataTypeToStr(inter_type) + "_to_" +
+                          SynDataTypeToStr(outputs[0].type);
+      op.AddNodeCast(in2, out2, params, guid2, guid2);
+
+    } else {
+      std::vector<synTensor> in = {src_tensor};
+      std::vector<synTensor> out = {dst_tensor};
+      std::string guid = "cast_" + SynDataTypeToStr(inputs[0].type) + "_to_" +
+                         SynDataTypeToStr(outputs[0].type);
+      op.AddNodeCast(in, out, guid, guid);
+    }
     op.Compile();
     op_info.setOp(op);
 
@@ -175,7 +181,7 @@ void CastKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<float>(&x_float_device);
     TensorCopy(dev_ctx, x_float_host, true, &x_float_device);
 
-    custom_kernel::CastKernelF32<float, Context>(
+    custom_kernel::CastKernelHpu<float, Context>(
         dev_ctx, x_float_device, dtype, out);
     return;
   }
@@ -184,7 +190,7 @@ void CastKernel(const Context& dev_ctx,
     phi::DenseTensor out_float_device;
     phi::DenseTensorMeta float_meta(phi::DataType::FLOAT32, x.dims());
     out_float_device.set_meta(float_meta);
-    custom_kernel::CastKernelF32<T, Context>(
+    custom_kernel::CastKernelHpu<T, Context>(
         dev_ctx, x, phi::DataType::FLOAT32, &out_float_device);
 
     phi::DenseTensor out_float_host;
@@ -208,7 +214,7 @@ void CastKernel(const Context& dev_ctx,
     return;
   }
 
-  custom_kernel::CastKernelF32<T, Context>(dev_ctx, x, dtype, out);
+  custom_kernel::CastKernelHpu<T, Context>(dev_ctx, x, dtype, out);
 }
 
 }  // namespace custom_kernel
@@ -217,6 +223,7 @@ PD_REGISTER_PLUGIN_KERNEL(cast,
                           intel_hpu,
                           ALL_LAYOUT,
                           custom_kernel::CastKernel,
+                          phi::dtype::float8_e4m3fn,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
                           float,

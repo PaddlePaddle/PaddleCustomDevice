@@ -230,6 +230,15 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
+  void AddNodeCast(std::vector<synTensor> inputs,
+                   std::vector<synTensor> outputs,
+                   ns_CastKernel::Params params,
+                   std::string guid,
+                   std::string node_name) {
+    AddNode_IOP<ns_CastKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
   inline void AddNodeGemm(std::vector<synTensor> inputs,
                           std::vector<synTensor> outputs,
                           synGEMMParams params,
@@ -283,6 +292,23 @@ class HpuFusedOperator : public HpuOperator {
     std::string guid = "unsorted_scatter_add_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_ScatterKernel::Params>(
         inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSilu(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          std::string node_name) {
+    std::string guid = "silu_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSplit(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           synSplitParams params,
+                           std::string node_name) {
+    std::string guid = "split";
+    AddNode_IOP(inputs, outputs, params, guid, node_name);
   }
 };
 

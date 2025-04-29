@@ -42,8 +42,10 @@ inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
     return syn_type_uint8;
   } else if (type == phi::DataType::INT64) {
     return syn_type_int64;
+  } else if (type == phi::DataType::FLOAT8_E4M3FN) {
+    return syn_type_fp8_143;
   } else {
-    PD_CHECK(false, "Unsupported cast dtype %d", type);
+    PD_CHECK(false, "Unsupported cast dtype ", type);
   }
 }
 

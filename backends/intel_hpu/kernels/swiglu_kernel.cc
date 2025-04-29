@@ -16,169 +16,116 @@
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "utils/utils.h"
 
 namespace custom_kernel {
 
-class SwiGlu : public HpuOperator {
+class SwiGlu : public HpuFusedOperator {
  public:
-  explicit SwiGlu(synDataType dtype)
-      : HpuOperator("swiglu_fwd"), dtype_(dtype) {}
-  void AddNode(const std::vector<DIMS>& ins, const std::vector<DIMS>& outs) {
-    synTensor silu_inputs[1] = {
-        createTensor(ins[0].size(), dtype_, ins[0], true, "x")};
+  SwiGlu() : HpuFusedOperator("swiglu_fwd_", false) {}
 
-    synTensor silu_outputs[1] = {
-        createTensor(ins[0].size(), dtype_, ins[0], false, "silu_out")};
+  template <typename T>
+  void AddNode(ConvertTensors* ct) {
+    const synDataType cast_type = syn_type_single;
+    auto inputs = ct->GetTensors();
+    auto outputs = ct->GetTensors(false);
+    bool need_cast = (inputs[0].type == syn_type_fp16);
+    bool need_split = (inputs.size() == 1);
 
-    synTensor mul_inputs[2] = {
-        silu_outputs[0],
-        createTensor(ins[1].size(), dtype_, ins[1], true, "y")};
+    std::vector<DIMS> inputs_dims = ct->GetDims();
+    std::vector<DIMS> outputs_dims = ct->GetDims(false);
+    synTensor x = createTensorFromCT(ct, 0);
 
-    synTensor mul_outputs[outs.size()] = {
-        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
+    synDataType inner_type = (need_cast ? cast_type : inputs[0].type);
+    // cast if needed
+    synTensor cast_x = nullptr;
+    synTensor cast_y = nullptr;
+    if (need_cast) {
+      cast_x = createTensorNoPresist("cast_x", cast_type, inputs_dims[0]);
+      std::string guid = "cast_" + SynDataTypeToStr(inputs[0].type) + "_to_" +
+                         SynDataTypeToStr(cast_type);
+      std::string node_name = guid_ + guid + "_x";
+      std::vector<synTensor> cast_in1 = {x};
+      std::vector<synTensor> cast_out1 = {cast_x};
+      AddNodeCast(cast_in1, cast_out1, guid, node_name);
 
-    std::string mul = "mult_fwd_";
-    std::string silu = "silu_fwd_";
-    if (dtype_ == syn_type_fp16) {
-      mul = mul + "f16";
-      silu = silu + "f16";
-    } else if (dtype_ == syn_type_bf16) {
-      mul = mul + "bf16";
-      silu = silu + "bf16";
-    } else if (dtype_ == syn_type_single) {
-      mul = mul + "f32";
-      silu = silu + "f32";
+      if (!need_split) {
+        synTensor y = createTensorFromCT(ct, 1);
+        cast_y = createTensorNoPresist("cast_y", cast_type, inputs_dims[0]);
+        guid = "cast_" + SynDataTypeToStr(inputs[1].type) + "_to_" +
+               SynDataTypeToStr(cast_type);
+        node_name = guid_ + guid + "_y";
+        std::vector<synTensor> cast_in2 = {y};
+        std::vector<synTensor> cast_out2 = {cast_y};
+        AddNodeCast(cast_in2, cast_out2, guid, node_name);
+      }
+    } else {
+      cast_x = x;
+      if (!need_split) {
+        cast_y = createTensorFromCT(ct, 1);
+      }
     }
-    std::string silu_name = guid_ + "_silu";
-    std::string mul_name = guid_ + "_mul";
 
-    synStatus status = synNodeCreate(graphHandle_,
-                                     silu_inputs,
-                                     silu_outputs,
-                                     1,
-                                     1,
-                                     nullptr,
-                                     0,
-                                     silu.c_str(),
-                                     silu_name.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(
-        status == synSuccess, "[RUNTIME] synNodeCreate () failed = %d", status);
-
-    status = synNodeCreate(graphHandle_,
-                           mul_inputs,
-                           mul_outputs,
-                           2,
-                           1,
-                           nullptr,
-                           0,
-                           mul.c_str(),
-                           mul_name.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess, "[RUNTIME] synNodeCreate () failed = %d", status);
-  }
-
- protected:
-  synDataType dtype_;
-};
-
-class SwiGluOnlyX : public HpuOperator {
- public:
-  explicit SwiGluOnlyX(synDataType dtype)
-      : HpuOperator("swiglu_fwd"), dtype_(dtype) {}
-  void AddNode(const std::vector<DIMS>& ins, const std::vector<DIMS>& outs) {
-    synSplitParams splitParams;
-    splitParams.axis = 0;
-
-    synTensor split_inpus[1] = {
-        createTensor(ins[0].size(), dtype_, ins[0], true, "x")};
-
-    std::vector<synTensor> split_outpus;
-    auto x_0 = createTensor(outs[0].size(), dtype_, outs[0], false, "x_0");
-    auto x_1 = createTensor(outs[0].size(), dtype_, outs[0], false, "x_1");
-    split_outpus.push_back(x_0);
-    split_outpus.push_back(x_1);
-
-    std::string split_guid = "split";
-    std::string split_name = guid_ + "split";
-    synStatus status = synNodeCreate(graphHandle_,
-                                     split_inpus,
-                                     split_outpus.data(),
-                                     1,
-                                     split_outpus.size(),
-                                     &splitParams,
-                                     sizeof(splitParams),
-                                     split_guid.c_str(),
-                                     split_name.c_str(),
-                                     nullptr,
-                                     nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] SwiGluOnlyX synNodeCreate (split) failed = ",
-             status);
-
-    synTensor silu_inputs[1] = {x_0};
-
-    synTensor silu_outputs[1] = {
-        createTensor(outs[0].size(), dtype_, outs[0], false, "silu_out")};
-
-    synTensor mul_inputs[2] = {silu_outputs[0], x_1};
-
-    synTensor mul_outputs[outs.size()] = {
-        createTensor(outs[0].size(), dtype_, outs[0], true, "output")};
-
-    std::string mul = "mult_fwd_";
-    std::string silu = "silu_fwd_";
-    if (dtype_ == syn_type_fp16) {
-      mul = mul + "f16";
-      silu = silu + "f16";
-    } else if (dtype_ == syn_type_bf16) {
-      mul = mul + "bf16";
-      silu = silu + "bf16";
-    } else if (dtype_ == syn_type_single) {
-      mul = mul + "f32";
-      silu = silu + "f32";
+    // split if needed
+    synTensor split_x = nullptr;
+    synTensor split_y = nullptr;
+    if (need_split) {
+      // no y in input, need to split
+      synSplitParams params;
+      params.axis = 0;
+      split_x = createTensorNoPresist("split_x", inner_type, outputs_dims[0]);
+      split_y = createTensorNoPresist("split_y", inner_type, outputs_dims[0]);
+      std::vector<synTensor> split_in = {cast_x};
+      std::vector<synTensor> split_out = {split_x, split_y};
+      std::string node_name = guid_ + "split";
+      AddNodeSplit<synSplitParams>(split_in, split_out, params, node_name);
+    } else {
+      split_x = cast_x;
+      split_y = cast_y;
     }
-    std::string silu_name = guid_ + "_silu";
-    std::string mul_name = guid_ + "_mul";
 
-    status = synNodeCreate(graphHandle_,
-                           silu_inputs,
-                           silu_outputs,
-                           1,
-                           1,
-                           nullptr,
-                           0,
-                           silu.c_str(),
-                           silu_name.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] SwiGluOnlyX synNodeCreate (silu) failed = ",
-             status);
+    // silu
+    synTensor silu_x =
+        createTensorNoPresist("silu_x", inner_type, outputs_dims[0]);
+    std::vector<synTensor> silu_in = {split_x};
+    std::vector<synTensor> silu_out = {silu_x};
+    std::string silu_node_name = guid_ + "silu";
+    if (need_cast) {
+      AddNodeSilu<float>(silu_in, silu_out, silu_node_name);
+    } else {
+      AddNodeSilu<T>(silu_in, silu_out, silu_node_name);
+    }
 
-    status = synNodeCreate(graphHandle_,
-                           mul_inputs,
-                           mul_outputs,
-                           2,
-                           1,
-                           nullptr,
-                           0,
-                           mul.c_str(),
-                           mul_name.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] SwiGluOnlyX synNodeCreate (mul) failed = %d",
-             status);
+    // mul
+    synTensor mult_xy = nullptr;
+    if (need_cast) {
+      mult_xy = createTensorNoPresist("mult_xy", inner_type, outputs_dims[0]);
+    } else {
+      mult_xy = createTensorFromCT(ct, 0, false);
+    }
+    std::vector<synTensor> mult_in = {silu_x, split_y};
+    std::vector<synTensor> mult_out = {mult_xy};
+    std::string mult_node_name = guid_ + "mult";
+    if (need_cast) {
+      AddNodeMultiply<float>(mult_in, mult_out, mult_node_name);
+    } else {
+      AddNodeMultiply<T>(mult_in, mult_out, mult_node_name);
+    }
+
+    // cast back
+    if (need_cast) {
+      synTensor cast_res = createTensorFromCT(ct, 0, false);
+
+      std::string guid = "cast_" + SynDataTypeToStr(inner_type) + "_to_" +
+                         SynDataTypeToStr(outputs[0].type);
+      std::string node_name = guid_ + guid + "_res";
+      std::vector<synTensor> cast_in = {mult_xy};
+      std::vector<synTensor> cast_out = {cast_res};
+      AddNodeCast(cast_in, cast_out, guid, node_name);
+    }
   }
-
- protected:
-  synDataType dtype_;
 };
 
 template <typename T, typename Context>
@@ -186,69 +133,42 @@ void SwiGluKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const paddle::optional<phi::DenseTensor>& y,
                   phi::DenseTensor* out) {
-  if (y) {
-    // allocate memory on device.
-    dev_ctx.template Alloc<T>(out);
-    if (out->numel() == 0) {
-      return;
-    }
-
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    const auto& y_tensor = y.get();
-    std::vector<int64_t> y_dims = phi::vectorize<int64_t>(y_tensor.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
-
-    OpCacheOperator op_info;
-    op_info.prepareOpInfo<T, nullptr_t>(
-        "SwiGluKernelXY", {x_dims, y_dims}, nullptr);
-    auto recipe = op_info.GetRecipe();
-
-    if (recipe == nullptr) {
-      SwiGlu op(op_info.datatype_);
-
-      op.AddNode({x_dims, y_dims}, {outputs_dim});
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["y"] = reinterpret_cast<uint64_t>(y_tensor.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
-  } else {
-    // allocate memory on device.
-    dev_ctx.template Alloc<T>(out);
-    if (out->numel() == 0) {
-      return;
-    }
-
-    std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
-    std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
-
-    OpCacheOperator op_info;
-    op_info.prepareOpInfo<T, nullptr_t>("SwiGluKernelX", {x_dims}, nullptr);
-    auto recipe = op_info.GetRecipe();
-
-    if (recipe == nullptr) {
-      SwiGluOnlyX op(op_info.datatype_);
-
-      op.AddNode({x_dims}, {outputs_dim});
-      op.Compile();
-      op_info.setOp(op);
-
-      recipe = op_info.GetRecipe();
-    }
-
-    std::map<std::string, uint64_t> tensors;
-    tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
-    tensors["output"] = reinterpret_cast<uint64_t>(out->data<T>());
-    RecipeRunner runner(recipe);
-    runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+  // allocate memory on device.
+  dev_ctx.template Alloc<T>(out);
+  if (out->numel() == 0) {
+    return;
   }
+
+  custom_kernel::ConvertTensors ct;
+  ct.Add(x);
+
+  std::string kernel_name = "SwiGluKernelX";
+  if (y) {
+    const auto& y_tensor = y.get();
+    kernel_name += "Y";
+    ct.Add(y_tensor);
+  }
+
+  ct.Add(out, false);
+
+  OpCacheOperator op_info;
+  std::vector<int64_t> x_dims = phi::vectorize<int64_t>(x.dims());
+  op_info.prepareOpInfo<T, nullptr_t>(kernel_name, {x_dims}, nullptr);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    SwiGlu op;
+
+    op.AddNode<T>(&ct);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
 }  // namespace custom_kernel

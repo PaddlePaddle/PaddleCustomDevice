@@ -15,6 +15,6 @@
 #include "paddle/phi/kernels/bincount_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(
-    bincount, metax_gpu, ALL_LAYOUT, phi::BincountKernel, double, float, int) {
+    bincount, metax_gpu, ALL_LAYOUT, phi::BincountKernel, double, float, int, int64_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

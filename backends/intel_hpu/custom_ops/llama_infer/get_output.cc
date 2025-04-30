@@ -27,12 +27,15 @@ struct msgdata {
   int32_t mtext[MAX_BSZ + 2];  // stop_flag, bsz, tokens
 };
 
-void GetOutput(const paddle::Tensor& x, int64_t rank_id, bool wait_flag) {
+void GetOutput(const paddle::Tensor& x,
+               const paddle::Tensor& msg_queue_id,
+               int64_t rank_id,
+               bool wait_flag) {
   if (rank_id > 0) return;
 
   static struct msgdata msg_rcv;
-
-  static key_t key = ftok("./", 1);
+  int msg_queue_id_val = msg_queue_id.data<int>()[0];
+  static key_t key = ftok("./", msg_queue_id_val);
 
   static int msgid = msgget(key, IPC_CREAT | 0666);
 
@@ -59,7 +62,7 @@ void GetOutput(const paddle::Tensor& x, int64_t rank_id, bool wait_flag) {
 }
 
 PD_BUILD_OP(get_output)
-    .Inputs({"x"})
+    .Inputs({"x", "msg_queue_id"})
     .Attrs({"rank_id: int64_t", "wait_flag: bool"})
     .Outputs({"x_out"})
     .SetInplaceMap({{"x", "x_out"}})

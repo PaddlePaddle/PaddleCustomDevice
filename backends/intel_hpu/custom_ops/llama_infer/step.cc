@@ -234,7 +234,7 @@ void recover_block(int *recover_block_list,
 #pragma omp critical
     {
       ori_free_list_len = *free_list_len;
-      *free_list_len = *free_list_len + decoder_used_len;
+      *free_list_len = *free_list_len - decoder_used_len;
     }
 
     for (int i = 0; i < decoder_used_len; i++) {

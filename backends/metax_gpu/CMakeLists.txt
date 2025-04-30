@@ -48,7 +48,7 @@ option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
-set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/third_party" 
+set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" 
     CACHE PATH "Third party libraries directory.")
 
 include(cuda)
@@ -62,6 +62,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eye_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/allclose_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adam_kernel.cu
@@ -74,6 +76,7 @@ file(
   kernels/*.cc
   kernels/*.cu
   kernels/cuda_kernels/*.cc
+  kernels/cuda_kernels/*.cu
 )
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})

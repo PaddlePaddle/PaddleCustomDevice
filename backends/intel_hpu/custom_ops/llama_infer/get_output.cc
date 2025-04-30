@@ -31,8 +31,19 @@ void GetOutput(const paddle::Tensor& x, int64_t rank_id, bool wait_flag) {
   if (rank_id > 0) return;
 
   static struct msgdata msg_rcv;
-
-  static key_t key = ftok("./", 1);
+  int msg_queue_id = 1;
+  if (const char* inference_msg_queue_id_env_p =
+          std::getenv("INFERENCE_MSG_QUEUE_ID")) {
+    std::string inference_msg_queue_id_env_str(inference_msg_queue_id_env_p);
+    int inference_msg_queue_id_from_env =
+        std::stoi(inference_msg_queue_id_env_str);
+#ifdef GET_OUTPUT_DEBUG
+    std::cout << "Your INFERENCE_MSG_QUEUE_ID is: "
+              << inference_msg_queue_id_from_env << std::endl;
+#endif
+    msg_queue_id = inference_msg_queue_id_from_env;
+  }
+  static key_t key = ftok("./", msg_queue_id);
 
   static int msgid = msgget(key, IPC_CREAT | 0666);
 

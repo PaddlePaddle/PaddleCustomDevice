@@ -19,24 +19,20 @@ set(PLUGIN_VERSION "0.0.1")
 set(TARGET_NAME ${PROJ_NAME})
 
 if(NOT DEFINED PY_VERSION)
-    set(PY_VERSION 3.8)
+  set(PY_VERSION 3.8)
 endif()
 
-find_package(Python ${PY_VERSION} EXACT REQUIRED COMPONENTS Interpreter Development)
+find_package(Python ${PY_VERSION} EXACT REQUIRED COMPONENTS Interpreter
+                                                            Development)
 
-set(CMAKE_MODULE_PATH 
-    "${CMAKE_SOURCE_DIR}/cmake"
-)
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(paddle)
 include(version)
 include(generic)
 
-
-list(APPEND CMAKE_MODULE_PATH
-    "${PADDLE_SOURCE_DIR}/cmake"
-    "${PADDLE_SOURCE_DIR}/cmake/external"
-)
+list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
+     "${PADDLE_SOURCE_DIR}/cmake/external")
 
 enable_language(CUDA)
 find_package(CUDA REQUIRED)
@@ -48,7 +44,8 @@ option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with METAX_GPU" ON)
 
-set(THIRD_PARTY_PATH "${PADDLE_SOURCE_DIR}/build/third_party" 
+set(THIRD_PARTY_PATH
+    "${PADDLE_SOURCE_DIR}/build/third_party"
     CACHE PATH "Third party libraries directory.")
 
 include(cuda)
@@ -56,14 +53,15 @@ include(gflags)
 include(glog)
 include(eigen)
 
-
 file(
-  GLOB CUDA_SRCS
+  GLOB
+  CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/eye_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/allclose_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adam_kernel.cu
@@ -72,46 +70,35 @@ file(
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
-  runtime/runtime.cc
-  kernels/*.cc
-  kernels/*.cu
-  kernels/cuda_kernels/*.cc
-  kernels/cuda_kernels/*.cu
-)
+  runtime/runtime.cc kernels/*.cc kernels/*.cu kernels/cuda_kernels/*.cc
+  kernels/cuda_kernels/*.cu)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
-target_include_directories(${TARGET_NAME} PRIVATE
-    ${PADDLE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/kernels
-    ${CUDA_INCLUDE_DIRS}
-)
+target_include_directories(
+  ${TARGET_NAME} PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}
+                         ${CMAKE_SOURCE_DIR}/kernels ${CUDA_INCLUDE_DIRS})
 
-target_link_libraries(${TARGET_NAME}
-    glog
-    eigen3
-    gflags
-    ${PADDLE_CORE_LIB}
-)
+target_link_libraries(${TARGET_NAME} glog eigen3 gflags ${PADDLE_CORE_LIB})
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
-target_compile_definitions(${TARGET_NAME} PUBLIC 
-  PADDLE_WITH_CUDA=1 
-  PADDLE_WITH_CUSTOM_DEVICE=1
-  GPUContext=CustomContext
-  STREAM_TYPE=cudaStream_t
-  EVENT_TYPE=cudaEvent_t
-  EIGEN_USE_GPU=1
-)
+target_compile_definitions(
+  ${TARGET_NAME}
+  PUBLIC PADDLE_WITH_CUDA=1
+         PADDLE_WITH_CUSTOM_DEVICE=1
+         GPUContext=CustomContext
+         KPSContext=CustomContext
+         STREAM_TYPE=cudaStream_t
+         EVENT_TYPE=cudaEvent_t
+         EIGEN_USE_GPU=1)
 
 # packing wheel package
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
-  
+
 add_custom_command(
   TARGET ${TARGET_NAME}
   POST_BUILD

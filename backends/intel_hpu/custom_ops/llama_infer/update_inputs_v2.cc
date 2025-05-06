@@ -143,15 +143,6 @@ void update_inputs_v2(bool* not_need_stop,
               end_length);
 }
 
-void copy_tensor_wrapper(const phi::CustomContext* dev_ctx,
-                         const paddle::Tensor& src,
-                         const paddle::Tensor& dst) {
-  auto place = dst.place();
-  auto src_dt = dynamic_cast<phi::DenseTensor*>(src.impl().get());
-  auto dst_dt = dynamic_cast<phi::DenseTensor*>(dst.impl().get());
-  custom_kernel::TensorCopy(*dev_ctx, *src_dt, true, dst_dt, place);
-}
-
 void UpdateInputesV2(const paddle::Tensor& stop_flags,
                      const paddle::Tensor& step_idx,
                      const paddle::Tensor& not_need_stop,  // cpu
@@ -209,15 +200,19 @@ void UpdateInputesV2(const paddle::Tensor& stop_flags,
                    input_ids_stride,
                    end_length);
 
-  copy_tensor_wrapper(dev_ctx, not_need_stop_cpu, not_need_stop);
-  copy_tensor_wrapper(dev_ctx, stop_flags_cpu, stop_flags);
-  copy_tensor_wrapper(dev_ctx, step_idx_cpu, step_idx);
-  copy_tensor_wrapper(dev_ctx, seq_lens_this_time_cpu, seq_lens_this_time);
-  copy_tensor_wrapper(dev_ctx, seq_lens_encoder_cpu, seq_lens_encoder);
-  copy_tensor_wrapper(dev_ctx, seq_lens_decoder_cpu, seq_lens_decoder);
-  copy_tensor_wrapper(dev_ctx, input_ids_cpu, input_ids);
-  copy_tensor_wrapper(dev_ctx, next_tokens_cpu, next_tokens);
-  copy_tensor_wrapper(dev_ctx, kwargs_next_tokens_cpu, kwargs_next_tokens);
+  custom_kernel::copy_tensor_wrapper(dev_ctx, not_need_stop_cpu, not_need_stop);
+  custom_kernel::copy_tensor_wrapper(dev_ctx, stop_flags_cpu, stop_flags);
+  custom_kernel::copy_tensor_wrapper(dev_ctx, step_idx_cpu, step_idx);
+  custom_kernel::copy_tensor_wrapper(
+      dev_ctx, seq_lens_this_time_cpu, seq_lens_this_time);
+  custom_kernel::copy_tensor_wrapper(
+      dev_ctx, seq_lens_encoder_cpu, seq_lens_encoder);
+  custom_kernel::copy_tensor_wrapper(
+      dev_ctx, seq_lens_decoder_cpu, seq_lens_decoder);
+  custom_kernel::copy_tensor_wrapper(dev_ctx, input_ids_cpu, input_ids);
+  custom_kernel::copy_tensor_wrapper(dev_ctx, next_tokens_cpu, next_tokens);
+  custom_kernel::copy_tensor_wrapper(
+      dev_ctx, kwargs_next_tokens_cpu, kwargs_next_tokens);
 }
 
 std::vector<std::vector<int64_t>> UpdateInputsV2InferShape(

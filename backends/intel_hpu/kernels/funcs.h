@@ -16,6 +16,7 @@ limitations under the License. */
 
 #include <cstdint>
 
+#include "paddle/extension.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
@@ -181,6 +182,28 @@ inline void TensorCopy(const Context& dev_ctx,
              dst_place_.GetType() == phi::AllocationType::CPU) {
     std::memcpy(dst_ptr, src_ptr, size);
   }
+}
+
+inline void copy_tensor_wrapper(const phi::CustomContext* dev_ctx,
+                                const paddle::Tensor& src,
+                                const paddle::Tensor& dst) {
+  auto place = dst.place();
+  auto src_dt = dynamic_cast<phi::DenseTensor*>(src.impl().get());
+  auto dst_dt = dynamic_cast<phi::DenseTensor*>(dst.impl().get());
+  TensorCopy(*dev_ctx, *src_dt, true, dst_dt, place);
+}
+
+inline paddle::Tensor copy_tensor_wrapper(const phi::CustomContext* dev_ctx,
+                                          const paddle::Tensor& src,
+                                          const phi::Place& dst_place) {
+  std::shared_ptr<phi::DenseTensor> dst_dt =
+      std::make_shared<phi::DenseTensor>();
+  dst_dt->Resize(phi::make_ddim(src.shape()));
+  dev_ctx->Alloc(dst_dt.get(), src.dtype());
+
+  auto src_dt = dynamic_cast<phi::DenseTensor*>(src.impl().get());
+  TensorCopy(*dev_ctx, *src_dt, true, dst_dt.get(), dst_place);
+  return paddle::Tensor(dst_dt);
 }
 
 inline int CanonicalAxis(const int axis, const int rank) {

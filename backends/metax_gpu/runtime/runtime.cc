@@ -43,6 +43,9 @@
 
 static int global_current_device = 0;
 
+const char *const DeviceType = "metax_gpu";
+const char *const SubDeviceType = "v0.1";
+
 namespace phi {
 
 namespace internal {
@@ -56,8 +59,8 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
         scratch_(nullptr),
         semaphore_(nullptr),
         allocations_() {
-    Eigen::GetGpuDeviceProperties();
-    VLOG(4) << "runtime EigenGpuStreamDevice() called";
+    // Eigen::GetGpuDeviceProperties();
+    Eigen::initializeDeviceProp();
   }
   ~EigenGpuStreamDevice() override = default;
 
@@ -67,8 +70,8 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
     stream_ = cuda_stream;
     place_ = place;
     allocator_ = allocator;
-    // device_prop_ = &Eigen::m_deviceProperties[place.device];
-    device_prop_ = &Eigen::GetGpuDeviceProperties(place.device);
+    device_prop_ = &Eigen::m_deviceProperties[place.device];
+    // device_prop_ = &Eigen::GetGpuDeviceProperties(place.device);
   }
 
   const cudaStream_t &stream() const override { return stream_; }
@@ -163,7 +166,7 @@ C_Status InitEigenDevice(const C_Place place,
   return C_SUCCESS;
 }
 
-C_Status DestoryEigenDevice(const C_Device device,
+C_Status DestroyEigenDevice(const C_Device device,
                             C_EigenDevice *eigen_device) {
   if (eigen_device == nullptr) {
     VLOG(4) << "Invalid eigen_device pointer (nullptr).";
@@ -324,23 +327,27 @@ C_Status MemCpyH2D(const C_Device device,
                    const void *src,
                    size_t size) {
   if (dst == NULL || src == NULL) {
+    VLOG(0) << "Failed to copy memory, dst or src is NULL";
     return C_ERROR;
   }
-
+  VLOG(0) << "MemCpyH2D: " << dst << " " << src << " " << size;
   if (size == 0) {
     return C_SUCCESS;
   }
 
   cudaError_t cudaErr = cudaSetDevice(device->id);
   if (cudaErr != cudaSuccess) {
+    VLOG(0) << "Failed to set device: " << device->id
+            << ", Error: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-
+  VLOG(0) << "setdevice: " << device->id;
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
   if (cudaErr != cudaSuccess) {
+    VLOG(0) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-
+  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " " << size;
   return C_SUCCESS;
 }
 
@@ -656,8 +663,8 @@ C_Status DeviceMaxChunkSize(const C_Device device, size_t *size) {
 
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
-  params->device_type = "metax_gpu";
-  params->sub_device_type = "v0.1";
+  params->device_type = const_cast<char *>(DeviceType);
+  params->sub_device_type = const_cast<char *>(SubDeviceType);
 
   memset(reinterpret_cast<void *>(params->interface),
          0,
@@ -713,7 +720,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->device_max_chunk_size = DeviceMaxChunkSize;
 
   params->interface->init_eigen_device = InitEigenDevice;
-  params->interface->destory_eigen_device = DestoryEigenDevice;
+  params->interface->destroy_eigen_device = DestroyEigenDevice;
 
   // params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
   // params->interface->xccl_get_unique_id = XcclGetUniqueId;

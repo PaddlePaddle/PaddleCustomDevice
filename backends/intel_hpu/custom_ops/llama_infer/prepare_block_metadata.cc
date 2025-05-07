@@ -58,15 +58,15 @@ int next_pow2(int value, int base) {
   return res;
 }
 
-int find_bucket(int value, const int bstep) {
-  const int bmin = 4;
+int find_bucket(int value, const int bstep, const int max_batches) {
+  const int bmin = 1;
 
   if (value <= bmin) {
     return bmin;
   } else {
     int next_step = round_up(value, bstep);
     int next_pow = next_pow2(value, bmin);
-    return std::min(next_step, next_pow);
+    return std::min(std::min(next_step, next_pow), max_batches);
   }
 }
 
@@ -177,7 +177,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
       paddle::full({1}, 0, phi::DataType::FLOAT32, paddle::CPUPlace());
 
   if (enc_count > 0) {
-    int total_batch = find_bucket(enc_count, batch_step);
+    int total_batch = find_bucket(enc_count, batch_step, max_batches);
 
     int max_buckets = (max_enc_len + block_size - 1) / block_size;
     int max_prompt_len = max_buckets * block_size;
@@ -236,7 +236,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
             is_prompt_cpu_tensor};
 
   } else if (dec_count > 0) {
-    int total_batch = find_bucket(dec_count, batch_step);
+    int total_batch = find_bucket(dec_count, batch_step, max_batches);
 
     auto src_padded = paddle::full(
         {total_batch}, 0, paddle::DataType::INT64, paddle::CPUPlace());

@@ -244,5 +244,48 @@ class Fused_Rms_Mlp(paddle.nn.Layer):
         return fused_rms_mlp_out
 
 
+class Prepare_Block_Metadata(paddle.nn.Layer):
+    def __init__(self, block_size):
+        super().__init__()
+        self.block_size = block_size
+
+    def forward(
+        self, input_ids, rotary_embs, block_tables, seq_lens_encoder, seq_lens_decoder
+    ):
+        (
+            ids_remove_padding,
+            rope_emb,
+            block_groups,
+            block_list,
+            block_indices,
+            block_offsets,
+            block_mapping,
+            attention_mask,
+            batch_ids,
+            is_prompt,
+        ) = prepare_block_metadata(
+            input_ids,
+            rotary_embs,
+            block_tables,
+            seq_lens_encoder,
+            seq_lens_decoder,
+            self.block_size,
+            paddle.get_default_dtype(),
+        )
+
+        return (
+            ids_remove_padding,
+            rope_emb,
+            block_groups,
+            block_list,
+            block_indices,
+            block_offsets,
+            block_mapping,
+            attention_mask,
+            batch_ids,
+            is_prompt,
+        )
+
+
 def rebuild_padding(multi_block_output, cum_offsets, seq_lens, input_ids):
     return multi_block_output[:, -1:, :]

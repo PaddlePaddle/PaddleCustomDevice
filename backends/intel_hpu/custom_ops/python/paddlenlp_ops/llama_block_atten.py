@@ -36,6 +36,10 @@ def prepare_block_metadata_ref(
     device_dtype,
 ):
     paddle.device.set_device("cpu")
+    input_ids = input_ids.to("cpu")
+    block_tables = block_tables.to("cpu")
+    seq_lens_encoder = seq_lens_encoder.to("cpu")
+    seq_lens_decoder = seq_lens_decoder.to("cpu")
     max_enc_len = paddle.max(seq_lens_encoder, axis=0).item()
     max_dec_len = paddle.max(seq_lens_decoder, axis=0).item()
 

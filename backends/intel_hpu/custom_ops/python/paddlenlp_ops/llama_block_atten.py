@@ -35,6 +35,7 @@ def prepare_block_metadata_ref(
     block_size,
     device_dtype,
 ):
+    device = paddle.device.get_device()
     paddle.device.set_device("cpu")
     input_ids = input_ids.to("cpu")
     block_tables = block_tables.to("cpu")
@@ -72,7 +73,7 @@ def prepare_block_metadata_ref(
 
         src_padded[:valid_batch, :max_prompt_len] = input_tokens[:, :max_prompt_len]
         blk_padded[:valid_batch, :max_buckets] = block_tables_seg[:, :max_buckets]
-        block_indices = blk_padded.flatten().to("intel_hpu")
+        block_indices = blk_padded.flatten().to(device)
 
         # rope_emb: [2, B=1, T=4096, 1, 128] --> [2, B=1, T=max_prompt_len, 1, 128]
         # Prefill:  [2, 1, T, 1, 128]
@@ -84,7 +85,7 @@ def prepare_block_metadata_ref(
         block_list = None
         block_mapping = None
         attn_bias = None
-        paddle.device.set_device("intel_hpu")
+        paddle.device.set_device(device)
     # decoding
     elif max_dec_len > 0:
         is_prompt = False
@@ -125,7 +126,7 @@ def prepare_block_metadata_ref(
         # rope_emb: [2, B=1, T=4096, 1, 128] --> [2, B=1, T=batch_size, 1, 128]
         # Decode : [2, 1, T, 1, 128] --> [2, T, 1, 1, 128]
         rope_emb_seg = (
-            paddle.index_select(rope_emb, seq_lens_padded.to("intel_hpu"), 2)
+            paddle.index_select(rope_emb, seq_lens_padded.to(device), 2)
             .squeeze(1)
             .unsqueeze(2)
         )
@@ -183,15 +184,15 @@ def prepare_block_metadata_ref(
             mask, float("-inf")
         )
 
-        paddle.device.set_device("intel_hpu")
+        paddle.device.set_device(device)
 
         block_groups = paddle.to_tensor(block_groups).astype("int32")
         block_list = paddle.to_tensor(block_list).astype("int32")
-        block_mapping = block_mapping.to(device_dtype).to("intel_hpu")
-        block_indices = block_indices_padded.to("intel_hpu")
-        block_offset = block_offset_padded.to("intel_hpu")
-        batch_ids = batch_ids.to("intel_hpu").astype("int32")
-        attn_bias = attn_bias.to(device_dtype).to("intel_hpu")
+        block_mapping = block_mapping.to(device_dtype).to(device)
+        block_indices = block_indices_padded.to(device)
+        block_offset = block_offset_padded.to(device)
+        batch_ids = batch_ids.to(device).astype("int32")
+        attn_bias = attn_bias.to(device_dtype).to(device)
 
     return (
         src_padded,

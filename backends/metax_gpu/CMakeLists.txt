@@ -38,7 +38,7 @@ enable_language(CUDA)
 find_package(CUDA REQUIRED)
 include_directories(${CUDA_INCLUDE_DIRS})
 
-add_definitions(-std=c++14)
+add_definitions(-std=c++17)
 
 option(WITH_TESTING "compile with unit testing" ON)
 option(ON_INFER "compile with inference c++ lib" OFF)

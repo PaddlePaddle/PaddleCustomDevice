@@ -11,23 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/reduce_all_kernel.h"
+#include "paddle/phi/kernels/uniform_kernel.h"
 
-using complex64 = ::phi::dtype::complex<float>;
-using complex128 = ::phi::dtype::complex<double>;
-PD_CUSTOM_KERNEL_REGISTER(all_raw,
+PD_CUSTOM_KERNEL_REGISTER(uniform,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::AllRawKernel,
+                          phi::UniformKernel,
                           float,
                           double,
-                          int,
-                          int64_t,
-                          bool,
-                          complex64,
-                          complex128) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
-}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

@@ -36,7 +36,6 @@
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
-// #include "paddle/phi/core/memory/allocation/allocator_facade.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #define MEMORY_FRACTION 0.5f
@@ -59,7 +58,6 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
         scratch_(nullptr),
         semaphore_(nullptr),
         allocations_() {
-    // Eigen::GetGpuDeviceProperties();
     Eigen::initializeDeviceProp();
   }
   ~EigenGpuStreamDevice() override = default;
@@ -71,7 +69,6 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
     place_ = place;
     allocator_ = allocator;
     device_prop_ = &Eigen::m_deviceProperties[place.device];
-    // device_prop_ = &Eigen::GetGpuDeviceProperties(place.device);
   }
 
   const cudaStream_t &stream() const override { return stream_; }
@@ -155,8 +152,6 @@ C_Status InitEigenDevice(const C_Place place,
       allocator,
       common::errors::InvalidArgument(
           "The allocator for eigen device is nullptr. It must not be null."));
-  // std::unique_ptr<phi::internal::EigenGpuStreamDevice> eigen_stream_ =
-  //     std::make_unique<phi::internal::EigenGpuStreamDevice>();
   phi::internal::EigenGpuStreamDevice *eigen_stream_ =
       new phi::internal::EigenGpuStreamDevice();
   eigen_stream_->Reinitialize(stream_t, allocator_t, *place_t);
@@ -677,8 +672,6 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->get_max_threads_per_mp = GetMaxThreadsPerMultiProcessor;
   params->interface->get_max_threads_per_block = GetMaxThreadsPerBlock;
   params->interface->get_max_grid_dim_size = GetMaxGridDimSize;
-  // params->interface->initialize = Init;
-  //   params->interface->finalize = Finalize;
 
   params->interface->init_device = InitDevice;
   params->interface->set_device = SetDevice;

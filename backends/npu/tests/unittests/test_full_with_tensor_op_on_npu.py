@@ -30,7 +30,7 @@ class TestFullWithTensor(unittest.TestCase):
             "bfloat16",
         ]
         self.shape = [5, 6]
-        self.place = paddle.CustomPlace("npu", 3)
+        self.place = paddle.CustomPlace("npu", 0)
         self.value = 2
 
     def get_expected_output(self, dtype):

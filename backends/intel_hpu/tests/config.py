@@ -20,5 +20,4 @@ skip_case_lst = {}
 # this list for the unstable test case to skip
 skip_case_lst = [
     "test_cast.py",
-    "test_gather.py",
 ]

@@ -65,11 +65,7 @@ void FullKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   VLOG(6) << "HPU FullKernel with val = " << val;
-  auto int_shape = shape.GetData();
-  out->Resize(phi::make_ddim(int_shape));
-  if (out->dims().size() == 0) {
-    out->Resize({1});
-  }
+
   dev_ctx.template Alloc<T>(out);
 
   ConvertTensors ct;

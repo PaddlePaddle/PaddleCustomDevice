@@ -86,5 +86,15 @@ class TestFP16ElementwiseMulOp_1(TestElementwiseMulOp_broadcast):
         self.dtype = np.float16
 
 
+class TestInt64ElementwiseMulOp(TestElementwiseMulOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+class TestInt64ElementwiseMulOp_1(TestElementwiseMulOp_broadcast):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
 if __name__ == "__main__":
     unittest.main()

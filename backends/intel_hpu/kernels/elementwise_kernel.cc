@@ -192,7 +192,6 @@ void PowKernelScalar(const Context& dev_ctx,
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Add, add);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Max, maximum);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Min, minimum);
-PD_REGISTER_PLUGIN_KERNEL_FPx3(Mult, multiply);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Pow, elementwise_pow);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Sub, subtract);
 PD_REGISTER_PLUGIN_KERNEL_FPx3(Div, divide);

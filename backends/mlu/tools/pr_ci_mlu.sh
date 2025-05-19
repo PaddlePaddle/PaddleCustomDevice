@@ -264,6 +264,7 @@ function main() {
     unset MLU_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
+    pip install pymupdf
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas
@@ -289,6 +290,7 @@ function main() {
     echo "End PaddleX ResNet50"
 
     echo "Start DeepLabv3"
+    export PADDLE_PDX_DISABLE_DEV_MODEL_WL=True
     python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/seg_optic_examples \

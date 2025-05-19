@@ -537,6 +537,9 @@ void Conv3dKernel(const Context& dev_ctx,
   dilations_vec[4] = dilations[2];
 
   auto stream = dev_ctx.stream();
+  if (!FLAGS_npu_jit_compile) {
+      aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
   const auto& runner = NpuOpRunner("Conv3D",
                                    {input_tensor, filter_tensor},
                                    {output_tensor},
@@ -546,6 +549,9 @@ void Conv3dKernel(const Context& dev_ctx,
                                     {"groups", groups},
                                     {"data_format", data_format}});
   runner.Run(stream);
+  if (!FLAGS_npu_jit_compile) {
+      aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
 }
 
 template <typename T, typename Context>
@@ -709,7 +715,8 @@ PD_REGISTER_PLUGIN_KERNEL(conv3d,
                           ALL_LAYOUT,
                           custom_kernel::Conv3dKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
                           npu,

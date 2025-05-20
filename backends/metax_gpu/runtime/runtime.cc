@@ -690,37 +690,37 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->memory_copy_d2h = MemCpyD2H;
   params->interface->memory_copy_p2p = MemCpyP2P;
   params->interface->async_memory_copy_h2d = AsyncMemCpyH2D;
-  // params->interface->async_memory_copy_d2d = AsyncMemCpyD2D;
-  // params->interface->async_memory_copy_d2h = AsyncMemCpy;
-  // params->interface->async_memory_copy_p2p = AsyncMemCpyP2P;
+  params->interface->async_memory_copy_d2d = nullptr;
+  params->interface->async_memory_copy_d2h = nullptr;
+  params->interface->async_memory_copy_p2p = nullptr;
   params->interface->device_memory_allocate = Allocate;
-  //   params->interface->host_memory_allocate = Allocate;
-  //   params->interface->unified_memory_allocate = Allocate;
+  params->interface->host_memory_allocate = nullptr;
+  params->interface->unified_memory_allocate = nullptr;
   params->interface->device_memory_deallocate = Deallocate;
-  //   params->interface->host_memory_deallocate = Deallocate;
-  //   params->interface->unified_memory_deallocate = Deallocate;
+  params->interface->host_memory_deallocate = nullptr;
+  params->interface->unified_memory_deallocate = nullptr;
 
   params->interface->get_device_count = GetDevicesCount;
   params->interface->get_device_list = GetDevicesList;
 
-  //   params->interface->device_memory_stats = DeviceMemStats;
+  params->interface->device_memory_stats = nullptr;
   params->interface->device_min_chunk_size = DeviceMinChunkSize;
   params->interface->device_max_chunk_size = DeviceMaxChunkSize;
 
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
-  // params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
-  // params->interface->xccl_get_unique_id = XcclGetUniqueId;
-  // params->interface->xccl_comm_init_rank = XcclCommInitRank;
-  // params->interface->xccl_destroy_comm = XcclDestroyComm;
-  // params->interface->xccl_all_reduce = XcclAllReduce;
-  // params->interface->xccl_broadcast = XcclBroadcast;
+  params->interface->xccl_get_unique_id_size = nullptr;
+  params->interface->xccl_get_unique_id = nullptr;
+  params->interface->xccl_comm_init_rank = nullptr;
+  params->interface->xccl_destroy_comm = nullptr;
+  params->interface->xccl_all_reduce = nullptr;
+  params->interface->xccl_broadcast = nullptr;
 
-  // params->interface->profiler_collect_trace_data = ProfilerCollectData;
-  // params->interface->profiler_initialize = ProfilerInitialize;
-  // params->interface->profiler_finalize = ProfilerFinalize;
-  // params->interface->profiler_start_tracing = ProfilerStart;
-  // params->interface->profiler_stop_tracing = ProfilerStop;
-  // params->interface->profiler_prepare_tracing = ProfilerPrepare;
+  params->interface->profiler_collect_trace_data = nullptr;
+  params->interface->profiler_initialize = nullptr;
+  params->interface->profiler_finalize = nullptr;
+  params->interface->profiler_start_tracing = nullptr;
+  params->interface->profiler_stop_tracing = nullptr;
+  params->interface->profiler_prepare_tracing = nullptr;
 }

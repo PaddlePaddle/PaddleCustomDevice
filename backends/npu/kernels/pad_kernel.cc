@@ -28,13 +28,6 @@ void AclopPadKernel(const Context& dev_ctx,
 
   auto pad_value = pad_value_scalar.to<float>();
 
-  PADDLE_ENFORCE_LT(
-      abs(pad_value),
-      1e-5,
-      phi::errors::Unimplemented("npu npu only support pad_value=0 right now,"
-                                 "but received pad_value is %f .",
-                                 pad_value));
-
   NpuOpRunner runner;
   runner.SetType("Pad")
       .AddInput(x)
@@ -56,16 +49,6 @@ void PadKernel(const Context& dev_ctx,
 
   dev_ctx.template Alloc<T>(out);
   auto stream = dev_ctx.stream();
-  auto pad_value = pad_value_scalar.to<float>();
-
-  PADDLE_ENFORCE_LT(
-      abs(pad_value),
-      1e-5,
-      phi::errors::Unimplemented("npu npu only support pad_value=0 right now,"
-                                 "but received pad_value is %f .",
-                                 pad_value));
-
-  phi::Scalar value = 0;
   std::vector<int64_t> paddings_;
   int x_dims = x.dims().size();
   for (int i = x_dims - 1; i >= 0; --i) {
@@ -73,7 +56,8 @@ void PadKernel(const Context& dev_ctx,
     paddings_.push_back(paddings[2 * i + 1]);
   }
 
-  EXEC_NPU_CMD(aclnnConstantPadNd, dev_ctx, x, paddings_, value, *out);
+  EXEC_NPU_CMD(
+      aclnnConstantPadNd, dev_ctx, x, paddings_, pad_value_scalar, *out);
 }
 
 template <typename T, typename Context>

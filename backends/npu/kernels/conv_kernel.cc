@@ -538,7 +538,7 @@ void Conv3dKernel(const Context& dev_ctx,
 
   auto stream = dev_ctx.stream();
   if (!FLAGS_npu_jit_compile) {
-      aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
   }
   const auto& runner = NpuOpRunner("Conv3D",
                                    {input_tensor, filter_tensor},
@@ -550,7 +550,7 @@ void Conv3dKernel(const Context& dev_ctx,
                                     {"data_format", data_format}});
   runner.Run(stream);
   if (!FLAGS_npu_jit_compile) {
-      aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
   }
 }
 

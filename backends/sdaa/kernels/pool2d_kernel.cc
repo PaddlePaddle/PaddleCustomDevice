@@ -18,25 +18,6 @@
 #include "paddle/phi/extension.h"
 
 namespace custom_kernel {
-namespace {
-std::vector<int> convertInt64VecToInt32(const std::vector<int64_t>& vec) {
-  const int64_t int32_max = std::numeric_limits<int>::max();
-  std::vector<int> new_vec;
-  new_vec.reserve(vec.size());
-  for (const int64_t val : vec) {
-    PADDLE_ENFORCE_EQ(val <= int32_max,
-                      true,
-                      phi::errors::PreconditionNotMet(
-                          "For sdaa Pool2d Kernel, input value %lld (e.g., for "
-                          "strides/paddings) "
-                          "is too large and overflows int32_t (max: %d).",
-                          val,
-                          int32_max));
-    new_vec.push_back(static_cast<int>(val));
-  }
-  return new_vec;
-}
-}  // namespace
 
 template <typename T = int>
 inline void UpdatePadding(std::vector<T>* paddings,
@@ -322,8 +303,10 @@ void Pool2dKernel(const Context& dev_ctx,
                   const std::string& padding_algorithm,
                   phi::DenseTensor* out) {
   VLOG(4) << "CALL SDAA Pool2dKernel";
-  std::vector<int> strides_t = convertInt64VecToInt32(strides_t_64);
-  std::vector<int> paddings_t = convertInt64VecToInt32(paddings_t_64);
+  std::vector<int> strides_t =
+      std::vector<int>(strides_t_64.begin(), strides_t_64.end());
+  std::vector<int> paddings_t =
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
 
   dev_ctx.template Alloc<T>(out);
 
@@ -470,8 +453,10 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const std::string& padding_algorithm,
                       phi::DenseTensor* in_x_grad) {
   VLOG(4) << "CALL SDAA Pool2dGradKernel";
-  std::vector<int> strides_t = convertInt64VecToInt32(strides_t_64);
-  std::vector<int> paddings_t = convertInt64VecToInt32(paddings_t_64);
+  std::vector<int> strides_t =
+      std::vector<int>(strides_t_64.begin(), strides_t_64.end());
+  std::vector<int> paddings_t =
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
 
   dev_ctx.template Alloc<T>(in_x_grad);
 

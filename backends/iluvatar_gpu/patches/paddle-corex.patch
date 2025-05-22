@@ -1,4 +1,4 @@
-From 6f8fb3548d5bdbef388efb00aa920ee05105146c Mon Sep 17 00:00:00 2001
+From 878baf50fe2b11a9dd776e774b3fd909f42872b0 Mon Sep 17 00:00:00 2001
 From: Tianyu Zhou <tianyu.zhou@iluvatar.com>
 Date: Thu, 22 May 2025 17:29:25 +0800
 Subject: [PATCH] Adapt for Iluvatar.
@@ -11,7 +11,7 @@ Subject: [PATCH] Adapt for Iluvatar.
  paddle/fluid/platform/device/gpu/nccl_helper.h     | 4 ++--
  paddle/phi/backends/dynload/cudnn.cc               | 4 ++++
  paddle/phi/backends/dynload/cudnn.h                | 9 +++++++++
- paddle/phi/backends/gpu/cuda/cuda_graph.cc         | 2 +-
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc         | 4 ++--
  paddle/phi/backends/gpu/cuda/cuda_graph.h          | 2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h         | 2 +-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h        | 2 +-
@@ -29,7 +29,7 @@ Subject: [PATCH] Adapt for Iluvatar.
  paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu     | 2 +-
  paddle/phi/kernels/shape_kernel.cc                 | 2 ++
  paddle/utils/flat_hash_map.h                       | 5 +++++
- 25 files changed, 61 insertions(+), 17 deletions(-)
+ 25 files changed, 62 insertions(+), 18 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 7dbcc8a402..6cdaa6c35f 100755
@@ -141,7 +141,7 @@ index 7a5450c349..42975e11cf 100644
  }  // namespace phi
  
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
-index 6b62e328d6..140b7c4c55 100644
+index 6b62e328d6..3c12905e09 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 +++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 @@ -206,7 +206,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
@@ -153,6 +153,15 @@ index 6b62e328d6..140b7c4c55 100644
    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
  }
  
+@@ -323,7 +323,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
+ #endif
+ }
+ 
+-#if CUDA_VERSION >= 11000
++#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
+ void CUDAGraphNodeLauncher::KernelNodeLaunch(
+     parameterSetter_t parameterSetter, gpuKernelCallback_t cudakernelCallback) {
+   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.h b/paddle/phi/backends/gpu/cuda/cuda_graph.h
 index f0408b8b03..98a01868db 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.h
@@ -285,7 +294,7 @@ index b973d75a9b..daeb4778c6 100644
  #include "paddle/phi/kernels/funcs/math_function.h"
  
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
-index 71b7e5f4e5..a59a9cd134 100644
+index 71b7e5f4e5..2a569c76dd 100644
 --- a/paddle/phi/kernels/funcs/segmented_array.h
 +++ b/paddle/phi/kernels/funcs/segmented_array.h
 @@ -118,6 +118,13 @@ struct ArraySetterBase {
@@ -302,14 +311,14 @@ index 71b7e5f4e5..a59a9cd134 100644
  #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
      if (use_cuda_graph) {
        restored = phi::backends::gpu::RestoreHostMemIfCapturingCUDAGraph<int8_t>(
-@@ -134,6 +141,7 @@ struct ArraySetterBase {
-     allocations.emplace_back(std::move(allocation));
-     return ptr;
-   }
+@@ -129,6 +136,7 @@ struct ArraySetterBase {
+                                        num_bytes,
+                                        phi::gpuMemcpyHostToDevice,
+                                        ctx.stream());
 +#endif
  
-   std::vector<phi::Allocator::AllocationPtr> allocations;
- };
+     auto ptr = allocation->ptr();
+     allocations.emplace_back(std::move(allocation));
 diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
 index 8f6b0fdd32..b95ea07883 100644
 --- a/paddle/phi/kernels/funcs/softmax_impl.h

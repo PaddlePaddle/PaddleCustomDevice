@@ -167,7 +167,7 @@ function run_paddlex() {
     unset ASCEND_RT_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
-    pip install pymupdf
+    pip install pymupdf pypdfium2
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas

@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <cstdint>
 #include <vector>
 
 #include "kernels/funcs/sdaa_baseop.h"
@@ -458,8 +459,8 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& out,
                       const phi::DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
-                      const std::vector<int>& strides_t_64,
-                      const std::vector<int>& paddings_t_64,
+                      const std::vector<int64_t>& strides_t_64,
+                      const std::vector<int64_t>& paddings_t_64,
                       bool ceil_mode,
                       bool exclusive,
                       const std::string& data_format,

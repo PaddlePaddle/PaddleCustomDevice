@@ -29,12 +29,16 @@
 #include <ctime>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 
 #include "habanalabs/hccl.h"
 #include "habanalabs/hccl_types.h"
 #include "paddle/phi/common/type_traits.h"
+#include "utils/mem_hlml.h"
+
+static std::uint64_t g_mem_usage = 0;
 
 FLAGS_DEFINE_bool(intel_hpu_runtime_debug, false, "runtime debug log");
 FLAGS_DEFINE_uint32(
@@ -79,41 +83,67 @@ hcclRedOp_t PDReduceOpToHcclReduceOp(C_CCLReduceOp op) {
 class RuntimeManager {
  public:
   RuntimeManager() {}
-  ~RuntimeManager() {}
+  ~RuntimeManager() {
+    m_hlml_memory_updater.reset();
+    m_hlml_memory_reporter.reset();
+  }
 
   void SetDevice(const C_Device device) {
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "set device id to " << device->id << ", current = " << moduleID;
+        << "set device module id to " << device->id
+        << ", current = " << moduleID;
     synStatus status = synFail;
-    auto require_id = static_cast<synModuleId>(device->id);
-    if (require_id == moduleID) {
-      if (Status == 0) {
+    auto require_moduleid = static_cast<synModuleId>(device->id);
+    bool need_acquire_device = false;
+
+    if (require_moduleid == moduleID) {
+      if (DeviceStatus == 0) {
         LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-            << "1st ================================= " << require_id;
-        status = synDeviceAcquireByModuleId(&deviceId, require_id);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synDeviceAcquireByModuleId() failed = ",
-                 status,
-                 " require_id=",
-                 require_id);
+            << "1st ================================= " << require_moduleid;
+        need_acquire_device = true;
       }
     } else {
       // release the old one and acquire a new one
-      if (Status == 1) {
-        status = synDeviceRelease(deviceId);
+      if (DeviceStatus == 1) {
+        status = synDeviceRelease(deviceID);
         PD_CHECK(status == synSuccess,
                  "[RUNTIME] synDeviceRelease() failed = ",
                  status);
       }
-      status = synDeviceAcquireByModuleId(&deviceId, require_id);
+      need_acquire_device = true;
+    }
+
+    if (need_acquire_device) {
+      status = synDeviceAcquireByModuleId(&deviceID, require_moduleid);
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synDeviceAcquireByModuleId() failed = ",
                status,
-               " require_id=",
-               require_id);
+               " require_moduleid=",
+               require_moduleid);
+      synDeviceInfoV2 DeviceInf;
+      status = synDeviceGetInfoV2(deviceID, &DeviceInf);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synDeviceGetInfoV2() failed = ",
+               status,
+               " device id=",
+               deviceID);
+      deviceIndex = DeviceInf.deviceIndex;
+
+      m_hlml_memory_reporter =
+          std::make_shared<HlMlMemoryReporter>(GetDeviceIndex());
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "HLML memory reporter initialized \n";
+
+      std::function<std::uint64_t()> get_used_memory = []() {
+        return g_mem_usage;
+      };
+      m_hlml_memory_updater = std::make_shared<HlMlMemoryUpdater>(
+          m_hlml_memory_reporter, get_used_memory);
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "HLML memory updater initialized \n";
+      DeviceStatus = 1;
+      moduleID = require_moduleid;
     }
-    Status = 1;
-    moduleID = device->id;
   }
 
   void Release(const C_Device device) {
@@ -121,8 +151,8 @@ class RuntimeManager {
         << "[RUNTIME] moduleID mismatch : moduleID = " << moduleID
         << ", current = " << moduleID;
 
-    if (Status == 1) {
-      synStatus status = synDeviceRelease(deviceId);
+    if (DeviceStatus == 1) {
+      synStatus status = synDeviceRelease(deviceID);
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synDeviceRelease() failed = ",
                status);
@@ -142,7 +172,7 @@ class RuntimeManager {
     uint64_t free = 0;
     uint64_t total = 0;
 
-    synStatus status = synDeviceGetMemoryInfo(deviceId, &free, &total);
+    synStatus status = synDeviceGetMemoryInfo(deviceID, &free, &total);
     PD_CHECK(status == synSuccess,
              "[RUNTIME] synDeviceGetMemoryInfo() failed = ",
              status);
@@ -180,7 +210,7 @@ class RuntimeManager {
     auto it = streams.find(reinterpret_cast<synStreamHandle>(*stream));
     if (it == streams.end()) {
       synStreamHandle h = nullptr;
-      synStatus status = synStreamCreateGeneric(&h, device->id, 0);
+      synStatus status = synStreamCreateGeneric(&h, deviceID, 0);
 
       PD_CHECK(status == synSuccess,
                "[RUNTIME] synStreamCreateGeneric() failed = ",
@@ -223,7 +253,7 @@ class RuntimeManager {
     if (flag == 0) {
       if (stream_h2d == nullptr) {
         status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_h2d), device->id, 0);
+            reinterpret_cast<synStreamHandle *>(&stream_h2d), deviceID, 0);
         PD_CHECK(status == synSuccess,
                  "[RUNTIME] synStreamCreateGeneric() failed = ",
                  status);
@@ -251,7 +281,7 @@ class RuntimeManager {
     } else if (flag == 1) {
       if (stream_d2h == nullptr) {
         status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2h), device->id, 0);
+            reinterpret_cast<synStreamHandle *>(&stream_d2h), deviceID, 0);
         PD_CHECK(status == synSuccess,
                  "[RUNTIME] synStreamCreateGeneric() failed = ",
                  status);
@@ -277,7 +307,7 @@ class RuntimeManager {
     } else if (flag == 2) {
       if (stream_d2d == nullptr) {
         status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2d), device->id, 0);
+            reinterpret_cast<synStreamHandle *>(&stream_d2d), deviceID, 0);
         PD_CHECK(status == synSuccess,
                  "[RUNTIME] synStreamCreateGeneric() failed = ",
                  status);
@@ -366,7 +396,7 @@ class RuntimeManager {
     auto it = events.find(reinterpret_cast<synEventHandle>(*event));
     if (it == events.end()) {
       synEventHandle e = nullptr;
-      synStatus status = synEventCreate(&e, deviceId, 0);
+      synStatus status = synEventCreate(&e, deviceID, 0);
       PD_CHECK(
           status == synSuccess, "[RUNTIME] synEventCreate() failed = ", status);
       events.insert(e);
@@ -374,7 +404,7 @@ class RuntimeManager {
     }
 
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "device id=" << device->id << " create event = " << *event;
+        << "device id=" << deviceID << " create event = " << *event;
 
     return C_SUCCESS;
   }
@@ -394,13 +424,14 @@ class RuntimeManager {
       events.erase(*it);
     }
     LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-        << "device id=" << device->id << " remove event = " << event;
+        << "device Module id=" << device->id << " remove event = " << event;
 
     return C_SUCCESS;
   }
 
   inline synModuleId GetModuleID() { return moduleID; }
-  inline synDeviceId GetDeviceID() { return deviceId; }
+  inline synDeviceId GetDeviceID() { return deviceID; }
+  inline uint8_t GetDeviceIndex() { return deviceIndex; }
 
   inline void addCache(const C_Device device, const void *ptr, size_t size) {
     synStatus status = synFail;
@@ -416,7 +447,7 @@ class RuntimeManager {
                  (ptr > pair.first && ptr < (pair.first + pair.second))) {
         // found but size not equal or ptr is in the range of previous mapping.
         // unmap the old one and remap new one.
-        status = synHostUnmap(device->id, pair.first);
+        status = synHostUnmap(deviceID, pair.first);
         LOG_IF(ERROR, status != synSuccess)
             << "[RUNTIME] synHostUnmap() failed = " << status;
         hostMappedAddress.erase(pair.first);
@@ -424,7 +455,7 @@ class RuntimeManager {
             << "[RUNTIME] synHostUnMap() success ptr=" << pair.first
             << " size=" << pair.second;
 
-        status = synHostMap(device->id, size, ptr);
+        status = synHostMap(deviceID, size, ptr);
         LOG_IF(ERROR, status != synSuccess)
             << "[RUNTIME] synHostMap() failed = " << status;
         hostMappedAddress[ptr] = size;
@@ -436,7 +467,7 @@ class RuntimeManager {
     }
 
     // not found, new map and cache
-    status = synHostMap(device->id, size, ptr);
+    status = synHostMap(deviceID, size, ptr);
     LOG_IF(ERROR, status != synSuccess)
         << "[RUNTIME] synHostMap() failed = " << status << " ptr=" << ptr
         << " size=" << size;
@@ -455,11 +486,11 @@ class RuntimeManager {
     if (ptr_size < size) ptr_size = size;
 
     if (global_ptr != nullptr) {
-      synHostFree(device->id, global_ptr, 0);
+      synHostFree(deviceID, global_ptr, 0);
       global_ptr = nullptr;
     }
 
-    synStatus status = synHostMalloc(device->id, ptr_size, 0, &global_ptr);
+    synStatus status = synHostMalloc(deviceID, ptr_size, 0, &global_ptr);
     PD_CHECK(status == synSuccess, "[RUNTIME] synHostMalloc failed = ", status);
     return global_ptr;
   }
@@ -541,8 +572,9 @@ class RuntimeManager {
  private:
   synModuleId moduleID = 0;
   std::string busID = "";
-  synDeviceId deviceId = 0;
-  uint32_t Status = 0;  // 1 acquire, 0 not acquire
+  synDeviceId deviceID = 0;
+  uint8_t deviceIndex = 0;
+  uint32_t DeviceStatus = 0;  // 1 acquire, 0 not acquire
   uint32_t count = 0;
 
   // user streams
@@ -561,6 +593,9 @@ class RuntimeManager {
 
   // trace parser
   std::unique_ptr<HpuTraceParser> parser;
+
+  std::shared_ptr<HlMlMemoryReporter> m_hlml_memory_reporter;
+  std::shared_ptr<HlMlMemoryUpdater> m_hlml_memory_updater;
 };
 
 static RuntimeManager runtimeManager;
@@ -689,6 +724,8 @@ C_Status Allocate_device(const C_Device device, void **ptr, size_t size) {
       << "allocate device mem device id = " << runtimeManager.GetDeviceID()
       << " malloc ptr=" << *ptr << " size=" << size;
 
+  // Do statistics on total device memory usage
+  g_mem_usage += size;
   return C_SUCCESS;
 }
 
@@ -702,6 +739,8 @@ C_Status Deallocate_device(const C_Device device, void *ptr, size_t size) {
 
   PD_CHECK(status == synSuccess, "[RUNTIME] synDeviceFree() failed = ", status);
 
+  // Do statistics on total device memory usage
+  g_mem_usage -= size;
   return C_SUCCESS;
 }
 
@@ -738,7 +777,8 @@ C_Status CreateStream(const C_Device device, C_Stream *stream) {
 C_Status DestroyStream(const C_Device device, C_Stream stream) {
   runtimeManager.DestroyStream(device, stream);
   LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-      << "destroy stream device id=" << device->id << " stream=" << stream;
+      << "destroy stream device module id=" << device->id
+      << " stream=" << stream;
 
   return C_SUCCESS;
 }

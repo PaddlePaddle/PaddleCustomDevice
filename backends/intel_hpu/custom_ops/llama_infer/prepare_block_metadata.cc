@@ -89,6 +89,14 @@ void pad_fill(const T* input_p,
   }
 }
 
+template <typename T>
+void pad_fill(const T* input_p, T* padded, std::vector<int> valid_batches) {
+#pragma omp parallel for num_threads(OMP_THREAD_NUM)
+  for (int i = 0; i < static_cast<int>(valid_batches.size()); ++i) {
+    padded[i] = input_p[valid_batches[i]];
+  }
+}
+
 // in: seq_lens_decoder, block_tables
 // out: block_indices, block_offset
 // return last_block_pos, seq_lens
@@ -151,7 +159,6 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
   auto hpu_place = rope_emb.place();
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(hpu_place));
-  auto input_ids_cpu = input_ids.copy_to(paddle::CPUPlace(), true);
   auto block_tables_cpu = block_tables.copy_to(paddle::CPUPlace(), true);
   auto seq_lens_encoder_cpu =
       seq_lens_encoder.copy_to(paddle::CPUPlace(), true);
@@ -178,6 +185,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
 
   if (enc_count > 0) {
     int total_batch = find_bucket(enc_count, batch_step, max_batches);
+    auto input_ids_cpu = input_ids.copy_to(paddle::CPUPlace(), true);
 
     int max_buckets = (max_enc_len + block_size - 1) / block_size;
     int max_prompt_len = max_buckets * block_size;
@@ -238,22 +246,22 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
   } else if (dec_count > 0) {
     int total_batch = find_bucket(dec_count, batch_step, max_batches);
 
+    auto input_ids_column_0 =
+        paddle::experimental::slice(input_ids, {1}, {0}, {1}, {}, {});
+    auto input_ids_cpu = input_ids_column_0.copy_to(paddle::CPUPlace(), true);
+
     auto src_padded = paddle::full(
         {total_batch}, 0, paddle::DataType::INT64, paddle::CPUPlace());
     pad_fill<int64_t>(const_cast<int64_t*>(input_ids_cpu.data<int64_t>()),
                       reinterpret_cast<int64_t*>(src_padded.data<int64_t>()),
-                      valid_batches_dec,
-                      max_seq_len,
-                      1);
+                      valid_batches_dec);
 
     auto seq_lens_padded = paddle::full(
         {total_batch}, 0, paddle::DataType::INT32, paddle::CPUPlace());
     pad_fill<int32_t>(
         const_cast<int32_t*>(seq_lens_decoder_cpu.data<int32_t>()),
         reinterpret_cast<int32_t*>(seq_lens_padded.data<int32_t>()),
-        valid_batches_dec,
-        1,
-        1);
+        valid_batches_dec);
 
     std::shared_ptr<phi::DenseTensor> seq_lens_padded_hpu =
         std::make_shared<phi::DenseTensor>();

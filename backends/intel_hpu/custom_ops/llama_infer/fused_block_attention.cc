@@ -1,0 +1,1818 @@
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "habanalabs/perf_lib_layer_params.h"
+#include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
+#include "kernels/hpu_operator.h"
+#include "paddle/extension.h"
+#include "utils/utils.h"
+
+namespace custom_kernel {
+
+struct FusedBlockAttentionParams {
+  ns_LayerNormKernel::Params rmsnorm_params;
+  ns_ConstantKernel::Params const_params;
+  ns_GatherKernel::Params index_select_params;
+  ns_Reduction::Params reduce_params;
+  ns_IndexReduce::Params index_reduce_params;
+
+  int head_dim;
+  int num_head;
+  int num_kv_head;
+};
+
+class FusedMHABlockAttention : public HpuFusedOperator {
+ public:
+  explicit FusedMHABlockAttention(synDataType dtype)
+      : HpuFusedOperator("fused_block_attention_fwd_", false), dtype_(dtype) {}
+  template <typename T>
+  void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
+    auto ins = ct.GetTensors();
+    auto outs = ct.GetTensors(false);
+
+    std::vector<int64_t> src_dims = std::vector<int64_t>(ins[0].dims);
+
+    int64_t batch_size = src_dims[0];
+    int64_t seq_length = src_dims[1];
+    int64_t hidden_size = ins[13].dims[0];
+    int64_t block_size = ins[3].dims[1];
+    int64_t num_of_block = ins[6].dims[0];
+
+    int64_t num_head = params.num_head;
+    int64_t head_dim = params.head_dim;
+    int64_t num_kv_head = params.num_kv_head;
+
+    synGEMMParams gemm_params_f_f;
+    gemm_params_f_f.transpose_a = false;
+    gemm_params_f_f.transpose_b = false;
+
+    synGEMMParams gemm_params_t_f;
+    gemm_params_t_f.transpose_a = true;
+    gemm_params_t_f.transpose_b = false;
+
+    synGEMMParams gemm_params_f_t;
+    gemm_params_f_t.transpose_a = false;
+    gemm_params_f_t.transpose_b = true;
+
+    synSectionHandle residual_section = createSection();
+    auto src = createTensorFromCT(&ct, 0);
+    auto residual = createTensorFromCT(&ct, 1, true, residual_section);
+    auto residual_out = createTensorFromCT(&ct, 3, false, residual_section);
+
+    std::vector<synTensor> add_residual_in;
+    add_residual_in.push_back(src);
+    add_residual_in.push_back(residual);
+
+    std::vector<synTensor> add_residual_out;
+    add_residual_out.push_back(residual_out);
+
+    AddNodeAdd<T>(add_residual_in, add_residual_out, guid_ + "add_residual");
+
+    auto ln_scales = createTensorFromCT(&ct, 11);
+
+    std::vector<synTensor> rmsnorm_inputs;
+    rmsnorm_inputs.push_back(residual_out);
+    rmsnorm_inputs.push_back(ln_scales);
+
+    auto tmp_dims = src_dims;
+    tmp_dims[2] = 1;
+    auto norm_out = createTensorNoPresist("norm_out", dtype_, src_dims);
+    auto norm_var = createTensorNoPresist("norm_var", dtype_, tmp_dims);
+
+    std::vector<synTensor> rmsnorm_outputs;
+    rmsnorm_outputs.push_back(norm_out);
+    rmsnorm_outputs.push_back(norm_var);
+
+    AddNodeRmsNorm<T>(rmsnorm_inputs,
+                      rmsnorm_outputs,
+                      params.rmsnorm_params,
+                      guid_ + "rmsnorm");
+
+    auto qkv_weights = createTensorFromCT(&ct, 12);
+    std::vector<synTensor> mul_inputs;
+    mul_inputs.push_back(norm_out);
+    mul_inputs.push_back(qkv_weights);
+
+    auto wt_dims = ins[12].dims;
+    tmp_dims[2] = wt_dims[0];
+
+    auto qkv_out = createTensorNoPresist("qkv_out", dtype_, tmp_dims);
+    std::vector<synTensor> mul_outputs;
+    mul_outputs.push_back(qkv_out);
+
+    synGEMMParams gemm_params;
+    gemm_params.transpose_a = false;
+    gemm_params.transpose_b = true;
+    AddNodeBatchGemm(mul_inputs, mul_outputs, gemm_params, guid_ + "batchgemm");
+
+    auto reshape_dims = src_dims;
+    reshape_dims[2] = num_head + 2 * num_kv_head;
+    reshape_dims.push_back(head_dim);
+
+    std::vector<synTensor> reshape_outputs;
+    auto reshape_out =
+        createTensorNoPresist("reshape_out", dtype_, reshape_dims);
+    reshape_outputs.push_back(reshape_out);
+
+    AddNodeReshape(mul_outputs, reshape_outputs, guid_ + "reshape_qkv");
+
+    std::vector<int64_t> q_dims;
+    q_dims.push_back(batch_size);
+    q_dims.push_back(seq_length);
+    q_dims.push_back(num_head);
+    q_dims.push_back(head_dim);
+    std::vector<int64_t> kv_dims;
+    kv_dims.push_back(batch_size);
+    kv_dims.push_back(seq_length);
+    kv_dims.push_back(num_kv_head);
+    kv_dims.push_back(head_dim);
+
+    auto q_split = createTensorNoPresist("q_split", dtype_, q_dims);
+    auto k_split = createTensorNoPresist("k_split", dtype_, kv_dims);
+    auto v_split = createTensorNoPresist("v_split", dtype_, kv_dims);
+    std::vector<synTensor> split_outpus;
+    split_outpus.push_back(q_split);
+    split_outpus.push_back(k_split);
+    split_outpus.push_back(v_split);
+
+    synSplitParams splitParams;
+    splitParams.axis = 1;
+    AddNodeSplit(reshape_outputs, split_outpus, splitParams, guid_ + "split");
+
+    std::vector<synTensor> rotary_embs_inputs;
+    auto rotary_embs_c = createTensorFromCT(&ct, 2);
+    rotary_embs_inputs.push_back(rotary_embs_c);
+
+    auto rotary_embs_dims = ins[2].dims;
+    rotary_embs_dims[0] = 1;
+
+    std::vector<synTensor> cos_inputs;
+    auto cos_in = createTensorNoPresist("cos_in", dtype_, rotary_embs_dims);
+    cos_inputs.push_back(cos_in);
+
+    synSliceParamsV2 sliceParams;
+    for (uint64_t i = 0; i < rotary_embs_dims.size(); i++) {
+      sliceParams.axes[i] = i;
+      sliceParams.steps[i] = 1;
+      sliceParams.starts[i] = 0;
+      sliceParams.ends[i] = rotary_embs_dims[rotary_embs_dims.size() - 1 - i];
+    }
+    AddNodeSlice(
+        rotary_embs_inputs, cos_inputs, sliceParams, guid_ + "slice_cos");
+
+    std::vector<synTensor> sin_inputs;
+    auto sin_in = createTensorNoPresist("sin_in", dtype_, rotary_embs_dims);
+    sin_inputs.push_back(sin_in);
+    sliceParams.starts[rotary_embs_dims.size() - 1] = 1;
+    sliceParams.ends[rotary_embs_dims.size() - 1] = 2;
+    AddNodeSlice(
+        rotary_embs_inputs, sin_inputs, sliceParams, guid_ + "slice_sin");
+
+    rotary_embs_dims.erase(rotary_embs_dims.begin());
+    auto sin_sq =
+        createTensorNoPresist("sin_squeezed", dtype_, rotary_embs_dims);
+    std::vector<synTensor> sin_squeezed;
+    sin_squeezed.push_back(sin_sq);
+
+    synSqueezeParams squeezeParams;
+    squeezeParams.axis = 4;
+    AddNodeSqueeze(
+        sin_inputs, sin_squeezed, squeezeParams, guid_ + "squeeze_sin");
+
+    auto cos_sq =
+        createTensorNoPresist("cos_squeezed", dtype_, rotary_embs_dims);
+    std::vector<synTensor> cos_squeezed;
+    cos_squeezed.push_back(cos_sq);
+    AddNodeSqueeze(
+        cos_inputs, cos_squeezed, squeezeParams, guid_ + "squeeze_cos");
+
+    std::vector<synTensor> inputs_q;
+    std::vector<synTensor> outputs_q;
+    inputs_q.push_back(q_split);
+    inputs_q.push_back(sin_sq);
+    inputs_q.push_back(cos_sq);
+
+    auto q_states = createTensorNoPresist("q_states", dtype_, q_dims);
+    outputs_q.push_back(q_states);
+
+    ns_RoPESt2::ParamsV2 ropeParams;
+    ropeParams.offset = 0;
+    ropeParams.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+    AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+    inputs_k.push_back(k_split);
+    inputs_k.push_back(sin_sq);
+    inputs_k.push_back(cos_sq);
+
+    auto k_rope = createTensorNoPresist("k_rope", dtype_, kv_dims);
+    outputs_k.push_back(k_rope);
+    AddNodeRope<T>(inputs_k, outputs_k, ropeParams, guid_ + "rope_k");
+
+    //////////////////////////////////////////////////////////////////
+    kv_dims.erase(kv_dims.begin() + 1);
+
+    std::vector<synTensor> outputs_k_squeeze;
+    auto k_squeeze = createTensorNoPresist("k_squeeze", dtype_, kv_dims);
+    outputs_k_squeeze.push_back(k_squeeze);
+    AddNodeReshape(outputs_k, outputs_k_squeeze, guid_ + "squeeze_k");
+
+    std::vector<synTensor> inputs_v_squeeze;
+    inputs_v_squeeze.push_back(v_split);
+    std::vector<synTensor> outputs_v_squeeze;
+    auto v_squeeze = createTensorNoPresist("v_squeeze", dtype_, kv_dims);
+    outputs_v_squeeze.push_back(v_squeeze);
+    AddNodeReshape(inputs_v_squeeze, outputs_v_squeeze, guid_ + "squeeze_v");
+
+    std::vector<int64_t> indices_concat_dims =
+        std::vector<int64_t>(ins[9].dims);
+    indices_concat_dims.emplace_back(1);
+
+    std::vector<synTensor> inputs_concat;
+    inputs_concat.push_back(createTensor(indices_concat_dims.size(),
+                                         ins[9].type,
+                                         indices_concat_dims,
+                                         true,
+                                         ins[9].name));
+    inputs_concat.push_back(createTensor(indices_concat_dims.size(),
+                                         ins[10].type,
+                                         indices_concat_dims,
+                                         true,
+                                         ins[10].name));
+
+    std::vector<synTensor> outputs_concat;
+    indices_concat_dims.back() = 2;
+    auto indices_concat = createTensor(indices_concat_dims.size(),
+                                       ins[9].type,
+                                       indices_concat_dims,
+                                       false,
+                                       "indices_concat");
+    outputs_concat.push_back(indices_concat);
+
+    synConcatenateParams concatParams;
+    concatParams.axis = 0;
+    AddNodeConcat(
+        inputs_concat, outputs_concat, concatParams, guid_ + "concat");
+
+    synSectionHandle kCache_section = createSection();
+    auto key_cache = createTensorFromCT(&ct, 3, true, kCache_section);
+    auto kCache_out = createTensorFromCT(&ct, 1, false, kCache_section);
+    std::vector<synTensor> inputs_scatter_k;
+    inputs_scatter_k.push_back(key_cache);
+    inputs_scatter_k.push_back(indices_concat);
+    inputs_scatter_k.push_back(k_squeeze);
+    std::vector<synTensor> outputs_scatter_k;
+    outputs_scatter_k.push_back(kCache_out);
+    AddNodeScatter<T>(
+        inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+
+    synSectionHandle vCache_section = createSection();
+    auto value_cache = createTensorFromCT(&ct, 4, true, vCache_section);
+    auto vCache_out = createTensorFromCT(&ct, 2, false, vCache_section);
+    std::vector<synTensor> inputs_scatter_v;
+    inputs_scatter_v.push_back(value_cache);
+    inputs_scatter_v.push_back(indices_concat);
+    inputs_scatter_v.push_back(v_squeeze);
+    std::vector<synTensor> outputs_scatter_v;
+    outputs_scatter_v.push_back(vCache_out);
+    AddNodeScatter<T>(
+        inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+    //////////////////////////////////////////////////////////////////
+
+    std::vector<int64_t> scaler_dims = {1};
+    auto scaler_tensor =
+        createTensorNoPresist("scaler_tensor", syn_type_bf16, scaler_dims);
+    std::vector<synTensor> scaler;
+    scaler.push_back(scaler_tensor);
+    AddNodeFull<T>(scaler, params.const_params, guid_ + "full_scale");
+
+    std::vector<synTensor> scaled_q_in;
+    scaled_q_in.push_back(q_states);
+    scaled_q_in.push_back(scaler_tensor);
+
+    auto scaled_q = createTensorNoPresist("scaled_q", dtype_, q_dims);
+    std::vector<synTensor> scaled_q_out;
+    scaled_q_out.push_back(scaled_q);
+
+    AddNodeMultiply<T>(scaled_q_in, scaled_q_out, guid_ + "mul_scale_q");
+
+    std::vector<int64_t> reshape_q_dims;
+    reshape_q_dims.push_back(batch_size);
+    reshape_q_dims.push_back(hidden_size);
+
+    auto reshaped_q =
+        createTensorNoPresist("reshaped_q", dtype_, reshape_q_dims);
+    std::vector<synTensor> reshape_q_out;
+    reshape_q_out.push_back(reshaped_q);
+
+    AddNodeReshape(scaled_q_out, reshape_q_out, guid_ + "reshape_scale_q");
+
+    /*******************************/
+
+    std::vector<synTensor> map_q_in;
+    auto block_mapping = createTensorFromCT(&ct, 7);
+    map_q_in.push_back(block_mapping);
+    map_q_in.push_back(reshaped_q);
+
+    std::vector<int64_t> map_q_dims;
+    map_q_dims.push_back(num_of_block);
+    map_q_dims.push_back(hidden_size);
+    auto mapped_q = createTensorNoPresist("mapped_q", dtype_, map_q_dims);
+    std::vector<synTensor> map_q_out;
+    map_q_out.push_back(mapped_q);
+
+    AddNodeGemm(map_q_in, map_q_out, gemm_params_f_f, guid_ + "gemm_map_q");
+
+    std::vector<int64_t> reshape_map_q_dims;
+    reshape_map_q_dims.push_back(num_of_block);
+    reshape_map_q_dims.push_back(num_head);
+    reshape_map_q_dims.push_back(1);
+    reshape_map_q_dims.push_back(head_dim);
+
+    auto reshaped_map_q =
+        createTensorNoPresist("reshaped_map_q", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> reshape_map_q_out;
+    reshape_map_q_out.push_back(reshaped_map_q);
+
+    AddNodeReshape(map_q_out, reshape_map_q_out, guid_ + "reshape_map_q");
+
+    /*******************************/
+
+    std::vector<synTensor> index_select_k_in;
+    std::vector<synTensor> index_select_v_in;
+
+    auto block_list = createTensorFromCT(&ct, 6);
+
+    index_select_k_in.push_back(kCache_out);
+    index_select_v_in.push_back(vCache_out);
+    index_select_k_in.push_back(block_list);
+    index_select_v_in.push_back(block_list);
+
+    std::vector<int64_t> index_selected_dims;
+    index_selected_dims.push_back(num_of_block);
+    index_selected_dims.push_back(block_size);
+    index_selected_dims.push_back(num_kv_head);
+    index_selected_dims.push_back(head_dim);
+
+    auto index_select_k_i =
+        createTensorNoPresist("index_select_k_i", dtype_, index_selected_dims);
+    auto index_select_v_i =
+        createTensorNoPresist("index_select_v_i", dtype_, index_selected_dims);
+    std::vector<synTensor> index_select_k_out;
+    index_select_k_out.push_back(index_select_k_i);
+    std::vector<synTensor> index_select_v_out;
+    index_select_v_out.push_back(index_select_v_i);
+
+    AddNodeIndexSelect<T>(index_select_k_in,
+                          index_select_k_out,
+                          params.index_select_params,
+                          guid_ + "index_select_k_i");
+    AddNodeIndexSelect<T>(index_select_v_in,
+                          index_select_v_out,
+                          params.index_select_params,
+                          guid_ + "index_select_v_i");
+
+    std::vector<int> axis = {0, 2, 1, 3};
+    synTransposeParams trans_params;
+    for (size_t i = 0; i < axis.size(); i++) {
+      trans_params.permutation[i] =
+          static_cast<TransposePermutationDim>(axis[i]);
+    }
+    trans_params.tensorDim = 4;
+
+    std::vector<int64_t> transpose_dims;
+    transpose_dims.push_back(num_of_block);
+    transpose_dims.push_back(num_kv_head);
+    transpose_dims.push_back(block_size);
+    transpose_dims.push_back(head_dim);
+
+    auto transpose_k =
+        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_k;
+    trans_index_select_k.push_back(transpose_k);
+
+    AddNodeTranspose(index_select_k_out,
+                     trans_index_select_k,
+                     trans_params,
+                     guid_ + "transpose_k");
+
+    auto transpose_v =
+        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_v;
+    trans_index_select_v.push_back(transpose_v);
+
+    AddNodeTranspose(index_select_v_out,
+                     trans_index_select_v,
+                     trans_params,
+                     guid_ + "transpose_v");
+
+    std::vector<synTensor> q_k_in;
+    q_k_in.push_back(reshaped_map_q);
+    q_k_in.push_back(transpose_k);
+
+    std::vector<int64_t> q_k_dims;
+    q_k_dims.push_back(num_of_block);
+    q_k_dims.push_back(num_head);
+    q_k_dims.push_back(1);
+    q_k_dims.push_back(block_size);
+    auto q_k = createTensorNoPresist("q_k", dtype_, q_k_dims);
+    std::vector<synTensor> q_k_out;
+    q_k_out.push_back(q_k);
+
+    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+
+    /*******************************/
+
+    auto block_bias = createTensorFromCT(&ct, 8);
+    std::vector<synTensor> block_bias_in;
+    block_bias_in.push_back(block_bias);
+
+    std::vector<int64_t> reshaped_bias_dims;
+    reshaped_bias_dims.push_back(num_of_block);
+    reshaped_bias_dims.push_back(1);
+    reshaped_bias_dims.push_back(1);
+    reshaped_bias_dims.push_back(block_size);
+
+    auto reshaped_bias =
+        createTensorNoPresist("reshaped_bias", dtype_, reshaped_bias_dims);
+    std::vector<synTensor> block_bias_out;
+    block_bias_out.push_back(reshaped_bias);
+
+    AddNodeReshape(block_bias_in, block_bias_out, guid_ + "reshaped_bias");
+
+    std::vector<synTensor> add_bias_in;
+    add_bias_in.push_back(q_k);
+    add_bias_in.push_back(reshaped_bias);
+
+    auto add_bias = createTensorNoPresist("add_bias", dtype_, q_k_dims);
+    std::vector<synTensor> add_bias_out;
+    add_bias_out.push_back(add_bias);
+
+    AddNodeAdd<T>(add_bias_in, add_bias_out, guid_ + "add_bias");
+    /*******************************/
+
+    std::vector<int64_t> block_max_dims;
+    block_max_dims.push_back(num_of_block);
+    block_max_dims.push_back(num_head);
+    block_max_dims.push_back(1);
+    block_max_dims.push_back(1);
+
+    auto block_max = createTensorNoPresist("block_max", dtype_, block_max_dims);
+    std::vector<synTensor> block_max_out;
+    block_max_out.push_back(block_max);
+
+    AddNodeReduceMax<T>(
+        add_bias_out, block_max_out, params.reduce_params, guid_ + "reduceMax");
+
+    /**************************************************************/
+
+    std::vector<int64_t> sum_adjusted_dims;
+    sum_adjusted_dims.push_back(num_of_block);
+    sum_adjusted_dims.push_back(num_head);
+
+    auto block_max_2D =
+        createTensorNoPresist("block_max_2D", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_max_2D_out;
+    block_max_2D_out.push_back(block_max_2D);
+
+    AddNodeReshape(
+        block_max_out, block_max_2D_out, guid_ + "squeeze_block_max");
+
+    std::vector<int64_t> group_max_dims;
+    group_max_dims.push_back(batch_size + 1);
+    group_max_dims.push_back(num_head);
+
+    auto group_max = createTensorNoPresist("group_max", dtype_, group_max_dims);
+    std::vector<synTensor> group_max_tensor;
+    group_max_tensor.push_back(group_max);
+
+    params.const_params.constant.f = -std::numeric_limits<float>::infinity();
+
+    AddNodeFull<T>(group_max_tensor, params.const_params, guid_ + "full_inf");
+
+    auto block_groups = createTensorFromCT(&ct, 5);
+    std::vector<synTensor> index_reduce_in;
+    index_reduce_in.push_back(group_max);
+    index_reduce_in.push_back(block_groups);
+    index_reduce_in.push_back(block_max_2D);
+
+    auto reduced_group_max =
+        createTensorNoPresist("reduced_group_max", dtype_, group_max_dims);
+    std::vector<synTensor> index_reduce_out;
+    index_reduce_out.push_back(reduced_group_max);
+
+    AddNodeIndexReduce<T>(index_reduce_in,
+                          index_reduce_out,
+                          params.index_reduce_params,
+                          guid_ + "index_reduce_amax");
+
+    std::vector<synTensor> index_select_groupmax_in;
+    index_select_groupmax_in.push_back(reduced_group_max);
+    index_select_groupmax_in.push_back(block_groups);
+
+    auto selected_group_max =
+        createTensorNoPresist("selected_group_max", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> index_select_groupmax_out;
+    index_select_groupmax_out.push_back(selected_group_max);
+    params.index_select_params.axis = 1;
+    AddNodeIndexSelect<T>(index_select_groupmax_in,
+                          index_select_groupmax_out,
+                          params.index_select_params,
+                          guid_ + "index_select_groupmax");
+
+    std::vector<synTensor> sub_group_max_in;
+    sub_group_max_in.push_back(block_max_2D);
+    sub_group_max_in.push_back(selected_group_max);
+
+    auto sub_group_max =
+        createTensorNoPresist("sub_group_max", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> sub_group_max_out;
+    sub_group_max_out.push_back(sub_group_max);
+
+    AddNodeSub<T>(sub_group_max_in, sub_group_max_out, guid_ + "sub_group_max");
+
+    auto block_adjustment =
+        createTensorNoPresist("block_adjustment", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_adjustment_out;
+    block_adjustment_out.push_back(block_adjustment);
+    AddNodeExp<T>(sub_group_max_out,
+                  block_adjustment_out,
+                  guid_ + "exp_block_adjustment");
+
+    /**************************************************************/
+
+    std::vector<synTensor> sub_block_max_in;
+    sub_block_max_in.push_back(add_bias);
+    sub_block_max_in.push_back(block_max);
+
+    auto sub_block_max =
+        createTensorNoPresist("sub_block_max", dtype_, q_k_dims);
+    std::vector<synTensor> sub_block_max_out;
+    sub_block_max_out.push_back(sub_block_max);
+    AddNodeSub<T>(sub_block_max_in, sub_block_max_out, guid_ + "sub_block_max");
+
+    auto score = createTensorNoPresist("score", dtype_, q_k_dims);
+    std::vector<synTensor> score_out;
+    score_out.push_back(score);
+    AddNodeExp<T>(sub_block_max_out, score_out, guid_ + "exp_score");
+
+    /*******************************/
+
+    std::vector<synTensor> score_v_in;
+    score_v_in.push_back(score);
+    score_v_in.push_back(transpose_v);
+
+    auto score_v = createTensorNoPresist("score_v", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> score_v_out;
+    score_v_out.push_back(score_v);
+
+    AddNodeBatchGemm(
+        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+
+    auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
+    std::vector<synTensor> reduceSum_out;
+    reduceSum_out.push_back(reduceSum);
+
+    AddNodeReduceSum<T>(
+        score_out, reduceSum_out, params.reduce_params, guid_ + "reduceSum");
+
+    auto block_sums_2D =
+        createTensorNoPresist("block_sums_2D", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_sums_2D_out;
+    block_sums_2D_out.push_back(block_sums_2D);
+
+    AddNodeReshape(
+        reduceSum_out, block_sums_2D_out, guid_ + "squeeze_block_sums");
+
+    std::vector<synTensor> sum_adjusted_in;
+    sum_adjusted_in.push_back(block_sums_2D);
+    sum_adjusted_in.push_back(block_adjustment);
+
+    auto sum_adjusted =
+        createTensorNoPresist("sum_adjusted", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> sum_adjusted_out;
+    sum_adjusted_out.push_back(sum_adjusted);
+
+    AddNodeMultiply<T>(
+        sum_adjusted_in, sum_adjusted_out, guid_ + "mul_sum_adjusted");
+    /***************************************************************/
+
+    std::vector<synTensor> map_sum_adjusted_in;
+    map_sum_adjusted_in.push_back(block_mapping);
+    map_sum_adjusted_in.push_back(sum_adjusted);
+
+    std::vector<int64_t> map_sum_adjusted_dims;
+    map_sum_adjusted_dims.push_back(batch_size);
+    map_sum_adjusted_dims.push_back(num_head);
+    auto mapped_sum_adjusted = createTensorNoPresist(
+        "mapped_sum_adjusted", dtype_, map_sum_adjusted_dims);
+    std::vector<synTensor> map_sum_adjusted_out;
+    map_sum_adjusted_out.push_back(mapped_sum_adjusted);
+
+    AddNodeGemm(map_sum_adjusted_in,
+                map_sum_adjusted_out,
+                gemm_params_t_f,
+                guid_ + "gemm_map_sum_adjusted");
+
+    std::vector<synTensor> group_sum_adjusted_in;
+    group_sum_adjusted_in.push_back(block_mapping);
+    group_sum_adjusted_in.push_back(mapped_sum_adjusted);
+
+    auto group_sum_adjusted =
+        createTensorNoPresist("group_sum_adjusted", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> group_sum_adjusted_out;
+    group_sum_adjusted_out.push_back(group_sum_adjusted);
+
+    AddNodeGemm(group_sum_adjusted_in,
+                group_sum_adjusted_out,
+                gemm_params_f_f,
+                guid_ + "gemm_group_sum_adjusted");
+
+    /*******************************/
+
+    auto reshaped_group_sum_adjusted = createTensorNoPresist(
+        "reshaped_group_sum_adjusted", dtype_, block_max_dims);
+    std::vector<synTensor> group_sum_adjusted_4D;
+    group_sum_adjusted_4D.push_back(reshaped_group_sum_adjusted);
+
+    AddNodeReshape(group_sum_adjusted_out,
+                   group_sum_adjusted_4D,
+                   guid_ + "reshaped_group_sum_adjusted");
+
+    auto reshaped_sum_adjusted =
+        createTensorNoPresist("reshaped_sum_adjusted", dtype_, block_max_dims);
+    std::vector<synTensor> sum_adjusted_4D;
+    sum_adjusted_4D.push_back(reshaped_sum_adjusted);
+
+    AddNodeReshape(
+        sum_adjusted_out, sum_adjusted_4D, guid_ + "reshaped_sum_adjusted");
+
+    auto reshaped_block_adjustment = createTensorNoPresist(
+        "reshaped_block_adjustment", dtype_, block_max_dims);
+    std::vector<synTensor> block_adjustment_4D;
+    block_adjustment_4D.push_back(reshaped_block_adjustment);
+
+    AddNodeReshape(block_adjustment_out,
+                   block_adjustment_4D,
+                   guid_ + "reshaped_block_adjustment");
+
+    std::vector<synTensor> max_sum_adjust_in;
+    max_sum_adjust_in.push_back(reshaped_group_sum_adjusted);
+    max_sum_adjust_in.push_back(reshaped_sum_adjusted);
+    auto max_sum_adjust =
+        createTensorNoPresist("max_sum_adjust", dtype_, block_max_dims);
+    std::vector<synTensor> max_sum_adjust_out;
+    max_sum_adjust_out.push_back(max_sum_adjust);
+
+    AddNodeMaximum<T>(
+        max_sum_adjust_in, max_sum_adjust_out, guid_ + "max_sum_adjust");
+
+    std::vector<synTensor> rescale_in;
+    rescale_in.push_back(reshaped_block_adjustment);
+    rescale_in.push_back(max_sum_adjust);
+    auto rescale = createTensorNoPresist("rescale", dtype_, block_max_dims);
+    std::vector<synTensor> rescale_out;
+    rescale_out.push_back(rescale);
+    AddNodeDivide<T>(rescale_in, rescale_out, guid_ + "div_rescale");
+
+    std::vector<synTensor> rescale_v_in;
+    rescale_v_in.push_back(rescale);
+    rescale_v_in.push_back(score_v);
+
+    auto rescale_v =
+        createTensorNoPresist("rescale_v", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> rescale_v_out;
+    rescale_v_out.push_back(rescale_v);
+
+    AddNodeMultiply<T>(rescale_v_in, rescale_v_out, guid_ + "mul_rescale_v");
+
+    auto reshape_attn =
+        createTensorNoPresist("reshape_attn", dtype_, map_q_dims);
+    std::vector<synTensor> reshape_attn_out;
+    reshape_attn_out.push_back(reshape_attn);
+
+    AddNodeReshape(rescale_v_out, reshape_attn_out, guid_ + "reshape_attn");
+
+    std::vector<synTensor> map_attn_in;
+    map_attn_in.push_back(block_mapping);
+    map_attn_in.push_back(reshape_attn);
+
+    auto mapped_attn =
+        createTensorNoPresist("mapped_attn", dtype_, reshape_q_dims);
+    std::vector<synTensor> map_attn_out;
+    map_attn_out.push_back(mapped_attn);
+
+    AddNodeGemm(
+        map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
+
+    std::vector<int64_t> reshape_attn_dims;
+    reshape_attn_dims.push_back(batch_size);
+    reshape_attn_dims.push_back(1);
+    reshape_attn_dims.push_back(hidden_size);
+    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
+    std::vector<synTensor> attn_out;
+    attn_out.push_back(attn);
+
+    AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
+
+    std::vector<synTensor> proj_in;
+    auto linear_weights = createTensorFromCT(&ct, 13);
+    proj_in.push_back(attn);
+    proj_in.push_back(linear_weights);
+
+    auto linear_out = createTensorFromCT(&ct, 0, false);
+    std::vector<synTensor> proj_out;
+    proj_out.push_back(linear_out);
+
+    AddNodeBatchGemm(
+        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+  }
+
+ protected:
+  synDataType dtype_;
+};
+
+class FusedGQABlockAttention : public HpuFusedOperator {
+ public:
+  explicit FusedGQABlockAttention(synDataType dtype)
+      : HpuFusedOperator("fused_block_attention_fwd_", false), dtype_(dtype) {}
+  template <typename T>
+  void AddNode(ConvertTensors& ct, FusedBlockAttentionParams& params) {
+    auto ins = ct.GetTensors();
+    auto outs = ct.GetTensors(false);
+
+    std::vector<int64_t> src_dims = std::vector<int64_t>(ins[0].dims);
+
+    int64_t batch_size = src_dims[0];
+    int64_t seq_length = src_dims[1];
+    int64_t hidden_size = ins[13].dims[0];
+    int64_t block_size = ins[3].dims[1];
+    int64_t num_of_block = ins[6].dims[0];
+
+    int64_t num_head = params.num_head;
+    int64_t head_dim = params.head_dim;
+    int64_t num_kv_head = params.num_kv_head;
+    int64_t ngroups = num_head / num_kv_head;
+
+    synGEMMParams gemm_params_f_f;
+    gemm_params_f_f.transpose_a = false;
+    gemm_params_f_f.transpose_b = false;
+
+    synGEMMParams gemm_params_t_f;
+    gemm_params_t_f.transpose_a = true;
+    gemm_params_t_f.transpose_b = false;
+
+    synGEMMParams gemm_params_f_t;
+    gemm_params_f_t.transpose_a = false;
+    gemm_params_f_t.transpose_b = true;
+
+    synSectionHandle residual_section = createSection();
+    auto src = createTensorFromCT(&ct, 0);
+    auto residual = createTensorFromCT(&ct, 1, true, residual_section);
+    auto residual_out = createTensorFromCT(&ct, 3, false, residual_section);
+
+    std::vector<synTensor> add_residual_in;
+    add_residual_in.push_back(src);
+    add_residual_in.push_back(residual);
+
+    std::vector<synTensor> add_residual_out;
+    add_residual_out.push_back(residual_out);
+
+    AddNodeAdd<T>(add_residual_in, add_residual_out, guid_ + "add_residual");
+
+    auto ln_scales = createTensorFromCT(&ct, 11);
+
+    std::vector<synTensor> rmsnorm_inputs;
+    rmsnorm_inputs.push_back(residual_out);
+    rmsnorm_inputs.push_back(ln_scales);
+
+    auto tmp_dims = src_dims;
+    tmp_dims[2] = 1;
+    auto norm_out = createTensorNoPresist("norm_out", dtype_, src_dims);
+    auto norm_var = createTensorNoPresist("norm_var", dtype_, tmp_dims);
+
+    std::vector<synTensor> rmsnorm_outputs;
+    rmsnorm_outputs.push_back(norm_out);
+    rmsnorm_outputs.push_back(norm_var);
+
+    AddNodeRmsNorm<T>(rmsnorm_inputs,
+                      rmsnorm_outputs,
+                      params.rmsnorm_params,
+                      guid_ + "rmsnorm");
+
+    auto qkv_weights = createTensorFromCT(&ct, 12);
+    std::vector<synTensor> mul_inputs;
+    mul_inputs.push_back(norm_out);
+    mul_inputs.push_back(qkv_weights);
+
+    auto wt_dims = ins[12].dims;
+    tmp_dims[2] = wt_dims[0];
+
+    auto qkv_out = createTensorNoPresist("qkv_out", dtype_, tmp_dims);
+    std::vector<synTensor> mul_outputs;
+    mul_outputs.push_back(qkv_out);
+
+    synGEMMParams gemm_params;
+    gemm_params.transpose_a = false;
+    gemm_params.transpose_b = true;
+    AddNodeBatchGemm(mul_inputs, mul_outputs, gemm_params, guid_ + "batchgemm");
+
+    auto reshape_dims = src_dims;
+    reshape_dims[2] = num_head + 2 * num_kv_head;
+    reshape_dims.push_back(head_dim);
+
+    std::vector<synTensor> reshape_outputs;
+    auto reshape_out =
+        createTensorNoPresist("reshape_out", dtype_, reshape_dims);
+    reshape_outputs.push_back(reshape_out);
+
+    AddNodeReshape(mul_outputs, reshape_outputs, guid_ + "reshape_qkv");
+
+    std::vector<int64_t> q_dims;
+    q_dims.push_back(batch_size);
+    q_dims.push_back(seq_length);
+    q_dims.push_back(num_head);
+    q_dims.push_back(head_dim);
+    std::vector<int64_t> kv_dims;
+    kv_dims.push_back(batch_size);
+    kv_dims.push_back(seq_length);
+    kv_dims.push_back(num_kv_head);
+    kv_dims.push_back(head_dim);
+
+    auto q_split = createTensorNoPresist("q_split", dtype_, q_dims);
+    auto k_split = createTensorNoPresist("k_split", dtype_, kv_dims);
+    auto v_split = createTensorNoPresist("v_split", dtype_, kv_dims);
+    std::vector<synTensor> split_outpus;
+    split_outpus.push_back(q_split);
+    split_outpus.push_back(k_split);
+    split_outpus.push_back(v_split);
+
+    synSplitParams splitParams;
+    splitParams.axis = 1;
+    AddNodeSplit(reshape_outputs, split_outpus, splitParams, guid_ + "split");
+
+    std::vector<synTensor> rotary_embs_inputs;
+    auto rotary_embs_c = createTensorFromCT(&ct, 2);
+    rotary_embs_inputs.push_back(rotary_embs_c);
+
+    auto rotary_embs_dims = ins[2].dims;
+    rotary_embs_dims[0] = 1;
+
+    std::vector<synTensor> cos_inputs;
+    auto cos_in = createTensorNoPresist("cos_in", dtype_, rotary_embs_dims);
+    cos_inputs.push_back(cos_in);
+
+    synSliceParamsV2 sliceParams;
+    for (uint64_t i = 0; i < rotary_embs_dims.size(); i++) {
+      sliceParams.axes[i] = i;
+      sliceParams.steps[i] = 1;
+      sliceParams.starts[i] = 0;
+      sliceParams.ends[i] = rotary_embs_dims[rotary_embs_dims.size() - 1 - i];
+    }
+    AddNodeSlice(
+        rotary_embs_inputs, cos_inputs, sliceParams, guid_ + "slice_cos");
+
+    std::vector<synTensor> sin_inputs;
+    auto sin_in = createTensorNoPresist("sin_in", dtype_, rotary_embs_dims);
+    sin_inputs.push_back(sin_in);
+    sliceParams.starts[rotary_embs_dims.size() - 1] = 1;
+    sliceParams.ends[rotary_embs_dims.size() - 1] = 2;
+    AddNodeSlice(
+        rotary_embs_inputs, sin_inputs, sliceParams, guid_ + "slice_sin");
+
+    rotary_embs_dims.erase(rotary_embs_dims.begin());
+    auto sin_sq =
+        createTensorNoPresist("sin_squeezed", dtype_, rotary_embs_dims);
+    std::vector<synTensor> sin_squeezed;
+    sin_squeezed.push_back(sin_sq);
+
+    synSqueezeParams squeezeParams;
+    squeezeParams.axis = 4;
+    AddNodeSqueeze(
+        sin_inputs, sin_squeezed, squeezeParams, guid_ + "squeeze_sin");
+
+    auto cos_sq =
+        createTensorNoPresist("cos_squeezed", dtype_, rotary_embs_dims);
+    std::vector<synTensor> cos_squeezed;
+    cos_squeezed.push_back(cos_sq);
+    AddNodeSqueeze(
+        cos_inputs, cos_squeezed, squeezeParams, guid_ + "squeeze_cos");
+
+    std::vector<synTensor> inputs_q;
+    std::vector<synTensor> outputs_q;
+    inputs_q.push_back(q_split);
+    inputs_q.push_back(sin_sq);
+    inputs_q.push_back(cos_sq);
+
+    auto q_states = createTensorNoPresist("q_states", dtype_, q_dims);
+    outputs_q.push_back(q_states);
+
+    ns_RoPESt2::ParamsV2 ropeParams;
+    ropeParams.offset = 0;
+    ropeParams.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+    AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
+
+    std::vector<synTensor> inputs_k;
+    std::vector<synTensor> outputs_k;
+    inputs_k.push_back(k_split);
+    inputs_k.push_back(sin_sq);
+    inputs_k.push_back(cos_sq);
+
+    auto k_rope = createTensorNoPresist("k_rope", dtype_, kv_dims);
+    outputs_k.push_back(k_rope);
+    AddNodeRope<T>(inputs_k, outputs_k, ropeParams, guid_ + "rope_k");
+
+    //////////////////////////////////////////////////////////////////
+    kv_dims.erase(kv_dims.begin() + 1);
+
+    std::vector<synTensor> outputs_k_squeeze;
+    auto k_squeeze = createTensorNoPresist("k_squeeze", dtype_, kv_dims);
+    outputs_k_squeeze.push_back(k_squeeze);
+    AddNodeReshape(outputs_k, outputs_k_squeeze, guid_ + "squeeze_k");
+
+    std::vector<synTensor> inputs_v_squeeze;
+    inputs_v_squeeze.push_back(v_split);
+    std::vector<synTensor> outputs_v_squeeze;
+    auto v_squeeze = createTensorNoPresist("v_squeeze", dtype_, kv_dims);
+    outputs_v_squeeze.push_back(v_squeeze);
+    AddNodeReshape(inputs_v_squeeze, outputs_v_squeeze, guid_ + "squeeze_v");
+
+    std::vector<int64_t> indices_concat_dims =
+        std::vector<int64_t>(ins[9].dims);
+    indices_concat_dims.emplace_back(1);
+
+    std::vector<synTensor> inputs_concat;
+    inputs_concat.push_back(createTensor(indices_concat_dims.size(),
+                                         ins[9].type,
+                                         indices_concat_dims,
+                                         true,
+                                         ins[9].name));
+    inputs_concat.push_back(createTensor(indices_concat_dims.size(),
+                                         ins[10].type,
+                                         indices_concat_dims,
+                                         true,
+                                         ins[10].name));
+
+    std::vector<synTensor> outputs_concat;
+    indices_concat_dims.back() = 2;
+    auto indices_concat = createTensor(indices_concat_dims.size(),
+                                       ins[9].type,
+                                       indices_concat_dims,
+                                       false,
+                                       "indices_concat");
+    outputs_concat.push_back(indices_concat);
+
+    synConcatenateParams concatParams;
+    concatParams.axis = 0;
+    AddNodeConcat(
+        inputs_concat, outputs_concat, concatParams, guid_ + "concat");
+
+    synSectionHandle kCache_section = createSection();
+    auto key_cache = createTensorFromCT(&ct, 3, true, kCache_section);
+    auto kCache_out = createTensorFromCT(&ct, 1, false, kCache_section);
+    std::vector<synTensor> inputs_scatter_k;
+    inputs_scatter_k.push_back(key_cache);
+    inputs_scatter_k.push_back(indices_concat);
+    inputs_scatter_k.push_back(k_squeeze);
+    std::vector<synTensor> outputs_scatter_k;
+    outputs_scatter_k.push_back(kCache_out);
+    AddNodeScatter<T>(
+        inputs_scatter_k, outputs_scatter_k, guid_ + "index_put_k");
+
+    synSectionHandle vCache_section = createSection();
+    auto value_cache = createTensorFromCT(&ct, 4, true, vCache_section);
+    auto vCache_out = createTensorFromCT(&ct, 2, false, vCache_section);
+    std::vector<synTensor> inputs_scatter_v;
+    inputs_scatter_v.push_back(value_cache);
+    inputs_scatter_v.push_back(indices_concat);
+    inputs_scatter_v.push_back(v_squeeze);
+    std::vector<synTensor> outputs_scatter_v;
+    outputs_scatter_v.push_back(vCache_out);
+    AddNodeScatter<T>(
+        inputs_scatter_v, outputs_scatter_v, guid_ + "index_put_v");
+    //////////////////////////////////////////////////////////////////
+
+    std::vector<int64_t> scaler_dims = {1};
+    auto scaler_tensor =
+        createTensorNoPresist("scaler_tensor", syn_type_bf16, scaler_dims);
+    std::vector<synTensor> scaler;
+    scaler.push_back(scaler_tensor);
+    AddNodeFull<T>(scaler, params.const_params, guid_ + "full_scale");
+
+    std::vector<synTensor> scaled_q_in;
+    scaled_q_in.push_back(q_states);
+    scaled_q_in.push_back(scaler_tensor);
+
+    auto scaled_q = createTensorNoPresist("scaled_q", dtype_, q_dims);
+    std::vector<synTensor> scaled_q_out;
+    scaled_q_out.push_back(scaled_q);
+
+    AddNodeMultiply<T>(scaled_q_in, scaled_q_out, guid_ + "mul_scale_q");
+
+    std::vector<int64_t> reshape_q_dims;
+    reshape_q_dims.push_back(batch_size);
+    reshape_q_dims.push_back(hidden_size);
+
+    auto reshaped_q =
+        createTensorNoPresist("reshaped_q", dtype_, reshape_q_dims);
+    std::vector<synTensor> reshape_q_out;
+    reshape_q_out.push_back(reshaped_q);
+
+    AddNodeReshape(scaled_q_out, reshape_q_out, guid_ + "reshape_scale_q");
+
+    /*******************************/
+
+    std::vector<synTensor> map_q_in;
+    auto block_mapping = createTensorFromCT(&ct, 7);
+    map_q_in.push_back(block_mapping);
+    map_q_in.push_back(reshaped_q);
+
+    std::vector<int64_t> map_q_dims;
+    map_q_dims.push_back(num_of_block);
+    map_q_dims.push_back(hidden_size);
+    auto mapped_q = createTensorNoPresist("mapped_q", dtype_, map_q_dims);
+    std::vector<synTensor> map_q_out;
+    map_q_out.push_back(mapped_q);
+
+    AddNodeGemm(map_q_in, map_q_out, gemm_params_f_f, guid_ + "gemm_map_q");
+
+    std::vector<int64_t> reshape_map_q_dims;
+    reshape_map_q_dims.push_back(num_of_block);
+    reshape_map_q_dims.push_back(num_kv_head);
+    reshape_map_q_dims.push_back(ngroups);
+    reshape_map_q_dims.push_back(1);
+    reshape_map_q_dims.push_back(head_dim);
+
+    auto reshaped_map_q =
+        createTensorNoPresist("reshaped_map_q", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> reshape_map_q_out;
+    reshape_map_q_out.push_back(reshaped_map_q);
+
+    AddNodeReshape(map_q_out, reshape_map_q_out, guid_ + "reshape_map_q");
+
+    /*******************************/
+
+    std::vector<synTensor> index_select_k_in;
+    std::vector<synTensor> index_select_v_in;
+
+    auto block_list = createTensorFromCT(&ct, 6);
+
+    index_select_k_in.push_back(kCache_out);
+    index_select_v_in.push_back(vCache_out);
+    index_select_k_in.push_back(block_list);
+    index_select_v_in.push_back(block_list);
+
+    std::vector<int64_t> index_selected_dims;
+    index_selected_dims.push_back(num_of_block);
+    index_selected_dims.push_back(block_size);
+    index_selected_dims.push_back(num_kv_head);
+    index_selected_dims.push_back(head_dim);
+
+    auto index_select_k_i =
+        createTensorNoPresist("index_select_k_i", dtype_, index_selected_dims);
+    auto index_select_v_i =
+        createTensorNoPresist("index_select_v_i", dtype_, index_selected_dims);
+    std::vector<synTensor> index_select_k_out;
+    index_select_k_out.push_back(index_select_k_i);
+    std::vector<synTensor> index_select_v_out;
+    index_select_v_out.push_back(index_select_v_i);
+
+    AddNodeIndexSelect<T>(index_select_k_in,
+                          index_select_k_out,
+                          params.index_select_params,
+                          guid_ + "index_select_k_i");
+    AddNodeIndexSelect<T>(index_select_v_in,
+                          index_select_v_out,
+                          params.index_select_params,
+                          guid_ + "index_select_v_i");
+
+    std::vector<int> axis = {0, 2, 1, 3};
+    synTransposeParams trans_params;
+    for (size_t i = 0; i < axis.size(); i++) {
+      trans_params.permutation[i] =
+          static_cast<TransposePermutationDim>(axis[i]);
+    }
+    trans_params.tensorDim = 4;
+
+    std::vector<int64_t> transpose_dims;
+    transpose_dims.push_back(num_of_block);
+    transpose_dims.push_back(num_kv_head);
+    transpose_dims.push_back(block_size);
+    transpose_dims.push_back(head_dim);
+
+    auto transpose_k =
+        createTensorNoPresist("transpose_k", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_k;
+    trans_index_select_k.push_back(transpose_k);
+
+    AddNodeTranspose(index_select_k_out,
+                     trans_index_select_k,
+                     trans_params,
+                     guid_ + "transpose_k");
+
+    auto transpose_v =
+        createTensorNoPresist("transpose_v", dtype_, transpose_dims);
+    std::vector<synTensor> trans_index_select_v;
+    trans_index_select_v.push_back(transpose_v);
+
+    AddNodeTranspose(index_select_v_out,
+                     trans_index_select_v,
+                     trans_params,
+                     guid_ + "transpose_v");
+
+    std::vector<int64_t> reshape_kv_dims;
+    reshape_kv_dims.push_back(num_of_block);
+    reshape_kv_dims.push_back(num_kv_head);
+    reshape_kv_dims.push_back(1);
+    reshape_kv_dims.push_back(block_size);
+    reshape_kv_dims.push_back(head_dim);
+
+    auto index_select_k =
+        createTensorNoPresist("index_select_k", dtype_, reshape_kv_dims);
+    std::vector<synTensor> reshape_index_select_k;
+    reshape_index_select_k.push_back(index_select_k);
+
+    AddNodeReshape(
+        trans_index_select_k, reshape_index_select_k, guid_ + "reshape_k");
+
+    auto index_select_v =
+        createTensorNoPresist("index_select_v", dtype_, reshape_kv_dims);
+    std::vector<synTensor> reshape_index_select_v;
+    reshape_index_select_v.push_back(index_select_v);
+
+    AddNodeReshape(
+        trans_index_select_v, reshape_index_select_v, guid_ + "reshape_v");
+
+    std::vector<synTensor> q_k_in;
+    q_k_in.push_back(reshaped_map_q);
+    q_k_in.push_back(index_select_k);
+
+    std::vector<int64_t> q_k_dims;
+    q_k_dims.push_back(num_of_block);
+    q_k_dims.push_back(num_kv_head);
+    q_k_dims.push_back(ngroups);
+    q_k_dims.push_back(1);
+    q_k_dims.push_back(block_size);
+    auto q_k = createTensorNoPresist("q_k", dtype_, q_k_dims);
+    std::vector<synTensor> q_k_out;
+    q_k_out.push_back(q_k);
+
+    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+
+    /*******************************/
+
+    auto block_bias = createTensorFromCT(&ct, 8);
+    std::vector<synTensor> block_bias_in;
+    block_bias_in.push_back(block_bias);
+
+    std::vector<int64_t> reshaped_bias_dims;
+    reshaped_bias_dims.push_back(num_of_block);
+    reshaped_bias_dims.push_back(1);
+    reshaped_bias_dims.push_back(1);
+    reshaped_bias_dims.push_back(1);
+    reshaped_bias_dims.push_back(block_size);
+
+    auto reshaped_bias =
+        createTensorNoPresist("reshaped_bias", dtype_, reshaped_bias_dims);
+    std::vector<synTensor> block_bias_out;
+    block_bias_out.push_back(reshaped_bias);
+
+    AddNodeReshape(block_bias_in, block_bias_out, guid_ + "reshaped_bias");
+
+    std::vector<synTensor> add_bias_in;
+    add_bias_in.push_back(q_k);
+    add_bias_in.push_back(reshaped_bias);
+
+    auto add_bias = createTensorNoPresist("add_bias", dtype_, q_k_dims);
+    std::vector<synTensor> add_bias_out;
+    add_bias_out.push_back(add_bias);
+
+    AddNodeAdd<T>(add_bias_in, add_bias_out, guid_ + "add_bias");
+    /*******************************/
+
+    std::vector<int64_t> block_max_dims;
+    block_max_dims.push_back(num_of_block);
+    block_max_dims.push_back(num_kv_head);
+    block_max_dims.push_back(ngroups);
+    block_max_dims.push_back(1);
+    block_max_dims.push_back(1);
+
+    auto block_max = createTensorNoPresist("block_max", dtype_, block_max_dims);
+    std::vector<synTensor> block_max_out;
+    block_max_out.push_back(block_max);
+
+    AddNodeReduceMax<T>(
+        add_bias_out, block_max_out, params.reduce_params, guid_ + "reduceMax");
+
+    /**************************************************************/
+
+    std::vector<int64_t> sum_adjusted_dims;
+    sum_adjusted_dims.push_back(num_of_block);
+    sum_adjusted_dims.push_back(num_kv_head);
+    sum_adjusted_dims.push_back(ngroups);
+
+    auto block_max_2D =
+        createTensorNoPresist("block_max_2D", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_max_2D_out;
+    block_max_2D_out.push_back(block_max_2D);
+
+    AddNodeReshape(
+        block_max_out, block_max_2D_out, guid_ + "squeeze_block_max");
+
+    std::vector<int64_t> group_max_dims;
+    group_max_dims.push_back(batch_size + 1);
+    group_max_dims.push_back(num_kv_head);
+    group_max_dims.push_back(ngroups);
+
+    auto group_max = createTensorNoPresist("group_max", dtype_, group_max_dims);
+    std::vector<synTensor> group_max_tensor;
+    group_max_tensor.push_back(group_max);
+
+    params.const_params.constant.f = -std::numeric_limits<float>::infinity();
+
+    AddNodeFull<T>(group_max_tensor, params.const_params, guid_ + "full_inf");
+
+    auto block_groups = createTensorFromCT(&ct, 5);
+    std::vector<synTensor> index_reduce_in;
+    index_reduce_in.push_back(group_max);
+    index_reduce_in.push_back(block_groups);
+    index_reduce_in.push_back(block_max_2D);
+
+    auto reduced_group_max =
+        createTensorNoPresist("reduced_group_max", dtype_, group_max_dims);
+    std::vector<synTensor> index_reduce_out;
+    index_reduce_out.push_back(reduced_group_max);
+
+    AddNodeIndexReduce<T>(index_reduce_in,
+                          index_reduce_out,
+                          params.index_reduce_params,
+                          guid_ + "index_reduce_amax");
+
+    std::vector<synTensor> index_select_groupmax_in;
+    index_select_groupmax_in.push_back(reduced_group_max);
+    index_select_groupmax_in.push_back(block_groups);
+
+    auto selected_group_max =
+        createTensorNoPresist("selected_group_max", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> index_select_groupmax_out;
+    index_select_groupmax_out.push_back(selected_group_max);
+    params.index_select_params.axis = 2;
+    AddNodeIndexSelect<T>(index_select_groupmax_in,
+                          index_select_groupmax_out,
+                          params.index_select_params,
+                          guid_ + "index_select_groupmax");
+
+    std::vector<synTensor> sub_group_max_in;
+    sub_group_max_in.push_back(block_max_2D);
+    sub_group_max_in.push_back(selected_group_max);
+
+    auto sub_group_max =
+        createTensorNoPresist("sub_group_max", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> sub_group_max_out;
+    sub_group_max_out.push_back(sub_group_max);
+
+    AddNodeSub<T>(sub_group_max_in, sub_group_max_out, guid_ + "sub_group_max");
+
+    auto block_adjustment =
+        createTensorNoPresist("block_adjustment", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_adjustment_out;
+    block_adjustment_out.push_back(block_adjustment);
+    AddNodeExp<T>(sub_group_max_out,
+                  block_adjustment_out,
+                  guid_ + "exp_block_adjustment");
+
+    /**************************************************************/
+
+    std::vector<synTensor> sub_block_max_in;
+    sub_block_max_in.push_back(add_bias);
+    sub_block_max_in.push_back(block_max);
+
+    auto sub_block_max =
+        createTensorNoPresist("sub_block_max", dtype_, q_k_dims);
+    std::vector<synTensor> sub_block_max_out;
+    sub_block_max_out.push_back(sub_block_max);
+    AddNodeSub<T>(sub_block_max_in, sub_block_max_out, guid_ + "sub_block_max");
+
+    auto score = createTensorNoPresist("score", dtype_, q_k_dims);
+    std::vector<synTensor> score_out;
+    score_out.push_back(score);
+    AddNodeExp<T>(sub_block_max_out, score_out, guid_ + "exp_score");
+
+    /*******************************/
+
+    std::vector<synTensor> score_v_in;
+    score_v_in.push_back(score);
+    score_v_in.push_back(index_select_v);
+
+    auto score_v = createTensorNoPresist("score_v", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> score_v_out;
+    score_v_out.push_back(score_v);
+
+    AddNodeBatchGemm(
+        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+
+    auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
+    std::vector<synTensor> reduceSum_out;
+    reduceSum_out.push_back(reduceSum);
+
+    AddNodeReduceSum<T>(
+        score_out, reduceSum_out, params.reduce_params, guid_ + "reduceSum");
+
+    auto block_sums_2D =
+        createTensorNoPresist("block_sums_2D", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> block_sums_2D_out;
+    block_sums_2D_out.push_back(block_sums_2D);
+
+    AddNodeReshape(
+        reduceSum_out, block_sums_2D_out, guid_ + "squeeze_block_sums");
+
+    std::vector<synTensor> sum_adjusted_in;
+    sum_adjusted_in.push_back(block_sums_2D);
+    sum_adjusted_in.push_back(block_adjustment);
+
+    auto sum_adjusted =
+        createTensorNoPresist("sum_adjusted", dtype_, sum_adjusted_dims);
+    std::vector<synTensor> sum_adjusted_out;
+    sum_adjusted_out.push_back(sum_adjusted);
+
+    AddNodeMultiply<T>(
+        sum_adjusted_in, sum_adjusted_out, guid_ + "mul_sum_adjusted");
+    /***************************************************************/
+
+    std::vector<int64_t> reshaped_sum_adjusted_dims;
+    reshaped_sum_adjusted_dims.push_back(num_of_block);
+    reshaped_sum_adjusted_dims.push_back(num_head);
+
+    auto flatten_sum_adjusted = createTensorNoPresist(
+        "flatten_sum_adjusted", dtype_, reshaped_sum_adjusted_dims);
+    std::vector<synTensor> reshaped_sum_adjusted_out;
+    reshaped_sum_adjusted_out.push_back(flatten_sum_adjusted);
+
+    AddNodeReshape(sum_adjusted_out,
+                   reshaped_sum_adjusted_out,
+                   guid_ + "flatten_sum_adjusted");
+
+    std::vector<synTensor> map_sum_adjusted_in;
+    map_sum_adjusted_in.push_back(block_mapping);
+    map_sum_adjusted_in.push_back(flatten_sum_adjusted);
+
+    std::vector<int64_t> map_sum_adjusted_dims;
+    map_sum_adjusted_dims.push_back(batch_size);
+    map_sum_adjusted_dims.push_back(num_head);
+    auto mapped_sum_adjusted = createTensorNoPresist(
+        "mapped_sum_adjusted", dtype_, map_sum_adjusted_dims);
+    std::vector<synTensor> map_sum_adjusted_out;
+    map_sum_adjusted_out.push_back(mapped_sum_adjusted);
+
+    AddNodeGemm(map_sum_adjusted_in,
+                map_sum_adjusted_out,
+                gemm_params_t_f,
+                guid_ + "gemm_map_sum_adjusted");
+
+    std::vector<synTensor> group_sum_adjusted_in;
+    group_sum_adjusted_in.push_back(block_mapping);
+    group_sum_adjusted_in.push_back(mapped_sum_adjusted);
+
+    std::vector<int64_t> matmul_sum_adjusted_dims;
+    matmul_sum_adjusted_dims.push_back(num_of_block);
+    matmul_sum_adjusted_dims.push_back(num_head);
+    auto group_sum_adjusted = createTensorNoPresist(
+        "group_sum_adjusted", dtype_, matmul_sum_adjusted_dims);
+    std::vector<synTensor> group_sum_adjusted_out;
+    group_sum_adjusted_out.push_back(group_sum_adjusted);
+
+    AddNodeGemm(group_sum_adjusted_in,
+                group_sum_adjusted_out,
+                gemm_params_f_f,
+                guid_ + "gemm_group_sum_adjusted");
+
+    /*******************************/
+
+    auto reshaped_group_sum_adjusted = createTensorNoPresist(
+        "reshaped_group_sum_adjusted", dtype_, block_max_dims);
+    std::vector<synTensor> group_sum_adjusted_4D;
+    group_sum_adjusted_4D.push_back(reshaped_group_sum_adjusted);
+
+    AddNodeReshape(group_sum_adjusted_out,
+                   group_sum_adjusted_4D,
+                   guid_ + "reshaped_group_sum_adjusted");
+
+    auto reshaped_sum_adjusted =
+        createTensorNoPresist("reshaped_sum_adjusted", dtype_, block_max_dims);
+    std::vector<synTensor> sum_adjusted_4D;
+    sum_adjusted_4D.push_back(reshaped_sum_adjusted);
+
+    AddNodeReshape(
+        sum_adjusted_out, sum_adjusted_4D, guid_ + "reshaped_sum_adjusted");
+
+    auto reshaped_block_adjustment = createTensorNoPresist(
+        "reshaped_block_adjustment", dtype_, block_max_dims);
+    std::vector<synTensor> block_adjustment_4D;
+    block_adjustment_4D.push_back(reshaped_block_adjustment);
+
+    AddNodeReshape(block_adjustment_out,
+                   block_adjustment_4D,
+                   guid_ + "reshaped_block_adjustment");
+
+    std::vector<synTensor> max_sum_adjust_in;
+    max_sum_adjust_in.push_back(reshaped_group_sum_adjusted);
+    max_sum_adjust_in.push_back(reshaped_sum_adjusted);
+    auto max_sum_adjust =
+        createTensorNoPresist("max_sum_adjust", dtype_, block_max_dims);
+    std::vector<synTensor> max_sum_adjust_out;
+    max_sum_adjust_out.push_back(max_sum_adjust);
+
+    AddNodeMaximum<T>(
+        max_sum_adjust_in, max_sum_adjust_out, guid_ + "max_sum_adjust");
+
+    std::vector<synTensor> rescale_in;
+    rescale_in.push_back(reshaped_block_adjustment);
+    rescale_in.push_back(max_sum_adjust);
+    auto rescale = createTensorNoPresist("rescale", dtype_, block_max_dims);
+    std::vector<synTensor> rescale_out;
+    rescale_out.push_back(rescale);
+    AddNodeDivide<T>(rescale_in, rescale_out, guid_ + "div_rescale");
+
+    std::vector<synTensor> rescale_v_in;
+    rescale_v_in.push_back(rescale);
+    rescale_v_in.push_back(score_v);
+
+    auto rescale_v =
+        createTensorNoPresist("rescale_v", dtype_, reshape_map_q_dims);
+    std::vector<synTensor> rescale_v_out;
+    rescale_v_out.push_back(rescale_v);
+
+    AddNodeMultiply<T>(rescale_v_in, rescale_v_out, guid_ + "mul_rescale_v");
+
+    auto reshape_attn =
+        createTensorNoPresist("reshape_attn", dtype_, map_q_dims);
+    std::vector<synTensor> reshape_attn_out;
+    reshape_attn_out.push_back(reshape_attn);
+
+    AddNodeReshape(rescale_v_out, reshape_attn_out, guid_ + "reshape_attn");
+
+    std::vector<synTensor> map_attn_in;
+    map_attn_in.push_back(block_mapping);
+    map_attn_in.push_back(reshape_attn);
+
+    auto mapped_attn =
+        createTensorNoPresist("mapped_attn", dtype_, reshape_q_dims);
+    std::vector<synTensor> map_attn_out;
+    map_attn_out.push_back(mapped_attn);
+
+    AddNodeGemm(
+        map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
+
+    std::vector<int64_t> reshape_attn_dims;
+    reshape_attn_dims.push_back(batch_size);
+    reshape_attn_dims.push_back(1);
+    reshape_attn_dims.push_back(hidden_size);
+    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
+    std::vector<synTensor> attn_out;
+    attn_out.push_back(attn);
+
+    AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
+
+    std::vector<synTensor> proj_in;
+    auto linear_weights = createTensorFromCT(&ct, 13);
+    proj_in.push_back(attn);
+    proj_in.push_back(linear_weights);
+
+    auto linear_out = createTensorFromCT(&ct, 0, false);
+    std::vector<synTensor> proj_out;
+    proj_out.push_back(linear_out);
+
+    AddNodeBatchGemm(
+        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+  }
+
+ protected:
+  synDataType dtype_;
+};
+
+template <typename T, typename Context>
+void FusedBlockAttentionKernel(const Context& dev_ctx,
+                               const phi::DenseTensor& src,
+                               const phi::DenseTensor& residual,
+                               const phi::DenseTensor& rotary_embs,
+                               const phi::DenseTensor& key_cache,
+                               const phi::DenseTensor& value_cache,
+                               const phi::DenseTensor& block_groups,
+                               const phi::DenseTensor& block_list,
+                               const phi::DenseTensor& block_mapping,
+                               const phi::DenseTensor& block_bias,
+                               const phi::DenseTensor& block_indices,
+                               const phi::DenseTensor& block_offsets,
+                               const phi::DenseTensor& ln_scales,
+                               const phi::DenseTensor& qkv_weights,
+                               const phi::DenseTensor& linear_weights,
+                               phi::DenseTensor* out_linear,
+                               const phi::Scalar& epsilon,
+                               const phi::Scalar& head_dim,
+                               const phi::Scalar& num_head,
+                               const phi::Scalar& scaling_factor) {
+  std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
+  std::vector<int64_t> qkv_weights_dims =
+      phi::vectorize<int64_t>(qkv_weights.dims());
+
+  int head_dim_ = head_dim.to<int>();
+  int num_head_ = num_head.to<int>();
+  const int64_t fused_hidden_size = qkv_weights_dims[0];
+  const int num_kv_head =
+      (fused_hidden_size - num_head_ * head_dim_) / head_dim_ / 2;
+
+  ConvertTensors ct;
+  ct.Add(src);
+  ct.Add(residual);
+  ct.Add(rotary_embs);
+  ct.Add(key_cache);
+  ct.Add(value_cache);
+  ct.Add(block_groups);
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+  ct.Add(block_list);
+  ct.Add(block_mapping);
+  ct.Add(block_bias);
+  ct.Add(block_indices);
+  ct.Add(block_offsets);
+  ct.Add(ln_scales);
+  ct.Add(qkv_weights);
+  ct.Add(linear_weights);
+  ct.Add(out_linear, false);
+  ct.Add(key_cache, false);
+  ct.Add(value_cache, false);
+  ct.Add(residual, false);
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      "fused_block_attention_fwd_", inputs_dims, nullptr);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    FusedBlockAttentionParams params;
+    memset(reinterpret_cast<void*>(&params),
+           0x00,
+           sizeof(FusedBlockAttentionParams));
+    params.rmsnorm_params.epsValid = true;
+    params.rmsnorm_params.eps = epsilon.to<float>();
+    params.const_params.constant.f = scaling_factor.to<float>();
+    params.index_select_params.axis = 3;
+    params.reduce_params.reductionDimension = 0;
+    params.index_reduce_params.mode = INDEX_REDUCE_AMAX;
+    params.index_reduce_params.include_self = true;
+    params.index_reduce_params.axis = 0;
+    params.head_dim = head_dim_;
+    params.num_head = num_head_;
+    params.num_kv_head = num_kv_head;
+
+    if (num_head_ == num_kv_head) {
+      FusedMHABlockAttention op(op_info.datatype_);
+      op.AddNode<T>(ct, params);
+      op.Compile();
+      op_info.setOp(op);
+    } else {
+      FusedGQABlockAttention op(op_info.datatype_);
+      op.AddNode<T>(ct, params);
+      op.Compile();
+      op_info.setOp(op);
+    }
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+}
+
+}  // namespace custom_kernel
+
+template <typename Context>
+void CallFusedBlockAttentionKernel(const Context& dev_ctx,
+                                   const phi::DenseTensor& src,
+                                   const phi::DenseTensor& residual,
+                                   const phi::DenseTensor& rotary_embs,
+                                   const phi::DenseTensor& key_cache,
+                                   const phi::DenseTensor& value_cache,
+                                   const phi::DenseTensor& block_groups,
+                                   const phi::DenseTensor& block_list,
+                                   const phi::DenseTensor& block_mapping,
+                                   const phi::DenseTensor& block_bias,
+                                   const phi::DenseTensor& block_indices,
+                                   const phi::DenseTensor& block_offsets,
+                                   const phi::DenseTensor& ln_scales,
+                                   const phi::DenseTensor& qkv_weights,
+                                   const phi::DenseTensor& linear_weights,
+                                   phi::DenseTensor* out_linear,
+                                   const phi::Scalar& epsilon,
+                                   const phi::Scalar& head_dim,
+                                   const phi::Scalar& num_head,
+                                   const phi::Scalar& scaling_factor) {
+  if (src.dtype() == phi::DataType::FLOAT16) {
+    custom_kernel::FusedBlockAttentionKernel<phi::dtype::float16>(
+        dev_ctx,
+        src,
+        residual,
+        rotary_embs,
+        key_cache,
+        value_cache,
+        block_groups,
+        block_list,
+        block_mapping,
+        block_bias,
+        block_indices,
+        block_offsets,
+        ln_scales,
+        qkv_weights,
+        linear_weights,
+        out_linear,
+        epsilon,
+        head_dim,
+        num_head,
+        scaling_factor);
+  } else if (src.dtype() == phi::DataType::BFLOAT16) {
+    custom_kernel::FusedBlockAttentionKernel<phi::dtype::bfloat16>(
+        dev_ctx,
+        src,
+        residual,
+        rotary_embs,
+        key_cache,
+        value_cache,
+        block_groups,
+        block_list,
+        block_mapping,
+        block_bias,
+        block_indices,
+        block_offsets,
+        ln_scales,
+        qkv_weights,
+        linear_weights,
+        out_linear,
+        epsilon,
+        head_dim,
+        num_head,
+        scaling_factor);
+  } else {
+    throw std::runtime_error(
+        "Unsupported data type for FusedBlockAttentionKernel");
+  }
+}
+
+std::vector<paddle::Tensor> FusedBlockAttentionForward(
+    const paddle::Tensor& src,
+    const paddle::Tensor& residual,
+    const paddle::Tensor& rotary_embs,
+    const paddle::Tensor& key_cache,
+    const paddle::Tensor& value_cache,
+    const paddle::Tensor& block_groups,
+    const paddle::Tensor& block_list,
+    const paddle::Tensor& block_mapping,
+    const paddle::Tensor& block_bias,
+    const paddle::Tensor& block_indices,
+    const paddle::Tensor& block_offsets,
+    const paddle::Tensor& ln_scales,
+    const paddle::Tensor& qkv_weights,
+    const paddle::Tensor& linear_weights,
+    float epsilon,
+    int head_dim,
+    int num_head,
+    float scaling_factor) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
+  auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
+  auto residual_tensor =
+      static_cast<const phi::DenseTensor*>(residual.impl().get());
+  auto rotary_embs_tensor =
+      static_cast<const phi::DenseTensor*>(rotary_embs.impl().get());
+  auto key_cache_tensor =
+      static_cast<const phi::DenseTensor*>(key_cache.impl().get());
+  auto value_cache_tensor =
+      static_cast<const phi::DenseTensor*>(value_cache.impl().get());
+  auto block_groups_tensor =
+      static_cast<const phi::DenseTensor*>(block_groups.impl().get());
+  auto block_list_tensor =
+      static_cast<const phi::DenseTensor*>(block_list.impl().get());
+  auto block_mapping_tensor =
+      static_cast<const phi::DenseTensor*>(block_mapping.impl().get());
+  auto block_bias_tensor =
+      static_cast<const phi::DenseTensor*>(block_bias.impl().get());
+  auto block_indices_tensor =
+      static_cast<const phi::DenseTensor*>(block_indices.impl().get());
+  auto block_offsets_tensor =
+      static_cast<const phi::DenseTensor*>(block_offsets.impl().get());
+  auto ln_scales_tensor =
+      static_cast<const phi::DenseTensor*>(ln_scales.impl().get());
+  auto qkv_weights_tensor =
+      static_cast<const phi::DenseTensor*>(qkv_weights.impl().get());
+  auto linear_weights_tensor =
+      static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
+
+  // allocate memory on device.
+  int64_t batch_size = src.dims()[0];
+  int64_t out_features = linear_weights.dims()[1];
+
+  std::shared_ptr<phi::DenseTensor> out_linear =
+      std::make_shared<phi::DenseTensor>();
+  out_linear->Resize(phi::make_ddim({batch_size, 1, out_features}));
+  dev_ctx->Alloc(out_linear.get(), src_tensor->dtype());
+
+  CallFusedBlockAttentionKernel(*dev_ctx,
+                                *src_tensor,
+                                *residual_tensor,
+                                *rotary_embs_tensor,
+                                *key_cache_tensor,
+                                *value_cache_tensor,
+                                *block_groups_tensor,
+                                *block_list_tensor,
+                                *block_mapping_tensor,
+                                *block_bias_tensor,
+                                *block_indices_tensor,
+                                *block_offsets_tensor,
+                                *ln_scales_tensor,
+                                *qkv_weights_tensor,
+                                *linear_weights_tensor,
+                                out_linear.get(),
+                                phi::Scalar(epsilon),
+                                phi::Scalar(head_dim),
+                                phi::Scalar(num_head),
+                                phi::Scalar(scaling_factor));
+  return {paddle::Tensor(out_linear)};
+}
+
+std::vector<std::vector<int64_t>> FusedBlockAttentionShape(
+    const std::vector<int64_t>& src_shape,
+    const std::vector<int64_t>& residual_shape,
+    const std::vector<int64_t>& rotary_embs_shape,
+    const std::vector<int64_t>& key_cache_shape,
+    const std::vector<int64_t>& value_cache_shape,
+    const std::vector<int64_t>& block_groups_shape,
+    const std::vector<int64_t>& block_list_shape,
+    const std::vector<int64_t>& block_mapping_shape,
+    const std::vector<int64_t>& block_bias_shape,
+    const std::vector<int64_t>& block_indices_shape,
+    const std::vector<int64_t>& block_offsets_shape,
+    const std::vector<int64_t>& ln_scales_shape,
+    const std::vector<int64_t>& qkv_weights_shape,
+    const std::vector<int64_t>& linear_weights_shape,
+    float epsilon,
+    int head_dim,
+    int num_head,
+    float scaling_factor) {
+  int64_t batch_size = src_shape[0];
+  int64_t out_features = linear_weights_shape[1];
+  return {{batch_size, 1, out_features}};
+}
+
+std::vector<paddle::DataType> FusedBlockAttentionDtype(
+    const paddle::DataType& src_dtype,
+    const paddle::DataType& residual_dtype,
+    const paddle::DataType& rotary_embs_dtype,
+    const paddle::DataType& key_cache_dtype,
+    const paddle::DataType& value_cache_dtype,
+    const paddle::DataType& block_groups_dtype,
+    const paddle::DataType& block_list_dtype,
+    const paddle::DataType& block_mapping_dtype,
+    const paddle::DataType& block_bias_dtype,
+    const paddle::DataType& block_indices_dtype,
+    const paddle::DataType& block_offsets_dtype,
+    const paddle::DataType& ln_scales_dtype,
+    const paddle::DataType& qkv_weights_dtype,
+    const paddle::DataType& linear_weights_dtype) {
+  return {src_dtype};
+}
+
+PD_BUILD_OP(fused_block_attention)
+    .Inputs({"src",
+             "residual",
+             "rotary_embs",
+             "key_cache",
+             "value_cache",
+             "block_groups",
+             "block_list",
+             "block_mapping",
+             "block_bias",
+             "block_indices",
+             "block_offsets",
+             "ln_scales",
+             "qkv_weights",
+             "linear_weights"})
+    .Outputs({"out_linear"})
+    .Attrs({"epsilon: float",
+            "head_dim: int",
+            "num_head: int",
+            "scaling_factor: float"})
+    .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
+    .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

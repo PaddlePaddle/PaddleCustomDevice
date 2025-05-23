@@ -80,7 +80,7 @@ class SwiGlu : public HpuFusedOperator {
       std::vector<synTensor> split_in = {cast_x};
       std::vector<synTensor> split_out = {split_x, split_y};
       std::string node_name = guid_ + "split";
-      AddNodeSplit<synSplitParams>(split_in, split_out, params, node_name);
+      AddNodeSplit(split_in, split_out, params, node_name);
     } else {
       split_x = cast_x;
       split_y = cast_y;

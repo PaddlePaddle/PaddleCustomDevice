@@ -34,6 +34,9 @@ def init_data(
         x = paddle.rand(
             [batch_size, seqence_len, hidden_size], dtype=paddle.float32
         ).to(paddle.bfloat16)
+        residual = paddle.rand(
+            [batch_size, seqence_len, hidden_size], dtype=paddle.float32
+        ).to(paddle.bfloat16)
 
         ln_scales = paddle.rand([hidden_size], dtype=paddle.bfloat16)
         gate_weight = paddle.normal(
@@ -49,7 +52,16 @@ def init_data(
 
         epsilon = 1e-06
 
-    return x, ln_scales, proj_weight, gate_weight, up_weight, down_weight, epsilon
+    return (
+        x,
+        ln_scales,
+        proj_weight,
+        gate_weight,
+        up_weight,
+        down_weight,
+        residual,
+        epsilon,
+    )
 
 
 def ref_rms_mlp(
@@ -90,8 +102,11 @@ class refRmsMlpOP(paddle.nn.Layer):
             self.gate_weight,
             self.up_weight,
             self.down_weight,
+            self.residual,
             self.epsilon,
         ) = init_data()
+        self.x = self.x + self.residual
+        self.residual = self.x
 
     def forward(self):
         mlp_out_ref = ref_rms_mlp(
@@ -115,8 +130,11 @@ class fusedRmsMlpOP(paddle.nn.Layer):
             _,
             _,
             self.down_weight,
+            self.residual,
             self.epsilon,
         ) = init_data()
+        self.x = self.x + self.residual
+        self.residual = self.x
 
     def forward(self):
         fused_rms_mlp_out = paddlenlp_ops.fused_rms_mlp(
@@ -124,6 +142,32 @@ class fusedRmsMlpOP(paddle.nn.Layer):
             self.ln_scales,
             self.proj_weight,
             self.down_weight,
+            self.epsilon,
+        )
+        return fused_rms_mlp_out
+
+
+class fusedRmsMlpResOP(paddle.nn.Layer):
+    def __init__(self):
+        super().__init__()
+        (
+            self.x,
+            self.ln_scales,
+            self.proj_weight,
+            _,
+            _,
+            self.down_weight,
+            self.residual,
+            self.epsilon,
+        ) = init_data()
+
+    def forward(self):
+        fused_rms_mlp_out = paddlenlp_ops.fused_rms_mlp_res(
+            self.x,
+            self.ln_scales,
+            self.proj_weight,
+            self.down_weight,
+            self.residual,
             self.epsilon,
         )
         return fused_rms_mlp_out
@@ -144,11 +188,15 @@ def run_profile(my_profile_func):
 def run_accuracy_check():
     ref_rms_mlp = refRmsMlpOP()
     fused_rms_mlp = fusedRmsMlpOP()
+    fused_rms_mlp_residual = fusedRmsMlpResOP()
 
     golden_res = ref_rms_mlp()
     fused_rms_res = fused_rms_mlp()
+    fused_rms_mlp_residual_res = fused_rms_mlp_residual()
 
     print((fused_rms_res == golden_res).all())
+    print((fused_rms_res == fused_rms_mlp_residual_res).all())
+    print((ref_rms_mlp.residual == fused_rms_mlp_residual.residual).all())
 
 
 def main():

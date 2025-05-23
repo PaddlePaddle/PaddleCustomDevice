@@ -295,6 +295,14 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
+  inline void AddNodeScatter(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             std::string node_name) {
+    std::string guid = "scatter_nd_onnx_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
+  template <typename T>
   inline void AddNodeSilu(std::vector<synTensor> inputs,
                           std::vector<synTensor> outputs,
                           std::string node_name) {
@@ -302,13 +310,55 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
-  template <typename T>
+  inline void AddNodeConcat(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            synConcatenateParams params,
+                            std::string node_name) {
+    std::string guid = "concat";
+    AddNode_IOP<synConcatenateParams>(inputs, outputs, params, guid, node_name);
+  }
+
   inline void AddNodeSplit(std::vector<synTensor> inputs,
                            std::vector<synTensor> outputs,
                            synSplitParams params,
                            std::string node_name) {
     std::string guid = "split";
-    AddNode_IOP(inputs, outputs, params, guid, node_name);
+    AddNode_IOP<synSplitParams>(inputs, outputs, params, guid, node_name);
+  }
+
+  inline void AddNodeSlice(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           synSliceParamsV2 params,
+                           std::string node_name) {
+    std::string guid = "slice";
+    AddNode_IOP<synSliceParamsV2>(inputs, outputs, params, guid, node_name);
+  }
+
+  inline void AddNodeSqueeze(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             synSqueezeParams params,
+                             std::string node_name) {
+    std::string guid = "squeeze";
+    AddNode_IOP<synSqueezeParams>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeRmsNorm(std::vector<synTensor> inputs,
+                             std::vector<synTensor> outputs,
+                             ns_LayerNormKernel::Params params,
+                             std::string node_name) {
+    std::string guid = "rms_norm_ex_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_LayerNormKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeRope(std::vector<synTensor> inputs,
+                          std::vector<synTensor> outputs,
+                          ns_RoPESt2::ParamsV2 params,
+                          std::string node_name) {
+    std::string guid = "rotary_pos_embedding_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_RoPESt2::ParamsV2>(inputs, outputs, params, guid, node_name);
   }
 };
 

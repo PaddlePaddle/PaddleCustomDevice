@@ -90,6 +90,8 @@ class TestFusedRmsQkvRope:
         self.src = paddle.rand(
             [self.batch_size, self.seq_len, self.hidden_size], dtype=paddle.bfloat16
         )
+        self.residual = paddle.zeros_like(self.src, dtype=paddle.bfloat16)
+
         self.ln_scales = paddle.rand([self.hidden_size], dtype=paddle.bfloat16)
         self.qkv_weights = paddle.rand(
             [self.hidden_size * 3, self.hidden_size], dtype=paddle.float32
@@ -201,6 +203,7 @@ class TestFusedRmsQkvRope:
             self.ln_scales,
             self.qkv_weights,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
+            self.residual,
             self.epsilon,
             self.head_dim,
             self.num_head,
@@ -217,6 +220,8 @@ class TestFusedRmsQkvRope:
 
         # ===============summary==============
         print(f"Test Pass for {self.test_name} testcase")
+        print((self.src == self.residual).all().item())
+        # print(self.residual.data_ptr() == residual.data_ptr())
 
 
 class test_case_padding(TestFusedRmsQkvRope):

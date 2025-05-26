@@ -37,12 +37,6 @@ elseif(LINUX)
     set(EIGEN_PATCH_COMMAND cp ${native_src} ${native_dst} && cp ${native_src1}
                             ${native_dst1})
   endif()
-  if(WITH_COREX)
-    # The default floating-point type in corex is FLOAT, add type casting in TensorAssign.h:199
-    file(TO_NATIVE_PATH ${PADDLE_SOURCE_DIR}/patches/eigen/TensorAssign.h native_src)
-    file(TO_NATIVE_PATH ${SOURCE_DIR}/unsupported/Eigen/CXX11/src/Tensor/TensorAssign.h native_dst)
-    set(EIGEN_PATCH_COMMAND cp ${native_src} ${native_dst})
-  endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WITH_COREX)

@@ -14,11 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -ex
 
+CODE_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}")/" && pwd )"
+export CODE_ROOT
 echo "uninstall paddle-metax-gpu..."
 pip uninstall -y paddle-metax-gpu
 
+cd ${CODE_ROOT}/../../Paddle
+git submodule update --init
+cd ${CODE_ROOT}
 if [ ! -d build ]; then
     echo "build directory not found, creating..."
     mkdir build

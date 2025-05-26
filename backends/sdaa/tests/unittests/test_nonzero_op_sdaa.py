@@ -73,7 +73,7 @@ class TestAllFalse(TestWhereIndexOp):
             "Condition": np.array([False, False, False]),
         }
 
-        self.outputs = {"Out": np.empty((0, 1), dtype="int64")}
+        self.outputs = {"Out": np.array([], dtype="int64")}
 
 
 class TestRank2(TestWhereIndexOp):
@@ -126,8 +126,7 @@ class TestNonZeroAPI(unittest.TestCase):
             y = paddle.nonzero(x, as_tuple=True)
             self.assertEqual(type(y), tuple)
             self.assertEqual(len(y), 2)
-            y_list_unsqueezed = [item.unsqueeze(1) for item in list(y)]
-            z = paddle.concat(y_list_unsqueezed, axis=1)
+            z = paddle.concat(list(y), axis=1)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
 
             (res,) = exe.run(feed={"x": data}, fetch_list=[z], return_numpy=False)
@@ -142,7 +141,7 @@ class TestNonZeroAPI(unittest.TestCase):
             y = paddle.nonzero(x, as_tuple=True)
             self.assertEqual(type(y), tuple)
             self.assertEqual(len(y), 1)
-            z = list(y)[0].unsqueeze(1)
+            z = paddle.concat(list(y), axis=1)
             exe = base.Executor(paddle.CustomPlace("sdaa", 0))
             (res,) = exe.run(feed={"x": data}, fetch_list=[z], return_numpy=False)
         expect_out = np.array([[0], [1]])

@@ -20,10 +20,9 @@ bash build_paddle.sh
 ## 验证
 
 ```bash
-# build with BUILD_TEST=1
+# 编译时设置BUILD_TEST=1
 
-# run_test
+# 运行测试
 cd tests
-mkdir -p build && cd build && cmake ..
-make run_test
+bash run_test.sh
 ```

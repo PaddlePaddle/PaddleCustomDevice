@@ -1,12 +1,15 @@
 #!/bin/bash
 source /opt/rh/devtoolset-9/enable
+export PATH=/usr/local/corex-4.3.0/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
+export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
+
 PYTHON_VERSION=${PYTHON_VERSION:-$(python3 -V 2>&1|awk '{print $2}')}
 COREX_VERSION=${COREX_VERSION:-latest}
 if [[ "${COREX_VERSION}" == "latest" ]]; then
   COREX_VERSION=`date --utc +%Y%m%d%H%M%S`
 fi
-BUILD_WITH_CI=${BUILD_WITH_CI:-1}
-BUILD_TEST=${BUILD_TEST:-0}
+BUILD_TEST=${BUILD_TEST:-1}
 COREX_ARCH=${COREX_ARCH:-ivcore11}
 export CMAKE_CUDA_ARCHITECTURES=${COREX_ARCH}
 export PADDLE_VERSION=${PADDLE_VERSION:-3.0.0}
@@ -63,14 +66,8 @@ git reset --hard
 popd
 
 if [ "${BUILD_TEST}" = "1" ]; then
-  export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
   pushd ${CURRENT_DIR}/tests
-  mkdir build
-  pushd build
-  cmake ..
-  make run_tests
-  popd
-  popd
+  bash run_test.sh
 fi
 
 exit 0

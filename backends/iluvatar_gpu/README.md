@@ -27,6 +27,5 @@ bash install_paddle.sh
 
 # run_test
 cd tests
-mkdir -p build && cd build && cmake ..
-make run_test
+bash run_test.sh
 ```

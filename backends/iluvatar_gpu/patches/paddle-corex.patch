@@ -1,6 +1,6 @@
-From 878baf50fe2b11a9dd776e774b3fd909f42872b0 Mon Sep 17 00:00:00 2001
+From 3cd1b6c5b7bde2486bd368c295231a44254fe598 Mon Sep 17 00:00:00 2001
 From: Tianyu Zhou <tianyu.zhou@iluvatar.com>
-Date: Thu, 22 May 2025 17:29:25 +0800
+Date: Mon, 26 May 2025 14:21:47 +0800
 Subject: [PATCH] Adapt for Iluvatar.
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Adapt for Iluvatar.
  paddle/common/backend_header.h                     | 2 +-
  paddle/fluid/operators/collective/recv_v2_op.cu.cc | 2 +-
  paddle/fluid/operators/collective/send_v2_op.cu.cc | 2 +-
- paddle/fluid/platform/device/gpu/nccl_helper.h     | 4 ++--
+ paddle/fluid/platform/device/gpu/nccl_helper.h     | 2 +-
  paddle/phi/backends/dynload/cudnn.cc               | 4 ++++
  paddle/phi/backends/dynload/cudnn.h                | 9 +++++++++
  paddle/phi/backends/gpu/cuda/cuda_graph.cc         | 4 ++--
@@ -27,12 +27,16 @@ Subject: [PATCH] Adapt for Iluvatar.
  paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu   | 2 +-
  paddle/phi/kernels/gpu/layer_norm_kernel.cu        | 2 +-
  paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu     | 2 +-
+ paddle/phi/kernels/reduce_sum_kernel.cc            | 2 ++
  paddle/phi/kernels/shape_kernel.cc                 | 2 ++
+ paddle/phi/kernels/squeeze_kernel.cc               | 2 ++
+ paddle/phi/kernels/strided_slice_kernel.cc         | 2 ++
+ paddle/phi/kernels/unsqueeze_kernel.cc             | 2 ++
  paddle/utils/flat_hash_map.h                       | 5 +++++
- 25 files changed, 62 insertions(+), 18 deletions(-)
+ 29 files changed, 69 insertions(+), 17 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7dbcc8a402..6cdaa6c35f 100755
+index b2c4e6a650..c51f3df1f0 100755
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -63,7 +63,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
@@ -43,7 +47,7 @@ index 7dbcc8a402..6cdaa6c35f 100755
 +option(WITH_SHARED_PHI "Compile PaddlePaddle with SHARED LIB of PHI" OFF)
  option(CINN_WITH_CUDNN "Compile CINN with CUDNN support" ON)
  option(WITH_PIP_CUDA_LIBRARIES
-        "Paddle uses the CUDA library provided by NVIDIA" OFF)
+        "Paddle uses the CUDA library provided by NVIDIA" ON)
 diff --git a/paddle/common/backend_header.h b/paddle/common/backend_header.h
 index 240b04c3ad..82f5aca792 100644
 --- a/paddle/common/backend_header.h
@@ -84,7 +88,7 @@ index e58e29465d..1755595405 100644
  #endif
                            int,
 diff --git a/paddle/fluid/platform/device/gpu/nccl_helper.h b/paddle/fluid/platform/device/gpu/nccl_helper.h
-index 93e1278861..1a1f269b25 100644
+index 93e1278861..da47b74e70 100644
 --- a/paddle/fluid/platform/device/gpu/nccl_helper.h
 +++ b/paddle/fluid/platform/device/gpu/nccl_helper.h
 @@ -62,7 +62,7 @@ inline ncclDataType_t ToNCCLDataType(framework::proto::VarType::Type type) {
@@ -94,15 +98,6 @@ index 93e1278861..1a1f269b25 100644
 -    defined(PADDLE_WITH_HIP)
 +    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
    } else if (type == framework::proto::VarType::BF16) {
-     return ncclBfloat16;
- #endif
-@@ -90,7 +90,7 @@ inline ncclDataType_t ToNCCLDataType(phi::DataType type) {
-   } else if (type == phi::DataType::BOOL) {
-     return ncclUint8;
- #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
--    defined(PADDLE_WITH_HIP)
-+    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
-   } else if (type == phi::DataType::BFLOAT16) {
      return ncclBfloat16;
  #endif
 diff --git a/paddle/phi/backends/dynload/cudnn.cc b/paddle/phi/backends/dynload/cudnn.cc
@@ -399,26 +394,106 @@ index 342737e9b2..86c4d1600c 100644
  
  PD_REGISTER_KERNEL(rms_norm_grad,
                     GPU,
-diff --git a/paddle/phi/kernels/shape_kernel.cc b/paddle/phi/kernels/shape_kernel.cc
-index dbedd0b774..f23544a9b6 100644
---- a/paddle/phi/kernels/shape_kernel.cc
-+++ b/paddle/phi/kernels/shape_kernel.cc
-@@ -103,6 +103,7 @@ PD_REGISTER_KERNEL(shape,
- }
- #endif
+diff --git a/paddle/phi/kernels/reduce_sum_kernel.cc b/paddle/phi/kernels/reduce_sum_kernel.cc
+index 654eae9199..3b6e5580e6 100644
+--- a/paddle/phi/kernels/reduce_sum_kernel.cc
++++ b/paddle/phi/kernels/reduce_sum_kernel.cc
+@@ -37,6 +37,7 @@ void SumKernel(const Context& dev_ctx,
+ using complex64 = ::phi::dtype::complex<float>;
+ using complex128 = ::phi::dtype::complex<double>;
  
 +#ifndef PADDLE_WITH_COREX
- #ifdef PADDLE_WITH_CUSTOM_DEVICE
- PD_REGISTER_KERNEL(shape,
-                    Custom,
-@@ -124,6 +125,7 @@ PD_REGISTER_KERNEL(shape,
-   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
+ PD_REGISTER_KERNEL(sum,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -55,6 +56,7 @@ PD_REGISTER_KERNEL(sum,
+                    complex128) {
+   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
  }
- #endif
 +#endif
  
- PD_REGISTER_KERNEL(shape64,
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(sum,
+diff --git a/paddle/phi/kernels/shape_kernel.cc b/paddle/phi/kernels/shape_kernel.cc
+index 50ab8b064f..dde1090c04 100644
+--- a/paddle/phi/kernels/shape_kernel.cc
++++ b/paddle/phi/kernels/shape_kernel.cc
+@@ -45,6 +45,7 @@ void Shape64Kernel(const Context& ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(shape,
                     CPU,
+                    ALL_LAYOUT,
+@@ -62,6 +63,7 @@ PD_REGISTER_KERNEL(shape,
+   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
+   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
+ }
++#endif
+ 
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(shape,
+diff --git a/paddle/phi/kernels/squeeze_kernel.cc b/paddle/phi/kernels/squeeze_kernel.cc
+index b043ba747d..4c0579316f 100644
+--- a/paddle/phi/kernels/squeeze_kernel.cc
++++ b/paddle/phi/kernels/squeeze_kernel.cc
+@@ -45,6 +45,7 @@ void SqueezeWithXShapeKernel(const Context& dev_ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(squeeze,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -78,6 +79,7 @@ PD_REGISTER_KERNEL(squeeze_with_xshape,
+                    phi::dtype::bfloat16,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(squeeze,
+                    GPU,
+diff --git a/paddle/phi/kernels/strided_slice_kernel.cc b/paddle/phi/kernels/strided_slice_kernel.cc
+index 2bc9325de1..b6cc92a70e 100644
+--- a/paddle/phi/kernels/strided_slice_kernel.cc
++++ b/paddle/phi/kernels/strided_slice_kernel.cc
+@@ -34,6 +34,7 @@ void StridedSliceKernel(const Context& dev_ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(strided_slice,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -50,6 +51,7 @@ PD_REGISTER_KERNEL(strided_slice,
+                    phi::dtype::bfloat16,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(strided_slice,
+                    GPU,
+diff --git a/paddle/phi/kernels/unsqueeze_kernel.cc b/paddle/phi/kernels/unsqueeze_kernel.cc
+index c30752337d..dc1ca3bdc5 100644
+--- a/paddle/phi/kernels/unsqueeze_kernel.cc
++++ b/paddle/phi/kernels/unsqueeze_kernel.cc
+@@ -49,6 +49,7 @@ void UnsqueezeWithXShapeKernel(const Context& dev_ctx,
+ }
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(unsqueeze,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -80,6 +81,7 @@ PD_REGISTER_KERNEL(unsqueeze_with_xshape,
+                    int64_t,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(unsqueeze,
+                    GPU,
 diff --git a/paddle/utils/flat_hash_map.h b/paddle/utils/flat_hash_map.h
 index b643fc1a57..960bc7d9b1 100644
 --- a/paddle/utils/flat_hash_map.h

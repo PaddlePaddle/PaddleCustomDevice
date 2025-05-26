@@ -70,11 +70,12 @@ file(
   GLOB CUDA_SRCS
   # **Dependent files**
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_info.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cuda_driver.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math_function.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cudnn.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cublas.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/core/enforce.cc
   # **op list**
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_kernel.cc
@@ -83,6 +84,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/strided_slice_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_sum_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/abs_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
@@ -117,16 +119,19 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/numel_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/one_hot_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/put_along_axis_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/p_norm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/p_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_kernel.cu.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_grad_kernel.cu.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax_impl.h
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/split_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stack_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_copy_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/swiglu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/swiglu_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/take_along_axis_kernel.cu
@@ -141,7 +146,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_put_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/eigen/broadcast.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/concat_and_split_functor.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 )
 
 file(
@@ -164,6 +168,7 @@ file(
   kernels/kps/compare_kernel.cu
   kernels/kps/logical_kernel.cu
   kernels/kps/reduce_kernel.cu
+  kernels/cuda_kernels/abs_grad_kernel_register.cc
   kernels/cuda_kernels/abs_kernel_register.cc
   kernels/cuda_kernels/activation_kernel_register.cc
   kernels/cuda_kernels/activation_grad_kernel_register.cc
@@ -209,11 +214,15 @@ file(
   kernels/cuda_kernels/logsumexp_kernel_register.cc
   kernels/cuda_kernels/matmul_kernel.cu
   kernels/cuda_kernels/matmul_grad_kernel.cu
+  kernels/cuda_kernels/mean_all_grad_kernel.cu
+  kernels/cuda_kernels/mean_all_kernel.cu
   kernels/cuda_kernels/multinomial_kernel_register.cc
   kernels/cuda_kernels/nonzero_kernel_register.cc
   kernels/cuda_kernels/numel_kernel_register.cc
   kernels/cuda_kernels/one_hot_kernel_register.cc
   kernels/cuda_kernels/put_along_axis_kernel_register.cc
+  kernels/cuda_kernels/p_norm_grad_kernel_register.cc
+  kernels/cuda_kernels/p_norm_kernel_register.cc
   kernels/cuda_kernels/reduce_kernel.cu
   kernels/cuda_kernels/rms_norm_grad_kernel_register.cc
   kernels/cuda_kernels/rms_norm_kernel_register.cc
@@ -224,6 +233,7 @@ file(
   kernels/cuda_kernels/split_kernel_register.cc
   kernels/cuda_kernels/squared_l2_norm_kernel_register.cc
   kernels/cuda_kernels/stack_kernel_register.cc
+  kernels/cuda_kernels/strided_copy_kernel_register.cc
   kernels/cuda_kernels/swiglu_kernel_register.cc
   kernels/cuda_kernels/swiglu_grad_kernel_register.cc
   kernels/cuda_kernels/take_along_axis_kernel_register.cc

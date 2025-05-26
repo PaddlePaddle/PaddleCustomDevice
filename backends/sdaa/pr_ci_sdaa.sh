@@ -13,13 +13,11 @@
 # limitations under the License.
 
 # Install paddle whl
-pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/ --force-reinstall
+pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
 
 # make PaddleCustomDevice
 bash compile.sh
 pip install build/dist/*.whl --force-reinstall
-
-python -c "import paddle; paddle.version.show()"
 
 # Test
 cd build/tests/unittests

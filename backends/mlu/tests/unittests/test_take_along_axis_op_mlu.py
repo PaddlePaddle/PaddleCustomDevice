@@ -23,8 +23,10 @@ from tests.op_test import OpTest, convert_float_to_uint16
 paddle.enable_static()
 
 # Currently, MLU do not implement take_along_axis kernel, so disable this unittest.
+skip_condition = paddle.get_device().startswith("mlu")
 
 
+@unittest.skipIf(skip_condition, "MLU do not implement take_along_axis kernel")
 class TestTakeAlongAxisOp(OpTest):
     def setUp(self):
         self.set_mlu()
@@ -130,6 +132,7 @@ class TestCaseBFloat16(TestTakeAlongAxisOp):
         self.axis_type = "int64"
 
 
+@unittest.skipIf(skip_condition, "MLU do not implement take_along_axis kernel")
 class TestTakeAlongAxisAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)

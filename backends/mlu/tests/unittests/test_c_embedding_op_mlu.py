@@ -24,6 +24,7 @@ from op_test import (
 import paddle
 
 # Currently, MLU do not implement c_embedding kernel, so disable this unittest.
+skip_condition = paddle.get_device().startswith("mlu")
 
 SEED = 2021
 np.random.seed(SEED)
@@ -43,6 +44,7 @@ def c_embedding_wrapper(table, index, start_index=0, vocab_size=-1):
     return paddle._C_ops.c_embedding(table, index, start_index, vocab_size)
 
 
+@unittest.skipIf(skip_condition, "MLU do not implement c_embedding kernel")
 class TestCEmbeddingOpBase(OpTest):
     def setUp(self):
         self.__class__.use_custom_device = True

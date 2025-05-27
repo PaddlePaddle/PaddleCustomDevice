@@ -19,6 +19,7 @@ import unittest
 from op_test import OpTest, convert_float_to_uint16
 
 # Currently, MLU do not implement embedding kernel, so disable this unittest.
+skip_condition = paddle.get_device().startswith("mlu")
 
 paddle.enable_static()
 SEED = 2021
@@ -55,6 +56,7 @@ def _get_grad(weights, ids, flat_ids, op_version="lookup_table"):
     return w_grad
 
 
+@unittest.skipIf(skip_condition, "MLU do not implement c_embedding kernel")
 class TestLookupTableV2(OpTest):
     def setUp(self):
         self.set_mlu()
@@ -124,6 +126,7 @@ class TestLookupTableV2(OpTest):
             )
 
 
+@unittest.skipIf(skip_condition, "MLU do not implement c_embedding kernel")
 class TestLookupTableV2BF16Op(OpTest):
     def set_mlu(self):
         self.__class__.use_custom_device = True

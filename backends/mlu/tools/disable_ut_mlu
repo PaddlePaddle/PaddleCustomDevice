@@ -15,6 +15,3 @@ test_sync_batch_norm_op_mlu
 test_unsqueeze_op_mlu
 test_LeNet_MNIST
 test_multinomial_op_mlu
-test_embedding_op_mlu
-test_take_along_axis_op_mlu
-test_c_embedding_op_mlu

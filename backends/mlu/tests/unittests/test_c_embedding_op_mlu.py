@@ -23,6 +23,8 @@ from op_test import (
 
 import paddle
 
+# Currently, MLU do not implement c_embedding kernel, so disable this unittest.
+
 SEED = 2021
 np.random.seed(SEED)
 

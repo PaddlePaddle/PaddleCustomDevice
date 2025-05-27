@@ -18,6 +18,8 @@ import numpy as np
 import unittest
 from op_test import OpTest, convert_float_to_uint16
 
+# Currently, MLU do not implement embedding kernel, so disable this unittest.
+
 paddle.enable_static()
 SEED = 2021
 

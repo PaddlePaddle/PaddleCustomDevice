@@ -321,11 +321,6 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
-  if (dst == NULL || src == NULL) {
-    VLOG(0) << "Failed to copy memory, dst or src is NULL";
-    return C_ERROR;
-  }
-
   cudaError_t cudaErr = cudaSetDevice(device->id);
   if (cudaErr != cudaSuccess) {
     VLOG(0) << "Failed to set device: " << device->id

@@ -16,9 +16,6 @@
 
 set -e
 
-echo "uninstall paddle-metax-gpu..."
-pip uninstall -y paddle-metax-gpu
-
 if [ ! -d build ]; then
     echo "build directory not found, creating..."
     mkdir build
@@ -30,6 +27,6 @@ cmake .. -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
 make -j8
 
 echo "install whl"
-pip install dist/paddle_metax_gpu*.whl
+pip install dist/paddle_metax_gpu*.whl --force-reinstall
 cd ..
 echo "Done!"

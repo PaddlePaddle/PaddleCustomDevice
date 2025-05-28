@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/kps/compare_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/legacy/compare_kernel.h"
+#include "paddle/phi/kernels/compare_kernel.h"  // NOLINT
+// #include "paddle/phi/kernels/kps/compare_kernel.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(equal_all,
                           metax_gpu,

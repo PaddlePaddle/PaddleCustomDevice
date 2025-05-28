@@ -11,28 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/reduce_kernel_impl.h"
-#include "paddle/phi/kernels/reduce_sum_grad_kernel.h"
-using complex64 = ::phi::dtype::complex<float>;
-using complex128 = ::phi::dtype::complex<double>;
-PD_CUSTOM_KERNEL_REGISTER(sum_grad,
+#include "paddle/phi/kernels/moe_gate_dispatch_grad_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::ReduceSumGradKernel,
-                          bool,
+                          phi::MoeGateDispatchGradKernel,
                           float,
-                          double,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int8_t,
-                          uint8_t,
-                          int16_t,
-                          int,
-                          int64_t,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-}
+                          phi::dtype::bfloat16) {}

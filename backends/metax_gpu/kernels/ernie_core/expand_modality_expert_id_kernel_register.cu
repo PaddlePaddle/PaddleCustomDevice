@@ -11,20 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "paddle/phi/common/data_type.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/reduce_max_kernel.h"
+#include "paddle/phi/kernels/expand_modality_expert_id_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(max_raw,
+PD_CUSTOM_KERNEL_REGISTER(expand_modality_expert_id,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::MaxRawKernel,
-                          float,
-                          double,
+                          phi::ExpandModalityExpertIDKernel,
                           int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float8_e4m3fn,
-                          phi::dtype::float8_e5m2) {}
+                          int64_t) {}

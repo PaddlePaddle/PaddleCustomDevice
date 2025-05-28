@@ -78,6 +78,10 @@ target_include_directories(
 
 target_link_libraries(${TARGET_NAME} glog eigen3 gflags ${PADDLE_CORE_LIB})
 
+target_link_libraries(
+  ${TARGET_NAME}
+  /usr/local/lib/python3.9/dist-packages/nvidia/nccl/lib/libnccl.so.2)
+
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(

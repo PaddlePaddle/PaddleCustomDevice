@@ -25,6 +25,7 @@ tensor_list = []
 # dist.all_gather(tensor_list, data)
 # print("allgather:")
 # print(tensor_list)
+# [[[4, 5, 6], [4, 5, 6]], [[1, 2, 3], [1, 2, 3]]] (2 GPUs)
 
 local_rank = dist.get_rank()
 data = None
@@ -47,6 +48,7 @@ else:
 dist.broadcast(data, src=1)
 print("broadcast:")
 print(data)
+# [[1, 2, 3], [1, 2, 3]] (2 GPUs)
 
 
 if dist.get_rank() == 0:
@@ -57,6 +59,7 @@ else:
     dist.recv(data, src=0)
 print("recv:")
 print(data)
+# [7, 8, 9] (2 GPUs)
 
 
 if dist.get_rank() == 0:
@@ -69,7 +72,8 @@ else:
     dist.scatter(data1, tensor_list=[data1, data2], src=1)
 print("scatter:")
 print(data1, data2)
-
+# [1, 2, 3] [10, 11, 12] (2 GPUs, out for rank 0)
+# [4, 5, 6] [4, 5, 6] (2 GPUs, out for rank 1)
 
 if dist.get_rank() == 0:
     data = paddle.to_tensor([7, 8, 9])
@@ -79,6 +83,7 @@ else:
     dist.recv(data, src=0)
 print("send:")
 print(data)
+# [7, 8, 9] (2 GPUs)
 
 
 if dist.get_rank() == 0:
@@ -90,7 +95,8 @@ else:
 dist.reduce_scatter(data1, [data1, data2])
 print("reduce_scatter:")
 print(data1)
-
+# [4, 6] (2 GPUs, out for rank 0)
+# [8, 10] (2 GPUs, out for rank 1)
 
 out_tensor_list = []
 if dist.get_rank() == 0:
@@ -102,3 +108,5 @@ else:
 dist.alltoall(in_tensor_list=[data1, data2], out_tensor_list=out_tensor_list)
 print("alltoall:")
 print(out_tensor_list)
+# [[[1, 2, 3], [4, 5, 6]], [[13, 14, 15], [16, 17, 18]]] (2 GPUs, out for rank 0)
+# [[[7, 8, 9], [10, 11, 12]], [[19, 20, 21], [22, 23, 24]]] (2 GPUs, out for rank 1)

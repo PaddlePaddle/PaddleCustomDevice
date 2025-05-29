@@ -48,7 +48,7 @@ static GcuOpPtr TranslatePool2d(
   std::vector<int64_t> strides;
   for (size_t i = 0; i < strides_array.size(); ++i) {
     strides.push_back(
-        strides_array.at(i).dyn_cast<pir::Int32Attribute>().data());
+        strides_array.at(i).dyn_cast<pir::Int64Attribute>().data());
   }
 
   auto paddings_array =
@@ -56,7 +56,7 @@ static GcuOpPtr TranslatePool2d(
   std::vector<int64_t> paddings;
   for (size_t i = 0; i < paddings_array.size(); ++i) {
     paddings.push_back(
-        paddings_array.at(i).dyn_cast<pir::Int32Attribute>().data());
+        paddings_array.at(i).dyn_cast<pir::Int64Attribute>().data());
   }
 
   bool ceil_mode =

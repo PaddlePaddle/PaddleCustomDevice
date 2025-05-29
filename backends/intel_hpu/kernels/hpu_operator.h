@@ -26,7 +26,6 @@
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
-#include "utils/hpu_helper.h"
 
 class HpuOperator {
  public:
@@ -74,9 +73,7 @@ class HpuOperator {
 
 class RecipeRunner {
  public:
-  explicit RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {
-    deviceId_ = getDevice();
-  }
+  explicit RecipeRunner(synRecipeHandle h) : recipeHandle_(h) {}
   ~RecipeRunner() {}
 
   void prepareTensorInfo(synRecipeHandle recipe,
@@ -89,11 +86,8 @@ class RecipeRunner {
   synRecipeHandle recipeHandle_;
 
  private:
-  synDeviceId deviceId_ = 0;
-  static std::queue<synEventHandle> executionQueue_;
-
-  synDeviceId getDevice() const;
-  bool isQueueSizeExceeded() const;
+  C_Status MallocDeviceMem(uint64_t* buffer, const uint64_t size);
+  C_Status FreeDeviceMem(const uint64_t buffer, const uint64_t size);
 };
 
 #endif  // BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_

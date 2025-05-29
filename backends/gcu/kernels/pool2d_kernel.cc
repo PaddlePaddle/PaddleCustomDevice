@@ -24,7 +24,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
                           const std::string padding_algorithm,
                           const phi::DDim data_dims,
                           const std::vector<T>& strides,
-                          const std::vector<T>& kernel_size) {
+                          const std::vector<int>& kernel_size) {
   // set padding size == data_dims.size() * 2
   auto data_shape = phi::vectorize<T>(data_dims);
   if (static_cast<int>(paddings->size()) == data_dims.size()) {
@@ -72,8 +72,8 @@ template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
                   const phi::DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
+                  const std::vector<int64_t>& strides_t,
+                  const std::vector<int64_t>& paddings_t,
                   bool ceil_mode,
                   bool exclusive,
                   const std::string& data_format,
@@ -100,8 +100,8 @@ void Pool2dKernel(const Context& dev_ctx,
           << ", in_x dims:"
           << custom_kernel::VectorToStr<int64_t>(phi::vectorize(in_x_dims))
           << ", kernel_size:" << custom_kernel::VectorToStr<int>(ksize)
-          << ", strides:" << custom_kernel::VectorToStr<int>(strides)
-          << ", paddings:" << custom_kernel::VectorToStr<int>(paddings)
+          << ", strides:" << custom_kernel::VectorToStr<int64_t>(strides)
+          << ", paddings:" << custom_kernel::VectorToStr<int64_t>(paddings)
           << ", ceil_mode:" << ceil_mode << ", exclusive:" << exclusive
           << ", data_format:" << data_format
           << ", padding_algorithm:" << padding_algorithm
@@ -287,8 +287,8 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& out,
                       const phi::DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
-                      const std::vector<int>& strides_t,
-                      const std::vector<int>& paddings_t,
+                      const std::vector<int64_t>& strides_t,
+                      const std::vector<int64_t>& paddings_t,
                       bool ceil_mode,
                       bool exclusive,
                       const std::string& data_format,

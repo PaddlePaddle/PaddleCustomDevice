@@ -110,7 +110,7 @@ class FusedMixtureOfExperts : public HpuFusedOperator {
 template <typename T, typename Context>
 void FusedMoEKernel(const Context& dev_ctx,
                     const phi::DenseTensor& hidden_states,
-                    const phi::DenseTensor& expert_routing_table,
+                    const phi::DenseTensor& routing_table,
                     const phi::DenseTensor& router_weights,
                     const std::vector<phi::DenseTensor>& gate_up_weights,
                     const std::vector<phi::DenseTensor>& down_weights,
@@ -123,7 +123,7 @@ void FusedMoEKernel(const Context& dev_ctx,
                     phi::DenseTensor* amax_per_expert) {
   ConvertTensors ct;
   ct.Add(hidden_states);
-  ct.Add(expert_routing_table);
+  ct.Add(routing_table);
   ct.Add(router_weights);
   for (const auto& t : gate_up_weights) {
     ct.Add(t);
@@ -136,27 +136,26 @@ void FusedMoEKernel(const Context& dev_ctx,
   ct.Add(final_hidden_states, false);
   ct.Add(amax_per_expert, false);
 
+  FusedMoEConfig config;
+  memset(reinterpret_cast<void*>(&config), 0x00, sizeof(FusedMoEConfig));
+  config.permuted_weights = permuted_weights;
+  config.fused_gemm = (gate_up_weights.size() == down_weights.size());
+  config.measurement_mode = measurement_mode;
+  config.activation_mode = activation;
+  config.experts_min = experts_min;
+  config.experts_max = experts_max;
+  config.num_experts = down_weights.size();
+
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, nullptr_t>("fused_moe_", inputs_dims, nullptr);
+  op_info.prepareOpInfo<T, custom_kernel::FusedMoEConfig>(
+      "fused_moe_", inputs_dims, &config);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    FusedMoEConfig config;
-    memset(reinterpret_cast<void*>(&config), 0x00, sizeof(FusedMoEConfig));
-
-    config.permuted_weights = permuted_weights;
-    config.fused_gemm = (gate_up_weights.size() == down_weights.size());
-    config.measurement_mode = measurement_mode;
-    config.activation_mode = activation;
-    config.experts_min = experts_min;
-    config.experts_max = experts_max;
-    config.num_experts = router_weights.dims()[1];
-
     FusedMixtureOfExperts op(op_info.datatype_);
     op.AddNode<T>(&ct, config);
     op.Compile();
     op_info.setOp(op);
-
     recipe = op_info.GetRecipe();
   }
 
@@ -170,7 +169,7 @@ void FusedMoEKernel(const Context& dev_ctx,
 template <typename Context>
 void CallFusedMoEKernel(const Context& dev_ctx,
                         const phi::DenseTensor& hidden_states,
-                        const phi::DenseTensor& expert_routing_table,
+                        const phi::DenseTensor& routing_table,
                         const phi::DenseTensor& router_weights,
                         const std::vector<phi::DenseTensor>& gate_up_weights,
                         const std::vector<phi::DenseTensor>& down_weights,
@@ -184,7 +183,7 @@ void CallFusedMoEKernel(const Context& dev_ctx,
   if (hidden_states.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedMoEKernel<phi::dtype::float16>(dev_ctx,
                                                        hidden_states,
-                                                       expert_routing_table,
+                                                       routing_table,
                                                        router_weights,
                                                        gate_up_weights,
                                                        down_weights,
@@ -198,7 +197,7 @@ void CallFusedMoEKernel(const Context& dev_ctx,
   } else if (hidden_states.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedMoEKernel<phi::dtype::bfloat16>(dev_ctx,
                                                         hidden_states,
-                                                        expert_routing_table,
+                                                        routing_table,
                                                         router_weights,
                                                         gate_up_weights,
                                                         down_weights,
@@ -216,7 +215,7 @@ void CallFusedMoEKernel(const Context& dev_ctx,
 
 std::vector<paddle::Tensor> MixtureOfExpertsForward(
     const paddle::Tensor& hidden_states,
-    const paddle::Tensor& expert_routing_table,
+    const paddle::Tensor& routing_table,
     const paddle::Tensor& router_weights,
     const std::vector<paddle::Tensor>& gate_up_weights,
     const std::vector<paddle::Tensor>& down_weights,
@@ -230,8 +229,8 @@ std::vector<paddle::Tensor> MixtureOfExpertsForward(
           hidden_states.place()));
   auto hidden_states_tensor =
       static_cast<const phi::DenseTensor*>(hidden_states.impl().get());
-  auto expert_routing_table_tensor =
-      static_cast<const phi::DenseTensor*>(expert_routing_table.impl().get());
+  auto routing_table_tensor =
+      static_cast<const phi::DenseTensor*>(routing_table.impl().get());
   auto router_weights_tensor =
       static_cast<const phi::DenseTensor*>(router_weights.impl().get());
 
@@ -249,7 +248,7 @@ std::vector<paddle::Tensor> MixtureOfExpertsForward(
   // allocate memory on device.
   int64_t num_tokens = hidden_states.dims()[0];
   int64_t hidden_dims = hidden_states.dims()[1];
-  int64_t num_experts = router_weights.dims()[1];
+  int64_t num_experts = down_weights.size();
 
   std::shared_ptr<phi::DenseTensor> final_hidden_states =
       std::make_shared<phi::DenseTensor>();
@@ -263,7 +262,7 @@ std::vector<paddle::Tensor> MixtureOfExpertsForward(
 
   CallFusedMoEKernel(*dev_ctx,
                      *hidden_states_tensor,
-                     *expert_routing_table_tensor,
+                     *routing_table_tensor,
                      *router_weights_tensor,
                      gate_up_weights_vec,
                      down_weights_vec,
@@ -301,7 +300,7 @@ std::vector<paddle::DataType> MixtureOfExpertsInferDtype(
 
 PD_BUILD_OP(mixture_of_experts)
     .Inputs({"hidden_states",
-             "expert_routing_table",
+             "routing_table",
              "router_weights",
              paddle::Vec("gate_up_weights"),
              paddle::Vec("down_weights")})

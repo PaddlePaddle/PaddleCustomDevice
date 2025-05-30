@@ -196,19 +196,19 @@ function run_paddlex() {
     -o Global.device="npu:${DEVICE}"
     echo "End PaddleX ResNet50"
 
-    echo "Start PP-YOLOE+"
-    python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
-    -o Global.mode=train \
-    -o Global.dataset_dir=./dataset/det_coco_examples \
-    -o Global.output=ppyolo_plus_s_output \
-    -o Global.device="npu:${DEVICE_LIST}"
+    # echo "Start PP-YOLOE+"
+    # python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
+    # -o Global.mode=train \
+    # -o Global.dataset_dir=./dataset/det_coco_examples \
+    # -o Global.output=ppyolo_plus_s_output \
+    # -o Global.device="npu:${DEVICE_LIST}"
 
-    python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
-    -o Global.mode=predict \
-    -o Predict.model_dir="./ppyolo_plus_s_output/best_model/inference" \
-    -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_object_detection_002.png" \
-    -o Global.device="npu:${DEVICE}"
-    echo "End PP-YOLOE+"
+    # python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
+    # -o Global.mode=predict \
+    # -o Predict.model_dir="./ppyolo_plus_s_output/best_model/inference" \
+    # -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_object_detection_002.png" \
+    # -o Global.device="npu:${DEVICE}"
+    # echo "End PP-YOLOE+"
 
     echo "Start DeepLabv3+"
     python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \

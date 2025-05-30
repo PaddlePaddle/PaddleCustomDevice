@@ -203,16 +203,18 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/layer_norm_cuda_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/layer_norm_cuda_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_grad_kernel.cu # depend on
+                                                                               # cutlass
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
-)
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu)
 
 file(
   GLOB_RECURSE CC_SRCS

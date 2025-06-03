@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import sys
 import pytest
 
 import logging
@@ -31,73 +32,38 @@ class FlushStreamHandler(logging.StreamHandler):
 
 
 def setup_logging(rank, enable_logging=False):
-    logger = logging.getLogger()
-    logger.handlers = []
-    logger.setLevel(logging.CRITICAL + 1)
 
+    logger = logging.getLogger(f"moe_rank_{rank}")
     if enable_logging or os.getenv("ENABLE_LOGGING") == "1":
+
         log_file = f"test_logs_rank_{rank}.log"
+        logger.setLevel(logging.DEBUG)
+        logger.handlers.clear()
+
         file_handler = logging.FileHandler(log_file, mode="w")
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s [%(levelname)s] Rank %(rank)d: %(message)s")
         )
+        logger.addHandler(file_handler)
 
-        stream_handler = FlushStreamHandler()
+        stream_handler = FlushStreamHandler(sys.stdout)
         stream_handler.setFormatter(
             logging.Formatter("%(asctime)s [%(levelname)s] Rank %(rank)d: %(message)s")
         )
+        logger.addHandler(stream_handler)
 
-        logger.setLevel(logging.DEBUG)
-        logger.handlers = [stream_handler, file_handler]
-        logger.propagate = False
-
-    logger.rank = rank
+    logger.info("Logging initialized for rank %d", rank, extra={"rank": rank})
     return logger
 
 
-def setup_device(device, rank, logger):
-    paddle.seed(102)
-
-    hpu_available = paddle.is_compiled_with_custom_device("intel_hpu")
-    visible_modules_str = os.environ.get("HABANA_VISIBLE_MODULES", "0")
-    visible_modules = (
-        list(range(8))
-        if visible_modules_str == "all"
-        else [int(m) for m in visible_modules_str.split(",")]
-    )
-
-    if not visible_modules:
-        logger.error("No HPU modules specified", extra={"rank": rank})
-        raise RuntimeError("No HPU modules specified")
-    if len(visible_modules) <= rank:
-        logger.error(
-            f"Insufficient HPU modules for rank {rank}: {len(visible_modules)} available",
-            extra={"rank": rank},
-        )
-        raise RuntimeError(f"Insufficient HPU modules for rank {rank}")
-    try:
-        target_device = visible_modules[rank]
-        paddle.device.set_device(f"{device}:{target_device}")
-        logger.info(
-            f"Rank {rank} assigned to HPU device {target_device}", extra={"rank": rank}
-        )
-    except Exception as e:
-        logger.error(
-            f"Failed to set HPU device: {str(e)}. Falling back to CPU",
-            extra={"rank": rank},
-        )
-        hpu_available = False
-
-    return hpu_available
-
-
 def init_distributed():
-    rank = int(os.environ.get("RANK", 0))
 
-    if paddle.distributed.get_world_size() > 1:
-        paddle.distributed.init_parallel_env()
-    else:
-        return 0, 1
+    if not dist.is_initialized():
+        try:
+            dist.init_parallel_env()
+        except Exception as e:
+            print(f"Failed to initialize distributed environment: {str(e)}")
+            raise
 
     rank = dist.get_rank()
     world_size = dist.get_world_size()
@@ -120,7 +86,9 @@ def check_using_cosine_similarity(
         cos_sim = np.dot(vec1, vec2) / (norm1 * norm2)
 
     logger.info(
-        f"Cosine similarity: {cos_sim}, required_similarity: {required_similarity}, rank: {rank}"
+        f"Cosine similarity: {cos_sim}, "
+        f"required_similarity: {required_similarity}, ",
+        extra={"rank": rank},
     )
     return cos_sim >= required_similarity
 
@@ -187,6 +155,97 @@ def generate_moe_params(
 
     router_weights_numpy = (
         (paddle.cast(router_weights_paddle, dtype="float32")).numpy().astype(np.float32)
+    )
+    routing_table_numpy = routing_table_paddle.numpy()
+
+    numpy_data = (
+        hidden_states_numpy,
+        router_weights_numpy,
+        routing_table_numpy,
+        expert_weights_numpy,
+    )
+    paddle_data = (
+        hidden_states_paddle,
+        router_weights_paddle,
+        routing_table_paddle,
+        expert_weights_paddle,
+    )
+    return numpy_data, paddle_data
+
+
+def generate_moe_params_static(
+    num_tokens,
+    hidden_dim,
+    ffn_dim,
+    top_k,
+    num_experts,
+    permuted_weights,
+    dtype="bfloat16",
+):
+    if dtype == "float32":
+        paddle_dtype = paddle.float32
+    elif dtype == "float16":
+        paddle_dtype = paddle.float16
+    elif dtype == "bfloat16":
+        paddle_dtype = paddle.bfloat16
+    else:
+        raise ValueError(f"Unsupported dtype: {dtype}")
+
+    def to_bfloat16_numpy(arr):
+        arr_f32 = arr.astype(np.float32)
+        arr_u32 = arr_f32.view(np.uint32)
+        bfloat16_u32 = arr_u32 & 0xFFFF0000
+        return bfloat16_u32.view(np.float32)
+
+    hidden_states_numpy = np.linspace(
+        -0.1, 0.1, num_tokens * hidden_dim, dtype=np.float32
+    ).reshape(num_tokens, hidden_dim)
+    hidden_states_numpy = to_bfloat16_numpy(hidden_states_numpy)
+
+    # Fixed expert weights
+    w1 = np.full((num_experts, hidden_dim, ffn_dim), 1.0, dtype=np.float32)
+    w1 = to_bfloat16_numpy(w1)
+    w2 = np.full((num_experts, hidden_dim, ffn_dim), 2.0, dtype=np.float32)
+    w2 = to_bfloat16_numpy(w2)
+    w3 = np.full((num_experts, ffn_dim, hidden_dim), 3.0, dtype=np.float32)
+    w3 = to_bfloat16_numpy(w3)
+    expert_weights_numpy = (w1, w2, w3)
+
+    # Convert to Paddle tensors
+    hidden_states_paddle = paddle.to_tensor(hidden_states_numpy, dtype=paddle_dtype)
+    w1_paddle = [
+        paddle.to_tensor(w1[i], dtype=paddle_dtype) for i in range(num_experts)
+    ]
+    w2_paddle = [
+        paddle.to_tensor(w2[i], dtype=paddle_dtype) for i in range(num_experts)
+    ]
+    w3_paddle = [
+        paddle.to_tensor(w3[i], dtype=paddle_dtype) for i in range(num_experts)
+    ]
+    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+    if permuted_weights:
+        w1_paddle = [w.transpose([1, 0]) for w in w1_paddle]
+        w2_paddle = [w.transpose([1, 0]) for w in w2_paddle]
+        w3_paddle = [w.transpose([1, 0]) for w in w3_paddle]
+        expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+
+    # Fixed router logits (linearly increasing)
+    router_logits_numpy = np.arange(num_tokens * num_experts, dtype=np.float32).reshape(
+        num_tokens, num_experts
+    )
+    router_logits_numpy = to_bfloat16_numpy(router_logits_numpy)
+    router_logits_paddle = paddle.to_tensor(router_logits_numpy, dtype=paddle_dtype)
+    router_probs_paddle = F.softmax(router_logits_paddle, axis=-1)
+    router_weights_paddle, routing_table_paddle = paddle.topk(
+        router_probs_paddle, k=top_k, axis=-1
+    )
+    router_weights_paddle = router_weights_paddle / (
+        paddle.sum(router_weights_paddle, axis=-1, keepdim=True) + 1e-10
+    )
+
+    # Convert to numpy for output
+    router_weights_numpy = (
+        paddle.cast(router_weights_paddle, dtype="float32").numpy().astype(np.float32)
     )
     routing_table_numpy = routing_table_paddle.numpy()
 
@@ -303,6 +362,7 @@ class FusedMoE:
         permuted_weights,
         fused_weights,
         slice_max_expert,
+        logger,
     ):
         self.num_experts = num_experts
         self.permuted_weights = permuted_weights
@@ -310,7 +370,7 @@ class FusedMoE:
         self.activation = activation
         self.ep_rank = rank
         self.ep_size = ep_size
-        self.logger = logging.getLogger()
+        self.logger = logger
 
         self.fn = paddlenlp_ops.mixture_of_experts
 
@@ -381,22 +441,34 @@ class FusedMoE:
             try:
                 dist.all_reduce(final_hidden_states, op=dist.ReduceOp.SUM)
                 self.logger.info(
-                    "All-reduce completed successfully.", extra={"rank": self.ep_rank}
+                    "All-reduce for MoE successfully.", extra={"rank": self.ep_rank}
                 )
                 if compute_amax:
                     dist.all_reduce(amax_per_expert, op=dist.ReduceOp.MAX)
                     self.logger.info(
-                        "All-reduce for amax completed successfully.",
+                        "All-reduce for AMax successfully.",
                         extra={"rank": self.ep_rank},
                     )
             except Exception as e:
                 self.logger.error(
-                    f"Failed to perform all-reduce: {str(e)}",
+                    f"Failed to perform All-reduce: {str(e)}",
                     extra={"rank": self.ep_rank},
                 )
                 raise
 
         return final_hidden_states, amax_per_expert
+
+
+rank, world_size = None, None
+logger = None
+
+
+def global_init():
+    global rank, world_size, logger
+    if rank is None or world_size is None:
+        rank, world_size = init_distributed()
+    if logger is None:
+        logger = setup_logging(rank, False)
 
 
 NUM_TOKENS = [32, 64]
@@ -437,36 +509,41 @@ def test_mixture_of_experts(
     dtype,
 ):
 
-    rank, world_size = init_distributed()
-    print(
-        f"`Distributed environment initialized`: RANK={rank}, WORLD_SIZE={world_size}"
-    )
+    global_init()
 
-    logger = setup_logging(rank)
-
-    # Set HPU device
+    paddle.seed(rank + 102)
     device = "intel_hpu"
-    hpu_available = setup_device(device, rank, logger=logger)
-
-    if not hpu_available or not hasattr(paddlenlp_ops, "mixture_of_experts"):
-        logger.error("HPU MoE operation not available", extra={"rank": rank})
-        pytest.skip("HPU MoE operation not available")
 
     logger.info(
-        f"Test: num_tokens={num_tokens}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, "
-        f"fused_weights={fused_weights}, permuted_weights={permuted_weights}",
+        f"\n\n======================================="
+        f"`test_mixture_of_experts`: \n"
+        f" num_tokens={num_tokens}, hidden_dim={hidden_dim}, ffn_dim={ffn_dim}, \n"
+        f" top_k={top_k}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, \n"
+        f" fused_weights={fused_weights}, permuted_weights={permuted_weights}, activation={activation}, \n"
+        f" compute_amax={compute_amax}, dtype={dtype}, \n",
         extra={"rank": rank},
     )
 
-    numpy_data, paddle_data = generate_moe_params(
-        num_tokens=num_tokens,
-        hidden_dim=hidden_dim,
-        ffn_dim=ffn_dim,
-        top_k=top_k,
-        num_experts=num_experts,
-        permuted_weights=permuted_weights,
-        dtype=dtype,
-    )
+    if world_size == 1:
+        numpy_data, paddle_data = generate_moe_params(
+            num_tokens=num_tokens,
+            hidden_dim=hidden_dim,
+            ffn_dim=ffn_dim,
+            top_k=top_k,
+            num_experts=num_experts,
+            permuted_weights=permuted_weights,
+            dtype=dtype,
+        )
+    else:
+        numpy_data, paddle_data = generate_moe_params_static(
+            num_tokens=num_tokens,
+            hidden_dim=hidden_dim,
+            ffn_dim=ffn_dim,
+            top_k=top_k,
+            num_experts=num_experts,
+            permuted_weights=permuted_weights,
+            dtype=dtype,
+        )
 
     (
         hidden_states_np,
@@ -512,6 +589,7 @@ def test_mixture_of_experts(
         permuted_weights=permuted_weights,
         fused_weights=fused_weights,
         slice_max_expert=slice_max_expert,
+        logger=logger,
     )
 
     final_hidden_states, amax_per_expert = fused_moe.forward(
@@ -528,7 +606,6 @@ def test_mixture_of_experts(
     print(amax_per_expert)
     print("=========================================")
 
-    logger = logging.getLogger()
     required_similarity = 0.98
     similar = check_using_cosine_similarity(
         final_hidden_states.to("float32").cpu().numpy(),
@@ -549,10 +626,10 @@ def test_mixture_of_experts(
         atol = 0.01
         if mask.any():
             logger.info(
-                f"Comparing amax: indices={np.where(mask)[0].tolist()}, "
+                f"Comparing amax: "
                 f"fused_moe={fused_op_vals.tolist()}, "
-                f"cpu={ref_vals.tolist()}",
-                extra={"rank": 0},
+                f"ref_mixtral_moe={ref_vals.tolist()}",
+                extra={"rank": rank},
             )
             np.testing.assert_allclose(fused_op_vals, ref_vals, rtol=rtol, atol=atol)
 

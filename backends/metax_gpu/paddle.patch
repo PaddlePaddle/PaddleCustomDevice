@@ -56,58 +56,7 @@ index ef8f922ffd..dde80c1feb 100644
 -}  // namespace phi
 +}  // namespace phi
 \ No newline at end of file
-diff --git a/paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.cu b/paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.cu
-index b675cbac1e..64cfb974e5 100644
---- a/paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.cu
-+++ b/paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.cu
-@@ -28,7 +28,7 @@ namespace cub = hipcub;
- #include "paddle/phi/kernels/funcs/emb_eltwise_layer_norm_functor.h"
- 
- #include "paddle/phi/common/float16.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+// #include "paddle/phi/kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/math_cuda_utils.h"
- 
- namespace phi {
-diff --git a/paddle/phi/kernels/funcs/fake_dequantize_functor.h b/paddle/phi/kernels/funcs/fake_dequantize_functor.h
-index bcf6568a80..860cb1b7bb 100644
---- a/paddle/phi/kernels/funcs/fake_dequantize_functor.h
-+++ b/paddle/phi/kernels/funcs/fake_dequantize_functor.h
-@@ -18,7 +18,7 @@ limitations under the License. */
- #include "paddle/phi/backends/all_context.h"
- #include "paddle/phi/common/scalar.h"
- #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+// #include "paddle/phi/kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- 
- namespace phi {
-diff --git a/paddle/phi/kernels/funcs/fake_quantize_functor.h b/paddle/phi/kernels/funcs/fake_quantize_functor.h
-index 93c04fb89c..0285ba88c1 100644
---- a/paddle/phi/kernels/funcs/fake_quantize_functor.h
-+++ b/paddle/phi/kernels/funcs/fake_quantize_functor.h
-@@ -19,7 +19,7 @@ limitations under the License. */
- #include "paddle/phi/common/scalar.h"
- #include "paddle/phi/common/transform.h"
- #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+// #include "paddle/phi/kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/eigen/common.h"
- #include "paddle/phi/kernels/impl/clip_kernel_impl.h"
- 
-diff --git a/paddle/phi/kernels/funcs/math/bert_encoder_functor.cu b/paddle/phi/kernels/funcs/math/bert_encoder_functor.cu
-index a7c2dfc8b2..48ad9f12fb 100644
---- a/paddle/phi/kernels/funcs/math/bert_encoder_functor.cu
-+++ b/paddle/phi/kernels/funcs/math/bert_encoder_functor.cu
-@@ -18,7 +18,7 @@
- 
- #include "paddle/phi/core/enforce.h"
- #include "paddle/phi/core/tensor_utils.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+// #include "paddle/phi/kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/math_cuda_utils.h"
- 
- namespace phi {
+
 diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
 index 0b60a78695..09ef60cb9b 100644
 --- a/paddle/phi/kernels/funcs/top_k_function_cuda.h

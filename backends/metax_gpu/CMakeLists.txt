@@ -246,9 +246,9 @@ file(
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_grad_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu
   )
 
 file(
@@ -257,11 +257,9 @@ file(
   runtime/runtime.cc kernels/*.cc kernels/*.cu kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu 
   # kernels/ernie_core/*.cu
-  kernels/ernie_core/rms_norm_kernel_register.cu
-  kernels/ernie_core/top_p_sampling_kernel_register.cu
-  kernels/ernie_core/fused_bias_act_kernel_register.cu
-  
-  
+  # kernels/ernie_core/rms_norm_kernel_register.cu
+  # kernels/ernie_core/top_p_sampling_kernel_register.cu
+  # kernels/ernie_core/fused_bias_act_kernel_register.cu
   )
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})

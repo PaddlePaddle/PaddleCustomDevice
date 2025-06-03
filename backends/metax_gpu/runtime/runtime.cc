@@ -58,7 +58,8 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
         scratch_(nullptr),
         semaphore_(nullptr),
         allocations_() {
-    Eigen::initializeDeviceProp();
+    Eigen::GetGpuDeviceProperties();
+    //Eigen::initializeDeviceProp();
   }
   ~EigenGpuStreamDevice() override = default;
 
@@ -68,7 +69,8 @@ class EigenGpuStreamDevice : public Eigen::StreamInterface {
     stream_ = cuda_stream;
     place_ = place;
     allocator_ = allocator;
-    device_prop_ = &Eigen::m_deviceProperties[place.device];
+    // device_prop_ = &Eigen::m_deviceProperties[place.device];
+    device_prop_ = &Eigen::GetGpuDeviceProperties(place.device);
   }
 
   const cudaStream_t &stream() const override { return stream_; }
@@ -321,11 +323,6 @@ C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
                    size_t size) {
-  if (dst == NULL || src == NULL) {
-    VLOG(0) << "Failed to copy memory, dst or src is NULL";
-    return C_ERROR;
-  }
-
   cudaError_t cudaErr = cudaSetDevice(device->id);
   if (cudaErr != cudaSuccess) {
     VLOG(0) << "Failed to set device: " << device->id

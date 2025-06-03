@@ -239,6 +239,25 @@ class HpuFusedOperator : public HpuOperator {
         inputs, outputs, params, guid, node_name);
   }
 
+  template <typename T>
+  void AddNodeConvertToFP8(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           ns_CastKernel::Params params,
+                           std::string node_name) {
+    std::string guid = "convert_to_fp8_" + guid_dtype<T>();
+    AddNode_IOP<ns_CastKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  void AddNodeFP8Gemm(std::vector<synTensor> inputs,
+                      std::vector<synTensor> outputs,
+                      synGEMMParams params,
+                      std::string node_name) {
+    std::string guid = "fp8_gemm_" + guid_dtype<T>();
+    AddNode_IOP<synGEMMParams>(inputs, outputs, params, guid, node_name);
+  }
+
   inline void AddNodeGemm(std::vector<synTensor> inputs,
                           std::vector<synTensor> outputs,
                           synGEMMParams params,

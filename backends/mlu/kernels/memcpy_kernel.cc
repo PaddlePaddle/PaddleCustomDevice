@@ -53,7 +53,7 @@ void MemcpyD2HKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
                      int dst_place_type,
                      phi::DenseTensor* out) {
-  TensorCopy(dev_ctx, x, false, out, phi::CPUPlace());
+  TensorCopy(dev_ctx, x, true, out, phi::CPUPlace());
 }
 
 template <typename T, typename Context>

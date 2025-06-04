@@ -1,0 +1,624 @@
+From 274ee98c88d55c11fc2557f6bd992f00818e1087 Mon Sep 17 00:00:00 2001
+From: Tianyu Zhou <tianyu.zhou@iluvatar.com>
+Date: Mon, 26 May 2025 14:21:47 +0800
+Subject: [PATCH] Adapt for Iluvatar.
+
+Add class DnnWorkspaceHandle in custom context.
+---
+ CMakeLists.txt                                |  2 +-
+ paddle/common/backend_header.h                |  2 +-
+ .../operators/collective/recv_v2_op.cu.cc     |  2 +-
+ .../operators/collective/send_v2_op.cu.cc     |  2 +-
+ .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
+ paddle/phi/backends/custom/custom_context.cc  | 21 ++++++++++
+ paddle/phi/backends/custom/custom_context.h   | 41 +++++++++++++++++++
+ paddle/phi/backends/dynload/cudnn.cc          |  4 ++
+ paddle/phi/backends/dynload/cudnn.h           |  9 ++++
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +-
+ paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
+ paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
+ paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
+ paddle/phi/backends/gpu/gpu_types.h           |  5 +++
+ paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
+ paddle/phi/core/enforce.h                     |  6 ++-
+ paddle/phi/core/utils/data_type.h             |  2 +-
+ paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 +
+ paddle/phi/kernels/funcs/segmented_array.h    |  8 ++++
+ paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
+ paddle/phi/kernels/gpu/c_embedding_kernel.cu  |  2 +-
+ paddle/phi/kernels/gpu/elementwise_grad.h     |  4 ++
+ .../phi/kernels/gpu/layer_norm_grad_kernel.cu |  2 +-
+ paddle/phi/kernels/gpu/layer_norm_kernel.cu   |  2 +-
+ .../phi/kernels/gpu/rms_norm_grad_kernel.cu   |  2 +-
+ paddle/phi/kernels/reduce_sum_kernel.cc       |  2 +
+ paddle/phi/kernels/shape_kernel.cc            |  2 +
+ paddle/phi/kernels/squeeze_kernel.cc          |  2 +
+ paddle/phi/kernels/strided_slice_kernel.cc    |  2 +
+ paddle/phi/kernels/unsqueeze_kernel.cc        |  2 +
+ paddle/utils/flat_hash_map.h                  |  5 +++
+ 31 files changed, 131 insertions(+), 17 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b2c4e6a650..c51f3df1f0 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,7 +63,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
+ option(WITH_ONNXRUNTIME "Compile PaddlePaddle with ONNXRUNTIME" OFF)
+ option(WITH_CUSPARSELT "Compile PaddlePaddle with CUSPARSELT" OFF)
+ option(WITH_SETUP_INSTALL "Compile PaddlePaddle with setup.py" OFF)
+-option(WITH_SHARED_PHI "Compile PaddlePaddle with SHARED LIB of PHI" ON)
++option(WITH_SHARED_PHI "Compile PaddlePaddle with SHARED LIB of PHI" OFF)
+ option(CINN_WITH_CUDNN "Compile CINN with CUDNN support" ON)
+ option(WITH_PIP_CUDA_LIBRARIES
+        "Paddle uses the CUDA library provided by NVIDIA" ON)
+diff --git a/paddle/common/backend_header.h b/paddle/common/backend_header.h
+index 240b04c3ad..82f5aca792 100644
+--- a/paddle/common/backend_header.h
++++ b/paddle/common/backend_header.h
+@@ -18,7 +18,7 @@
+ #include <cuda.h>
+ #endif
+ 
+-#if defined(__CUDACC__) && CUDA_VERSION >= 11000
++#if defined(__CUDACC__) && (CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX))
+ #define PADDLE_CUDA_BF16
+ #include <cuda_bf16.h>
+ #endif
+diff --git a/paddle/fluid/operators/collective/recv_v2_op.cu.cc b/paddle/fluid/operators/collective/recv_v2_op.cu.cc
+index ab866f015c..10a8111637 100644
+--- a/paddle/fluid/operators/collective/recv_v2_op.cu.cc
++++ b/paddle/fluid/operators/collective/recv_v2_op.cu.cc
+@@ -224,7 +224,7 @@ PD_REGISTER_STRUCT_KERNEL(recv_v2,
+                           float,
+                           double,
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+                           phi::dtype::bfloat16,
+ #endif
+                           int,
+diff --git a/paddle/fluid/operators/collective/send_v2_op.cu.cc b/paddle/fluid/operators/collective/send_v2_op.cu.cc
+index e58e29465d..1755595405 100644
+--- a/paddle/fluid/operators/collective/send_v2_op.cu.cc
++++ b/paddle/fluid/operators/collective/send_v2_op.cu.cc
+@@ -203,7 +203,7 @@ PD_REGISTER_STRUCT_KERNEL(send_v2,
+                           float,
+                           double,
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+                           phi::dtype::bfloat16,
+ #endif
+                           int,
+diff --git a/paddle/fluid/platform/device/gpu/nccl_helper.h b/paddle/fluid/platform/device/gpu/nccl_helper.h
+index 93e1278861..da47b74e70 100644
+--- a/paddle/fluid/platform/device/gpu/nccl_helper.h
++++ b/paddle/fluid/platform/device/gpu/nccl_helper.h
+@@ -62,7 +62,7 @@ inline ncclDataType_t ToNCCLDataType(framework::proto::VarType::Type type) {
+   } else if (type == framework::proto::VarType::BOOL) {
+     return ncclUint8;
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+   } else if (type == framework::proto::VarType::BF16) {
+     return ncclBfloat16;
+ #endif
+diff --git a/paddle/phi/backends/custom/custom_context.cc b/paddle/phi/backends/custom/custom_context.cc
+index 312e3f705a..7a2513d783 100644
+--- a/paddle/phi/backends/custom/custom_context.cc
++++ b/paddle/phi/backends/custom/custom_context.cc
+@@ -24,6 +24,15 @@ limitations under the License. */
+ 
+ namespace phi {
+ 
++void DnnWorkspaceHandle::ResetWorkspace() { allocation_ = nullptr; }
++
++void DnnWorkspaceHandle::ReallocWorkspace(size_t required_workspace_bytes) {
++  if (required_workspace_bytes <= WorkspaceSize()) return;
++  // reset allocation first before re-allocate to save memory
++  allocation_.reset();
++  allocation_ = allocator_->Allocate(required_workspace_bytes);
++}
++
+ struct CustomContext::Impl {
+   explicit Impl(const CustomPlace& place) : place_(place) {}
+ 
+@@ -114,6 +123,14 @@ struct CustomContext::Impl {
+     return eigen_device_;
+   }
+ 
++  DnnWorkspaceHandle GetDnnWorkspace() {
++    PADDLE_ENFORCE_NOT_NULL(allocator_,
++                            common::errors::InvalidArgument(
++                                "The device allocator for GPU context is "
++                                "nullptr. It must not be null."));
++    return DnnWorkspaceHandle(allocator_, stream());
++  }
++
+   void Wait() const { stream_->Wait(); }
+ 
+   void WaitEvent(phi::event::event_t ev) const {
+@@ -222,6 +239,10 @@ void CustomContext::SetEigenDevice(
+   impl_->SetEigenDevice(std::move(creator));
+ }
+ 
++DnnWorkspaceHandle CustomContext::cudnn_workspace_handle() const {
++  return impl_->GetDnnWorkspace();
++}
++
+ phi::ccl::CCLComm CustomContext::xccl_comm() const {
+   return impl_->xccl_comm();
+ }
+diff --git a/paddle/phi/backends/custom/custom_context.h b/paddle/phi/backends/custom/custom_context.h
+index f69f9c7f76..6e5ff029f7 100644
+--- a/paddle/phi/backends/custom/custom_context.h
++++ b/paddle/phi/backends/custom/custom_context.h
+@@ -28,6 +28,45 @@ struct GpuDevice;
+ 
+ namespace phi {
+ 
++class DnnWorkspaceHandle {
++ public:
++  inline DnnWorkspaceHandle(Allocator* allocator, phi::stream::stream_t stream)
++      : allocator_(allocator), stream_(stream) {
++    mtx_ = std::make_unique<std::mutex>();
++  }
++
++  inline void RunFunc(const std::function<void(void*)>& cudnn_func,
++                      size_t required_workspace_bytes) {
++    if (required_workspace_bytes > WorkspaceSize()) {
++      ReallocWorkspace(required_workspace_bytes);
++    }
++    {
++      std::lock_guard<std::mutex> guard(*mtx_);
++      cudnn_func(allocation_ ? allocation_->ptr() : nullptr);
++    }
++  }
++
++  inline size_t WorkspaceSize() {
++    if (allocation_ == nullptr) {
++      return 0;
++    }
++    return allocation_->size();
++  }
++
++  void ResetWorkspace();
++
++  TEST_API void ReallocWorkspace(size_t required_workspace_bytes);
++
++  DnnWorkspaceHandle(DnnWorkspaceHandle&&) = default;
++  DnnWorkspaceHandle& operator=(DnnWorkspaceHandle&&) = delete;
++
++ private:
++  Allocator::AllocationPtr allocation_{nullptr};
++  Allocator* allocator_{nullptr};  // Not owned
++  phi::stream::stream_t stream_{nullptr};    // Not owned
++  std::unique_ptr<std::mutex> mtx_;
++};
++
+ class CustomContext : public DeviceContext,
+                       public TypeInfoTraits<DeviceContext, CustomContext> {
+  public:
+@@ -57,6 +96,8 @@ class CustomContext : public DeviceContext,
+ 
+   Eigen::GpuDevice* eigen_device() const;
+ 
++  DnnWorkspaceHandle cudnn_workspace_handle() const;
++
+   void WaitEvent(phi::event::event_t ev) const;
+ 
+   void RecordEvent(phi::event::event_t ev,
+diff --git a/paddle/phi/backends/dynload/cudnn.cc b/paddle/phi/backends/dynload/cudnn.cc
+index c474a1a417..749073ce38 100644
+--- a/paddle/phi/backends/dynload/cudnn.cc
++++ b/paddle/phi/backends/dynload/cudnn.cc
+@@ -61,6 +61,10 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(DEFINE_WRAP);
+ CUDNN_DNN_ROUTINE_EACH_R9(DEFINE_WRAP);
+ #endif
+ 
++#ifdef CUDNN_DNN_ROUTINE_EACH_ATTN
++CUDNN_DNN_ROUTINE_EACH_ATTN(DEFINE_WRAP)
++#endif
++
+ bool HasCUDNN() {
+   std::call_once(cudnn_dso_flag,
+                  []() { cudnn_dso_handle = GetCUDNNDsoHandle(); });
+diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
+index 7a5450c349..42975e11cf 100644
+--- a/paddle/phi/backends/dynload/cudnn.h
++++ b/paddle/phi/backends/dynload/cudnn.h
+@@ -229,6 +229,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
+   __macro(cudnnRNNBackwardWeights_v8);
+ CUDNN_DNN_ROUTINE_EACH_R9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+ #endif
++
++#define CUDNN_DNN_ROUTINE_EACH_ATTN(__macro)               \
++  __macro(cudnnFlashAttnForward);                          \
++  __macro(cudnnCreateFlashAttnDescriptor);                 \
++  __macro(cudnnGetFlashAttnBuffers);                       \
++  __macro(cudnnDestroyFlashAttnDescriptor);                \
++  __macro(cudnnFlashAttnBackward);                         \
++  __macro(cudnnSetTensorNdDescriptor_lowerbound_2);
++CUDNN_DNN_ROUTINE_EACH_ATTN(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
+ }  // namespace dynload
+ }  // namespace phi
+ 
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
+index 6b62e328d6..3c12905e09 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
++++ b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
+@@ -206,7 +206,7 @@ inline void sync_streams(gpuStream_t to_record, gpuStream_t to_wait) {
+   PADDLE_ENFORCE_GPU_SUCCESS(
+       cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+   PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(event, to_record));
+-  PADDLE_ENFORCE_GPU_SUCCESS(cudaStreamWaitEvent(to_wait, event));
++  PADDLE_ENFORCE_GPU_SUCCESS(cudaStreamWaitEvent(to_wait, event, 0));
+   PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(event));
+ }
+ 
+@@ -323,7 +323,7 @@ void CUDAGraph::PrintToDotFiles(const std::string &dirname,
+ #endif
+ }
+ 
+-#if CUDA_VERSION >= 11000
++#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
+ void CUDAGraphNodeLauncher::KernelNodeLaunch(
+     parameterSetter_t parameterSetter, gpuKernelCallback_t cudakernelCallback) {
+   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.h b/paddle/phi/backends/gpu/cuda/cuda_graph.h
+index f0408b8b03..98a01868db 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_graph.h
++++ b/paddle/phi/backends/gpu/cuda/cuda_graph.h
+@@ -39,7 +39,7 @@
+ 
+ #ifdef PADDLE_WITH_CUDA
+ 
+-#if CUDA_VERSION < 11000
++#if CUDA_VERSION < 11000 && !defined(PADDLE_WITH_COREX)
+ // For CUDA versions less than 11.0, use a dummy type for cudaFunction_t.
+ using cudaFunction_t = void *;
+ cudaError_t cudaGetFuncBySymbol(cudaFunction_t *functionPtr,
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_helper.h b/paddle/phi/backends/gpu/cuda/cuda_helper.h
+index 02753c0333..bcf435dfae 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_helper.h
++++ b/paddle/phi/backends/gpu/cuda/cuda_helper.h
+@@ -85,7 +85,7 @@ cudaDataType_t ToCudaDataType() {
+     return CUDA_R_64F;
+   } else if (std::is_same<T, phi::dtype::float16>::value) {
+     return CUDA_R_16F;
+-#if CUDA_VERSION >= 11000
++#if CUDA_VERSION >= 11000 || defined(PADDLE_WITH_COREX)
+   } else if (std::is_same<T, phi::dtype::bfloat16>::value) {
+     return CUDA_R_16BF;
+ #endif
+diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
+index 99b8fa120e..beba409fcc 100644
+--- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
++++ b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
+@@ -125,7 +125,7 @@ class CudnnDataType<phi::dtype::float8_e4m3fn> {
+ #endif
+ 
+ // CUDNN_DATA_BFLOAT16 is not valid before cudnn8.1
+-#if CUDNN_VERSION_MIN(8, 1, 0)
++#if CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
+ template <>
+ class CudnnDataType<phi::dtype::bfloat16> {
+  public:
+diff --git a/paddle/phi/backends/gpu/gpu_types.h b/paddle/phi/backends/gpu/gpu_types.h
+index cce360be06..f396082850 100644
+--- a/paddle/phi/backends/gpu/gpu_types.h
++++ b/paddle/phi/backends/gpu/gpu_types.h
+@@ -59,6 +59,9 @@ DECLARE_TYPE_FOR_GPU(dnnActivationMode_t,
+                      cudnnActivationMode_t,
+                      miopenActivationMode_t);
+ #endif
++#ifdef PADDLE_WITH_COREX
++typedef CUfunc_st * cudaFunction_t;
++#endif
+ DECLARE_TYPE_FOR_GPU(gpuGraph_t, cudaGraph_t, hipGraph_t);
+ DECLARE_TYPE_FOR_GPU(gpuFunction_t, cudaFunction_t, hipFunction_t);
+ DECLARE_TYPE_FOR_GPU(gpuGraphExec_t, cudaGraphExec_t, hipGraphExec_t);
+@@ -156,11 +159,13 @@ DECLARE_FUNCTION_FOR_GPU(gpuStreamEndCapture,
+ DECLARE_FUNCTION_FOR_GPU(gpuStreamGetCaptureInfo,
+                          cudaStreamGetCaptureInfo,
+                          hipStreamGetCaptureInfo);
++#ifndef PADDLE_WITH_COREX
+ DECLARE_FUNCTION_FOR_GPU(gpuEventCreateWithFlags,
+                          cudaEventCreateWithFlags,
+                          hipEventCreateWithFlags);
+ DECLARE_FUNCTION_FOR_GPU(gpuEventRecord, cudaEventRecord, hipEventRecord);
+ DECLARE_FUNCTION_FOR_GPU(gpuEventDestroy, cudaEventDestroy, hipEventDestroy);
++#endif
+ DECLARE_FUNCTION_FOR_GPU(gpuEventQuery, cudaEventQuery, hipEventQuery);
+ DECLARE_FUNCTION_FOR_GPU(gpuEventSynchronize,
+                          cudaEventSynchronize,
+diff --git a/paddle/phi/core/distributed/nccl_tools.cc b/paddle/phi/core/distributed/nccl_tools.cc
+index f4b268b14c..dec2e6ea8c 100644
+--- a/paddle/phi/core/distributed/nccl_tools.cc
++++ b/paddle/phi/core/distributed/nccl_tools.cc
+@@ -63,7 +63,7 @@ std::string NCCLDTypeToString(ncclDataType_t dtype) {
+   PD_NCCL_DTYPE_TO_STR(ncclHalf, "float16");
+   PD_NCCL_DTYPE_TO_STR(ncclFloat16, "float16");
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+   PD_NCCL_DTYPE_TO_STR(ncclBfloat16, "bfloat16");
+ #endif
+   PD_NCCL_DTYPE_TO_STR(ncclDouble, "float64");
+diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
+index ef8f922ffd..28626e9947 100644
+--- a/paddle/phi/core/enforce.h
++++ b/paddle/phi/core/enforce.h
+@@ -97,7 +97,7 @@ inline bool is_error(bool stat) { return !stat; }
+ 
+ void ThrowWarnInternal(const std::string& message);
+ 
+-#if defined(__CUDA_ARCH__)
++#if defined(__CUDA_ARCH__) && !defined(PADDLE_WITH_COREX)
+ // For cuda, the assertions can affect performance and it is therefore
+ // recommended to disable them in production code
+ // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
+@@ -112,6 +112,10 @@ void ThrowWarnInternal(const std::string& message);
+       asm("trap;");                                                \
+     }                                                              \
+   } while (0)
++#elif defined(PADDLE_WITH_COREX)
++#define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...)               \
++  do {                                                             \
++  } while (0)
+ #elif defined(__HIPCC__)
+ #define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...)               \
+   do {                                                             \
+diff --git a/paddle/phi/core/utils/data_type.h b/paddle/phi/core/utils/data_type.h
+index 1d20fa3173..fab2b90ed2 100644
+--- a/paddle/phi/core/utils/data_type.h
++++ b/paddle/phi/core/utils/data_type.h
+@@ -249,7 +249,7 @@ inline ncclDataType_t ToNCCLDataType(DataType type) {
+              type == DataType::FLOAT8_E5M2) {
+     return ncclUint8;
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+   } else if (type == DataType::BFLOAT16) {
+     return ncclBfloat16;
+ #endif
+diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
+index b973d75a9b..daeb4778c6 100644
+--- a/paddle/phi/kernels/funcs/affine_grid_utils.h
++++ b/paddle/phi/kernels/funcs/affine_grid_utils.h
+@@ -15,7 +15,9 @@
+ #pragma once
+ 
+ #include "paddle/phi/core/dense_tensor.h"
++#ifndef PADDLE_WITH_COREX
+ #include "paddle/phi/kernels/funcs/blas/blas.h"
++#endif
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
+ #include "paddle/phi/kernels/funcs/math_function.h"
+ 
+diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
+index 71b7e5f4e5..2a569c76dd 100644
+--- a/paddle/phi/kernels/funcs/segmented_array.h
++++ b/paddle/phi/kernels/funcs/segmented_array.h
+@@ -118,6 +118,13 @@ struct ArraySetterBase {
+         phi::Stream(reinterpret_cast<phi::StreamId>(ctx.stream())));
+ 
+     int8_t* restored = reinterpret_cast<int8_t*>(src);
++#ifdef PADDLE_WITH_COREX
++    PADDLE_ENFORCE_GPU_SUCCESS(cudaMemcpyAsync(allocation->ptr(),
++                                               restored,
++                                               num_bytes,
++                                               phi::gpuMemcpyHostToDevice,
++                                               ctx.stream()));
++#else
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+     if (use_cuda_graph) {
+       restored = phi::backends::gpu::RestoreHostMemIfCapturingCUDAGraph<int8_t>(
+@@ -129,6 +136,7 @@ struct ArraySetterBase {
+                                        num_bytes,
+                                        phi::gpuMemcpyHostToDevice,
+                                        ctx.stream());
++#endif
+ 
+     auto ptr = allocation->ptr();
+     allocations.emplace_back(std::move(allocation));
+diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
+index 8f6b0fdd32..b95ea07883 100644
+--- a/paddle/phi/kernels/funcs/softmax_impl.h
++++ b/paddle/phi/kernels/funcs/softmax_impl.h
+@@ -23,6 +23,7 @@ limitations under the License. */
+ #include "paddle/phi/core/dense_tensor.h"
+ #include "paddle/phi/kernels/funcs/cpu_vec.h"
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
++#include "paddle/phi/kernels/funcs/softmax.h"
+ 
+ namespace phi {
+ namespace funcs {
+diff --git a/paddle/phi/kernels/gpu/c_embedding_kernel.cu b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
+index f73db3e025..622b46d2b6 100644
+--- a/paddle/phi/kernels/gpu/c_embedding_kernel.cu
++++ b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
+@@ -114,7 +114,7 @@ void CEmbeddingKernel(const Context& ctx,
+ }  // namespace phi
+ 
+ #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+-    defined(PADDLE_WITH_HIP)
++    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
+ PD_REGISTER_KERNEL(c_embedding,
+                    GPU,
+                    ALL_LAYOUT,
+diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
+index 5bd695ac8c..ec57d1d13a 100644
+--- a/paddle/phi/kernels/gpu/elementwise_grad.h
++++ b/paddle/phi/kernels/gpu/elementwise_grad.h
+@@ -213,7 +213,11 @@ void ElementwiseAddGrad(const GPUContext &ctx,
+     phi::Copy(ctx, dout, ctx.GetPlace(), false, dx);
+   } else if (dx_data != dout_data && dy_data != dout_data) {
+     auto size = x.numel();
++#ifdef PADDLE_WITH_COREX
++    int vec_size = std::max(static_cast<int>(sizeof(float4) / sizeof(T)), 1);
++#else
+     int vec_size = max(static_cast<int>(sizeof(float4) / sizeof(T)), 1);
++#endif
+     dim3 block_size = dim3(PREDEFINED_BLOCK_SIZE, 1);
+     dim3 grid_size =
+         dim3(((size + vec_size - 1) / vec_size + PREDEFINED_BLOCK_SIZE - 1) /
+diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
+index 1e10da8967..d3b0b90eae 100644
+--- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
++++ b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
+@@ -123,7 +123,7 @@ PD_REGISTER_KERNEL(layer_norm_grad,
+     kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+   }
+ }
+-#elif CUDNN_VERSION_MIN(8, 1, 0)
++#elif CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
+ PD_REGISTER_KERNEL(layer_norm_grad,
+                    GPU,
+                    ALL_LAYOUT,
+diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
+index 252e33e5f0..ec2a8847a7 100644
+--- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
++++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
+@@ -678,7 +678,7 @@ PD_REGISTER_KERNEL(layer_norm,
+   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
+   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
+ }
+-#elif CUDNN_VERSION_MIN(8, 1, 0)
++#elif CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
+ PD_REGISTER_KERNEL(layer_norm,
+                    GPU,
+                    ALL_LAYOUT,
+diff --git a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
+index 342737e9b2..86c4d1600c 100644
+--- a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
++++ b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
+@@ -198,7 +198,7 @@ PD_REGISTER_KERNEL(rms_norm_grad,
+                    float,
+                    phi::dtype::float16) {}
+ 
+-#elif CUDNN_VERSION_MIN(8, 1, 0)
++#elif CUDNN_VERSION_MIN(8, 1, 0) || defined(PADDLE_WITH_COREX)
+ 
+ PD_REGISTER_KERNEL(rms_norm_grad,
+                    GPU,
+diff --git a/paddle/phi/kernels/reduce_sum_kernel.cc b/paddle/phi/kernels/reduce_sum_kernel.cc
+index 654eae9199..3b6e5580e6 100644
+--- a/paddle/phi/kernels/reduce_sum_kernel.cc
++++ b/paddle/phi/kernels/reduce_sum_kernel.cc
+@@ -37,6 +37,7 @@ void SumKernel(const Context& dev_ctx,
+ using complex64 = ::phi::dtype::complex<float>;
+ using complex128 = ::phi::dtype::complex<double>;
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(sum,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -55,6 +56,7 @@ PD_REGISTER_KERNEL(sum,
+                    complex128) {
+   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+ }
++#endif
+ 
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(sum,
+diff --git a/paddle/phi/kernels/shape_kernel.cc b/paddle/phi/kernels/shape_kernel.cc
+index 50ab8b064f..dde1090c04 100644
+--- a/paddle/phi/kernels/shape_kernel.cc
++++ b/paddle/phi/kernels/shape_kernel.cc
+@@ -45,6 +45,7 @@ void Shape64Kernel(const Context& ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(shape,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -62,6 +63,7 @@ PD_REGISTER_KERNEL(shape,
+   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
+   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
+ }
++#endif
+ 
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(shape,
+diff --git a/paddle/phi/kernels/squeeze_kernel.cc b/paddle/phi/kernels/squeeze_kernel.cc
+index b043ba747d..4c0579316f 100644
+--- a/paddle/phi/kernels/squeeze_kernel.cc
++++ b/paddle/phi/kernels/squeeze_kernel.cc
+@@ -45,6 +45,7 @@ void SqueezeWithXShapeKernel(const Context& dev_ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(squeeze,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -78,6 +79,7 @@ PD_REGISTER_KERNEL(squeeze_with_xshape,
+                    phi::dtype::bfloat16,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(squeeze,
+                    GPU,
+diff --git a/paddle/phi/kernels/strided_slice_kernel.cc b/paddle/phi/kernels/strided_slice_kernel.cc
+index 2bc9325de1..b6cc92a70e 100644
+--- a/paddle/phi/kernels/strided_slice_kernel.cc
++++ b/paddle/phi/kernels/strided_slice_kernel.cc
+@@ -34,6 +34,7 @@ void StridedSliceKernel(const Context& dev_ctx,
+ 
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(strided_slice,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -50,6 +51,7 @@ PD_REGISTER_KERNEL(strided_slice,
+                    phi::dtype::bfloat16,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(strided_slice,
+                    GPU,
+diff --git a/paddle/phi/kernels/unsqueeze_kernel.cc b/paddle/phi/kernels/unsqueeze_kernel.cc
+index c30752337d..dc1ca3bdc5 100644
+--- a/paddle/phi/kernels/unsqueeze_kernel.cc
++++ b/paddle/phi/kernels/unsqueeze_kernel.cc
+@@ -49,6 +49,7 @@ void UnsqueezeWithXShapeKernel(const Context& dev_ctx,
+ }
+ }  // namespace phi
+ 
++#ifndef PADDLE_WITH_COREX
+ PD_REGISTER_KERNEL(unsqueeze,
+                    CPU,
+                    ALL_LAYOUT,
+@@ -80,6 +81,7 @@ PD_REGISTER_KERNEL(unsqueeze_with_xshape,
+                    int64_t,
+                    phi::dtype::complex<float>,
+                    phi::dtype::complex<double>) {}
++#endif
+ #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+ PD_REGISTER_KERNEL(unsqueeze,
+                    GPU,
+diff --git a/paddle/utils/flat_hash_map.h b/paddle/utils/flat_hash_map.h
+index b643fc1a57..960bc7d9b1 100644
+--- a/paddle/utils/flat_hash_map.h
++++ b/paddle/utils/flat_hash_map.h
+@@ -683,8 +683,13 @@ class sherwood_v3_table : private EntryAlloc, private Hasher, private Equal {
+   }
+ 
+   size_t num_buckets_for_reserve(size_t num_elements) const {
++#ifdef PADDLE_WITH_COREX
++    return static_cast<size_t>(std::ceil(
++        num_elements / std::min((double)0.5, static_cast<double>(_max_load_factor))));
++#else
+     return static_cast<size_t>(std::ceil(
+         num_elements / std::min(0.5, static_cast<double>(_max_load_factor))));
++#endif
+   }
+   void rehash_for_other_container(const sherwood_v3_table &other) {
+     rehash(
+-- 
+2.34.1

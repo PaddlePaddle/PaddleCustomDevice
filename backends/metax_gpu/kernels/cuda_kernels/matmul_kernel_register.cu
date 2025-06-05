@@ -11,12 +11,13 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
-
+// clang-format off
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/matmul_kernel.h"
 #include "kernels/impl/matmul_kernel_impl.h"
+// clang-format on
 
 // PD_CUSTOM_KERNEL_REGISTER(matmul,
 //                           metax_gpu,

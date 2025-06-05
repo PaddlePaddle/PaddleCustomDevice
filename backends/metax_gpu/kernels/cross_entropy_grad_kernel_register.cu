@@ -22,7 +22,7 @@ limitations under the License. */
 namespace cub = hipcub;
 #endif
 
-
+// clang-format off
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -34,7 +34,7 @@ namespace cub = hipcub;
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/softmax.h"
 #include "gpudnn/softmax_gpudnn.h"
-
+// clang-format on
 namespace phi {
 
 template <typename T>

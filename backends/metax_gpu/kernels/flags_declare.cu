@@ -17,5 +17,5 @@ bool FLAGS_cudnn_deterministic = false;
 bool FLAGS_embedding_deterministic = false;
 bool FLAGS_enable_cublas_tensor_op_math = false;
 bool FLAGS_gemm_use_half_precision_compute_type = false;
-bool FLAGS_use_fast_math = true;
+bool FLAGS_use_fast_math = false;
 }  // namespace paddle_flags

@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/common/amp_type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
+#include "paddle/phi/kernels/gpu/mean_all_grad_kernel.cu"
+#include "paddle/phi/kernels/mean_all_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
-}
+PD_CUSTOM_KERNEL_REGISTER(mean_all_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::MeanAllGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

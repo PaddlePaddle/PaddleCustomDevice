@@ -13,9 +13,13 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
+#include "paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
-}
+PD_CUSTOM_KERNEL_REGISTER(fused_bias_act,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::fusion::FusedBiasActKernel,
+                          float,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16,
+                          int32_t) {}

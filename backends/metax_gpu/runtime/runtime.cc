@@ -334,7 +334,7 @@ C_Status MemCpyH2D(const C_Device device,
     VLOG(0) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " " << size;
+  // VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " " << size;
   return C_SUCCESS;
 }
 

@@ -11,40 +11,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/set_value_kernel.cu"
-#include "paddle/phi/kernels/set_value_kernel.h"
+#include "paddle/phi/kernels/c_identity_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(set_value,
+#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
+    defined(PADDLE_WITH_HIP)
+PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::SetValueKernelV2,
+                          phi::CIdentityKernel,
                           float,
                           double,
                           int,
                           int64_t,
-                          bool,
-                          int16_t,
-                          uint8_t,
-                          int8_t,
-                          phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
-PD_CUSTOM_KERNEL_REGISTER(set_value_with_tensor,
+                          phi::dtype::float16) {}
+#else
+PD_CUSTOM_KERNEL_REGISTER(c_identity,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::SetTensorValueKernelV2,
+                          phi::CIdentityKernel,
                           float,
                           double,
                           int,
                           int64_t,
-                          bool,
-                          int16_t,
-                          uint8_t,
-                          int8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::float16) {}
+#endif

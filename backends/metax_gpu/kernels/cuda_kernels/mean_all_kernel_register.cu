@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
+#include "paddle/phi/kernels/funcs/reduce_function.h"
+#include "paddle/phi/kernels/mean_all_kernel.h"
+#include "paddle/phi/kernels/primitive/functor_primitives.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
-}
+PD_CUSTOM_KERNEL_REGISTER(mean_all,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::MeanAllKernel,
+                          float,
+                          double,
+                          phi::dtype::float16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

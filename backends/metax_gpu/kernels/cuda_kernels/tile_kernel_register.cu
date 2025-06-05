@@ -11,40 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/set_value_kernel.cu"
-#include "paddle/phi/kernels/set_value_kernel.h"
+#include "paddle/phi/kernels/tile_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(set_value,
+PD_CUSTOM_KERNEL_REGISTER(tile,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::SetValueKernelV2,
+                          phi::TileKernel,
+                          bool,
                           float,
                           double,
                           int,
                           int64_t,
-                          bool,
-                          int16_t,
-                          uint8_t,
-                          int8_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
-PD_CUSTOM_KERNEL_REGISTER(set_value_with_tensor,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::SetTensorValueKernelV2,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          bool,
-                          int16_t,
-                          uint8_t,
-                          int8_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn,
+                          phi::dtype::float8_e5m2,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

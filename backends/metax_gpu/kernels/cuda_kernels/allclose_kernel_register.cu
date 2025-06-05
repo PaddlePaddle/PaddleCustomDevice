@@ -11,11 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
+#include "paddle/phi/kernels/allclose_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+PD_CUSTOM_KERNEL_REGISTER(allclose,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::AllCloseKernel,
+                          float,
+                          double,
+                          bool,
+                          int,
+                          int64_t,
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }

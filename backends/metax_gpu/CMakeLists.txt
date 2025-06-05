@@ -30,7 +30,7 @@ set(WITH_MKLML ON)
 include(paddle)
 include(version)
 include(generic)
-# include(cblas)
+include(cblas)
 
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
@@ -115,7 +115,13 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/activation_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamw_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adam_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/arange_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adadelta_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_check_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/accuracy_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/allclose_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/adamax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/bincount_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cast_kernel.cu
@@ -124,13 +130,15 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_identity_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/numel_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_kernel.cu
-  # ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_kernel.cu
+  ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_grad_kernel.cu
@@ -158,15 +166,21 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stack_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_slice_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_slice_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_copy_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/take_along_axis_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tile_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sign_kernel.cu.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/split_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multinomial_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_k_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc # Need PR
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc # Need PR
   # https://github.com/PaddlePaddle/Paddle/pull/72867
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/empty_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_kernel.cc
@@ -178,6 +192,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/contiguous_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/transpose_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/transpose_grad_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/transfer_layout_kernel.cc # Need PR
@@ -197,7 +212,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/reduce_max_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
-  # cmake ${CMAKE_SOURCE_DIR}/kernels/funcs/blas/cublas.cc
+  ${CMAKE_SOURCE_DIR}/kernels/funcs/blas/cublas.cc
   # #必须在这编进去？要不然kernel中还会走到主仓的cublas.cc ，后续排查原因
 )
 
@@ -234,10 +249,9 @@ file(
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_grad_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu
-)
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu)
 
 file(
   GLOB_RECURSE CC_SRCS
@@ -247,10 +261,10 @@ file(
   kernels/*.cu
   kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu
-  # kernels/ernie_core/*.cu kernels/ernie_core/rms_norm_kernel_register.cu
-  # kernels/ernie_core/top_p_sampling_kernel_register.cu
-  # kernels/ernie_core/fused_bias_act_kernel_register.cu
-)
+  # kernels/ernie_core/*.cu
+  kernels/ernie_core/rms_norm_kernel_register.cu
+  kernels/ernie_core/top_p_sampling_kernel_register.cu
+  kernels/ernie_core/fused_bias_act_kernel_register.cu)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})
 

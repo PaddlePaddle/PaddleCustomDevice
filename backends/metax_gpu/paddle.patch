@@ -19,18 +19,20 @@ index cfada544d4..a690e97d74 100644
  
  set(EIGEN_INCLUDE_DIR ${SOURCE_DIR})
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index ef8f922ffd..dde80c1feb 100644
+index ef8f922ffd..8a835ea53d 100644
 --- a/paddle/phi/core/enforce.h
 +++ b/paddle/phi/core/enforce.h
-@@ -45,6 +45,8 @@ limitations under the License. */
+@@ -45,7 +45,9 @@ limitations under the License. */
  #endif
  
  #ifdef PADDLE_WITH_CUDA
+-#include "paddle/phi/backends/dynload/cublas.h"
 +// #include "paddle/phi/backends/dynload/../../../../../cublas.h"
-+// #include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
- #include "paddle/phi/backends/dynload/cublas.h"
++#include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
++// #include "paddle/phi/backends/dynload/cublas.h"
  #include "paddle/phi/backends/dynload/cudnn.h"
  #include "paddle/phi/backends/dynload/curand.h"
+ #include "paddle/phi/backends/dynload/cusolver.h"
 @@ -97,7 +99,7 @@ inline bool is_error(bool stat) { return !stat; }
  
  void ThrowWarnInternal(const std::string& message);

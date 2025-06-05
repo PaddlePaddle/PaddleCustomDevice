@@ -13,9 +13,18 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
+#include "paddle/phi/kernels/adamax_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
+PD_CUSTOM_KERNEL_REGISTER(adamax,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::AdamaxKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(3).SetDataType(phi::DataType::FLOAT32);
+  }
 }

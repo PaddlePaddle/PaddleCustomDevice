@@ -11,11 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/one_hot_kernel.h"
-
-PD_CUSTOM_KERNEL_REGISTER(
-    one_hot, metax_gpu, ALL_LAYOUT, phi::OneHotKernel, int, int64_t) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);
-}
+#include "paddle/phi/kernels/funcs/softmax.h"
+#include "paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu"
+PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::CSoftmaxWithCrossEntropyGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}

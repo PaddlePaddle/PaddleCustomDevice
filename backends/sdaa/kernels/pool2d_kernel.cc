@@ -305,7 +305,7 @@ void Pool2dKernel(const Context& dev_ctx,
   std::vector<int> strides_t =
       std::vector<int>(strides_t_64.begin(), strides_t_64.end());
   std::vector<int> paddings_t =
-      d::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
   dev_ctx.template Alloc<T>(out);
 
   if (ceil_mode && !exclusive) {

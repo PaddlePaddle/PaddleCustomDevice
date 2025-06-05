@@ -12,33 +12,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/impl/pow2_decay_with_linear_warmup_kernel_impl.h"
+#include "paddle/phi/kernels/pow2_decay_with_linear_warmup_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(pow2_decay_with_linear_warmup,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::Pow2DecayWithLinearWarmupKernel,
                           float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
-
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::TopkV1Kernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
+                          double) {
+  kernel->InputAt(1).SetDataType(phi::DataType::INT64);
   kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
 }

@@ -21,14 +21,16 @@ git submodule sync --recursive && git submodule update --init --recursive
 
 # apply patch
 
+rm -r ../../Paddle/third_party/eigen3
+
+cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
+
 cd ../../Paddle/
 
-git apply --verbose ../backends/metax_gpu/paddle.patch
+git apply --verbose ../backends/metax_gpu/patch/paddle.patch
 
 cd -
 
-rm -r ../../Paddle/third_party/eigen3
-cp -r eigen3 ../../Paddle/third_party/eigen3
 
 export MACA_PATH=/opt/maca
 export CUDA_PATH=/worksapce/cuda-11.7/

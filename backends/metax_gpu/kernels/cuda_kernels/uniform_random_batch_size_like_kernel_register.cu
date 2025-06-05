@@ -13,13 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/uniform_kernel.h"
+#include "paddle/phi/kernels/funcs/uniform_random_functor.h"
+#include "paddle/phi/kernels/gpu/uniform_random_batch_size_like_kernel.cu"
 
-PD_CUSTOM_KERNEL_REGISTER(uniform,
+PD_CUSTOM_KERNEL_REGISTER(uniform_random_batch_size_like,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::UniformKernel,
+                          phi::GPUUniformRandomKernel,
                           float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          double) {}

@@ -12,33 +12,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/angle_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(angle,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::AngleKernel,
                           float,
                           double,
-                          int,
-                          int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
-
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::TopkV1Kernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

@@ -13,13 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/uniform_kernel.h"
+#include "paddle/phi/kernels/assign_pos_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(uniform,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::UniformKernel,
-                          float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+PD_CUSTOM_KERNEL_REGISTER(
+    assign_pos, metax_gpu, ALL_LAYOUT, phi::AssignPosKernel, int64_t) {}

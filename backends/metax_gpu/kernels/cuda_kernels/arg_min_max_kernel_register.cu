@@ -12,33 +12,35 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/arg_min_max_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(argmin,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::ArgMinKernel,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double,
-                          int,
+                          int32_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+                          int16_t,
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+PD_CUSTOM_KERNEL_REGISTER(argmax,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkV1Kernel,
+                          phi::ArgMaxKernel,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double,
-                          int,
+                          int32_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+                          int16_t,
+                          uint8_t) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }

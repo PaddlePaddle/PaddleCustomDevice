@@ -13,13 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/uniform_kernel.h"
+#include "paddle/phi/kernels/scale_kernel.h"
+#include "paddle/phi/kernels/sigmoid_cross_entropy_with_logits_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(uniform,
+PD_CUSTOM_KERNEL_REGISTER(sigmoid_cross_entropy_with_logits_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::UniformKernel,
+                          phi::SigmoidCrossEntropyWithLogitsGradKernel,
                           float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          double) {}

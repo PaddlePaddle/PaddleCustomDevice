@@ -12,33 +12,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/all_gather_kernel.h"
+#if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
+#include "paddle/phi/core/distributed/nccl_comm_context.h"
+#endif
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(all_gather,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::AllGatherKernel,
                           float,
                           double,
                           int,
+                          uint8_t,
+                          int8_t,
+                          int16_t,
                           int64_t,
+                          bool,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
-
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::TopkV1Kernel,
-                          float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

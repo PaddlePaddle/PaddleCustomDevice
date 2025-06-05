@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,23 +12,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "paddle/phi/kernels/transpose_kernel.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/transpose_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(transpose,
-                   metax_gpu,
-                   ALL_LAYOUT,
-                   phi::TransposeKernel,
-                   bool,
-                   float,
-                   double,
-                   int8_t,
-                   int16_t,
-                   int32_t,
-                   int64_t,
-                   uint8_t,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::TransposeKernel,
+                          bool,
+                          float,
+                          double,
+                          int8_t,
+                          int16_t,
+                          int32_t,
+                          int64_t,
+                          uint8_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

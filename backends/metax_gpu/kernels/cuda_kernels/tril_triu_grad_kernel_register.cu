@@ -12,33 +12,47 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/impl/tril_triu_grad_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(tril_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::TrilGradKernel,
+                          bool,
                           float,
                           double,
                           int,
                           int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+PD_CUSTOM_KERNEL_REGISTER(triu_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkV1Kernel,
+                          phi::TriuGradKernel,
+                          bool,
                           float,
                           double,
                           int,
                           int64_t,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(tril_triu_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::TrilTriuGradKernel,
+                          bool,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

@@ -12,33 +12,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/adagrad_kernel.h"
+#include "paddle/phi/kernels/impl/adagrad_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(adagrad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::AdagradDenseKernel,
                           float,
                           double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
+                          phi::dtype::float16) {
+  if (kernel_key.dtype() == phi::DataType::FLOAT16) {
+    kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);
+    kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
+  }
 }
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+PD_CUSTOM_KERNEL_REGISTER(adagrad_dense_param_sparse_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkV1Kernel,
+                          phi::AdagradSparseKernel,
                           float,
-                          double,
-                          int,
-                          int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          double) {}

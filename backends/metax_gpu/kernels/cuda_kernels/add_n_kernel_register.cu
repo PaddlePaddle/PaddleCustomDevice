@@ -12,33 +12,31 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/add_n_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_CUSTOM_KERNEL_REGISTER(add_n,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::AddNKernel,
                           float,
                           double,
                           int,
-                          int64_t,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+PD_CUSTOM_KERNEL_REGISTER(add_n_array,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkV1Kernel,
+                          phi::AddNArrayKernel,
                           float,
                           double,
                           int,
-                          int64_t,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          int64_t,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

@@ -12,33 +12,40 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/top_k_kernel.cu"  // NOLINT
-#include "paddle/phi/kernels/top_k_kernel.h"
+#include "paddle/phi/kernels/all_reduce_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+#if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
+#include "paddle/phi/core/distributed/nccl_comm_context.h"
+#endif
+
+#if NCCL_VERSION_CODE >= 21000
+PD_CUSTOM_KERNEL_REGISTER(all_reduce,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkKernel,
+                          phi::AllReduceKernel,
                           float,
                           double,
                           int,
+                          bool,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
-
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {}
+#else
+PD_CUSTOM_KERNEL_REGISTER(all_reduce,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::TopkV1Kernel,
+                          phi::AllReduceKernel,
                           float,
                           double,
                           int,
+                          bool,
+                          int8_t,
+                          uint8_t,
+                          int16_t,
                           int64_t,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
-}
+                          phi::dtype::float16) {}
+#endif

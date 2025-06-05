@@ -229,7 +229,7 @@ class FusedRmsQkvRopeV2 : public HpuOperator {
     cos_inputs.push_back(cos_in);
 
     synSliceParamsV2 sliceParams;
-    for (int i = 0; i < rotary_embs_dims.size(); i++) {
+    for (uint64_t i = 0; i < rotary_embs_dims.size(); i++) {
       sliceParams.axes[i] = i;
       sliceParams.steps[i] = 1;
       sliceParams.starts[i] = 0;
@@ -429,17 +429,13 @@ void FusedRmsQkvRopeKernelV2(const Context& dev_ctx,
 
   int head_dim_ = head_dim.to<int>();
   int num_head_ = num_head.to<int>();
-  const int64_t bsz = src_dims[0];
-  const int64_t seq_len = src_dims[1];
   const int64_t fused_hidden_size = qkv_weights_dims[0];
-  const int64_t hidden_size = qkv_weights_dims[1];
   const int kv_num_head =
       (fused_hidden_size - num_head_ * head_dim_) / head_dim_ / 2;
-  const int num_groups = num_head_ / kv_num_head;
 
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>(
-      "fused_rms_qkv_rope_fwd_", {src_dims}, nullptr);
+      "fused_rms_qkv_rope_fwd_", {src_dims, qkv_weights_dims}, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {

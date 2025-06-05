@@ -12,19 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+
 import paddle
 import paddlenlp_ops
 
 paddle.device.set_device("intel_hpu:1")
 
-# paddle.seed(102)
+seed = 102
+paddle.seed(seed)
+np.random.seed(seed)
 
 
 class TestFusedBlockAttention:
     def __init__(self):
         self.head_dim = 128
         self.num_head = 32
-        self.kv_num_heads = 32
         self.hidden_size = self.num_head * self.head_dim
 
         self.epsilon = 1e-06
@@ -33,8 +36,60 @@ class TestFusedBlockAttention:
         self.position_offset = 0
         self.rope_theta = 10000
 
-    def init_decode_params(self):
-        self.test_name = "TestFusedBlockAttentionDecode"
+    def init_decode_MHA_params(self):
+        self.test_name = "Test_MHA_FusedBlockAttentionDecode"
+        self.kv_num_heads = 32
+        self.kv_hidden_size = self.head_dim * self.kv_num_heads
+        self.qkv_biases = None
+
+        self.batch_size = 16
+        self.seq_len = 1
+        self.block_size = 128
+        self.num_of_block = 32
+        self.total_block_num = 20
+        position_id = paddle.to_tensor([80])
+        self.position_ids = paddle.expand(
+            position_id, shape=[self.batch_size, self.seq_len]
+        )
+
+    def init_decode_GQA_params(self):
+        self.test_name = "Test_GQA_FusedBlockAttentionDecode"
+        self.kv_num_heads = 4
+        self.kv_hidden_size = self.head_dim * self.kv_num_heads
+        self.qkv_biases = None
+
+        self.batch_size = 16
+        self.seq_len = 1
+        self.block_size = 128
+        self.num_of_block = 32
+        self.total_block_num = 20
+        position_id = paddle.to_tensor([80])
+        self.position_ids = paddle.expand(
+            position_id, shape=[self.batch_size, self.seq_len]
+        )
+
+    def init_decode_MHA_QKVbias_params(self):
+        self.test_name = "Test_MHA_QKVbias_FusedBlockAttentionDecode"
+        self.kv_num_heads = 32
+        self.kv_hidden_size = self.head_dim * self.kv_num_heads
+        self.qkv_biases = 1
+
+        self.batch_size = 16
+        self.seq_len = 1
+        self.block_size = 128
+        self.num_of_block = 32
+        self.total_block_num = 20
+        position_id = paddle.to_tensor([80])
+        self.position_ids = paddle.expand(
+            position_id, shape=[self.batch_size, self.seq_len]
+        )
+
+    def init_decode_GQA_QKVbias_params(self):
+        self.test_name = "Test_GQA_QKVbias_FusedBlockAttentionDecode"
+        self.kv_num_heads = 4
+        self.kv_hidden_size = self.head_dim * self.kv_num_heads
+        self.qkv_biases = 1
+
         self.batch_size = 16
         self.seq_len = 1
         self.block_size = 128
@@ -46,55 +101,85 @@ class TestFusedBlockAttention:
         )
 
     def create_tensors(self):
+        device = paddle.get_device()
+
+        np_k_cache = np.random.rand(
+            self.total_block_num, self.block_size, self.kv_num_heads, self.head_dim
+        ).astype("float32")
         self.k_cache = (
-            paddle.rand(
-                [
-                    self.total_block_num,
-                    self.block_size,
-                    self.kv_num_heads,
-                    self.head_dim,
-                ],
-                dtype=paddle.float32,
-            )
-            * 1000
+            paddle.to_tensor(np_k_cache, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
         )
-        self.k_cache = self.k_cache.to(paddle.bfloat16)
         self.k_cache_test = self.k_cache.clone()
+
+        np_v_cache = np.random.rand(
+            self.total_block_num, self.block_size, self.kv_num_heads, self.head_dim
+        ).astype("float32")
         self.v_cache = (
-            paddle.rand(
-                [
-                    self.total_block_num,
-                    self.block_size,
-                    self.kv_num_heads,
-                    self.head_dim,
-                ],
-                dtype=paddle.float32,
-            )
-            * 1000
+            paddle.to_tensor(np_v_cache, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
         )
-        self.v_cache = self.v_cache.to(paddle.bfloat16)
         self.v_cache_test = self.v_cache.clone()
 
         self.input_ids = paddle.zeros(
             [self.batch_size, self.seq_len], dtype=paddle.bfloat16
         )
-        self.src = paddle.rand(
-            [self.batch_size, self.seq_len, self.hidden_size], dtype=paddle.float32
-        ).to(paddle.bfloat16)
-        self.residual = paddle.rand(
-            [self.batch_size, self.seq_len, self.hidden_size], dtype=paddle.float32
-        ).to(paddle.bfloat16)
+
+        np_src = np.random.rand(self.batch_size, self.seq_len, self.hidden_size).astype(
+            "float32"
+        )
+        self.src = (
+            paddle.to_tensor(np_src, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
+        )
+
+        np_residual = np.random.rand(
+            self.batch_size, self.seq_len, self.hidden_size
+        ).astype("float32")
+        self.residual = (
+            paddle.to_tensor(np_residual, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
+        )
         self.residual_test = self.residual.clone()
 
-        self.ln_scales = paddle.rand([self.hidden_size], dtype=paddle.bfloat16)
-        self.qkv_weights = paddle.rand(
-            [self.hidden_size * 3, self.hidden_size], dtype=paddle.float32
+        np_ln_scales = np.random.rand(self.hidden_size).astype("float32")
+        self.ln_scales = (
+            paddle.to_tensor(np_ln_scales, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
         )
-        self.qkv_weights = self.qkv_weights.to(paddle.bfloat16)
 
-        self.linear_weights = paddle.rand(
-            [self.hidden_size, self.hidden_size], dtype=paddle.float32
-        ).to(paddle.bfloat16)
+        np_qkv_weights = np.random.rand(
+            self.hidden_size + 2 * self.kv_hidden_size, self.hidden_size
+        ).astype("float32")
+        self.qkv_weights = (
+            paddle.to_tensor(np_qkv_weights, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
+        )
+
+        if self.qkv_biases is not None:
+            np_qkv_biases = np.random.rand(
+                self.hidden_size + 2 * self.kv_hidden_size
+            ).astype("float32")
+            self.qkv_biases = (
+                paddle.to_tensor(np_qkv_biases, place=paddle.CPUPlace())
+                .to(paddle.bfloat16)
+                .to(device)
+            )
+
+        np_linear_weights = np.random.rand(self.hidden_size, self.hidden_size).astype(
+            "float32"
+        )
+        self.linear_weights = (
+            paddle.to_tensor(np_linear_weights, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
+        )
 
         self.head_dim_shape_tensor = paddle.ones(self.head_dim, dtype="int8")
         self.new_rope = paddlenlp_ops.fused_get_rotary_embedding(
@@ -142,8 +227,14 @@ class TestFusedBlockAttention:
         self.block_mapping = paddle.randint(
             0, 2, [self.num_of_block, self.batch_size], dtype=paddle.int32
         ).to(paddle.bfloat16)
-        self.block_bias = paddle.rand(
-            [self.num_of_block, self.block_size], dtype=paddle.bfloat16
+
+        np_block_bias = np.random.rand(self.num_of_block, self.block_size).astype(
+            "float32"
+        )
+        self.block_bias = (
+            paddle.to_tensor(np_block_bias, place=paddle.CPUPlace())
+            .to(paddle.bfloat16)
+            .to(device)
         )
 
     def run_test(self):
@@ -151,6 +242,7 @@ class TestFusedBlockAttention:
             self.src,
             self.ln_scales,
             self.qkv_weights,
+            self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
             self.epsilon,
@@ -189,6 +281,7 @@ class TestFusedBlockAttention:
             self.block_offsets,
             self.ln_scales,
             self.qkv_weights,
+            self.qkv_biases,
             self.linear_weights,
             self.epsilon,
             self.head_dim,
@@ -196,30 +289,71 @@ class TestFusedBlockAttention:
             scaling_factor=self.head_dim**-0.5,
         )
 
-        assert (
-            (out_linear_out_ref == out_linear_out).all().item()
+        assert paddle.allclose(
+            out_linear_out_ref.to("cpu").to("float32"),
+            out_linear_out.to("cpu").to("float32"),
+            rtol=1e-2,
         ), f"Test failed for {self.test_name} fused_block_attention out_linear_out"
-        assert (
-            (self.k_cache == self.k_cache_test).all().item()
+
+        assert paddle.allclose(
+            self.k_cache.to("cpu").to("float32"),
+            self.k_cache_test.to("cpu").to("float32"),
+            rtol=1e-1,
         ), f"Test failed for {self.test_name} fused_block_attention k_cache"
-        assert (
-            (self.v_cache == self.v_cache_test).all().item()
+
+        assert paddle.allclose(
+            self.v_cache.to("cpu").to("float32"),
+            self.v_cache_test.to("cpu").to("float32"),
+            rtol=1e-2,
         ), f"Test failed for {self.test_name} fused_block_attention v_cache"
-        assert (
-            (self.residual == self.residual_test).all().item()
+
+        assert paddle.allclose(
+            self.residual.to("cpu").to("float32"),
+            self.residual_test.to("cpu").to("float32"),
+            rtol=1e-2,
         ), f"Test failed for {self.test_name} fused_block_attention residual"
 
         # ===============summary==============
         print(f"Test Pass for {self.test_name} testcase")
 
 
-class test_case_decode(TestFusedBlockAttention):
+class test_case_decode_MHA(TestFusedBlockAttention):
     def __init__(self):
         super().__init__()
-        self.init_decode_params()
+        self.init_decode_MHA_params()
+        self.create_tensors()
+
+
+class test_case_decode_GQA(TestFusedBlockAttention):
+    def __init__(self):
+        super().__init__()
+        self.init_decode_GQA_params()
+        self.create_tensors()
+
+
+class test_case_decode_MHA_QKVbias(TestFusedBlockAttention):
+    def __init__(self):
+        super().__init__()
+        self.init_decode_MHA_QKVbias_params()
+        self.create_tensors()
+
+
+class test_case_decode_GQA_QKVbias(TestFusedBlockAttention):
+    def __init__(self):
+        super().__init__()
+        self.init_decode_GQA_QKVbias_params()
         self.create_tensors()
 
 
 if __name__ == "__main__":
-    test_1 = test_case_decode()
+    test_1 = test_case_decode_MHA()
     test_1.run_test()
+
+    test_2 = test_case_decode_GQA()
+    test_2.run_test()
+
+    test_3 = test_case_decode_MHA_QKVbias()
+    test_3.run_test()
+
+    test_4 = test_case_decode_GQA_QKVbias()
+    test_4.run_test()

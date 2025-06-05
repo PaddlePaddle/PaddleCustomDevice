@@ -27,12 +27,14 @@ struct FusedRmsQkvRopeParams {
   int head_dim;
   int num_head;
   int kv_num_head;
+
+  bool with_qkv_biases = false;
 };
 
 class FusedRmsQkvRopeT : public HpuFusedOperator {
  public:
-  explicit FusedRmsQkvRopeT(synDataType dtype)
-      : HpuFusedOperator("fused_rms_qkv_rope_t_fwd_"), dtype_(dtype) {}
+  explicit FusedRmsQkvRopeT(std::string guid_prefix, synDataType dtype)
+      : HpuFusedOperator(guid_prefix), dtype_(dtype) {}
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedRmsQkvRopeParams& params) {
     auto ins = ct.GetTensors();
@@ -73,21 +75,20 @@ class FusedRmsQkvRopeT : public HpuFusedOperator {
                       guid_ + "rmsnorm");
 
     auto qkv_weights = createTensorFromCT(&ct, 2);
-    std::vector<synTensor> mul_inputs;
-    mul_inputs.push_back(norm_out);
-    mul_inputs.push_back(qkv_weights);
+    std::vector<synTensor> linear_inputs;
+    linear_inputs.push_back(norm_out);
+    linear_inputs.push_back(qkv_weights);
+    if (params.with_qkv_biases) {
+      auto qkv_biases = createTensorFromCT(&ct, 5);
+      linear_inputs.push_back(qkv_biases);
+    }
 
     auto wt_dims = ins[2].dims;
     tmp_dims[2] = wt_dims[0];
-
     auto qkv_out = createTensorNoPresist("qkv_out", dtype_, tmp_dims);
-    std::vector<synTensor> mul_outputs;
-    mul_outputs.push_back(qkv_out);
-
-    synGEMMParams gemm_params;
-    gemm_params.transpose_a = false;
-    gemm_params.transpose_b = true;
-    AddNodeBatchGemm(mul_inputs, mul_outputs, gemm_params, guid_ + "batchgemm");
+    std::vector<synTensor> linear_outputs;
+    linear_outputs.push_back(qkv_out);
+    AddNodeLinear<T>(linear_inputs, linear_outputs, guid_ + "linear");
 
     auto reshape_dims = ins[0].dims;
     reshape_dims[2] = params.num_head + 2 * params.kv_num_head;
@@ -97,8 +98,7 @@ class FusedRmsQkvRopeT : public HpuFusedOperator {
     auto reshape_out =
         createTensorNoPresist("reshape_out", dtype_, reshape_dims);
     reshape_outputs.push_back(reshape_out);
-
-    AddNodeReshape(mul_outputs, reshape_outputs, guid_ + "reshape_qkv");
+    AddNodeReshape(linear_outputs, reshape_outputs, guid_ + "reshape_qkv");
 
     auto kv_dims = outs[1].dims;
     kv_dims.erase(kv_dims.begin());
@@ -212,17 +212,19 @@ class FusedRmsQkvRopeT : public HpuFusedOperator {
 };
 
 template <typename T, typename Context>
-void FusedRmsQkvRopeTKernel(const Context& dev_ctx,
-                            const phi::DenseTensor& src,
-                            const phi::DenseTensor& residual,
-                            const phi::DenseTensor& ln_scales,
-                            const phi::DenseTensor& qkv_weights,
-                            const phi::DenseTensor& rotary_embs,
-                            phi::DenseTensor* query_states,
-                            phi::DenseTensor* key_value_states,
-                            const phi::Scalar& epsilon,
-                            const phi::Scalar& head_dim,
-                            const phi::Scalar& num_head) {
+void FusedRmsQkvRopeTKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& src,
+    const phi::DenseTensor& residual,
+    const phi::DenseTensor& ln_scales,
+    const phi::DenseTensor& qkv_weights,
+    const paddle::optional<phi::DenseTensor>& qkv_biases,
+    const phi::DenseTensor& rotary_embs,
+    phi::DenseTensor* query_states,
+    phi::DenseTensor* key_value_states,
+    const phi::Scalar& epsilon,
+    const phi::Scalar& head_dim,
+    const phi::Scalar& num_head) {
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
   std::vector<int64_t> qkv_weights_dims =
       phi::vectorize<int64_t>(qkv_weights.dims());
@@ -243,9 +245,15 @@ void FusedRmsQkvRopeTKernel(const Context& dev_ctx,
   ct.Add(key_value_states, false);
   ct.Add(residual, false);
 
+  std::string guid_prefix = "fused_rms_qkv_rope_t_fwd_";
+  if (qkv_biases) {
+    ct.Add(qkv_biases.get());
+    guid_prefix = "fused_rms_qkv_bias_rope_t_fwd_";
+  }
+
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>(
-      "fused_rms_qkv_rope_t_fwd_", {src_dims}, nullptr);
+      guid_prefix, {src_dims, qkv_weights_dims}, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
@@ -257,8 +265,11 @@ void FusedRmsQkvRopeTKernel(const Context& dev_ctx,
     params.head_dim = head_dim_;
     params.num_head = num_head_;
     params.kv_num_head = kv_num_head;
+    if (qkv_biases) {
+      params.with_qkv_biases = true;
+    }
 
-    FusedRmsQkvRopeT op(op_info.datatype_);
+    FusedRmsQkvRopeT op(guid_prefix, op_info.datatype_);
     op.AddNode<T>(ct, params);
     op.Compile();
     op_info.setOp(op);
@@ -274,23 +285,26 @@ void FusedRmsQkvRopeTKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 template <typename Context>
-void CallFusedRmsQkvRopeTKernel(const Context& dev_ctx,
-                                const phi::DenseTensor& src,
-                                const phi::DenseTensor& residual,
-                                const phi::DenseTensor& ln_scales,
-                                const phi::DenseTensor& qkv_weights,
-                                const phi::DenseTensor& rotary_embs,
-                                phi::DenseTensor* query_states,
-                                phi::DenseTensor* key_value_states,
-                                const phi::Scalar& epsilon,
-                                const phi::Scalar& head_dim,
-                                const phi::Scalar& num_head) {
+void CallFusedRmsQkvRopeTKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& src,
+    const phi::DenseTensor& residual,
+    const phi::DenseTensor& ln_scales,
+    const phi::DenseTensor& qkv_weights,
+    const paddle::optional<phi::DenseTensor>& qkv_biases,
+    const phi::DenseTensor& rotary_embs,
+    phi::DenseTensor* query_states,
+    phi::DenseTensor* key_value_states,
+    const phi::Scalar& epsilon,
+    const phi::Scalar& head_dim,
+    const phi::Scalar& num_head) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedRmsQkvRopeTKernel<phi::dtype::float16>(dev_ctx,
                                                                src,
                                                                residual,
                                                                ln_scales,
                                                                qkv_weights,
+                                                               qkv_biases,
                                                                rotary_embs,
                                                                query_states,
                                                                key_value_states,
@@ -304,6 +318,7 @@ void CallFusedRmsQkvRopeTKernel(const Context& dev_ctx,
         residual,
         ln_scales,
         qkv_weights,
+        qkv_biases,
         rotary_embs,
         query_states,
         key_value_states,
@@ -316,14 +331,16 @@ void CallFusedRmsQkvRopeTKernel(const Context& dev_ctx,
   }
 }
 
-std::vector<paddle::Tensor> FusedRmsQkvRopeT(const paddle::Tensor& src,
-                                             const paddle::Tensor& ln_scales,
-                                             const paddle::Tensor& qkv_weights,
-                                             const paddle::Tensor& rotary_embs,
-                                             const paddle::Tensor& residual,
-                                             float epsilon,
-                                             int head_dim,
-                                             int num_head) {
+std::vector<paddle::Tensor> FusedRmsQkvRopeTImpl(
+    const paddle::Tensor& src,
+    const paddle::Tensor& ln_scales,
+    const paddle::Tensor& qkv_weights,
+    const paddle::optional<paddle::Tensor>& qkv_biases,
+    const paddle::Tensor& rotary_embs,
+    const paddle::Tensor& residual,
+    float epsilon,
+    int head_dim,
+    int num_head) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -335,6 +352,13 @@ std::vector<paddle::Tensor> FusedRmsQkvRopeT(const paddle::Tensor& src,
       static_cast<const phi::DenseTensor*>(rotary_embs.impl().get());
   auto residual_tensor =
       static_cast<const phi::DenseTensor*>(residual.impl().get());
+
+  auto qkv_biases_tensor = paddle::optional<phi::DenseTensor>();
+  if (qkv_biases) {
+    auto qkv_biases_dt =
+        static_cast<phi::DenseTensor*>(qkv_biases->impl().get());
+    qkv_biases_tensor = paddle::optional<phi::DenseTensor>(*qkv_biases_dt);
+  }
 
   // allocate memory on device.
   int64_t bsz = src.dims()[0];
@@ -358,6 +382,7 @@ std::vector<paddle::Tensor> FusedRmsQkvRopeT(const paddle::Tensor& src,
                              *residual_tensor,
                              *ln_scales_tensor,
                              *qkv_weights_tensor,
+                             qkv_biases_tensor,
                              *rotary_embs_tensor,
                              query_states.get(),
                              key_value_states.get(),
@@ -371,6 +396,7 @@ std::vector<std::vector<int64_t>> FusedRmsQkvRopeTShape(
     const std::vector<int64_t>& src_shape,
     const std::vector<int64_t>& ln_scales_shape,
     const std::vector<int64_t>& qkv_weights_shape,
+    const paddle::optional<std::vector<int64_t>>& qkv_biases_shape,
     const std::vector<int64_t>& rotary_embs_shape,
     const std::vector<int64_t>& residual_shape,
     float epsilon,
@@ -388,15 +414,21 @@ std::vector<paddle::DataType> FusedRmsQkvRopeTDtype(
     const paddle::DataType& src_dtype,
     const paddle::DataType& ln_scales_dtype,
     const paddle::DataType& qkv_weights_dtype,
+    const paddle::optional<paddle::DataType>& qkv_biases_dtype,
     const paddle::DataType& rotary_embs_dtype,
     const paddle::DataType& residual_dtype) {
   return {src_dtype, src_dtype};
 }
 
 PD_BUILD_OP(fused_rms_qkv_rope_t)
-    .Inputs({"src", "ln_scales", "qkv_weights", "rotary_embs", "residual"})
+    .Inputs({"src",
+             "ln_scales",
+             "qkv_weights",
+             paddle::Optional("qkv_biases"),
+             "rotary_embs",
+             "residual"})
     .Outputs({"query_states", "key_value_states"})
     .Attrs({"epsilon: float", "head_dim: int", "num_head: int"})
-    .SetKernelFn(PD_KERNEL(FusedRmsQkvRopeT))
+    .SetKernelFn(PD_KERNEL(FusedRmsQkvRopeTImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedRmsQkvRopeTShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedRmsQkvRopeTDtype));

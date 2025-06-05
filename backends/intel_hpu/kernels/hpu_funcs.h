@@ -201,6 +201,14 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
+  template <typename T>
+  inline void AddNodeLinear(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            std::string node_name) {
+    std::string guid = "linear_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
   inline void AddNodeReshape(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
                              std::string node_name) {
@@ -213,14 +221,6 @@ class HpuFusedOperator : public HpuOperator {
                                std::string node_name) {
     AddNode_IOP<synTransposeParams>(
         inputs, outputs, params, "transpose", node_name);
-  }
-
-  inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
-                               std::vector<synTensor> outputs,
-                               synGEMMParams params,
-                               std::string node_name) {
-    AddNode_IOP<synGEMMParams>(
-        inputs, outputs, params, "batch_gemm", node_name);
   }
 
   void AddNodeCast(std::vector<synTensor> inputs,
@@ -263,6 +263,14 @@ class HpuFusedOperator : public HpuOperator {
                           synGEMMParams params,
                           std::string node_name) {
     AddNode_IOP<synGEMMParams>(inputs, outputs, params, "gemm", node_name);
+  }
+
+  inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               synGEMMParams params,
+                               std::string node_name) {
+    AddNode_IOP<synGEMMParams>(
+        inputs, outputs, params, "batch_gemm", node_name);
   }
 
   template <typename T>
@@ -378,6 +386,15 @@ class HpuFusedOperator : public HpuOperator {
                           std::string node_name) {
     std::string guid = "rotary_pos_embedding_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_RoPESt2::ParamsV2>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSdpaRecomp(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                ns_Sdpa::ParamsV2 params,
+                                std::string node_name) {
+    std::string guid = "sdpa_recomp_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Sdpa::ParamsV2>(inputs, outputs, params, guid, node_name);
   }
 };
 

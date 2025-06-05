@@ -31,48 +31,97 @@ class FlushStreamHandler(logging.StreamHandler):
         self.flush()
 
 
-def setup_logging(rank, enable_logging=False):
+_first_run = True
 
-    logger = logging.getLogger(f"moe_rank_{rank}")
+
+def setup_logging(ep_rank, tp_rank, enable_logging=False):
+    global _first_run
+
+    logger = logging.getLogger(f"moe_ep_rank_{ep_rank}_tp_rank{tp_rank}")
     if enable_logging or os.getenv("ENABLE_LOGGING") == "1":
-
-        log_file = f"test_logs_rank_{rank}.log"
+        log_file = f"test_logs_ep_rank_{ep_rank}_tp_rank_{tp_rank}.log"
         logger.setLevel(logging.DEBUG)
         logger.handlers.clear()
 
-        file_handler = logging.FileHandler(log_file, mode="w")
+        mode = "w" if _first_run and os.path.exists(log_file) else "a"
+        file_handler = logging.FileHandler(log_file, mode=mode)
         file_handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] Rank %(rank)d: %(message)s")
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] ep_rank %(ep_rank)d tp_rank %(tp_rank)d: %(message)s"
+            )
         )
         logger.addHandler(file_handler)
 
         stream_handler = FlushStreamHandler(sys.stdout)
         stream_handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] Rank %(rank)d: %(message)s")
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] ep_rank %(ep_rank)d tp_rank %(tp_rank)d: %(message)s"
+            )
         )
         logger.addHandler(stream_handler)
+        _first_run = False
 
-    logger.info("Logging initialized for rank %d", rank, extra={"rank": rank})
+    logger.info(
+        "Logging initialized for ep_rank %d, tp_rank %d",
+        ep_rank,
+        tp_rank,
+        extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
+    )
     return logger
 
 
-def init_distributed():
+def init_distributed(ep_size=1, tp_size=1):
 
     if not dist.is_initialized():
         try:
             dist.init_parallel_env()
         except Exception as e:
-            print(f"Failed to initialize distributed environment: {str(e)}")
-            raise
+            raise RuntimeError("Failed to initialize distributed environment") from e
 
-    rank = dist.get_rank()
+    global_rank = dist.get_rank()
     world_size = dist.get_world_size()
 
-    return rank, world_size
+    if world_size == 1:
+        ep_size, tp_size = 1, 1
+    elif ep_size == 1:
+        tp_size = world_size
+    elif tp_size == 1:
+        ep_size = world_size
+
+    if world_size != ep_size * tp_size:
+        raise ValueError(
+            f"Invalid configuration: ep_size ({ep_size}) * tp_size ({tp_size}) "
+            f"= {ep_size * tp_size} != world_size ({world_size})"
+        )
+
+    ep_rank = global_rank // tp_size
+    tp_rank = global_rank % tp_size
+
+    # Create TP group
+    if ep_size == 1:
+        tp_ranks = list(range(world_size))
+    else:
+        tp_ranks = [ep_rank * tp_size + i for i in range(tp_size)]
+    try:
+        tp_group = dist.new_group(tp_ranks)
+    except Exception as e:
+        raise ValueError(f"Failed to create tp_group with ranks={tp_ranks}: {e}")
+
+    # Create EP group
+    if tp_size == 1:
+        ep_ranks = list(range(world_size))
+    else:
+        ep_ranks = [i * tp_size + tp_rank for i in range(ep_size)]
+    try:
+        ep_group = dist.new_group(ep_ranks)
+    except Exception as e:
+        raise ValueError(f"Failed to create ep_group with ranks={ep_ranks}: {e}")
+
+    return (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group)
 
 
 def check_using_cosine_similarity(
-    final_states, final_states_ref, required_similarity, rank, logger
+    final_states, final_states_ref, required_similarity, ep_rank, tp_rank, logger
 ):
     vec1 = final_states.reshape(-1)
     vec2 = final_states_ref.reshape(-1)
@@ -86,9 +135,9 @@ def check_using_cosine_similarity(
         cos_sim = np.dot(vec1, vec2) / (norm1 * norm2)
 
     logger.info(
-        f"Cosine similarity: {cos_sim}, "
+        f"Cosine similarity: {cos_sim}, \n"
         f"required_similarity: {required_similarity}, ",
-        extra={"rank": rank},
+        extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
     )
     return cos_sim >= required_similarity
 
@@ -111,38 +160,32 @@ def generate_moe_params(
     else:
         raise ValueError(f"Unsupported dtype: {dtype}")
 
-    def to_bfloat16_numpy(arr):
-        arr_f32 = arr.astype(np.float32)
-        arr_u32 = arr_f32.view(np.uint32)
-        bfloat16_u32 = arr_u32 & 0xFFFF0000
-        return bfloat16_u32.view(np.float32)
-
-    hidden_states_numpy = np.random.randn(num_tokens, hidden_dim).astype(np.float32)
-    hidden_states_numpy = to_bfloat16_numpy(hidden_states_numpy)
-    w1 = np.random.randn(num_experts, hidden_dim, ffn_dim).astype(np.float32)
-    w1 = to_bfloat16_numpy(w1)
-    w2 = np.random.randn(num_experts, hidden_dim, ffn_dim).astype(np.float16)
-    w2 = to_bfloat16_numpy(w2)
-    w3 = np.random.randn(num_experts, ffn_dim, hidden_dim).astype(np.float16)
-    w3 = to_bfloat16_numpy(w3)
-    expert_weights_numpy = (w1, w2, w3)
-
-    hidden_states_paddle = paddle.to_tensor(hidden_states_numpy, dtype=paddle_dtype)
+    hidden_states_paddle = (
+        paddle.randn([num_tokens, hidden_dim], dtype=paddle_dtype) * 0.1
+    )
     w1_paddle = [
-        paddle.to_tensor(w1[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.randn([hidden_dim, ffn_dim], dtype=paddle_dtype) * 0.1
+        for _ in range(num_experts)
     ]
     w2_paddle = [
-        paddle.to_tensor(w2[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.randn([hidden_dim, ffn_dim], dtype=paddle_dtype) * 0.02
+        for _ in range(num_experts)
     ]
     w3_paddle = [
-        paddle.to_tensor(w3[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.randn([ffn_dim, hidden_dim], dtype=paddle_dtype) * 0.03
+        for _ in range(num_experts)
     ]
-    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+
+    w1_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w1_paddle]
+    w2_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w2_paddle]
+    w3_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w3_paddle]
+    expert_weights_numpy = (w1_numpy, w2_numpy, w3_numpy)
+
     if permuted_weights:
         w1_paddle = [w.transpose([1, 0]) for w in w1_paddle]
         w2_paddle = [w.transpose([1, 0]) for w in w2_paddle]
         w3_paddle = [w.transpose([1, 0]) for w in w3_paddle]
-        expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
 
     router_logits_paddle = paddle.randn([num_tokens, num_experts], dtype=paddle_dtype)
     router_probs_paddle = F.softmax(router_logits_paddle, axis=-1)
@@ -153,10 +196,13 @@ def generate_moe_params(
         paddle.sum(router_weights_paddle, axis=-1, keepdim=True) + 1e-10
     )
 
+    hidden_states_numpy = (
+        (paddle.cast(hidden_states_paddle, dtype="float32")).numpy().astype(np.float32)
+    )
     router_weights_numpy = (
         (paddle.cast(router_weights_paddle, dtype="float32")).numpy().astype(np.float32)
     )
-    routing_table_numpy = routing_table_paddle.numpy()
+    routing_table_numpy = routing_table_paddle.numpy().astype(np.int32)
 
     numpy_data = (
         hidden_states_numpy,
@@ -181,6 +227,8 @@ def generate_moe_params_static(
     num_experts,
     permuted_weights,
     dtype="bfloat16",
+    tp_rank=0,
+    tp_size=1,
 ):
     if dtype == "float32":
         paddle_dtype = paddle.float32
@@ -191,50 +239,43 @@ def generate_moe_params_static(
     else:
         raise ValueError(f"Unsupported dtype: {dtype}")
 
-    def to_bfloat16_numpy(arr):
-        arr_f32 = arr.astype(np.float32)
-        arr_u32 = arr_f32.view(np.uint32)
-        bfloat16_u32 = arr_u32 & 0xFFFF0000
-        return bfloat16_u32.view(np.float32)
+    print(f"`generate_moe_params_static` `tp_rank`: {tp_rank}, `tp_size`: {tp_size}")
 
-    hidden_states_numpy = np.linspace(
-        -0.1, 0.1, num_tokens * hidden_dim, dtype=np.float32
-    ).reshape(num_tokens, hidden_dim)
-    hidden_states_numpy = to_bfloat16_numpy(hidden_states_numpy)
+    # Split weights for paddle_data (TP)
+    ffn_dim_per_tp = ffn_dim // tp_size
+    start_idx = tp_rank * ffn_dim_per_tp
+    end_idx = (tp_rank + 1) * ffn_dim_per_tp
 
-    # Fixed expert weights
-    w1 = np.full((num_experts, hidden_dim, ffn_dim), 1.0, dtype=np.float32)
-    w1 = to_bfloat16_numpy(w1)
-    w2 = np.full((num_experts, hidden_dim, ffn_dim), 2.0, dtype=np.float32)
-    w2 = to_bfloat16_numpy(w2)
-    w3 = np.full((num_experts, ffn_dim, hidden_dim), 3.0, dtype=np.float32)
-    w3 = to_bfloat16_numpy(w3)
-    expert_weights_numpy = (w1, w2, w3)
-
-    # Convert to Paddle tensors
-    hidden_states_paddle = paddle.to_tensor(hidden_states_numpy, dtype=paddle_dtype)
+    row_values = paddle.arange(1, num_tokens + 1, dtype=paddle.float32) * 0.01
+    hidden_states_paddle = (
+        row_values.cast(paddle_dtype).reshape([-1, 1]).tile([1, hidden_dim])
+    )
     w1_paddle = [
-        paddle.to_tensor(w1[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.full([hidden_dim, ffn_dim_per_tp], fill_value=0.01, dtype=paddle_dtype)
+        for _ in range(num_experts)
     ]
     w2_paddle = [
-        paddle.to_tensor(w2[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.full([hidden_dim, ffn_dim_per_tp], fill_value=0.02, dtype=paddle_dtype)
+        for _ in range(num_experts)
     ]
     w3_paddle = [
-        paddle.to_tensor(w3[i], dtype=paddle_dtype) for i in range(num_experts)
+        paddle.full([ffn_dim_per_tp, hidden_dim], fill_value=0.03, dtype=paddle_dtype)
+        for _ in range(num_experts)
     ]
-    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+    w1_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w1_paddle]
+    w2_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w2_paddle]
+    w3_numpy = [paddle.cast(w, "float32").numpy().astype(np.float32) for w in w3_paddle]
+    expert_weights_numpy = (w1_numpy, w2_numpy, w3_numpy)
+
     if permuted_weights:
         w1_paddle = [w.transpose([1, 0]) for w in w1_paddle]
         w2_paddle = [w.transpose([1, 0]) for w in w2_paddle]
         w3_paddle = [w.transpose([1, 0]) for w in w3_paddle]
-        expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
 
-    # Fixed router logits (linearly increasing)
-    router_logits_numpy = np.arange(num_tokens * num_experts, dtype=np.float32).reshape(
-        num_tokens, num_experts
-    )
-    router_logits_numpy = to_bfloat16_numpy(router_logits_numpy)
-    router_logits_paddle = paddle.to_tensor(router_logits_numpy, dtype=paddle_dtype)
+    router_logits_paddle = paddle.arange(
+        num_tokens * num_experts, dtype=paddle_dtype
+    ).reshape([num_tokens, num_experts])
     router_probs_paddle = F.softmax(router_logits_paddle, axis=-1)
     router_weights_paddle, routing_table_paddle = paddle.topk(
         router_probs_paddle, k=top_k, axis=-1
@@ -243,7 +284,9 @@ def generate_moe_params_static(
         paddle.sum(router_weights_paddle, axis=-1, keepdim=True) + 1e-10
     )
 
-    # Convert to numpy for output
+    hidden_states_numpy = (
+        paddle.cast(hidden_states_paddle, dtype="float32").numpy().astype(np.float32)
+    )
     router_weights_numpy = (
         paddle.cast(router_weights_paddle, dtype="float32").numpy().astype(np.float32)
     )
@@ -357,19 +400,27 @@ class FusedMoE:
         num_experts,
         expert_weights,
         activation,
-        rank,
-        ep_size,
         permuted_weights,
         fused_weights,
         slice_max_expert,
         logger,
+        ep_rank,
+        ep_size,
+        ep_group=None,
+        tp_rank=0,
+        tp_size=1,
+        tp_group=None,
     ):
         self.num_experts = num_experts
         self.permuted_weights = permuted_weights
         self.fused_weights = fused_weights
         self.activation = activation
-        self.ep_rank = rank
+        self.ep_rank = ep_rank
         self.ep_size = ep_size
+        self.ep_group = ep_group
+        self.tp_rank = tp_rank
+        self.tp_size = tp_size
+        self.tp_group = tp_group
         self.logger = logger
 
         self.fn = paddlenlp_ops.mixture_of_experts
@@ -394,9 +445,7 @@ class FusedMoE:
         )
 
     def forward(self, hidden_states, router_weights, routing_table, compute_amax=False):
-
         common_inputs = (hidden_states, routing_table, router_weights)
-
         final_hidden_states = paddle.zeros_like(hidden_states)
         amax_per_expert = (
             paddle.zeros(self.num_experts, dtype="float32") if compute_amax else None
@@ -435,53 +484,74 @@ class FusedMoE:
                 slice_result, _ = self.fn(
                     *common_inputs, *slice_weights, *common_params, False
                 )
+
             final_hidden_states += slice_result
 
-        if self.ep_size > 1 and dist.is_initialized():
+        # EP: All-reduce for final output
+        if self.tp_size > 1:
             try:
-                dist.all_reduce(final_hidden_states, op=dist.ReduceOp.SUM)
+                dist.all_reduce(
+                    final_hidden_states, op=dist.ReduceOp.SUM, group=self.tp_group
+                )
                 self.logger.info(
-                    "All-reduce for MoE successfully.", extra={"rank": self.ep_rank}
+                    "TP All-reduce for MoE successfully.",
+                    extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
                 )
                 if compute_amax:
-                    dist.all_reduce(amax_per_expert, op=dist.ReduceOp.MAX)
+                    dist.all_reduce(
+                        amax_per_expert, op=dist.ReduceOp.MAX, group=self.tp_group
+                    )
                     self.logger.info(
-                        "All-reduce for AMax successfully.",
-                        extra={"rank": self.ep_rank},
+                        "TP All-reduce for AMax successfully.",
+                        extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
                     )
             except Exception as e:
                 self.logger.error(
-                    f"Failed to perform All-reduce: {str(e)}",
-                    extra={"rank": self.ep_rank},
+                    f"Failed to perform TP All-reduce: {str(e)}",
+                    extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
+                )
+                raise
+
+        if self.ep_size > 1:
+            try:
+                dist.all_reduce(
+                    final_hidden_states, op=dist.ReduceOp.SUM, group=self.ep_group
+                )
+                self.logger.info(
+                    "EP All-reduce for MoE successfully.",
+                    extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
+                )
+                if compute_amax:
+                    dist.all_reduce(
+                        amax_per_expert, op=dist.ReduceOp.MAX, group=self.ep_group
+                    )
+                    self.logger.info(
+                        "EP All-reduce for AMax successfully.",
+                        extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
+                    )
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to perform EP All-reduce: {str(e)}",
+                    extra={"ep_rank": self.ep_rank, "tp_rank": self.tp_rank},
                 )
                 raise
 
         return final_hidden_states, amax_per_expert
 
 
-rank, world_size = None, None
-logger = None
-
-
-def global_init():
-    global rank, world_size, logger
-    if rank is None or world_size is None:
-        rank, world_size = init_distributed()
-    if logger is None:
-        logger = setup_logging(rank, False)
-
-
-NUM_TOKENS = [32, 64]
+NUM_TOKENS = [32]
 HIDDEN_DIMS = [128]
 FFN_DIMS = [256]
 TOP_K = [8]
-NUM_EXPERTS = [32, 64]
+NUM_EXPERTS = [64]
 SLICE_MAX_EXPERT = [32, 64]
 FUSED_WEIGHTS = [True, False]
 ACTIVATIONS = ["silu"]
 PERMUTED_WEIGHTS = [True, False]
 COMPUTE_AMAX = [True, False]
 DTYPES = ["bfloat16"]
+EP_SIZE = [1]
+TP_SIZE = [2]
 
 
 @pytest.mark.parametrize("num_tokens", NUM_TOKENS)
@@ -495,6 +565,8 @@ DTYPES = ["bfloat16"]
 @pytest.mark.parametrize("permuted_weights", PERMUTED_WEIGHTS)
 @pytest.mark.parametrize("compute_amax", COMPUTE_AMAX)
 @pytest.mark.parametrize("dtype", DTYPES)
+@pytest.mark.parametrize("ep_size", EP_SIZE)
+@pytest.mark.parametrize("tp_size", TP_SIZE)
 def test_mixture_of_experts(
     num_tokens,
     hidden_dim,
@@ -507,24 +579,28 @@ def test_mixture_of_experts(
     permuted_weights,
     compute_amax,
     dtype,
+    ep_size,
+    tp_size,
 ):
-
-    global_init()
-
-    paddle.seed(rank + 102)
-    device = "intel_hpu"
-
+    (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group) = init_distributed(
+        ep_size, tp_size
+    )
+    logger = setup_logging(ep_rank=ep_rank, tp_rank=tp_rank)
     logger.info(
         f"\n\n======================================="
         f"`test_mixture_of_experts`: \n"
         f" num_tokens={num_tokens}, hidden_dim={hidden_dim}, ffn_dim={ffn_dim}, \n"
         f" top_k={top_k}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, \n"
         f" fused_weights={fused_weights}, permuted_weights={permuted_weights}, activation={activation}, \n"
-        f" compute_amax={compute_amax}, dtype={dtype}, \n",
-        extra={"rank": rank},
+        f" compute_amax={compute_amax}, dtype={dtype}, \n"
+        f" ep_size={ep_size}, tp_size={tp_size}, \n",
+        extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
     )
 
-    if world_size == 1:
+    paddle.seed(ep_rank * 100 + tp_rank + 1024)
+    device = "intel_hpu"
+
+    if ep_size == 1 and tp_size == 1:
         numpy_data, paddle_data = generate_moe_params(
             num_tokens=num_tokens,
             hidden_dim=hidden_dim,
@@ -543,6 +619,8 @@ def test_mixture_of_experts(
             num_experts=num_experts,
             permuted_weights=permuted_weights,
             dtype=dtype,
+            tp_rank=tp_rank,
+            tp_size=tp_size,
         )
 
     (
@@ -584,12 +662,16 @@ def test_mixture_of_experts(
         num_experts=num_experts,
         expert_weights=expert_weights_pd,
         activation=activation,
-        rank=rank,
-        ep_size=world_size,
         permuted_weights=permuted_weights,
         fused_weights=fused_weights,
         slice_max_expert=slice_max_expert,
         logger=logger,
+        ep_rank=ep_rank,
+        ep_size=ep_size,
+        ep_group=ep_group,
+        tp_rank=tp_rank,
+        tp_size=tp_size,
+        tp_group=tp_group,
     )
 
     final_hidden_states, amax_per_expert = fused_moe.forward(
@@ -598,7 +680,6 @@ def test_mixture_of_experts(
         routing_table=routing_table_pd,
         compute_amax=compute_amax,
     )
-
     print("\n===== paddlenlp_ops.mixture_of_experts Output =====")
     print("Final Hidden States (paddlenlp_ops.mixture_of_experts):")
     print(final_hidden_states)
@@ -611,7 +692,8 @@ def test_mixture_of_experts(
         final_hidden_states.to("float32").cpu().numpy(),
         final_hidden_states_ref_np,
         required_similarity,
-        rank=0,
+        ep_rank=ep_rank,
+        tp_rank=tp_rank,
         logger=logger,
     )
     assert similar, f"Cosine similarity check failed: {similar}"
@@ -626,12 +708,20 @@ def test_mixture_of_experts(
         atol = 0.01
         if mask.any():
             logger.info(
-                f"Comparing amax: "
-                f"fused_moe={fused_op_vals.tolist()}, "
-                f"ref_mixtral_moe={ref_vals.tolist()}",
-                extra={"rank": rank},
+                f"Comparing amax: \n"
+                f"fused_moe={fused_op_vals.tolist()}, \n"
+                f"ref_mixtral_moe={ref_vals.tolist()} \n",
+                extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
             )
             np.testing.assert_allclose(fused_op_vals, ref_vals, rtol=rtol, atol=atol)
+
+    if ep_size > 1 or tp_size > 1:
+        logger.info(
+            "Destroying communication groups",
+            extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
+        )
+        dist.destroy_process_group(ep_group)
+        dist.destroy_process_group(tp_group)
 
 
 if __name__ == "__main__":

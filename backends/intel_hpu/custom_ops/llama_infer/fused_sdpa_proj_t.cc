@@ -248,8 +248,6 @@ void FusedSdpaProjBTMHKernel(const Context& dev_ctx,
       phi::vectorize<int64_t>(key_value_states.dims());
   int num_head = query_states_dims[2];
   int num_kv_head = key_value_states_dims[3];
-  std::cout << "num_head: " << num_head << ", num_kv_head: " << num_kv_head
-            << std::endl;
 
   std::string guid_prefix = "fused_sdpa_proj_causal_";
   if (num_head == num_kv_head) {

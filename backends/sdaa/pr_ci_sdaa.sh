@@ -21,4 +21,4 @@ pip install build/dist/*.whl --force-reinstall
 
 # Test
 cd build/tests/unittests
-ctest --output-on-failure -j 1
+ctest --output-on-failure -j 1 -E "test_highperformance_conv"

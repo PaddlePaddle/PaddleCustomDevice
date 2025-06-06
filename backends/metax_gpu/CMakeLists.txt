@@ -267,7 +267,9 @@ file(
   ${CMAKE_SOURCE_DIR}/kernels/funcs/blas/cublas.cc
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
-  ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu)
+  ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
+  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu
+  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu)
 
 list(
   REMOVE_ITEM
@@ -286,22 +288,23 @@ file(
   GLOB
   ERNIE_CORE_SRCS
   # ernie-core
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/build_src_rank_and_local_expert_id_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cal_aux_loss_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cal_aux_loss_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/layer_norm_cuda_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/build_src_rank_and_local_expert_id_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cal_aux_loss_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cal_aux_loss_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/layer_norm_cuda_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_grad_kernel.cu
   # # depend on # cutlass
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
+  #
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu)
@@ -314,7 +317,7 @@ file(
   kernels/*.cu
   kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu
-  # kernels/ernie_core/*.cu
+  kernels/ernie_core/*.cu
   kernels/ernie_core/rms_norm_kernel_register.cu
   kernels/ernie_core/top_p_sampling_kernel_register.cu
   kernels/ernie_core/fused_bias_act_kernel_register.cu)

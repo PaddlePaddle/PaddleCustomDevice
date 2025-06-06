@@ -17,7 +17,7 @@
 # export PATH=/usr/local/corex-4.3.0/bin:$PATH
 # export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
 # export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
-
+# export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
+export PYTHONPATH=../../../../PaddleCustomDevice/Paddle/test/legacy_test/:/../../../../PaddleCustomDevice/Paddle/test/
 mkdir -p build && cd build && cmake ..
 make run_tests

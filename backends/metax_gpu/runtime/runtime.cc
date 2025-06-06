@@ -333,13 +333,13 @@ C_Status MemCpyH2D(const C_Device device,
             << ", Error: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-  VLOG(2) << "setdevice: " << device->id;
+  VLOG(0) << "setdevice: " << device->id;
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
   if (cudaErr != cudaSuccess) {
     VLOG(0) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }
@@ -358,7 +358,7 @@ C_Status MemCpyD2D(const C_Device device,
   err = cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice);
 
   if (err == cudaSuccess) {
-    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+    VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
             << size;  // NOLINT
     return C_SUCCESS;
   } else {
@@ -386,7 +386,7 @@ C_Status MemCpyD2H(const C_Device device,
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
-  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }
@@ -408,7 +408,7 @@ C_Status AsyncMemCpyH2D(const C_Device device,
   }
 
   if (size == 0) {
-    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+    VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
             << size;  // NOLINT
     return C_SUCCESS;
   }
@@ -422,7 +422,7 @@ C_Status AsyncMemCpyH2D(const C_Device device,
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
-  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }

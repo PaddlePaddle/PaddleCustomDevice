@@ -15,7 +15,9 @@
 // limitations under the License. */
 
 // #pragma once
-
+#ifndef BACKENDS_METAX_GPU_KERNELS_FUNCS_BLAS_CUBLASLT_H_
+#define BACKENDS_METAX_GPU_KERNELS_FUNCS_BLAS_CUBLASLT_H_
+#endif  // BACKENDS_METAX_GPU_KERNELS_FUNCS_BLAS_CUBLASLT_H_
 // #include <sstream>
 // #include <string>
 // #include <unordered_map>

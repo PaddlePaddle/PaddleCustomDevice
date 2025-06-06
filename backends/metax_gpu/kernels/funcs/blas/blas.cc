@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// #include "paddle/phi/kernels/funcs/blas/blas.h"
-#include "../blas/blas.h"
-
+// clang-format off
+#include "funcs/blas/blas.h" // NOLINT
 #include "paddle/phi/core/enforce.h"
-
+// clang-format on
 namespace phi {
 namespace funcs {
 MatDescriptor CreateMatrixDescriptor(const DDim &tensor_dim,

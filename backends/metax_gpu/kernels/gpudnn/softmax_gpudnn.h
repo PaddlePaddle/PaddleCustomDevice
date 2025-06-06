@@ -1,3 +1,4 @@
+// clang-format off
 // 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 /* Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 
@@ -12,7 +13,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
-// clang-format off
+
 #pragma once
 #include "paddle/phi/backends/gpu/gpu_info.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -26,7 +27,7 @@ limitations under the License. */
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
-// clang-format on
+
 #define MATRIX_SOFTMAX_ALIGN_BYTES 16
 #define MATRIX_SOFTMAX_THREAHOLD 100000
 
@@ -1459,3 +1460,4 @@ void SoftmaxBackwardCUDAKernelDriver(const GPUContext& dev_ctx,
 }
 
 }  // namespace phi
+// clang-format on

@@ -13,16 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+// clang-format off
 #include <type_traits>
-
 #include "glog/logging.h"
 
 #include "paddle/phi/kernels/addmm_kernel.h"
 #include "../funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
-
+// clang-format on
 namespace phi {
 
 template <typename T,

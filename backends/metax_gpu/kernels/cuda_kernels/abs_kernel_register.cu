@@ -11,22 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/abs_kernel.h"
-#include "paddle/phi/common/type_traits.h"
-
 
 PD_CUSTOM_KERNEL_REGISTER(abs,
-                        metax_gpu,
-                        ALL_LAYOUT,
-                        phi::AbsKernel,
-                        float,
-                        double,
-                        int,
-                        int64_t,
-                        phi::dtype::float16,
-                        phi::dtype::bfloat16,
-                        phi::dtype::complex<float>,
-                        phi::dtype::complex<double>) {
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::AbsKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {
   kernel->OutputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }

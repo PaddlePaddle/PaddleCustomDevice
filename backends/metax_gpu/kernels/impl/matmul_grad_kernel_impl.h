@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+// clang-format off
 #include "glog/logging.h"
 
 #include "paddle/phi/backends/cpu/cpu_context.h"
@@ -28,8 +28,7 @@ limitations under the License. */
 #include "paddle/phi/kernels/reduce_sum_kernel.h"
 
 #include "../impl/matmul_kernel_impl.h"
-
-
+// clang-format on
 
 #if defined(__NVCC__) || defined(__HIPCC__)
 #include "paddle/phi/kernels/gpu/reduce.h"

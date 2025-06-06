@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+// clang-format off
 #include "glog/logging.h"
 
 #include "paddle/phi/common/memory_utils.h"
@@ -38,7 +38,7 @@ limitations under the License. */
 #if defined(PADDLE_WITH_CUDA) && CUDA_VERSION >= 11060 && 0
 #include "paddle/phi/kernels/autotune/auto_tune_base.h"
 #endif
-
+// clang-format on
 namespace phi {
 
 static void GetBroadcastFromDims(const int x_ndim,

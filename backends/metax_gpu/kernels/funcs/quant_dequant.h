@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #pragma once
-
+// clang-format off
 #include <vector>
 #include "paddle/common/hostdevice.h"
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"
@@ -21,7 +21,7 @@ limitations under the License. */
 #include "paddle/phi/common/transform.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
 #include "blas/blas.h"
-
+// clang-format on
 namespace phi {
 
 using backends::gpu::GpuLaunchConfig;

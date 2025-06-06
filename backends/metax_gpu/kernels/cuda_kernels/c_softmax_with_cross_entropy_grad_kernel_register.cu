@@ -11,9 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+// clang-format off
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/softmax.h"
-#include "paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu"
+#include "paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu" // NOLINT
+// clang-format on
 PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
                           metax_gpu,
                           ALL_LAYOUT,

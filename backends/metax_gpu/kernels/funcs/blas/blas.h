@@ -585,11 +585,12 @@ inline BlasT<DeviceContext, T> GetBlas(const DeviceContext& dev_ctx) {
 
 }  // namespace funcs
 }  // namespace phi
-
-#include "blas_impl.h"
+// clang-format off
+#include "./blas_impl.h"
 #ifdef PADDLE_WITH_CUDA
-#include "blas_impl.cu.h"
+#include "./blas_impl.cu.h"
 #endif
 #ifdef PADDLE_WITH_HIP
 #include "paddle/phi/kernels/funcs/blas/blas_impl.hip.h"
 #endif
+// clang-format on

@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
-#include "paddle/phi/backends/cpu/cpu_context.h"
-// #ifdef PADDLE_WITH_MKLML
-// #include <mkl.h>
-// #endif
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
 
+#include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/kernels/funcs/math_function.h"

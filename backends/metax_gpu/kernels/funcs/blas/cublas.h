@@ -13,20 +13,17 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
-
+// clang-format off
 #pragma once
-
-// #include <cublasXt.h>
 #include <cublas_v2.h>
 #include <cuda.h>
 
 #include <mutex>  // NOLINT
 #include <type_traits>
 
-// #include "../dynload/dynamic_loader.h"
 #include "kernels/dynload/dynamic_loader.h"
-#include "port.h"
-
+#include "./port.h" // NOLINT
+// clang-format on
 namespace phi {
 namespace dynload {
 

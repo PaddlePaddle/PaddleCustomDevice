@@ -2131,7 +2131,7 @@ inline void Blas<phi::GPUContext>::BatchedGEMM(CBLAS_TRANSPOSE transA,
                                                      CUBLAS_COMPUTE_32F,
                                                      algo));
       },
-      context_.stream());  //原来有问题的
+      context_.stream());
 #else
   // raise error
   PADDLE_THROW(phi::errors::Unimplemented(

@@ -1,5 +1,6 @@
 // clang-format off
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved.
 /* Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,7 +41,10 @@ inline static cudnnHandle_t dnn_handle_ = nullptr;
 
 inline std::once_flag flag_dnn_;
 
-inline void InitDnnHandle(cudnnHandle_t* handle, gpuStream_t stream, Place place) {
+inline void InitDnnHandle(cudnnHandle_t*
+                          handle,
+                          gpuStream_t stream,
+                          Place place) {
   if (phi::dynload::HasCUDNN()) {
     auto version = phi::dynload::cudnnGetVersion();
     auto local_cudnn_major =
@@ -152,7 +156,8 @@ __device__ __forceinline__ void WarpReduceSum(T* sum) {
 #pragma unroll
     for (int i = 0; i < BatchSize; ++i) {
       T sum_val =
-          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+          phi::backends::gpu::CudaShuffleXorSync(
+            0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
       sum[i] = sum[i] + sum_val;
     }
   }
@@ -165,7 +170,8 @@ __device__ __forceinline__ void WarpReduceMax(T* sum) {
 #pragma unroll
     for (int i = 0; i < BatchSize; ++i) {
       T max_val =
-          phi::backends::gpu::CudaShuffleXorSync(0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+          phi::backends::gpu::CudaShuffleXorSync(
+            0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
       sum[i] = max(sum[i], max_val);
     }
   }

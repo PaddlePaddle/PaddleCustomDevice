@@ -11,17 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "port.h"
-// #include <port.h>
+// clang-format off
+#include "port.h" // NOLINT
 
 #include <array>
 #include <memory>
 #include <stdexcept>
 #include <string>
-
 #include "glog/logging.h"
-
 #if !defined(_WIN32)
 #include <dlfcn.h>  // dladdr
 #include <sys/stat.h>
@@ -29,7 +26,7 @@
 
 #else
 #include <numeric>  // std::accumulate in msvc
-
+// clang-format on
 void *dlsym(void *handle, const char *symbol_name) {
   FARPROC found_symbol;
   found_symbol = GetProcAddress((HMODULE)handle, symbol_name);
@@ -73,7 +70,7 @@ int gettimeofday(struct timeval *tp, void *tzp) {
 
   return (0);
 }
-#endif              // !_WIN32
+#endif  // !_WIN32
 
 void ExecShellCommand(const std::string &cmd, std::string *message) {
   std::array<char, 128> buffer;

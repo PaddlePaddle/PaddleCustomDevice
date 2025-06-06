@@ -11,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+// clang-format off
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/logsumexp_kernel.cu"
+#include "paddle/phi/kernels/gpu/logsumexp_kernel.cu" // NOLINT
 #include "paddle/phi/kernels/reduce_max_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
-
+// clang-format on
 PD_CUSTOM_KERNEL_REGISTER(logsumexp,
                           metax_gpu,
                           ALL_LAYOUT,

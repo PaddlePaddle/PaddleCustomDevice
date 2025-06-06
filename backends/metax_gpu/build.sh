@@ -23,6 +23,15 @@ git submodule sync --recursive && git submodule update --init --recursive
 
 rm -r ../../Paddle/third_party/eigen3
 
+
+cd patch 
+
+unzip mcEigen_3.4.0_paddle_final.zip
+
+mv mcEigen_3.4.0_paddle_final eigen3
+
+cd ..
+
 cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
 
 cd ../../Paddle/
@@ -33,7 +42,7 @@ cd -
 
 
 export MACA_PATH=/opt/maca
-export CUDA_PATH=/worksapce/cuda-11.7/
+export CUDA_PATH=/workspace/cuda-11.7/
 export PATH=${CUDA_PATH}/bin:${PATH}
 export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
 export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin

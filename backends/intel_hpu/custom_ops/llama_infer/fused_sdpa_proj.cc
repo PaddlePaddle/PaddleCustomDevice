@@ -301,59 +301,7 @@ void FusedSdpaProjKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-template <typename Context>
-void CallFusedSdpaProjKernel(
-    const Context& dev_ctx,
-    const phi::DenseTensor& query_states,
-    const phi::DenseTensor& key_states,
-    const phi::DenseTensor& value_states,
-    const phi::DenseTensor& attn_mask,
-    const phi::DenseTensor& linear_weights,
-    phi::DenseTensor* out_linear,
-    const phi::Scalar& scaling_factor,
-    const paddle::optional<phi::DenseTensor>& d_scale_q,
-    const paddle::optional<phi::DenseTensor>& d_scale_k,
-    const paddle::optional<phi::DenseTensor>& d_scale_v,
-    const paddle::optional<phi::DenseTensor>& q_scale_s,
-    const paddle::optional<phi::DenseTensor>& q_scale_o,
-    const paddle::optional<phi::DenseTensor>& d_scale_s) {
-  if (query_states.dtype() == phi::DataType::FLOAT16) {
-    custom_kernel::FusedSdpaProjKernel<phi::dtype::float16>(dev_ctx,
-                                                            query_states,
-                                                            key_states,
-                                                            value_states,
-                                                            attn_mask,
-                                                            linear_weights,
-                                                            out_linear,
-                                                            scaling_factor,
-                                                            d_scale_q,
-                                                            d_scale_k,
-                                                            d_scale_v,
-                                                            q_scale_s,
-                                                            q_scale_o,
-                                                            d_scale_s);
-  } else if (query_states.dtype() == phi::DataType::BFLOAT16 ||
-             query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
-    custom_kernel::FusedSdpaProjKernel<phi::dtype::bfloat16>(dev_ctx,
-                                                             query_states,
-                                                             key_states,
-                                                             value_states,
-                                                             attn_mask,
-                                                             linear_weights,
-                                                             out_linear,
-                                                             scaling_factor,
-                                                             d_scale_q,
-                                                             d_scale_k,
-                                                             d_scale_v,
-                                                             q_scale_s,
-                                                             q_scale_o,
-                                                             d_scale_s);
-  } else {
-    throw std::runtime_error("Unsupported data type for FusedSdpaProjKernel");
-  }
-}
-
-std::vector<paddle::Tensor> FusedSdpaProj(
+std::vector<paddle::Tensor> FusedBaseSdpaProj(
     const paddle::Tensor& query_states,
     const paddle::Tensor& key_states,
     const paddle::Tensor& value_states,
@@ -437,28 +385,97 @@ std::vector<paddle::Tensor> FusedSdpaProj(
       std::make_shared<phi::DenseTensor>();
   out_linear->Resize(phi::make_ddim({bsz, seq_len, hidden_size}));
 
-  if (query_states_tensor->dtype() == phi::DataType::FLOAT8_E4M3FN) {
+  if (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
     dev_ctx->Alloc(out_linear.get(), phi::DataType::BFLOAT16);
   } else {
     dev_ctx->Alloc(out_linear.get(), query_states_tensor->dtype());
   }
 
-  CallFusedSdpaProjKernel(
-      *dev_ctx,
-      *query_states_tensor,
-      *key_states_tensor,
-      *value_states_tensor,
-      *attn_mask_tensor,
-      *linear_weights_tensor,
-      out_linear.get(),
-      phi::Scalar(scaling_factor),
-      d_scale_q ? *d_scale_q_tensor : paddle::optional<phi::DenseTensor>(),
-      d_scale_k ? *d_scale_k_tensor : paddle::optional<phi::DenseTensor>(),
-      d_scale_v ? *d_scale_v_tensor : paddle::optional<phi::DenseTensor>(),
-      q_scale_s ? *q_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
-      q_scale_o ? *q_scale_o_tensor : paddle::optional<phi::DenseTensor>(),
-      d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>());
+  if (query_states.dtype() == phi::DataType::FLOAT16) {
+    custom_kernel::FusedSdpaProjKernel<phi::dtype::float16>(
+        *dev_ctx,
+        *query_states_tensor,
+        *key_states_tensor,
+        *value_states_tensor,
+        *attn_mask_tensor,
+        *linear_weights_tensor,
+        out_linear.get(),
+        phi::Scalar(scaling_factor),
+        paddle::optional<phi::DenseTensor>(),
+        paddle::optional<phi::DenseTensor>(),
+        paddle::optional<phi::DenseTensor>(),
+        paddle::optional<phi::DenseTensor>(),
+        paddle::optional<phi::DenseTensor>(),
+        paddle::optional<phi::DenseTensor>());
+  } else if (query_states.dtype() == phi::DataType::BFLOAT16 ||
+             query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+    custom_kernel::FusedSdpaProjKernel<phi::dtype::bfloat16>(
+        *dev_ctx,
+        *query_states_tensor,
+        *key_states_tensor,
+        *value_states_tensor,
+        *attn_mask_tensor,
+        *linear_weights_tensor,
+        out_linear.get(),
+        phi::Scalar(scaling_factor),
+        d_scale_q ? *d_scale_q_tensor : paddle::optional<phi::DenseTensor>(),
+        d_scale_k ? *d_scale_k_tensor : paddle::optional<phi::DenseTensor>(),
+        d_scale_v ? *d_scale_v_tensor : paddle::optional<phi::DenseTensor>(),
+        q_scale_s ? *q_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
+        q_scale_o ? *q_scale_o_tensor : paddle::optional<phi::DenseTensor>(),
+        d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>());
+  } else {
+    throw std::runtime_error("Unsupported data type for FusedSdpaProjKernel");
+  }
+
   return {paddle::Tensor(out_linear)};
+}
+
+std::vector<paddle::Tensor> FusedFp8SdpaProj(
+    const paddle::Tensor& query_states,
+    const paddle::Tensor& key_states,
+    const paddle::Tensor& value_states,
+    const paddle::Tensor& attn_mask,
+    const paddle::Tensor& linear_weights,
+    float scaling_factor,
+    const paddle::optional<paddle::Tensor>& d_scale_q,
+    const paddle::optional<paddle::Tensor>& d_scale_k,
+    const paddle::optional<paddle::Tensor>& d_scale_v,
+    const paddle::optional<paddle::Tensor>& q_scale_s,
+    const paddle::optional<paddle::Tensor>& q_scale_o,
+    const paddle::optional<paddle::Tensor>& d_scale_s) {
+  return FusedBaseSdpaProj(query_states,
+                           key_states,
+                           value_states,
+                           attn_mask,
+                           linear_weights,
+                           scaling_factor,
+                           d_scale_q,
+                           d_scale_k,
+                           d_scale_v,
+                           q_scale_s,
+                           q_scale_o,
+                           d_scale_s);
+}
+
+std::vector<paddle::Tensor> FusedSdpaProj(const paddle::Tensor& query_states,
+                                          const paddle::Tensor& key_states,
+                                          const paddle::Tensor& value_states,
+                                          const paddle::Tensor& attn_mask,
+                                          const paddle::Tensor& linear_weights,
+                                          float scaling_factor) {
+  return FusedBaseSdpaProj(query_states,
+                           key_states,
+                           value_states,
+                           attn_mask,
+                           linear_weights,
+                           scaling_factor,
+                           paddle::optional<paddle::Tensor>(),
+                           paddle::optional<paddle::Tensor>(),
+                           paddle::optional<paddle::Tensor>(),
+                           paddle::optional<paddle::Tensor>(),
+                           paddle::optional<paddle::Tensor>(),
+                           paddle::optional<paddle::Tensor>());
 }
 
 std::vector<std::vector<int64_t>> FusedSdpaProjShape(
@@ -487,6 +504,18 @@ PD_BUILD_OP(fused_sdpa_proj)
              "key_states",
              "value_states",
              "attn_mask",
+             "linear_weights"})
+    .Outputs({"out_linear"})
+    .Attrs({"scaling_factor: float"})
+    .SetKernelFn(PD_KERNEL(FusedSdpaProj))
+    .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjDtype));
+
+PD_BUILD_OP(fused_fp8_sdpa_proj)
+    .Inputs({"query_states",
+             "key_states",
+             "value_states",
+             "attn_mask",
              "linear_weights",
              paddle::Optional("d_scale_q"),
              paddle::Optional("d_scale_k"),
@@ -496,6 +525,6 @@ PD_BUILD_OP(fused_sdpa_proj)
              paddle::Optional("d_scale_s")})
     .Outputs({"out_linear"})
     .Attrs({"scaling_factor: float"})
-    .SetKernelFn(PD_KERNEL(FusedSdpaProj))
+    .SetKernelFn(PD_KERNEL(FusedFp8SdpaProj))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjDtype));

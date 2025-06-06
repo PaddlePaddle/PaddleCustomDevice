@@ -121,12 +121,6 @@ class TestSdpa_Proj(unittest.TestCase):
             attention_mask,
             linear_weights,
             scaling_factor=self.head_dim**-0.5,
-            d_scale_q=None,
-            d_scale_k=None,
-            d_scale_v=None,
-            q_scale_s=None,
-            q_scale_o=None,
-            d_scale_s=None,
         )
         return out_fused_sdpa_proj_tensor
 
@@ -234,7 +228,7 @@ class Sdpa_Proj_Fp8(TestSdpa_Proj):
         q_scale_o = None
         d_scale_s = paddle.to_tensor([scaleSInv])
 
-        out_fused_sdpa_proj_tensor = paddlenlp_ops.fused_sdpa_proj(
+        out_fused_sdpa_proj_tensor = paddlenlp_ops.fused_fp8_sdpa_proj(
             q_fp8,
             k_fp8,
             v_fp8,

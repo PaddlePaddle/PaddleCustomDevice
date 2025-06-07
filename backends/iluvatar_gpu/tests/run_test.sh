@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export PYTHONPATH=${PYTHONPATH}:/home/tianyu.zhou/PaddleCustomDevice/Paddle/test/legacy_test
+SCRIPT_DIR=$(dirname "$0")
+LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
+export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
+
 mkdir -p build && cd build && cmake ..
 make run_test
 cd -

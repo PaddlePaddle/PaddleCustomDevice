@@ -299,7 +299,7 @@ __inline__ __device__ T BlockReduceMax(T val, warp_mask_t mask) {
 
   // align block_span to warpSize
   int block_span = (blockDim.x + warpSize - 1) >> WARP_SIZE_WIDTH;
-  val = (lane < block_span) ? shared[lane] : (T)(-FLT_MAX);
+  val = (lane < block_span) ? shared[lane] : std::numeric_limits<T>::lowest();
   val = WarpReduceMax(val, mask);
 
   return val;
@@ -347,7 +347,7 @@ __inline__ __device__ T BlockReduceMin(T val, warp_mask_t mask) {
 
   // align block_span to warpSize
   int block_span = (blockDim.x + warpSize - 1) >> WARP_SIZE_WIDTH;
-  val = (lane < block_span) ? shared[lane] : (T)(FLT_MAX);
+  val = (lane < block_span) ? shared[lane] : std::numeric_limits<T>::max();
   val = WarpReduceMin(val, mask);
 
   return val;

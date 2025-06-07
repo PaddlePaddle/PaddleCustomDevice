@@ -344,7 +344,8 @@ target_link_libraries(
   protobuf
   external_error_proto
   ${PADDLE_CORE_LIB})
-
+# /usr/local/lib/python3.9/dist-packages/nvidia/nccl/lib/libnccl.so.2
+target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmccl.so)
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(

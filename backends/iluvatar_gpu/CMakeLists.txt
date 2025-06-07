@@ -23,6 +23,10 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 set(WITH_MKLML ON)
 
+set(THIRD_PARTY_PATH
+    "${PADDLE_SOURCE_DIR}/build/third_party"
+    CACHE PATH "Third party libraries directory.")
+
 include(paddle)
 include(version)
 include(generic)
@@ -84,10 +88,6 @@ add_definitions(-std=c++17)
 option(WITH_TESTING "compile with unit testing" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with ILUVATAR_GPU" ON)
-
-set(THIRD_PARTY_PATH
-    "${PADDLE_SOURCE_DIR}/build/third_party"
-    CACHE PATH "Third party libraries directory.")
 
 include(cuda)
 include(gflags)

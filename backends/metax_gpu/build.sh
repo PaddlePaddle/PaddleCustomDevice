@@ -15,21 +15,51 @@
 # limitations under the License.
 
 set -e
+# init paddle
+git submodule sync --recursive && git submodule update --init --recursive
 
-echo "uninstall paddle-metax-gpu..."
-pip uninstall -y paddle-metax-gpu
+
+# apply patch
+
+rm -r ../../Paddle/third_party/eigen3
+
+
+cd patch 
+
+unzip mcEigen_3.4.0_paddle_final.zip
+
+mv mcEigen_3.4.0_paddle_final eigen3
+
+cd ..
+
+cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
+
+cd ../../Paddle/
+
+git apply --verbose ../backends/metax_gpu/patch/paddle.patch
+
+cd -
+
+
+export MACA_PATH=/opt/maca
+export CUDA_PATH=/workspace/cuda-11.7/
+export PATH=${CUDA_PATH}/bin:${PATH}
+export CUCC_PATH=${MACA_PATH}/tools/cu-bridge
+export PATH=${PATH}:${CUCC_PATH}/tools:${CUCC_PATH}/bin
+export PATH=${MACA_PATH}/bin:${PATH}
+export LD_LIBRARY_PATH=${MACA_PATH}/lib:${MACA_PATH}/mxgpu_llvm/lib:${LD_LIBRARY_PATH}
 
 if [ ! -d build ]; then
     echo "build directory not found, creating..."
     mkdir build
 fi
 
-echo "make"
+echo "make_maca"
 cd build
-cmake .. -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
-make -j8
+cmake_maca .. -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
+make_maca -j8
 
 echo "install whl"
-pip install dist/paddle_metax_gpu*.whl
+pip install dist/paddle_metax_gpu*.whl --force-reinstall
 cd ..
 echo "Done!"

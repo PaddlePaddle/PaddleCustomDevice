@@ -23,6 +23,10 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 set(WITH_MKLML ON)
 
+set(THIRD_PARTY_PATH
+    "${PADDLE_SOURCE_DIR}/build/third_party"
+    CACHE PATH "Third party libraries directory.")
+
 include(paddle)
 include(version)
 include(generic)
@@ -85,10 +89,6 @@ option(WITH_TESTING "compile with unit testing" OFF)
 option(ON_INFER "compile with inference c++ lib" OFF)
 option(WITH_GPU "Compile PaddlePaddle with ILUVATAR_GPU" ON)
 
-set(THIRD_PARTY_PATH
-    "${PADDLE_SOURCE_DIR}/build/third_party"
-    CACHE PATH "Third party libraries directory.")
-
 include(cuda)
 include(gflags)
 include(glog)
@@ -140,6 +140,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_nd_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gather_nd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gaussian_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gelu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/index_put_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_grad_kernel.cu
@@ -208,13 +209,23 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/squeeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_grad_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc)
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
+  # ernie_core
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/expand_modality_expert_id_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_combine_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_gate_dispatch_permute_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
+)
 
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
   runtime/runtime.cc common/*.cc kernels/cuda_kernels/*.cc
-  kernels/cuda_kernels/*.cu)
+  kernels/cuda_kernels/*.cu kernels/ernie_core/*.cu kernels/ernie_core/*.cc)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 

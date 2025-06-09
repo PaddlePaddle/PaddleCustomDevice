@@ -37,6 +37,7 @@ limitations under the License. */
 #if defined(PADDLE_WITH_CUDA) && CUDA_VERSION >= 11060
 #include "paddle/phi/kernels/autotune/auto_tune_base.h"
 #endif
+#include "paddle/phi/core/tensor_utils.h"
 
 COMMON_DECLARE_bool(cuda_core_int8_gemm);
 

@@ -1,0 +1,235 @@
+diff --git a/cmake/external/eigen.cmake b/cmake/external/eigen.cmake
+index cfada544d4..a690e97d74 100644
+--- a/cmake/external/eigen.cmake
++++ b/cmake/external/eigen.cmake
+@@ -42,12 +42,12 @@ endif()
+ file(TO_NATIVE_PATH "${PADDLE_SOURCE_DIR}/patches/eigen/TensorRandom.h.patch"
+      tensor_random_header)
+ # See: [Why calling some `git` commands before `patch`?]
+-set(EIGEN_PATCH_COMMAND git checkout -- . && git checkout ${EIGEN_TAG} && git
+-                        apply ${tensor_random_header})
++# set(EIGEN_PATCH_COMMAND git checkout -- . && git checkout ${EIGEN_TAG} && git
++#                         apply ${tensor_random_header})
+ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+   file(TO_NATIVE_PATH ${PADDLE_SOURCE_DIR}/patches/eigen/Complex.h.patch
+        complex_header)
+-  set(EIGEN_PATCH_COMMAND ${EIGEN_PATCH_COMMAND} && git apply ${complex_header})
++  # set(EIGEN_PATCH_COMMAND ${EIGEN_PATCH_COMMAND} && git apply ${complex_header})
+ endif()
+ 
+ set(EIGEN_INCLUDE_DIR ${SOURCE_DIR})
+diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
+index ef8f922ffd..8a835ea53d 100644
+--- a/paddle/phi/core/enforce.h
++++ b/paddle/phi/core/enforce.h
+@@ -45,7 +45,9 @@ limitations under the License. */
+ #endif
+ 
+ #ifdef PADDLE_WITH_CUDA
+-#include "paddle/phi/backends/dynload/cublas.h"
++// #include "paddle/phi/backends/dynload/../../../../../cublas.h"
++#include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
++// #include "paddle/phi/backends/dynload/cublas.h"
+ #include "paddle/phi/backends/dynload/cudnn.h"
+ #include "paddle/phi/backends/dynload/curand.h"
+ #include "paddle/phi/backends/dynload/cusolver.h"
+@@ -97,7 +99,7 @@ inline bool is_error(bool stat) { return !stat; }
+ 
+ void ThrowWarnInternal(const std::string& message);
+ 
+-#if defined(__CUDA_ARCH__)
++#if defined(__CUDACC__)
+ // For cuda, the assertions can affect performance and it is therefore
+ // recommended to disable them in production code
+ // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
+@@ -109,7 +111,7 @@ void ThrowWarnInternal(const std::string& message);
+              __LINE__,                                             \
+              #_IS_NOT_ERROR,                                       \
+              ##__VA_ARGS__);                                       \
+-      asm("trap;");                                                \
++      __builtin_trap();                                             \
+     }                                                              \
+   } while (0)
+ #elif defined(__HIPCC__)
+@@ -749,4 +751,4 @@ inline void retry_sleep(unsigned millisecond) {
+ 
+ }  // namespace enforce
+ using namespace enforce;  // NOLINT
+-}  // namespace phi
++}  // namespace phi
+\ No newline at end of file
+
+diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
+index 0b60a78695..09ef60cb9b 100644
+--- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
++++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
+@@ -482,16 +482,45 @@ struct Bitfield<unsigned int> {
+                                                              int pos,
+                                                              int len) {
+     unsigned int ret;
+-    asm("bfe.u32 %0, %1, %2, %3;" : "=r"(ret) : "r"(val), "r"(pos), "r"(len));
++    
++// >>>> PTX2CPP Success <<<<
++{
++{
++int __msb=31;
++unsigned int __pos=(pos)&0xff;
++unsigned int __len=(len)&0xff;
++int __sbit=0;
++(ret)=0;
++for(int i=0;i<=__msb;i++){
++int __tempbit=(i<__len&&__pos+i<=__msb) ? ((val)>>(__pos+i)&1u) : __sbit;
++(ret)+=__tempbit<<i;
++}
++}
++}
++
+     return ret;
+   }
+ 
+   static __device__ __forceinline__ unsigned int SetBitfield(
+       unsigned int val, unsigned int to_insert, int pos, int len) {
+     unsigned int ret;
+-    asm("bfi.b32 %0, %1, %2, %3, %4;"
+-        : "=r"(ret)
+-        : "r"(to_insert), "r"(val), "r"(pos), "r"(len));
++    
++// >>>> PTX2CPP Success <<<<
++{
++{
++unsigned int __pos=(pos)&0xff;
++unsigned int __len=(len)&0xff;
++if(__pos>=32||__len==0)(ret)=(val);
++else{
++if(__len+__pos>=32)__len=32-__pos;
++unsigned int __mask=((1u<<__len)-1u);
++unsigned int __filed=((to_insert)&__mask)<<__pos;
++__mask<<=__pos;
++(ret)=((val) & ~__mask) | __filed;
++}
++}
++}
++
+     return ret;
+   }
+ };
+@@ -502,7 +531,22 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-    asm("bfe.u64 %0, %1, %2, %3;" : "=l"(ret) : "l"(val), "r"(pos), "r"(len));
++    
++// >>>> PTX2CPP Success <<<<
++{
++{
++int __msb=63;
++unsigned int __pos=(pos)&0xff;
++unsigned int __len=(len)&0xff;
++int __sbit=0;
++(ret)=0;
++for(int i=0;i<=__msb;i++){
++int __tempbit=(i<__len&&__pos+i<=__msb) ? ((val)>>(__pos+i)&1u) : __sbit;
++(ret)+=__tempbit<<i;
++}
++}
++}
++
+     return ret;
+   }
+ 
+@@ -511,9 +555,23 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-    asm("bfi.b64 %0, %1, %2, %3, %4;"
+-        : "=l"(ret)
+-        : "l"(to_insert), "l"(val), "r"(pos), "r"(len));
++    
++// >>>> PTX2CPP Success <<<<
++{
++{
++unsigned int __pos=(pos)&0xff;
++unsigned int __len=(len)&0xff;
++if(__pos>=64||__len==0)(ret)=(val);
++else{
++if(__len+__pos>=64)__len=64-__pos;
++unsigned long int __mask=((1ul<<__len)-1ul);
++unsigned long int __filed=((to_insert)&__mask)<<__pos;
++__mask<<=__pos;
++(ret)=((val) & ~__mask) | __filed;
++}
++}
++}
++
+     return ret;
+   }
+ };
+@@ -631,13 +689,23 @@ struct RadixTypeConfig<phi::dtype::bfloat16> {
+ /*---------------------------Helper Functions------------------*/
+ __device__ __forceinline__ int GetLaneId() {
+   int lane_id;
+-  asm("mov.s32 %0, %%laneid;" : "=r"(lane_id));
++  
++// >>>> PTX2CPP Success <<<<
++{
++(lane_id)=(threadIdx.x&(warpSize-1));
++}
++
+   return lane_id;
+ }
+ 
+ __device__ __forceinline__ unsigned GetLaneMaskLe() {
+   unsigned mask;
+-  asm("mov.u32 %0, %%lanemask_le;" : "=r"(mask));
++  
++// >>>> PTX2CPP Success <<<<
++{
++(mask)=((((unsigned long long)(1)<<(threadIdx.x&(warpSize-1)))<<1)-1);
++}
++
+   return mask;
+ }
+ 
+@@ -1273,3 +1341,4 @@ bool SortTopk(const phi::GPUContext& ctx,
+ }
+ }  // namespace funcs
+ }  // namespace phi
++//
+diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
+index 29fa252e96..4ae72b0935 100644
+--- a/paddle/phi/kernels/gpu/gelu_funcs.h
++++ b/paddle/phi/kernels/gpu/gelu_funcs.h
+@@ -29,13 +29,13 @@ namespace phi {
+ #if defined(__NVCC__) || defined(__HIPCC__)
+ template <bool FastMode>
+ static __device__ __forceinline__ float FP32FastTanh(float x) {
+-#if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
+-  if (FastMode) {
+-    float y;
+-    asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
+-    return y;
+-  }
+-#endif
++// #if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
++//   if (FastMode) {
++//     float y;
++//     asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
++//     return y;
++//   }
++// #endif
+   return tanhf(x);
+ }
+ 
+diff --git a/third_party/openblas b/third_party/openblas
+index 5ef8b19646..5f36f18148 160000
+--- a/third_party/openblas
++++ b/third_party/openblas
+@@ -1 +1 @@
+-Subproject commit 5ef8b1964658f9cb6a6324a06f6a1a022609b0c5
++Subproject commit 5f36f18148603facb6c3540e673610d6b24cbfbb
+diff --git a/third_party/yaml-cpp b/third_party/yaml-cpp
+--- a/third_party/yaml-cpp
++++ b/third_party/yaml-cpp
+@@ -1 +1 @@
+-Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91
++Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91-dirty

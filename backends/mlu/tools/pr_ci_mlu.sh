@@ -303,6 +303,7 @@ function main() {
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_semantic_segmentation_001.jpg" \
     -o Global.device="mlu:4"
     echo "End DeepLabv3"
+    export MLU_VISIBLE_DEVICES=4,5,6,7,8,9,10,11
 }
 
 main $@

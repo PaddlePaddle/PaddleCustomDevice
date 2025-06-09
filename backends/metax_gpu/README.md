@@ -20,8 +20,6 @@ git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 cd backends/metax_gpu
 bash build.sh
 
-# Install PaddlePaddle
-# bash install_paddle.sh
 ```
 
 ## Verification

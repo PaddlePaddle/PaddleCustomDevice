@@ -243,6 +243,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tril_triu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unbind_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax_impl.h
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_grad_kernel.cu

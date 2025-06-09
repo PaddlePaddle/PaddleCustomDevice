@@ -344,15 +344,23 @@ C_Status DestroyDevice(const C_Device device) {
 C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
-  *count = 4;
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  // *count = (size_t)device_count;
+  *count = static_cast<size_t>(device_count);
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
-  devices[0] = 0;
-  devices[1] = 1;
-  devices[2] = 2;
-  devices[3] = 3;
+  size_t count = 0;
+  C_Status status = GetDevicesCount(&count);
+  if (status != C_SUCCESS) {
+    return status;
+  }
+  // 填充设备 ID 列表（CUDA 设备 ID 为 0 到 count-1）
+  for (size_t i = 0; i < count; ++i) {
+    devices[i] = i;
+  }
   return C_SUCCESS;
 }
 

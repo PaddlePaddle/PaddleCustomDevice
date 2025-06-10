@@ -16,8 +16,10 @@ import numpy as np
 
 import paddle
 import paddlenlp_ops
+import os
 
-paddle.device.set_device("intel_hpu:1")
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 seed = 102
 paddle.seed(seed)

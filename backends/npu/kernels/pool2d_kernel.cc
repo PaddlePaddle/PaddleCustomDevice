@@ -444,6 +444,11 @@ void AclopPool2dGradKernel(const Context& dev_ctx,
       cast_out_tensor = out_tensor;
     }
 
+    std::once_flag npu_jit_compile_flag;
+    std::call_once(npu_jit_compile_flag,
+                   UpdateBoolFlag,
+                   "FLAGS_npu_jit_compile",
+                   &FLAGS_npu_jit_compile);
     if (!FLAGS_npu_jit_compile) {
       aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
     }

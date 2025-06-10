@@ -49,6 +49,9 @@
 #ifndef BACKENDS_NPU_RUNTIME_FLAGS_H_
 #define BACKENDS_NPU_RUNTIME_FLAGS_H_
 
+#include <cstring>
+#include <string>
+
 #include "gflags/gflags.h"
 
 #define FLAGS_DEFINE_bool(name, value, meaning) \
@@ -77,4 +80,7 @@
 #define EnvToUInt(envname, dflt) \
   (!getenv(envname) ? (dflt) : strtoul(getenv(envname), NULL, 10))
 
+inline void UpdateBoolFlag(const std::string& envname, bool* flag) {
+  *flag = EnvToBool(envname.c_str(), *flag);
+}
 #endif  // BACKENDS_NPU_RUNTIME_FLAGS_H_

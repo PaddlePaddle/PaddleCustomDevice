@@ -96,6 +96,11 @@ void Conv2dKernel(const Context& dev_ctx,
                   int groups,
                   const std::string& data_format,
                   phi::DenseTensor* output) {
+  std::once_flag npu_jit_compile_flag;
+  std::call_once(npu_jit_compile_flag,
+                 UpdateBoolFlag,
+                 "FLAGS_npu_jit_compile",
+                 &FLAGS_npu_jit_compile);
   if (FLAGS_npu_jit_compile) {
     aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
   }
@@ -328,6 +333,11 @@ void Conv2DGradKernel(const Context& dev_ctx,
                       const std::string& data_format,
                       phi::DenseTensor* input_grad,
                       phi::DenseTensor* filter_grad) {
+  std::once_flag npu_jit_compile_flag;
+  std::call_once(npu_jit_compile_flag,
+                 UpdateBoolFlag,
+                 "FLAGS_npu_jit_compile",
+                 &FLAGS_npu_jit_compile);
   if (FLAGS_npu_jit_compile) {
     aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
   }

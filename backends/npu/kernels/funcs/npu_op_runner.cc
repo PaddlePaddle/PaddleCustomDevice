@@ -620,6 +620,7 @@ void NpuOpRunner::Run(aclrtStream stream, bool sync) const {
 
   static std::once_flag jit_compile_flag;
   std::call_once(jit_compile_flag, [&]() {
+    UpdateBoolFlag("FLAGS_npu_jit_compile", &FLAGS_npu_jit_compile);
     if (FLAGS_npu_jit_compile) {
       aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
     } else {

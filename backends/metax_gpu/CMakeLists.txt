@@ -245,9 +245,10 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/int_bincount.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax_impl.h
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu
+  # ${CMAKE_SOURCE_DIR}/kernels/gpudnn/softmax.cu
+  ${CMAKE_SOURCE_DIR}/kernels/gpudnn/soft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_grad_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/transfer_layout_kernel.cc # Need PR
@@ -308,7 +309,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_ops_partial_nosoftmaxtopk_grad_kernel.cu
   #
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_bias_act_kernel.cu)
 
@@ -328,7 +329,6 @@ file(
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})
 
 set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)
-
 add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
 target_include_directories(

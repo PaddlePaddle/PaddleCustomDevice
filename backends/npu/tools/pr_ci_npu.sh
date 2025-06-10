@@ -217,8 +217,8 @@ function run_paddlex() {
     -o Global.mode=predict \
     -o Predict.model_dir="./resnet50_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_image_classification_001.jpg" \
-    -o Global.device="npu:${DEVICE}"
-    echo "End PaddleX ResNet50"" 3
+    -o Global.device="npu:${DEVICE}"" 3
+    echo "End PaddleX ResNet50"
 
     echo "Start PP-YOLOE+"
     retry "python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \

@@ -16,6 +16,7 @@ import unittest
 
 import paddle
 import paddlenlp_ops
+import numpy as np
 
 import os
 
@@ -25,17 +26,20 @@ paddle.seed(2025)
 
 
 class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
-    def __init__(self):
+    def __init__(self, with_bias=False):
         self.head_dim = 128
         self.num_head = 32
         self.kv_num_heads = 32
         self.hidden_size = 4096
+        self.kv_hidden_size = self.head_dim * self.kv_num_heads
 
         self.epsilon = 1e-06
 
         self.use_neox = True
         self.position_offset = 0
         self.rope_theta = 10000
+
+        self.with_bias = with_bias
 
         self.init_block_prefill_params()
         self.create_tensors()
@@ -49,6 +53,7 @@ class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
         )
 
     def create_tensors(self):
+        device = paddle.get_device()
         self.input_ids = paddle.zeros(
             [self.batch_size, self.seq_len], dtype=paddle.bfloat16
         )
@@ -67,6 +72,19 @@ class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
                 [self.hidden_size * 3, self.hidden_size], dtype=paddle.float32
             )
         ).to(paddle.bfloat16)
+
+        if self.with_bias:
+            np_qkv_biases = np.random.rand(
+                self.hidden_size + 2 * self.kv_hidden_size
+            ).astype("float32")
+            self.qkv_biases = (
+                paddle.to_tensor(np_qkv_biases, place=paddle.CPUPlace())
+                .to(paddle.bfloat16)
+                .to(device)
+            )
+        else:
+            self.qkv_biases = None
+
         self.head_dim_shape_tensor = paddle.ones(self.head_dim, dtype="int8")
 
         self.new_rope = paddlenlp_ops.fused_get_rotary_embedding(
@@ -90,6 +108,7 @@ class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
             self.src,
             self.ln_scales,
             self.qkv_weights,
+            self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
             self.epsilon,
@@ -102,12 +121,14 @@ class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
             self.src,
             self.ln_scales,
             qkv_weights_fp8,
+            self.qkv_biases,
             self.new_rope.transpose([0, 1, 3, 2, 4]),
             self.residual,
+            paddle.to_tensor([1.0]),
+            paddle.to_tensor([1.0]),
             self.epsilon,
             self.head_dim,
             self.num_head,
-            1.0,
         )
 
         similarity_query = self.get_similarity(ref_query_states, query_states)
@@ -131,3 +152,6 @@ class TestFusedFp8RmsQkvRopeT(unittest.TestCase):
 if __name__ == "__main__":
     test = TestFusedFp8RmsQkvRopeT()
     test.check_result()
+
+    test_with_bias = TestFusedFp8RmsQkvRopeT(with_bias=True)
+    test_with_bias.check_result()

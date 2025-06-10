@@ -29,6 +29,9 @@ export CODE_ROOT
 # For paddle easy debugging
 export FLAGS_call_stack_level=2
 
+# Set Allocator strategy
+export FLAGS_allocator_strategy=auto_growth
+
 failed_test_lists=''
 tmp_dir=`mktemp -d`
 

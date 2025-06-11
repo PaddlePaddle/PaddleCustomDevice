@@ -1,6 +1,7 @@
 name: Update Paddle Submodule Nightly
 
 on:
+  pull_request:
   schedule:
     - cron: '0 16 * * *'
   workflow_dispatch:

@@ -149,7 +149,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       std::vector<synTensor> v_out_reshape;
       auto v_r = createTensorNoPresist("v_r", dtype_, kvt_dims);
       v_out_reshape.push_back(v_r);
-      AddNodeReshape(k_transpose, v_out_reshape, guid_ + "reshape_v");
+      AddNodeReshape(v_transpose, v_out_reshape, guid_ + "reshape_v");
 
       std::vector<synTensor> attn_inputs;
       attn_inputs.push_back(q_r);

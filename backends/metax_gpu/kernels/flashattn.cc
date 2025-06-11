@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace paddle_flags {
-bool FLAGS_cudnn_deterministic = false;
-bool FLAGS_embedding_deterministic = false;
-bool FLAGS_enable_cublas_tensor_op_math = false;
-bool FLAGS_gemm_use_half_precision_compute_type = false;
-bool FLAGS_use_fast_math = false;
-int flash_attn_version = 2;
-}  // namespace paddle_flags
+#include "flashattn.h"  // NOLINT
+
+namespace phi {
+namespace dynload {
+
+std::once_flag flashattn_dso_flag;
+void* flashattn_dso_handle = nullptr;
+
+#define DEFINE_WRAP(__name) DynLoad__##__name __name
+
+FLASHATTN_ROUTINE_EACH(DEFINE_WRAP);
+
+}  // namespace dynload
+}  // namespace phi

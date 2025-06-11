@@ -240,7 +240,27 @@ void FlashAttnKernel(const Context& ctx,
 //       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 // }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
+// PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::FlashAttnUnpaddedKernel,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16) {
+//   kernel->InputAt(5).SetBackend(
+//       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
+// }
+
+// PD_CUSTOM_KERNEL_REGISTER(flash_attn,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::FlashAttnKernel,
+//                           float,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16) {
+//   kernel->InputAt(3).SetBackend(
+//       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
+// }
+PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedKernel,
@@ -250,7 +270,7 @@ PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnKernel,

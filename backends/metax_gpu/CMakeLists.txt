@@ -31,6 +31,7 @@ include(paddle)
 include(version)
 include(generic)
 include(cblas)
+include(flashattn)
 
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
@@ -273,7 +274,8 @@ file(
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu
-  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu)
+  ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu
+  ${CMAKE_SOURCE_DIR}/kernels/flashattn.cc)
 
 list(
   REMOVE_ITEM
@@ -347,6 +349,7 @@ target_link_libraries(
   ${PADDLE_CORE_LIB})
 # /usr/local/lib/python3.9/dist-packages/nvidia/nccl/lib/libnccl.so.2
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmccl.so)
+target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmcFlashAttn.so)
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(

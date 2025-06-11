@@ -22,8 +22,8 @@
 #include "paddle/common/flags.h"
 #include "paddle/phi/kernels/empty_kernel.h"
 #ifdef PADDLE_WITH_FLASHATTN
-#include "flash_attn.h"
-#include "paddle/phi/backends/dynload/flashattn.h"
+#include "flash_attn.h" // NOLINT
+#include "flashattn.h" // NOLINT
 #endif
 // clang-format on
 PD_DECLARE_bool(cudnn_deterministic);
@@ -58,7 +58,7 @@ static std::pair<uint64_t, uint64_t> GenerateRNGState(
 }
 
 template <typename T>
-mcflashattnDataType_t McFlashAttnTypeTraits(T& _tensor) {
+mcflashattnDataType_t McFlashAttnTypeTraits(T& _tensor) {  // NOLINT
   phi::DataType dtype = _tensor.dtype();
   switch (dtype) {
     case phi::DataType::FLOAT16:
@@ -81,7 +81,7 @@ mcflashattnDataType_t McFlashAttnTypeTraits(T& _tensor) {
 }
 
 template <typename T>
-Tensor_t DenseTensorToMcFlashAttnTensor(T& _tensor) {
+Tensor_t DenseTensorToMcFlashAttnTensor(T& _tensor) {  // NOLINT
   PADDLE_ENFORCE_EQ(
       _tensor.meta().is_contiguous(),
       true,
@@ -192,17 +192,17 @@ struct FlashAttnParamsFwd : public FlashAttnParamsBase {
   FlashAttnParamsFwd(const GPUContext& ctx,
                      const paddle::optional<DenseTensor>& _attn_mask,
                      bool _return_softmax,
-                     DenseTensor& _softmax,
+                     DenseTensor& _softmax,  // NOLINT
                      const DenseTensor& _q,
                      const DenseTensor& _k,
                      const DenseTensor& _v,
-                     DenseTensor& _out,
-                     DenseTensor& _softmax_lse,
+                     DenseTensor& _out,          // NOLINT
+                     DenseTensor& _softmax_lse,  // NOLINT
                      bool _is_test,
                      float _p_dropout,
                      bool _is_causal,
                      const paddle::optional<DenseTensor>& _fixed_seed_offset,
-                     DenseTensor& _seed_offset,
+                     DenseTensor& _seed_offset,  // NOLINT
                      const std::string& _rng_name,
                      int64_t _batch_size,
                      int64_t _seqlen_q,
@@ -301,9 +301,9 @@ struct FlashAttnParamsBwd : public FlashAttnParamsBase {
                      const DenseTensor& _out,
                      const DenseTensor& _softmax_lse,
                      const DenseTensor& _seed_offset_data,
-                     DenseTensor& _dq,
-                     DenseTensor& _dk,
-                     DenseTensor& _dv,
+                     DenseTensor& _dq,  // NOLINT
+                     DenseTensor& _dk,  // NOLINT
+                     DenseTensor& _dv,  // NOLINT
                      float _p_dropout,
                      bool _is_causal,
                      int64_t _batch_size,

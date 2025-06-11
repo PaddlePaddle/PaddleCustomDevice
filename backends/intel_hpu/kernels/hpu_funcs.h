@@ -391,10 +391,10 @@ class HpuFusedOperator : public HpuOperator {
   template <typename T>
   inline void AddNodeSdpaRecomp(std::vector<synTensor> inputs,
                                 std::vector<synTensor> outputs,
-                                ns_Sdpa::ParamsV2 params,
+                                ns_Sdpa::ParamsV3 params,
                                 std::string node_name) {
     std::string guid = "sdpa_recomp_fwd_" + guid_dtype<T>();
-    AddNode_IOP<ns_Sdpa::ParamsV2>(inputs, outputs, params, guid, node_name);
+    AddNode_IOP<ns_Sdpa::ParamsV3>(inputs, outputs, params, guid, node_name);
   }
 };
 

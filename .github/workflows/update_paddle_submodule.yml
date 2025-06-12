@@ -18,6 +18,7 @@ jobs:
 
       - name: Update Paddle Submodule
         run: |
+          echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git submodule update --remote --init
@@ -27,7 +28,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          branch: update-paddle-submodule-${{ steps.update-submodule.outputs.date }}
+          branch: ${{ env.BRANCH_NAME }}
           delete-branch: true
           title: "Nightly Update: Paddle Submodule"
           body: "Automated PR to update Paddle submodule to the latest commit."

@@ -1,7 +1,9 @@
 name: Update Paddle Submodule NightlyAdd commentMore actions
 
 on:
-  pull_request:
+  push:
+    branches:
+      - develop
   schedule:
     - cron: '0 16 * * *'
   workflow_dispatch:
@@ -29,7 +31,6 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           branch: ${{ env.BRANCH_NAME }}
-          ref: develop
           delete-branch: true
           title: "Nightly Update: Paddle Submodule"
           body: "Automated PR to update Paddle submodule to the latest commit."

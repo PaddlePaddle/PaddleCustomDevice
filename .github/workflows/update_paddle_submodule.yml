@@ -1,9 +1,6 @@
 name: Update Paddle Submodule NightlyAdd commentMore actions
 
 on:
-  push:
-    branches:
-      - develop
   schedule:
     - cron: '0 16 * * *'
   workflow_dispatch:

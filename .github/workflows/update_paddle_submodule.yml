@@ -26,7 +26,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          branch: update-paddle-submodule
+          branch: update-paddle-submodule-$(date +%Y%m%d)
           title: "Nightly Update: Paddle Submodule"
           body: "Automated PR to update Paddle submodule to the latest commit."
           commit-message: "Update Paddle submodule"

@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "BRANCH_NAME=update-paddle-submodule-$(date +'%Y%m%d')" >> $GITHUB_ENV
           git config --global user.name "tianshuo78520a"
-          git config --global user.email "${{ secrets.TIAN_MAIL }}"
+          git config --global user.email "tianshuo78520a@users.noreply.github.com"
           git submodule update --remote --init
           git status
           git add Paddle
@@ -34,4 +34,3 @@ jobs:
           commit-message: "Update Paddle submodule"
           base: develop
           labels: "automated,submodule"
-          token: ${{ secrets.PADDLE_SUBMODULE }}

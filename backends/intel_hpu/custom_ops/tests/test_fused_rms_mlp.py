@@ -17,6 +17,7 @@ import argparse
 import paddle
 import paddlenlp_ops
 import paddle.profiler as profiler
+import numpy as np
 
 paddle.device.set_device("intel_hpu")
 
@@ -173,6 +174,35 @@ class fusedRmsMlpResOP(paddle.nn.Layer):
         return fused_rms_mlp_out
 
 
+class fusedFP8RmsMlpResOP(paddle.nn.Layer):
+    def __init__(self):
+        super().__init__()
+        (
+            self.x,
+            self.ln_scales,
+            self.proj_weight,
+            _,
+            _,
+            self.down_weight,
+            self.residual,
+            self.epsilon,
+        ) = init_data()
+
+        self.proj_weight = self.proj_weight.astype(paddle.float8_e4m3fn)
+        self.down_weight = self.down_weight.astype(paddle.float8_e4m3fn)
+
+    def forward(self):
+        fused_rms_mlp_out = paddlenlp_ops.fused_rms_mlp_res(
+            self.x,
+            self.ln_scales,
+            self.proj_weight,
+            self.down_weight,
+            self.residual,
+            self.epsilon,
+        )
+        return fused_rms_mlp_out
+
+
 def run_profile(my_profile_func):
     prof = profiler.Profiler(
         targets=[profiler.ProfilerTarget.CPU, profiler.ProfilerTarget.CUSTOM_DEVICE],
@@ -189,14 +219,26 @@ def run_accuracy_check():
     ref_rms_mlp = refRmsMlpOP()
     fused_rms_mlp = fusedRmsMlpOP()
     fused_rms_mlp_residual = fusedRmsMlpResOP()
+    fused_fp8_rms_mlp_residual = fusedFP8RmsMlpResOP()
 
     golden_res = ref_rms_mlp()
     fused_rms_res = fused_rms_mlp()
     fused_rms_mlp_residual_res = fused_rms_mlp_residual()
+    fused_fp8_rms_mlp_residual_res = fused_fp8_rms_mlp_residual()
 
     print((fused_rms_res == golden_res).all())
     print((fused_rms_res == fused_rms_mlp_residual_res).all())
     print((ref_rms_mlp.residual == fused_rms_mlp_residual.residual).all())
+
+    # Check FP8 accuracy
+    close_mask = np.isclose(
+        fused_fp8_rms_mlp_residual_res.numpy(), golden_res, rtol=1e-02
+    )
+    mismatch_count = np.sum(~close_mask)
+    mismatch_percentage = mismatch_count / np.size(golden_res) * 100.0
+    assert (
+        mismatch_percentage <= 0.02
+    ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.02}% threshold\n"
 
 
 def main():

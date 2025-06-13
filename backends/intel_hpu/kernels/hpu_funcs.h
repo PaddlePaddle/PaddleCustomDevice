@@ -444,8 +444,9 @@ class HpuFusedOperator : public HpuOperator {
     std::vector<synTensor> gemm_ins;
     gemm_ins.push_back(x_tensor);
     gemm_ins.push_back(y_tensor);
-    gemm_ins.push_back(inputs[2]);
-    gemm_ins.push_back(inputs[3]);
+    for (size_t i = 2; i < inputs.size(); i++) {
+      gemm_ins.push_back(inputs[i]);
+    }
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }
 };

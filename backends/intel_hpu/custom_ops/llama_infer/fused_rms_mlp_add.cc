@@ -82,7 +82,13 @@ class FusedRmsMlpRes : public HpuFusedOperator {
     std::vector<synTensor> proj_outputs;
     proj_outputs.push_back(proj_out);
 
-    AddNodeGemm(proj_inputs, proj_outputs, gemm_params, guid_ + "gemm_up_proj");
+    if (ins[2].type == syn_type_fp8_143) {
+      AddNodeFusedFp8Gemm<T>(
+          proj_inputs, proj_outputs, gemm_params, guid_ + "gemm_up_proj");
+    } else {
+      AddNodeGemm(
+          proj_inputs, proj_outputs, gemm_params, guid_ + "gemm_up_proj");
+    }
 
     std::vector<int64_t> split_out_dims = {
         proj_dims[0], proj_dims[1], proj_dims[2] / 2};
@@ -126,8 +132,13 @@ class FusedRmsMlpRes : public HpuFusedOperator {
     std::vector<synTensor> down_outputs;
     down_outputs.push_back(mlp_out);
 
-    AddNodeGemm(
-        down_inputs, down_outputs, gemm_params, guid_ + "gemm_down_proj");
+    if (ins[3].type == syn_type_fp8_143) {
+      AddNodeFusedFp8Gemm<T>(
+          down_inputs, down_outputs, gemm_params, guid_ + "gemm_down_proj");
+    } else {
+      AddNodeGemm(
+          down_inputs, down_outputs, gemm_params, guid_ + "gemm_down_proj");
+    }
   }
 
  protected:
@@ -176,8 +187,11 @@ void FusedRmsMlpResKernel(const Context& dev_ctx,
   std::vector<DIMS> inputs_dims = ct.GetDims();
 
   OpCacheOperator op_info;
+  std::string recipe_name = proj_weight.dtype() == phi::DataType::FLOAT8_E4M3FN
+                                ? "FusedFP8RmsMlpResKernel"
+                                : "FusedRmsMlpResKernel";
   op_info.prepareOpInfo<T, FusedRmsMlpResParams>(
-      "FusedRmsMlpResKernel", inputs_dims, &params);
+      recipe_name, inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {

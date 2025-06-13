@@ -135,5 +135,38 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         self.check_result(result_np_result, result_fused_mlp)
 
 
+class Test_FP8_Fused_MLP_OP(Test_Fused_MLP_OP):
+    def HPU_Fused_RMS_MLP_OP(self):
+        (
+            x,
+            ln_scales,
+            proj_weight,
+            _,
+            _,
+            down_weight,
+            epsilon,
+        ) = self.prepare_input()
+
+        fp8_proj_weight = proj_weight.astype(paddle.float8_e4m3fn)
+        fp8_down_weight = down_weight.astype(paddle.float8_e4m3fn)
+
+        fused_mlp_out = paddlenlp_ops.fused_rms_mlp(
+            x, ln_scales, fp8_proj_weight, fp8_down_weight, epsilon
+        )
+
+        return fused_mlp_out
+
+    def test_fused_mlp(self):
+        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP()
+        result_np_result = self.NP_Fused_RMS_MLP_OP()
+
+        close_mask = np.isclose(result_fused_mlp.numpy(), result_np_result, rtol=1e-02)
+        mismatch_count = np.sum(~close_mask)
+        mismatch_percentage = mismatch_count / np.size(result_np_result) * 100.0
+        assert (
+            mismatch_percentage <= 0.02
+        ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.02}% threshold\n"
+
+
 if __name__ == "__main__":
     unittest.main()

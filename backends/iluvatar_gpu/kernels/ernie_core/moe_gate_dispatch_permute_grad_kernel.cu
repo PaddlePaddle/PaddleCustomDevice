@@ -18,7 +18,6 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/contiguous_kernel.h"
 #include "paddle/phi/kernels/empty_kernel.h"
-#include "paddle/phi/kernels/moe_gate_dispatch_permute_grad_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 namespace phi {
 

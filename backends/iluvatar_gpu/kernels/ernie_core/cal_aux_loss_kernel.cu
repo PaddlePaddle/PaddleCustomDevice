@@ -17,7 +17,6 @@
 #include "../funcs/math_cuda_utils.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cal_aux_loss_kernel.h"
 
 namespace phi {
 

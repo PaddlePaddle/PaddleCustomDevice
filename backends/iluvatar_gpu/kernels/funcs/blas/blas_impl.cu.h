@@ -1430,14 +1430,6 @@ inline void Blas<phi::GPUContext>::GEMM(CBLAS_TRANSPOSE transA,
   cublasOperation_t cuTransB =
       (transB == CblasNoTrans) ? CUBLAS_OP_N : CUBLAS_OP_T;
 
-  PADDLE_ENFORCE_GE(
-      context_.GetComputeCapability(),
-      80,
-      common::errors::InvalidArgument(
-          "cublas bf16 gemm requires GPU compute capability >= 80,"
-          "but received %d",
-          context_.GetComputeCapability()));
-
   float h_alpha = static_cast<float>(alpha);
   float h_beta = static_cast<float>(beta);
 

@@ -257,33 +257,30 @@ void FlashAttnUnpaddedBaseKernel(
                                              &size_tmpbuf,
                                              flashAttnInfo.imp_mode));
 
-  auto workspace_handle = ctx.cudnn_workspace_handle();
-  workspace_handle.RunFunc(
-      [&](void* workspace_ptr) {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
-            cudnn,
-            flashAttnDesc,
-            flashAttnInfo,
-            q_desc,
-            k_desc,
-            v_desc,
-            o_desc,
-            nullptr,
-            lse_desc,
-            q_padded.data(),
-            k_padded.data(),
-            v_padded.data(),
-            nullptr,
-            is_unpad ? cu_seqlens_q.data<int>() : nullptr,
-            is_unpad ? cu_seqlens_k.data<int>() : nullptr,
-            nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
-            nullptr,
-            workspace_ptr,
-            out->data(),
-            softmax_lse->data<float>()));
-      },
-      size_tmpbuf);
+  auto d_wkSpace =
+      phi::Empty<int8_t, Context>(ctx, {static_cast<int64_t>(size_tmpbuf)});
+  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
+      cudnn,
+      flashAttnDesc,
+      flashAttnInfo,
+      q_desc,
+      k_desc,
+      v_desc,
+      o_desc,
+      nullptr,
+      lse_desc,
+      q_padded.data(),
+      k_padded.data(),
+      v_padded.data(),
+      nullptr,
+      is_unpad ? cu_seqlens_q.data<int>() : nullptr,
+      is_unpad ? cu_seqlens_k.data<int>() : nullptr,
+      nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
+      nullptr,
+      d_wkSpace.data(),
+      out->data(),
+      softmax_lse->data<float>()));
 
   out->Resize({total_q, num_heads, head_size});
 
@@ -619,33 +616,30 @@ void FlashAttnBaseKernel(
                                              &size_tmpbuf,
                                              flashAttnInfo.imp_mode));
 
-  auto workspace_handle = ctx.cudnn_workspace_handle();
-  workspace_handle.RunFunc(
-      [&](void* workspace_ptr) {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
-            cudnn,
-            flashAttnDesc,
-            flashAttnInfo,
-            q_desc,
-            k_desc,
-            v_desc,
-            o_desc,
-            attn_mask.get_ptr() ? m_desc : nullptr,
-            lse_desc,
-            q_padded.data(),
-            k_padded.data(),
-            v_padded.data(),
-            attn_mask.get_ptr() ? (attn_mask.get_ptr())->data() : nullptr,
-            nullptr,  // reinterpret_cast<int *>(cu_seqlens_q.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(cu_seqlens_k.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
-            nullptr,
-            workspace_ptr,
-            out->data(),
-            softmax_lse->data<float>()));
-      },
-      size_tmpbuf);
+  auto d_wkSpace =
+      phi::Empty<int8_t, Context>(ctx, {static_cast<int64_t>(size_tmpbuf)});
+  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
+      cudnn,
+      flashAttnDesc,
+      flashAttnInfo,
+      q_desc,
+      k_desc,
+      v_desc,
+      o_desc,
+      attn_mask.get_ptr() ? m_desc : nullptr,
+      lse_desc,
+      q_padded.data(),
+      k_padded.data(),
+      v_padded.data(),
+      attn_mask.get_ptr() ? (attn_mask.get_ptr())->data() : nullptr,
+      nullptr,  // reinterpret_cast<int *>(cu_seqlens_q.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(cu_seqlens_k.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
+      nullptr,
+      d_wkSpace.data(),
+      out->data(),
+      softmax_lse->data<float>()));
 
   phi::dynload::cudnnDestroyFlashAttnDescriptor(flashAttnDesc);
   PADDLE_ENFORCE_GPU_SUCCESS(

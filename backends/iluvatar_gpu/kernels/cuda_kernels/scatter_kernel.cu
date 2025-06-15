@@ -17,43 +17,47 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/funcs/scatter.cu.h"
-#include "paddle/phi/kernels/scatter_nd_add_kernel.h"
+#include "paddle/phi/kernels/scatter_kernel.h"
 
 namespace phi {
 
 template <typename T, typename Context>
-void ScatterNdAddKernel(const Context &ctx,
-                        const DenseTensor &x,
-                        const DenseTensor &index,
-                        const DenseTensor &updates,
-                        DenseTensor *out) {
-  Copy(ctx, x, ctx.GetPlace(), false, out);
-  const auto &index_type = index.dtype();
+void ScatterKernel(const Context &ctx,
+                   const DenseTensor &x,
+                   const DenseTensor &index,
+                   const DenseTensor &updates,
+                   bool overwrite,
+                   DenseTensor *out) {
+  phi::Copy(ctx, x, ctx.GetPlace(), false, out);
+  // use template class to support int32_t and int64_t
+  auto index_type = index.dtype();
   bool index_type_match =
       index_type == phi::DataType::INT32 || index_type == phi::DataType::INT64;
   PADDLE_ENFORCE_EQ(index_type_match,
                     true,
                     common::errors::InvalidArgument(
-                        "Index holds the wrong type, it holds [%s], but "
-                        "desires to be [%s] or [%s].",
+                        "scatter_op Index holds the wrong type, it holds [%s],"
+                        "but desires to be [%s] or [%s].",
                         index_type,
                         phi::DataType::INT32,
                         phi::DataType::INT64));
   if (index_type == phi::DataType::INT32) {
-    phi::funcs::GPUScatterNdAdd<T, int32_t>(ctx, updates, index, out);
+    phi::funcs::GPUScatterAssign<T, int32_t>(
+        ctx, updates, index, out, overwrite);
   } else {
-    phi::funcs::GPUScatterNdAdd<T, int64_t>(ctx, updates, index, out);
+    phi::funcs::GPUScatterAssign<T, int64_t>(
+        ctx, updates, index, out, overwrite);
   }
 }
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(scatter_nd_add,
+PD_CUSTOM_KERNEL_REGISTER(scatter,
                           iluvatar_gpu,
                           ALL_LAYOUT,
-                          phi::ScatterNdAddKernel,
+                          phi::ScatterKernel,
                           float,
-                          int64_t,
                           int,
+                          int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}

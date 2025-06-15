@@ -38,14 +38,7 @@ void ScatterNdAddGradKernel(const Context &ctx,
     if (index_type == phi::DataType::INT32) {
       phi::funcs::GPUGatherNd<T, int32_t>(ctx, out_grad, index, updates_grad);
     } else {
-#ifdef PADDLE_WITH_COREX
-      PADDLE_THROW(
-          common::errors::Unimplemented("Unsupported index type `%s` when "
-                                        "scatter_nd_add_grad on iluvatar_gpu.",
-                                        index_type));
-#else
       phi::funcs::GPUGatherNd<T, int64_t>(ctx, out_grad, index, updates_grad);
-#endif
     }
   }
 }

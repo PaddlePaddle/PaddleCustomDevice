@@ -23,11 +23,10 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 set(WITH_MKLML ON)
 
+include(paddle)
 set(THIRD_PARTY_PATH
     "${PADDLE_SOURCE_DIR}/build/third_party"
     CACHE PATH "Third party libraries directory.")
-
-include(paddle)
 include(version)
 include(generic)
 include(cblas)
@@ -81,7 +80,7 @@ list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
 
 enable_language(CUDA)
 find_package(CUDA REQUIRED)
-include_directories(${CUDA_INCLUDE_DIRS})
+include_directories(${CUDA_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/runtime)
 
 add_definitions(-std=c++17)
 
@@ -224,8 +223,13 @@ file(
 file(
   GLOB_RECURSE CC_SRCS
   RELATIVE ${CMAKE_SOURCE_DIR}
-  runtime/runtime.cc common/*.cc kernels/cuda_kernels/*.cc
-  kernels/cuda_kernels/*.cu kernels/ernie_core/*.cu kernels/ernie_core/*.cc)
+  runtime/runtime.cc
+  runtime/iluvatar_context.cc
+  common/*.cc
+  kernels/cuda_kernels/*.cc
+  kernels/cuda_kernels/*.cu
+  kernels/ernie_core/*.cu
+  kernels/ernie_core/*.cc)
 
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS})
 
@@ -248,9 +252,9 @@ target_link_libraries(
           xxhash
           protobuf
           external_error_proto
+          cuinfer
           # May cause a segment fault when the program exits
-          # /home/corex/sw_home/local/corex/lib64/libnccl.so.2
-)
+          nccl)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 

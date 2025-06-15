@@ -22,7 +22,6 @@
 #include "paddle/phi/kernels/contiguous_kernel.h"
 #include "paddle/phi/kernels/empty_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
-#include "paddle/phi/kernels/moe_ops_partial_nosoftmaxtopk_grad_kernel.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
 
 namespace phi {

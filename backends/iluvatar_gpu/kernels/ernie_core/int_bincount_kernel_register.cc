@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/int_bincount.h"
+#include "paddle/phi/kernels/legacy/gpu/int_bincount.cu"  // NOLINT
 
 PD_CUSTOM_KERNEL_REGISTER(
     int_bincount, iluvatar_gpu, ALL_LAYOUT, phi::IntBincount, int64_t, int) {}

@@ -339,15 +339,25 @@ C_Status DestroyDevice(const C_Device device) {
 C_Status Finalize() { return C_SUCCESS; }
 
 C_Status GetDevicesCount(size_t *count) {
-  *count = 4;
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  if (err != cudaSuccess) {
+    return C_ERROR;
+  }
+  *count = static_cast<size_t>(device_count);
   return C_SUCCESS;
 }
 
 C_Status GetDevicesList(size_t *devices) {
-  devices[0] = 0;
-  devices[1] = 1;
-  devices[2] = 2;
-  devices[3] = 3;
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  if (err != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  for (int i = 0; i < device_count; ++i) {
+    devices[i] = static_cast<size_t>(i);
+  }
   return C_SUCCESS;
 }
 

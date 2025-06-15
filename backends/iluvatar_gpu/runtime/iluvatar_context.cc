@@ -1,4 +1,4 @@
-// Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu"  // NOLINT
+#include "iluvatar_context.h"  // NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
-                          iluvatar_gpu,
-                          ALL_LAYOUT,
-                          phi::CSoftmaxWithCrossEntropyGradKernel,
-                          float,
-                          phi::dtype::float16) {}
+#include <memory>
+#include <mutex>
+namespace iluvatar {
+IluvatarContext::~IluvatarContext() {
+  if (ixinfer_handle_) {
+    cuinferDestroy(ixinfer_handle_);
+  }
+}
+cuinferHandle_t IluvatarContext::getIxInferHandle() {
+  if (!ixinfer_handle_) {
+    cuinferCreate(&ixinfer_handle_);
+  }
+  return ixinfer_handle_;
+}
+
+IluvatarContext* getContextInstance() {
+  static IluvatarContext context;
+  return &context;
+}
+}  // namespace iluvatar

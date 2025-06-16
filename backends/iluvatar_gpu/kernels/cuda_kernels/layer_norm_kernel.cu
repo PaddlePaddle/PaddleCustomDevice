@@ -667,7 +667,7 @@ void LayerNormKernel(const Context &dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(layer_norm,
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LayerNormKernel,

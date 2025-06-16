@@ -282,7 +282,7 @@ void FusedRopeKernel(const Context& dev_ctx,
 }  // namespace fusion
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(fused_rotary_position_embedding,
+PD_REGISTER_PLUGIN_KERNEL(fused_rotary_position_embedding,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::fusion::FusedRopeKernel,

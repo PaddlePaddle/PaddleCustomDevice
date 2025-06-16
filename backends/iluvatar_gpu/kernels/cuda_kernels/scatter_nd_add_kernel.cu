@@ -48,7 +48,7 @@ void ScatterNdAddKernel(const Context &ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(scatter_nd_add,
+PD_REGISTER_PLUGIN_KERNEL(scatter_nd_add,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::ScatterNdAddKernel,

@@ -364,7 +364,7 @@ void TopkV1Kernel(const Context& dev_ctx,
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(topk,
+PD_REGISTER_PLUGIN_KERNEL(topk,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TopkKernel,
@@ -376,7 +376,7 @@ PD_CUSTOM_KERNEL_REGISTER(topk,
   kernel->OutputAt(1).SetDataType(phi::DataType::INT64);
 }
 
-PD_CUSTOM_KERNEL_REGISTER(topk_v1,
+PD_REGISTER_PLUGIN_KERNEL(topk_v1,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::TopkV1Kernel,

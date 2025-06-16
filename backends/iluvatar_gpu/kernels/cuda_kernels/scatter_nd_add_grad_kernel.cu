@@ -45,7 +45,7 @@ void ScatterNdAddGradKernel(const Context &ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(scatter_nd_add_grad,
+PD_REGISTER_PLUGIN_KERNEL(scatter_nd_add_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::ScatterNdAddGradKernel,

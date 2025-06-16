@@ -142,7 +142,7 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(weight_only_linear,
+PD_REGISTER_PLUGIN_KERNEL(weight_only_linear,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::WeightOnlyLinearKernel,

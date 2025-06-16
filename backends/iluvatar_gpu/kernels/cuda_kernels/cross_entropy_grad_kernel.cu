@@ -272,7 +272,7 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax_grad,
+PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxGradKernel,

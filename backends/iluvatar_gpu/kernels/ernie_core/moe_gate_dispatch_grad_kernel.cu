@@ -154,7 +154,7 @@ void MoeGateDispatchGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(moe_gate_dispatch_grad,
+PD_REGISTER_PLUGIN_KERNEL(moe_gate_dispatch_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MoeGateDispatchGradKernel,

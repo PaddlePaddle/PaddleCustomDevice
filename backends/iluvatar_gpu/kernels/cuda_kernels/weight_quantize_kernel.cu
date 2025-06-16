@@ -54,7 +54,7 @@ void WeightQuantizeKernel(const Context& dev_ctx,
 }
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(weight_quantize,
+PD_REGISTER_PLUGIN_KERNEL(weight_quantize,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::WeightQuantizeKernel,

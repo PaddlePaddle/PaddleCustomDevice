@@ -694,7 +694,7 @@ void FlashAttnKernel(const Context& ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedKernel,
@@ -704,7 +704,7 @@ PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnKernel,

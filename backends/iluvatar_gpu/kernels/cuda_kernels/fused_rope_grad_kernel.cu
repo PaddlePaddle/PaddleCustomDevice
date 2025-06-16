@@ -191,7 +191,7 @@ void FusedRopeGradKernel(const Context& dev_ctx,
 }  // namespace fusion
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(fused_rotary_position_embedding_grad,
+PD_REGISTER_PLUGIN_KERNEL(fused_rotary_position_embedding_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::fusion::FusedRopeGradKernel,

@@ -109,7 +109,7 @@ void LayerNormGradKernel(const Context &dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(layer_norm_grad,
+PD_REGISTER_PLUGIN_KERNEL(layer_norm_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LayerNormGradKernel,

@@ -104,7 +104,7 @@ void CalAuxLossGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(cal_aux_loss_grad,
+PD_REGISTER_PLUGIN_KERNEL(cal_aux_loss_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::CalAuxLossGradKernel,

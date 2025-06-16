@@ -253,7 +253,6 @@ target_link_libraries(
           protobuf
           external_error_proto
           cuinfer
-          # May cause a segment fault when the program exits
           nccl)
 
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})

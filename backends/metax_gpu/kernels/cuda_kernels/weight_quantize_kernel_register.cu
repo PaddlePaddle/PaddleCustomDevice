@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/layer_norm_cuda_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/gpu/weight_quantize_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/impl/weight_quantize_kernel_gpu_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    fused_rms_norm_ext, metax_gpu, ALL_LAYOUT, phi::RMSLnFwd, float, double) {}
-
-PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_ext_grad,
+PD_CUSTOM_KERNEL_REGISTER(weight_quantize,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::RMSLnBwd,
-                          float,
-                          double) {}
+                          phi::WeightQuantizeKernel,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          int8_t) {}

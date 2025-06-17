@@ -18,6 +18,8 @@
 # export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
 # export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
 # export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
-export PYTHONPATH=../../../../PaddleCustomDevice/Paddle/test/legacy_test/:/../../../../PaddleCustomDevice/Paddle/test/
+pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+# export PYTHONPATH=../../../../PaddleCustomDevice/Paddle/test/legacy_test/:/../../../../PaddleCustomDevice/Paddle/test/:../../../../PaddleCustomDevice/python:../../../../PaddleCustomDevice/python/tests/
+export PYTHONPATH="../../../../PaddleCustomDevice/Paddle/test/legacy_test/:/../../../../PaddleCustomDevice/Paddle/test/:/m01097/PaddleCustomDevice/python:/m01097/PaddleCustomDevice/python/tests/"
 mkdir -p build && cd build && cmake ..
 make run_tests

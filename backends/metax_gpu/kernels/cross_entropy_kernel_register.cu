@@ -1451,15 +1451,15 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_REGISTER_KERNEL(cross_entropy_with_softmax,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::CrossEntropyWithSoftmaxKernel,
-                   float,
-                   double,
-                   phi::dtype::float16) {}
+// PD_REGISTER_KERNEL(cross_entropy_with_softmax,
+//                    GPU,
+//                    ALL_LAYOUT,
+//                    phi::CrossEntropyWithSoftmaxKernel,
+//                    float,
+//                    double,
+//                    phi::dtype::float16) {}
 
-PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax,
+PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxKernel,

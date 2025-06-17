@@ -11,15 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/layer_norm_cuda_kernel.cu"  //NOLINT
-
-PD_CUSTOM_KERNEL_REGISTER(
-    fused_rms_norm_ext, metax_gpu, ALL_LAYOUT, phi::RMSLnFwd, float, double) {}
-
-PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_ext_grad,
+#include "paddle/phi/kernels/diagonal_kernel.h"
+#include "paddle/phi/kernels/funcs/diagonal.h"
+PD_CUSTOM_KERNEL_REGISTER(diagonal,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::RMSLnBwd,
+                          phi::DiagonalKernel,
                           float,
-                          double) {}
+                          double,
+                          int,
+                          int64_t,
+                          bool,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}

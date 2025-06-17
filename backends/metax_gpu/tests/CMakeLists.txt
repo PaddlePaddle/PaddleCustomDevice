@@ -5,7 +5,7 @@ find_package(Python REQUIRED COMPONENTS Interpreter)
 
 add_custom_target(
   run_tests
-  COMMAND pytest ${CMAKE_SOURCE_DIR}/unittest/
+  COMMAND pytest ${CMAKE_SOURCE_DIR}/error_test/
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   COMMENT "Running unit tests with pytest")
 

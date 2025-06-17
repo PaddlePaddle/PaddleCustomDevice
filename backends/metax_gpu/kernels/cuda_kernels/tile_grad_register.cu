@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,15 +11,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/legacy/gpu/layer_norm_cuda_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/impl/tile_grad_kernel_impl.h"
+#include "paddle/phi/kernels/tile_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(
-    fused_rms_norm_ext, metax_gpu, ALL_LAYOUT, phi::RMSLnFwd, float, double) {}
-
-PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_ext_grad,
+PD_CUSTOM_KERNEL_REGISTER(tile_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::RMSLnBwd,
+                          phi::TileGradKernel,
+                          bool,
                           float,
-                          double) {}
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

@@ -149,6 +149,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu
+  ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_identity_kernel.cu
@@ -198,6 +199,9 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/take_along_axis_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/take_along_axis_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tile_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tile_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/diagonal_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/diagonal_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/logsumexp_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/uniform_inplace_grad_kernel.cu
@@ -243,8 +247,10 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tril_triu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unbind_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax_impl.h
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_grad_kernel.cu
+  # ${CMAKE_SOURCE_DIR}/kernels/gpudnn/softmax.cu
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/soft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_grad_kernel.cu
@@ -269,10 +275,10 @@ file(
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
+  ${CMAKE_SOURCE_DIR}/kernels/layer_norm_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_kernel.cu
-  ${CMAKE_SOURCE_DIR}/kernels/flashattn.cc
-  ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu)
+  ${CMAKE_SOURCE_DIR}/kernels/flashattn.cc)
 
 list(
   REMOVE_ITEM
@@ -291,6 +297,9 @@ file(
   GLOB
   ERNIE_CORE_SRCS
   # ernie-core
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/cal_aux_loss_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/expand_modality_expert_id_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/gpu/int_bincount_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_p_sampling_kernel.cu

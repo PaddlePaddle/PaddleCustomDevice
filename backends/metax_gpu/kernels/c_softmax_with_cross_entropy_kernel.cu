@@ -372,15 +372,15 @@ struct CSoftmaxWithCrossEntropyFunctor<phi::GPUContext, T> {
 
 }  // namespace phi
 
-PD_REGISTER_KERNEL(c_softmax_with_cross_entropy,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::CSoftmaxWithCrossEntropyKernel,
-                   float,
-                   double,
-                   phi::dtype::float16) {}
+// PD_REGISTER_KERNEL(c_softmax_with_cross_entropy,
+//                    GPU,
+//                    ALL_LAYOUT,
+//                    phi::CSoftmaxWithCrossEntropyKernel,
+//                    float,
+//                    double,
+//                    phi::dtype::float16) {}
 
-PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy,
+PD_REGISTER_PLUGIN_KERNEL(c_softmax_with_cross_entropy,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::CSoftmaxWithCrossEntropyKernel,

@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "flash_attn_utils.h"
-#include "glog/logging.h"  // For VLOG()
+#include "flash_attn_utils.h"  // NOLINT
+#include "glog/logging.h"      // For VLOG()
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -288,7 +288,7 @@ void FlashAttnGradKernel(const Context& ctx,
 //   kernel->InputAt(5).SetBackend(phi::Backend::ALL_BACKEND);  // seed_offset
 // }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded_grad,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedGradKernel_,
@@ -297,7 +297,7 @@ PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded_grad,
   kernel->InputAt(7).SetBackend(phi::Backend::ALL_BACKEND);  // seed_offset
 }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn_grad,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnGradKernel,

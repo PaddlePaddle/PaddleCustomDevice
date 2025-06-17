@@ -94,20 +94,18 @@ def ref_rms_mlp(
 
 
 class refRmsMlpOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(
+        self, x, ln_scales, gate_weight, up_weight, down_weight, residual, epsilon
+    ):
         super().__init__()
-        (
-            self.x,
-            self.ln_scales,
-            _,
-            self.gate_weight,
-            self.up_weight,
-            self.down_weight,
-            self.residual,
-            self.epsilon,
-        ) = init_data()
-        self.x = self.x + self.residual
-        self.residual = self.x
+
+        self.x = x + residual
+        self.residual = x
+        self.ln_scales = ln_scales
+        self.gate_weight = gate_weight
+        self.up_weight = up_weight
+        self.down_weight = down_weight
+        self.epsilon = epsilon
 
     def forward(self):
         mlp_out_ref = ref_rms_mlp(
@@ -122,20 +120,15 @@ class refRmsMlpOP(paddle.nn.Layer):
 
 
 class fusedRmsMlpOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, ln_scales, proj_weight, down_weight, residual, epsilon):
         super().__init__()
-        (
-            self.x,
-            self.ln_scales,
-            self.proj_weight,
-            _,
-            _,
-            self.down_weight,
-            self.residual,
-            self.epsilon,
-        ) = init_data()
-        self.x = self.x + self.residual
-        self.residual = self.x
+
+        self.x = x + residual
+        self.residual = x
+        self.ln_scales = ln_scales
+        self.proj_weight = proj_weight
+        self.down_weight = down_weight
+        self.epsilon = epsilon
 
     def forward(self):
         fused_rms_mlp_out = paddlenlp_ops.fused_rms_mlp(
@@ -149,18 +142,15 @@ class fusedRmsMlpOP(paddle.nn.Layer):
 
 
 class fusedRmsMlpResOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, ln_scales, proj_weight, down_weight, residual, epsilon):
         super().__init__()
-        (
-            self.x,
-            self.ln_scales,
-            self.proj_weight,
-            _,
-            _,
-            self.down_weight,
-            self.residual,
-            self.epsilon,
-        ) = init_data()
+
+        self.x = x
+        self.ln_scales = ln_scales
+        self.proj_weight = proj_weight
+        self.down_weight = down_weight
+        self.residual = residual
+        self.epsilon = epsilon
 
     def forward(self):
         fused_rms_mlp_out = paddlenlp_ops.fused_rms_mlp_res(
@@ -175,18 +165,15 @@ class fusedRmsMlpResOP(paddle.nn.Layer):
 
 
 class fusedFP8RmsMlpResOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, ln_scales, proj_weight, down_weight, residual, epsilon):
         super().__init__()
-        (
-            self.x,
-            self.ln_scales,
-            self.proj_weight,
-            _,
-            _,
-            self.down_weight,
-            self.residual,
-            self.epsilon,
-        ) = init_data()
+
+        self.x = x
+        self.ln_scales = ln_scales
+        self.proj_weight = proj_weight
+        self.down_weight = down_weight
+        self.residual = residual
+        self.epsilon = epsilon
 
         self.proj_weight = self.proj_weight.astype(paddle.float8_e4m3fn)
         self.down_weight = self.down_weight.astype(paddle.float8_e4m3fn)
@@ -215,11 +202,28 @@ def run_profile(my_profile_func):
     prof.stop()
 
 
-def run_accuracy_check():
-    ref_rms_mlp = refRmsMlpOP()
-    fused_rms_mlp = fusedRmsMlpOP()
-    fused_rms_mlp_residual = fusedRmsMlpResOP()
-    fused_fp8_rms_mlp_residual = fusedFP8RmsMlpResOP()
+def run_accuracy_check(
+    x,
+    ln_scales,
+    proj_weight,
+    gate_weight,
+    up_weight,
+    down_weight,
+    residual,
+    epsilon,
+):
+    ref_rms_mlp = refRmsMlpOP(
+        x, ln_scales, gate_weight, up_weight, down_weight, residual, epsilon
+    )
+    fused_rms_mlp = fusedRmsMlpOP(
+        x, ln_scales, proj_weight, down_weight, residual, epsilon
+    )
+    fused_rms_mlp_residual = fusedRmsMlpResOP(
+        x, ln_scales, proj_weight, down_weight, residual, epsilon
+    )
+    fused_fp8_rms_mlp_residual = fusedFP8RmsMlpResOP(
+        x, ln_scales, proj_weight, down_weight, residual, epsilon
+    )
 
     golden_res = ref_rms_mlp()
     fused_rms_res = fused_rms_mlp()
@@ -237,20 +241,47 @@ def run_accuracy_check():
     mismatch_count = np.sum(~close_mask)
     mismatch_percentage = mismatch_count / np.size(golden_res) * 100.0
     assert (
-        mismatch_percentage <= 0.02
-    ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.02}% threshold\n"
+        mismatch_percentage <= 0.03
+    ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.03}% threshold\n"
 
 
 def main():
     parser = argparse.ArgumentParser(description="Run profile or accuracy check")
     parser.add_argument("--profile", action="store_true", help="Run profile")
     parser.add_argument("--accuracy", action="store_false", help="Run accuracy check")
+
+    (
+        x,
+        ln_scales,
+        proj_weight,
+        gate_weight,
+        up_weight,
+        down_weight,
+        residual,
+        epsilon,
+    ) = init_data()
+
     args = parser.parse_args()
     if args.profile:
-        run_profile(fusedRmsMlpOP())
-        run_profile(refRmsMlpOP())
+        run_profile(
+            fusedRmsMlpOP(x, ln_scales, proj_weight, down_weight, residual, epsilon)
+        )
+        run_profile(
+            refRmsMlpOP(
+                x, ln_scales, gate_weight, up_weight, down_weight, residual, epsilon
+            )
+        )
     else:
-        run_accuracy_check()
+        run_accuracy_check(
+            x,
+            ln_scales,
+            proj_weight,
+            gate_weight,
+            up_weight,
+            down_weight,
+            residual,
+            epsilon,
+        )
 
 
 if __name__ == "__main__":

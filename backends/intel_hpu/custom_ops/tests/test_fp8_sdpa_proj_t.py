@@ -14,6 +14,8 @@
 
 import paddle
 import paddlenlp_ops
+import unittest
+from parameterized import parameterized
 
 import os
 import math
@@ -92,86 +94,119 @@ def ref_result(
     return out_linear_out
 
 
-head_dim = 32
-num_head = 8
-kv_num_head = num_head
-# kv_num_head = 4
-hidden_size = num_head * head_dim
-
-batch_size = 4
-seq_len = 16
-kv_seq_len = 16
-max_seq_length = 2048
-
-scaling_factor = head_dim**-0.5
+HEAD_DIM = [32]
+NUM_HEAD = [8]
+BATCH_SIZE = [4, 8, 16]
+SEQ_LEN = [16]
+KV_SEQ_LEN = [16]
+MAX_SEQ_LENGTH = [2048]
 
 
-def main():
-
-    query_states = paddle.rand(
-        [batch_size, seq_len, num_head, head_dim], dtype=paddle.float32
-    ).to(paddle.bfloat16)
-    key_states = paddle.rand(
-        [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
-    ).to(paddle.bfloat16)
-    value_states = paddle.rand(
-        [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
-    ).to(paddle.bfloat16)
-
-    linear_weights = paddle.rand([hidden_size, hidden_size], dtype=paddle.float32).to(
-        paddle.bfloat16
+class FP8_SDPA_Proj_T_Test(unittest.TestCase):
+    @parameterized.expand(
+        [
+            (
+                head_dim,
+                num_head,
+                batch_size,
+                seq_len,
+                kv_seq_len,
+                max_seq_length,
+            )
+            for head_dim in HEAD_DIM
+            for num_head in NUM_HEAD
+            for batch_size in BATCH_SIZE
+            for seq_len in SEQ_LEN
+            for kv_seq_len in KV_SEQ_LEN
+            for max_seq_length in MAX_SEQ_LENGTH
+        ]
     )
+    def test(
+        self,
+        head_dim,
+        num_head,
+        batch_size,
+        seq_len,
+        kv_seq_len,
+        max_seq_length,
+    ):
+        kv_num_head = num_head
+        hidden_size = num_head * head_dim
+        scaling_factor = head_dim**-0.5
 
-    scaleQ, scaleQInv = get_scale_values(query_states)
-    scaleK, scaleKInv = get_scale_values(key_states)
-    scaleV, scaleVInv = get_scale_values(value_states)
+        query_states = paddle.rand(
+            [batch_size, seq_len, num_head, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
+        key_states = paddle.rand(
+            [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
+        value_states = paddle.rand(
+            [batch_size, kv_seq_len, kv_num_head, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
 
-    with paddle.amp.auto_cast(dtype="bfloat16", enable=True):
-        amax_s_ref = get_max_weight(query_states, key_states, scale=None)
+        linear_weights = paddle.rand(
+            [hidden_size, hidden_size], dtype=paddle.float32
+        ).to(paddle.bfloat16)
 
-    scaleS, scaleSInv = get_scale_values(amax_s_ref, is_t_amax=True)
+        scaleQ, scaleQInv = get_scale_values(query_states)
+        scaleK, scaleKInv = get_scale_values(key_states)
+        scaleV, scaleVInv = get_scale_values(value_states)
 
-    q_fp8 = (scaleQ * query_states).astype(paddle.float8_e4m3fn)
-    kv_fp8 = paddle.stack([scaleK * key_states, scaleV * value_states], axis=0).astype(
-        paddle.float8_e4m3fn
-    )
+        with paddle.amp.auto_cast(dtype="bfloat16", enable=True):
+            amax_s_ref = get_max_weight(query_states, key_states, scale=None)
 
-    linear_weights_fp8 = linear_weights.astype(paddle.float8_e4m3fn)
+        scaleS, scaleSInv = get_scale_values(amax_s_ref, is_t_amax=True)
 
-    d_scale_q = paddle.to_tensor([scaleQInv])
-    d_scale_k = paddle.to_tensor([scaleKInv])
-    d_scale_v = paddle.to_tensor([scaleVInv])
-    q_scale_s = paddle.to_tensor([scaleS])
-    q_scale_o = None
-    d_scale_s = paddle.to_tensor([scaleSInv])
+        q_fp8 = (scaleQ * query_states).astype(paddle.float8_e4m3fn)
+        kv_fp8 = paddle.stack(
+            [scaleK * key_states, scaleV * value_states], axis=0
+        ).astype(paddle.float8_e4m3fn)
 
-    out_linear_out_ref = ref_result(
-        query_states,
-        key_states,
-        value_states,
-        None,
-        linear_weights,
-        scaling_factor,
-    )
+        linear_weights_fp8 = linear_weights.astype(paddle.float8_e4m3fn)
 
-    out_linear_t_op = paddlenlp_ops.fused_fp8_sdpa_proj_t(
-        q_fp8,
-        kv_fp8,
-        None,
-        None,
-        linear_weights_fp8,
-        d_scale_q,
-        d_scale_k,
-        d_scale_v,
-        q_scale_s,
-        q_scale_o,
-        d_scale_s,
-        scaling_factor,
-        causal=True,
-    )
+        d_scale_q = paddle.to_tensor([scaleQInv])
+        d_scale_k = paddle.to_tensor([scaleKInv])
+        d_scale_v = paddle.to_tensor([scaleVInv])
+        q_scale_s = paddle.to_tensor([scaleS])
+        q_scale_o = None
+        d_scale_s = paddle.to_tensor([scaleSInv])
 
-    np.testing.assert_allclose(out_linear_out_ref, out_linear_t_op, rtol=1e-2)
+        out_linear_out_ref = ref_result(
+            query_states,
+            key_states,
+            value_states,
+            None,
+            linear_weights,
+            scaling_factor,
+        )
+
+        out_linear_t_op = paddlenlp_ops.fused_fp8_sdpa_proj_t(
+            q_fp8,
+            kv_fp8,
+            None,
+            None,
+            linear_weights_fp8,
+            d_scale_q,
+            d_scale_k,
+            d_scale_v,
+            q_scale_s,
+            q_scale_o,
+            d_scale_s,
+            scaling_factor,
+            causal=True,
+        )
+
+        np.testing.assert_allclose(out_linear_out_ref, out_linear_t_op, rtol=1e-2)
 
 
 if __name__ == "__main__":
-    main()
+    # Create a test suite
+    suite = unittest.TestLoader().loadTestsFromTestCase(FP8_SDPA_Proj_T_Test)
+
+    # Create a test runner with the desired verbosity level
+    runner = unittest.TextTestRunner(
+        verbosity=2
+    )  # Set verbosity to 2 for detailed output
+
+    # Run the test suite
+    runner.run(suite)

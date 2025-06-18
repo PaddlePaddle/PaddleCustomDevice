@@ -14,7 +14,8 @@
 
 import os
 import sys
-import pytest
+import unittest
+from parameterized import parameterized
 
 import logging
 import numpy as np
@@ -23,6 +24,9 @@ import paddle
 import paddle.nn.functional as F
 import paddle.distributed as dist
 import paddlenlp_ops
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 1)
+paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
 
 
 class FlushStreamHandler(logging.StreamHandler):
@@ -238,8 +242,6 @@ def generate_moe_params_static(
         paddle_dtype = paddle.bfloat16
     else:
         raise ValueError(f"Unsupported dtype: {dtype}")
-
-    print(f"`generate_moe_params_static` `tp_rank`: {tp_rank}, `tp_size`: {tp_size}")
 
     # Split weights for paddle_data (TP)
     ffn_dim_per_tp = ffn_dim // tp_size
@@ -554,175 +556,216 @@ EP_SIZE = [1]
 TP_SIZE = [2]
 
 
-@pytest.mark.parametrize("num_tokens", NUM_TOKENS)
-@pytest.mark.parametrize("hidden_dim", HIDDEN_DIMS)
-@pytest.mark.parametrize("ffn_dim", FFN_DIMS)
-@pytest.mark.parametrize("top_k", TOP_K)
-@pytest.mark.parametrize("num_experts", NUM_EXPERTS)
-@pytest.mark.parametrize("slice_max_expert", SLICE_MAX_EXPERT)
-@pytest.mark.parametrize("fused_weights", FUSED_WEIGHTS)
-@pytest.mark.parametrize("activation", ACTIVATIONS)
-@pytest.mark.parametrize("permuted_weights", PERMUTED_WEIGHTS)
-@pytest.mark.parametrize("compute_amax", COMPUTE_AMAX)
-@pytest.mark.parametrize("dtype", DTYPES)
-@pytest.mark.parametrize("ep_size", EP_SIZE)
-@pytest.mark.parametrize("tp_size", TP_SIZE)
-def test_mixture_of_experts(
-    num_tokens,
-    hidden_dim,
-    ffn_dim,
-    top_k,
-    num_experts,
-    slice_max_expert,
-    fused_weights,
-    activation,
-    permuted_weights,
-    compute_amax,
-    dtype,
-    ep_size,
-    tp_size,
-):
-    (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group) = init_distributed(
-        ep_size, tp_size
-    )
-    logger = setup_logging(ep_rank=ep_rank, tp_rank=tp_rank)
-    logger.info(
-        f"\n\n======================================="
-        f"`test_mixture_of_experts`: \n"
-        f" num_tokens={num_tokens}, hidden_dim={hidden_dim}, ffn_dim={ffn_dim}, \n"
-        f" top_k={top_k}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, \n"
-        f" fused_weights={fused_weights}, permuted_weights={permuted_weights}, activation={activation}, \n"
-        f" compute_amax={compute_amax}, dtype={dtype}, \n"
-        f" ep_size={ep_size}, tp_size={tp_size}, \n",
-        extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
-    )
-
-    paddle.seed(ep_rank * 100 + tp_rank + 1024)
-    device = "intel_hpu"
-
-    if ep_size == 1 and tp_size == 1:
-        numpy_data, paddle_data = generate_moe_params(
-            num_tokens=num_tokens,
-            hidden_dim=hidden_dim,
-            ffn_dim=ffn_dim,
-            top_k=top_k,
-            num_experts=num_experts,
-            permuted_weights=permuted_weights,
-            dtype=dtype,
-        )
-    else:
-        numpy_data, paddle_data = generate_moe_params_static(
-            num_tokens=num_tokens,
-            hidden_dim=hidden_dim,
-            ffn_dim=ffn_dim,
-            top_k=top_k,
-            num_experts=num_experts,
-            permuted_weights=permuted_weights,
-            dtype=dtype,
-            tp_rank=tp_rank,
-            tp_size=tp_size,
-        )
-
-    (
-        hidden_states_np,
-        router_weights_np,
-        routing_table_np,
-        expert_weights_np,
-    ) = numpy_data
-    (
-        hidden_states_pd,
-        router_weights_pd,
-        routing_table_pd,
-        expert_weights_pd,
-    ) = paddle_data
-
-    # CPU Reference Implementation
-    mixtral_ref_np = MixtralSparseMoeRef_Numpy(
-        hidden_dim=hidden_dim,
-        num_experts=num_experts,
-        expert_weights=expert_weights_np,
-        activation=activation,
-    )
-
-    final_hidden_states_ref_np, amax_per_expert_ref_np = mixtral_ref_np.forward(
-        hidden_states=hidden_states_np,
-        router_weights=router_weights_np,
-        routing_table=routing_table_np,
-    )
-
-    print("===== Mixtral Moe numpy ref Output =====")
-    print("Final Hidden States (ref):")
-    print(f"{final_hidden_states_ref_np}, shape:{final_hidden_states_ref_np.shape}")
-    print("AMAX per Expert (ref):")
-    print(amax_per_expert_ref_np)
-    print("=========================================")
-
-    # paddlenlp_ops.moe operator
-    fused_moe = FusedMoE(
-        num_experts=num_experts,
-        expert_weights=expert_weights_pd,
-        activation=activation,
-        permuted_weights=permuted_weights,
-        fused_weights=fused_weights,
-        slice_max_expert=slice_max_expert,
-        logger=logger,
-        ep_rank=ep_rank,
-        ep_size=ep_size,
-        ep_group=ep_group,
-        tp_rank=tp_rank,
-        tp_size=tp_size,
-        tp_group=tp_group,
-    )
-
-    final_hidden_states, amax_per_expert = fused_moe.forward(
-        hidden_states=hidden_states_pd,
-        router_weights=router_weights_pd,
-        routing_table=routing_table_pd,
-        compute_amax=compute_amax,
-    )
-    print("\n===== paddlenlp_ops.mixture_of_experts Output =====")
-    print("Final Hidden States (paddlenlp_ops.mixture_of_experts):")
-    print(final_hidden_states)
-    print("AMAX per Expert (paddlenlp_ops.mixture_of_experts):")
-    print(amax_per_expert)
-    print("=========================================")
-
-    required_similarity = 0.98
-    similar = check_using_cosine_similarity(
-        final_hidden_states.to("float32").cpu().numpy(),
-        final_hidden_states_ref_np,
-        required_similarity,
-        ep_rank=ep_rank,
-        tp_rank=tp_rank,
-        logger=logger,
-    )
-    assert similar, f"Cosine similarity check failed: {similar}"
-
-    if compute_amax:
-        assert device in str(amax_per_expert.place)
-        mask = amax_per_expert_ref_np != 0
-        fused_op_vals = amax_per_expert.to("cpu").numpy()[mask]
-        ref_vals = amax_per_expert_ref_np[mask]
-        print(f"amax_per_expert: {fused_op_vals}, ref: {ref_vals}")
-        rtol = 0.01
-        atol = 0.01
-        if mask.any():
-            logger.info(
-                f"Comparing amax: \n"
-                f"fused_moe={fused_op_vals.tolist()}, \n"
-                f"ref_mixtral_moe={ref_vals.tolist()} \n",
-                extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
+class MoETest(unittest.TestCase):
+    @parameterized.expand(
+        [
+            (
+                num_tokens,
+                hidden_dim,
+                ffn_dim,
+                top_k,
+                num_experts,
+                slice_max_expert,
+                fused_weights,
+                activation,
+                permuted_weights,
+                compute_amax,
+                dtype,
+                ep_size,
+                tp_size,
             )
-            np.testing.assert_allclose(fused_op_vals, ref_vals, rtol=rtol, atol=atol)
-
-    if ep_size > 1 or tp_size > 1:
-        logger.info(
-            "Destroying communication groups",
+            for num_tokens in NUM_TOKENS
+            for hidden_dim in HIDDEN_DIMS
+            for ffn_dim in FFN_DIMS
+            for top_k in TOP_K
+            for num_experts in NUM_EXPERTS
+            for slice_max_expert in SLICE_MAX_EXPERT
+            for fused_weights in FUSED_WEIGHTS
+            for activation in ACTIVATIONS
+            for permuted_weights in PERMUTED_WEIGHTS
+            for compute_amax in COMPUTE_AMAX
+            for dtype in DTYPES
+            for ep_size in EP_SIZE
+            for tp_size in TP_SIZE
+        ]
+    )
+    def test_mixture_of_experts(
+        self,
+        num_tokens,
+        hidden_dim,
+        ffn_dim,
+        top_k,
+        num_experts,
+        slice_max_expert,
+        fused_weights,
+        activation,
+        permuted_weights,
+        compute_amax,
+        dtype,
+        ep_size,
+        tp_size,
+    ):
+        (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group) = init_distributed(
+            ep_size, tp_size
+        )
+        logger = setup_logging(ep_rank=ep_rank, tp_rank=tp_rank)
+        logger.debug(
+            f"\n\n======================================="
+            f"`test_mixture_of_experts`: \n"
+            f" num_tokens={num_tokens}, hidden_dim={hidden_dim}, ffn_dim={ffn_dim}, \n"
+            f" top_k={top_k}, num_experts={num_experts}, slice_max_expert={slice_max_expert}, \n"
+            f" fused_weights={fused_weights}, permuted_weights={permuted_weights}, activation={activation}, \n"
+            f" compute_amax={compute_amax}, dtype={dtype}, \n"
+            f" ep_size={ep_size}, tp_size={tp_size}, \n",
             extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
         )
-        dist.destroy_process_group(ep_group)
-        dist.destroy_process_group(tp_group)
+
+        paddle.seed(ep_rank * 100 + tp_rank + 1024)
+        device = "intel_hpu"
+        if ep_size == 1 and tp_size == 1:
+            numpy_data, paddle_data = generate_moe_params(
+                num_tokens=num_tokens,
+                hidden_dim=hidden_dim,
+                ffn_dim=ffn_dim,
+                top_k=top_k,
+                num_experts=num_experts,
+                permuted_weights=permuted_weights,
+                dtype=dtype,
+            )
+        else:
+            numpy_data, paddle_data = generate_moe_params_static(
+                num_tokens=num_tokens,
+                hidden_dim=hidden_dim,
+                ffn_dim=ffn_dim,
+                top_k=top_k,
+                num_experts=num_experts,
+                permuted_weights=permuted_weights,
+                dtype=dtype,
+                tp_rank=tp_rank,
+                tp_size=tp_size,
+            )
+
+        (
+            hidden_states_np,
+            router_weights_np,
+            routing_table_np,
+            expert_weights_np,
+        ) = numpy_data
+        (
+            hidden_states_pd,
+            router_weights_pd,
+            routing_table_pd,
+            expert_weights_pd,
+        ) = paddle_data
+
+        # CPU Reference Implementation
+        mixtral_ref_np = MixtralSparseMoeRef_Numpy(
+            hidden_dim=hidden_dim,
+            num_experts=num_experts,
+            expert_weights=expert_weights_np,
+            activation=activation,
+        )
+
+        final_hidden_states_ref_np, amax_per_expert_ref_np = mixtral_ref_np.forward(
+            hidden_states=hidden_states_np,
+            router_weights=router_weights_np,
+            routing_table=routing_table_np,
+        )
+
+        logger.debug(
+            "\n===== Mixtral Moe numpy ref Output =====\n",
+            extra={
+                "ep_rank": ep_rank,
+                "tp_rank": tp_rank,
+                "amax_per_expert_ref_np": amax_per_expert_ref_np,
+                "final_hidden_states_ref_np": final_hidden_states_ref_np,
+                "shape": final_hidden_states_ref_np.shape,
+            },
+        )
+
+        # paddlenlp_ops.moe operator
+        fused_moe = FusedMoE(
+            num_experts=num_experts,
+            expert_weights=expert_weights_pd,
+            activation=activation,
+            permuted_weights=permuted_weights,
+            fused_weights=fused_weights,
+            slice_max_expert=slice_max_expert,
+            logger=logger,
+            ep_rank=ep_rank,
+            ep_size=ep_size,
+            ep_group=ep_group,
+            tp_rank=tp_rank,
+            tp_size=tp_size,
+            tp_group=tp_group,
+        )
+
+        final_hidden_states, amax_per_expert = fused_moe.forward(
+            hidden_states=hidden_states_pd,
+            router_weights=router_weights_pd,
+            routing_table=routing_table_pd,
+            compute_amax=compute_amax,
+        )
+        logger.debug(
+            "\n===== paddlenlp_ops.mixture_of_experts Output =====\n",
+            extra={
+                "ep_rank": ep_rank,
+                "tp_rank": tp_rank,
+                "amax_per_expert": amax_per_expert,
+                "final_hidden_states": final_hidden_states,
+            },
+        )
+
+        required_similarity = 0.98
+        similar = check_using_cosine_similarity(
+            final_hidden_states.to("float32").cpu().numpy(),
+            final_hidden_states_ref_np,
+            required_similarity,
+            ep_rank=ep_rank,
+            tp_rank=tp_rank,
+            logger=logger,
+        )
+        assert similar, f"Cosine similarity check failed: {similar}"
+
+        if compute_amax:
+            assert device in str(amax_per_expert.place)
+            mask = amax_per_expert_ref_np != 0
+            fused_op_vals = amax_per_expert.to("cpu").numpy()[mask]
+            ref_vals = amax_per_expert_ref_np[mask]
+            logger.debug(f"amax_per_expert: {fused_op_vals}, ref: {ref_vals}")
+            rtol = 0.01
+            atol = 0.01
+            if mask.any():
+                logger.info(
+                    f"Comparing amax: \n"
+                    f"fused_moe={fused_op_vals.tolist()}, \n"
+                    f"ref_mixtral_moe={ref_vals.tolist()} \n",
+                    extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
+                )
+                np.testing.assert_allclose(
+                    fused_op_vals, ref_vals, rtol=rtol, atol=atol
+                )
+
+            if ep_size > 1 or tp_size > 1:
+                logger.info(
+                    "Destroying communication groups",
+                    extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
+                )
+                dist.destroy_process_group(ep_group)
+                dist.destroy_process_group(tp_group)
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    # Set logging level to DEBUG to see debug messages
+    logging.getLogger().setLevel(logging.WARNING)
+
+    # Create a test suite
+    suite = unittest.TestLoader().loadTestsFromTestCase(MoETest)
+
+    # Create a test runner with the desired verbosity level
+    runner = unittest.TextTestRunner(
+        verbosity=2
+    )  # Set verbosity to 2 for detailed output
+
+    # Run the test suite
+    runner.run(suite)

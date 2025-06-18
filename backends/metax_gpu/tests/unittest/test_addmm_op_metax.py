@@ -21,6 +21,8 @@ import paddle
 from paddle import base
 from paddle.base import Program, core, program_guard
 
+paddle.enable_static()
+
 
 class TestAddMMOp(OpTest):
     # test basic

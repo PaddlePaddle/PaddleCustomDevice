@@ -31,9 +31,7 @@ def init_data(
     dtype="bfloat16",
 ):
     with paddle.no_grad():
-        x = paddle.rand(
-            [batch_size, seqence_len, hidden_size], dtype=paddle.float32
-        ).to(paddle.bfloat16)
+        x = paddle.rand([batch_size, seqence_len, hidden_size], dtype=dtype)
 
         gate_weight = paddle.normal(
             mean=0.0, std=0.02, shape=[hidden_size, intermediate_size]
@@ -72,9 +70,12 @@ def ref_mlp(
 
 
 class refMlpOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, gate_weight=None, up_weight=None, down_weight=None):
         super().__init__()
-        self.x, self.gate_weight, self.up_weight, self.down_weight, _ = init_data()
+        self.x = x
+        self.gate_weight = gate_weight
+        self.up_weight = up_weight
+        self.down_weight = down_weight
 
     def forward(self):
         mlp_out_ref = ref_mlp(
@@ -87,9 +88,12 @@ class refMlpOP(paddle.nn.Layer):
 
 
 class fusedMlpOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, gate_weight=None, up_weight=None, down_weight=None):
         super().__init__()
-        self.x, self.gate_weight, self.up_weight, self.down_weight, _ = init_data()
+        self.x = x
+        self.gate_weight = gate_weight
+        self.up_weight = up_weight
+        self.down_weight = down_weight
 
     def forward(self):
         fused_mlp_out = paddlenlp_ops.fused_mlp(
@@ -102,9 +106,11 @@ class fusedMlpOP(paddle.nn.Layer):
 
 
 class fusedGateUpMlpOP(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, x, proj_weight=None, down_weight=None):
         super().__init__()
-        self.x, _, _, self.down_weight, self.proj_weight = init_data()
+        self.x = x
+        self.proj_weight = proj_weight
+        self.down_weight = down_weight
 
     def forward(self):
         fused_gateup_mlp_out = paddlenlp_ops.fused_mlp(
@@ -128,10 +134,10 @@ def run_profile(my_profile_func):
     prof.stop()
 
 
-def run_accuracy_check():
-    ref_mlp = refMlpOP()
-    fused_mlp = fusedMlpOP()
-    fused_gate_up_mlp = fusedGateUpMlpOP()
+def run_accuracy_check(x, gate_weight, up_weight, down_weight, proj_weight):
+    ref_mlp = refMlpOP(x, gate_weight, up_weight, down_weight)
+    fused_mlp = fusedMlpOP(x, gate_weight, up_weight, down_weight)
+    fused_gate_up_mlp = fusedGateUpMlpOP(x, proj_weight, down_weight)
 
     golden_res = ref_mlp()
     fused_res = fused_mlp()
@@ -146,12 +152,15 @@ def main():
     parser.add_argument("--profile", action="store_true", help="Run profile")
     parser.add_argument("--accuracy", action="store_true", help="Run accuracy check")
     args = parser.parse_args()
+
+    x, gate_weight, up_weight, down_weight, proj_weight = init_data()
+
     if args.profile:
-        run_profile(fusedGateUpMlpOP())
-        run_profile(fusedMlpOP())
-        run_profile(refMlpOP())
+        run_profile(fusedGateUpMlpOP(x, proj_weight, down_weight))
+        run_profile(fusedMlpOP(x, gate_weight, up_weight, down_weight))
+        run_profile(refMlpOP(x, gate_weight, up_weight, down_weight))
     else:
-        run_accuracy_check()
+        run_accuracy_check(x, gate_weight, up_weight, down_weight, proj_weight)
 
 
 if __name__ == "__main__":

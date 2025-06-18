@@ -26,12 +26,41 @@ struct FusedFlatPaParams {
   ns_GatherKernel::Params index_select_params;
   ns_Reduction::Params reduce_params;
   ns_IndexReduce::Params index_reduce_params;
+  bool use_fp8;
 };
 
-class FusedFlatPaMHAProj : public HpuFusedOperator {
+class FusedFlatPaBase : public HpuFusedOperator {
+ public:
+  explicit FusedFlatPaBase(const std::string& guid, bool is_eager)
+      : HpuFusedOperator(guid, is_eager) {}
+
+  template <typename T>
+  inline void AddNodeMixedPrecisionGemm(bool use_fp8,
+                                        ConvertTensors& ct,
+                                        int scale_x_index,
+                                        std::vector<synTensor> inputs,
+                                        std::vector<synTensor> outputs,
+                                        synGEMMParams gemm_params,
+                                        const std::string& suffix) {
+    if (use_fp8) {
+      synTensor scale_x = createTensorFromCT(&ct, scale_x_index);
+      synTensor scale_y = createTensorFromCT(&ct, scale_x_index + 1);
+      inputs.push_back(scale_x);
+      inputs.push_back(scale_y);
+      AddNodeFusedFp8Gemm<T>(
+          inputs, outputs, gemm_params, guid_ + "fused_fp8_gemm_" + suffix);
+    } else {
+      AddNodeBatchGemm(
+          inputs, outputs, gemm_params, guid_ + "batchgemm_" + suffix);
+    }
+  }
+};
+
+class FusedFlatPaMHAProj : public FusedFlatPaBase {
  public:
   explicit FusedFlatPaMHAProj(synDataType dtype)
-      : HpuFusedOperator("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
+      : FusedFlatPaBase("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
+
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedFlatPaParams params) {
     auto inputs = ct.GetTensors();
@@ -201,11 +230,13 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     q_k_dims.push_back(num_head);
     q_k_dims.push_back(1);
     q_k_dims.push_back(block_size);
+    // qk_scale here
     auto q_k = createTensorNoPresist("q_k", dtype_, q_k_dims);
     std::vector<synTensor> q_k_out;
     q_k_out.push_back(q_k);
 
-    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+    AddNodeMixedPrecisionGemm<T>(
+        params.use_fp8, ct, 8, q_k_in, q_k_out, gemm_params_f_t, "q_k");
 
     /*******************************/
 
@@ -352,8 +383,13 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     std::vector<synTensor> score_v_out;
     score_v_out.push_back(score_v);
 
-    AddNodeBatchGemm(
-        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+                                 ct,
+                                 10,
+                                 score_v_in,
+                                 score_v_out,
+                                 gemm_params_f_f,
+                                 "score_v");
 
     auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
     std::vector<synTensor> reduceSum_out;
@@ -510,18 +546,18 @@ class FusedFlatPaMHAProj : public HpuFusedOperator {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
-    AddNodeBatchGemm(
-        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+    AddNodeMixedPrecisionGemm<T>(
+        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params_f_f, "proj");
   }
 
  protected:
   synDataType dtype_;
 };
 
-class FusedFlatPaGQAProj : public HpuFusedOperator {
+class FusedFlatPaGQAProj : public FusedFlatPaBase {
  public:
   explicit FusedFlatPaGQAProj(synDataType dtype)
-      : HpuFusedOperator("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
+      : FusedFlatPaBase("fused_flatpa_proj_fwd_", false), dtype_(dtype) {}
   template <typename T>
   void AddNode(ConvertTensors& ct, FusedFlatPaParams params) {
     auto inputs = ct.GetTensors();
@@ -721,7 +757,8 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     std::vector<synTensor> q_k_out;
     q_k_out.push_back(q_k);
 
-    AddNodeBatchGemm(q_k_in, q_k_out, gemm_params_f_t, guid_ + "batchgemm_q_k");
+    AddNodeMixedPrecisionGemm<T>(
+        params.use_fp8, ct, 8, q_k_in, q_k_out, gemm_params_f_t, "q_k");
 
     /*******************************/
 
@@ -872,8 +909,13 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     std::vector<synTensor> score_v_out;
     score_v_out.push_back(score_v);
 
-    AddNodeBatchGemm(
-        score_v_in, score_v_out, gemm_params_f_f, guid_ + "batchgemm_score_v");
+    AddNodeMixedPrecisionGemm<T>(params.use_fp8,
+                                 ct,
+                                 10,
+                                 score_v_in,
+                                 score_v_out,
+                                 gemm_params_f_f,
+                                 "a_v");
 
     auto reduceSum = createTensorNoPresist("reduceSum", dtype_, block_max_dims);
     std::vector<synTensor> reduceSum_out;
@@ -1046,8 +1088,8 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
     std::vector<synTensor> proj_out;
     proj_out.push_back(linear_out);
 
-    AddNodeBatchGemm(
-        proj_in, proj_out, gemm_params_f_f, guid_ + "batchgemm_proj");
+    AddNodeMixedPrecisionGemm<T>(
+        params.use_fp8, ct, 12, proj_in, proj_out, gemm_params_f_f, "proj");
   }
 
  protected:
@@ -1055,32 +1097,59 @@ class FusedFlatPaGQAProj : public HpuFusedOperator {
 };
 
 template <typename T, typename Context>
-void FusedFlatPaProjKernel(const Context& dev_ctx,
-                           const phi::DenseTensor& query,
-                           const phi::DenseTensor& key_cache,
-                           const phi::DenseTensor& value_cache,
-                           const phi::DenseTensor& block_groups,
-                           const phi::DenseTensor& block_list,
-                           const phi::DenseTensor& block_mapping,
-                           const phi::DenseTensor& block_bias,
-                           const phi::DenseTensor& linear_weights,
-                           phi::DenseTensor* out_linear,
-                           const phi::Scalar& scaling_factor) {
+void FusedFlatPaProjKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& query,
+    const phi::DenseTensor& key_cache,
+    const phi::DenseTensor& value_cache,
+    const phi::DenseTensor& block_groups,
+    const phi::DenseTensor& block_list,
+    const phi::DenseTensor& block_mapping,
+    const phi::DenseTensor& block_bias,
+    const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& qk_scale_x,
+    const paddle::optional<phi::DenseTensor>& qk_scale_y,
+    const paddle::optional<phi::DenseTensor>& av_scale_x,
+    const paddle::optional<phi::DenseTensor>& av_scale_y,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_x,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_y,
+    phi::DenseTensor* out_linear,
+    const phi::Scalar& scaling_factor) {
   ConvertTensors ct;
   ct.Add(query);
   ct.Add(key_cache);
   ct.Add(value_cache);
   ct.Add(block_groups);
-  std::vector<DIMS> inputs_dims = ct.GetDims();
   ct.Add(block_list);
   ct.Add(block_mapping);
   ct.Add(block_bias);
   ct.Add(linear_weights);
   ct.Add(out_linear, false);
 
+  std::string recipe_name = "fused_flatpa_proj_fwd_";
+  bool use_fp8 = false;
+  if (qk_scale_x || qk_scale_y || av_scale_x || av_scale_y ||
+      o_linear_scale_x || o_linear_scale_y) {
+    if (!qk_scale_x || !qk_scale_y || !av_scale_x || !av_scale_y ||
+        !o_linear_scale_x || !o_linear_scale_y) {
+      throw std::runtime_error(
+          "Please specify all scale values for FusedFp8FlatPaProjKernel");
+    }
+
+    use_fp8 = true;
+    recipe_name = "fused_fp8_flatpa_proj_fwd_";
+    ct.Add(qk_scale_x.get());
+    ct.Add(qk_scale_y.get());
+    ct.Add(av_scale_x.get());
+    ct.Add(av_scale_y.get());
+    ct.Add(o_linear_scale_x.get());
+    ct.Add(o_linear_scale_y.get());
+  }
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>(
-      "fused_flatpa_proj_fwd_", inputs_dims, nullptr);
+      recipe_name.c_str(), inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
@@ -1093,6 +1162,7 @@ void FusedFlatPaProjKernel(const Context& dev_ctx,
     params.index_reduce_params.mode = INDEX_REDUCE_AMAX;
     params.index_reduce_params.include_self = true;
     params.index_reduce_params.axis = 0;
+    params.use_fp8 = use_fp8;
 
     std::vector<int64_t> query_dims = phi::vectorize<int64_t>(query.dims());
     std::vector<int64_t> key_cache_dims =
@@ -1122,17 +1192,24 @@ void FusedFlatPaProjKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 template <typename Context>
-void CallFusedFlatPaProjKernel(const Context& dev_ctx,
-                               const phi::DenseTensor& query,
-                               const phi::DenseTensor& key_cache,
-                               const phi::DenseTensor& value_cache,
-                               const phi::DenseTensor& block_groups,
-                               const phi::DenseTensor& block_list,
-                               const phi::DenseTensor& block_mapping,
-                               const phi::DenseTensor& block_bias,
-                               const phi::DenseTensor& linear_weights,
-                               phi::DenseTensor* out_linear,
-                               const phi::Scalar& scaling_factor) {
+void CallFusedFlatPaProjKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& query,
+    const phi::DenseTensor& key_cache,
+    const phi::DenseTensor& value_cache,
+    const phi::DenseTensor& block_groups,
+    const phi::DenseTensor& block_list,
+    const phi::DenseTensor& block_mapping,
+    const phi::DenseTensor& block_bias,
+    const phi::DenseTensor& linear_weights,
+    const paddle::optional<phi::DenseTensor>& qk_scale_x,
+    const paddle::optional<phi::DenseTensor>& qk_scale_y,
+    const paddle::optional<phi::DenseTensor>& av_scale_x,
+    const paddle::optional<phi::DenseTensor>& av_scale_y,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_x,
+    const paddle::optional<phi::DenseTensor>& o_linear_scale_y,
+    phi::DenseTensor* out_linear,
+    const phi::Scalar& scaling_factor) {
   if (query.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedFlatPaProjKernel<phi::dtype::float16>(dev_ctx,
                                                               query,
@@ -1143,6 +1220,12 @@ void CallFusedFlatPaProjKernel(const Context& dev_ctx,
                                                               block_mapping,
                                                               block_bias,
                                                               linear_weights,
+                                                              qk_scale_x,
+                                                              qk_scale_y,
+                                                              av_scale_x,
+                                                              av_scale_y,
+                                                              o_linear_scale_x,
+                                                              o_linear_scale_y,
                                                               out_linear,
                                                               scaling_factor);
   } else if (query.dtype() == phi::DataType::BFLOAT16) {
@@ -1155,6 +1238,12 @@ void CallFusedFlatPaProjKernel(const Context& dev_ctx,
                                                                block_mapping,
                                                                block_bias,
                                                                linear_weights,
+                                                               qk_scale_x,
+                                                               qk_scale_y,
+                                                               av_scale_x,
+                                                               av_scale_y,
+                                                               o_linear_scale_x,
+                                                               o_linear_scale_y,
                                                                out_linear,
                                                                scaling_factor);
   } else {
@@ -1211,6 +1300,12 @@ std::vector<paddle::Tensor> FusedFlatPaProj(
                             *block_mapping_tensor,
                             *block_bias_tensor,
                             *linear_weights_tensor,
+                            paddle::optional<phi::DenseTensor>(),
+                            paddle::optional<phi::DenseTensor>(),
+                            paddle::optional<phi::DenseTensor>(),
+                            paddle::optional<phi::DenseTensor>(),
+                            paddle::optional<phi::DenseTensor>(),
+                            paddle::optional<phi::DenseTensor>(),
                             out_linear.get(),
                             phi::Scalar(scaling_factor));
   return {paddle::Tensor(out_linear)};
@@ -1254,5 +1349,103 @@ PD_BUILD_OP(fused_flatpa_proj)
     .Outputs({"out_linear"})
     .Attrs({"scaling_factor: float"})
     .SetKernelFn(PD_KERNEL(FusedFlatPaProj))
+    .SetInferShapeFn(PD_INFER_SHAPE(FusedFlatPaProjShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(FusedFlatPaProjDtype));
+
+std::vector<paddle::Tensor> FusedFp8FlatPaProj(
+    const paddle::Tensor& query,
+    const paddle::Tensor& key_cache,
+    const paddle::Tensor& value_cache,
+    const paddle::Tensor& block_groups,
+    const paddle::Tensor& block_list,
+    const paddle::Tensor& block_mapping,
+    const paddle::Tensor& block_bias,
+    const paddle::Tensor& linear_weights,
+    const paddle::Tensor& qk_scale_x,
+    const paddle::Tensor& qk_scale_y,
+    const paddle::Tensor& av_scale_x,
+    const paddle::Tensor& av_scale_y,
+    const paddle::Tensor& o_linear_scale_x,
+    const paddle::Tensor& o_linear_scale_y,
+    float scaling_factor) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(query.place()));
+  auto query_tensor = static_cast<const phi::DenseTensor*>(query.impl().get());
+  auto key_cache_tensor =
+      static_cast<const phi::DenseTensor*>(key_cache.impl().get());
+  auto value_cache_tensor =
+      static_cast<const phi::DenseTensor*>(value_cache.impl().get());
+  auto block_groups_tensor =
+      static_cast<const phi::DenseTensor*>(block_groups.impl().get());
+  auto block_list_tensor =
+      static_cast<const phi::DenseTensor*>(block_list.impl().get());
+  auto block_mapping_tensor =
+      static_cast<const phi::DenseTensor*>(block_mapping.impl().get());
+  auto block_bias_tensor =
+      static_cast<const phi::DenseTensor*>(block_bias.impl().get());
+  auto linear_weights_tensor =
+      static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
+  auto qk_scale_x_tensor =
+      static_cast<const phi::DenseTensor*>(qk_scale_x.impl().get());
+  auto qk_scale_y_tensor =
+      static_cast<const phi::DenseTensor*>(qk_scale_y.impl().get());
+  auto av_scale_x_tensor =
+      static_cast<const phi::DenseTensor*>(av_scale_x.impl().get());
+  auto av_scale_y_tensor =
+      static_cast<const phi::DenseTensor*>(av_scale_y.impl().get());
+  auto o_linear_scale_x_tensor =
+      static_cast<const phi::DenseTensor*>(o_linear_scale_x.impl().get());
+  auto o_linear_scale_y_tensor =
+      static_cast<const phi::DenseTensor*>(o_linear_scale_y.impl().get());
+
+  // allocate memory on device.
+  int64_t batch_size = query.dims()[0];
+  int out_features = linear_weights.dims()[1];
+
+  std::shared_ptr<phi::DenseTensor> out_linear =
+      std::make_shared<phi::DenseTensor>();
+  out_linear->Resize(phi::make_ddim({batch_size, 1, out_features}));
+
+  dev_ctx->Alloc(out_linear.get(), query_tensor->dtype());
+
+  CallFusedFlatPaProjKernel(*dev_ctx,
+                            *query_tensor,
+                            *key_cache_tensor,
+                            *value_cache_tensor,
+                            *block_groups_tensor,
+                            *block_list_tensor,
+                            *block_mapping_tensor,
+                            *block_bias_tensor,
+                            *linear_weights_tensor,
+                            *qk_scale_x_tensor,
+                            *qk_scale_y_tensor,
+                            *av_scale_x_tensor,
+                            *av_scale_y_tensor,
+                            *o_linear_scale_x_tensor,
+                            *o_linear_scale_y_tensor,
+                            out_linear.get(),
+                            phi::Scalar(scaling_factor));
+
+  return {paddle::Tensor(out_linear)};
+}
+
+PD_BUILD_OP(fused_fp8_flatpa_proj)
+    .Inputs({"query",
+             "key_cache",
+             "value_cache",
+             "block_groups",
+             "block_list",
+             "block_mapping",
+             "block_bias",
+             "linear_weights",
+             "qk_scale_x",
+             "qk_scale_y",
+             "av_scale_x",
+             "av_scale_y",
+             "o_linear_scale_x",
+             "o_linear_scale_y"})
+    .Outputs({"out_linear"})
+    .Attrs({"scaling_factor: float"})
+    .SetKernelFn(PD_KERNEL(FusedFp8FlatPaProj))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedFlatPaProjShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedFlatPaProjDtype));

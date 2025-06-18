@@ -36,6 +36,7 @@ ENV NEUWARE_HOME=/usr/local/neuware
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NEUWARE_HOME/lib64
 
 # environment for PaddlePaddle
+ENV FLAGS_use_stream_safe_cuda_allocator=false
 ENV FLAGS_mlu_storage_format=1
 ENV FLAGS_use_stride_kernel=0
 ENV FLAGS_allocator_strategy=auto_growth

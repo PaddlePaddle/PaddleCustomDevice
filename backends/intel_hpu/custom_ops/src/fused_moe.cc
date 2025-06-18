@@ -30,7 +30,7 @@ struct FusedMoEConfig {
   bool permuted_weights;
   bool fused_gemm;
   bool measurement_mode;
-  std::string_view activation_mode;
+  char activation_mode[32];
   int32_t num_experts;
   int32_t experts_min;
   int32_t experts_max;
@@ -46,7 +46,8 @@ std::shared_ptr<ns_MoeKernel::ParamsV2> FillMixtureOfExpertsParams(
          0x00,
          sizeof(ns_MoeKernel::ParamsV2));
 
-  auto activationIterator = activationModeMap.find(config.activation_mode);
+  std::string activation_str(config.activation_mode);
+  auto activationIterator = activationModeMap.find(activation_str);
   moe_params->experts.activation = activationIterator->second;
 
   moe_params->router.experts_min = config.experts_min;
@@ -141,7 +142,9 @@ void FusedMoEKernel(const Context& dev_ctx,
   config.permuted_weights = permuted_weights;
   config.fused_gemm = (gate_up_weights.size() == down_weights.size());
   config.measurement_mode = measurement_mode;
-  config.activation_mode = activation;
+  strncpy(config.activation_mode,
+          activation.c_str(),
+          sizeof(config.activation_mode) - 1);
   config.experts_min = experts_min;
   config.experts_max = experts_max;
   config.num_experts = down_weights.size();

@@ -16,6 +16,7 @@
 #include "habanalabs/synapse_api.h"
 #include "habanalabs/synapse_common_types.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "paddle/extension.h"
 #include "utils/utils.h"
@@ -27,11 +28,11 @@ struct FusedRmsMlpParams {
   synSplitParams split_params;
 };
 
-class FusedRmsMlp : public HpuOperator {
+class FusedRmsMlp : public HpuFusedOperator {
  public:
   explicit FusedRmsMlp(synDataType dtype)
-      : HpuOperator("fused_rms_mlp_fwd", false), dtype_(dtype) {}
-
+      : HpuFusedOperator("fused_rms_mlp_fwd", false), dtype_(dtype) {}
+  template <typename T>
   void AddNode(ConvertTensors& ct, FusedRmsMlpParams params) {
     auto ins = ct.GetTensors();
     auto outs = ct.GetTensors(false);
@@ -61,6 +62,10 @@ class FusedRmsMlp : public HpuOperator {
     std::string name_silu = guid_ + "_silu";
     std::string name_multi = guid_ + "_multi";
     std::string name_down = guid_ + "_down_proj";
+
+    synGEMMParams gemm_params;
+    gemm_params.transpose_a = false;
+    gemm_params.transpose_b = false;
 
     auto hidden_states = createTensor(
         ins[0].dims.size(), dtype_, ins[0].dims, true, ins[0].name);
@@ -98,7 +103,7 @@ class FusedRmsMlp : public HpuOperator {
              status);
 
     auto proj_weight = createTensor(
-        ins[2].dims.size(), dtype_, ins[2].dims, true, ins[2].name);
+        ins[2].dims.size(), ins[2].type, ins[2].dims, true, ins[2].name);
     std::vector<int64_t> proj_dims = {
         ins[0].dims[0], ins[0].dims[1], ins[2].dims[1]};
     auto proj_out =
@@ -110,21 +115,25 @@ class FusedRmsMlp : public HpuOperator {
     std::vector<synTensor> proj_outputs;
     proj_outputs.push_back(proj_out);
 
-    status = synNodeCreate(graphHandle_,
-                           proj_inputs.data(),
-                           proj_outputs.data(),
-                           proj_inputs.size(),
-                           proj_outputs.size(),
-                           nullptr,
-                           0,
-                           guid_matmul.c_str(),
-                           name_proj.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "FusedRmsMlpKernel synNodeCreate () failed = %d",
-             status);
-
+    if (ins[2].type == syn_type_fp8_143) {
+      AddNodeFusedFp8Gemm<T>(
+          proj_inputs, proj_outputs, gemm_params, name_proj.c_str());
+    } else {
+      status = synNodeCreate(graphHandle_,
+                             proj_inputs.data(),
+                             proj_outputs.data(),
+                             proj_inputs.size(),
+                             proj_outputs.size(),
+                             nullptr,
+                             0,
+                             guid_matmul.c_str(),
+                             name_proj.c_str(),
+                             nullptr,
+                             nullptr);
+      PD_CHECK(status == synSuccess,
+               "FusedRmsMlpKernel synNodeCreate () failed = %d",
+               status);
+    }
     std::vector<int64_t> split_out_dims = {
         proj_dims[0], proj_dims[1], proj_dims[2] / 2};
     auto gate_out = createTensor(
@@ -133,7 +142,7 @@ class FusedRmsMlp : public HpuOperator {
         split_out_dims.size(), dtype_, split_out_dims, false, "up_out");
 
     auto down_weight = createTensor(
-        ins[3].dims.size(), dtype_, ins[3].dims, true, ins[3].name);
+        ins[3].dims.size(), ins[3].type, ins[3].dims, true, ins[3].name);
 
     std::vector<synTensor> split_inputs;
     split_inputs.push_back(proj_out);
@@ -212,20 +221,25 @@ class FusedRmsMlp : public HpuOperator {
     std::vector<synTensor> down_outputs;
     down_outputs.push_back(mlp_out);
 
-    status = synNodeCreate(graphHandle_,
-                           down_inputs.data(),
-                           down_outputs.data(),
-                           down_inputs.size(),
-                           down_outputs.size(),
-                           nullptr,
-                           0,
-                           guid_matmul.c_str(),
-                           name_down.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "FusedRmsMlpKernel synNodeCreate () failed = %d",
-             status);
+    if (ins[3].type == syn_type_fp8_143) {
+      AddNodeFusedFp8Gemm<T>(
+          down_inputs, down_outputs, gemm_params, name_down.c_str());
+    } else {
+      status = synNodeCreate(graphHandle_,
+                             down_inputs.data(),
+                             down_outputs.data(),
+                             down_inputs.size(),
+                             down_outputs.size(),
+                             nullptr,
+                             0,
+                             guid_matmul.c_str(),
+                             name_down.c_str(),
+                             nullptr,
+                             nullptr);
+      PD_CHECK(status == synSuccess,
+               "FusedRmsMlpKernel synNodeCreate () failed = %d",
+               status);
+    }
   }
 
  protected:
@@ -271,13 +285,16 @@ void FusedRmsMlpKernel(const Context& dev_ctx,
   std::vector<DIMS> inputs_dims = ct.GetDims();
 
   OpCacheOperator op_info;
+  std::string recipe_name = proj_weight.dtype() == phi::DataType::FLOAT8_E4M3FN
+                                ? "FusedFP8RmsMlpKernel"
+                                : "FusedRmsMlpKernel";
   op_info.prepareOpInfo<T, FusedRmsMlpParams>(
-      "FusedRmsMlpKernel", inputs_dims, &params);
+      recipe_name, inputs_dims, &params);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     FusedRmsMlp op(op_info.datatype_);
-    op.AddNode(ct, params);
+    op.AddNode<T>(ct, params);
     op.Compile();
     op_info.setOp(op);
 

@@ -141,11 +141,11 @@ void UniformRawKernel(const Context& dev_ctx,
     }
     params.params.seed = seed;
 
-    std::vector<DIMS> inputs_dims = ct.GetDims();
+    std::vector<DIMS> outputs_dims = ct.GetDims(false);
 
     OpCacheOperator op_info;
     op_info.prepareOpInfo<T, uniformParams>(
-        "UniformRawKernel", inputs_dims, &params);
+        "UniformRawKernel", outputs_dims, &params);
     auto recipe = op_info.GetRecipe();
 
     if (recipe == nullptr) {

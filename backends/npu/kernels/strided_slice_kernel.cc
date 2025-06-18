@@ -14,6 +14,7 @@
 
 #include "kernels/funcs/npu_funcs.h"
 #include "kernels/funcs/npu_op_runner.h"
+#include "paddle/phi/kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
 template <typename T, typename Context>
@@ -187,10 +188,14 @@ void AclopStridedSliceCompute(const Context& dev_ctx,
 
   auto in_dims = x.dims();
 
-  // list<int>
+  // vector<int64_t>
+  std::vector<int64_t> axes_64 = std::vector<int64_t>(axes.begin(), axes.end());
   auto starts = starts_array.GetData();
   auto ends = ends_array.GetData();
   auto strides = strides_array.GetData();
+
+  phi::funcs::CheckAndUpdateSliceAttrs<int64_t>(
+      in_dims, axes_64, &starts, &ends, &strides);
 
   // out dims calculation
   std::vector<int64_t> out_dims_vector(in_dims.size(), -1);
@@ -360,10 +365,14 @@ void StridedSliceCompute(const Context& dev_ctx,
   auto stream = dev_ctx.stream();
   auto in_dims = x.dims();
 
-  // list<int>
+  // vector<int64_t>
+  std::vector<int64_t> axes_64 = std::vector<int64_t>(axes.begin(), axes.end());
   auto starts = starts_array.GetData();
   auto ends = ends_array.GetData();
   auto strides = strides_array.GetData();
+
+  phi::funcs::CheckAndUpdateSliceAttrs<int64_t>(
+      in_dims, axes_64, &starts, &ends, &strides);
 
   // out dims calculation
   std::vector<int64_t> out_dims_vector(in_dims.size(), -1);

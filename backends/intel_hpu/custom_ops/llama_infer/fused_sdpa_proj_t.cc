@@ -14,45 +14,36 @@
 
 #include "habanalabs/perf_lib_layer_params.h"
 #include "kernels/funcs.h"
+#include "kernels/hpu_funcs.h"
 #include "kernels/hpu_operator.h"
 #include "paddle/extension.h"
 #include "utils/utils.h"
 
+#define SDPA_SET_INPUT_AND_FLAGS(ptr, flag_name)  \
+  if (ptr) {                                      \
+    flags |= SdpaFlags_t::SDPA_FLAGS_##flag_name; \
+    ct.Add(ptr);                                  \
+  }
+
 namespace custom_kernel {
 
-class FusedSdpaProjBTMH : public HpuOperator {
- public:
-  explicit FusedSdpaProjBTMH(synDataType dtype)
-      : HpuOperator("fused_sdpa_proj_", false), dtype_(dtype) {}
+struct FusedSdpaProjParams {
+  ns_Sdpa::ParamsV3 sdpa_params;
+  bool is_GQA = false;
+  bool fp8_sdpa = false;
+};
 
-  void AddNode(ConvertTensors& ct, ns_Sdpa::ParamsV2 params) {
+class FusedSdpaProjBTMH : public HpuFusedOperator {
+ public:
+  explicit FusedSdpaProjBTMH(std::string guid_prefix, synDataType dtype)
+      : HpuFusedOperator(guid_prefix, false), dtype_(dtype) {}
+  template <typename T>
+  void AddNode(ConvertTensors& ct, FusedSdpaProjParams params) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
-    synStatus status = synFail;
-
-    std::string name_sdpa = guid_ + "sdpa";
-    std::string name_trans = guid_ + "transpose";
-    std::string name_reshape = guid_ + "reshape";
-    std::string name_gemm = guid_ + "gemm";
-
-    std::string guid_sdpa = "sdpa_recomp_fwd_";
-    std::string guid_reshape = "reshape";
-    std::string guid_trans = "transpose";
-    std::string guid_gemm = "gemm";
-
-    if (dtype_ == syn_type_fp16) {
-      guid_sdpa = guid_sdpa + "f16";
-    } else if (dtype_ == syn_type_bf16) {
-      guid_sdpa = guid_sdpa + "bf16";
-    }
-
     std::vector<synTensor> kv_inputs;
-    kv_inputs.push_back(createTensor(inputs[1].dims.size(),
-                                     inputs[1].type,
-                                     inputs[1].dims,
-                                     true,
-                                     inputs[1].name));
+    kv_inputs.push_back(createTensorFromCT(&ct, 1));
     auto k_v_dims = inputs[1].dims;
     k_v_dims[0] = 1;
 
@@ -64,103 +55,39 @@ class FusedSdpaProjBTMH : public HpuOperator {
       sliceParams.ends[i] = k_v_dims[k_v_dims.size() - 1 - i];
     }
 
-    std::string slice_guid = "slice";
-    std::string slice_name = guid_ + "slice";
-    std::string slice_name_k = slice_name + "_key";
-
     std::vector<synTensor> k_slice;
-    auto k_split =
-        createTensor(k_v_dims.size(), dtype_, k_v_dims, false, "k_split");
+    auto k_split = createTensorNoPresist("k_split", inputs[1].type, k_v_dims);
     k_slice.push_back(k_split);
 
-    status = synNodeCreate(graphHandle_,
-                           kv_inputs.data(),
-                           k_slice.data(),
-                           kv_inputs.size(),
-                           k_slice.size(),
-                           &sliceParams,
-                           sizeof(sliceParams),
-                           slice_guid.c_str(),
-                           slice_name_k.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (slice/k) failed = ",
-        status);
+    AddNodeSlice(kv_inputs, k_slice, sliceParams, guid_ + "slice_key");
 
     std::vector<synTensor> v_slice;
-    auto v_split =
-        createTensor(k_v_dims.size(), dtype_, k_v_dims, false, "v_split");
+    auto v_split = createTensorNoPresist("v_split", inputs[1].type, k_v_dims);
     v_slice.push_back(v_split);
     sliceParams.starts[k_v_dims.size() - 1] = 1;
     sliceParams.ends[k_v_dims.size() - 1] = 2;
-    std::string slice_name_v = slice_name + "_value";
-    status = synNodeCreate(graphHandle_,
-                           kv_inputs.data(),
-                           v_slice.data(),
-                           kv_inputs.size(),
-                           v_slice.size(),
-                           &sliceParams,
-                           sizeof(sliceParams),
-                           slice_guid.c_str(),
-                           slice_name_v.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (slice/v) failed = ",
-        status);
+
+    AddNodeSlice(
+        kv_inputs, v_slice, sliceParams, inputs[1].type + "slice_value");
+
+    k_v_dims.erase(k_v_dims.begin());
+    std::vector<synTensor> key_squeezed;
+    auto key_states =
+        createTensorNoPresist("key_states", inputs[1].type, k_v_dims);
+    key_squeezed.push_back(key_states);
 
     synSqueezeParams squeezeParams;
     squeezeParams.axis = 4;
-    std::string squeeze_guid = "squeeze";
-    std::string squeeze_name = guid_ + "squeeze";
 
-    k_v_dims.erase(k_v_dims.begin());
-
-    std::vector<synTensor> key_squeezed;
-    auto key_states =
-        createTensor(k_v_dims.size(), dtype_, k_v_dims, false, "key_states");
-
-    key_squeezed.push_back(key_states);
-    std::string squeeze_name_key = squeeze_name + "_key";
-    status = synNodeCreate(graphHandle_,
-                           k_slice.data(),
-                           key_squeezed.data(),
-                           1,
-                           1,
-                           &squeezeParams,
-                           sizeof(squeezeParams),
-                           squeeze_guid.c_str(),
-                           squeeze_name_key.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (squeeze/key) failed = ",
-        status);
+    AddNodeSqueeze(k_slice, key_squeezed, squeezeParams, guid_ + "squeeze_key");
 
     std::vector<synTensor> value_squeezed;
     auto value_states =
-        createTensor(k_v_dims.size(), dtype_, k_v_dims, false, "value_states");
+        createTensorNoPresist("value_states", inputs[1].type, k_v_dims);
     value_squeezed.push_back(value_states);
-    std::string squeeze_name_value = squeeze_name + "_value";
-    status = synNodeCreate(graphHandle_,
-                           v_slice.data(),
-                           value_squeezed.data(),
-                           1,
-                           1,
-                           &squeezeParams,
-                           sizeof(squeezeParams),
-                           squeeze_guid.c_str(),
-                           squeeze_name_value.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] FusedRmsQkvRopeKernel synNodeCreate (squeeze/value) "
-             "failed = ",
-             status);
+
+    AddNodeSqueeze(
+        v_slice, value_squeezed, squeezeParams, guid_ + "squeeze_value");
 
     std::vector<int64_t> q_dims = std::vector<int64_t>(inputs[0].dims);
     std::vector<int64_t> qt_dims(q_dims.cbegin(), q_dims.cend());
@@ -177,125 +104,140 @@ class FusedSdpaProjBTMH : public HpuOperator {
     trans_params.tensorDim = rank;
 
     std::vector<synTensor> q_inputs;
-    q_inputs.push_back(createTensor(inputs[0].dims.size(),
-                                    inputs[0].type,
-                                    inputs[0].dims,
-                                    true,
-                                    inputs[0].name));
+    q_inputs.push_back(createTensorFromCT(&ct, 0));
 
     std::vector<synTensor> q_transpose;
-    auto q_t =
-        createTensor(qt_dims.size(), inputs[0].type, qt_dims, false, "q_t");
+    auto q_t = createTensorNoPresist("q_t", inputs[0].type, qt_dims);
     q_transpose.push_back(q_t);
 
-    status = synNodeCreate(graphHandle_,
-                           q_inputs.data(),
-                           q_transpose.data(),
-                           1,
-                           1,
-                           &trans_params,
-                           sizeof(trans_params),
-                           guid_trans.c_str(),
-                           name_trans.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedSdpaProjKernel synNodeCreate (q_transpose) failed = ",
-        status);
+    AddNodeTranspose(
+        q_inputs, q_transpose, trans_params, guid_ + "transpose_q");
 
-    std::vector<int64_t> kvt_dims(q_dims.cbegin(), q_dims.cend());
+    std::vector<int64_t> kvt_dims(k_v_dims.cbegin(), k_v_dims.cend());
     kvt_dims[rank - 3] = k_v_dims[rank - 2];
     kvt_dims[rank - 2] = k_v_dims[rank - 3];
 
     std::vector<synTensor> k_transpose;
-    auto k_t =
-        createTensor(kvt_dims.size(), inputs[0].type, kvt_dims, false, "k_t");
+    auto k_t = createTensorNoPresist("k_t", inputs[1].type, kvt_dims);
     k_transpose.push_back(k_t);
 
-    status = synNodeCreate(graphHandle_,
-                           key_squeezed.data(),
-                           k_transpose.data(),
-                           1,
-                           1,
-                           &trans_params,
-                           sizeof(trans_params),
-                           guid_trans.c_str(),
-                           name_trans.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedSdpaProjKernel synNodeCreate (k_transpose) failed = ",
-        status);
+    AddNodeTranspose(
+        key_squeezed, k_transpose, trans_params, guid_ + "transpose_k");
 
     std::vector<synTensor> v_transpose;
-    auto v_t =
-        createTensor(kvt_dims.size(), inputs[0].type, kvt_dims, false, "v_t");
+    auto v_t = createTensorNoPresist("v_t", inputs[1].type, kvt_dims);
     v_transpose.push_back(v_t);
 
-    status = synNodeCreate(graphHandle_,
-                           value_squeezed.data(),
-                           v_transpose.data(),
-                           1,
-                           1,
-                           &trans_params,
-                           sizeof(trans_params),
-                           guid_trans.c_str(),
-                           name_trans.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedSdpaProjKernel synNodeCreate (v_transpose) failed = ",
-        status);
+    AddNodeTranspose(
+        value_squeezed, v_transpose, trans_params, guid_ + "transpose_v");
 
-    std::vector<synTensor> attn_inputs;
-    attn_inputs.push_back(q_t);
-    attn_inputs.push_back(k_t);
-    attn_inputs.push_back(v_t);
-    // params.is_causal = true; ==> input[3] is not used
-    // input[3] is in use ==> params.is_causal = false;
     std::vector<synTensor> attn_outputs;
-    auto attn =
-        createTensor(qt_dims.size(), inputs[0].type, qt_dims, false, "attn");
-    attn_outputs.push_back(attn);
+    if (params.is_GQA) {
+      int q_heads = qt_dims[1];
+      int kv_heads = kvt_dims[1];
+      int q_heads_per_group = q_heads / kv_heads;
 
-    status = synNodeCreate(graphHandle_,
-                           attn_inputs.data(),
-                           attn_outputs.data(),
-                           attn_inputs.size(),
-                           attn_outputs.size(),
-                           &params,
-                           sizeof(params),
-                           guid_sdpa.c_str(),
-                           name_sdpa.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] FusedSdpaProjKernel synNodeCreate (sdpa) failed = ",
-             status);
+      std::vector<int64_t> q_reshape;
+      q_reshape.push_back(qt_dims[0]);
+      q_reshape.push_back(kv_heads);
+      q_reshape.push_back(q_heads_per_group);
+      q_reshape.push_back(qt_dims[2]);
+      q_reshape.push_back(qt_dims[3]);
+
+      std::vector<synTensor> q_out_reshape;
+      auto q_r = createTensorNoPresist("q_r", inputs[0].type, q_reshape);
+      q_out_reshape.push_back(q_r);
+      AddNodeReshape(q_transpose, q_out_reshape, guid_ + "reshape_q");
+
+      kvt_dims.insert(kvt_dims.begin() + 2, 1);
+
+      std::vector<synTensor> k_out_reshape;
+      auto k_r = createTensorNoPresist("k_r", inputs[1].type, kvt_dims);
+      k_out_reshape.push_back(k_r);
+      AddNodeReshape(k_transpose, k_out_reshape, guid_ + "reshape_k");
+
+      std::vector<synTensor> v_out_reshape;
+      auto v_r = createTensorNoPresist("v_r", inputs[1].type, kvt_dims);
+      v_out_reshape.push_back(v_r);
+      AddNodeReshape(v_transpose, v_out_reshape, guid_ + "reshape_v");
+
+      std::vector<synTensor> attn_inputs;
+      attn_inputs.push_back(q_r);
+      attn_inputs.push_back(k_r);
+      attn_inputs.push_back(v_r);
+
+      if (params.fp8_sdpa) {
+        attn_inputs.push_back(nullptr);  // Mask
+        attn_inputs.push_back(nullptr);  // Seed
+        for (size_t i = 3; i < inputs.size(); i++) {
+          attn_inputs.push_back(createTensor(inputs[i].dims.size(),
+                                             inputs[i].type,
+                                             inputs[i].dims,
+                                             true,
+                                             inputs[i].name));
+        }
+      }
+      std::vector<synTensor> attn_outputs_r;
+      auto attn = createTensorNoPresist("attn", dtype_, q_reshape);
+      attn_outputs_r.push_back(attn);
+
+      if (params.fp8_sdpa) {
+        AddNodeSdpaRecomp<phi::dtype::float8_e4m3fn>(attn_inputs,
+                                                     attn_outputs_r,
+                                                     params.sdpa_params,
+                                                     guid_ + "sdpa_recomp");
+      } else {
+        AddNodeSdpaRecomp<T>(attn_inputs,
+                             attn_outputs_r,
+                             params.sdpa_params,
+                             guid_ + "sdpa_recomp");
+      }
+
+      auto attn_o = createTensorNoPresist("attn_o", dtype_, qt_dims);
+      attn_outputs.push_back(attn_o);
+      AddNodeReshape(attn_outputs_r, attn_outputs, guid_ + "reshape_sdpa");
+    } else {
+      std::vector<synTensor> attn_inputs;
+      attn_inputs.push_back(q_t);
+      attn_inputs.push_back(k_t);
+      attn_inputs.push_back(v_t);
+      if (params.fp8_sdpa) {
+        attn_inputs.push_back(nullptr);  // Mask
+        attn_inputs.push_back(nullptr);  // Seed
+        for (size_t i = 3; i < inputs.size(); i++) {
+          attn_inputs.push_back(createTensor(inputs[i].dims.size(),
+                                             inputs[i].type,
+                                             inputs[i].dims,
+                                             true,
+                                             inputs[i].name));
+        }
+      }
+      // params.is_causal = true; ==> input[3] is not used
+      // input[3] is in use ==> params.is_causal = false;
+      auto attn = createTensorNoPresist("attn", dtype_, qt_dims);
+      attn_outputs.push_back(attn);
+
+      if (params.fp8_sdpa) {
+        AddNodeSdpaRecomp<phi::dtype::float8_e4m3fn>(attn_inputs,
+                                                     attn_outputs,
+                                                     params.sdpa_params,
+                                                     guid_ + "sdpa_recomp");
+      } else {
+        AddNodeSdpaRecomp<T>(attn_inputs,
+                             attn_outputs,
+                             params.sdpa_params,
+                             guid_ + "sdpa_recomp");
+      }
+    }
 
     std::vector<synTensor> attn_out_transpose;
-    auto attn_t =
-        createTensor(q_dims.size(), inputs[0].type, q_dims, false, "attn_t");
+    auto attn_t = createTensorNoPresist("attn_t", dtype_, q_dims);
     attn_out_transpose.push_back(attn_t);
 
-    status = synNodeCreate(graphHandle_,
-                           attn_outputs.data(),
-                           attn_out_transpose.data(),
-                           1,
-                           1,
-                           &trans_params,
-                           sizeof(trans_params),
-                           guid_trans.c_str(),
-                           name_trans.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(
-        status == synSuccess,
-        "[RUNTIME] FusedSdpaProjKernel synNodeCreate (transpose) failed = ",
-        status);
+    AddNodeTranspose(attn_outputs,
+                     attn_out_transpose,
+                     trans_params,
+                     guid_ + "transpose_out");
 
     std::vector<int64_t> attn_reshape;
     attn_reshape.push_back(q_dims[0]);
@@ -303,27 +245,28 @@ class FusedSdpaProjBTMH : public HpuOperator {
     attn_reshape.push_back(q_dims[2] * q_dims[3]);
 
     std::vector<synTensor> attn_out_reshape;
-    auto attn_r = createTensor(
-        attn_reshape.size(), inputs[0].type, attn_reshape, false, "attn_r");
+    auto attn_r = createTensorNoPresist("attn_r", dtype_, attn_reshape);
     attn_out_reshape.push_back(attn_r);
 
-    status = synNodeCreate(graphHandle_,
-                           attn_out_transpose.data(),
-                           attn_out_reshape.data(),
-                           1,
-                           1,
-                           nullptr,
-                           0,
-                           guid_reshape.c_str(),
-                           name_reshape.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] FusedSdpaProjKernel synNodeCreate (reshape) failed = ",
-             status);
+    AddNodeReshape(attn_out_transpose, attn_out_reshape, guid_ + "reshape_out");
 
     std::vector<synTensor> mul_inputs;
-    mul_inputs.push_back(attn_r);
+    if (params.fp8_sdpa) {
+      ns_CastKernel::Params cast_to_fp8_params;
+      cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+      std::vector<synTensor> attn_out_cast;
+      auto attn_c =
+          createTensorNoPresist("attn_c", inputs[2].type, attn_reshape);
+      attn_out_cast.push_back(attn_c);
+      AddNodeConvertToFP8<T>(attn_out_reshape,
+                             attn_out_cast,
+                             cast_to_fp8_params,
+                             guid_ + "cast_out");
+      mul_inputs.push_back(attn_c);
+    } else {
+      mul_inputs.push_back(attn_r);
+    }
+
     mul_inputs.push_back(createTensor(inputs[2].dims.size(),
                                       inputs[2].type,
                                       inputs[2].dims,
@@ -338,20 +281,14 @@ class FusedSdpaProjBTMH : public HpuOperator {
     synGEMMParams gemm_params;
     gemm_params.transpose_a = false;
     gemm_params.transpose_b = false;
-    status = synNodeCreate(graphHandle_,
-                           mul_inputs.data(),
-                           mul_outputs.data(),
-                           2,
-                           1,
-                           &gemm_params,
-                           sizeof(gemm_params),
-                           guid_gemm.c_str(),
-                           name_gemm.c_str(),
-                           nullptr,
-                           nullptr);
-    PD_CHECK(status == synSuccess,
-             "[RUNTIME] FusedSdpaProjKernel synNodeCreate (matmul) failed = ",
-             status);
+
+    if (params.fp8_sdpa) {
+      AddNodeFP8Gemm<T>(
+          mul_inputs, mul_outputs, gemm_params, guid_ + "gemm_fp8");
+    } else {
+      AddNodeBatchGemm(
+          mul_inputs, mul_outputs, gemm_params, guid_ + "batchgemm");
+    }
   }
 
  protected:
@@ -359,40 +296,75 @@ class FusedSdpaProjBTMH : public HpuOperator {
 };
 
 template <typename T, typename Context>
-void FusedSdpaProjBTMHKernel(const Context& dev_ctx,
-                             const phi::DenseTensor& query_states,
-                             const phi::DenseTensor& key_value_states,
-                             const phi::DenseTensor& linear_weights,
-                             phi::DenseTensor* out_linear,
-                             const phi::Scalar& scaling_factor,
-                             const phi::Scalar& causal) {
+void FusedSdpaProjBTMHKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& query_states,
+    const phi::DenseTensor& key_value_states,
+    const phi::DenseTensor& linear_weights,
+    phi::DenseTensor* out_linear,
+    const phi::Scalar& scaling_factor,
+    const phi::Scalar& causal,
+    const paddle::optional<phi::DenseTensor>& d_scale_q,
+    const paddle::optional<phi::DenseTensor>& d_scale_k,
+    const paddle::optional<phi::DenseTensor>& d_scale_v,
+    const paddle::optional<phi::DenseTensor>& q_scale_s,
+    const paddle::optional<phi::DenseTensor>& q_scale_o,
+    const paddle::optional<phi::DenseTensor>& d_scale_s) {
   ConvertTensors ct;
   ct.Add(query_states);
   ct.Add(key_value_states);
   std::vector<DIMS> in_out_dims = ct.GetDims();
 
   ct.Add(linear_weights);
+
+  unsigned int flags = 0;
+  SDPA_SET_INPUT_AND_FLAGS(d_scale_q.get_ptr(), D_SCALE_Q)
+  SDPA_SET_INPUT_AND_FLAGS(d_scale_k.get_ptr(), D_SCALE_K)
+  SDPA_SET_INPUT_AND_FLAGS(d_scale_v.get_ptr(), D_SCALE_V)
+  SDPA_SET_INPUT_AND_FLAGS(q_scale_s.get_ptr(), Q_SCALE_S)
+  SDPA_SET_INPUT_AND_FLAGS(q_scale_o.get_ptr(), Q_SCALE_O)
+  SDPA_SET_INPUT_AND_FLAGS(d_scale_s.get_ptr(), D_SCALE_S)
+
   ct.Add(out_linear, false);
   std::vector<DIMS> out_dims = ct.GetDims(false);
   in_out_dims.insert(in_out_dims.end(), out_dims.begin(), out_dims.end());
 
+  std::vector<int64_t> query_states_dims =
+      phi::vectorize<int64_t>(query_states.dims());
+  std::vector<int64_t> key_value_states_dims =
+      phi::vectorize<int64_t>(key_value_states.dims());
+  int num_head = query_states_dims[2];
+  int num_kv_head = key_value_states_dims[3];
+
+  std::string guid_prefix = "fused_sdpa_proj_causal_";
+  if (num_head == num_kv_head) {
+    guid_prefix += "MHA_";
+  } else {
+    guid_prefix += "GQA_";
+  }
+  guid_prefix += "fwd_";
+
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, nullptr_t>(
-      "fused_sdpa_proj_causal_fwd_", in_out_dims, nullptr);
+  op_info.prepareOpInfo<T, nullptr_t>(guid_prefix, in_out_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
-    ns_Sdpa::ParamsV2 params;
-    memset(reinterpret_cast<void*>(&params), 0x00, sizeof(ns_Sdpa::ParamsV2));
-    params.scale = scaling_factor.to<float>();
-    params.is_causal = causal.to<bool>();
-    params.dropout.ratio = 0.0;
-    params.dropout.disableMaskOut = false;
-    params.is_inference = true;
-    params.softmax_mode = SDPA_DEFAULT_SOFTMAX;
+    FusedSdpaProjParams params;
+    memset(reinterpret_cast<void*>(&params), 0x00, sizeof(FusedSdpaProjParams));
+    params.sdpa_params.scale = scaling_factor.to<float>();
+    params.sdpa_params.is_causal = causal.to<bool>();
+    params.sdpa_params.dropout.ratio = 0.0;
+    params.sdpa_params.dropout.disableMaskOut = false;
+    params.sdpa_params.is_inference = true;
+    params.sdpa_params.softmax_mode = SDPA_DEFAULT_SOFTMAX;
+    params.sdpa_params.flags = flags;
+    params.fp8_sdpa = query_states.dtype() == phi::DataType::FLOAT8_E4M3FN;
+    if (num_head != num_kv_head) {
+      params.is_GQA = true;
+    }
 
-    FusedSdpaProjBTMH op(op_info.datatype_);
-    op.AddNode(ct, params);
+    FusedSdpaProjBTMH op(guid_prefix, op_info.datatype_);
+    op.AddNode<T>(ct, params);
     op.Compile();
     op_info.setOp(op);
 
@@ -406,45 +378,20 @@ void FusedSdpaProjBTMHKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-template <typename Context>
-void CallFusedSdpaProjBTMHKernel(const Context& dev_ctx,
-                                 const phi::DenseTensor& query_states,
-                                 const phi::DenseTensor& key_value_states,
-                                 const phi::DenseTensor& linear_weights,
-                                 phi::DenseTensor* out_linear,
-                                 const phi::Scalar& scaling_factor,
-                                 const phi::Scalar& causal) {
-  if (query_states.dtype() == phi::DataType::FLOAT16) {
-    custom_kernel::FusedSdpaProjBTMHKernel<phi::dtype::float16>(
-        dev_ctx,
-        query_states,
-        key_value_states,
-        linear_weights,
-        out_linear,
-        scaling_factor,
-        causal);
-  } else if (query_states.dtype() == phi::DataType::BFLOAT16) {
-    custom_kernel::FusedSdpaProjBTMHKernel<phi::dtype::bfloat16>(
-        dev_ctx,
-        query_states,
-        key_value_states,
-        linear_weights,
-        out_linear,
-        scaling_factor,
-        causal);
-  } else {
-    throw std::runtime_error("Unsupported data type for FusedSdpaProjKernel");
-  }
-}
-
-std::vector<paddle::Tensor> FusedSdpaProjBTMH(
+std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
     const paddle::Tensor& query_states,
     const paddle::Tensor& key_value_states,
     const paddle::optional<paddle::Tensor>& attn_mask,
     const paddle::optional<paddle::Tensor>& valid_seq_len,
     const paddle::Tensor& linear_weights,
     float scaling_factor,
-    bool causal = false) {
+    bool causal,
+    const paddle::optional<paddle::Tensor>& d_scale_q,
+    const paddle::optional<paddle::Tensor>& d_scale_k,
+    const paddle::optional<paddle::Tensor>& d_scale_v,
+    const paddle::optional<paddle::Tensor>& q_scale_s,
+    const paddle::optional<paddle::Tensor>& q_scale_o,
+    const paddle::optional<paddle::Tensor>& d_scale_s) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           query_states.place()));
@@ -455,6 +402,54 @@ std::vector<paddle::Tensor> FusedSdpaProjBTMH(
   auto linear_weights_tensor =
       static_cast<const phi::DenseTensor*>(linear_weights.impl().get());
 
+  // s_scale_q
+  phi::DenseTensor* d_scale_q_tensor = nullptr;
+  if (d_scale_q) {
+    auto d_scale_q_ptr = *(d_scale_q.get_ptr());
+    d_scale_q_tensor =
+        static_cast<phi::DenseTensor*>(d_scale_q_ptr.impl().get());
+  }
+
+  // d_scale_k
+  phi::DenseTensor* d_scale_k_tensor = nullptr;
+  if (d_scale_k) {
+    auto d_scale_k_ptr = *(d_scale_k.get_ptr());
+    d_scale_k_tensor =
+        static_cast<phi::DenseTensor*>(d_scale_k_ptr.impl().get());
+  }
+
+  // d_scale_v
+  phi::DenseTensor* d_scale_v_tensor = nullptr;
+  if (d_scale_v) {
+    auto d_scale_v_ptr = *(d_scale_v.get_ptr());
+    d_scale_v_tensor =
+        static_cast<phi::DenseTensor*>(d_scale_v_ptr.impl().get());
+  }
+
+  // q_scale_s
+  phi::DenseTensor* q_scale_s_tensor = nullptr;
+  if (q_scale_s) {
+    auto q_scale_s_ptr = *(q_scale_s.get_ptr());
+    q_scale_s_tensor =
+        static_cast<phi::DenseTensor*>(q_scale_s_ptr.impl().get());
+  }
+
+  // q_scale_o
+  phi::DenseTensor* q_scale_o_tensor = nullptr;
+  if (q_scale_o) {
+    auto q_scale_o_ptr = *(q_scale_o.get_ptr());
+    q_scale_o_tensor =
+        static_cast<phi::DenseTensor*>(q_scale_o_ptr.impl().get());
+  }
+
+  // d_scale_s
+  phi::DenseTensor* d_scale_s_tensor = nullptr;
+  if (d_scale_s) {
+    auto d_scale_s_ptr = *(d_scale_s.get_ptr());
+    d_scale_s_tensor =
+        static_cast<phi::DenseTensor*>(d_scale_s_ptr.impl().get());
+  }
+
   // allocate memory on device.
   int64_t bsz = query_states.dims()[0];
   int64_t seq_len = query_states.dims()[1];
@@ -463,18 +458,102 @@ std::vector<paddle::Tensor> FusedSdpaProjBTMH(
   std::shared_ptr<phi::DenseTensor> out_linear =
       std::make_shared<phi::DenseTensor>();
   out_linear->Resize(phi::make_ddim({bsz, seq_len, hidden_size}));
-  dev_ctx->Alloc(out_linear.get(), query_states_tensor->dtype());
+  if (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+    dev_ctx->Alloc(out_linear.get(), phi::DataType::BFLOAT16);
+  } else {
+    dev_ctx->Alloc(out_linear.get(), query_states_tensor->dtype());
+  }
 
   if (!attn_mask && !valid_seq_len) {
-    CallFusedSdpaProjBTMHKernel(*dev_ctx,
-                                *query_states_tensor,
-                                *key_value_states_tensor,
-                                *linear_weights_tensor,
-                                out_linear.get(),
-                                phi::Scalar(scaling_factor),
-                                phi::Scalar(causal));
+    if (query_states.dtype() == phi::DataType::FLOAT16) {
+      custom_kernel::FusedSdpaProjBTMHKernel<phi::dtype::float16>(
+          *dev_ctx,
+          *query_states_tensor,
+          *key_value_states_tensor,
+          *linear_weights_tensor,
+          out_linear.get(),
+          phi::Scalar(scaling_factor),
+          phi::Scalar(causal),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>());
+    } else if (query_states.dtype() == phi::DataType::BFLOAT16 ||
+               query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+      custom_kernel::FusedSdpaProjBTMHKernel<phi::dtype::bfloat16>(
+          *dev_ctx,
+          *query_states_tensor,
+          *key_value_states_tensor,
+          *linear_weights_tensor,
+          out_linear.get(),
+          phi::Scalar(scaling_factor),
+          phi::Scalar(causal),
+          d_scale_q ? *d_scale_q_tensor : paddle::optional<phi::DenseTensor>(),
+          d_scale_k ? *d_scale_k_tensor : paddle::optional<phi::DenseTensor>(),
+          d_scale_v ? *d_scale_v_tensor : paddle::optional<phi::DenseTensor>(),
+          q_scale_s ? *q_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
+          q_scale_o ? *q_scale_o_tensor : paddle::optional<phi::DenseTensor>(),
+          d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>());
+    } else {
+      throw std::runtime_error("Unsupported data type for FusedSdpaProjKernel");
+    }
   }
+
   return {paddle::Tensor(out_linear)};
+}
+
+std::vector<paddle::Tensor> FusedSdpaProjBTMH(
+    const paddle::Tensor& query_states,
+    const paddle::Tensor& key_value_states,
+    const paddle::optional<paddle::Tensor>& attn_mask,
+    const paddle::optional<paddle::Tensor>& valid_seq_len,
+    const paddle::Tensor& linear_weights,
+    float scaling_factor,
+    bool causal = false) {
+  return FusedBaseSdpaProjBTMH(query_states,
+                               key_value_states,
+                               attn_mask,
+                               valid_seq_len,
+                               linear_weights,
+                               scaling_factor,
+                               causal,
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>());
+}
+
+std::vector<paddle::Tensor> FusedSdpaFp8ProjBTMH(
+    const paddle::Tensor& query_states,
+    const paddle::Tensor& key_value_states,
+    const paddle::optional<paddle::Tensor>& attn_mask,
+    const paddle::optional<paddle::Tensor>& valid_seq_len,
+    const paddle::Tensor& linear_weights,
+    const paddle::optional<paddle::Tensor>& d_scale_q,
+    const paddle::optional<paddle::Tensor>& d_scale_k,
+    const paddle::optional<paddle::Tensor>& d_scale_v,
+    const paddle::optional<paddle::Tensor>& q_scale_s,
+    const paddle::optional<paddle::Tensor>& q_scale_o,
+    const paddle::optional<paddle::Tensor>& d_scale_s,
+    float scaling_factor,
+    bool causal = false) {
+  return FusedBaseSdpaProjBTMH(query_states,
+                               key_value_states,
+                               attn_mask,
+                               valid_seq_len,
+                               linear_weights,
+                               scaling_factor,
+                               causal,
+                               d_scale_q,
+                               d_scale_k,
+                               d_scale_v,
+                               q_scale_s,
+                               q_scale_o,
+                               d_scale_s);
 }
 
 std::vector<std::vector<int64_t>> FusedSdpaProjBTMHShape(
@@ -507,5 +586,23 @@ PD_BUILD_OP(fused_sdpa_proj_t)
     .Outputs({"out_linear"})
     .Attrs({"scaling_factor: float", "causal:bool"})
     .SetKernelFn(PD_KERNEL(FusedSdpaProjBTMH))
+    .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjBTMHShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjBTMHDtype));
+
+PD_BUILD_OP(fused_fp8_sdpa_proj_t)
+    .Inputs({"query_states",
+             "key_value_states",
+             paddle::Optional("attn_mask"),
+             paddle::Optional("valid_seq_len"),
+             "linear_weights",
+             paddle::Optional("d_scale_q"),
+             paddle::Optional("d_scale_k"),
+             paddle::Optional("d_scale_v"),
+             paddle::Optional("q_scale_s"),
+             paddle::Optional("q_scale_o"),
+             paddle::Optional("d_scale_s")})
+    .Outputs({"out_linear"})
+    .Attrs({"scaling_factor: float", "causal:bool"})
+    .SetKernelFn(PD_KERNEL(FusedSdpaFp8ProjBTMH))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedSdpaProjBTMHShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedSdpaProjBTMHDtype));

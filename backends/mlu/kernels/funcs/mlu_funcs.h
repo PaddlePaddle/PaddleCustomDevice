@@ -29,6 +29,7 @@ inline void TensorCopy(const Context& dev_ctx,
                        bool blocking,
                        phi::DenseTensor* dst,
                        const phi::Place& dst_place = phi::CustomPlace()) {
+  dev_ctx.Wait();
   auto* src_ptr = src.data();
   const auto& src_place = src.place();
   auto dst_place_ = dst_place;

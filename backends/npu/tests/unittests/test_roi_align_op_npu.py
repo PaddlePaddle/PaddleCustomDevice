@@ -224,7 +224,6 @@ class TestROIAlignNPUOp(OpTest):
 
 class TestROIAlignNPUOpDouble(TestROIAlignNPUOp):
     def init_test_case(self):
-        print("TestROIAlignNPUOpDouble")
         self.batch_size = 3
         self.channels = 3
         self.height = 8
@@ -238,6 +237,28 @@ class TestROIAlignNPUOpDouble(TestROIAlignNPUOp):
         self.pooled_width = 2
         self.sampling_ratio = 2
         self.aligned = False
+
+        self.x = np.random.random(self.x_dim).astype(self.dtype)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
+
+
+class TestROIAlignNPUOpDoubleWithAligned(TestROIAlignNPUOp):
+    def init_test_case(self):
+        self.batch_size = 3
+        self.channels = 3
+        self.height = 8
+        self.width = 6
+        self.dtype = "double"
+        # n, c, h, w
+        self.x_dim = (self.batch_size, self.channels, self.height, self.width)
+
+        self.spatial_scale = 1.0 / 2.0
+        self.pooled_height = 2
+        self.pooled_width = 2
+        self.sampling_ratio = 2
+        self.aligned = True
 
         self.x = np.random.random(self.x_dim).astype(self.dtype)
 
@@ -262,6 +283,28 @@ class TestROIAlignOpWithMinusSample(TestROIAlignNPUOp):
         self.aligned = False
 
         self.x = np.random.random(self.x_dim).astype(self.dtype)
+
+
+class TestROIAlignOpWithMinusSampleWithAligned(TestROIAlignNPUOp):
+    def init_test_case(self):
+        self.batch_size = 3
+        self.channels = 3
+        self.height = 8
+        self.width = 6
+        self.dtype = "float32"
+        # n, c, h, w
+        self.x_dim = (self.batch_size, self.channels, self.height, self.width)
+
+        self.spatial_scale = 1.0 / 2.0
+        self.pooled_height = 2
+        self.pooled_width = 2
+        self.sampling_ratio = -1
+        self.aligned = True
+
+        self.x = np.random.random(self.x_dim).astype(self.dtype)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out", max_relative_error=0.01)
 
 
 if __name__ == "__main__":

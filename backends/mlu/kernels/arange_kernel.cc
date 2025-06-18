@@ -12,47 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "kernels/funcs/mlu_baseop.h"
 #include "kernels/funcs/range_op.h"
+#include "paddle/phi/common/scalar.h"
 
 namespace custom_kernel {
 
-template <typename T, typename Context>
-void ArangeTensorKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& start_t,
-                        const phi::DenseTensor& end_t,
-                        const phi::DenseTensor& step_t,
-                        phi::DenseTensor* out) {
-  T* h_start_ptr = nullptr;
-  T* h_end_ptr = nullptr;
-  T* h_step_ptr = nullptr;
-
-  if (start_t.place().GetType() == phi::AllocationType::CPU) {  // tensor at CPU
-    h_start_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&start_t)));
-    h_end_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&end_t)));
-    h_step_ptr = reinterpret_cast<T*>(const_cast<void*>(GetBasePtr(&step_t)));
-  } else {
-    phi::DenseTensor n;
-    n.Resize(start_t.dims());
-    T* n_data = dev_ctx.template HostAlloc<T>(&n);
-    TensorCopy(dev_ctx, start_t, true, &n, phi::CPUPlace());
-    h_start_ptr = new T(n_data[0]);
-    TensorCopy(dev_ctx, end_t, true, &n, phi::CPUPlace());
-    h_end_ptr = new T(n_data[0]);
-    TensorCopy(dev_ctx, step_t, true, &n, phi::CPUPlace());
-    h_step_ptr = new T(n_data[0]);
-  }
-
-  T start_value = h_start_ptr[0];
-  T end_value = h_end_ptr[0];
-  T step_value = h_step_ptr[0];
-
-  ArangeRawKernel<T>(dev_ctx, start_value, end_value, step_value, out);
-  if (start_t.place().GetType() != phi::AllocationType::CPU) {
-    delete h_start_ptr;
-    delete h_end_ptr;
-    delete h_step_ptr;
-  }
-}
+using phi::Scalar;
 
 template <typename T, typename Context>
 void ArangeKernel(const Context& dev_ctx,
@@ -65,6 +31,16 @@ void ArangeKernel(const Context& dev_ctx,
   T step_value = step.to<T>();
 
   ArangeRawKernel<T>(dev_ctx, start_value, end_value, step_value, out);
+}
+
+template <typename T, typename Context>
+void ArangeTensorKernel(const Context& dev_ctx,
+                        const phi::DenseTensor& start_t,
+                        const phi::DenseTensor& end_t,
+                        const phi::DenseTensor& step_t,
+                        phi::DenseTensor* out) {
+  custom_kernel::ArangeKernel<T, Context>(
+      dev_ctx, Scalar(start_t), Scalar(end_t), Scalar(step_t), out);
 }
 
 }  // namespace custom_kernel

@@ -201,6 +201,14 @@ class HpuFusedOperator : public HpuOperator {
     AddNode_IO(inputs, outputs, guid, node_name);
   }
 
+  template <typename T>
+  inline void AddNodeLinear(std::vector<synTensor> inputs,
+                            std::vector<synTensor> outputs,
+                            std::string node_name) {
+    std::string guid = "linear_fwd_" + guid_dtype<T>();
+    AddNode_IO(inputs, outputs, guid, node_name);
+  }
+
   inline void AddNodeReshape(std::vector<synTensor> inputs,
                              std::vector<synTensor> outputs,
                              std::string node_name) {
@@ -213,14 +221,6 @@ class HpuFusedOperator : public HpuOperator {
                                std::string node_name) {
     AddNode_IOP<synTransposeParams>(
         inputs, outputs, params, "transpose", node_name);
-  }
-
-  inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
-                               std::vector<synTensor> outputs,
-                               synGEMMParams params,
-                               std::string node_name) {
-    AddNode_IOP<synGEMMParams>(
-        inputs, outputs, params, "batch_gemm", node_name);
   }
 
   void AddNodeCast(std::vector<synTensor> inputs,
@@ -239,11 +239,38 @@ class HpuFusedOperator : public HpuOperator {
         inputs, outputs, params, guid, node_name);
   }
 
+  template <typename T>
+  void AddNodeConvertToFP8(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           ns_CastKernel::Params params,
+                           std::string node_name) {
+    std::string guid = "convert_to_fp8_" + guid_dtype<T>();
+    AddNode_IOP<ns_CastKernel::Params>(
+        inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  void AddNodeFP8Gemm(std::vector<synTensor> inputs,
+                      std::vector<synTensor> outputs,
+                      synGEMMParams params,
+                      std::string node_name) {
+    std::string guid = "fp8_gemm_" + guid_dtype<T>();
+    AddNode_IOP<synGEMMParams>(inputs, outputs, params, guid, node_name);
+  }
+
   inline void AddNodeGemm(std::vector<synTensor> inputs,
                           std::vector<synTensor> outputs,
                           synGEMMParams params,
                           std::string node_name) {
     AddNode_IOP<synGEMMParams>(inputs, outputs, params, "gemm", node_name);
+  }
+
+  inline void AddNodeBatchGemm(std::vector<synTensor> inputs,
+                               std::vector<synTensor> outputs,
+                               synGEMMParams params,
+                               std::string node_name) {
+    AddNode_IOP<synGEMMParams>(
+        inputs, outputs, params, "batch_gemm", node_name);
   }
 
   template <typename T>
@@ -359,6 +386,68 @@ class HpuFusedOperator : public HpuOperator {
                           std::string node_name) {
     std::string guid = "rotary_pos_embedding_fwd_" + guid_dtype<T>();
     AddNode_IOP<ns_RoPESt2::ParamsV2>(inputs, outputs, params, guid, node_name);
+  }
+
+  template <typename T>
+  inline void AddNodeSdpaRecomp(std::vector<synTensor> inputs,
+                                std::vector<synTensor> outputs,
+                                ns_Sdpa::ParamsV3 params,
+                                std::string node_name) {
+    std::string guid = "sdpa_recomp_fwd_" + guid_dtype<T>();
+    AddNode_IOP<ns_Sdpa::ParamsV3>(inputs, outputs, params, guid, node_name);
+  }
+
+  synTensor cloneTensor(std::string name, synTensor base, synDataType type) {
+    synTensorGeometry geometry;
+    synTensorGetGeometry(base, &geometry, synGeometrySizes);
+
+    std::vector<int64_t> dims;
+    for (unsigned int i = 0; i < geometry.dims; i++) {
+      dims.push_back(geometry.sizes[geometry.dims - 1 - i]);
+    }
+
+    return createTensorNoPresist(name, type, dims);
+  }
+
+  template <typename T>
+  void AddNodeFusedFp8Gemm(std::vector<synTensor> inputs,
+                           std::vector<synTensor> outputs,
+                           synGEMMParams params,
+                           std::string node_name) {
+    synTensorDeviceFullLayout x_layout;
+    synTensorDeviceFullLayout y_layout;
+    synTensorGetDeviceFullLayout(inputs[0], &x_layout);
+    synTensorGetDeviceFullLayout(inputs[1], &y_layout);
+
+    bool cast_x = (x_layout.deviceDataType != syn_type_fp8_143);
+    bool cast_y = (y_layout.deviceDataType != syn_type_fp8_143);
+    ns_CastKernel::Params cast_to_fp8_params;
+    synTensor x_tensor = inputs[0];
+    synTensor y_tensor = inputs[1];
+
+    cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
+    if (cast_x) {
+      x_tensor = cloneTensor(node_name + "_x", inputs[0], syn_type_fp8_143);
+      std::vector<synTensor> cast_ins = {inputs[0]};
+      std::vector<synTensor> cast_outs = {x_tensor};
+      AddNodeConvertToFP8<T>(
+          cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_x");
+    }
+    if (cast_y) {
+      y_tensor = cloneTensor(node_name + "_y", inputs[1], syn_type_fp8_143);
+      std::vector<synTensor> cast_ins = {inputs[1]};
+      std::vector<synTensor> cast_outs = {y_tensor};
+      AddNodeConvertToFP8<T>(
+          cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_y");
+    }
+
+    std::vector<synTensor> gemm_ins;
+    gemm_ins.push_back(x_tensor);
+    gemm_ins.push_back(y_tensor);
+    for (size_t i = 2; i < inputs.size(); i++) {
+      gemm_ins.push_back(inputs[i]);
+    }
+    AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }
 };
 

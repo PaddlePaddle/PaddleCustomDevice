@@ -32,13 +32,39 @@ void RoiAlignKernel(const Context& dev_ctx,
     dev_ctx.template Alloc<T>(out);
     return;
   }
+
+  int dtype = static_cast<int>(ConvertToNpuDtype(phi::DataType::FLOAT32));
+  NPUAttributeMap attr_cast = {{"dst_type", dtype}};
+  auto stream = dev_ctx.stream();
+
   dev_ctx.template Alloc<T>(out);
   auto roi_end_mode = 0;
-  PADDLE_ENFORCE_EQ(
-      aligned,
-      false,
-      phi::errors::InvalidArgument(
-          "ROIAlignNPU only support Aligned attribute equaled to False"));
+
+  phi::DenseTensor rois_for_op_tmp1, rois_for_op_tmp2;
+  rois_for_op_tmp1.Resize(boxes.dims());
+  dev_ctx.template Alloc<float>(&rois_for_op_tmp1);
+  if (boxes.dtype() == phi::DataType::FLOAT32) {
+    TensorCopy(dev_ctx, boxes, false, &rois_for_op_tmp1);
+  } else {
+    const auto& runner_cast_boxes =
+        NpuOpRunner("Cast", {boxes}, {rois_for_op_tmp1}, attr_cast);
+    runner_cast_boxes.Run(stream);
+  }
+
+  if (aligned) {
+    rois_for_op_tmp2.Resize(boxes.dims());
+    dev_ctx.template Alloc<float>(&rois_for_op_tmp2);
+    float offset_to_subtract = -0.5f / spatial_scale;
+    const auto& runner_align_adjust =
+        NpuOpRunner("Adds",
+                    {rois_for_op_tmp1},
+                    {rois_for_op_tmp2},
+                    {{"value", offset_to_subtract}});
+    runner_align_adjust.Run(stream);
+  }
+
+  const phi::DenseTensor& rois_for_op =
+      aligned ? rois_for_op_tmp2 : rois_for_op_tmp1;
 
   NPUAttributeMap attr_boxes = {{"spatial_scale", spatial_scale},
                                 {"pooled_height", pooled_height},
@@ -46,12 +72,8 @@ void RoiAlignKernel(const Context& dev_ctx,
                                 {"sample_num", sampling_ratio},
                                 {"roi_end_mode", roi_end_mode}};
 
-  int dtype = static_cast<int>(ConvertToNpuDtype(phi::DataType::FLOAT32));
-  NPUAttributeMap attr_cast = {{"dst_type", dtype}};
-
-  auto stream = dev_ctx.stream();
   int boxes_batch_size;
-  std::vector<float> roi_batch_id_data((boxes.dims()[0]));
+  std::vector<float> roi_batch_id_data((rois_for_op.dims()[0]));
   int batch_size = x.dims()[0];
   if (boxes_num) {
     boxes_batch_size = boxes_num->numel();
@@ -76,7 +98,7 @@ void RoiAlignKernel(const Context& dev_ctx,
       start += boxes_num_data[n];
     }
   } else {
-    auto lod = boxes.lod();
+    auto lod = rois_for_op.lod();
     PADDLE_ENFORCE_EQ(
         lod.empty(),
         false,
@@ -113,17 +135,11 @@ void RoiAlignKernel(const Context& dev_ctx,
   phi::DenseTensor boxes_num_fp;
   TensorFromVector<float>(dev_ctx, roi_batch_id_data, dev_ctx, &boxes_num_fp);
   boxes_num_fp.Resize({boxes.dims()[0], 1});
-  phi::DenseTensor boxes_fp(boxes);
-  if (x.dtype() != phi::DataType::FLOAT32) {
-    // cast boxes dtype to float32
-    const auto& runner_c = NpuOpRunner("Cast", {boxes}, {boxes_fp}, attr_cast);
-    runner_c.Run(stream);
-  }
 
   // concate to make (N, 5)
   std::vector<phi::DenseTensor> x_list;
   x_list.push_back(boxes_num_fp);
-  x_list.push_back(boxes_fp);
+  x_list.push_back(rois_for_op);
 
   auto axis = 1;
   // output of concate
@@ -204,11 +220,8 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   int rois_num = boxes.dims()[0];
   auto stream = dev_ctx.stream();
 
-  PADDLE_ENFORCE_EQ(
-      aligned,
-      false,
-      phi::errors::InvalidArgument(
-          "ROIAlignGradNPU only support Aligned attribute equaled to False"));
+  int dtype = static_cast<int>(ConvertToNpuDtype(phi::DataType::FLOAT32));
+  NPUAttributeMap attr_cast = {{"dst_type", dtype}};
 
   //   PADDLE_ENFORCE_EQ(
   //       boxes.dtype(),
@@ -216,12 +229,35 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   //       phi::errors::InvalidArgument(
   //           "ROIAlignGradNPU only support ROIs type equaled to FP32."));
 
-  int dtype = static_cast<int>(ConvertToNpuDtype(phi::DataType::FLOAT32));
-  NPUAttributeMap attr_cast = {{"dst_type", dtype}};
+  phi::DenseTensor rois_for_op_tmp1, rois_for_op_tmp2;
+  rois_for_op_tmp1.Resize(boxes.dims());
+  dev_ctx.template Alloc<float>(&rois_for_op_tmp1);
+  if (boxes.dtype() == phi::DataType::FLOAT32) {
+    TensorCopy(dev_ctx, boxes, false, &rois_for_op_tmp1);
+  } else {
+    const auto& runner_cast_boxes =
+        NpuOpRunner("Cast", {boxes}, {rois_for_op_tmp1}, attr_cast);
+    runner_cast_boxes.Run(stream);
+  }
+
+  if (aligned) {
+    rois_for_op_tmp2.Resize(boxes.dims());
+    dev_ctx.template Alloc<float>(&rois_for_op_tmp2);
+    float offset_to_subtract = -0.5f / spatial_scale;
+    const auto& runner_align_adjust =
+        NpuOpRunner("Adds",
+                    {rois_for_op_tmp1},
+                    {rois_for_op_tmp2},
+                    {{"value", offset_to_subtract}});
+    runner_align_adjust.Run(stream);
+  }
+
+  const phi::DenseTensor& rois_for_op =
+      aligned ? rois_for_op_tmp2 : rois_for_op_tmp1;
 
   int boxes_batch_size;
   int batch_size = x.dims()[0];
-  std::vector<float> box_batch_id_data((boxes.dims()[0]));
+  std::vector<float> box_batch_id_data((rois_for_op.dims()[0]));
 
   if (boxes_num) {
     boxes_batch_size = boxes_num->numel();
@@ -236,7 +272,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
       start += boxes_num_data[n];
     }
   } else {
-    auto boxes_lod = boxes.lod().back();
+    auto boxes_lod = rois_for_op.lod().back();
     boxes_batch_size = boxes_lod.size() - 1;
     for (int n = 0; n < boxes_batch_size; ++n) {
       for (std::size_t i = boxes_lod[n]; i < boxes_lod[n + 1]; ++i) {
@@ -246,13 +282,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
   }
   phi::DenseTensor boxes_num_fp;
   TensorFromVector<float>(dev_ctx, box_batch_id_data, dev_ctx, &boxes_num_fp);
-  boxes_num_fp.Resize({boxes.dims()[0], 1});
-  phi::DenseTensor boxes_fp(boxes);
-  if (x.dtype() != phi::DataType::FLOAT32) {
-    // cast boxes dtype to float32
-    const auto& runner_c = NpuOpRunner("Cast", {boxes}, {boxes_fp}, attr_cast);
-    runner_c.Run(stream);
-  }
+  boxes_num_fp.Resize({rois_for_op.dims()[0], 1});
 
   // Cast boxes_num to fp32 tensor
   phi::DenseTensor boxes_N5;
@@ -263,7 +293,7 @@ void RoiAlignGradKernel(const Context& dev_ctx,
 
   std::vector<phi::DenseTensor> x_list;
   x_list.push_back(boxes_num_fp);
-  x_list.push_back(boxes_fp);
+  x_list.push_back(rois_for_op);
   const auto& runner_concat = NpuOpRunner(
       "ConcatD", {x_list}, {boxes_N5}, {{"N", 2}, {"concat_dim", 1}});
   runner_concat.Run(stream);

@@ -494,7 +494,7 @@ void FusedRmsQkvRopeKernelV3(const Context& dev_ctx,
 
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>(
-      "fused_rms_qkv_rope_v3_fwd_", {src_dims}, nullptr);
+      "fused_rms_qkv_rope_v3_fwd_", {src_dims, qkv_weights_dims}, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {

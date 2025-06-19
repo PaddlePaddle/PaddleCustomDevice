@@ -1,4 +1,5 @@
-# Get the latest git tag.
+# 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+# Reserved. Get the latest git tag.
 set(PADDLE_VERSION $ENV{PADDLE_VERSION})
 if(WITH_NIGHTLY_BUILD)
   execute_process(

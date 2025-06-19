@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import paddle
 from paddle.base import core
 
@@ -234,3 +234,221 @@ def top_p_sampling(
         return next_scores, next_tokens
     else:
         raise (f"Not support top_p_sampling with version:{version}")
+
+
+def topk_softmax(
+    topk_weights,
+    topk_indices,
+    token_expert_indices,
+    gating_output,
+    norm_topk_prob=False,
+):
+    topk_weights, topk_indices, token_expert_indices = core.eager._run_custom_op(
+        "topk_softmax_gcu",
+        topk_weights,
+        topk_indices,
+        token_expert_indices,
+        gating_output,
+        norm_topk_prob,
+    )
+    return topk_weights, topk_indices, token_expert_indices
+
+
+def fused_moe_quant_kernel(
+    C: paddle.Tensor,
+    A: paddle.Tensor,
+    B: paddle.Tensor,
+    A_scale: Optional[paddle.Tensor],
+    B_scale: paddle.Tensor,
+    gs: int,
+    B_zp: Optional[paddle.Tensor],
+    topk_weights: paddle.Tensor,
+    topk_ids: paddle.Tensor,
+    sorted_token_ids: paddle.Tensor,
+    experts_ids: paddle.Tensor,
+    num_tokens_post_pad: paddle.Tensor,
+    mul_routed_weight: bool,
+    topk: int,
+    block_size: int,
+):
+    c_out = core.eager._run_custom_op(
+        "fused_moe_quant_kernel",
+        C,
+        A,
+        B,
+        A_scale,
+        B_scale,
+        B_zp,
+        topk_weights,
+        topk_ids,
+        sorted_token_ids,
+        experts_ids,
+        num_tokens_post_pad,
+        gs,
+        mul_routed_weight,
+        topk,
+        block_size,
+    )
+
+    return c_out
+
+
+def fused_moe_kernel(
+    C: paddle.Tensor,
+    A: paddle.Tensor,
+    B: paddle.Tensor,
+    topk_weights: paddle.Tensor,
+    topk_ids: paddle.Tensor,
+    sorted_token_ids: paddle.Tensor,
+    experts_ids: paddle.Tensor,
+    num_tokens_post_pad: paddle.Tensor,
+    mul_routed_weight: bool,
+    topk: int,
+    block_size: int,
+    bias: Optional[paddle.Tensor],
+):
+    c_out = core.eager._run_custom_op(
+        "fused_moe_kernel_gcu",
+        C,
+        A,
+        B,
+        bias,
+        topk_weights,
+        topk_ids,
+        sorted_token_ids,
+        experts_ids,
+        num_tokens_post_pad,
+        mul_routed_weight,
+        topk,
+        block_size,
+    )
+
+    return c_out
+
+
+def moe_align_block_size(
+    sorted_token_ids: paddle.Tensor,
+    experts_ids: paddle.Tensor,
+    num_tokens_post_pad: paddle.Tensor,
+    topk_ids: paddle.Tensor,
+    num_experts: int,
+    block_size: int,
+):
+    (
+        sorted_token_ids_out,
+        experts_ids_out,
+        num_tokens_post_pad_out,
+    ) = core.eager._run_custom_op(
+        "moe_align_block_size_gcu",
+        sorted_token_ids,
+        experts_ids,
+        num_tokens_post_pad,
+        topk_ids,
+        num_experts,
+        block_size,
+    )
+
+    return sorted_token_ids_out, experts_ids_out, num_tokens_post_pad_out
+
+
+def invoke_fused_moe_kernel(
+    A: paddle.Tensor,  # input
+    B: paddle.Tensor,  # weight
+    C: paddle.Tensor,  # output
+    A_scale: Optional[paddle.Tensor],  # w8a8 input scale
+    B_scale: Optional[paddle.Tensor],
+    B_zp: Optional[paddle.Tensor],
+    topk_weights: paddle.Tensor,
+    topk_ids: paddle.Tensor,
+    sorted_token_ids: paddle.Tensor,
+    expert_ids: paddle.Tensor,
+    num_tokens_post_padded: paddle.Tensor,
+    mul_routed_weight: bool,
+    top_k: int,
+    config: Dict[str, Any],
+    use_int4_w4a16: bool,
+    block_shape: Optional[List[int]] = None,
+) -> None:
+    assert topk_weights.strides[1] == 1
+    assert sorted_token_ids.strides[0] == 1
+
+    if use_int4_w4a16:
+        assert B_scale is not None
+        assert block_shape and block_shape[0] == 0
+        assert B_zp is None or B_zp.ndim == 3
+
+    block_size = config["BLOCK_SIZE_M"]
+
+    if use_int4_w4a16:
+        A_scale = None
+        group_size = block_shape[1]
+
+        fused_moe_quant_kernel(
+            C,
+            A,
+            B,
+            A_scale,
+            B_scale,
+            group_size,
+            B_zp,
+            topk_weights,
+            topk_ids,
+            sorted_token_ids,
+            expert_ids,
+            num_tokens_post_padded,
+            mul_routed_weight,
+            top_k,
+            block_size,
+        )
+    else:
+        topk_weights = topk_weights.astype("float32")  # WA for grouped_topk
+        fused_moe_kernel(
+            C,
+            A,
+            B,
+            topk_weights,
+            topk_ids,
+            sorted_token_ids,
+            expert_ids,
+            num_tokens_post_padded,
+            mul_routed_weight,
+            top_k,
+            block_size,
+            None,
+        )
+
+
+def awq_gemm(
+    input: paddle.Tensor,
+    qweight: paddle.Tensor,
+    scales: paddle.Tensor,
+    qzeros=None,
+    bias=None,
+    group_size=128,
+):
+    if qzeros is None:
+        qzeros = paddle.zeros_like(scales)
+
+    linear_output = (
+        core.eager._run_custom_op(
+            "awq_gemm_gcu", input, qweight, scales, qzeros, bias, group_size
+        )
+    )[0]
+
+    return linear_output
+
+
+def weight_only_quant(
+    input: paddle.Tensor,
+    qweight: paddle.Tensor,
+    scales: paddle.Tensor,
+    bias: Optional[paddle.Tensor] = None,
+    group_size=-1,
+):
+    linear_output = (
+        core.eager._run_custom_op(
+            "weight_only_quant_gcu", input, qweight, bias, scales, group_size
+        )
+    )[0]
+
+    return linear_output

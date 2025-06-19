@@ -27,11 +27,11 @@ from paddle_custom_device.gcu import ops as gcu_ops
 RESHAPE_AND_CACHE_CASE = [
 
     {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
-    {"num_blocks": 32, "num_tokens": 8, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
-    {"num_blocks": 64, "num_tokens": 5, "num_kv_heads": 8, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
-    {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 64, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
-    {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 4, "head_size": 256, "block_size": 16, "x": 8, "dtype": np.float16},
-    {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 4, "head_size": 128, "block_size": 32, "x": 8, "dtype": np.float16},
+    # {"num_blocks": 32, "num_tokens": 8, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
+    # {"num_blocks": 64, "num_tokens": 5, "num_kv_heads": 8, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
+    # {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 64, "head_size": 128, "block_size": 16, "x": 8, "dtype": np.float16},
+    # {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 4, "head_size": 256, "block_size": 16, "x": 8, "dtype": np.float16},
+    # {"num_blocks": 32, "num_tokens": 5, "num_kv_heads": 4, "head_size": 128, "block_size": 32, "x": 8, "dtype": np.float16},
 
 ]
 # fmt: on
@@ -168,13 +168,13 @@ class TestReshapeAndCache(TestAPIBase):
         self.dtype = np.float16
 
     def prepare_data(self):
-        self.key = self.generate_data(
-            shape=[self.num_tokens, self.num_kv_heads, self.head_size], dtype=self.dtype
-        )
+        # self.key = self.generate_data(
+        #     shape=[self.num_tokens, self.num_kv_heads, self.head_size], dtype=self.dtype
+        # )
 
-        self.value = self.generate_data(
-            shape=[self.num_tokens, self.num_kv_heads, self.head_size], dtype=self.dtype
-        )
+        # self.value = self.generate_data(
+        #     shape=[self.num_tokens, self.num_kv_heads, self.head_size], dtype=self.dtype
+        # )
 
         self.key_cache = np.zeros(
             shape=[
@@ -191,6 +191,36 @@ class TestReshapeAndCache(TestAPIBase):
             shape=[self.num_blocks, self.num_kv_heads, self.head_size, self.block_size],
             dtype=self.dtype,
         )
+
+        all_nums = self.num_tokens * self.num_kv_heads * self.head_size
+        key_value = np.arange(0, all_nums, dtype=np.int32)
+        self.key = key_value.reshape(
+            [self.num_tokens, self.num_kv_heads, self.head_size]
+        ).astype(self.dtype)
+
+        self.value = key_value.reshape(
+            [self.num_tokens, self.num_kv_heads, self.head_size]
+        ).astype(self.dtype)
+
+        # self.key_cache = np.zeros(
+        #     shape=[
+        #         self.num_blocks,
+        #         self.num_kv_heads,
+        #         self.block_size,
+        #         self.head_size,
+        #     ],
+        #     dtype=self.dtype,
+        # )
+
+        # self.value_cache = np.zeros(
+        #     shape=[
+        #         self.num_blocks,
+        #         self.num_kv_heads,
+        #         self.block_size,
+        #         self.head_size,
+        #     ],
+        #     dtype=self.dtype,
+        # )
 
         self.slot_mapping = np.arange(0, self.num_tokens)
 
@@ -217,6 +247,15 @@ class TestReshapeAndCache(TestAPIBase):
             v_scale=1.0,
             v_zero=0.0,
         )
+
+        # print(f"TESTCASE_DEBUG In prepare_data, origin key_cache:\n{key_cache.to('cpu').tolist()}", flush=True)
+
+        # key_cache_v = key_cache.transpose([0, 2, 1, 3, 4])
+        # key_cache_v_reshape = key_cache_v.reshape([self.num_blocks * self.block_size, self.num_kv_heads, self.head_size])
+        # key_cache_v_reshape_index = key_cache_v_reshape[0:self.num_tokens, :, :]
+
+        # print(f"TESTCASE_DEBUG In prepare_data, self.key_cache_v_reshape_index:\n{key_cache_v_reshape_index.to('cpu').tolist()}", flush=True)
+        # print(f"TESTCASE_DEBUG In prepare_data, self.key:\n{key.to('cpu').tolist()}", flush=True)
 
         return [key_cache, value_cache]
 

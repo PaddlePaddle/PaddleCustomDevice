@@ -28,9 +28,9 @@ from paddle_custom_device.gcu import ops as gcu_ops
 # fmt: off
 FLASH_ATTENTION_CASE = [
 
-    # {"query_lens": [1, 5, 129], "kv_lens": [1328, 18, 463], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": True},
-    # {"query_lens": [1, 5, 129], "kv_lens": [1328, 18, 463], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": False},
-    # {"query_lens": [5, 10, 80], "kv_lens": [50, 60, 100], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": True},
+    {"query_lens": [1, 5, 129], "kv_lens": [1328, 18, 463], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": True},
+    {"query_lens": [1, 5, 129], "kv_lens": [1328, 18, 463], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": False},
+    {"query_lens": [5, 10, 80], "kv_lens": [50, 60, 100], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": True},
     {"query_lens": [5, 10, 60], "kv_lens": [50, 60, 100], "num_heads": 4, "num_kv_heads": 4, "head_size": 128, "block_size": 16, "num_blocks": 2048, "dtype": np.float16, "with_cache": False},
 
 ]
@@ -101,10 +101,10 @@ def native_attention_impl(
         attention_mask = get_triangle_upper_mask(
             [batch, 1, q_seq_len, kv_seq_len], q.dtype
         )
-        print(
-            f"TESTCASE_DEBUG In run_sdpa, q.shape:{q.shape}, k.shape:{k.shape}, attention_mask.shape:{attention_mask.shape}",
-            flush=True,
-        )
+        # print(
+        #     f"TESTCASE_DEBUG In run_sdpa, q.shape:{q.shape}, k.shape:{k.shape}, attention_mask.shape:{attention_mask.shape}",
+        #     flush=True,
+        # )
         # print(f"TESTCASE_DEBUG In run_sdpa, attention_mask:{attention_mask}", flush=True)
         attn_weights = attn_weights + attention_mask
         attn_weights = paddle.nn.functional.softmax(
@@ -120,17 +120,17 @@ def native_attention_impl(
     if with_cache:
         max_block_num, block_size, num_kv_heads, head_size = key_cache.shape
 
-    outputs: List[paddle.Tensor] = []
+    outputs = paddle.empty_like(query)
     start_idx = 0
     kv_start_idx = 0
-    print(
-        f"TESTCASE_DEBUG In native_attention_impl, query_lens:{query_lens}, kv_lens:{kv_lens}",
-        flush=True,
-    )
-    print(
-        f"TESTCASE_DEBUG In native_attention_impl, query.shape:{query.shape}, key_cache.shape:{key_cache.shape}, value_cache.shape:{value_cache.shape}",
-        flush=True,
-    )
+    # print(
+    #     f"TESTCASE_DEBUG In native_attention_impl, query_lens:{query_lens}, kv_lens:{kv_lens}",
+    #     flush=True,
+    # )
+    # print(
+    #     f"TESTCASE_DEBUG In native_attention_impl, query.shape:{query.shape}, key_cache.shape:{key_cache.shape}, value_cache.shape:{value_cache.shape}",
+    #     flush=True,
+    # )
     for i in range(num_seqs):
         query_len = query_lens[i]
         kv_len = kv_lens[i]
@@ -152,11 +152,11 @@ def native_attention_impl(
 
         # inputs: [num_tokens, num_heads, head_size] -> [1, num_tokens, num_heads, head_size]
         out = run_sdpa(q.unsqueeze(0), k.unsqueeze(0), v.unsqueeze(0))
-        outputs.append(out.squeeze(0))
+        outputs[start_idx : start_idx + query_len, :, :] = out.squeeze(0)
         start_idx += query_len
         kv_start_idx += kv_len
 
-    return paddle.concat(outputs, axis=0)
+    return outputs
 
 
 @ddt
@@ -233,9 +233,9 @@ class TestFlashAttnVarLenAttention(TestAPIBase):
         self.cu_key_lens = np.array(cu_key_lens_data, dtype=np.int32).cumsum(axis=0)
         self.seqused_k = np.array(self.kv_lens, dtype=np.int32)
 
-        print(f"TESTCASE_DEBUG cu_query_lens:{self.cu_query_lens}", flush=True)
-        print(f"TESTCASE_DEBUG cu_key_lens:{self.cu_key_lens}", flush=True)
-        print(f"TESTCASE_DEBUG seqused_k:{self.seqused_k}", flush=True)
+        # print(f"TESTCASE_DEBUG cu_query_lens:{self.cu_query_lens}", flush=True)
+        # print(f"TESTCASE_DEBUG cu_key_lens:{self.cu_key_lens}", flush=True)
+        # print(f"TESTCASE_DEBUG seqused_k:{self.seqused_k}", flush=True)
 
     def forward(self):
         query = paddle.to_tensor(self.query, dtype=self.dtype)

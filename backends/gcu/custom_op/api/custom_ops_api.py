@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from typing import List, Optional
+import paddle
 from paddle.base import core
 
 
@@ -160,3 +161,76 @@ def paged_attention(
         v_zero,
     )[0]
     return attn_output
+
+
+def rms_norm(x, weight, epsilon):
+    output = core.eager._run_custom_op("rms_norm_gcu", x, weight, epsilon)[0]
+    return output
+
+
+def fused_add_rms_norm(x, residual, weight, epsilon):
+    output, residual_update = core.eager._run_custom_op(
+        "fused_add_rms_norm_op",
+        x,
+        residual,
+        weight,
+        epsilon,
+    )
+    return output, residual_update
+
+
+def silu_and_mul(
+    x,
+):
+    return paddle.incubate.nn.functional.swiglu(x)
+
+
+def top_p_sampling(
+    probs,
+    top_p,
+    version=1,
+):
+    if version == 1:
+        sorted_probs, sorted_indices = paddle._C_ops.argsort(probs, -1, True, False)
+        cumulative_probs = paddle.cumsum(sorted_probs, axis=-1)
+
+        # Remove tokens with cumulative probs above the top_p, But keep at
+        # least min_tokens_to_keep tokens
+        sorted_indices_to_remove = cumulative_probs > top_p
+
+        # Keep the first token
+        sorted_indices_to_remove = paddle.cast(sorted_indices_to_remove, dtype="int64")
+
+        sorted_indices_to_remove = paddle.static.setitem(
+            sorted_indices_to_remove,
+            (slice(None), slice(1, None)),
+            sorted_indices_to_remove[:, :-1].clone(),
+        )
+        sorted_indices_to_remove = paddle.static.setitem(
+            sorted_indices_to_remove, (slice(None), 0), 0
+        )
+
+        # Scatter sorted tensors to original indexing
+        sorted_indices = (
+            sorted_indices
+            + paddle.arange(probs.shape[0]).unsqueeze(-1) * probs.shape[-1]
+        )
+        condition = paddle.scatter(
+            sorted_indices_to_remove.flatten(),
+            sorted_indices.flatten(),
+            sorted_indices_to_remove.flatten(),
+        )
+        condition = paddle.cast(condition, "bool").reshape(probs.shape)
+        probs = paddle.where(condition, paddle.full_like(probs, 0.0), probs)
+        next_tokens = paddle.multinomial(probs)
+        next_scores = paddle.index_sample(probs, next_tokens)
+        return next_scores, next_tokens
+    elif version == 2:
+        next_scores, next_tokens = core.eager._run_custom_op(
+            "top_p_sampling_gcu",
+            probs,
+            top_p,
+        )
+        return next_scores, next_tokens
+    else:
+        raise (f"Not support top_p_sampling with version:{version}")

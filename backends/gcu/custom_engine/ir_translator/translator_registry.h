@@ -63,7 +63,6 @@ class TranslatorRegistry {
         common::errors::InvalidArgument(
             "OpTranslateFunc of %s has been registered.", op_name));
     translator_map_.insert({op_name, op_trans_func});
-    std::cout << "TranslatorRegistry insert " << op_name << std::endl;
   }
 
   OpTranslateFunc Get(const std::string &op_name) const {

@@ -36,7 +36,7 @@ ATTENTION_CASE = [
     {"batch_size": 4, "q_seq_len": 512, "kv_seq_len": 256, "num_heads": 40, "num_kv_heads": 20, "head_dim": 128, "dtype": np.float16, "var_len": False},
 
     # var len
-    {"batch_size": 4, "q_seq_len": [512, 512, 512, 512], "kv_seq_len": [512, 512, 512, 512], "num_heads": 40, "num_kv_heads": 20, "head_dim": 128, "dtype": np.float16, "var_len": True},
+    {"batch_size": 4, "q_seq_len": [512, 256, 125, 96], "kv_seq_len": [512, 256, 125, 96], "num_heads": 40, "num_kv_heads": 20, "head_dim": 128, "dtype": np.float16, "var_len": True},
 
 ]
 # fmt: on
@@ -126,7 +126,7 @@ def native_var_len_attention_impl(
     paddle.set_device(NATIVE_IMPL_DEV)
     num_seqs = len(query_lens)
 
-    outputs: List[paddle.Tensor] = []
+    outputs = paddle.empty_like(query)
     start_idx = 0
     kv_start_idx = 0
     # print(f"TESTCASE_DEBUG In native_var_len_attention_impl, query.shape:{query.shape}, k.shape:{key_cache.shape}, value_cache.shape:{value_cache.shape}", flush=True)
@@ -142,11 +142,11 @@ def native_var_len_attention_impl(
 
         # inputs: [num_tokens, num_heads, head_size] -> [1, num_tokens, num_heads, head_size]
         out = run_sdpa(q, k, v)
-        outputs.append(out)
+        outputs[:, start_idx : start_idx + query_len, :, :] = out
         start_idx += query_len
         kv_start_idx += kv_len
 
-    return paddle.concat(outputs, axis=0)
+    return outputs
 
 
 @ddt

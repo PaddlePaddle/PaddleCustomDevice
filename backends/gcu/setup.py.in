@@ -30,7 +30,7 @@ def write_custom_op_api_py(init_file='python/paddle_custom_device/gcu/ops/__init
         f_init.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
         f_init.write('''from .custom_ops import *  # noqa: F403\n''')
         f_init.write('''from .custom_ops_api import *  # noqa: F403''')
-        f_init.write(op_name_strs)
+        # f_init.write(op_name_strs)
         f_init.write('''
 
 def run_once(f):

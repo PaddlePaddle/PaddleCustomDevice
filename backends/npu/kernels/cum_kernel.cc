@@ -81,7 +81,7 @@ void AclopCumsumKernel(const Context& dev_ctx,
   NPUAttributeMap attr_input = {{"axis", axis},
                                 {"exclusive", exclusive},
                                 {"reverse", reverse},
-                                {"dtype", dtype}};
+                                {"dtype", static_cast<int>(dtype)}};
 
   if (flatten) {
     PADDLE_ENFORCE_EQ(

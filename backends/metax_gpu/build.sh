@@ -17,7 +17,7 @@
 
 set -e
 # init paddle
-#git submodule sync --recursive && git submodule update --init --recursive
+git submodule sync --recursive && git submodule update --init --recursive
 
 
 # apply patch

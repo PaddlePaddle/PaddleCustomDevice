@@ -72,13 +72,16 @@ void AclopCumsumKernel(const Context& dev_ctx,
                        bool flatten,
                        bool exclusive,
                        bool reverse,
+                       phi::DataType dtype,
                        phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
 
   auto axis = axis_scalar.to<int>();
 
-  NPUAttributeMap attr_input = {
-      {"axis", axis}, {"exclusive", exclusive}, {"reverse", reverse}};
+  NPUAttributeMap attr_input = {{"axis", axis},
+                                {"exclusive", exclusive},
+                                {"reverse", reverse},
+                                {"dtype", dtype}};
 
   if (flatten) {
     PADDLE_ENFORCE_EQ(
@@ -105,11 +108,12 @@ void CumsumKernel(const Context& dev_ctx,
                   bool flatten,
                   bool exclusive,
                   bool reverse,
+                  phi::DataType dtype,
                   phi::DenseTensor* out) {
   DO_COMPATIBILITY(
       aclnnCumsumV2,
       (custom_kernel::AclopCumsumKernel<T, Context>(
-          dev_ctx, x, axis_scalar, flatten, exclusive, reverse, out)));
+          dev_ctx, x, axis_scalar, flatten, exclusive, reverse, dtype, out)));
   dev_ctx.template Alloc<T>(out);
   auto axis = axis_scalar.to<int64_t>();
 

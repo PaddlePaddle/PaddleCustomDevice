@@ -1,5 +1,4 @@
-# 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-# Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -33,6 +32,7 @@ include(version)
 include(generic)
 include(cblas)
 include(flashattn)
+include(cutlass)
 
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
@@ -60,7 +60,7 @@ macro(UNSET_VAR VAR_NAME)
 endmacro()
 
 include(cuda)
-include(cutlass)
+# include(cutlass)
 include(gflags)
 include(glog)
 include(eigen)
@@ -149,8 +149,10 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/concat_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kerc_idfuncsnel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu
-  ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu
+  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
@@ -262,8 +264,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
   # kernels/fusion
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_grad_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_grad_kernel.cu
   # kernels/selected_rows
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   # kernels/kps
@@ -361,9 +363,11 @@ target_compile_definitions(
   ${TARGET_NAME}
   PUBLIC PADDLE_WITH_CUDA=1
          PADDLE_WITH_CUSTOM_DEVICE=1
+         # PADDLE_WITH_NCCL=1
          GPUContext=CustomContext
          KPSContext=CustomContext
          STREAM_TYPE=cudaStream_t
+         # NCCLCommContext=XCCLCommContext
          EVENT_TYPE=cudaEvent_t
          EIGEN_USE_GPU=1)
 

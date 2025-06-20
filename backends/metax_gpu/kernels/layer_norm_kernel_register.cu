@@ -1,5 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved. Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +50,7 @@ __device__ inline void WelfordOnline(
 
 template <typename U>
 __device__ inline void WelfordWarpAllReduce(U *mean, U *square, U *count) {
-  constexpr int kWarpSize = 64;
+  constexpr int kWarpSize = 32;
 #pragma unroll
   for (int mask = 1; mask < kWarpSize; mask *= 2) {
     U b_mean = __shfl_down_sync(0xffffffff, *mean, mask);
@@ -308,7 +307,7 @@ __global__ void LayerNormFwdWithWelford(
     const int32_t cols_per_thread,
     const bool valid_scale,
     const bool valid_bias) {
-  constexpr int kWarpSize = 64;
+  constexpr int kWarpSize = 32;
   int last_tid_idx = 0;  // For condition once vecSize is 1.
   IndexT row_offset = blockIdx.x * blockDim.y + threadIdx.y;
   int cols_this_thread =
@@ -372,7 +371,7 @@ void LaunchLayerNormKernel(const Context &dev_ctx,
                            const bool valid_scale,
                            const bool valid_bias,
                            const bool is_same_type) {
-  constexpr int WarpSize = 64;
+  constexpr int WarpSize = 32;
   constexpr int RowPerBlock = 4;
   int64_t block_size = (rows + (RowPerBlock - 1)) / RowPerBlock;
   dim3 threads(WarpSize, RowPerBlock, 1);
@@ -567,7 +566,7 @@ void LayerNormKernel(const Context &dev_ctx,
   case (feature_size): {                                                     \
     constexpr int WARPS_N = feature_size < 1024 ? 1 : (feature_size / 1024); \
     constexpr int WARPS_M = 4 / WARPS_N;                                     \
-    const int THREADS_PER_WARP = 64;                                         \
+    const int THREADS_PER_WARP = 32;                                         \
     const int BYTES_PER_LDG = 16;                                            \
     const int VecSize = BYTES_PER_LDG / sizeof(T);                           \
     const int THREADS_PER_CTA = WARPS_N * THREADS_PER_WARP * WARPS_M;        \
@@ -668,13 +667,49 @@ void LayerNormKernel(const Context &dev_ctx,
 
 }  // namespace phi
 
+#ifdef PADDLE_WITH_HIP
+// MIOPEN do not support double
 PD_REGISTER_PLUGIN_KERNEL(layer_norm,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::LayerNormKernel,
                           float,
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
+  kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
+}
+#elif CUDNN_VERSION_MIN(8, 1, 0)
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LayerNormKernel,
+                          float,
+                          double,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }
+#else
+PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LayerNormKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
+  kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
+}
+#endif
+
+// PD_REGISTER_PLUGIN_KERNEL(layer_norm,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::LayerNormKernel,
+//                           float,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16) {
+//   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
+//   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
+// }

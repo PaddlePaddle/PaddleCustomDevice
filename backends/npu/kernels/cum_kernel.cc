@@ -129,9 +129,11 @@ void CumsumKernel(const Context& dev_ctx,
     Tensor new_x(x);
     new_x.Resize(phi::make_ddim({x.numel()}));
 
-    EXEC_NPU_CMD(aclnnCumsumV2, dev_ctx, new_x, axis, exclusive, reverse, *out);
+    EXEC_NPU_CMD(
+        aclnnCumsumV2, dev_ctx, new_x, axis, exclusive, reverse, dtype, *out);
   } else {
-    EXEC_NPU_CMD(aclnnCumsumV2, dev_ctx, x, axis, exclusive, reverse, *out);
+    EXEC_NPU_CMD(
+        aclnnCumsumV2, dev_ctx, x, axis, exclusive, reverse, dtype, *out);
   }
 }
 

@@ -20,13 +20,18 @@
 # export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
 # export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
 pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
-
-export PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"
-#export PYTHONPATH=../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/:../../../../../PaddleCustomDevice/python:../../../../../PaddleCustomDevice/python/tests/
-
+SCRIPT_DIR=$(dirname "$0")
+LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
+TEST_PATH1="${SCRIPT_DIR}/../../../python"
+TEST_PATH2="${SCRIPT_DIR}/../../../python/tests"
+export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}:${TEST_PATH1}:${TEST_PATH2}"
+# export PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"
+#export PYTHexport PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"ONPATH=../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/:../../../../../PaddleCustomDevice/python:../../../../../PaddleCustomDevice/python/tests/
+# export PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"
 # mkdir -p build && cd build && cmake ..
 # make run_tests
 # 进入 build 目录（如果不存在则创建）
+rm -r build
 mkdir -p build && cd build
 
 # 生成构建系统（指定上级目录的 CMakeLists.txt）

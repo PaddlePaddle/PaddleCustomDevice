@@ -14,12 +14,18 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/legacy/gpu/layer_norm_cuda_kernel.cu"  //NOLINT
 
-PD_CUSTOM_KERNEL_REGISTER(
-    fused_rms_norm_ext, metax_gpu, ALL_LAYOUT, phi::RMSLnFwd, float, double) {}
+PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_ext,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::RMSLnFwd,
+                          float,
+                          double,
+                          phi::dtype::bfloat16) {}
 
 PD_CUSTOM_KERNEL_REGISTER(fused_rms_norm_ext_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::RMSLnBwd,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::bfloat16) {}

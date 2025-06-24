@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJ_NAME "paddle-metax-gpu")
 project(${PROJ_NAME} CXX C CUDA)
 
-set(PLUGIN_VERSION "0.0.1")
+# set(PLUGIN_VERSION "3.0.0") set(PLUGIN_VERSION ${PADDLE_VERSION})
 set(TARGET_NAME ${PROJ_NAME})
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -34,6 +34,7 @@ include(cblas)
 include(flashattn)
 include(cutlass)
 
+set(PLUGIN_VERSION ${PADDLE_VERSION})
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
 

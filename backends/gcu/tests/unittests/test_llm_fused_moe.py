@@ -96,6 +96,13 @@ class TestFusedMoeConsistency(unittest.TestCase):
         # self.b1 = paddle.stack([e.fc2.bias for e in self.experts]
         #               ).reshape([self.num_experts, 1, -1]).astype(self.dtype)
 
+        # shape (E, K, N) -> (E, N, K)
+        #     E is the number of experts
+        #     K is the input feature dimension
+        #     N is the output feature dimension
+        self.w0_trans = paddle.transpose(self.w0, [0, 2, 1])
+        self.w1_trans = paddle.transpose(self.w1, [0, 2, 1])
+
     def baseline_forward(self, hidden_states):
         """Baseline implementation processing experts sequentially."""
         batch_size, seq_len, hidden_dim = hidden_states.shape
@@ -166,10 +173,14 @@ class TestFusedMoeConsistency(unittest.TestCase):
         }
 
         block_size = config["BLOCK_SIZE_M"]
-        max_num_tokens_padded = topk_indices.numel() + num_experts * (block_size - 1)
-        sorted_token_ids = paddle.empty([max_num_tokens_padded], dtype="int32")
+        # max_num_tokens_padded = topk_indices.numel() + num_experts * (block_size - 1)
+        max_num_tokens_padded = np.prod(topk_indices.shape) + num_experts * (
+            block_size - 1
+        )
         max_num_m_blocks = max_num_tokens_padded // block_size
-        expert_ids = paddle.zeros(shape=[max_num_m_blocks], dtype="int32")
+        sorted_token_ids = paddle.empty([max_num_tokens_padded], dtype="int32")
+        expert_ids_np = np.zeros(shape=[max_num_m_blocks], dtype=np.int32)
+        expert_ids = paddle.to_tensor(expert_ids_np, dtype="int32")
         num_tokens_post_pad = paddle.empty([1], dtype="int32")
 
         (
@@ -190,11 +201,11 @@ class TestFusedMoeConsistency(unittest.TestCase):
             dtype=x.dtype,
         )
 
-        w0 = paddle.transpose(self.w0, [0, 2, 1])
+        # w0 = paddle.transpose(self.w0, [0, 2, 1])
 
         gcu_ops.invoke_fused_moe_kernel(
             x,  # input
-            w0,  # weight
+            self.w0_trans,  # weight
             intermediate_cache1,  # output
             None,  # A_scale
             None,  # B_scale
@@ -228,7 +239,7 @@ class TestFusedMoeConsistency(unittest.TestCase):
 
         gcu_ops.invoke_fused_moe_kernel(
             intermediate_cache2,  # input
-            paddle.transpose(self.w1, [0, 2, 1]),  # weight
+            self.w1_trans,  # paddle.transpose(self.w1, [0, 2, 1]),  # weight
             intermediate_cache3,  # output
             None,  # A_scale
             None,  # B_scale

@@ -102,23 +102,25 @@ std::vector<paddle::Tensor> FusedMoeKernel(
   auto use_legacy = UseLegacy();
   if (use_legacy) {
     if (bias.is_initialized()) {
-      op_info = custom_kernel::GetOpInfo(
-          "topsvllmInvokeFusedMoeKernel",
-          c_tensor,
-          a_tensor,
-          b_tensor,
-          bias_tensor,
-          topk_weights_tensor,
-          topk_ids_tensor,
-          sorted_token_ids_tensor,
-          experts_ids_tensor,
-          num_tokens_post_pad_tensor,
-          mul_routed_weight,
-          topk,
-          block_size,
-          static_cast<topsStream_t>(dev_ctx->stream()));
+      auto op_info = [&]() -> std::string {
+        return custom_kernel::GetOpInfo(
+            "topsvllmInvokeFusedMoeKernel",
+            c_tensor,
+            a_tensor,
+            b_tensor,
+            bias_tensor,
+            topk_weights_tensor,
+            topk_ids_tensor,
+            sorted_token_ids_tensor,
+            experts_ids_tensor,
+            num_tokens_post_pad_tensor,
+            mul_routed_weight,
+            topk,
+            block_size,
+            static_cast<topsStream_t>(dev_ctx->stream()));
+      };
 
-      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
 
       std::string abstract_info =
           custom_kernel::GetAbstractInfo("topsvllmInvokeFusedMoeKernel",
@@ -153,22 +155,24 @@ std::vector<paddle::Tensor> FusedMoeKernel(
           stream);
 
     } else {
-      op_info = custom_kernel::GetOpInfo(
-          "topsvllmInvokeFusedMoeKernel",
-          c_tensor,
-          a_tensor,
-          b_tensor,
-          topk_weights_tensor,
-          topk_ids_tensor,
-          sorted_token_ids_tensor,
-          experts_ids_tensor,
-          num_tokens_post_pad_tensor,
-          mul_routed_weight,
-          topk,
-          block_size,
-          static_cast<topsStream_t>(dev_ctx->stream()));
+      auto op_info = [&]() -> std::string {
+        return custom_kernel::GetOpInfo(
+            "topsvllmInvokeFusedMoeKernel",
+            c_tensor,
+            a_tensor,
+            b_tensor,
+            topk_weights_tensor,
+            topk_ids_tensor,
+            sorted_token_ids_tensor,
+            experts_ids_tensor,
+            num_tokens_post_pad_tensor,
+            mul_routed_weight,
+            topk,
+            block_size,
+            static_cast<topsStream_t>(dev_ctx->stream()));
+      };
 
-      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
 
       std::string abstract_info =
           custom_kernel::GetAbstractInfo("topsvllmInvokeFusedMoeKernel",
@@ -202,23 +206,25 @@ std::vector<paddle::Tensor> FusedMoeKernel(
     }
   } else {
     if (bias.is_initialized()) {
-      op_info = custom_kernel::GetOpInfo(
-          "topsvllmInvokeFusedMoeNonGatherKernel",
-          c_tensor,
-          a_tensor,
-          b_tensor,
-          bias_tensor,
-          topk_weights_tensor,
-          topk_ids_tensor,
-          sorted_token_ids_tensor,
-          experts_ids_tensor,
-          num_tokens_post_pad_tensor,
-          mul_routed_weight,
-          topk,
-          block_size,
-          static_cast<topsStream_t>(dev_ctx->stream()));
+      auto op_info = [&]() -> std::string {
+        return custom_kernel::GetOpInfo(
+            "topsvllmInvokeFusedMoeNonGatherKernel",
+            c_tensor,
+            a_tensor,
+            b_tensor,
+            bias_tensor,
+            topk_weights_tensor,
+            topk_ids_tensor,
+            sorted_token_ids_tensor,
+            experts_ids_tensor,
+            num_tokens_post_pad_tensor,
+            mul_routed_weight,
+            topk,
+            block_size,
+            static_cast<topsStream_t>(dev_ctx->stream()));
+      };
 
-      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
 
       std::string abstract_info = custom_kernel::GetAbstractInfo(
           "topsvllmInvokeFusedMoeNonGatherKernel",
@@ -253,23 +259,25 @@ std::vector<paddle::Tensor> FusedMoeKernel(
           stream);
 
     } else {
-      op_info = custom_kernel::GetOpInfo(
-          "topsvllmInvokeFusedMoeNonGatherKernel",
-          c_tensor,
-          a_tensor,
-          b_tensor,
-          bias_tensor,
-          topk_weights_tensor,
-          topk_ids_tensor,
-          sorted_token_ids_tensor,
-          experts_ids_tensor,
-          num_tokens_post_pad_tensor,
-          mul_routed_weight,
-          topk,
-          block_size,
-          static_cast<topsStream_t>(dev_ctx->stream()));
+      auto op_info = [&]() -> std::string {
+        return custom_kernel::GetOpInfo(
+            "topsvllmInvokeFusedMoeNonGatherKernel",
+            c_tensor,
+            a_tensor,
+            b_tensor,
+            bias_tensor,
+            topk_weights_tensor,
+            topk_ids_tensor,
+            sorted_token_ids_tensor,
+            experts_ids_tensor,
+            num_tokens_post_pad_tensor,
+            mul_routed_weight,
+            topk,
+            block_size,
+            static_cast<topsStream_t>(dev_ctx->stream()));
+      };
 
-      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+      VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
 
       std::string abstract_info = custom_kernel::GetAbstractInfo(
           "topsvllmInvokeFusedMoeNonGatherKernel",

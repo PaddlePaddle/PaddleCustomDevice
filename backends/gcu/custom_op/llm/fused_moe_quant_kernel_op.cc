@@ -106,22 +106,24 @@ std::vector<paddle::Tensor> FusedMoeQuantKernel(
   std::string abstract_info;
   topsatenStatus_t status;
   if (A_scale.is_initialized()) {  // w8a8
-    op_info =
-        custom_kernel::GetOpInfo("topsvllmInvokeFusedMoeNonGatherQuantKernel",
-                                 c_tensor,
-                                 a_tensor,
-                                 b_tensor,
-                                 A_scale_tensor,
-                                 B_scale_tensor,
-                                 topk_weights_tensor,
-                                 topk_ids_tensor,
-                                 sorted_token_ids_tensor,
-                                 experts_ids_tensor,
-                                 num_tokens_post_pad_tensor,
-                                 mul_routed_weight,
-                                 topk,
-                                 block_size,
-                                 stream);
+    auto op_info = [&]() -> std::string {
+      return custom_kernel::GetOpInfo(
+          "topsvllmInvokeFusedMoeNonGatherQuantKernel",
+          c_tensor,
+          a_tensor,
+          b_tensor,
+          A_scale_tensor,
+          B_scale_tensor,
+          topk_weights_tensor,
+          topk_ids_tensor,
+          sorted_token_ids_tensor,
+          experts_ids_tensor,
+          num_tokens_post_pad_tensor,
+          mul_routed_weight,
+          topk,
+          block_size,
+          stream);
+    };
 
     abstract_info = custom_kernel::GetAbstractInfo(
         "topsvllmInvokeFusedMoeNonGatherQuantKernel",
@@ -138,7 +140,7 @@ std::vector<paddle::Tensor> FusedMoeQuantKernel(
         mul_routed_weight,
         topk,
         block_size);
-    VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+    VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
     GCU_AOT_KERNEL_TRACE(abstract_info);
     status = topsvllm::topsvllmInvokeFusedMoeNonGatherQuantKernel(
         c_tensor_aten,
@@ -156,23 +158,25 @@ std::vector<paddle::Tensor> FusedMoeQuantKernel(
         block_size,
         stream);
   } else {
-    op_info =
-        custom_kernel::GetOpInfo("topsvllmInvokeFusedMoeNonGatherQuantKernel",
-                                 c_tensor,
-                                 a_tensor,
-                                 b_tensor,
-                                 B_scale_tensor,
-                                 gs,
-                                 B_zp_tensor,
-                                 topk_weights_tensor,
-                                 topk_ids_tensor,
-                                 sorted_token_ids_tensor,
-                                 experts_ids_tensor,
-                                 num_tokens_post_pad_tensor,
-                                 mul_routed_weight,
-                                 topk,
-                                 block_size,
-                                 stream);
+    auto op_info = [&]() -> std::string {
+      return custom_kernel::GetOpInfo(
+          "topsvllmInvokeFusedMoeNonGatherQuantKernel",
+          c_tensor,
+          a_tensor,
+          b_tensor,
+          B_scale_tensor,
+          gs,
+          B_zp_tensor,
+          topk_weights_tensor,
+          topk_ids_tensor,
+          sorted_token_ids_tensor,
+          experts_ids_tensor,
+          num_tokens_post_pad_tensor,
+          mul_routed_weight,
+          topk,
+          block_size,
+          stream);
+    };
 
     abstract_info = custom_kernel::GetAbstractInfo(
         "topsvllmInvokeFusedMoeNonGatherQuantKernel",
@@ -190,7 +194,7 @@ std::vector<paddle::Tensor> FusedMoeQuantKernel(
         mul_routed_weight,
         topk,
         block_size);
-    VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info;
+    VLOG(6) << "[AOT_KERNEL] Start to launch tops aten op, " << op_info();
     GCU_AOT_KERNEL_TRACE(abstract_info);
     status = topsvllm::topsvllmInvokeFusedMoeNonGatherQuantKernel(
         c_tensor_aten,

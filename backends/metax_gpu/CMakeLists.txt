@@ -35,6 +35,7 @@ include(flashattn)
 include(cutlass)
 
 set(PLUGIN_VERSION ${PADDLE_VERSION})
+
 list(APPEND CMAKE_MODULE_PATH "${PADDLE_SOURCE_DIR}/cmake"
      "${PADDLE_SOURCE_DIR}/cmake/external")
 

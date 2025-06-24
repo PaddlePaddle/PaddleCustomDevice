@@ -25,11 +25,7 @@ LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 TEST_PATH1="${SCRIPT_DIR}/../../../python"
 TEST_PATH2="${SCRIPT_DIR}/../../../python/tests"
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}:${TEST_PATH1}:${TEST_PATH2}"
-# export PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"
-#export PYTHexport PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"ONPATH=../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/:../../../../../PaddleCustomDevice/python:../../../../../PaddleCustomDevice/python/tests/
-# export PYTHONPATH="../../../../../PaddleCustomDevice/python/:../../../../../PaddleCustomDevice/python/tests/:../../../../../PaddleCustomDevice/backends/metax_gpu/build/python/paddle_custom_device/:../../../../../PaddleCustomDevice/Paddle/test/legacy_test/:../../../../../PaddleCustomDevice/Paddle/test/"
-# mkdir -p build && cd build && cmake ..
-# make run_tests
+
 # 进入 build 目录（如果不存在则创建）
 rm -r build
 mkdir -p build && cd build

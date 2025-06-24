@@ -702,14 +702,3 @@ PD_REGISTER_PLUGIN_KERNEL(layer_norm,
   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
 }
 #endif
-
-// PD_REGISTER_PLUGIN_KERNEL(layer_norm,
-//                           metax_gpu,
-//                           ALL_LAYOUT,
-//                           phi::LayerNormKernel,
-//                           float,
-//                           phi::dtype::float16,
-//                           phi::dtype::bfloat16) {
-//   kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
-//   kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
-// }

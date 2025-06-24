@@ -15,10 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# export PATH=/usr/local/corex-4.3.0/bin:$PATH
-# export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-# export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-# export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
 pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
 SCRIPT_DIR=$(dirname "$0")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"

@@ -62,7 +62,6 @@ macro(UNSET_VAR VAR_NAME)
 endmacro()
 
 include(cuda)
-# include(cutlass)
 include(gflags)
 include(glog)
 include(eigen)
@@ -154,12 +153,9 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dist_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu
-  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/compare_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_identity_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/numel_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_grad_kernel.cu
@@ -232,8 +228,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_k_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/where_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc # Need PR
-  # https://github.com/PaddlePaddle/Paddle/pull/72867
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/assign_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/empty_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/flatten_grad_kernel.cc
@@ -254,22 +249,14 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/tril_triu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/unbind_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gather_scatter_functor.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/weight_only_linear_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax_impl.h
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_grad_kernel.cu
-  # ${CMAKE_SOURCE_DIR}/kernels/gpudnn/softmax.cu
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/soft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_grad_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/transfer_layout_kernel.cc # Need PR
-  # https://github.com/PaddlePaddle/Paddle/pull/72867
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/unsqueeze_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/reduce_kernel.cu
-  # kernels/fusion
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
-  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_grad_kernel.cu
-  # kernels/selected_rows
+  # kernels/fusion kernels/selected_rows
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/selected_rows/gpu/adamw_kernel.cu
   # kernels/kps
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
@@ -330,7 +317,6 @@ file(
 set(CUSTOM_DEVICE_SRCS ${CUDA_SRCS} ${CC_SRCS} ${ERNIE_CORE_SRCS})
 
 set_source_files_properties(${CUSTOM_DEVICE_SRCS} PROPERTIES LANGUAGE CUDA)
-# add_library(${TARGET_NAME} SHARED ${CUSTOM_DEVICE_SRCS})
 
 set(CMAKE_CUCC_COMPILER "cucc")
 set(CMAKE_CUCC_FLAGS "-I /opt/maca/tools/cu-bridge/include/")
@@ -357,7 +343,6 @@ target_link_libraries(
   protobuf
   external_error_proto
   ${PADDLE_CORE_LIB})
-# /usr/local/lib/python3.9/dist-packages/nvidia/nccl/lib/libnccl.so.2
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmccl.so)
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmcFlashAttn.so)
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
@@ -366,11 +351,9 @@ target_compile_definitions(
   ${TARGET_NAME}
   PUBLIC PADDLE_WITH_CUDA=1
          PADDLE_WITH_CUSTOM_DEVICE=1
-         # PADDLE_WITH_NCCL=1
          GPUContext=CustomContext
          KPSContext=CustomContext
          STREAM_TYPE=cudaStream_t
-         # NCCLCommContext=XCCLCommContext
          EVENT_TYPE=cudaEvent_t
          EIGEN_USE_GPU=1)
 

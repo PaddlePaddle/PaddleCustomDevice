@@ -28,10 +28,8 @@ endif()
 set(CUTLASS_PATCH_DIR ${PADDLE_SOURCE_DIR}/third_party/cutlass)
 set(CUTLASS_PREFIX_DIR ${PADDLE_SOURCE_DIR}/third_party/cutlass)
 # set(CUTLASS_TAG v2.11.0) set(CUTLASS_SOURCE_DIR
-# ${PADDLE_SOURCE_DIR}/third_party/cutlass)
 include_directories("${CUTLASS_SOURCE_DIR}/")
 include_directories("${CUTLASS_SOURCE_DIR}/include/")
-# include_directories("${CUTLASS_SOURCE_DIR}/tools/util/include/")
 
 add_definitions("-DPADDLE_WITH_CUTLASS")
 add_definitions("-DSPCONV_WITH_CUTLASS=0")

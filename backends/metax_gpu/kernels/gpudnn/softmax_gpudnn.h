@@ -69,14 +69,6 @@ inline void InitDnnHandle(cudnnHandle_t*
         (version < 9000) ? (version % 1000) / 100 : (version % 10000) / 100;
     if (version < static_cast<size_t>(CUDNN_VERSION)) {
       std::cout << "ERROR." << std::endl;
-      // LOG_FIRST_N(WARNING, 1)
-      //     << "WARNING: device: " << static_cast<int>(place.device)
-      //     << ". The installed Paddle is compiled with CUDNN " << CUDNN_MAJOR
-      //     << "." << CUDNN_MINOR << ", but CUDNN version in your machine is "
-      //     << local_cudnn_major << "." << local_cudnn_minor
-      //     << ", which may cause serious incompatible bug. "
-      //     << "Please recompile or reinstall Paddle with compatible CUDNN "
-      //        "version.";
     }
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(handle));
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(*handle, stream));

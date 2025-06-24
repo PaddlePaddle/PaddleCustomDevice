@@ -472,6 +472,7 @@ PD_REGISTER_PLUGIN_KERNEL(rnn,
                           ALL_LAYOUT,
                           custom_kernel::RnnKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
 }

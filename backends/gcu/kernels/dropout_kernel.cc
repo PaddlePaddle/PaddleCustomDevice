@@ -201,6 +201,7 @@ PD_REGISTER_PLUGIN_KERNEL(dropout,
                           ALL_LAYOUT,
                           custom_kernel::DropoutKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
 }

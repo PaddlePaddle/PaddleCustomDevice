@@ -181,4 +181,5 @@ void ScatterKernel(const Context& dev_ctx,
 //                           float,
 //                           int64_t,
 //                           int,
+//                           phi::dtype::bfloat16,
 //                           phi::dtype::float16) {}

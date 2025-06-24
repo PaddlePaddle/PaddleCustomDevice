@@ -63,4 +63,5 @@ PD_REGISTER_PLUGIN_KERNEL(label_smooth,
                           ALL_LAYOUT,
                           custom_kernel::LabelSmoothKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

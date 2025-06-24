@@ -598,6 +598,7 @@ PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d,
                           ALL_LAYOUT,
                           custom_kernel::DepthwiseConv2dKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
@@ -605,6 +606,7 @@ PD_REGISTER_PLUGIN_KERNEL(depthwise_conv2d_grad,
                           ALL_LAYOUT,
                           custom_kernel::DepthwiseConv2dGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d,
@@ -612,6 +614,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv3d,
                           ALL_LAYOUT,
                           custom_kernel::Conv3dKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
@@ -619,6 +622,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv3d_grad,
                           ALL_LAYOUT,
                           custom_kernel::Conv3dGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d,
@@ -626,6 +630,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
@@ -633,4 +638,5 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_grad,
                           ALL_LAYOUT,
                           custom_kernel::Conv2DGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

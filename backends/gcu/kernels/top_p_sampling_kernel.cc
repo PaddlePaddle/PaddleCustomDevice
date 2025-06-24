@@ -40,4 +40,5 @@ void TopPSamplingKernel(const Context& dev_ctx,
 //                           custom_kernel::TopPSamplingKernel,
 //                           float,
 //                           int,
+//                           phi::dtype::bfloat16,
 //                           phi::dtype::float16) {}

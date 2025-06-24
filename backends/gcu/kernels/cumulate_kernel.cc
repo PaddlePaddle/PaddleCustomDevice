@@ -153,6 +153,7 @@ PD_REGISTER_PLUGIN_KERNEL(cumsum,
                           custom_kernel::CumsumKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cummax,
@@ -161,6 +162,7 @@ PD_REGISTER_PLUGIN_KERNEL(cummax,
                           custom_kernel::CummaxKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cummin,
@@ -169,6 +171,7 @@ PD_REGISTER_PLUGIN_KERNEL(cummin,
                           custom_kernel::CumminKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(cumprod,
@@ -177,4 +180,5 @@ PD_REGISTER_PLUGIN_KERNEL(cumprod,
                           custom_kernel::CumprodKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

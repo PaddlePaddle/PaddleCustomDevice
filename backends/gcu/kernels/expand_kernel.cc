@@ -123,4 +123,5 @@ PD_REGISTER_PLUGIN_KERNEL(expand,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

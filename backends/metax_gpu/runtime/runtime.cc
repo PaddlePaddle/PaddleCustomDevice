@@ -275,7 +275,6 @@ C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
     if (status != C_SUCCESS) {
       return status;
     }
-
     int gpu_num = count;
 
     g_device_props_init_flags.resize(gpu_num);

@@ -16,15 +16,8 @@ import paddle
 import numpy as np
 import unittest
 
-# from paddle.nn.functional import scaled_dot_product_attention
 
 import paddle.nn.functional as F
-
-# from paddle.nn.functional.flash_attention import (
-#     flash_attention,
-#     flash_attn_unpadded,
-#     scaled_dot_product_attention,
-# )
 
 
 def attention_naive_with_mask(q, k, v, attn_bias):

@@ -15,7 +15,6 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJ_NAME "paddle-iluvatar-gpu")
 project(${PROJ_NAME} CXX C CUDA)
 
-set(PLUGIN_VERSION "0.0.1")
 set(TARGET_NAME ${PROJ_NAME})
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -35,6 +34,7 @@ include(external/xxhash)
 include(external/zlib)
 include(external/protobuf)
 
+set(PLUGIN_VERSION ${PADDLE_VERSION})
 set(PROTO_FILE "${PADDLE_SOURCE_DIR}/paddle/phi/core/external_error.proto")
 get_filename_component(PROTO_WE "${PROTO_FILE}" NAME_WE)
 

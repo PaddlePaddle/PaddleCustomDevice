@@ -17,7 +17,7 @@
 SCRIPT_DIR=$(dirname "$0")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
-export LD_PRELOAD=/usr/local/corex-4.3.0/lib/libcuda.so.1
+export LD_PRELOAD=${LD_LIBRARY_PATH}/libcuda.so.1
 
 mkdir -p build && cd build && cmake ..
 make run_test

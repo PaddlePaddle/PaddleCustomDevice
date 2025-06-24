@@ -237,61 +237,87 @@ C_Status GetComputeCapability(const C_Device device,
   *compute_capability = major * 10 + minor;
   return C_SUCCESS;
 }
-// static std::once_flag g_device_props_size_init_flag;
-// static std::vector<std::unique_ptr<std::once_flag>>
-// g_device_props_init_flags; static std::vector<cudaDeviceProp> g_device_props;
-// static std::vector<cudaError_t> g_device_props_init_errors;
 
-// C_Status GetDeviceProperties(const C_Device device, void *device_properties)
-// {
-//   int id = device->id;
-//   if (id == -1) {
-//     cudaGetDevice(&id);
-//   }
+C_Status GetDevicesCount(size_t *count) {
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  // *count = (size_t)device_count;
+  *count = static_cast<size_t>(device_count);
+  return C_SUCCESS;
+}
 
-//   std::call_once(g_device_props_size_init_flag, [&] {
-//     int gpu_num = DEVICECOUNT;
+C_Status GetDevicesList(size_t *devices) {
+  size_t count = 0;
+  C_Status status = GetDevicesCount(&count);
+  if (status != C_SUCCESS) {
+    return status;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    devices[i] = i;
+  }
+  return C_SUCCESS;
+}
 
-//     g_device_props_init_flags.resize(gpu_num);
-//     g_device_props.resize(gpu_num);
-//     g_device_props_init_errors.resize(gpu_num, cudaSuccess);
+static std::once_flag g_device_props_size_init_flag;
+static std::vector<std::unique_ptr<std::once_flag>> g_device_props_init_flags;
+static std::vector<cudaDeviceProp> g_device_props;
+static std::vector<cudaError_t> g_device_props_init_errors;
 
-//     for (int i = 0; i < gpu_num; ++i) {
-//       g_device_props_init_flags[i] = std::make_unique<std::once_flag>();
-//     }
-//   });
+C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
+  int id = device->id;
+  if (id == -1) {
+    cudaGetDevice(&id);
+  }
 
-//   if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
-//     VLOG(10) << "device id: " << id << " out of range";
-//     return C_ERROR;
-//   }
+  std::call_once(g_device_props_size_init_flag, [&] {
+    size_t count = 0;
+    C_Status status = GetDevicesCount(&count);
+    if (status != C_SUCCESS) {
+      return status;
+    }
 
-//   std::call_once(*(g_device_props_init_flags[id]), [&] {
-//     cudaError_t ret = cudaGetDeviceProperties(&g_device_props[id], id);
-//     g_device_props_init_errors[id] = ret;
-//   });
+    int gpu_num = count;
 
-//   if (g_device_props_init_errors[id] != cudaSuccess) {
-//     return C_ERROR;
-//   }
+    g_device_props_init_flags.resize(gpu_num);
+    g_device_props.resize(gpu_num);
+    g_device_props_init_errors.resize(gpu_num, cudaSuccess);
 
-//   phi::DeviceProp *prop = static_cast<phi::DeviceProp *>(device_properties);
-//   const cudaDeviceProp &src = g_device_props[id];
+    for (int i = 0; i < gpu_num; ++i) {
+      g_device_props_init_flags[i] = std::make_unique<std::once_flag>();
+    }
+  });
 
-//   using DeviceProp = phi::DeviceProp;
-//   prop->~DeviceProp();
-//   new (prop) DeviceProp();
+  if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
+    VLOG(10) << "device id: " << id << " out of range";
+    return C_ERROR;
+  }
 
-//   prop->name = src.name;
-//   prop->major = src.major;
-//   prop->minor = src.minor;
-//   prop->totalGlobalMem = src.totalGlobalMem;
-//   prop->multiProcessorCount = src.multiProcessorCount;
-//   prop->isMultiGpuBoard = src.isMultiGpuBoard;
-//   prop->integrated = (src.integrated != 0);
+  std::call_once(*(g_device_props_init_flags[id]), [&] {
+    cudaError_t ret = cudaGetDeviceProperties(&g_device_props[id], id);
+    g_device_props_init_errors[id] = ret;
+  });
 
-//   return C_SUCCESS;
-// }
+  if (g_device_props_init_errors[id] != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  phi::DeviceProp *prop = static_cast<phi::DeviceProp *>(device_properties);
+  const cudaDeviceProp &src = g_device_props[id];
+
+  using DeviceProp = phi::DeviceProp;
+  prop->~DeviceProp();
+  new (prop) DeviceProp();
+
+  prop->name = src.name;
+  prop->deviceMajor = src.major;
+  prop->deviceMinor = src.minor;
+  prop->totalGlobalMem = src.totalGlobalMem;
+  prop->multiProcessorCount = src.multiProcessorCount;
+  prop->isMultiGpuBoard = src.isMultiGpuBoard;
+  prop->integrated = (src.integrated != 0);
+
+  return C_SUCCESS;
+}
 
 C_Status GetRuntimeVersion(const C_Device device, size_t *version) {
   int runtime_version = 0;
@@ -399,27 +425,6 @@ C_Status DestroyDevice(const C_Device device) {
 }
 
 C_Status Finalize() { return C_SUCCESS; }
-
-C_Status GetDevicesCount(size_t *count) {
-  int device_count = 0;
-  cudaError_t err = cudaGetDeviceCount(&device_count);
-  // *count = (size_t)device_count;
-  *count = static_cast<size_t>(device_count);
-  return C_SUCCESS;
-}
-
-C_Status GetDevicesList(size_t *devices) {
-  size_t count = 0;
-  C_Status status = GetDevicesCount(&count);
-  if (status != C_SUCCESS) {
-    return status;
-  }
-  // 填充设备 ID 列表（CUDA 设备 ID 为 0 到 count-1）
-  for (size_t i = 0; i < count; ++i) {
-    devices[i] = i;
-  }
-  return C_SUCCESS;
-}
 
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
@@ -1019,7 +1024,7 @@ void InitPlugin(CustomRuntimeParams *params) {
          sizeof(C_DeviceInterface));
 
   params->interface->get_compute_capability = GetComputeCapability;
-  // params->interface->get_device_properties = GetDeviceProperties;
+  params->interface->get_device_properties = GetDeviceProperties;
   params->interface->get_runtime_version = GetRuntimeVersion;
   params->interface->get_driver_version = GetDriverVersion;
   params->interface->get_multi_process = GetMultiProcessors;

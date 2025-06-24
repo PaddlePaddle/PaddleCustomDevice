@@ -18,7 +18,7 @@ include(ExternalProject)
 if(NOT DEFINED ENV{MACA_PATH})
   message(FATAL_ERROR "MACA_PATH undefined, mctlass not found!")
 else()
-  # set(CUTLASS_PREFIX_DIR "$ENV{MACA_PATH}/include/mctlass")
+
   set(CUTLASS_SOURCE_DIR "$ENV{MACA_PATH}/include/mctlass")
 endif()
 if(NOT EXISTS ${CUTLASS_SOURCE_DIR})
@@ -27,7 +27,7 @@ endif()
 # PATCH FOR MACA
 set(CUTLASS_PATCH_DIR ${PADDLE_SOURCE_DIR}/third_party/cutlass)
 set(CUTLASS_PREFIX_DIR ${PADDLE_SOURCE_DIR}/third_party/cutlass)
-# set(CUTLASS_TAG v2.11.0) set(CUTLASS_SOURCE_DIR
+
 include_directories("${CUTLASS_SOURCE_DIR}/")
 include_directories("${CUTLASS_SOURCE_DIR}/include/")
 

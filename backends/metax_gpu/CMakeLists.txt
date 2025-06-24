@@ -15,7 +15,6 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJ_NAME "paddle-metax-gpu")
 project(${PROJ_NAME} CXX C CUDA)
 
-# set(PLUGIN_VERSION "3.0.0") set(PLUGIN_VERSION ${PADDLE_VERSION})
 set(TARGET_NAME ${PROJ_NAME})
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -235,7 +234,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_all_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_any_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_sum_kernel.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_mean_kernel.cc # 没找到
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reduce_mean_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/reshape_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/contiguous_kernel.cu

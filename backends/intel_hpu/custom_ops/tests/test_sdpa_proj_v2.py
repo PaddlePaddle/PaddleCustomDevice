@@ -15,6 +15,8 @@
 import paddle
 import paddlenlp_ops
 import os
+import unittest
+from parameterized import parameterized
 
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 paddle.device.set_device(f"intel_hpu:{intel_hpus_module_id}")
@@ -48,81 +50,119 @@ def ref_result(
     return out_linear_out
 
 
-head_dim = 128
-num_head = 32
-kv_num_heads = num_head
-hidden_size = num_head * head_dim
-
-batch_size = 4
-# seq_len = 1
-seq_len = 25
-kv_seq_len = 25
-max_seq_length = 2048
-
-query_states = paddle.rand(
-    [batch_size, num_head, seq_len, head_dim], dtype=paddle.float32
-).to(paddle.bfloat16)
-key_states = paddle.rand(
-    [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
-).to(paddle.bfloat16)
-value_states = paddle.rand(
-    [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
-).to(paddle.bfloat16)
-
-attn_mask = paddle.ones([1, 1, max_seq_length, max_seq_length], dtype=paddle.bfloat16)
-attn_mask = paddle.tril(attn_mask)
-attn_mask = (1.0 - attn_mask) * -10000.0
-
-linear_weights = paddle.rand([hidden_size, hidden_size], dtype=paddle.float32).to(
-    paddle.bfloat16
-)
+HEAD_DIM = [128]
+NUM_HEAD = [32]
+BATCH_SIZE = [4, 8]
+SEQ_LEN = [1, 25]
+KV_SEQ_LEN = [25]
+MAX_SEQ_LENGTH = [2048]
 
 
-def main():
-    attention_mask = attn_mask[..., :seq_len, :kv_seq_len]
-    attention_mask = attention_mask.astype(query_states.dtype)
-
-    out_linear_out_op = paddlenlp_ops.fused_sdpa_proj(
-        query_states,
-        key_states,
-        value_states,
-        attention_mask,
-        linear_weights,
-        scaling_factor=head_dim**-0.5,
+class SDPA_PROJ_v2_Test(unittest.TestCase):
+    @parameterized.expand(
+        [
+            (
+                head_dim,
+                num_head,
+                batch_size,
+                seq_len,
+                kv_seq_len,
+                max_seq_length,
+            )
+            for head_dim in HEAD_DIM
+            for num_head in NUM_HEAD
+            for batch_size in BATCH_SIZE
+            for seq_len in SEQ_LEN
+            for kv_seq_len in KV_SEQ_LEN
+            for max_seq_length in MAX_SEQ_LENGTH
+        ]
     )
+    def test_sdpa_proj_v2(
+        self,
+        head_dim,
+        num_head,
+        batch_size,
+        seq_len,
+        kv_seq_len,
+        max_seq_length,
+    ):
 
-    out_linear_out_ref = ref_result(
-        query_states.transpose([0, 2, 1, 3]),
-        key_states.transpose([0, 2, 1, 3]),
-        value_states.transpose([0, 2, 1, 3]),
-        attention_mask,
-        linear_weights,
-        scaling_factor=head_dim**-0.5,
-    )
+        kv_num_heads = num_head
+        hidden_size = num_head * head_dim
 
-    key_value_states = paddle.stack([key_states, value_states], axis=0)
+        query_states = paddle.rand(
+            [batch_size, num_head, seq_len, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
+        key_states = paddle.rand(
+            [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
+        value_states = paddle.rand(
+            [batch_size, kv_num_heads, kv_seq_len, head_dim], dtype=paddle.float32
+        ).to(paddle.bfloat16)
 
-    # Test is causal && mask=None
-    # seq_len = kv_seq_len
-    attention_mask = None
-    out_linear_out_op_v2 = paddlenlp_ops.fused_sdpa_proj_v2(
-        query_states,
-        key_value_states,
-        attention_mask,
-        linear_weights,
-        scaling_factor=head_dim**-0.5,
-        causal=attention_mask is None,
-    )
-
-    print((out_linear_out_ref == out_linear_out_op).all())
-    print(
-        paddle.allclose(
-            out_linear_out_ref.to("cpu").to("float32"),
-            out_linear_out_op_v2.to("cpu").to("float32"),
-            rtol=1e-2,
+        attn_mask = paddle.ones(
+            [1, 1, max_seq_length, max_seq_length], dtype=paddle.bfloat16
         )
-    )
+        attn_mask = paddle.tril(attn_mask)
+        attn_mask = (1.0 - attn_mask) * -10000.0
+
+        linear_weights = paddle.rand(
+            [hidden_size, hidden_size], dtype=paddle.float32
+        ).to(paddle.bfloat16)
+
+        attention_mask = attn_mask[..., :seq_len, :kv_seq_len]
+        attention_mask = attention_mask.astype(query_states.dtype)
+
+        out_linear_out_op = paddlenlp_ops.fused_sdpa_proj(
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            linear_weights,
+            scaling_factor=head_dim**-0.5,
+        )
+
+        out_linear_out_ref = ref_result(
+            query_states.transpose([0, 2, 1, 3]),
+            key_states.transpose([0, 2, 1, 3]),
+            value_states.transpose([0, 2, 1, 3]),
+            attention_mask,
+            linear_weights,
+            scaling_factor=head_dim**-0.5,
+        )
+
+        key_value_states = paddle.stack([key_states, value_states], axis=0)
+
+        # Test is causal && mask=None
+        # seq_len = kv_seq_len
+        attention_mask = None
+        out_linear_out_op_v2 = paddlenlp_ops.fused_sdpa_proj_v2(
+            query_states,
+            key_value_states,
+            attention_mask,
+            linear_weights,
+            scaling_factor=head_dim**-0.5,
+            causal=attention_mask is None,
+        )
+
+        print((out_linear_out_ref == out_linear_out_op).all())
+        print(
+            paddle.allclose(
+                out_linear_out_ref.to("cpu").to("float32"),
+                out_linear_out_op_v2.to("cpu").to("float32"),
+                rtol=1e-2,
+            )
+        )
 
 
 if __name__ == "__main__":
-    main()
+    # Create a test suite
+    suite = unittest.TestLoader().loadTestsFromTestCase(SDPA_PROJ_v2_Test)
+
+    # Create a test runner with the desired verbosity level
+    runner = unittest.TextTestRunner(
+        verbosity=2
+    )  # Set verbosity to 2 for detailed output
+
+    # Run the test suite
+    runner.run(suite)

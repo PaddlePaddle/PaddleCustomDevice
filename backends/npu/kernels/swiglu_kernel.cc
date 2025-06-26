@@ -34,7 +34,6 @@ void SwiGluKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const paddle::optional<phi::DenseTensor>& y,
                   phi::DenseTensor* out) {
-                    phi::DenseTensor* out) {
   if (!FLAGS_npu_jit_compile) {
     aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
   }

@@ -50,9 +50,5 @@ else
   ${PYTHON_PATH} -m pip install ${PKG_DIR}/${latest_pkg} || exit
 fi
 
-PADDLE_PATCHES_PATH=./patches
-PYTHONPACKAGE_PATH=/usr/local/lib64/python3.10/site-packages
-cp ${PADDLE_PATCHES_PATH}/python_file/flash_attention.py ${PYTHONPACKAGE_PATH}/paddle/nn/functional/flash_attention.py
-
 # Return 0 status if all finished
 exit 0

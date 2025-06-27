@@ -438,22 +438,6 @@ def awq_gemm(
     return linear_output
 
 
-def weight_only_quant(
-    input: paddle.Tensor,
-    qweight: paddle.Tensor,
-    scales: paddle.Tensor,
-    bias: Optional[paddle.Tensor] = None,
-    group_size=-1,
-):
-    linear_output = (
-        core.eager._run_custom_op(
-            "weight_only_quant_gcu", input, qweight, bias, scales, group_size
-        )
-    )[0]
-
-    return linear_output
-
-
 def linear_quant(
     input: paddle.Tensor,
     qweight: paddle.Tensor,
@@ -467,3 +451,55 @@ def linear_quant(
         )
     )[0]
     return linear_output
+
+
+# qweight.shape: [N/2, K] -> [N, K/2]
+@paddle.no_grad()
+def rearrange_for_w4a16(qweight):
+    N, K = qweight.shape[0] * 2, qweight.shape[1]
+    qweight = qweight.transpose([1, 0])
+    shift_mask = paddle.to_tensor([0, 4], dtype="int8")
+    qweight = paddle.bitwise_right_shift(
+        paddle.unsqueeze(qweight, 2).expand((-1, -1, 2)), shift_mask
+    ).reshape((K, N))
+    bits_mask = paddle.to_tensor([2**4 - 1], dtype="int8")
+    qweight = paddle.bitwise_and(qweight, bits_mask)
+
+    if K % 128 != 0:
+        padding = paddle.zeros([128 - K % 128, N], dtype=paddle.int8)
+        qweight = paddle.concat([qweight, padding], axis=0)
+        K = qweight.shape[0]
+
+    rqweight = paddle.zeros([K // 2, N], dtype=paddle.int8)
+
+    try:
+        shift_scalar_tensor = paddle.to_tensor([4], dtype="int8")
+        shifts = paddle.arange(0, qweight.shape[0]).reshape((-1, 64))
+        rqweight |= qweight[shifts[::2].reshape((-1,))]
+        rqweight |= paddle.bitwise_left_shift(
+            qweight[shifts[1::2].reshape((-1,))], shift_scalar_tensor
+        )
+    except Exception as e:
+        raise RuntimeError(f"quant_weight rearrange error: {e}")
+
+    return rqweight.astype(paddle.uint8).transpose([1, 0])
+
+
+def weight_quantize_rtn(
+    x: paddle.Tensor,
+    algo: str,
+    group_size: int,
+):
+    assert (
+        group_size == -1 or group_size == 64 or group_size == 128
+    ), f"Currently group_size only support -1/64/128. but got {group_size} "
+    assert (
+        algo == "weight_only_int8" or algo == "weight_only_int4" or algo == "llm.int8"
+    ), f"algo only support weight_only_int8/weight_only_int4/llm.int8. but got {algo} "
+
+    if algo == "weight_only_int8":
+        algo = "llm.int8"
+    qweight, scale = paddle._C_ops.weight_quantize(x, algo, 80, group_size)
+    if algo == "weight_only_int4":
+        qweight = rearrange_for_w4a16(qweight)
+    return qweight, scale

@@ -48,6 +48,7 @@ extern void* flashattn_dso_handle;
   DYNAMIC_LOAD_FLASHATTN_WRAP(__name)
 
 #define FLASHATTN_ROUTINE_EACH(__macro) \
+  __macro(mha_fwd_kvcache);             \
   __macro(mha_fwd);                     \
   __macro(mha_varlen_fwd);              \
   __macro(mha_bwd);                     \

@@ -332,8 +332,9 @@ add_library(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu)
 
 target_include_directories(
-  ${TARGET_NAME} PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}
-                         ${CMAKE_SOURCE_DIR}/kernels ${CUDA_INCLUDE_DIRS})
+  ${TARGET_NAME}
+  PRIVATE ${PADDLE_SOURCE_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/kernels
+          ${CUDA_INCLUDE_DIRS} ${PADDLE_SOURCE_DIR}/third_party/pybind/include)
 
 target_link_libraries(
   ${TARGET_NAME}

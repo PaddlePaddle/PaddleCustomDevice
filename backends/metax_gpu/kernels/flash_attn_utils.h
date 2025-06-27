@@ -119,6 +119,68 @@ Tensor_t DenseTensorToMcFlashAttnTensor(T& _tensor) {  // NOLINT
   }
 }
 
+struct FlashAttnParamsBaseKVCache {
+  int64_t num_heads;
+  int64_t head_size;
+  int64_t batch_size;
+  int64_t seqlen_q;
+
+  Tensor_t q;
+  Tensor_t k = nullptr;
+  Tensor_t v = nullptr;
+  Tensor_t out;
+  Tensor_t alibi_slopes =
+      nullptr;  // alibi now use atten_mask rather than alibi_slops
+
+  float p_dropout;
+  float softmax_scale;
+  bool is_causal;
+  int window_size_left = -1;  // do not support
+  int window_size_right = -1;
+  cudaStream_t stream;
+  mcflashattnExtendParameter_t extend_parameter = nullptr;
+
+  int64_t* seed_offset_data;
+  FlashAttnParamsBaseKVCache(const GPUContext& ctx,
+                             const DenseTensor& _q,
+                             const DenseTensor* _k,
+                             const DenseTensor* _v,
+                             const DenseTensor& _out,
+                             const bool _is_test,
+                             const float _p_dropout,
+                             const bool _is_causal,
+                             int64_t _batch_size,
+                             int64_t _seqlen_q,
+                             int64_t _num_heads,
+                             int64_t _head_size)
+      : is_causal(_is_causal),
+        stream(ctx.stream()),
+        batch_size(_batch_size),
+        seqlen_q(_seqlen_q),
+        num_heads(_num_heads),
+        head_size(_head_size) {
+    softmax_scale = 1.0f / std::sqrt(head_size);
+    p_dropout = _is_test ? 0.0f : _p_dropout;
+    printf("%s %d\n", __FILE__, __LINE__);
+    q = DenseTensorToMcFlashAttnTensor(_q);
+    printf("%s %d\n", __FILE__, __LINE__);
+    if (_k) k = DenseTensorToMcFlashAttnTensor(*_k);
+    if (_v) v = DenseTensorToMcFlashAttnTensor(*_v);
+    printf("%s %d\n", __FILE__, __LINE__);
+    out = DenseTensorToMcFlashAttnTensor(_out);
+    printf("%s %d\n", __FILE__, __LINE__);
+  }
+  ~FlashAttnParamsBaseKVCache() {
+    phi::dynload::release_tensor(
+        q);  // won't release tensor memory, only release info of tensor_t
+    if (k) phi::dynload::release_tensor(k);
+    if (v) phi::dynload::release_tensor(v);
+    phi::dynload::release_tensor(out);
+    phi::dynload::release_tensor(alibi_slopes);
+    // phi::dynload::release_extend_para(extend_parameter);
+  }
+};
+
 struct FlashAttnParamsBase {
   int64_t num_heads;
   int64_t num_heads_k;
@@ -382,6 +444,90 @@ struct FlashAttnParamsBwd : public FlashAttnParamsBase {
  private:
   DenseTensor _softmax_d;
   DenseTensor _dq_accum;
+};
+
+template <typename T>
+struct FlashAttnParamsFwdKVCache : public FlashAttnParamsBaseKVCache {
+  Tensor_t softmax_lse;
+  Tensor_t k_cache;
+  Tensor_t v_cache;
+  Tensor_t seqlens_k;
+  Tensor_t rotary_cos = nullptr;
+  Tensor_t rotary_sin = nullptr;
+  Tensor_t cache_batch_idx = nullptr;
+  Tensor_t block_table = nullptr;
+  Tensor_t softmax_lse_accum = nullptr;
+  Tensor_t out_accum = nullptr;
+  bool is_rotary_interleaved;
+  int num_splits = 1;
+
+  FlashAttnParamsFwdKVCache(const GPUContext& ctx,
+                            bool _return_softmax,
+                            const DenseTensor& _q,
+                            const DenseTensor& _k_cache,
+                            const DenseTensor& _v_cache,
+                            const DenseTensor* _k,
+                            const DenseTensor* _v,
+                            const DenseTensor& _seqlens_k,
+                            const DenseTensor* _rotary_cos,
+                            const DenseTensor* _rotary_sin,
+                            const DenseTensor* _cache_batch_idx,
+                            const DenseTensor* _block_table,
+                            DenseTensor& _out,          // NOLINT
+                            DenseTensor& _softmax_lse,  // NOLINT
+                            bool _is_causal,
+                            bool _is_rotary_interleaved,
+                            int64_t _num_splits,
+                            int64_t _batch_size,
+                            int64_t _seqlen_q,
+                            int64_t _num_heads,
+                            int64_t _head_size,
+                            float _p_dropout)
+      : FlashAttnParamsBaseKVCache(ctx,
+                                   _q,
+                                   _k,
+                                   _v,
+                                   _out,
+                                   0,
+                                   _p_dropout,
+                                   _is_causal,
+                                   _batch_size,
+                                   _seqlen_q,
+                                   _num_heads,
+                                   _head_size) {
+    k_cache = DenseTensorToMcFlashAttnTensor(_k_cache);
+    v_cache = DenseTensorToMcFlashAttnTensor(_v_cache);
+    seqlens_k = DenseTensorToMcFlashAttnTensor(_seqlens_k);
+
+    if (_rotary_cos) rotary_cos = DenseTensorToMcFlashAttnTensor(*_rotary_cos);
+    if (_rotary_sin) rotary_sin = DenseTensorToMcFlashAttnTensor(*_rotary_sin);
+    if (_cache_batch_idx)
+      cache_batch_idx = DenseTensorToMcFlashAttnTensor(*_cache_batch_idx);
+    if (_block_table)
+      block_table = DenseTensorToMcFlashAttnTensor(*_block_table);
+
+    is_rotary_interleaved = _is_rotary_interleaved;
+
+    auto round_multiple = [](int x, int m) { return (x + m - 1) / m * m; };
+    int head_size_rounded = round_multiple(head_size, 32);
+    int seqlen_q_rounded = round_multiple(seqlen_q, 128);
+
+    std::vector<int64_t> softmax_lse_dims = {
+        batch_size, num_heads, seqlen_q_rounded};
+    _softmax_lse.Resize(phi::make_ddim(softmax_lse_dims));
+    ctx.template Alloc<float>(&_softmax_lse);
+    softmax_lse = DenseTensorToMcFlashAttnTensor(_softmax_lse);
+  }
+
+  ~FlashAttnParamsFwdKVCache() {
+    phi::dynload::release_tensor(softmax_lse);
+    phi::dynload::release_tensor(k_cache);
+    phi::dynload::release_tensor(v_cache);
+    if (rotary_cos) phi::dynload::release_tensor(rotary_cos);
+    if (rotary_sin) phi::dynload::release_tensor(rotary_sin);
+    if (cache_batch_idx) phi::dynload::release_tensor(cache_batch_idx);
+    if (block_table) phi::dynload::release_tensor(block_table);
+  }
 };
 
 static void CheckFlashAttnStatus(const mcflashattnStatus_t status) {

@@ -452,3 +452,18 @@ def weight_only_quant(
     )[0]
 
     return linear_output
+
+
+def linear_quant(
+    input: paddle.Tensor,
+    qweight: paddle.Tensor,
+    scales: paddle.Tensor,
+    bias=None,
+    group_size=-1,
+):
+    linear_output = (
+        core.eager._run_custom_op(
+            "linear_quant_gcu", input, qweight, scales, bias, group_size
+        )
+    )[0]
+    return linear_output

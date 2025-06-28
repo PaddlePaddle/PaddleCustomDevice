@@ -17,7 +17,7 @@ git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
 # 编译安装
 cd backends/metax_gpu
-bash build.sh
+bash build_in_metax.sh
 ```
 
 ## 验证

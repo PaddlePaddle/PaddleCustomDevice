@@ -351,26 +351,6 @@ std::vector<std::vector<int64_t>> fusedattentionInferShape(
 
 }  // namespace phi
 
-// PD_REGISTER_KERNEL(flash_attn_unpadded,
-//                    GPU,
-//                    ALL_LAYOUT,
-//                    phi::FlashAttnUnpaddedKernel,
-//                    phi::dtype::float16,
-//                    phi::dtype::bfloat16) {
-//   kernel->InputAt(5).SetBackend(
-//       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
-// }
-
-// PD_REGISTER_KERNEL(flash_attn,
-//                    GPU,
-//                    ALL_LAYOUT,
-//                    phi::FlashAttnKernel,
-//                    phi::dtype::float16,
-//                    phi::dtype::bfloat16) {
-//   kernel->InputAt(3).SetBackend(
-//       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
-// }
-
 PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
                           metax_gpu,
                           ALL_LAYOUT,

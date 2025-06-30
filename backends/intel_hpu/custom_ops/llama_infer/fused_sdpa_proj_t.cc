@@ -19,6 +19,11 @@
 #include "paddle/extension.h"
 #include "utils/utils.h"
 
+#define SDPA_SET_INPUT(ptr) \
+  if (ptr) {                \
+    ct.Add(ptr);            \
+  }
+
 #define SDPA_SET_INPUT_AND_FLAGS(ptr, flag_name)  \
   if (ptr) {                                      \
     flags |= SdpaFlags_t::SDPA_FLAGS_##flag_name; \
@@ -31,6 +36,7 @@ struct FusedSdpaProjParams {
   ns_Sdpa::ParamsV3 sdpa_params;
   bool is_GQA = false;
   bool fp8_sdpa = false;
+  bool fp8_gemm = false;
 };
 
 class FusedSdpaProjBTMH : public HpuFusedOperator {
@@ -169,7 +175,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       if (params.fp8_sdpa) {
         attn_inputs.push_back(nullptr);  // Mask
         attn_inputs.push_back(nullptr);  // Seed
-        for (size_t i = 3; i < inputs.size(); i++) {
+        for (size_t i = 3; i < inputs.size() - 2; i++) {
           attn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                              inputs[i].type,
                                              inputs[i].dims,
@@ -204,7 +210,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
       if (params.fp8_sdpa) {
         attn_inputs.push_back(nullptr);  // Mask
         attn_inputs.push_back(nullptr);  // Seed
-        for (size_t i = 3; i < inputs.size(); i++) {
+        for (size_t i = 3; i < inputs.size() - 2; i++) {
           attn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                              inputs[i].type,
                                              inputs[i].dims,
@@ -279,13 +285,18 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
                                        true,
                                        outputs[0].name));
     synGEMMParams gemm_params;
-    gemm_params.transpose_a = false;
-    gemm_params.transpose_b = false;
-
-    if (params.fp8_sdpa) {
-      AddNodeFP8Gemm<T>(
+    if (params.fp8_gemm) {
+      gemm_params.transpose_a = false;
+      gemm_params.transpose_b = true;
+      auto in_scale = createTensorFromCT(&ct, inputs.size() - 2);
+      auto out_scale = createTensorFromCT(&ct, inputs.size() - 1);
+      mul_inputs.push_back(in_scale);
+      mul_inputs.push_back(out_scale);
+      AddNodeFusedFP8Gemm<T>(
           mul_inputs, mul_outputs, gemm_params, guid_ + "gemm_fp8");
     } else {
+      gemm_params.transpose_a = false;
+      gemm_params.transpose_b = false;
       AddNodeBatchGemm(
           mul_inputs, mul_outputs, gemm_params, guid_ + "batchgemm");
     }
@@ -309,7 +320,9 @@ void FusedSdpaProjBTMHKernel(
     const paddle::optional<phi::DenseTensor>& d_scale_v,
     const paddle::optional<phi::DenseTensor>& q_scale_s,
     const paddle::optional<phi::DenseTensor>& q_scale_o,
-    const paddle::optional<phi::DenseTensor>& d_scale_s) {
+    const paddle::optional<phi::DenseTensor>& d_scale_s,
+    const paddle::optional<phi::DenseTensor>& linear_in_scale,
+    const paddle::optional<phi::DenseTensor>& weight_scale) {
   ConvertTensors ct;
   ct.Add(query_states);
   ct.Add(key_value_states);
@@ -324,6 +337,8 @@ void FusedSdpaProjBTMHKernel(
   SDPA_SET_INPUT_AND_FLAGS(q_scale_s.get_ptr(), Q_SCALE_S)
   SDPA_SET_INPUT_AND_FLAGS(q_scale_o.get_ptr(), Q_SCALE_O)
   SDPA_SET_INPUT_AND_FLAGS(d_scale_s.get_ptr(), D_SCALE_S)
+  SDPA_SET_INPUT(linear_in_scale.get_ptr())
+  SDPA_SET_INPUT(weight_scale.get_ptr())
 
   ct.Add(out_linear, false);
   std::vector<DIMS> out_dims = ct.GetDims(false);
@@ -337,6 +352,9 @@ void FusedSdpaProjBTMHKernel(
   int num_kv_head = key_value_states_dims[3];
 
   std::string guid_prefix = "fused_sdpa_proj_causal_";
+  if (linear_weights.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+    guid_prefix = "fused_fp8_sdpa_proj_causal_";
+  }
   if (num_head == num_kv_head) {
     guid_prefix += "MHA_";
   } else {
@@ -358,7 +376,8 @@ void FusedSdpaProjBTMHKernel(
     params.sdpa_params.is_inference = true;
     params.sdpa_params.softmax_mode = SDPA_DEFAULT_SOFTMAX;
     params.sdpa_params.flags = flags;
-    params.fp8_sdpa = query_states.dtype() == phi::DataType::FLOAT8_E4M3FN;
+    params.fp8_sdpa = (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN);
+    params.fp8_gemm = (linear_weights.dtype() == phi::DataType::FLOAT8_E4M3FN);
     if (num_head != num_kv_head) {
       params.is_GQA = true;
     }
@@ -391,7 +410,9 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
     const paddle::optional<paddle::Tensor>& d_scale_v,
     const paddle::optional<paddle::Tensor>& q_scale_s,
     const paddle::optional<paddle::Tensor>& q_scale_o,
-    const paddle::optional<paddle::Tensor>& d_scale_s) {
+    const paddle::optional<paddle::Tensor>& d_scale_s,
+    const paddle::optional<paddle::Tensor>& linear_in_scale,
+    const paddle::optional<paddle::Tensor>& weight_scale) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           query_states.place()));
@@ -450,6 +471,22 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
         static_cast<phi::DenseTensor*>(d_scale_s_ptr.impl().get());
   }
 
+  // linear_in_scale
+  phi::DenseTensor* linear_in_scale_tensor = nullptr;
+  if (linear_in_scale) {
+    auto linear_in_scale_ptr = *(linear_in_scale.get_ptr());
+    linear_in_scale_tensor =
+        static_cast<phi::DenseTensor*>(linear_in_scale_ptr.impl().get());
+  }
+
+  // weight_scale
+  phi::DenseTensor* weight_scale_tensor = nullptr;
+  if (weight_scale) {
+    auto weight_scale_ptr = *(weight_scale.get_ptr());
+    weight_scale_tensor =
+        static_cast<phi::DenseTensor*>(weight_scale_ptr.impl().get());
+  }
+
   // allocate memory on device.
   int64_t bsz = query_states.dims()[0];
   int64_t seq_len = query_states.dims()[1];
@@ -479,6 +516,8 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
           paddle::optional<phi::DenseTensor>(),
           paddle::optional<phi::DenseTensor>(),
           paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
+          paddle::optional<phi::DenseTensor>(),
           paddle::optional<phi::DenseTensor>());
     } else if (query_states.dtype() == phi::DataType::BFLOAT16 ||
                query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
@@ -495,7 +534,11 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
           d_scale_v ? *d_scale_v_tensor : paddle::optional<phi::DenseTensor>(),
           q_scale_s ? *q_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
           q_scale_o ? *q_scale_o_tensor : paddle::optional<phi::DenseTensor>(),
-          d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>());
+          d_scale_s ? *d_scale_s_tensor : paddle::optional<phi::DenseTensor>(),
+          linear_in_scale ? *linear_in_scale_tensor
+                          : paddle::optional<phi::DenseTensor>(),
+          weight_scale ? *weight_scale_tensor
+                       : paddle::optional<phi::DenseTensor>());
     } else {
       throw std::runtime_error("Unsupported data type for FusedSdpaProjKernel");
     }
@@ -524,6 +567,8 @@ std::vector<paddle::Tensor> FusedSdpaProjBTMH(
                                paddle::optional<paddle::Tensor>(),
                                paddle::optional<paddle::Tensor>(),
                                paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
+                               paddle::optional<paddle::Tensor>(),
                                paddle::optional<paddle::Tensor>());
 }
 
@@ -539,6 +584,8 @@ std::vector<paddle::Tensor> FusedSdpaFp8ProjBTMH(
     const paddle::optional<paddle::Tensor>& q_scale_s,
     const paddle::optional<paddle::Tensor>& q_scale_o,
     const paddle::optional<paddle::Tensor>& d_scale_s,
+    const paddle::optional<paddle::Tensor>& linear_in_scale,
+    const paddle::optional<paddle::Tensor>& weight_scale,
     float scaling_factor,
     bool causal = false) {
   return FusedBaseSdpaProjBTMH(query_states,
@@ -553,7 +600,9 @@ std::vector<paddle::Tensor> FusedSdpaFp8ProjBTMH(
                                d_scale_v,
                                q_scale_s,
                                q_scale_o,
-                               d_scale_s);
+                               d_scale_s,
+                               linear_in_scale,
+                               weight_scale);
 }
 
 std::vector<std::vector<int64_t>> FusedSdpaProjBTMHShape(
@@ -600,7 +649,9 @@ PD_BUILD_OP(fused_fp8_sdpa_proj_t)
              paddle::Optional("d_scale_v"),
              paddle::Optional("q_scale_s"),
              paddle::Optional("q_scale_o"),
-             paddle::Optional("d_scale_s")})
+             paddle::Optional("d_scale_s"),
+             paddle::Optional("linear_in_scale"),
+             paddle::Optional("weight_scale")})
     .Outputs({"out_linear"})
     .Attrs({"scaling_factor: float", "causal:bool"})
     .SetKernelFn(PD_KERNEL(FusedSdpaFp8ProjBTMH))

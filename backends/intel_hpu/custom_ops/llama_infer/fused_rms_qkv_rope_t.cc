@@ -108,7 +108,7 @@ class FusedRmsQkvRopeT : public HpuFusedOperator {
       }
       linear_inputs.push_back(scale_input);
       linear_inputs.push_back(scale_weight);
-      AddNodeFusedFp8Gemm<T>(
+      AddNodeFusedFP8Gemm<T>(
           linear_inputs, linear_outputs, gemm_params, guid_ + "fp8_gemm");
 
       if (params.with_qkv_biases) {

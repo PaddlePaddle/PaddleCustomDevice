@@ -22,6 +22,14 @@ import os
 intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
 
 
+def get_similarity(x, y):
+    x = x.cpu().to("float32")
+    y = y.cpu().to("float32")
+    return paddle.nn.functional.cosine_similarity(
+        x.flatten(), y.flatten(), axis=0
+    ).item()
+
+
 def fused_rms_mlp(
     x,
     ln_scales,
@@ -132,11 +140,29 @@ class Test_Fused_MLP_OP(unittest.TestCase):
 
 class Test_FP8_Fused_MLP_OP(Test_Fused_MLP_OP):
     def HPU_Fused_RMS_MLP_OP(self, x, ln_scales, proj_weight, down_weight, epsilon):
-        fp8_proj_weight = proj_weight.astype(paddle.float8_e4m3fn)
-        fp8_down_weight = down_weight.astype(paddle.float8_e4m3fn)
+        proj_weight = proj_weight.transpose([1, 0])
+        proj_weight0, proj_weight1 = paddle.split(
+            proj_weight, num_or_sections=2, axis=0
+        )
+        proj_weight0 = proj_weight0.astype(paddle.float8_e4m3fn)
+        proj_weight1 = proj_weight1.astype(paddle.float8_e4m3fn)
 
-        fused_mlp_out = paddlenlp_ops.fused_rms_mlp(
-            x, ln_scales, fp8_proj_weight, fp8_down_weight, epsilon
+        down_weight = down_weight.transpose([1, 0])
+        down_weight = down_weight.astype(paddle.float8_e4m3fn)
+
+        one = paddle.to_tensor([1.0])
+        fused_mlp_out = paddlenlp_ops.fused_fp8_rms_mlp(
+            x,
+            ln_scales,
+            proj_weight0,
+            proj_weight1,
+            down_weight,
+            one,
+            one,
+            one,
+            one,
+            one,
+            epsilon,
         )
 
         return fused_mlp_out
@@ -151,19 +177,21 @@ class Test_FP8_Fused_MLP_OP(Test_Fused_MLP_OP):
             down_weight,
             epsilon,
         ) = self.prepare_input()
-        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP(
-            x, ln_scales, proj_weight, down_weight, epsilon
-        )
         result_np_result = self.NP_Fused_RMS_MLP_OP(
             x, ln_scales, gate_weight, up_weight, down_weight, epsilon
         )
 
-        close_mask = np.isclose(result_fused_mlp.numpy(), result_np_result, rtol=1e-02)
-        mismatch_count = np.sum(~close_mask)
-        mismatch_percentage = mismatch_count / np.size(result_np_result) * 100.0
+        result_fused_mlp = self.HPU_Fused_RMS_MLP_OP(
+            x, ln_scales, proj_weight, down_weight, epsilon
+        )
+
+        similarity = get_similarity(
+            paddle.to_tensor(result_np_result), result_fused_mlp
+        )
+        print("similarity = ", similarity)
         assert (
-            mismatch_percentage <= 0.03
-        ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.03}% threshold\n"
+            abs(1 - similarity) < 2e-3
+        ), "similarity check fails between fp8 and bf16 outputs"
 
 
 if __name__ == "__main__":

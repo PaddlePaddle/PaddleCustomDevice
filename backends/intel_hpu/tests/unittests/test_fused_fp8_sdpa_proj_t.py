@@ -162,7 +162,10 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             [scaleK * key_states, scaleV * value_states], axis=0
         ).astype(paddle.float8_e4m3fn)
 
-        linear_weights_fp8 = linear_weights.astype(paddle.float8_e4m3fn)
+        scale_one = paddle.to_tensor([1.0], dtype=paddle.float32)
+        linear_weights_fp8 = linear_weights.transpose([1, 0]).astype(
+            paddle.float8_e4m3fn
+        )
 
         d_scale_q = paddle.to_tensor([scaleQInv])
         d_scale_k = paddle.to_tensor([scaleKInv])
@@ -192,6 +195,8 @@ class FP8_SDPA_Proj_T_Test(unittest.TestCase):
             q_scale_s,
             q_scale_o,
             d_scale_s,
+            scale_one,
+            scale_one,
             scaling_factor,
             causal=True,
         )

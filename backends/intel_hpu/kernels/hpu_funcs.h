@@ -410,7 +410,7 @@ class HpuFusedOperator : public HpuOperator {
   }
 
   template <typename T>
-  void AddNodeFusedFp8Gemm(std::vector<synTensor> inputs,
+  void AddNodeFusedFP8Gemm(std::vector<synTensor> inputs,
                            std::vector<synTensor> outputs,
                            synGEMMParams params,
                            std::string node_name) {
@@ -428,14 +428,14 @@ class HpuFusedOperator : public HpuOperator {
     cast_to_fp8_params.round_mode = CAST_ROUND_HALF_NE;
     if (cast_x) {
       x_tensor = cloneTensor(node_name + "_x", inputs[0], syn_type_fp8_143);
-      std::vector<synTensor> cast_ins = {inputs[0]};
+      std::vector<synTensor> cast_ins = {inputs[0], inputs[2]};
       std::vector<synTensor> cast_outs = {x_tensor};
       AddNodeConvertToFP8<T>(
           cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_x");
     }
     if (cast_y) {
       y_tensor = cloneTensor(node_name + "_y", inputs[1], syn_type_fp8_143);
-      std::vector<synTensor> cast_ins = {inputs[1]};
+      std::vector<synTensor> cast_ins = {inputs[1], inputs[3]};
       std::vector<synTensor> cast_outs = {y_tensor};
       AddNodeConvertToFP8<T>(
           cast_ins, cast_outs, cast_to_fp8_params, node_name + "_cast_y");
@@ -444,8 +444,11 @@ class HpuFusedOperator : public HpuOperator {
     std::vector<synTensor> gemm_ins;
     gemm_ins.push_back(x_tensor);
     gemm_ins.push_back(y_tensor);
-    for (size_t i = 2; i < inputs.size(); i++) {
-      gemm_ins.push_back(inputs[i]);
+    if (!cast_x) {
+      gemm_ins.push_back(inputs[2]);
+    }
+    if (!cast_y) {
+      gemm_ins.push_back(inputs[3]);
     }
     AddNodeFP8Gemm<T>(gemm_ins, outputs, params, node_name);
   }

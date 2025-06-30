@@ -105,6 +105,9 @@ def test_fused_flatpa_proj(
         linear_weights,
         scaling_factor=scaling_factor,
     )
+
+    linear_weights = linear_weights.transpose([1, 0])
+
     out_linear_out = paddlenlp_ops.fused_fp8_flatpa_proj(
         query,
         key_cache,

@@ -54,4 +54,5 @@ PD_REGISTER_PLUGIN_KERNEL(eye,
                           ALL_LAYOUT,
                           custom_kernel::EyeKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

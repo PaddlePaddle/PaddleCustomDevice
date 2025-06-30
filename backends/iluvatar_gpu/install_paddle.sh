@@ -20,6 +20,7 @@ PYTHON_PATH=$(which python3)
 PYTHON_DIST_PATH=${TARGET_DIR}/lib/python3/dist-packages
 
 PKG_DIR="build_pip"
+PKGCPU_NAME="paddlepaddle"
 PKG_NAME="paddle_iluvatar_gpu"
 
 if [[ ! -d ${PKG_DIR} ]]; then
@@ -43,6 +44,8 @@ if [[ "${TARGET_DIR}" != ""  ]]; then
   rm -rf ./tmp
   echo "Paddle installed in ${PYTHON_DIST_PATH}; please add it to your PYTHONPATH."
 else
+  ${PYTHON_PATH} -m pip uninstall ${PKGCPU_NAME} -y
+  ${PYTHON_PATH} -m pip install  --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
   ${PYTHON_PATH} -m pip uninstall ${PKG_NAME} -y
   ${PYTHON_PATH} -m pip install ${PKG_DIR}/${latest_pkg} || exit
 fi

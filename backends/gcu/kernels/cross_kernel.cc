@@ -84,4 +84,5 @@ PD_REGISTER_PLUGIN_KERNEL(cross,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

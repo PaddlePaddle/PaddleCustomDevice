@@ -450,7 +450,11 @@ C_Status AsyncMemCpyH2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyHostToDevice,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -476,7 +480,11 @@ C_Status AsyncMemCpyD2H(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyDeviceToHost,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -502,7 +510,11 @@ C_Status AsyncMemCpyD2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice);
+  cudaErr = cudaMemcpyAsync(dst,
+                            src,
+                            size,
+                            cudaMemcpyDeviceToDevice,
+                            reinterpret_cast<cudaStream_t>(stream));
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -616,22 +628,22 @@ C_Status CreateEvent(const C_Device device, C_Event *event) {
     return C_ERROR;
   }
 
-  *event = NULL;
+  *event = (C_Event)0x1;
 
-  cudaError_t cuda_status;
+  // cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaSetDevice(device->id);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  cudaEvent_t evt;
-  cuda_status = cudaEventCreate(&evt);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cudaEvent_t evt;
+  // cuda_status = cudaEventCreate(&evt);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  *event = (C_Event)evt;
+  // *event = (C_Event)evt;
   return C_SUCCESS;
 }
 
@@ -647,7 +659,8 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
     return C_ERROR;
   }
 
-  cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
+  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
+  // cuda_status = cudaEventRecord(cudaEvent_t(event), cudaStream_t(stream));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -656,21 +669,21 @@ C_Status RecordEvent(const C_Device device, C_Stream stream, C_Event event) {
 }
 
 C_Status DestroyEvent(const C_Device device, C_Event event) {
-  if (device == NULL || event == NULL) {
-    return C_ERROR;
-  }
+  // if (device == NULL || event == NULL) {
+  //   return C_ERROR;
+  // }
 
-  cudaError_t cuda_status;
+  // cudaError_t cuda_status;
 
-  cuda_status = cudaSetDevice(device->id);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaSetDevice(device->id);
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
-  cuda_status = cudaEventDestroy(cudaEvent_t(event));
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
+  // cuda_status = cudaEventDestroy(cudaEvent_t(event));
+  // if (cuda_status != cudaSuccess) {
+  //   return C_ERROR;
+  // }
 
   return C_SUCCESS;
 }
@@ -722,7 +735,7 @@ C_Status SyncEvent(const C_Device device, C_Event event) {
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
-  cuda_status = cudaEventSynchronize(cudaEvent_t(event));
+  cuda_status = cudaDeviceSynchronize();
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }
@@ -744,12 +757,7 @@ C_Status StreamWaitEvent(const C_Device device,
     return C_ERROR;
   }
 
-  cuda_status =
-      cudaStreamWaitEvent(cudaStream_t(stream), cudaEvent_t(event), 0);
-  if (cuda_status != cudaSuccess) {
-    return C_ERROR;
-  }
-
+  cuda_status = cudaStreamSynchronize(cudaStream_t(stream));
   if (cuda_status != cudaSuccess) {
     return C_ERROR;
   }

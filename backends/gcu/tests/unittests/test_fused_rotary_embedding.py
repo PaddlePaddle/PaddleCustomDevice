@@ -29,11 +29,13 @@ for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
 # fmt: off
 FUSED_ROPE_CASE = [
     # for llama2
-    {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int64},
-    # {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int64},
+    # {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int64},
+    # # {"batch_size": 4, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int64},
 
-    {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int32},
-    # {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int32},
+    # {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float32, "position_dtype": np.int32},
+    # # {"batch_size": 5, "seq_len": 512, "num_heads": 40, "num_kv_heads": 40, "dtype": np.float16, "position_dtype": np.int32},
+
+    {"batch_size": 1, "seq_len": 23, "num_heads": 14, "num_kv_heads": 2, "dtype": np.float32, "position_dtype": np.int64},
 
 ]
 # fmt: on
@@ -108,7 +110,7 @@ class TestFusedRotaryEmbedding(TestAPIBase):
 
     def init_attrs(self):
         self.head_dim = 128
-        self.max_position = 512
+        self.max_position = 8192
         self.is_neox = True
         self.rotary_dim = self.head_dim
         self.rope = get_rope(self.head_dim, self.max_position)

@@ -581,6 +581,7 @@ PD_REGISTER_PLUGIN_KERNEL(add_raw,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(add,
@@ -591,6 +592,7 @@ PD_REGISTER_PLUGIN_KERNEL(add,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(add_grad,
@@ -608,6 +610,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           custom_kernel::SubtractKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
@@ -617,6 +620,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(multiply,
@@ -627,6 +631,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 // PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
@@ -644,6 +649,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide,
                           custom_kernel::DivideKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(divide_grad,
@@ -653,6 +659,7 @@ PD_REGISTER_PLUGIN_KERNEL(divide_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(minimum,
@@ -662,6 +669,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -672,6 +680,7 @@ PD_REGISTER_PLUGIN_KERNEL(minimum_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -682,6 +691,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -692,6 +702,7 @@ PD_REGISTER_PLUGIN_KERNEL(maximum_grad,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -712,6 +723,7 @@ PD_REGISTER_PLUGIN_KERNEL(remainder,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -733,6 +745,7 @@ PD_REGISTER_PLUGIN_KERNEL(fmax,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(fmin,
@@ -743,4 +756,5 @@ PD_REGISTER_PLUGIN_KERNEL(fmin,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

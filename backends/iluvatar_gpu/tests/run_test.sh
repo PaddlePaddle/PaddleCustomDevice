@@ -14,11 +14,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
 export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}"
 
-mkdir -p build && cd build && cmake ..
-make run_test
-cd -
-rm -rf build
+if [[ -z "${LD_LIBRARY_PATH:-}" ]]; then
+    echo "ERROR: LD_LIBRARY_PATH is not set!" >&2
+    exit 1
+elif [[ ! -f "${LD_LIBRARY_PATH}/libcuda.so.1" ]]; then
+    echo "ERROR: libcuda.so.1 not found in LD_LIBRARY_PATH!" >&2
+    exit 1
+fi
+
+export LD_PRELOAD="${LD_LIBRARY_PATH}/libcuda.so.1"
+
+mkdir -p build || { echo "ERROR: Failed to create build directory"; exit 1; }
+cd build || { echo "ERROR: Failed to enter build directory"; exit 1; }
+
+echo "=== Configuring project ==="
+cmake .. || { echo "ERROR: CMake configuration failed"; exit 1; }
+
+echo "=== Building project (if needed) ==="
+make -j$(nproc) || { echo "ERROR: Build failed"; exit 1; }
+
+echo "=== Running tests ==="
+ctest --output-on-failure -V || { 
+    echo "ERROR: Tests failed!" >&2
+    echo "Exit code: $?" >&2
+    exit 1
+}
+
+echo "=== All tests passed successfully ==="
+cd - > /dev/null

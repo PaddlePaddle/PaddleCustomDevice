@@ -13,17 +13,12 @@
 # limitations under the License.
 
 import paddle
-import os
 import numpy as np
 import unittest
 from ddt import ddt, data, unpack
 from api_base import TestAPIBase
 
-for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
-    if lib.endswith(".so"):
-        paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
-            lib
-        )
+from paddle_custom_device.gcu import ops as gcu_ops
 
 # The table retains its original format for better comparison of parameter settings.
 # fmt: off
@@ -63,9 +58,7 @@ class TestFusedAddRMSNorm(TestAPIBase):
         x = paddle.to_tensor(self.data_x, dtype=self.dtype)
         residual = paddle.to_tensor(self.data_residual, dtype=self.dtype)
         weight = paddle.to_tensor(self.data_weight, dtype=self.dtype)
-        return paddle.base.core.eager._run_custom_op(
-            "fused_add_rms_norm_op", x, residual, weight, self.epsilon
-        )
+        return gcu_ops.fused_add_rms_norm(x, residual, weight, self.epsilon)
 
     def rms_norm_impl(self, dtype):
         x_fp32 = paddle.to_tensor(self.data_x, dtype=np.float32)

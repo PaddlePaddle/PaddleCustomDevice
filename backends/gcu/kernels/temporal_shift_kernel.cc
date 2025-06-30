@@ -193,4 +193,5 @@ PD_REGISTER_PLUGIN_KERNEL(temporal_shift,
                           custom_kernel::TemporalShiftKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

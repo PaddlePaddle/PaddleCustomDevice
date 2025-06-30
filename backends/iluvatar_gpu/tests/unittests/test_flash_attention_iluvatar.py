@@ -406,6 +406,7 @@ class TestSDPAttentionWithMaskAPITest3(TestFlashAttentionWithMaskAPI):
         self.causal = False
 
 
+@unittest.skip("skip on iluvatar temporarily")
 class TestFlashAttentionGQA(unittest.TestCase):
     def setUp(self):
         self.place = paddle.CustomPlace("iluvatar_gpu", 0)

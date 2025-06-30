@@ -105,5 +105,6 @@ PD_REGISTER_PLUGIN_KERNEL(meshgrid,
                           int,
                           int64_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}

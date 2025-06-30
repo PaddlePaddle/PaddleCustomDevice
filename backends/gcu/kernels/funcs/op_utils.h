@@ -188,6 +188,19 @@ struct aot_op_variable_info<std::vector<int64_t>> {
 };
 
 template <>
+struct aot_op_variable_info<std::vector<int>> {
+  aot_op_variable_info(const std::vector<int> &int_array,
+                       const std::string &name) {
+    std::stringstream ss;
+    ss << "[" << name << ":VectorInt32<" << VectorToStr<int>(int_array)
+       << ">]; ";
+    info = ss.str();
+  }
+
+  std::string info;
+};
+
+template <>
 struct aot_op_variable_info<phi::DataType> {
   aot_op_variable_info(const phi::DataType &data_type,
                        const std::string &name) {
@@ -365,6 +378,17 @@ struct aot_op_abstract_info<std::vector<int64_t>> {
   explicit aot_op_abstract_info(const std::vector<int64_t> &int_array) {
     std::stringstream ss;
     ss << "VInt64<" << VectorToStr<int64_t>(int_array) << ">; ";
+    info = ss.str();
+  }
+
+  std::string info;
+};
+
+template <>
+struct aot_op_abstract_info<std::vector<int>> {
+  explicit aot_op_abstract_info(const std::vector<int> &int_array) {
+    std::stringstream ss;
+    ss << "VInt64<" << VectorToStr<int>(int_array) << ">; ";
     info = ss.str();
   }
 

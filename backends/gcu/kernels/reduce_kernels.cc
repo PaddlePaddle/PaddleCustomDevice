@@ -470,6 +470,7 @@ PD_REGISTER_PLUGIN_KERNEL(any,
                           float,
                           int,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -481,6 +482,7 @@ PD_REGISTER_PLUGIN_KERNEL(all,
                           float,
                           int,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -491,6 +493,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           custom_kernel::MaxKernel,
                           int32_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(min,
@@ -499,6 +502,7 @@ PD_REGISTER_PLUGIN_KERNEL(min,
                           custom_kernel::MinKernel,
                           int32_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
@@ -506,6 +510,7 @@ PD_REGISTER_PLUGIN_KERNEL(prod,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
@@ -516,6 +521,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
@@ -534,6 +540,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean,
                           ALL_LAYOUT,
                           custom_kernel::MeanKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_grad,
@@ -541,6 +548,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean_grad,
                           ALL_LAYOUT,
                           custom_kernel::MeanGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amax,
@@ -551,6 +559,7 @@ PD_REGISTER_PLUGIN_KERNEL(amax,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amin,
@@ -561,4 +570,5 @@ PD_REGISTER_PLUGIN_KERNEL(amin,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

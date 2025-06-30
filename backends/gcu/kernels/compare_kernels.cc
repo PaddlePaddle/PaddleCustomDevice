@@ -223,6 +223,7 @@ void GreaterThanKernel(const Context& dev_ctx,
                             int,                          \
                             int64_t,                      \
                             float,                        \
+                            phi::dtype::bfloat16,         \
                             phi::dtype::float16) {        \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
   }
@@ -236,6 +237,7 @@ void GreaterThanKernel(const Context& dev_ctx,
                             int,                            \
                             int64_t,                        \
                             float,                          \
+                            phi::dtype::bfloat16,           \
                             phi::dtype::float16) {          \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);   \
   }

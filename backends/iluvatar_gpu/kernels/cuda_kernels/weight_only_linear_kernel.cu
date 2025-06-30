@@ -51,9 +51,9 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
   int k = w_dims[1];
   int m = x.numel() / k;
   PADDLE_ENFORCE_EQ(
-      ((k % 64 == 0)),
+      ((k % 4 == 0)),
       true,
-      common::errors::InvalidArgument("Only support K % 64 == 0."));
+      common::errors::InvalidArgument("Only support K % 4 == 0."));
 
   cuinferHandle_t handle = iluvatar::getContextInstance()->getIxInferHandle();
   cuinferPointerMode_t cuinfer_ptr_mode = CUINFER_POINTER_MODE_HOST;
@@ -98,6 +98,38 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
   cust_device_param.bias = bias_data;
   cust_device_param.scale = weight_scale_data;
   cust_device_param.workspace = nullptr;
+  DenseTensor workspace_tensor;
+  if (k % 64 != 0) {
+    size_t workspace_size;
+    cuinferStatus_t get_workspace_status =
+        cuinferGetCustomGemmWorkspace(transa,
+                                      transb,
+                                      n,
+                                      m,
+                                      k,
+                                      Atype,
+                                      lda,
+                                      lda,
+                                      Btype,
+                                      ldb,
+                                      ldb,
+                                      Ctype,
+                                      ldc,
+                                      ldc,
+                                      batch_count,
+                                      computeType,
+                                      scaleType,
+                                      &workspace_size);
+    PADDLE_ENFORCE_EQ(
+        get_workspace_status,
+        CUINFER_STATUS_SUCCESS,
+        common::errors::InvalidArgument(
+            "IxInfer cuinferGetCustomGemmWorkspace calling failed with code %d",
+            get_workspace_status));
+    workspace_tensor.Resize({static_cast<int64_t>(workspace_size)});
+    cust_device_param.workspace =
+        static_cast<void*>(dev_ctx.template Alloc<uint8_t>(&workspace_tensor));
+  }
 
   cuinferQuantGEMMHostParam cust_hots_param;
   cust_hots_param.size = sizeof(cuinferQuantGEMMHostParam);

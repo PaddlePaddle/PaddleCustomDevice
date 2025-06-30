@@ -120,6 +120,7 @@ PD_REGISTER_PLUGIN_KERNEL(huber_loss,
                           ALL_LAYOUT,
                           custom_kernel::HuberLossKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(huber_loss_grad,

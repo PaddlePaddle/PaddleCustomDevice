@@ -469,6 +469,7 @@ PD_REGISTER_PLUGIN_KERNEL(bilinear_interp,
                           ALL_LAYOUT,
                           custom_kernel::BilinearInterpKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 
@@ -485,6 +486,7 @@ PD_REGISTER_PLUGIN_KERNEL(nearest_interp,
                           ALL_LAYOUT,
                           custom_kernel::NearestInterpKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           double) {}
 

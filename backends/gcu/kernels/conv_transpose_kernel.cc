@@ -480,6 +480,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose_bias,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeBiasKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose,
@@ -487,6 +488,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose_grad,
@@ -494,6 +496,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv2d_transpose_grad,
                           ALL_LAYOUT,
                           custom_kernel::Conv2dTransposeGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d_transpose,
@@ -501,6 +504,7 @@ PD_REGISTER_PLUGIN_KERNEL(conv3d_transpose,
                           ALL_LAYOUT,
                           custom_kernel::Conv3dTransposeKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(conv3d_transpose_grad,
@@ -508,4 +512,5 @@ PD_REGISTER_PLUGIN_KERNEL(conv3d_transpose_grad,
                           ALL_LAYOUT,
                           custom_kernel::Conv3dTransposeGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

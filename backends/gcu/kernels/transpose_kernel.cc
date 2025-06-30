@@ -98,6 +98,7 @@ PD_REGISTER_PLUGIN_KERNEL(transpose,
                           custom_kernel::TransposeKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(transpose_grad,

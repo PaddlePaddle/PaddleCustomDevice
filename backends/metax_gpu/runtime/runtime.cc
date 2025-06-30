@@ -435,17 +435,17 @@ C_Status MemCpyH2D(const C_Device device,
   }
   cudaError_t cudaErr = cudaSetDevice(device->id);
   if (cudaErr != cudaSuccess) {
-    VLOG(0) << "Failed to set device: " << device->id
+    VLOG(2) << "Failed to set device: " << device->id
             << ", Error: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-  VLOG(0) << "setdevice: " << device->id;
+  VLOG(2) << "setdevice: " << device->id;
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
   if (cudaErr != cudaSuccess) {
-    VLOG(0) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
+    VLOG(2) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
-  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }
@@ -464,7 +464,7 @@ C_Status MemCpyD2D(const C_Device device,
   err = cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice);
 
   if (err == cudaSuccess) {
-    VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
+    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
             << size;  // NOLINT
     return C_SUCCESS;
   } else {
@@ -492,7 +492,7 @@ C_Status MemCpyD2H(const C_Device device,
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
-  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }
@@ -561,7 +561,7 @@ C_Status AsyncMemCpyD2D(const C_Device device,
                         const void *src,
                         size_t size) {
   if (size == 0) {
-    VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
+    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
             << size;  // NOLINT
     return C_SUCCESS;
   }
@@ -579,7 +579,7 @@ C_Status AsyncMemCpyD2D(const C_Device device,
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
-  VLOG(0) << "cudamemcpy successful: " << dst << " " << src << " "
+  VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
           << size;  // NOLINT
   return C_SUCCESS;
 }

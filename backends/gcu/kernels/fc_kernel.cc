@@ -76,5 +76,10 @@ void FCKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(
-    fc, gcu, ALL_LAYOUT, custom_kernel::FCKernel, float, phi::dtype::float16) {}
+PD_REGISTER_PLUGIN_KERNEL(fc,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::FCKernel,
+                          float,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {}

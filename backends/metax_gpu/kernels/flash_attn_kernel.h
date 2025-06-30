@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "paddle/extension.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/device_context.h"
 
@@ -29,8 +30,8 @@ void FlashAttnUnpaddedKernel(
     const DenseTensor& cu_seqlens_k,
     const paddle::optional<DenseTensor>& fixed_seed_offset,
     const paddle::optional<DenseTensor>& attn_mask,
-    int64_t max_seqlen_q,
-    int64_t max_seqlen_k,
+    const Scalar& max_seqlen_q,
+    const Scalar& max_seqlen_k,
     float scale,
     float dropout,
     bool causal,
@@ -58,5 +59,22 @@ void FlashAttnKernel(const Context& ctx,
                      DenseTensor* softmax,
                      DenseTensor* softmax_lse,
                      DenseTensor* seed_offset);
+
+std::vector<paddle::Tensor> FlashAttnKernelKVCache(
+    const paddle::Tensor& q,
+    const paddle::Tensor& k_cache,
+    const paddle::Tensor& v_cache,
+    const paddle::optional<paddle::Tensor>& k,
+    const paddle::optional<paddle::Tensor>& v,
+    const paddle::Tensor& seqlens_k,
+    const paddle::optional<paddle::Tensor>& rotary_cos,
+    const paddle::optional<paddle::Tensor>& rotary_sin,
+    const paddle::optional<paddle::Tensor>& cache_batch_idx,
+    const paddle::optional<paddle::Tensor>& block_table,
+    bool causal,
+    bool is_rotary_interleaved,
+    int num_splits,
+    float dropout,
+    bool return_softmax);
 
 }  // namespace phi

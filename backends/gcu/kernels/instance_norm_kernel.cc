@@ -187,6 +187,7 @@ PD_REGISTER_PLUGIN_KERNEL(instance_norm,
                           ALL_LAYOUT,
                           custom_kernel::InstanceNormKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(instance_norm_grad,

@@ -177,6 +177,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril_triu,
                           float,
                           int,
                           int64_t,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_triu_grad,
@@ -196,6 +197,7 @@ PD_REGISTER_PLUGIN_KERNEL(tril,
                           bool,
                           float,
                           int,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(tril_grad,
@@ -215,6 +217,7 @@ PD_REGISTER_PLUGIN_KERNEL(triu,
                           bool,
                           float,
                           int,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(triu_grad,

@@ -140,6 +140,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiclass_nms3,
                           ALL_LAYOUT,
                           custom_kernel::MultiClassNMSKernel,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float) {
   kernel->OutputAt(1).SetDataType(phi::DataType::INT32);
   kernel->OutputAt(2).SetDataType(phi::DataType::INT32);

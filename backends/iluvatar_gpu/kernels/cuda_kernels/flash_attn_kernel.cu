@@ -152,6 +152,7 @@ void FlashAttnUnpaddedBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = is_test ? 0.0f : dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = 1;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = true;

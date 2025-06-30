@@ -40,4 +40,5 @@ PD_REGISTER_PLUGIN_KERNEL(cholesky,
                           custom_kernel::CholeskyKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

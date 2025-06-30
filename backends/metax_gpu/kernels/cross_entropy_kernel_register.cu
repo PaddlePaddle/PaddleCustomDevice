@@ -1,5 +1,3 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
 /* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +72,7 @@ struct ExpAddFunctor {
 
 /*
   Cross entropy soft label with dynamic size on axis (log2_elements is
-  variable).
+  varibale).
   - if the input is softmax, compute loss with softmax
   - if the input is log_softmax, compute loss with log_softmax and update
   softmax
@@ -93,7 +91,7 @@ __global__ void CrossEntropySoftLabel(T* loss,
 
   const int kThreadPerBlock = 512;
   const int kBatchPerBlock = 1;
-  const int kWarpSize = 64;  // (dim < 32) ? dim : 32;
+  const int kWarpSize = 32;  // (dim < 32) ? dim : 32;
   const int kBatchSize = 1;
   const int kThreadPerBatch = kThreadPerBlock / kBatchPerBlock;
   const int kWarpPerBatch = kThreadPerBatch / kWarpSize;
@@ -532,7 +530,7 @@ __global__ void WarpSoftmaxForwardSoftLabel(T* loss,
   const bool LogMode = true;
 
   constexpr int kDimCeil = 1 << Log2Elements;
-  constexpr int kWarpSize = (kDimCeil < 64) ? kDimCeil : 64;
+  constexpr int kWarpSize = (kDimCeil < 32) ? kDimCeil : 32;
   constexpr int kVSize = sizeof(VecT) / sizeof(T);
   constexpr int kIterations = kDimCeil / kWarpSize;
   constexpr int kIterationsV =
@@ -728,7 +726,7 @@ static void SoftmaxWithCrossEntropySoftLabel(const GPUContext& dev_ctx,
   auto stream = dev_ctx.stream();
 
   if (D == 1 && dim <= max_dim) {
-    int kWarpSize = (kDimCeil < 64) ? kDimCeil : 64;
+    int kWarpSize = (kDimCeil < 32) ? kDimCeil : 32;
     int batches_per_warp = (kDimCeil <= 128) ? 2 : 1;
 
     // use 128 threads per block to maximimize gpu utilization
@@ -751,57 +749,56 @@ static void SoftmaxWithCrossEntropySoftLabel(const GPUContext& dev_ctx,
                                          kDimLog2);
 
   } else {
-    //     ScopedTensorDescriptor desc;
-    //     std::vector<int> tensor_dims = {N, dim, D, 1};
-    //     GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
-    // #ifdef PADDLE_WITH_HIP
-    //     miopenTensorDescriptor_t descp = desc.descriptor<T>(layout,
-    //     tensor_dims);
-    // #else
-    //     cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout,
-    //     tensor_dims);
-    // #endif
+    ScopedTensorDescriptor desc;
+    std::vector<int> tensor_dims = {N, dim, D, 1};
+    GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+#ifdef PADDLE_WITH_HIP
+    miopenTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
+#else
+    cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
+#endif
 
-    //     auto handle = dev_ctx.cudnn_handle();
+    // auto handle = dev_ctx.cudnn_handle();
+    auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
 
-    // #ifdef PADDLE_WITH_HIP
-    //     auto mode = axis == rank - 1 ? MIOPEN_SOFTMAX_MODE_INSTANCE
-    //                                  : MIOPEN_SOFTMAX_MODE_CHANNEL;
-    //     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenSoftmaxForward_V2(
-    //         handle,
-    //         phi::backends::gpu::CudnnDataType<T>::kOne(),
-    //         descp,
-    //         logits_data,
-    //         phi::backends::gpu::CudnnDataType<T>::kZero(),
-    //         descp,
-    //         softmax_data,
-    //         MIOPEN_SOFTMAX_LOG,
-    //         mode));
-    // #else
-    //     auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE
-    //                                  : CUDNN_SOFTMAX_MODE_CHANNEL;
-    //     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxForward(
-    //         handle,
-    //         CUDNN_SOFTMAX_LOG,
-    //         mode,
-    //         phi::backends::gpu::CudnnDataType<T>::kOne(),
-    //         descp,
-    //         logits_data,
-    //         phi::backends::gpu::CudnnDataType<T>::kZero(),
-    //         descp,
-    //         softmax_data));
-    // #endif
+#ifdef PADDLE_WITH_HIP
+    auto mode = axis == rank - 1 ? MIOPEN_SOFTMAX_MODE_INSTANCE
+                                 : MIOPEN_SOFTMAX_MODE_CHANNEL;
+    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenSoftmaxForward_V2(
+        handle,
+        phi::backends::gpu::CudnnDataType<T>::kOne(),
+        descp,
+        logits_data,
+        phi::backends::gpu::CudnnDataType<T>::kZero(),
+        descp,
+        softmax_data,
+        MIOPEN_SOFTMAX_LOG,
+        mode));
+#else
+    auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE
+                                 : CUDNN_SOFTMAX_MODE_CHANNEL;
+    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxForward(
+        handle,
+        CUDNN_SOFTMAX_LOG,
+        mode,
+        phi::backends::gpu::CudnnDataType<T>::kOne(),
+        descp,
+        logits_data,
+        phi::backends::gpu::CudnnDataType<T>::kZero(),
+        descp,
+        softmax_data));
+#endif
 
-    //     const int kDimLog2 = static_cast<int>(Log2Ceil(dim));
-    //     const int kDimCeil = 1 << kDimLog2;
-    //     int kThreadPerBlock = 512;
+    const int kDimLog2 = static_cast<int>(Log2Ceil(dim));
+    const int kDimCeil = 1 << kDimLog2;
+    int kThreadPerBlock = 512;
 
-    //     int kBatchPerBlock = 1;
-    //     int blocks = (N * D + kBatchPerBlock - 1) / kBatchPerBlock;
-    //     dim3 threads(kThreadPerBlock / kBatchPerBlock, kBatchPerBlock, 1);
+    int kBatchPerBlock = 1;
+    int blocks = (N * D + kBatchPerBlock - 1) / kBatchPerBlock;
+    dim3 threads(kThreadPerBlock / kBatchPerBlock, kBatchPerBlock, 1);
 
-    //     CrossEntropySoftLabel<T, T, true><<<blocks, threads, 0, stream>>>(
-    //         loss_data, softmax_data, NULL, labels_data, N, dim, D, kDimLog2);
+    CrossEntropySoftLabel<T, T, true><<<blocks, threads, 0, stream>>>(
+        loss_data, softmax_data, NULL, labels_data, N, dim, D, kDimLog2);
   }
 }
 
@@ -842,7 +839,7 @@ __global__ void WarpSoftmaxForward(T* loss,
                                    const int element_count,
                                    const int ignore_index) {
   constexpr int kDimCeil = 1 << Log2Elements;
-  constexpr int kWarpSize = (kDimCeil < 64) ? kDimCeil : 64;
+  constexpr int kWarpSize = (kDimCeil < 32) ? kDimCeil : 32;
   constexpr int kVSize = sizeof(VecT) / sizeof(T);
   constexpr int kIterations = kDimCeil / kWarpSize;
   constexpr int kIterationsV =
@@ -1087,7 +1084,7 @@ void SwitchWarpSoftmaxForward(T* loss,
   // use 128 threads per block to maximimize gpu utilization
   const int log2_elements = static_cast<int>(Log2Ceil(element_count));
   const int kDimCeil = 1 << log2_elements;
-  int kWarpSize = (kDimCeil < 64) ? kDimCeil : 64;
+  int kWarpSize = (kDimCeil < 32) ? kDimCeil : 32;
   int batches_per_warp = (kDimCeil <= 128) ? 2 : 1;
   constexpr int threads_per_block = 128;
   int warps_per_block = (threads_per_block / kWarpSize);
@@ -1185,51 +1182,50 @@ static void SoftmaxWithCrossEntropyHardLabel(const GPUContext& dev_ctx,
                                                 stream);
     }
   } else {
-    //     ScopedTensorDescriptor desc;
-    //     std::vector<int> tensor_dims = {N, dim, D, 1};
-    //     GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
-    // #ifdef PADDLE_WITH_HIP
-    //     miopenTensorDescriptor_t descp = desc.descriptor<T>(layout,
-    //     tensor_dims);
-    // #else
-    //     cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout,
-    //     tensor_dims);
-    // #endif
+    ScopedTensorDescriptor desc;
+    std::vector<int> tensor_dims = {N, dim, D, 1};
+    GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
+#ifdef PADDLE_WITH_HIP
+    miopenTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
+#else
+    cudnnTensorDescriptor_t descp = desc.descriptor<T>(layout, tensor_dims);
+#endif
 
-    //     auto handle = dev_ctx.cudnn_handle();
+    // auto handle = dev_ctx.cudnn_handle();
+    auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
 
-    // #ifdef PADDLE_WITH_HIP
-    //     auto mode = axis == rank - 1 ? MIOPEN_SOFTMAX_MODE_INSTANCE
-    //                                  : MIOPEN_SOFTMAX_MODE_CHANNEL;
-    //     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenSoftmaxForward_V2(
-    //         handle,
-    //         phi::backends::gpu::CudnnDataType<T>::kOne(),
-    //         descp,
-    //         logits_data,
-    //         phi::backends::gpu::CudnnDataType<T>::kZero(),
-    //         descp,
-    //         softmax_data,
-    //         MIOPEN_SOFTMAX_LOG,
-    //         mode));
-    // #else
-    //     auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE
-    //                                  : CUDNN_SOFTMAX_MODE_CHANNEL;
-    //     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxForward(
-    //         handle,
-    //         CUDNN_SOFTMAX_LOG,
-    //         mode,
-    //         phi::backends::gpu::CudnnDataType<T>::kOne(),
-    //         descp,
-    //         logits_data,
-    //         phi::backends::gpu::CudnnDataType<T>::kZero(),
-    //         descp,
-    //         softmax_data));
-    // #endif
-    //     int threads = 128;
-    //     int blocks = (N * dim * D + threads - 1) / threads;
-    //     // compute cross entropy, input is log softmax
-    //     CrossEntropyExpHardLabel<T, LabelT><<<blocks, threads, 0, stream>>>(
-    //         loss_data, softmax_data, labels_data, N, dim, D, ignore_index);
+#ifdef PADDLE_WITH_HIP
+    auto mode = axis == rank - 1 ? MIOPEN_SOFTMAX_MODE_INSTANCE
+                                 : MIOPEN_SOFTMAX_MODE_CHANNEL;
+    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenSoftmaxForward_V2(
+        handle,
+        phi::backends::gpu::CudnnDataType<T>::kOne(),
+        descp,
+        logits_data,
+        phi::backends::gpu::CudnnDataType<T>::kZero(),
+        descp,
+        softmax_data,
+        MIOPEN_SOFTMAX_LOG,
+        mode));
+#else
+    auto mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE
+                                 : CUDNN_SOFTMAX_MODE_CHANNEL;
+    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSoftmaxForward(
+        handle,
+        CUDNN_SOFTMAX_LOG,
+        mode,
+        phi::backends::gpu::CudnnDataType<T>::kOne(),
+        descp,
+        logits_data,
+        phi::backends::gpu::CudnnDataType<T>::kZero(),
+        descp,
+        softmax_data));
+#endif
+    int threads = 128;
+    int blocks = (N * dim * D + threads - 1) / threads;
+    // compute cross entropy, input is log softmax
+    CrossEntropyExpHardLabel<T, LabelT><<<blocks, threads, 0, stream>>>(
+        loss_data, softmax_data, labels_data, N, dim, D, ignore_index);
   }
 }
 
@@ -1422,8 +1418,8 @@ void CrossEntropyWithSoftmaxKernel(const Context& dev_ctx,
     PADDLE_ENFORCE_EQ(
         dtype,
         phi::CppTypeToDataType<T>::Type(),
-        common::errors::InvalidArgument("The Input(Label) should be with the "
-                                        "same data type as Input(Logits)."));
+        phi::errors::InvalidArgument("The Input(Label) should be with the "
+                                     "same data type as Input(Logits)."));
     CrossEntropyWithSoftmaxCUDAKernel<T, T>(dev_ctx,
                                             logits,
                                             label,
@@ -1458,5 +1454,4 @@ PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxKernel,
                           float,
-                          double,
                           phi::dtype::float16) {}

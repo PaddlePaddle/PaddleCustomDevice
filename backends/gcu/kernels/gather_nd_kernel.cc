@@ -229,6 +229,7 @@ void GatherNdGradKernel(const Context &dev_ctx,
 //                           ALL_LAYOUT,
 //                           custom_kernel::GatherNdKernel,
 //                           int,
+//                           phi::dtype::bfloat16,
 //                           phi::dtype::float16,
 //                           float,
 //                           bool) {}

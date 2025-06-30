@@ -1,5 +1,3 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
 /* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +22,7 @@ limitations under the License. */
 namespace cub = hipcub;
 #endif
 
-// clang-format off
+#include "gpudnn/softmax_gpudnn.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -35,8 +33,7 @@ namespace cub = hipcub;
 #include "paddle/phi/kernels/funcs/for_range.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/softmax.h"
-#include "gpudnn/softmax_gpudnn.h"
-// clang-format on
+
 namespace phi {
 
 template <typename T>

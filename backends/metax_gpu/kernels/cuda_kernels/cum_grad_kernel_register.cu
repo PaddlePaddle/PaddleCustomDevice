@@ -13,13 +13,16 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/c_embedding_grad_kernel.h"
+#include "paddle/phi/kernels/cum_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(c_embedding_grad,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(cumsum_grad,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::CEmbeddingGradKernel,
+                          phi::CumsumGradKernel,
                           float,
-                          phi::dtype::bfloat16,
+                          int16_t,
+                          int,
+                          int64_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           phi::dtype::complex<float>) {}

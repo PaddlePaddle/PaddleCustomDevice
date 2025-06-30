@@ -187,6 +187,10 @@ bool IsCastSupport(const phi::DataType src_type, const phi::DataType dst_type) {
       GetDataTypePairKey(phi::DataType::FLOAT16, phi::DataType::FLOAT32),
       GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::FLOAT16),
 
+      // bfloat16 <--> float32
+      GetDataTypePairKey(phi::DataType::BFLOAT16, phi::DataType::FLOAT32),
+      GetDataTypePairKey(phi::DataType::FLOAT32, phi::DataType::BFLOAT16),
+
       // ***************** int convert ****************** //
       // int8 <--> int16
       GetDataTypePairKey(phi::DataType::INT8, phi::DataType::INT16),

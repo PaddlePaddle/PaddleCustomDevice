@@ -20,6 +20,7 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/core/tensor_utils.h"
 #include "paddle/phi/kernels/empty_kernel.h"
+#include "paddle/phi/api/ext/op_meta_info.h"
 // clang-format on
 namespace phi {
 
@@ -33,8 +34,8 @@ void FlashAttnUnpaddedKernel(
     const DenseTensor& cu_seqlens_k,
     const paddle::optional<DenseTensor>& fixed_seed_offset,
     const paddle::optional<DenseTensor>& attn_mask,
-    int64_t max_seqlen_q,
-    int64_t max_seqlen_k,
+    const Scalar& max_seqlen_q_s,
+    const Scalar& max_seqlen_k_s,
     float scale,
     float dropout,
     bool causal,
@@ -47,8 +48,10 @@ void FlashAttnUnpaddedKernel(
     DenseTensor* seed_offset) {
 #ifdef PADDLE_WITH_FLASHATTN
   ctx.template Alloc<T>(out);
-
   cudaStream_t stream = ctx.stream();
+
+  int64_t max_seqlen_q = max_seqlen_q_s.to<int64_t>();
+  int64_t max_seqlen_k = max_seqlen_k_s.to<int64_t>();
 
   // q, k, v [total_q/k/v, num_heads, head_dim]
   auto dims = q.dims();
@@ -86,7 +89,6 @@ void FlashAttnUnpaddedKernel(
                                                        head_size,
                                                        max_seqlen_k,
                                                        num_heads_k);
-
   VLOG(10) << "FlashAttn fwd seed: " << params.seed_offset_data[0]
            << ", offset: " << params.seed_offset_data[1];
   auto flash_cu_seqlens_q = DenseTensorToMcFlashAttnTensor(cu_seqlens_q);
@@ -119,7 +121,7 @@ void FlashAttnUnpaddedKernel(
                                    params.stream,
                                    params.extend_parameter);
   phi::dynload::release_tensor(flash_cu_seqlens_q);
-  phi::dynload::release_tensor(flash_cu_seqlens_q);
+  phi::dynload::release_tensor(flash_cu_seqlens_k);
   CheckFlashAttnStatus(succ);
 #else
   RaiseNotSupportedError();
@@ -218,6 +220,135 @@ void FlashAttnKernel(const Context& ctx,
 #endif
 }
 
+const phi::CustomContext* getcontext(const paddle::Tensor& tensor) {
+  return static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(tensor.place()));
+}
+
+phi::DenseTensor paddletensor2densortensor(const paddle::Tensor& paddletensor) {
+  return *(static_cast<const phi::DenseTensor*>(paddletensor.impl().get()));
+}
+
+phi::DenseTensor* opt_paddletensor2densortensor_ptr(
+    const paddle::optional<paddle::Tensor>& opt_paddletensor) {
+  if (opt_paddletensor) {
+    auto ptr = *(opt_paddletensor.get_ptr());
+    return static_cast<phi::DenseTensor*>(ptr.impl().get());
+  } else {
+    return nullptr;
+  }
+}
+
+std::vector<paddle::Tensor> FlashAttnKernelKVCache(
+    const paddle::Tensor& q_,
+    const paddle::Tensor& k_cache_,
+    const paddle::Tensor& v_cache_,
+    const paddle::optional<paddle::Tensor>& k_,
+    const paddle::optional<paddle::Tensor>& v_,
+    const paddle::Tensor& seqlens_k_,
+    const paddle::optional<paddle::Tensor>& rotary_cos_,
+    const paddle::optional<paddle::Tensor>& rotary_sin_,
+    const paddle::optional<paddle::Tensor>& cache_batch_idx_,
+    const paddle::optional<paddle::Tensor>& block_table_,
+    bool causal,
+    bool is_rotary_interleaved,
+    int num_splits,
+    float dropout,
+    bool return_softmax) {
+#ifdef PADDLE_WITH_FLASHATTN
+  auto ctx = getcontext(q_);
+  printf("%s %d\n", __FILE__, __LINE__);
+  auto q = paddletensor2densortensor(q_);
+  auto k_cache = paddletensor2densortensor(k_cache_);
+  auto v_cache = paddletensor2densortensor(v_cache_);
+  auto seqlens_k = paddletensor2densortensor(seqlens_k_);
+
+  auto k = opt_paddletensor2densortensor_ptr(k_);
+  auto v = opt_paddletensor2densortensor_ptr(v_);
+  auto rotary_cos = opt_paddletensor2densortensor_ptr(rotary_cos_);
+  auto rotary_sin = opt_paddletensor2densortensor_ptr(rotary_sin_);
+  auto block_table = opt_paddletensor2densortensor_ptr(block_table_);
+  auto cache_batch_idx = opt_paddletensor2densortensor_ptr(cache_batch_idx_);
+
+  // q, k, v [batch_size, seq_len, num_heads, head_dim]
+  const auto& dims = q.dims();
+  PADDLE_ENFORCE_EQ(dims.size(),
+                    4,
+                    phi::errors::InvalidArgument(
+                        "flash_attn_KVCache receive input with dim "
+                        "[batch_size, seq_len, num_heads, head_dim]"));
+  const int64_t batch_size = dims[0];
+  const int64_t seqlen_q = dims[1];
+  const int64_t num_heads = dims[2];
+  const int64_t head_size = dims[3];
+
+  std::shared_ptr<phi::DenseTensor> out = std::make_shared<phi::DenseTensor>();
+  std::vector<int64_t> out_dims = {batch_size, seqlen_q, num_heads, head_size};
+  out->Resize(phi::make_ddim(out_dims));
+  (*ctx).Alloc(out.get(), q.dtype());
+  printf("%s %d\n", __FILE__, __LINE__);
+  std::shared_ptr<phi::DenseTensor> softmax_lse =
+      std::make_shared<phi::DenseTensor>();
+  FlashAttnParamsFwdKVCache<float> params(*ctx,
+                                          return_softmax,
+                                          q,
+                                          k_cache,
+                                          v_cache,
+                                          k,
+                                          v,
+                                          seqlens_k,
+                                          rotary_cos,
+                                          rotary_sin,
+                                          cache_batch_idx,
+                                          block_table,
+                                          *out,
+                                          *softmax_lse,
+                                          causal,
+                                          is_rotary_interleaved,
+                                          num_splits,
+                                          batch_size,
+                                          seqlen_q,
+                                          num_heads,
+                                          head_size,
+                                          dropout);
+  mcflashattnStatus_t succ =
+      phi::dynload::mha_fwd_kvcache(params.q,
+                                    params.k_cache,
+                                    params.v_cache,
+                                    params.k,
+                                    params.v,
+                                    params.seqlens_k,
+                                    params.rotary_cos,
+                                    params.rotary_sin,
+                                    params.cache_batch_idx,
+                                    params.block_table,
+                                    params.alibi_slopes,
+                                    params.softmax_lse,
+                                    params.out,
+                                    params.softmax_scale,
+                                    params.is_causal,
+                                    params.window_size_left,
+                                    params.window_size_right,
+                                    params.is_rotary_interleaved,
+                                    params.stream,
+                                    params.num_splits,
+                                    params.softmax_lse_accum,
+                                    params.out_accum,
+                                    params.extend_parameter);
+  CheckFlashAttnStatus(succ);
+  return {paddle::Tensor(out), paddle::Tensor(softmax_lse)};
+#else
+  RaiseNotSupportedError();
+#endif
+}
+
+std::vector<std::vector<int64_t>> fusedattentionInferShape(
+    std::vector<int64_t> q_shape,
+    std::vector<int64_t> k_shape,
+    std::vector<int64_t> v_shape) {
+  return {q_shape, k_shape, v_shape};
+}
+
 }  // namespace phi
 
 PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
@@ -240,3 +371,23 @@ PD_REGISTER_PLUGIN_KERNEL(flash_attn,
   kernel->InputAt(3).SetBackend(
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
+
+PD_BUILD_OP(flash_attn_kvcache)
+    .Inputs({"q",
+             "k_cache",
+             "v_cache",
+             paddle::Optional("k"),
+             paddle::Optional("v"),
+             "seqlens_k",
+             paddle::Optional("rotary_cos"),
+             paddle::Optional("rotary_sin"),
+             paddle::Optional("cache_batch_idx"),
+             paddle::Optional("block_table")})
+    .Outputs({"out", "softmax_lse"})
+    .Attrs({"causal:bool",
+            "is_rotary_interleaved:bool",
+            "num_splits:int",
+            "dropout:float",
+            "return_softmax:bool"})
+    .SetKernelFn(PD_KERNEL(phi::FlashAttnKernelKVCache))
+    .SetInferShapeFn(PD_INFER_SHAPE(phi::fusedattentionInferShape));

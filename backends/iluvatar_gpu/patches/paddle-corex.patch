@@ -1,8 +1,11 @@
-From 36f73857a8f3b4791dcd93a477c74b089188f389 Mon Sep 17 00:00:00 2001
+From db611377a6b1756649fbe8b8efd6e5aee706cffc Mon Sep 17 00:00:00 2001
 From: "tianyu.zhou" <tianyu.zhou@iluvatar.com>
 Date: Mon, 26 May 2025 14:21:47 +0800
 Subject: [PATCH] Adapt for Iluvatar.
 
+Fix a bug of nonzero kernel.
+
+Fix bug.
 ---
  CMakeLists.txt                                |  2 +-
  paddle/common/backend_header.h                |  2 +-
@@ -11,10 +14,12 @@ Subject: [PATCH] Adapt for Iluvatar.
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
  paddle/phi/backends/dynload/cudnn.cc          |  4 ++++
  paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
+ .../backends/gpu/cuda/cuda_device_function.h  |  4 ++--
  paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 ++--
  paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
+ paddle/phi/backends/gpu/gpu_launch_config.h   | 17 ++++++++++---
  paddle/phi/backends/gpu/gpu_primitives.h      | 24 +++++++++++++++++++
  paddle/phi/backends/gpu/gpu_types.h           |  5 ++++
  paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
@@ -22,19 +27,21 @@ Subject: [PATCH] Adapt for Iluvatar.
  paddle/phi/core/utils/data_type.h             |  2 +-
  paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 ++
  paddle/phi/kernels/funcs/segmented_array.h    |  8 +++++++
+ paddle/phi/kernels/funcs/select_impl.cu.h     |  2 +-
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
  paddle/phi/kernels/gpu/c_embedding_kernel.cu  |  2 +-
  paddle/phi/kernels/gpu/elementwise_grad.h     |  4 ++++
  .../phi/kernels/gpu/layer_norm_grad_kernel.cu |  2 +-
  paddle/phi/kernels/gpu/layer_norm_kernel.cu   |  2 +-
  .../phi/kernels/gpu/rms_norm_grad_kernel.cu   |  2 +-
+ .../kernels/primitive/compute_primitives.h    | 24 +++++++++----------
  paddle/phi/kernels/reduce_sum_kernel.cc       |  2 ++
  paddle/phi/kernels/shape_kernel.cc            |  2 ++
  paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
  paddle/utils/flat_hash_map.h                  |  5 ++++
- 30 files changed, 93 insertions(+), 17 deletions(-)
+ 34 files changed, 122 insertions(+), 35 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index b2c4e6a650..c51f3df1f0 100755
@@ -136,6 +143,28 @@ index 7a5450c349..42975e11cf 100644
  }  // namespace dynload
  }  // namespace phi
  
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
+index 4ff2e528a9..956bac0c64 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
++++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
+@@ -141,7 +141,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
+ 
+ template <typename T>
+ __forceinline__ __device__ T
+-CudaShuffleSync(unsigned mask, T val, int src_line, int width = 32) {
++CudaShuffleSync(unsigned mask, T val, int src_line, int width = 64) {
+   return __shfl_sync(mask, val, src_line, width);
+ }
+ 
+@@ -158,7 +158,7 @@ __device__ T reduceSum(T val, int tid, int len) {
+   // I use Warp-Level Parallelism and assume the Warp size
+   // is 32 which may be different for different GPU,
+   // but most card's warp size is 32.
+-  const int warpSize = 32;
++  const int warpSize = 64;
+   __shared__ T shm[warpSize];
+   unsigned mask = 0u;
+   CREATE_SHFL_MASK(mask, tid < len);
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_graph.cc b/paddle/phi/backends/gpu/cuda/cuda_graph.cc
 index 6b62e328d6..3c12905e09 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_graph.cc
@@ -197,6 +226,51 @@ index 99b8fa120e..beba409fcc 100644
  template <>
  class CudnnDataType<phi::dtype::bfloat16> {
   public:
+diff --git a/paddle/phi/backends/gpu/gpu_launch_config.h b/paddle/phi/backends/gpu/gpu_launch_config.h
+index 184f8444f0..7e12a31518 100644
+--- a/paddle/phi/backends/gpu/gpu_launch_config.h
++++ b/paddle/phi/backends/gpu/gpu_launch_config.h
+@@ -37,6 +37,10 @@
+ // CUDA performs better when thread_per_block is between [64, 512]
+ #define PREDEFINED_BLOCK_SIZE 512
+ 
++#ifdef PADDLE_WITH_COREX
++#define MAX_YZ_DIM_SIZE 65535
++#endif
++
+ namespace phi {
+ namespace backends {
+ namespace gpu {
+@@ -190,6 +194,9 @@ inline GpuLaunchConfig GetGpuLaunchConfig2D(const phi::GPUContext& context,
+   int grid_x = std::min<int64_t>(DivUp<int64_t>(x_dim, block_cols), max_blocks);
+   int grid_y = std::min<int64_t>(max_blocks / grid_x,
+                                  std::max<int64_t>(y_dim / block_rows, 1));
++#ifdef PADDLE_WITH_COREX
++  grid_y = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_rows, 1));
++#endif
+ 
+   config.block_per_grid = dim3(grid_x, grid_y, 1);
+   return config;
+@@ -217,12 +224,16 @@ inline GpuLaunchConfig GetGpuLaunchConfig3D(const phi::GPUContext& context,
+   int block_z = std::min(num_img, max_threads / block_x / block_y);
+ 
+   std::array<unsigned int, 3> max_grid_dim = context.GetCUDAMaxGridDimSize();
+-  unsigned int grid_x =
++  int grid_x =
+       std::min(max_grid_dim[0], DivUp<unsigned int>(width, block_x));
+-  unsigned int grid_y =
++  int grid_y =
+       std::min(max_grid_dim[1], DivUp<unsigned int>(height, block_y));
+-  unsigned int grid_z =
++  int grid_z =
+       std::min(max_grid_dim[2], DivUp<unsigned int>(num_img, block_z * 4));
++  #ifdef PADDLE_WITH_COREX
++    grid_y = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_y, 1));
++    grid_z = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_z, 1));
++  #endif
+ 
+   const int capability = context.GetComputeCapability();
+   GpuLaunchConfig config;
 diff --git a/paddle/phi/backends/gpu/gpu_primitives.h b/paddle/phi/backends/gpu/gpu_primitives.h
 index 29c2566804..9604ce5b3b 100644
 --- a/paddle/phi/backends/gpu/gpu_primitives.h
@@ -357,6 +431,19 @@ index 71b7e5f4e5..2a569c76dd 100644
  
      auto ptr = allocation->ptr();
      allocations.emplace_back(std::move(allocation));
+diff --git a/paddle/phi/kernels/funcs/select_impl.cu.h b/paddle/phi/kernels/funcs/select_impl.cu.h
+index f96e392d94..56629c9b15 100644
+--- a/paddle/phi/kernels/funcs/select_impl.cu.h
++++ b/paddle/phi/kernels/funcs/select_impl.cu.h
+@@ -396,7 +396,7 @@ void SelectKernel(const KPDevice &dev_ctx,
+   using CT = int64_t;  // set Count_data Type
+   const int t_size = sizeof(CT);
+ 
+-  const phi::GPUPlace &cuda_place = dev_ctx.GetPlace();
++  const phi::CustomPlace &cuda_place = dev_ctx.GetPlace();
+   phi::CPUPlace cpu_place = phi::CPUPlace();
+ 
+   // 1.1 get stored data num of per block
 diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
 index 8f6b0fdd32..b95ea07883 100644
 --- a/paddle/phi/kernels/funcs/softmax_impl.h
@@ -437,6 +524,66 @@ index 342737e9b2..86c4d1600c 100644
  
  PD_REGISTER_KERNEL(rms_norm_grad,
                     GPU,
+diff --git a/paddle/phi/kernels/primitive/compute_primitives.h b/paddle/phi/kernels/primitive/compute_primitives.h
+index 82bb7f71ff..7552f0b711 100644
+--- a/paddle/phi/kernels/primitive/compute_primitives.h
++++ b/paddle/phi/kernels/primitive/compute_primitives.h
+@@ -33,7 +33,7 @@ constexpr int kReduceMaxThread = 256;
+ constexpr int kWarpSize = 64;
+ #else
+ constexpr int kReduceMaxThread = 128;
+-constexpr int kWarpSize = 32;
++constexpr int kWarpSize = 64;
+ #endif
+ 
+ // kGlobalMode: block reduce, each block gets an output;
+@@ -535,35 +535,35 @@ template <typename InT, typename OutT, class OpFunc>
+ __device__ __forceinline__ void Cumsum(OutT* out,
+                                        const InT* in,
+                                        OpFunc compute) {
+-  constexpr int kSize = SHARED_SIZE_LIMIT * 2 + (SHARED_SIZE_LIMIT * 2) / 32;
++  constexpr int kSize = SHARED_SIZE_LIMIT * 2 + (SHARED_SIZE_LIMIT * 2) / 64;
+   __shared__ InT temp[kSize];
+   int stride_size = blockDim.x;
+   int tidx = threadIdx.x;
+-  temp[tidx + tidx / 32] = in[0];
+-  temp[stride_size + tidx + (stride_size + tidx) / 32] = in[1];
++  temp[tidx + tidx / 64] = in[0];
++  temp[stride_size + tidx + (stride_size + tidx) / 64] = in[1];
+   for (int stride = 1; stride <= stride_size; stride *= 2) {
+     __syncthreads();
+     int index = (tidx + 1) * 2 * stride - 1;
+     if (index < (blockDim.x * 2)) {
+-      temp[index + index / 32] =
+-          compute(temp[index + index / 32],
+-                  temp[index - stride + (index - stride) / 32]);
++      temp[index + index / 64] =
++          compute(temp[index + index / 64],
++                  temp[index - stride + (index - stride) / 64]);
+     }
+   }
+   for (int stride = (blockDim.x * 2) / 4; stride > 0; stride /= 2) {
+     __syncthreads();
+     int index = (tidx + 1) * 2 * stride - 1;
+     if ((index + stride) < (blockDim.x * 2)) {
+-      temp[index + stride + (stride + index) / 32] =
+-          compute(temp[index + stride + (stride + index) / 32],
+-                  temp[index + (index) / 32]);
++      temp[index + stride + (stride + index) / 64] =
++          compute(temp[index + stride + (stride + index) / 64],
++                  temp[index + (index) / 64]);
+     }
+   }
+ 
+   __syncthreads();
+-  out[0] = static_cast<OutT>(temp[tidx + tidx / 32]);
++  out[0] = static_cast<OutT>(temp[tidx + tidx / 64]);
+   out[1] =
+-      static_cast<OutT>(temp[tidx + stride_size + (tidx + stride_size) / 32]);
++      static_cast<OutT>(temp[tidx + stride_size + (tidx + stride_size) / 64]);
+ }
+ #undef SHARED_SIZE_LIMIT
+ 
 diff --git a/paddle/phi/kernels/reduce_sum_kernel.cc b/paddle/phi/kernels/reduce_sum_kernel.cc
 index 654eae9199..3b6e5580e6 100644
 --- a/paddle/phi/kernels/reduce_sum_kernel.cc

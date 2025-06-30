@@ -159,6 +159,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(full_like,
@@ -170,6 +171,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
@@ -183,6 +185,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
@@ -196,6 +199,7 @@ PD_REGISTER_PLUGIN_KERNEL(full_with_tensor,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::CPU);
 }

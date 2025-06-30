@@ -13,11 +13,16 @@ python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/pack
 # 获取沐曦PaddlePaddle Docker镜像
 
 # 克隆PaddleCustomDevice源码
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice.git
 # 编译安装
 cd backends/metax_gpu
+
 bash build_in_metax.sh
+or
+bash chang_patch.sh   #只需执行一次
+bash compile.sh       #可执行多次
+
 ```
 
 ## 验证

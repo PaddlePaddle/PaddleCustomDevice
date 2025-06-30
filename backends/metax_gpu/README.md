@@ -14,14 +14,16 @@ python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/pack
 # Acquire Metax PaddlePaddle Docker Image
 
 # Clone PaddleCustomDevice source code
-git clone https://github.com/PaddlePaddle/PaddleCustomDevice
+git clone https://github.com/PaddlePaddle/PaddleCustomDevice.git
 
 # Compile Source Code
 cd backends/metax_gpu
-bash build_in_metax.sh
 
-# Install PaddlePaddle
-# bash install_paddle.sh
+bash build_in_metax.sh
+or
+bash chang_patch.sh   #Only execute once
+bash compile.sh       #Can be executed multiple times
+
 ```
 
 ## Verification

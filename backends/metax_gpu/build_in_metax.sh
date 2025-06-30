@@ -16,15 +16,7 @@
 # limitations under the License.
 
 set -e
-# uninstall paddle
-pip  uninstall paddlepaddle -y
 
-
-export http_proxy=http://10.2.192.21:1080 https_proxy=http://10.2.192.21:1080
-# install paddle
-python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
-
-# exit 1
 # init paddle
 git submodule sync --recursive && git submodule update --init --recursive
 
@@ -32,24 +24,14 @@ git submodule sync --recursive && git submodule update --init --recursive
 # apply patch
 
 rm -r ../../Paddle/third_party/eigen3
-
-
 cd patch 
-
 unzip mcEigen_3.4.0_paddle_final.zip
-
 mv mcEigen_3.4.0_paddle_final eigen3
-
 cd ..
-
 cp -r patch/eigen3/ ../../Paddle/third_party/eigen3
-
 cd ../../Paddle/
-
 git apply --verbose ../backends/metax_gpu/patch/paddle.patch
-
 cd -
-
 
 export MACA_PATH=/opt/maca
 export CUDA_PATH=/workspace/cuda-11.7/

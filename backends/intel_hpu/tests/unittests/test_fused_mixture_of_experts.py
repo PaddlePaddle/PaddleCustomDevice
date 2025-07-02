@@ -143,6 +143,7 @@ def check_using_cosine_similarity(
         f"required_similarity: {required_similarity}, ",
         extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
     )
+    print(f"Cosine similarity: {cos_sim}")
     return cos_sim >= required_similarity
 
 
@@ -153,6 +154,9 @@ def generate_moe_params(
     top_k,
     num_experts,
     permuted_weights,
+    fused_weights,
+    dynamic_scale,
+    fp8_scales,
     dtype="bfloat16",
 ):
     if dtype == "float32":
@@ -161,22 +165,22 @@ def generate_moe_params(
         paddle_dtype = paddle.float16
     elif dtype == "bfloat16":
         paddle_dtype = paddle.bfloat16
+    elif dtype == "fp8":
+        paddle_dtype = paddle.bfloat16
     else:
         raise ValueError(f"Unsupported dtype: {dtype}")
 
-    hidden_states_paddle = (
-        paddle.randn([num_tokens, hidden_dim], dtype=paddle_dtype) * 0.1
-    )
+    hidden_states_paddle = paddle.randn([num_tokens, hidden_dim], dtype=paddle_dtype)
     w1_paddle = [
         paddle.randn([hidden_dim, ffn_dim], dtype=paddle_dtype) * 0.1
         for _ in range(num_experts)
     ]
     w2_paddle = [
-        paddle.randn([hidden_dim, ffn_dim], dtype=paddle_dtype) * 0.02
+        paddle.randn([hidden_dim, ffn_dim], dtype=paddle_dtype) * 0.1
         for _ in range(num_experts)
     ]
     w3_paddle = [
-        paddle.randn([ffn_dim, hidden_dim], dtype=paddle_dtype) * 0.03
+        paddle.randn([ffn_dim, hidden_dim], dtype=paddle_dtype) * 0.1
         for _ in range(num_experts)
     ]
 
@@ -189,7 +193,62 @@ def generate_moe_params(
         w1_paddle = [w.transpose([1, 0]) for w in w1_paddle]
         w2_paddle = [w.transpose([1, 0]) for w in w2_paddle]
         w3_paddle = [w.transpose([1, 0]) for w in w3_paddle]
-    expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+
+    if fused_weights:
+        w12_paddle = [
+            paddle.concat((w1, w2), axis=0)
+            if permuted_weights
+            else paddle.concat((w1, w2), axis=1)
+            for w1, w2 in zip(w1_paddle, w2_paddle)
+        ]
+
+    # fp8 handling
+    if dtype == "fp8":
+        d_scales_w1 = fp8_scales["d_scale_w1"]
+        d_scales_w2 = fp8_scales["d_scale_w2"]
+        d_scales_w3 = fp8_scales["d_scale_w3"]
+        # weights cast to fp8, scales to tensor
+
+        if fused_weights:
+            d_scales_w12_pd = [
+                paddle.to_tensor(scale, dtype=paddle_dtype) for scale in d_scales_w1
+            ]
+            w12_paddle = [
+                (w / d_scale).cast(paddle.float8_e4m3fn)
+                for w, d_scale in zip(w12_paddle, d_scales_w1, strict=False)
+            ]
+        else:
+            d_scales_w1_pd = [
+                paddle.to_tensor(scale, dtype=paddle_dtype) for scale in d_scales_w1
+            ]
+            w1_paddle = [
+                (w / d_scale).cast(paddle.float8_e4m3fn)
+                for w, d_scale in zip(w1_paddle, d_scales_w1, strict=False)
+            ]
+            d_scales_w2_pd = [
+                paddle.to_tensor(scale, dtype=paddle_dtype) for scale in d_scales_w2
+            ]
+            w2_paddle = [
+                (w / d_scale).cast(paddle.float8_e4m3fn)
+                for w, d_scale in zip(w2_paddle, d_scales_w2, strict=False)
+            ]
+        d_scales_w3_pd = [
+            paddle.to_tensor(scale, dtype=paddle_dtype) for scale in d_scales_w3
+        ]
+        w3_paddle = [
+            (w / d_scale).cast(paddle.float8_e4m3fn)
+            for w, d_scale in zip(w3_paddle, d_scales_w3, strict=False)
+        ]
+
+    weight_scales_pd = None
+    if fused_weights:
+        expert_weights_paddle = (w12_paddle, w3_paddle)
+        if dtype == "fp8":
+            weight_scales_pd = (d_scales_w12_pd, d_scales_w3_pd)
+    else:
+        expert_weights_paddle = (w1_paddle, w2_paddle, w3_paddle)
+        if dtype == "fp8":
+            weight_scales_pd = (d_scales_w1_pd, d_scales_w2_pd, d_scales_w3_pd)
 
     router_logits_paddle = paddle.randn([num_tokens, num_experts], dtype=paddle_dtype)
     router_probs_paddle = F.softmax(router_logits_paddle, axis=-1)
@@ -208,6 +267,25 @@ def generate_moe_params(
     )
     routing_table_numpy = routing_table_paddle.numpy().astype(np.int32)
 
+    hidden_states_scale_pd, intermediate_states_scales_pd = None, None
+    if dtype == "fp8":
+        hidden_states_scale = fp8_scales["d_scale_hidden_states"]
+        # hidden_states cast to fp8, scales to tensor
+        hidden_states_scale_pd = paddle.to_tensor(
+            hidden_states_scale, dtype=paddle_dtype
+        )
+        hidden_states_paddle = (hidden_states_paddle / hidden_states_scale).cast(
+            paddle.float8_e4m3fn
+        )
+        if not dynamic_scale:
+            intermediate_states_scales = fp8_scales[
+                "d_scale_intermediate_hidden_states"
+            ]
+            intermediate_states_scales_pd = [
+                paddle.to_tensor(scale, dtype=paddle_dtype)
+                for scale in intermediate_states_scales
+            ]
+
     numpy_data = (
         hidden_states_numpy,
         router_weights_numpy,
@@ -219,6 +297,9 @@ def generate_moe_params(
         router_weights_paddle,
         routing_table_paddle,
         expert_weights_paddle,
+        hidden_states_scale_pd,
+        intermediate_states_scales_pd,
+        weight_scales_pd,
     )
     return numpy_data, paddle_data
 
@@ -401,9 +482,13 @@ class FusedMoE:
         self,
         num_experts,
         expert_weights,
+        hidden_states_scale,
+        intermediate_states_scales,
+        weights_scales,
         activation,
         permuted_weights,
         fused_weights,
+        dynamic_scale,
         slice_max_expert,
         logger,
         ep_rank,
@@ -412,10 +497,12 @@ class FusedMoE:
         tp_rank=0,
         tp_size=1,
         tp_group=None,
+        dtype="bfloat16",
     ):
         self.num_experts = num_experts
         self.permuted_weights = permuted_weights
         self.fused_weights = fused_weights
+        self.dynamic_scale = dynamic_scale
         self.activation = activation
         self.ep_rank = ep_rank
         self.ep_size = ep_size
@@ -424,14 +511,17 @@ class FusedMoE:
         self.tp_size = tp_size
         self.tp_group = tp_group
         self.logger = logger
+        self.dtype = dtype
 
-        self.fn = paddlenlp_ops.mixture_of_experts
+        if self.dtype == "fp8":
+            self.fn = paddlenlp_ops.mixture_of_experts_fp8
+        else:
+            self.fn = paddlenlp_ops.mixture_of_experts
 
-        self.w1, self.w2, self.w3 = expert_weights
-        self.w12 = [
-            paddle.concat((w1, w2), axis=0 if self.permuted_weights else 1)
-            for w1, w2 in zip(self.w1, self.w2)
-        ]
+        self.expert_weights = expert_weights
+        self.hidden_scale = hidden_states_scale
+        self.intermediate_hidden_scales = intermediate_states_scales
+        self.weights_scales = weights_scales
 
         self.experts_per_rank = self.num_experts // self.ep_size
         self.experts_min = self.ep_rank * self.experts_per_rank
@@ -448,7 +538,8 @@ class FusedMoE:
 
     def forward(self, hidden_states, router_weights, routing_table, compute_amax=False):
         common_inputs = (hidden_states, routing_table, router_weights)
-        final_hidden_states = paddle.zeros_like(hidden_states)
+        # final_hidden_states = paddle.zeros_like(hidden_states)
+
         amax_per_expert = (
             paddle.zeros(self.num_experts, dtype="float32") if compute_amax else None
         )
@@ -466,28 +557,72 @@ class FusedMoE:
             )
             slice_weights = (
                 (
-                    self.w12[slice_experts_min : slice_experts_max + 1],
-                    self.w3[slice_experts_min : slice_experts_max + 1],
+                    self.expert_weights[0][slice_experts_min : slice_experts_max + 1],
+                    self.expert_weights[1][slice_experts_min : slice_experts_max + 1],
                 )
                 if self.fused_weights
                 else (
-                    self.w1[slice_experts_min : slice_experts_max + 1]
-                    + self.w2[slice_experts_min : slice_experts_max + 1],
-                    self.w3[slice_experts_min : slice_experts_max + 1],
+                    self.expert_weights[0][slice_experts_min : slice_experts_max + 1]
+                    + self.expert_weights[1][slice_experts_min : slice_experts_max + 1],
+                    self.expert_weights[2][slice_experts_min : slice_experts_max + 1],
                 )
             )
-
-            if compute_amax:
-                slice_result, slice_amax = self.fn(
-                    *common_inputs, *slice_weights, *common_params, True
+            if self.dtype == "fp8":
+                slice_scales = (
+                    (
+                        self.hidden_scale,
+                        None
+                        if self.dynamic_scale
+                        else self.intermediate_hidden_scales[
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                        self.weights_scales[0][
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                        self.weights_scales[1][
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                    )
+                    if self.fused_weights
+                    else (
+                        self.hidden_scale,
+                        None
+                        if self.dynamic_scale
+                        else self.intermediate_hidden_scales[
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                        self.weights_scales[0][
+                            slice_experts_min : slice_experts_max + 1
+                        ]
+                        + self.weights_scales[1][
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                        self.weights_scales[2][
+                            slice_experts_min : slice_experts_max + 1
+                        ],
+                    )
                 )
-                amax_per_expert[slice_experts_min : slice_experts_max + 1] = slice_amax
+
+            if self.dtype == "fp8":
+                slice_result = self.fn(
+                    *common_inputs,
+                    *slice_weights,
+                    *slice_scales,
+                    *common_params,
+                    self.dynamic_scale,
+                    -1,
+                )
             else:
-                slice_result, _ = self.fn(
-                    *common_inputs, *slice_weights, *common_params, False
+                slice_result, slice_amax = self.fn(
+                    *common_inputs,
+                    *slice_weights,
+                    *common_params,
+                    compute_amax,
                 )
+            if compute_amax:
+                amax_per_expert[slice_experts_min : slice_experts_max + 1] = slice_amax
 
-            final_hidden_states += slice_result
+            final_hidden_states = slice_result
 
         # EP: All-reduce for final output
         if self.tp_size > 1:
@@ -542,18 +677,35 @@ class FusedMoE:
 
 
 NUM_TOKENS = [32]
-HIDDEN_DIMS = [128]
-FFN_DIMS = [256]
-TOP_K = [8]
-NUM_EXPERTS = [64]
-SLICE_MAX_EXPERT = [32, 64]
+HIDDEN_DIMS = [4096]
+FFN_DIMS = [2560]
+TOP_K = [2]
+NUM_EXPERTS = [8]
+SLICE_MAX_EXPERT = [8]
 FUSED_WEIGHTS = [True, False]
 ACTIVATIONS = ["silu"]
 PERMUTED_WEIGHTS = [True, False]
 COMPUTE_AMAX = [True, False]
-DTYPES = ["bfloat16"]
+DTYPES = ["bfloat16", "fp8"]
 EP_SIZE = [1]
-TP_SIZE = [2]
+TP_SIZE = [1]
+DYNAMIC_SCALE = [True, False]
+FP8_SCALES = [
+    {
+        "d_scale_hidden_states": 3.27,
+        "d_scale_intermediate_hidden_states": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "d_scale_w1": [4.35, 1.49, 1.12, 2.22, 8.33, 1.28, 2.94, 1.79],
+        "d_scale_w2": [1.10, 2.13, 2.78, 1.22, 3.45, 1.59, 1.35, 1.72],
+        "d_scale_w3": [6.67, 1.09, 2.08, 2.70, 1.56, 1.23, 1.89, 3.85],
+    },
+    {
+        "d_scale_hidden_states": 1.0,
+        "d_scale_intermediate_hidden_states": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "d_scale_w1": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "d_scale_w2": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "d_scale_w3": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+    },
+]
 
 
 class MoETest(unittest.TestCase):
@@ -573,6 +725,8 @@ class MoETest(unittest.TestCase):
                 dtype,
                 ep_size,
                 tp_size,
+                dynamic_scale,
+                fp8_scales,
             )
             for num_tokens in NUM_TOKENS
             for hidden_dim in HIDDEN_DIMS
@@ -587,6 +741,8 @@ class MoETest(unittest.TestCase):
             for dtype in DTYPES
             for ep_size in EP_SIZE
             for tp_size in TP_SIZE
+            for dynamic_scale in DYNAMIC_SCALE
+            for fp8_scales in FP8_SCALES
         ]
     )
     def test_mixture_of_experts(
@@ -604,6 +760,8 @@ class MoETest(unittest.TestCase):
         dtype,
         ep_size,
         tp_size,
+        dynamic_scale,
+        fp8_scales,
     ):
         (ep_rank, ep_size, ep_group), (tp_rank, tp_size, tp_group) = init_distributed(
             ep_size, tp_size
@@ -620,6 +778,9 @@ class MoETest(unittest.TestCase):
             extra={"ep_rank": ep_rank, "tp_rank": tp_rank},
         )
 
+        if dtype == "fp8":
+            compute_amax = False
+
         paddle.seed(ep_rank * 100 + tp_rank + 1024)
         device = "intel_hpu"
         if ep_size == 1 and tp_size == 1:
@@ -630,6 +791,9 @@ class MoETest(unittest.TestCase):
                 top_k=top_k,
                 num_experts=num_experts,
                 permuted_weights=permuted_weights,
+                fused_weights=fused_weights,
+                dynamic_scale=dynamic_scale,
+                fp8_scales=fp8_scales,
                 dtype=dtype,
             )
         else:
@@ -643,6 +807,7 @@ class MoETest(unittest.TestCase):
                 dtype=dtype,
                 tp_rank=tp_rank,
                 tp_size=tp_size,
+                fp8_scales=fp8_scales,
             )
 
         (
@@ -656,6 +821,9 @@ class MoETest(unittest.TestCase):
             router_weights_pd,
             routing_table_pd,
             expert_weights_pd,
+            hidden_states_scale_pd,
+            intermediate_states_scales_pd,
+            weight_scales_pd,
         ) = paddle_data
 
         # CPU Reference Implementation
@@ -687,9 +855,13 @@ class MoETest(unittest.TestCase):
         fused_moe = FusedMoE(
             num_experts=num_experts,
             expert_weights=expert_weights_pd,
+            hidden_states_scale=hidden_states_scale_pd,
+            intermediate_states_scales=intermediate_states_scales_pd,
+            weights_scales=weight_scales_pd,
             activation=activation,
             permuted_weights=permuted_weights,
             fused_weights=fused_weights,
+            dynamic_scale=dynamic_scale,
             slice_max_expert=slice_max_expert,
             logger=logger,
             ep_rank=ep_rank,
@@ -698,6 +870,7 @@ class MoETest(unittest.TestCase):
             tp_rank=tp_rank,
             tp_size=tp_size,
             tp_group=tp_group,
+            dtype=dtype,
         )
 
         final_hidden_states, amax_per_expert = fused_moe.forward(
@@ -716,7 +889,7 @@ class MoETest(unittest.TestCase):
             },
         )
 
-        required_similarity = 0.98
+        required_similarity = 0.99
         similar = check_using_cosine_similarity(
             final_hidden_states.to("float32").cpu().numpy(),
             final_hidden_states_ref_np,

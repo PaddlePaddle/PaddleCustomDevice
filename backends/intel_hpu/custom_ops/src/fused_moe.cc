@@ -22,7 +22,8 @@
 namespace custom_kernel {
 
 static const std::map<std::string_view, MoeActivationMode_t> activationModeMap =
-    {{"gelu", MoeActivationMode_t::MOE_ACTIVATION_MODE_GELU},
+    {{"selu", MoeActivationMode_t::MOE_ACTIVATION_MODE_SELU},
+     {"gelu", MoeActivationMode_t::MOE_ACTIVATION_MODE_GELU},
      {"relu", MoeActivationMode_t::MOE_ACTIVATION_MODE_RELU},
      {"silu", MoeActivationMode_t::MOE_ACTIVATION_MODE_SILU}};
 
@@ -39,12 +40,12 @@ struct FusedMoEConfig {
   int32_t block_size;
 };
 
-std::shared_ptr<ns_MoeKernel::ParamsV2> FillMixtureOfExpertsParams(
+std::shared_ptr<ns_MoeKernel::ParamsV3> FillMixtureOfExpertsParams(
     const FusedMoEConfig& config) {
-  auto moe_params = std::make_shared<ns_MoeKernel::ParamsV2>();
+  auto moe_params = std::make_shared<ns_MoeKernel::ParamsV3>();
   memset(reinterpret_cast<void*>(moe_params.get()),
          0x00,
-         sizeof(ns_MoeKernel::ParamsV2));
+         sizeof(ns_MoeKernel::ParamsV3));
 
   std::string activation_str(config.activation_mode);
   auto activationIterator = activationModeMap.find(activation_str);
@@ -59,6 +60,13 @@ std::shared_ptr<ns_MoeKernel::ParamsV2> FillMixtureOfExpertsParams(
       (config.fused_gemm ? MoeFlags_t::MOE_FLAGS_FUSED_GEMM : 0);
   moe_params->flags |=
       (config.measurement_mode ? MoeFlags_t::MOE_FLAGS_CALC_AMAX : 0);
+  moe_params->flags |=
+      (config.dynamic_scale ? MoeFlags_t::MOE_FLAGS_DYNAMIC_SCALE : 0);
+  moe_params->flags |=
+      (config.block_size > 0
+           ? MoeFlags_t::MOE_FLAGS_BLOCKWISE_WEIGHT_QUANTIZATION
+           : 0);
+  moe_params->block_size = config.block_size;
 
   return moe_params;
 }
@@ -71,12 +79,12 @@ class FusedMixtureOfExperts : public HpuFusedOperator {
   template <typename T>
   void AddNodeMoeForward(std::vector<synTensor> inputs,
                          std::vector<synTensor> outputs,
-                         std::shared_ptr<ns_MoeKernel::ParamsV2> params) {
+                         std::shared_ptr<ns_MoeKernel::ParamsV3> params) {
     std::string node_name = "moe_fwd";
 
     std::string guid = guid_ + guid_dtype<T>();
 
-    AddNode_IOP<ns_MoeKernel::ParamsV2>(
+    AddNode_IOP<ns_MoeKernel::ParamsV3>(
         inputs, outputs, *params, guid, node_name);
   }
 
@@ -86,6 +94,11 @@ class FusedMixtureOfExperts : public HpuFusedOperator {
     std::vector<synTensor> inputs;
 
     int64_t input_count = 3 + config.num_experts * weights_per_expert;
+    if (dtype_ == syn_type_fp8_143) {
+      auto scales_per_expert = config.fused_gemm ? 2 : 3;
+      if (!config.dynamic_scale) scales_per_expert += 1;
+      input_count += config.num_experts * scales_per_expert + 1;
+    }
     for (int64_t i = 0; i < input_count; i++) {
       inputs.push_back(createTensorFromCT(ct, i));
     }
@@ -109,19 +122,23 @@ class FusedMixtureOfExperts : public HpuFusedOperator {
 };
 
 template <typename T, typename Context>
-void FusedMoEKernel(const Context& dev_ctx,
-                    const phi::DenseTensor& hidden_states,
-                    const phi::DenseTensor& routing_table,
-                    const phi::DenseTensor& router_weights,
-                    const std::vector<phi::DenseTensor>& gate_up_weights,
-                    const std::vector<phi::DenseTensor>& down_weights,
-                    const bool permuted_weights,
-                    const std::string& activation,
-                    const int experts_min,
-                    const int experts_max,
-                    const bool measurement_mode,
-                    phi::DenseTensor* final_hidden_states,
-                    phi::DenseTensor* amax_per_expert) {
+void FusedMoEKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& hidden_states,
+    const phi::DenseTensor& routing_table,
+    const phi::DenseTensor& router_weights,
+    const std::vector<phi::DenseTensor>& gate_up_weights,
+    const std::vector<phi::DenseTensor>& down_weights,
+    const paddle::optional<std::vector<phi::DenseTensor>>& scales,
+    const bool permuted_weights,
+    const std::string& activation,
+    const int experts_min,
+    const int experts_max,
+    const bool measurement_mode,
+    const bool dynamic_scale,
+    const int block_size,
+    phi::DenseTensor* final_hidden_states,
+    phi::DenseTensor* amax_per_expert) {
   ConvertTensors ct;
   ct.Add(hidden_states);
   ct.Add(routing_table);
@@ -132,10 +149,16 @@ void FusedMoEKernel(const Context& dev_ctx,
   for (const auto& t : down_weights) {
     ct.Add(t);
   }
+  if (scales) {
+    for (const auto& t : scales.get()) {
+      ct.Add(t);
+    }
+  }
+
   std::vector<DIMS> inputs_dims = ct.GetDims();
 
   ct.Add(final_hidden_states, false);
-  ct.Add(amax_per_expert, false);
+  if (amax_per_expert) ct.Add(amax_per_expert, false);
 
   FusedMoEConfig config;
   memset(reinterpret_cast<void*>(&config), 0x00, sizeof(FusedMoEConfig));
@@ -148,6 +171,8 @@ void FusedMoEKernel(const Context& dev_ctx,
   config.experts_min = experts_min;
   config.experts_max = experts_max;
   config.num_experts = down_weights.size();
+  config.dynamic_scale = dynamic_scale;
+  config.block_size = block_size;
 
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, custom_kernel::FusedMoEConfig>(
@@ -170,47 +195,58 @@ void FusedMoEKernel(const Context& dev_ctx,
 }  // namespace custom_kernel
 
 template <typename Context>
-void CallFusedMoEKernel(const Context& dev_ctx,
-                        const phi::DenseTensor& hidden_states,
-                        const phi::DenseTensor& routing_table,
-                        const phi::DenseTensor& router_weights,
-                        const std::vector<phi::DenseTensor>& gate_up_weights,
-                        const std::vector<phi::DenseTensor>& down_weights,
-                        const bool permuted_weights,
-                        const std::string& activation,
-                        const int experts_min,
-                        const int experts_max,
-                        const bool measurement_mode,
-                        phi::DenseTensor* final_hidden_states,
-                        phi::DenseTensor* amax_per_expert) {
-  if (hidden_states.dtype() == phi::DataType::FLOAT16) {
-    custom_kernel::FusedMoEKernel<phi::dtype::float16>(dev_ctx,
-                                                       hidden_states,
-                                                       routing_table,
-                                                       router_weights,
-                                                       gate_up_weights,
-                                                       down_weights,
-                                                       permuted_weights,
-                                                       activation,
-                                                       experts_min,
-                                                       experts_max,
-                                                       measurement_mode,
-                                                       final_hidden_states,
-                                                       amax_per_expert);
-  } else if (hidden_states.dtype() == phi::DataType::BFLOAT16) {
+void CallFusedMoEKernel(
+    const Context& dev_ctx,
+    const phi::DenseTensor& hidden_states,
+    const phi::DenseTensor& routing_table,
+    const phi::DenseTensor& router_weights,
+    const std::vector<phi::DenseTensor>& gate_up_weights,
+    const std::vector<phi::DenseTensor>& down_weights,
+    const paddle::optional<std::vector<phi::DenseTensor>>& scales,
+    const bool permuted_weights,
+    const std::string& activation,
+    const int experts_min,
+    const int experts_max,
+    const bool measurement_mode,
+    const bool dynamic_scale,
+    const int block_size,
+    phi::DenseTensor* final_hidden_states,
+    phi::DenseTensor* amax_per_expert) {
+  if (hidden_states.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedMoEKernel<phi::dtype::bfloat16>(dev_ctx,
                                                         hidden_states,
                                                         routing_table,
                                                         router_weights,
                                                         gate_up_weights,
                                                         down_weights,
+                                                        scales,
                                                         permuted_weights,
                                                         activation,
                                                         experts_min,
                                                         experts_max,
                                                         measurement_mode,
+                                                        dynamic_scale,
+                                                        block_size,
                                                         final_hidden_states,
                                                         amax_per_expert);
+  } else if (hidden_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
+    custom_kernel::FusedMoEKernel<phi::dtype::float8_e4m3fn>(
+        dev_ctx,
+        hidden_states,
+        routing_table,
+        router_weights,
+        gate_up_weights,
+        down_weights,
+        scales,
+        permuted_weights,
+        activation,
+        experts_min,
+        experts_max,
+        measurement_mode,
+        dynamic_scale,
+        block_size,
+        final_hidden_states,
+        amax_per_expert);
   } else {
     throw std::runtime_error("Unsupported data type for FusedMoEKernel");
   }
@@ -269,15 +305,108 @@ std::vector<paddle::Tensor> MixtureOfExpertsForward(
                      *router_weights_tensor,
                      gate_up_weights_vec,
                      down_weights_vec,
+                     paddle::optional<std::vector<phi::DenseTensor>>(),
                      permuted_weights,
                      activation,
                      experts_min,
                      experts_max,
                      measurement_mode,
+                     false,
+                     -1,
                      final_hidden_states.get(),
                      amax_per_expert.get());
 
   return {paddle::Tensor(final_hidden_states), paddle::Tensor(amax_per_expert)};
+}
+
+std::vector<paddle::Tensor> MixtureOfExpertsFP8Forward(
+    const paddle::Tensor& hidden_states,
+    const paddle::Tensor& routing_table,
+    const paddle::Tensor& router_weights,
+    const std::vector<paddle::Tensor>& gate_up_weights,
+    const std::vector<paddle::Tensor>& down_weights,
+    const paddle::Tensor& hidden_states_scales,
+    const paddle::optional<std::vector<paddle::Tensor>>&
+        intermediate_hidden_states_scales,
+    const std::vector<paddle::Tensor>& gate_up_weights_scales,
+    const std::vector<paddle::Tensor>& down_weights_scales,
+    const bool permuted_weights,
+    const std::string& activation,
+    const int experts_min,
+    const int experts_max,
+    // const bool measurement_mode,
+    const bool dynamic_scale,
+    const int block_size) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          hidden_states.place()));
+  auto hidden_states_tensor =
+      static_cast<const phi::DenseTensor*>(hidden_states.impl().get());
+  auto routing_table_tensor =
+      static_cast<const phi::DenseTensor*>(routing_table.impl().get());
+  auto router_weights_tensor =
+      static_cast<const phi::DenseTensor*>(router_weights.impl().get());
+
+  std::vector<phi::DenseTensor> gate_up_weights_vec;
+  for (const auto& t : gate_up_weights) {
+    gate_up_weights_vec.push_back(
+        *static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+  std::vector<phi::DenseTensor> down_weights_vec;
+  for (const auto& t : down_weights) {
+    down_weights_vec.push_back(
+        *static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+
+  std::vector<phi::DenseTensor> scales_vec;
+  scales_vec.push_back(
+      *static_cast<const phi::DenseTensor*>(hidden_states_scales.impl().get()));
+  if (intermediate_hidden_states_scales) {
+    for (const auto& t : intermediate_hidden_states_scales.get()) {
+      scales_vec.push_back(
+          *static_cast<const phi::DenseTensor*>(t.impl().get()));
+    }
+  }
+  for (const auto& t : gate_up_weights_scales) {
+    scales_vec.push_back(*static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+  for (const auto& t : down_weights_scales) {
+    scales_vec.push_back(*static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+
+  // allocate memory on device.
+  int64_t num_tokens = hidden_states.dims()[0];
+  int64_t hidden_dims = hidden_states.dims()[1];
+  int64_t num_experts = down_weights.size();
+
+  std::shared_ptr<phi::DenseTensor> final_hidden_states =
+      std::make_shared<phi::DenseTensor>();
+  final_hidden_states->Resize(phi::make_ddim({num_tokens, hidden_dims}));
+  dev_ctx->Alloc(final_hidden_states.get(), router_weights.dtype());
+
+  // std::shared_ptr<phi::DenseTensor> amax_per_expert =
+  //     std::make_shared<phi::DenseTensor>();
+  // amax_per_expert->Resize(phi::make_ddim({num_experts}));
+  // dev_ctx->Alloc(amax_per_expert.get(), paddle::DataType::FLOAT32);
+
+  CallFusedMoEKernel(*dev_ctx,
+                     *hidden_states_tensor,
+                     *routing_table_tensor,
+                     *router_weights_tensor,
+                     gate_up_weights_vec,
+                     down_weights_vec,
+                     scales_vec,
+                     permuted_weights,
+                     activation,
+                     experts_min,
+                     experts_max,
+                     false,  // so far not supported on FP8
+                     dynamic_scale,
+                     block_size,
+                     final_hidden_states.get(),
+                     nullptr);
+
+  return {paddle::Tensor(final_hidden_states)};
 }
 
 std::vector<std::vector<int64_t>> MixtureOfExpertsInferShape(
@@ -298,7 +427,28 @@ std::vector<paddle::DataType> MixtureOfExpertsInferDtype(
     const paddle::DataType& router_weights_dtype,
     const paddle::DataType& gate_up_weights_dtype,
     const paddle::DataType& down_weights_dtype) {
-  return {hidden_states_dtype, paddle::DataType::FLOAT32};
+  return {router_weights_dtype, paddle::DataType::FLOAT32};
+}
+
+std::vector<std::vector<int64_t>> MixtureOfExpertsFP8InferShape(
+    const std::vector<int64_t>& hidden_states_shape,
+    const std::vector<int64_t>& expert_routing_table_shape,
+    const std::vector<int64_t>& router_weights_shape,
+    const std::vector<int64_t>& gate_up_weights_shape,
+    const std::vector<int64_t>& down_weights_shape) {
+  int64_t num_tokens = hidden_states_shape[0];
+  int64_t hidden_dims = hidden_states_shape[1];
+  // int64_t num_experts = router_weights_shape[1];
+  return {{num_tokens, hidden_dims}};
+}
+
+std::vector<paddle::DataType> MixtureOfExpertsFP8InferDtype(
+    const paddle::DataType& hidden_states_dtype,
+    const paddle::DataType& expert_routing_table_dtype,
+    const paddle::DataType& router_weights_dtype,
+    const paddle::DataType& gate_up_weights_dtype,
+    const paddle::DataType& down_weights_dtype) {
+  return {router_weights_dtype};
 }
 
 PD_BUILD_OP(mixture_of_experts)
@@ -316,3 +466,25 @@ PD_BUILD_OP(mixture_of_experts)
     .SetKernelFn(PD_KERNEL(MixtureOfExpertsForward))
     .SetInferShapeFn(PD_INFER_SHAPE(MixtureOfExpertsInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(MixtureOfExpertsInferDtype));
+
+PD_BUILD_OP(mixture_of_experts_fp8)
+    .Inputs({"hidden_states",
+             "routing_table",
+             "router_weights",
+             paddle::Vec("gate_up_weights"),
+             paddle::Vec("down_weights"),
+             "hidden_states_scales",
+             paddle::Optional(paddle::Vec("intermediate_hidden_states_scales")),
+             paddle::Vec("gate_up_weights_scales"),
+             paddle::Vec("down_weights_scales")})
+    .Outputs({"final_hidden_states"})
+    .Attrs({"permuted_weights: bool",
+            "activation: std::string",
+            "experts_min: int",
+            "experts_max: int",
+            // "measurement_mode: bool",
+            "dynamic_scale: bool",
+            "block_size: int"})
+    .SetKernelFn(PD_KERNEL(MixtureOfExpertsFP8Forward))
+    .SetInferShapeFn(PD_INFER_SHAPE(MixtureOfExpertsFP8InferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(MixtureOfExpertsFP8InferDtype));

@@ -750,3 +750,9 @@ template <>
 struct cpp_type_to_acl_dtype<double> {
   static const aclDataType value() { return ACL_DOUBLE; }
 };
+
+void InitJitCompileOpt();
+
+void SetJitCompileOpt(bool new_value);
+
+bool ForceJitCompile(const std::string& op_name);

@@ -12,18 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common/gcu_op_runner.h"
-#include "kernels/funcs/gcu_kernel_funcs.h"
-#include "paddle/phi/backends/cpu/cpu_context.h"
-#include "paddle/phi/kernels/transpose_kernel.h"
-
-#ifdef _OPENMP
-#include <omp.h>
-#else
-// 定义空宏防止编译错误
-#define omp_get_thread_num() 0
-#define omp_get_num_threads() 1
-#endif
+#include "custom_op/custom_op_common.h"
 
 namespace {
 
@@ -289,10 +278,6 @@ void group_wise_quant(int8_t* output,
   }
 }
 
-}  // namespace
-
-namespace custom_kernel {
-
 template <typename DeviceContext,
           typename T,
           typename D,
@@ -358,58 +343,142 @@ void quant_compute(const DeviceContext& dev_ctx,
   }
 }
 
-template <typename T, typename Context>
-void WeightQuantizeKernel(const Context& dev_ctx,
-                          const phi::DenseTensor& x,
-                          const std::string& algo,
-                          const int32_t arch,
-                          const int32_t group_size,
-                          phi::DenseTensor* out,
-                          phi::DenseTensor* scale) {
-  PADDLE_GCU_KERNEL_TRACE("weight_quantize");
-  phi::DenseTensor x_cpu;
-  phi::DenseTensor out_cpu;
-  phi::DenseTensor scale_cpu;
-  phi::CPUContext dev_ctx_cpu;
-  dev_ctx_cpu.SetAllocator(&(dev_ctx.GetHostAllocator()));
-  dev_ctx_cpu.SetHostAllocator(&(dev_ctx.GetHostAllocator()));
-  TensorCopy(dev_ctx, x, true, &x_cpu, phi::CPUPlace());
-  dev_ctx.Wait();
+}  // namespace
 
-  phi::DenseTensorMeta out_meta = out->meta();
-  out_cpu.set_meta(out_meta);
-  dev_ctx_cpu.template Alloc<int8_t>(&out_cpu);
-  phi::DenseTensorMeta scale_meta = scale->meta();
-  scale_cpu.set_meta(scale_meta);
+std::vector<std::vector<int64_t>> WeightQuantizeInferShape(
+    std::vector<int64_t> weight_shape) {
+  return {{-1}, {-1}};
+}
+
+std::vector<paddle::DataType> WeightQuantizeInferDtype(
+    const paddle::DataType& weight_dtype) {
+  return {phi::DataType::INT8, weight_dtype};
+}
+
+std::vector<paddle::Tensor> WeightQuantizeKernel(const paddle::Tensor& weight,
+                                                 const std::string& algo,
+                                                 int group_size = -1) {
+  //   PADDLE_GCU_KERNEL_TRACE("weight_quantize_gcu");
+  VLOG(6) << "[CUSTOM_KERNEL] Custom Operator: weight_quantize_gcu";
+
+  PADDLE_ENFORCE_EQ(weight.dtype() == phi::DataType::BFLOAT16 ||
+                        weight.dtype() == phi::DataType::FLOAT16,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "Only bfloat16 or float16 is supported, but got % s.",
+                        phi::DataTypeToString(weight.dtype()).c_str()));
+
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(weight.place()));
+
+  auto x_tensor = static_cast<const phi::DenseTensor*>(weight.impl().get());
+  int arch = 80;
+
+  // linear_out
+  std::shared_ptr<phi::DenseTensor> qweight_out =
+      std::make_shared<phi::DenseTensor>();
+  std::shared_ptr<phi::DenseTensor> scale_out =
+      std::make_shared<phi::DenseTensor>();
+
+  phi::MetaTensor meta_qweight_out(*qweight_out);
+  phi::MetaTensor meta_scale_out(*scale_out);
+  phi::WeightQuantizeInferMeta(
+      *x_tensor, algo, arch, group_size, &meta_qweight_out, &meta_scale_out);
+
+  qweight_out->Resize(meta_qweight_out.dims());
+  scale_out->Resize(meta_scale_out.dims());
+
+  phi::CPUContext dev_ctx_cpu;
+  dev_ctx_cpu.SetAllocator(&(dev_ctx->GetHostAllocator()));
+  dev_ctx_cpu.SetHostAllocator(&(dev_ctx->GetHostAllocator()));
+
+  //   dev_ctx_cpu.template Alloc(qweight_out.get(), phi::DataType::INT8);
+  //   dev_ctx_cpu.template Alloc<int8_t>(scale_out.get());
+  dev_ctx_cpu.template Alloc<int8_t>(qweight_out.get());
+
   if (algo == "weight_only_int8") {
-    dev_ctx_cpu.template Alloc<T>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 8>(
-        dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
+    if (x_tensor->dtype() == phi::DataType::BFLOAT16) {
+      dev_ctx_cpu.template Alloc<phi::bfloat16>(scale_out.get());
+      quant_compute<phi::CPUContext, phi::bfloat16, int8_t, 8>(
+          dev_ctx_cpu,
+          *x_tensor,
+          qweight_out.get(),
+          scale_out.get(),
+          algo,
+          arch,
+          group_size);
+    } else if (x_tensor->dtype() == phi::DataType::FLOAT16) {
+      dev_ctx_cpu.template Alloc<phi::float16>(scale_out.get());
+      quant_compute<phi::CPUContext, phi::float16, int8_t, 8>(dev_ctx_cpu,
+                                                              *x_tensor,
+                                                              qweight_out.get(),
+                                                              scale_out.get(),
+                                                              algo,
+                                                              arch,
+                                                              group_size);
+    }
+
   } else if (algo == "llm.int8") {
-    dev_ctx_cpu.template Alloc<float>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 8, float>(
-        dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
+    dev_ctx_cpu.template Alloc<float>(scale_out.get());
+    if (x_tensor->dtype() == phi::DataType::BFLOAT16) {
+      quant_compute<phi::CPUContext, phi::bfloat16, int8_t, 8, float>(
+          dev_ctx_cpu,
+          *x_tensor,
+          qweight_out.get(),
+          scale_out.get(),
+          algo,
+          arch,
+          group_size);
+    } else if (x_tensor->dtype() == phi::DataType::FLOAT16) {
+      quant_compute<phi::CPUContext, phi::float16, int8_t, 8, float>(
+          dev_ctx_cpu,
+          *x_tensor,
+          qweight_out.get(),
+          scale_out.get(),
+          algo,
+          arch,
+          group_size);
+    }
+
   } else if (algo == "weight_only_int4") {
-    dev_ctx_cpu.template Alloc<T>(&scale_cpu);
-    quant_compute<phi::CPUContext, T, int8_t, 4>(
-        dev_ctx_cpu, x_cpu, &out_cpu, &scale_cpu, algo, arch, group_size);
+    if (x_tensor->dtype() == phi::DataType::BFLOAT16) {
+      dev_ctx_cpu.template Alloc<phi::bfloat16>(scale_out.get());
+      quant_compute<phi::CPUContext, phi::bfloat16, int8_t, 4>(
+          dev_ctx_cpu,
+          *x_tensor,
+          qweight_out.get(),
+          scale_out.get(),
+          algo,
+          arch,
+          group_size);
+    } else if (x_tensor->dtype() == phi::DataType::FLOAT16) {
+      dev_ctx_cpu.template Alloc<phi::float16>(scale_out.get());
+      quant_compute<phi::CPUContext, phi::float16, int8_t, 4>(dev_ctx_cpu,
+                                                              *x_tensor,
+                                                              qweight_out.get(),
+                                                              scale_out.get(),
+                                                              algo,
+                                                              arch,
+                                                              group_size);
+    }
+
   } else {
     common::errors::Unimplemented(
         "The algo must be in ['weight_only_int8', 'weight_only_int4', "
         "'llm.int8'], but got[%s]",
         algo);
   }
-  dev_ctx_cpu.Wait();
-  TensorCopy(dev_ctx, out_cpu, true, out);
-  TensorCopy(dev_ctx, scale_cpu, true, scale);
-  dev_ctx.Wait();
+
+  return {paddle::Tensor(qweight_out), paddle::Tensor(scale_out)};
 }
 
-}  // namespace custom_kernel
-
-PD_REGISTER_PLUGIN_KERNEL(weight_quantize,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::WeightQuantizeKernel,
-                          phi::dtype::bfloat16,
-                          phi::dtype::float16) {}
+PD_BUILD_OP(weight_quantize_gcu)
+    .Inputs({"weight"})
+    .Outputs({"qweight", "scale"})
+    .Attrs({
+        "algo: std::string",
+        "group_size: int",
+    })
+    .SetKernelFn(PD_KERNEL(WeightQuantizeKernel))
+    .SetInferShapeFn(PD_INFER_SHAPE(WeightQuantizeInferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(WeightQuantizeInferDtype));

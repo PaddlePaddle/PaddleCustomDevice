@@ -73,13 +73,13 @@ void DiagKernel(const Context& dev_ctx,
 }
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(diag,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::DiagKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          int,
-                          float,
-                          double,
-                          int64_t) {}
+// PD_REGISTER_PLUGIN_KERNEL(diag,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::DiagKernel,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16,
+//                           int,
+//                           float,
+//                           double,
+//                           int64_t) {}

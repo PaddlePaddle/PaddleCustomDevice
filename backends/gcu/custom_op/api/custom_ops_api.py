@@ -503,3 +503,27 @@ def weight_quantize_rtn(
     if algo == "weight_only_int4":
         qweight = rearrange_for_w4a16(qweight)
     return qweight, scale
+
+
+def weight_quantize_custom_rtn(
+    x: paddle.Tensor,
+    algo: str,
+    group_size: int,
+):
+    assert (
+        group_size == -1 or group_size == 64 or group_size == 128
+    ), f"Currently group_size only support -1/64/128. but got {group_size} "
+    assert (
+        algo == "weight_only_int8" or algo == "weight_only_int4" or algo == "llm.int8"
+    ), f"algo only support weight_only_int8/weight_only_int4/llm.int8. but got {algo} "
+
+    if algo == "weight_only_int8":
+        algo = "llm.int8"
+
+    qweight, scale = core.eager._run_custom_op(
+        "weight_quantize_gcu", x, algo, group_size
+    )
+
+    if algo == "weight_only_int4":
+        qweight = rearrange_for_w4a16(qweight)
+    return qweight, scale

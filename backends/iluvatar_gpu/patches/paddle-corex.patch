@@ -1,9 +1,7 @@
-From db611377a6b1756649fbe8b8efd6e5aee706cffc Mon Sep 17 00:00:00 2001
+From bbd64f7c4396f12bc13020ba959e2cc89f1011bf Mon Sep 17 00:00:00 2001
 From: "tianyu.zhou" <tianyu.zhou@iluvatar.com>
 Date: Mon, 26 May 2025 14:21:47 +0800
-Subject: [PATCH] Adapt for Iluvatar.
-
-Fix a bug of nonzero kernel.
+Subject: [PATCH] Adapt for Iluvatar 0707.
 
 Fix bug.
 ---
@@ -14,6 +12,7 @@ Fix bug.
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
  paddle/phi/backends/dynload/cudnn.cc          |  4 ++++
  paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
+ paddle/phi/backends/dynload/cusolver.h        |  2 --
  .../backends/gpu/cuda/cuda_device_function.h  |  4 ++--
  paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 ++--
  paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
@@ -41,7 +40,7 @@ Fix bug.
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
  paddle/utils/flat_hash_map.h                  |  5 ++++
- 34 files changed, 122 insertions(+), 35 deletions(-)
+ 35 files changed, 122 insertions(+), 37 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index b2c4e6a650..c51f3df1f0 100755
@@ -143,6 +142,26 @@ index 7a5450c349..42975e11cf 100644
  }  // namespace dynload
  }  // namespace phi
  
+diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
+index eceea9495f..cbf8a843bb 100644
+--- a/paddle/phi/backends/dynload/cusolver.h
++++ b/paddle/phi/backends/dynload/cusolver.h
+@@ -77,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
+   __macro(cusolverDnDgeqrf_bufferSize);   \
+   __macro(cusolverDnCgeqrf_bufferSize);   \
+   __macro(cusolverDnZgeqrf_bufferSize);   \
+-  __macro(cusolverDnXgeqrf_bufferSize);   \
+   __macro(cusolverDnSorgqr_bufferSize);   \
+   __macro(cusolverDnDorgqr_bufferSize);   \
+   __macro(cusolverDnSormqr_bufferSize);   \
+@@ -104,7 +103,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
+   __macro(cusolverDnDgeqrf);              \
+   __macro(cusolverDnCgeqrf);              \
+   __macro(cusolverDnZgeqrf);              \
+-  __macro(cusolverDnXgeqrf);              \
+   __macro(cusolverDnSorgqr);              \
+   __macro(cusolverDnDorgqr);              \
+   __macro(cusolverDnSormqr);              \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 index 4ff2e528a9..956bac0c64 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
@@ -355,7 +374,7 @@ index f4b268b14c..dec2e6ea8c 100644
  #endif
    PD_NCCL_DTYPE_TO_STR(ncclDouble, "float64");
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index ef8f922ffd..28626e9947 100644
+index 95f1d58c64..79a618a98f 100644
 --- a/paddle/phi/core/enforce.h
 +++ b/paddle/phi/core/enforce.h
 @@ -97,7 +97,7 @@ inline bool is_error(bool stat) { return !stat; }
@@ -406,11 +425,11 @@ index b973d75a9b..daeb4778c6 100644
  #include "paddle/phi/kernels/funcs/math_function.h"
  
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
-index 71b7e5f4e5..2a569c76dd 100644
+index dad852093e..8ebceb7074 100644
 --- a/paddle/phi/kernels/funcs/segmented_array.h
 +++ b/paddle/phi/kernels/funcs/segmented_array.h
 @@ -118,6 +118,13 @@ struct ArraySetterBase {
-         phi::Stream(reinterpret_cast<phi::StreamId>(ctx.stream())));
+         phi::Stream(reinterpret_cast<phi::StreamId>(dev_ctx.stream())));
  
      int8_t* restored = reinterpret_cast<int8_t*>(src);
 +#ifdef PADDLE_WITH_COREX
@@ -418,7 +437,7 @@ index 71b7e5f4e5..2a569c76dd 100644
 +                                               restored,
 +                                               num_bytes,
 +                                               phi::gpuMemcpyHostToDevice,
-+                                               ctx.stream()));
++                                               dev_ctx.stream()));
 +#else
  #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
      if (use_cuda_graph) {
@@ -426,7 +445,7 @@ index 71b7e5f4e5..2a569c76dd 100644
 @@ -129,6 +136,7 @@ struct ArraySetterBase {
                                         num_bytes,
                                         phi::gpuMemcpyHostToDevice,
-                                        ctx.stream());
+                                        dev_ctx.stream());
 +#endif
  
      auto ptr = allocation->ptr();
@@ -457,10 +476,10 @@ index 8f6b0fdd32..b95ea07883 100644
  namespace phi {
  namespace funcs {
 diff --git a/paddle/phi/kernels/gpu/c_embedding_kernel.cu b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
-index f73db3e025..622b46d2b6 100644
+index e36b053882..c781627fec 100644
 --- a/paddle/phi/kernels/gpu/c_embedding_kernel.cu
 +++ b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
-@@ -114,7 +114,7 @@ void CEmbeddingKernel(const Context& ctx,
+@@ -114,7 +114,7 @@ void CEmbeddingKernel(const Context& dev_ctx,
  }  // namespace phi
  
  #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
@@ -470,7 +489,7 @@ index f73db3e025..622b46d2b6 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
-index 5b706258aa..3fabf0efdd 100644
+index cd261c91a5..9132cbcd14 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h
 +++ b/paddle/phi/kernels/gpu/elementwise_grad.h
 @@ -213,7 +213,11 @@ void ElementwiseAddGrad(const GPUContext &ctx,
@@ -499,10 +518,10 @@ index 1e10da8967..d3b0b90eae 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-index 252e33e5f0..ec2a8847a7 100644
+index 34c9a64d50..a7e2dc7384 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-@@ -678,7 +678,7 @@ PD_REGISTER_KERNEL(layer_norm,
+@@ -680,7 +680,7 @@ PD_REGISTER_KERNEL(layer_norm,
    kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
    kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
  }
@@ -605,10 +624,10 @@ index 654eae9199..3b6e5580e6 100644
  #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
  PD_REGISTER_KERNEL(sum,
 diff --git a/paddle/phi/kernels/shape_kernel.cc b/paddle/phi/kernels/shape_kernel.cc
-index 50ab8b064f..dde1090c04 100644
+index eb9c6bf384..f8483254be 100644
 --- a/paddle/phi/kernels/shape_kernel.cc
 +++ b/paddle/phi/kernels/shape_kernel.cc
-@@ -45,6 +45,7 @@ void Shape64Kernel(const Context& ctx,
+@@ -45,6 +45,7 @@ void Shape64Kernel(const Context& dev_ctx,
  
  }  // namespace phi
  

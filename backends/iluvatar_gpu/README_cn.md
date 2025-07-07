@@ -13,9 +13,9 @@
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
 # 设置环境变量
-export PATH=/usr/local/corex-4.3.0/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
+export PATH=/usr/local/corex/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex/lib
+export LIBRARY_PATH=/usr/local/corex/lib
 
 # 编译 Paddle Custom Device
 cd backends/iluvatar_gpu

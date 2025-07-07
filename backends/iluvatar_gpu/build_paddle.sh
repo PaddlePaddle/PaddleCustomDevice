@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source /opt/rh/devtoolset-9/enable
-
 PYTHON_VERSION=${PYTHON_VERSION:-$(python3 -V 2>&1|awk '{print $2}')}
 COREX_VERSION=${COREX_VERSION:-latest}
 if [[ "${COREX_VERSION}" == "latest" ]]; then

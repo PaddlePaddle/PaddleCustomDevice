@@ -419,6 +419,11 @@ inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
   return array;
 }
 
+inline aclIntArray* ConvertType(const std::vector<int>& at_array) {
+  std::vector<int64_t> temp_array(at_array.begin(), at_array.end());
+  return ConvertType(temp_array);
+}
+
 inline aclIntArray *ConvertType(const phi::IntArray &phi_array) {
   static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
   if (aclCreateIntArray == nullptr) {

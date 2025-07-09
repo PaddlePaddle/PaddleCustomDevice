@@ -15,7 +15,7 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/einsum_kernel.h"
-#include "paddle/phi/kernels/impl/einsum_impl.h"
+#include "paddle/phi/kernels/impl/einsum_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(einsum,
                           metax_gpu,

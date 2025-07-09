@@ -254,6 +254,10 @@ function run_paddlex() {
 
 
 function main() {
+    if [ "$(uname -m)" == "x86_64" ]; then
+        export ASCEND_RT_VISIBLE_DEVICES="12,13,14,15"
+    fi
+
     # skip paddlepaddle cpu install as npu docker image already have cpu whl package installed
     # custom_npu build and install
     cd ${CODE_ROOT}

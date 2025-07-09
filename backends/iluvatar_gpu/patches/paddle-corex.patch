@@ -1,7 +1,7 @@
-From 228ab20dfcf53fe7af6ce903b7b3d60333518233 Mon Sep 17 00:00:00 2001
+From 23d11cd970ef7b9067edefcb979a4f298a44709a Mon Sep 17 00:00:00 2001
 From: "tianyu.zhou" <tianyu.zhou@iluvatar.com>
 Date: Mon, 26 May 2025 14:21:47 +0800
-Subject: [PATCH] Adapt for Iluvatar 0708.
+Subject: [PATCH] Adapt for Iluvatar 0709.
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -24,7 +24,6 @@ Subject: [PATCH] Adapt for Iluvatar 0708.
  paddle/phi/core/utils/data_type.h             |  2 +-
  paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 ++
  paddle/phi/kernels/funcs/segmented_array.h    |  8 +++++++
- paddle/phi/kernels/funcs/select_impl.cu.h     |  2 +-
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
  paddle/phi/kernels/gpu/c_embedding_kernel.cu  |  2 +-
  paddle/phi/kernels/gpu/elementwise_grad.h     |  4 ++++
@@ -37,7 +36,7 @@ Subject: [PATCH] Adapt for Iluvatar 0708.
  paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
- 33 files changed, 116 insertions(+), 36 deletions(-)
+ 32 files changed, 115 insertions(+), 35 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index b2c4e6a650..c51f3df1f0 100755
@@ -434,19 +433,6 @@ index dad852093e..8ebceb7074 100644
  
      auto ptr = allocation->ptr();
      allocations.emplace_back(std::move(allocation));
-diff --git a/paddle/phi/kernels/funcs/select_impl.cu.h b/paddle/phi/kernels/funcs/select_impl.cu.h
-index f96e392d94..56629c9b15 100644
---- a/paddle/phi/kernels/funcs/select_impl.cu.h
-+++ b/paddle/phi/kernels/funcs/select_impl.cu.h
-@@ -396,7 +396,7 @@ void SelectKernel(const KPDevice &dev_ctx,
-   using CT = int64_t;  // set Count_data Type
-   const int t_size = sizeof(CT);
- 
--  const phi::GPUPlace &cuda_place = dev_ctx.GetPlace();
-+  const phi::CustomPlace &cuda_place = dev_ctx.GetPlace();
-   phi::CPUPlace cpu_place = phi::CPUPlace();
- 
-   // 1.1 get stored data num of per block
 diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
 index 8f6b0fdd32..b95ea07883 100644
 --- a/paddle/phi/kernels/funcs/softmax_impl.h

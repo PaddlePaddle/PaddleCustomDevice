@@ -26,6 +26,7 @@
 #include "paddle/phi/kernels/pad_kernel.h"
 #include "paddle/phi/kernels/slice_kernel.h"
 COMMON_DECLARE_int32(ixdnn_imp_mode);
+COMMON_DECLARE_int32(ixdnn_causal_mode);
 
 namespace phi {
 template <typename OutT>
@@ -100,7 +101,7 @@ void FlashAttnUnpaddedBaseKernel(
   // TODO(umiswing): add shape check
   // ixdnn
   int64_t total_q = dims[0];
-  bool is_unpad = (total_q == batch_size * max_seqlen_q) ? false : true;
+  bool is_unpad = true;
   const int64_t head_size_rounded = head_size + 32 - head_size % 32;
 
   DenseTensor q_padded, k_padded, v_padded;
@@ -152,7 +153,7 @@ void FlashAttnUnpaddedBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = is_test ? 0.0f : dropout;
   flashAttnInfo.is_causal = causal;
-  flashAttnInfo.causal_mode = 1;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = true;
@@ -283,6 +284,7 @@ void FlashAttnUnpaddedBaseKernel(
       out->data(),
       softmax_lse->data<float>()));
 
+  cudaDeviceSynchronize();
   out->Resize({total_q, num_heads, head_size});
 
   phi::dynload::cudnnDestroyFlashAttnDescriptor(flashAttnDesc);
@@ -511,6 +513,7 @@ void FlashAttnBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = true;
@@ -642,6 +645,7 @@ void FlashAttnBaseKernel(
       out->data(),
       softmax_lse->data<float>()));
 
+  cudaDeviceSynchronize();
   phi::dynload::cudnnDestroyFlashAttnDescriptor(flashAttnDesc);
   PADDLE_ENFORCE_GPU_SUCCESS(
       phi::dynload::cudnnDestroyTensorDescriptor(q_desc));

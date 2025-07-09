@@ -157,11 +157,14 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cum_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/numel_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/diag_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/diag_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/einsum_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_kernel.cu
-  ${PADDLE_SOURCE_DIR}paddle/phi/kernels/gpu/matmul_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/moe_unpermute_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/decode_jpeg_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/nvjpeg.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel_register.cu
@@ -222,7 +225,6 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/mean_all_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiplex_grad_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/nonzero_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/pow2_decay_with_linear_warmup_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sigmoid_cross_entropy_with_logits_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/top_k_kernel.cu
@@ -265,12 +267,16 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/bitwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/logical_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/reduce_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/depthwise_conv_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/legacy/kps/reduce_max_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
   ${CMAKE_SOURCE_DIR}/kernels/funcs/blas/cublas.cc
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/cudnn.cc
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
+  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
+  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_grad_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu

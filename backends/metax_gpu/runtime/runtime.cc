@@ -78,6 +78,33 @@ inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
   return ncclFloat32;
 }
 
+inline mcclDataType_t PDDataTypeToMcclDataType(C_DataType type) {
+  if (type == C_DataType::FLOAT32) {
+    return mcclFloat32;
+  } else if (type == C_DataType::BFLOAT16) {
+    return mcclBfloat16;
+  } else if (type == C_DataType::UINT8) {
+    return mcclUint8;
+  } else if (type == C_DataType::UINT32) {
+    return mcclUint32;
+  } else if (type == C_DataType::UINT64) {
+    return mcclUint64;
+  } else if (type == C_DataType::INT8) {
+    return mcclInt8;
+  } else if (type == C_DataType::INT32) {
+    return mcclInt32;
+  } else if (type == C_DataType::INT64) {
+    return mcclInt64;
+  } else if (type == C_DataType::FLOAT16) {
+    return mcclFloat16;
+  } else if (type == C_DataType::FLOAT64) {
+    return mcclFloat64;
+  } else {
+    LOG(ERROR) << "Datatype " << type << " in nccl is not supported.";
+  }
+  return ncclFloat32;
+}
+
 #define NCCL_CHECK(cmd)                                                        \
   do {                                                                         \
     ncclResult_t r = cmd;                                                      \
@@ -88,6 +115,18 @@ inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
                                             ncclGetErrorString(r)));           \
     }                                                                          \
   } while (0)
+
+#define MCCL_CHECK(cmd)                                                        \
+  do {                                                                         \
+    mcclResult_t r = cmd;                                                      \
+    if (r != ncclSuccess) {                                                    \
+      PADDLE_THROW(common::errors::External("Failed, MCCL error %s:%d '%s'\n", \
+                                            __FILE__,                          \
+                                            __LINE__,                          \
+                                            mcclGetErrorString(r)));           \
+    }                                                                          \
+  } while (0)
+
 class EigenGpuStreamDevice : public Eigen::StreamInterface {
  public:
   EigenGpuStreamDevice()
@@ -235,6 +274,8 @@ C_Status GetComputeCapability(const C_Device device,
       cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, id);
 
   *compute_capability = major * 10 + minor;
+  VLOG(4) << "CUDA Device " << id
+          << " compute capability: " << *compute_capability;
   return C_SUCCESS;
 }
 
@@ -1012,7 +1053,38 @@ C_Status XcclRecv(void *recv_buf,
                       reinterpret_cast<cudaStream_t>(stream)));
   return C_SUCCESS;
 }
-
+C_Status Xccl_all_to_all(const void **send_buf,
+                         const size_t *send_count,
+                         const C_DataType *send_dtype,
+                         void **recv_buf,
+                         const size_t *recv_count,
+                         const C_DataType *recv_dtype,
+                         size_t rank,
+                         size_t nranks,
+                         C_CCLComm comm,
+                         C_Stream stream) {
+  MCCL_CHECK(mcclGroupStart());
+  for (size_t i = 0; i < nranks; ++i) {
+    if (send_count[i] != 0)
+      NCCL_CHECK(
+          mcclSendExt(send_buf[i],
+                      send_count[i],
+                      phi::internal::PDDataTypeToMcclDataType(send_dtype[i]),
+                      i,
+                      reinterpret_cast<mcclComm_t>(comm),
+                      reinterpret_cast<mcStream_t>(stream)));
+    if (recv_count[i] != 0)
+      MCCL_CHECK(
+          mcclRecvExt(recv_buf[i],
+                      recv_count[i],
+                      phi::internal::PDDataTypeToMcclDataType(recv_dtype[i]),
+                      i,
+                      reinterpret_cast<mcclComm_t>(comm),
+                      reinterpret_cast<mcStream_t>(stream)));
+  }
+  MCCL_CHECK(mcclGroupEnd());
+  return C_SUCCESS;
+}
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1086,6 +1158,7 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_reduce = XcclReduce;
   params->interface->xccl_reduce_scatter = XcclReduceScatter;
   params->interface->xccl_send = XcclSend;
+  params->interface->xccl_all_to_all = Xccl_all_to_all;
 
   params->interface->profiler_collect_trace_data = nullptr;
   params->interface->profiler_initialize = nullptr;

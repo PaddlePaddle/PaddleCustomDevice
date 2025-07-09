@@ -1,6 +1,3 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
-
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// clang-format off
+
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/softmax.h"
-#include "paddle/phi/kernels/gpu/c_softmax_with_cross_entropy_grad_kernel.cu" // NOLINT
-// clang-format on
-PD_CUSTOM_KERNEL_REGISTER(c_softmax_with_cross_entropy_grad,
+#include "paddle/phi/kernels/gpu/multiclass_nms3_kernel.cu"  //NOLINT
+#include "paddle/phi/kernels/multiclass_nms3_kernel.h"
+
+PD_CUSTOM_KERNEL_REGISTER(multiclass_nms3,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::CSoftmaxWithCrossEntropyGradKernel,
-                          float,
-                          double,
-                          phi::dtype::float16) {}
+                          phi::MultiClassNMSGPUKernel,
+                          float) {
+  kernel->OutputAt(1).SetDataType(phi::DataType::INT32);
+  kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
+}

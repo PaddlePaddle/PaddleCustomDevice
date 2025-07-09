@@ -1,6 +1,3 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
-
 // Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,16 +13,12 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/einsum_kernel.h"
-#include "paddle/phi/kernels/impl/einsum_grad_kernel_impl.h"
+#include "paddle/phi/kernels/decode_jpeg_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(einsum_grad,
+PD_CUSTOM_KERNEL_REGISTER(decode_jpeg,  // cuda_only
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::EinsumGradKernel,
-                          float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::DecodeJpegKernel,
+                          uint8_t) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}

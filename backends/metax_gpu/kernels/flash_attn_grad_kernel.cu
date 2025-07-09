@@ -36,8 +36,10 @@ void FlashAttnUnpaddedGradKernel_(
     const DenseTensor& seed_offset,
     const paddle::optional<DenseTensor>& attn_mask,
     const DenseTensor& dout,
-    int64_t max_seqlen_q,
-    int64_t max_seqlen_k,
+    // int64_t max_seqlen_q,
+    // int64_t max_seqlen_k,
+    const Scalar& max_seqlen_q_s,
+    const Scalar& max_seqlen_k_s,
     float scale,
     float dropout,
     bool causal,
@@ -46,6 +48,7 @@ void FlashAttnUnpaddedGradKernel_(
     DenseTensor* dv) {
 #ifdef PADDLE_WITH_FLASHATTN
   ctx.template Alloc<T>(dq);
+
   DenseTensor dk_tmp;
   if (dk) {
     ctx.template Alloc<T>(dk);
@@ -63,7 +66,8 @@ void FlashAttnUnpaddedGradKernel_(
   }
 
   const cudaStream_t stream = ctx.stream();
-
+  int64_t max_seqlen_q = max_seqlen_q_s.to<int64_t>();
+  int64_t max_seqlen_k = max_seqlen_k_s.to<int64_t>();
   // q,k,v [total_*, num_heads, head_dim]
   auto dims = q.dims();
 

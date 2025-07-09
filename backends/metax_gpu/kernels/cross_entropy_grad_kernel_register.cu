@@ -149,11 +149,6 @@ void CrossEntropyWithSoftmaxGradGPUKernel(const GPUContext& dev_ctx,
                                           int ignore_index,
                                           int axis,
                                           DenseTensor* logits_grad) {
-  PADDLE_ENFORCE_EQ(
-      dev_ctx.GetPlace().GetType(),
-      phi::AllocationType::GPU,
-      common::errors::Unavailable("softmax_with_cross_entropy operator's "
-                                  "CUDA kernel only runs on GPU device."));
   const T* loss_grad_data = loss_grad.data<T>();
   DenseTensor* logit_grad = logits_grad;
 
@@ -282,4 +277,5 @@ PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax_grad,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

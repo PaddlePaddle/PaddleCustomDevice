@@ -483,4 +483,20 @@ index 7a5450c349..95de89ced2 100644
 -#endif
  }  // namespace dynload
  }  // namespace phi
- 
+
+
+diff --git a/paddle/phi/backends/dynload/nvjpeg.h b/paddle/phi/backends/dynload/nvjpeg.h
+index c5309e7e11..3328571380 100644
+--- a/paddle/phi/backends/dynload/nvjpeg.h
++++ b/paddle/phi/backends/dynload/nvjpeg.h
+@@ -31,7 +31,9 @@ extern void *nvjpeg_dso_handle;
+       std::call_once(nvjpeg_dso_flag, []() {                       \
+         nvjpeg_dso_handle = phi::dynload::GetNvjpegDsoHandle();    \
+       });                                                          \
+-      static void *p_##__name = dlsym(nvjpeg_dso_handle, #__name); \
++      std::string replaced_name = #__name;                                  \
++      replaced_name =  replaced_name.replace(0,2,"mc");          \
++      static void* p_##__name = dlsym(nvjpeg_dso_handle, replaced_name.c_str());    \
+       return reinterpret_cast<nvjpegFunc>(p_##__name)(args...);    \
+     }                                                              \
+   };                                                               \

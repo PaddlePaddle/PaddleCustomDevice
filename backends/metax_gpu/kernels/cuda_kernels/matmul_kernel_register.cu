@@ -21,23 +21,6 @@ limitations under the License. */
 #include "kernels/impl/matmul_kernel_impl.h"
 // clang-format on
 
-// PD_CUSTOM_KERNEL_REGISTER(matmul,
-//                           metax_gpu,
-//                           ALL_LAYOUT,
-//                           phi::MatmulKernel,
-//                           float,
-//                           double,
-//                           int32_t,
-//                           int64_t,
-//                           phi::dtype::float16,
-//                           phi::dtype::bfloat16,
-//                           phi::dtype::complex<float>,
-//                           phi::dtype::complex<double>) {
-//           if (kernel_key.dtype() == phi::DataType::INT8) {
-//             kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
-//   }
-// }
-
 PD_CUSTOM_KERNEL_REGISTER(matmul,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -71,14 +54,14 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
   }
 }
 
-// PD_CUSTOM_KERNEL_REGISTER(legacy_matmul,
-//                           metax_gpu,
-//                           ALL_LAYOUT,
-//                           phi::LegacyMatmulKernel,
-//                           float,
-//                           phi::dtype::float16,
-//                           int8_t) {
-//   if (kernel_key.dtype() == phi::DataType::INT8) {
-//     kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
-//   }
-// }
+PD_CUSTOM_KERNEL_REGISTER(legacy_matmul,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LegacyMatmulKernel,
+                          float,
+                          phi::dtype::float16,
+                          int8_t) {
+  if (kernel_key.dtype() == phi::DataType::INT8) {
+    kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
+  }
+}

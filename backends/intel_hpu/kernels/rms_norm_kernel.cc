@@ -31,8 +31,43 @@ class RMS : public HpuOperator {
     std::vector<synTensor> inputs;
     std::vector<synTensor> outputs;
 
-    auto x = createTensor(ins[0].size(), dtype_, ins[0], true, "x");
-    inputs.push_back(x);
+    if (ins.size() > 2) {
+      std::vector<synTensor> add_inputs;
+      std::vector<synTensor> add_outputs;
+
+      auto x = createTensor(ins[2].size(), dtype_, ins[2], true, "x");
+      add_inputs.push_back(x);
+
+      auto residual =
+          createTensor(ins[2].size(), dtype_, ins[2], true, "residual");
+      add_inputs.push_back(residual);
+
+      auto residual_out =
+          createTensor(ins[2].size(), dtype_, ins[2], true, "residual_out");
+      add_outputs.push_back(residual_out);
+
+      std::string add_guid_ = "add_fwd_" + SynDataTypeToStr(dtype_);
+      synStatus status = synNodeCreate(graphHandle_,
+                                       add_inputs.data(),
+                                       add_outputs.data(),
+                                       add_inputs.size(),
+                                       add_outputs.size(),
+                                       nullptr,
+                                       0,
+                                       add_guid_.c_str(),
+                                       "Add",
+                                       nullptr,
+                                       nullptr);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synNodeCreate () failed = %d",
+               status);
+
+      inputs.push_back(residual_out);
+    } else {
+      auto x = createTensor(ins[0].size(), dtype_, ins[0], true, "x");
+      inputs.push_back(x);
+    }
+
     // syn_type_single
     auto w = createTensor(ins[1].size(), dtype_, ins[1], true, "w");
     inputs.push_back(w);
@@ -86,6 +121,12 @@ void RmsNormKernel(const Context& dev_ctx,
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
   std::vector<int64_t> inv_var_dim = phi::vectorize<int64_t>(inv_var->dims());
 
+  std::vector<int64_t> residual_dims;
+  if (residual) {
+    dev_ctx.template Alloc<T>(residual_out);
+    residual_dims = phi::vectorize<int64_t>(residual->dims());
+  }
+
   std::vector<int64_t> x_reshape_dims;
   for (int i = 0; i < begin_norm_axis; ++i) {
     x_reshape_dims.push_back(x_dims[i]);
@@ -110,13 +151,24 @@ void RmsNormKernel(const Context& dev_ctx,
   params.eps = epsilon;
 
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, ns_LayerNormKernel::Params>(
-      "rms_norm_ex_fwd", {x_reshape_dims, w_dims}, &params);
+  if (residual) {
+    op_info.prepareOpInfo<T, ns_LayerNormKernel::Params>(
+        "rms_norm_ex_fwd", {x_reshape_dims, w_dims, residual_dims}, &params);
+  } else {
+    op_info.prepareOpInfo<T, ns_LayerNormKernel::Params>(
+        "rms_norm_ex_fwd", {x_reshape_dims, w_dims}, &params);
+  }
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     RMS op(op_info.guid_, op_info.datatype_);
-    op.AddNode({x_reshape_dims, w_dims}, {outputs_dim, inv_var_dim}, params);
+    if (residual) {
+      op.AddNode({x_reshape_dims, w_dims, residual_dims},
+                 {outputs_dim, inv_var_dim},
+                 params);
+    } else {
+      op.AddNode({x_reshape_dims, w_dims}, {outputs_dim, inv_var_dim}, params);
+    }
     op.Compile();
     op_info.setOp(op);
 
@@ -126,6 +178,11 @@ void RmsNormKernel(const Context& dev_ctx,
   std::map<std::string, uint64_t> tensors;
   tensors["x"] = reinterpret_cast<uint64_t>(x.data<T>());
   tensors["w"] = reinterpret_cast<uint64_t>(norm_weight.data<T>());
+  if (residual) {
+    tensors["residual"] = reinterpret_cast<uint64_t>(residual->data<T>());
+    tensors["residual_out"] =
+        reinterpret_cast<uint64_t>(residual_out->data<T>());
+  }
   tensors["out"] = reinterpret_cast<uint64_t>(out->data<T>());
   tensors["inv_var"] = reinterpret_cast<uint64_t>(inv_var->data<T>());
 

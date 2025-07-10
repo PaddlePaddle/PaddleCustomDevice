@@ -264,7 +264,9 @@ class RuntimeManager {
     if (*stream == nullptr) {
       synStatus status = synStreamCreateGeneric(stream, deviceID, 0);
       PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamCreateGeneric() failed = ",
+               "[RUNTIME] synStreamCreateGeneric(",
+               dir,
+               ") failed = ",
                status);
 
       LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
@@ -306,12 +308,17 @@ class RuntimeManager {
     synDmaDir dir = static_cast<synDmaDir>(flag);
 
     synStatus status = synMemCopyAsync(stream, src, size, dst, dir);
-    PD_CHECK(
-        status == synSuccess, "[RUNTIME] synMemCopyAsync() failed = ", status);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synMemCopyAsync(",
+             dir,
+             ") failed = ",
+             status);
     if (sync) {
       status = synStreamSynchronize(stream);
       PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize() failed = ",
+               "[RUNTIME] synStreamSynchronize(",
+               stream,
+               ") failed = ",
                status);
     }
   }

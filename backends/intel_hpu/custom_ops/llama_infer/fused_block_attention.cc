@@ -22,7 +22,6 @@
 namespace custom_kernel {
 
 struct FusedBlockAttentionParams {
-  ns_LayerNormKernel::Params rmsnorm_params;
   ns_ConstantKernel::Params const_params;
   ns_GatherKernel::Params index_select_params;
   ns_Reduction::Params reduce_params;
@@ -1488,7 +1487,6 @@ void FusedBlockAttentionKernel(
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
     phi::DenseTensor* out_linear,
-    const phi::Scalar& epsilon,
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor) {
@@ -1541,8 +1539,6 @@ void FusedBlockAttentionKernel(
     memset(reinterpret_cast<void*>(&params),
            0x00,
            sizeof(FusedBlockAttentionParams));
-    params.rmsnorm_params.epsValid = true;
-    params.rmsnorm_params.eps = epsilon.to<float>();
     params.const_params.constant.f = scaling_factor.to<float>();
     params.index_select_params.axis = 3;
     params.reduce_params.reductionDimension = 0;
@@ -1595,7 +1591,6 @@ void CallFusedBlockAttentionKernel(
     const paddle::optional<phi::DenseTensor>& qkv_biases,
     const phi::DenseTensor& linear_weights,
     phi::DenseTensor* out_linear,
-    const phi::Scalar& epsilon,
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor) {
@@ -1616,7 +1611,6 @@ void CallFusedBlockAttentionKernel(
         qkv_biases,
         linear_weights,
         out_linear,
-        epsilon,
         head_dim,
         num_head,
         scaling_factor);
@@ -1637,7 +1631,6 @@ void CallFusedBlockAttentionKernel(
         qkv_biases,
         linear_weights,
         out_linear,
-        epsilon,
         head_dim,
         num_head,
         scaling_factor);
@@ -1661,7 +1654,6 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
     const paddle::Tensor& qkv_weights,
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& linear_weights,
-    float epsilon,
     int head_dim,
     int num_head,
     float scaling_factor) {
@@ -1722,7 +1714,6 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
                                 qkv_biases_tensor,
                                 *linear_weights_tensor,
                                 out_linear.get(),
-                                phi::Scalar(epsilon),
                                 phi::Scalar(head_dim),
                                 phi::Scalar(num_head),
                                 phi::Scalar(scaling_factor));
@@ -1743,7 +1734,6 @@ std::vector<std::vector<int64_t>> FusedBlockAttentionShape(
     const std::vector<int64_t>& qkv_weights_shape,
     const paddle::optional<std::vector<int64_t>>& qkv_biases_shape,
     const std::vector<int64_t>& linear_weights_shape,
-    float epsilon,
     int head_dim,
     int num_head,
     float scaling_factor) {
@@ -1784,10 +1774,7 @@ PD_BUILD_OP(fused_block_attention)
              paddle::Optional("qkv_biases"),
              "linear_weights"})
     .Outputs({"out_linear"})
-    .Attrs({"epsilon: float",
-            "head_dim: int",
-            "num_head: int",
-            "scaling_factor: float"})
+    .Attrs({"head_dim: int", "num_head: int", "scaling_factor: float"})
     .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

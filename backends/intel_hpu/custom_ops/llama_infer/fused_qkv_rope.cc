@@ -227,7 +227,6 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
                         const paddle::optional<phi::DenseTensor>& scale_weight,
                         phi::DenseTensor* query_states,
                         phi::DenseTensor* key_value_states,
-                        const phi::Scalar& epsilon,
                         const phi::Scalar& head_dim,
                         const phi::Scalar& num_head) {
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
@@ -309,7 +308,6 @@ void CallFusedQkvRopeKernel(
     const paddle::optional<phi::DenseTensor>& scale_weight,
     phi::DenseTensor* query_states,
     phi::DenseTensor* key_value_states,
-    const phi::Scalar& epsilon,
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head) {
   if (src.dtype() == phi::DataType::FLOAT16) {
@@ -322,7 +320,6 @@ void CallFusedQkvRopeKernel(
                                                            scale_weight,
                                                            query_states,
                                                            key_value_states,
-                                                           epsilon,
                                                            head_dim,
                                                            num_head);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
@@ -335,7 +332,6 @@ void CallFusedQkvRopeKernel(
                                                             scale_weight,
                                                             query_states,
                                                             key_value_states,
-                                                            epsilon,
                                                             head_dim,
                                                             num_head);
   } else {
@@ -348,7 +344,6 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
     const paddle::Tensor& qkv_weights,
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& rotary_embs,
-    float epsilon,
     int head_dim,
     int num_head) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
@@ -392,7 +387,6 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
                          paddle::optional<phi::DenseTensor>(),
                          query_states.get(),
                          key_value_states.get(),
-                         phi::Scalar(epsilon),
                          phi::Scalar(head_dim),
                          phi::Scalar(num_head));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
@@ -403,7 +397,6 @@ std::vector<std::vector<int64_t>> FusedQkvRopeShape(
     const std::vector<int64_t>& qkv_weights_shape,
     const paddle::optional<std::vector<int64_t>>& qkv_biases_shape,
     const std::vector<int64_t>& rotary_embs_shape,
-    float epsilon,
     int head_dim,
     int num_head) {
   int64_t bsz = src_shape[0];
@@ -426,7 +419,7 @@ PD_BUILD_OP(fused_qkv_rope)
     .Inputs(
         {"src", "qkv_weights", paddle::Optional("qkv_biases"), "rotary_embs"})
     .Outputs({"query_states", "key_value_states"})
-    .Attrs({"epsilon: float", "head_dim: int", "num_head: int"})
+    .Attrs({"head_dim: int", "num_head: int"})
     .SetKernelFn(PD_KERNEL(FusedQkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedQkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedQkvRopeDtype));
@@ -438,7 +431,6 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     const paddle::Tensor& rotary_embs,
     const paddle::Tensor& scale_input,
     const paddle::Tensor& scale_weight,
-    float epsilon,
     int head_dim,
     int num_head) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
@@ -489,7 +481,6 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
                          scale_weight_tensor,
                          query_states.get(),
                          key_value_states.get(),
-                         phi::Scalar(epsilon),
                          phi::Scalar(head_dim),
                          phi::Scalar(num_head));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
@@ -502,7 +493,6 @@ std::vector<std::vector<int64_t>> FusedFp8QkvRopeShape(
     const std::vector<int64_t>& rotary_embs_shape,
     const std::vector<int64_t>& scale_input_shape,
     const std::vector<int64_t>& scale_weight_shape,
-    float epsilon,
     int head_dim,
     int num_head) {
   int64_t bsz = src_shape[0];
@@ -531,7 +521,7 @@ PD_BUILD_OP(fused_fp8_qkv_rope_t)
              "scale_input",
              "scale_weight"})
     .Outputs({"query_states", "key_value_states"})
-    .Attrs({"epsilon: float", "head_dim: int", "num_head: int"})
+    .Attrs({"head_dim: int", "num_head: int"})
     .SetKernelFn(PD_KERNEL(FusedFp8QkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedFp8QkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedFp8QkvRopeDtype));

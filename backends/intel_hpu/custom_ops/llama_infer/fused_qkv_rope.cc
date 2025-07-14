@@ -228,8 +228,17 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
                         phi::DenseTensor* query_states,
                         phi::DenseTensor* key_value_states,
                         const phi::Scalar& head_dim,
-                        const phi::Scalar& num_head) {
+                        const phi::Scalar& num_head,
+                        const phi::Scalar& total_batch) {
+  int total_batch_ = total_batch.to<int>();
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
+  int bsz_seqlen = src_dims[0];
+  int seq_len = bsz_seqlen / total_batch_;
+  src_dims[0] = total_batch_;
+  src_dims.insert(src_dims.begin() + 1, seq_len);
+  phi::DenseTensor src_resize(src);
+  src_resize.Resize(phi::make_ddim(src_dims));
+
   std::vector<int64_t> qkv_weights_dims =
       phi::vectorize<int64_t>(qkv_weights.dims());
 
@@ -240,7 +249,7 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
       (fused_hidden_size - num_head_ * head_dim_) / head_dim_ / 2;
 
   ConvertTensors ct;
-  ct.Add(src);
+  ct.Add(src_resize);
   ct.Add(qkv_weights);
   ct.Add(rotary_embs);
   ct.Add(query_states, false);
@@ -309,7 +318,8 @@ void CallFusedQkvRopeKernel(
     phi::DenseTensor* query_states,
     phi::DenseTensor* key_value_states,
     const phi::Scalar& head_dim,
-    const phi::Scalar& num_head) {
+    const phi::Scalar& num_head,
+    const phi::Scalar& total_batch) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedQkvRopeKernel<phi::dtype::float16>(dev_ctx,
                                                            src,
@@ -321,7 +331,8 @@ void CallFusedQkvRopeKernel(
                                                            query_states,
                                                            key_value_states,
                                                            head_dim,
-                                                           num_head);
+                                                           num_head,
+                                                           total_batch);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedQkvRopeKernel<phi::dtype::bfloat16>(dev_ctx,
                                                             src,
@@ -333,7 +344,8 @@ void CallFusedQkvRopeKernel(
                                                             query_states,
                                                             key_value_states,
                                                             head_dim,
-                                                            num_head);
+                                                            num_head,
+                                                            total_batch);
   } else {
     throw std::runtime_error("Unsupported data type for FusedQkvRopeKernel");
   }
@@ -345,7 +357,8 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
     const paddle::optional<paddle::Tensor>& qkv_biases,
     const paddle::Tensor& rotary_embs,
     int head_dim,
-    int num_head) {
+    int num_head,
+    int total_batch) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -363,19 +376,20 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
 
   // allocate memory on device.
   int64_t bsz = src.dims()[0];
-  int64_t seq_len = src.dims()[1];
+  int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size = qkv_weights.dims()[0];
   int kv_num_head = (fused_hidden_size - num_head * head_dim) / head_dim / 2;
 
   std::shared_ptr<phi::DenseTensor> query_states =
       std::make_shared<phi::DenseTensor>();
-  query_states->Resize(phi::make_ddim({bsz, seq_len, num_head, head_dim}));
+  query_states->Resize(
+      phi::make_ddim({total_batch, seq_len, num_head, head_dim}));
   dev_ctx->Alloc(query_states.get(), src_tensor->dtype());
 
   std::shared_ptr<phi::DenseTensor> key_value_states =
       std::make_shared<phi::DenseTensor>();
   key_value_states->Resize(
-      phi::make_ddim({2, bsz, seq_len, kv_num_head, head_dim}));
+      phi::make_ddim({2, total_batch, seq_len, kv_num_head, head_dim}));
   dev_ctx->Alloc(key_value_states.get(), src_tensor->dtype());
 
   CallFusedQkvRopeKernel(*dev_ctx,
@@ -388,7 +402,8 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
                          query_states.get(),
                          key_value_states.get(),
                          phi::Scalar(head_dim),
-                         phi::Scalar(num_head));
+                         phi::Scalar(num_head),
+                         phi::Scalar(total_batch));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
 }
 
@@ -398,13 +413,14 @@ std::vector<std::vector<int64_t>> FusedQkvRopeShape(
     const paddle::optional<std::vector<int64_t>>& qkv_biases_shape,
     const std::vector<int64_t>& rotary_embs_shape,
     int head_dim,
-    int num_head) {
+    int num_head,
+    int total_batch) {
   int64_t bsz = src_shape[0];
-  int64_t seq_len = src_shape[1];
+  int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size = qkv_weights_shape[0];
   int kv_num_head = (fused_hidden_size - num_head * head_dim) / head_dim / 2;
-  return {{bsz, seq_len, num_head, head_dim},
-          {2, bsz, seq_len, kv_num_head, head_dim}};
+  return {{total_batch, seq_len, num_head, head_dim},
+          {2, total_batch, seq_len, kv_num_head, head_dim}};
 }
 
 std::vector<paddle::DataType> FusedQkvRopeDtype(
@@ -419,7 +435,7 @@ PD_BUILD_OP(fused_qkv_rope)
     .Inputs(
         {"src", "qkv_weights", paddle::Optional("qkv_biases"), "rotary_embs"})
     .Outputs({"query_states", "key_value_states"})
-    .Attrs({"head_dim: int", "num_head: int"})
+    .Attrs({"head_dim: int", "num_head: int", "total_batch: int"})
     .SetKernelFn(PD_KERNEL(FusedQkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedQkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedQkvRopeDtype));
@@ -432,7 +448,8 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     const paddle::Tensor& scale_input,
     const paddle::Tensor& scale_weight,
     int head_dim,
-    int num_head) {
+    int num_head,
+    int total_batch) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -457,19 +474,20 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
 
   // allocate memory on device.
   int64_t bsz = src.dims()[0];
-  int64_t seq_len = src.dims()[1];
+  int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size = qkv_weights.dims()[0];
   int kv_num_head = (fused_hidden_size - num_head * head_dim) / head_dim / 2;
 
   std::shared_ptr<phi::DenseTensor> query_states =
       std::make_shared<phi::DenseTensor>();
-  query_states->Resize(phi::make_ddim({bsz, seq_len, num_head, head_dim}));
+  query_states->Resize(
+      phi::make_ddim({total_batch, seq_len, num_head, head_dim}));
   dev_ctx->Alloc(query_states.get(), src_tensor->dtype());
 
   std::shared_ptr<phi::DenseTensor> key_value_states =
       std::make_shared<phi::DenseTensor>();
   key_value_states->Resize(
-      phi::make_ddim({2, bsz, seq_len, kv_num_head, head_dim}));
+      phi::make_ddim({2, total_batch, seq_len, kv_num_head, head_dim}));
   dev_ctx->Alloc(key_value_states.get(), src_tensor->dtype());
 
   CallFusedQkvRopeKernel(*dev_ctx,
@@ -482,7 +500,8 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
                          query_states.get(),
                          key_value_states.get(),
                          phi::Scalar(head_dim),
-                         phi::Scalar(num_head));
+                         phi::Scalar(num_head),
+                         phi::Scalar(total_batch));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
 }
 
@@ -494,13 +513,14 @@ std::vector<std::vector<int64_t>> FusedFp8QkvRopeShape(
     const std::vector<int64_t>& scale_input_shape,
     const std::vector<int64_t>& scale_weight_shape,
     int head_dim,
-    int num_head) {
+    int num_head,
+    int total_batch) {
   int64_t bsz = src_shape[0];
-  int64_t seq_len = src_shape[1];
+  int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size = qkv_weights_shape[0];
   int kv_num_head = (fused_hidden_size - num_head * head_dim) / head_dim / 2;
-  return {{bsz, seq_len, num_head, head_dim},
-          {2, bsz, seq_len, kv_num_head, head_dim}};
+  return {{total_batch, seq_len, num_head, head_dim},
+          {2, total_batch, seq_len, kv_num_head, head_dim}};
 }
 
 std::vector<paddle::DataType> FusedFp8QkvRopeDtype(
@@ -521,7 +541,7 @@ PD_BUILD_OP(fused_fp8_qkv_rope_t)
              "scale_input",
              "scale_weight"})
     .Outputs({"query_states", "key_value_states"})
-    .Attrs({"head_dim: int", "num_head: int"})
+    .Attrs({"head_dim: int", "num_head: int", "total_batch: int"})
     .SetKernelFn(PD_KERNEL(FusedFp8QkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedFp8QkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedFp8QkvRopeDtype));

@@ -61,7 +61,6 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
 
     int64_t batch_size = src_dims[0];
-    int64_t seq_length = src_dims[1];
     int64_t hidden_size = ins[linear_weights_index].dims[0];
     int64_t block_size = ins[key_cache_index].dims[1];
     int64_t num_of_block = ins[block_list_index].dims[0];
@@ -93,7 +92,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     }
     auto tmp_dims = src_dims;
     auto wt_dims = ins[qkv_weights_index].dims;
-    tmp_dims[2] = wt_dims[0];
+    tmp_dims[1] = wt_dims[0];
 
     auto qkv_out = createTensorNoPresist("qkv_out", dtype_, tmp_dims);
     std::vector<synTensor> linear_outputs;
@@ -101,7 +100,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     AddNodeLinear<T>(linear_inputs, linear_outputs, guid_ + "linear");
 
     auto reshape_dims = src_dims;
-    reshape_dims[2] = num_head + 2 * num_kv_head;
+    reshape_dims[1] = num_head + 2 * num_kv_head;
     reshape_dims.push_back(head_dim);
 
     std::vector<synTensor> reshape_outputs;
@@ -112,12 +111,10 @@ class FusedMHABlockAttention : public HpuFusedOperator {
 
     std::vector<int64_t> q_dims;
     q_dims.push_back(batch_size);
-    q_dims.push_back(seq_length);
     q_dims.push_back(num_head);
     q_dims.push_back(head_dim);
     std::vector<int64_t> kv_dims;
     kv_dims.push_back(batch_size);
-    kv_dims.push_back(seq_length);
     kv_dims.push_back(num_kv_head);
     kv_dims.push_back(head_dim);
 
@@ -169,7 +166,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     sin_squeezed.push_back(sin_sq);
 
     synSqueezeParams squeezeParams;
-    squeezeParams.axis = 4;
+    squeezeParams.axis = 3;
     AddNodeSqueeze(
         sin_inputs, sin_squeezed, squeezeParams, guid_ + "squeeze_sin");
 
@@ -205,20 +202,6 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     AddNodeRope<T>(inputs_k, outputs_k, ropeParams, guid_ + "rope_k");
 
     //////////////////////////////////////////////////////////////////
-    kv_dims.erase(kv_dims.begin() + 1);
-
-    std::vector<synTensor> outputs_k_squeeze;
-    auto k_squeeze = createTensorNoPresist("k_squeeze", dtype_, kv_dims);
-    outputs_k_squeeze.push_back(k_squeeze);
-    AddNodeReshape(outputs_k, outputs_k_squeeze, guid_ + "squeeze_k");
-
-    std::vector<synTensor> inputs_v_squeeze;
-    inputs_v_squeeze.push_back(v_split);
-    std::vector<synTensor> outputs_v_squeeze;
-    auto v_squeeze = createTensorNoPresist("v_squeeze", dtype_, kv_dims);
-    outputs_v_squeeze.push_back(v_squeeze);
-    AddNodeReshape(inputs_v_squeeze, outputs_v_squeeze, guid_ + "squeeze_v");
-
     std::vector<int64_t> indices_concat_dims =
         std::vector<int64_t>(ins[block_indices_index].dims);
     indices_concat_dims.emplace_back(1);
@@ -256,7 +239,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_k;
     inputs_scatter_k.push_back(key_cache);
     inputs_scatter_k.push_back(indices_concat);
-    inputs_scatter_k.push_back(k_squeeze);
+    inputs_scatter_k.push_back(k_rope);
     std::vector<synTensor> outputs_scatter_k;
     outputs_scatter_k.push_back(kCache_out);
     AddNodeScatter<T>(
@@ -269,7 +252,7 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_v;
     inputs_scatter_v.push_back(value_cache);
     inputs_scatter_v.push_back(indices_concat);
-    inputs_scatter_v.push_back(v_squeeze);
+    inputs_scatter_v.push_back(v_split);
     std::vector<synTensor> outputs_scatter_v;
     outputs_scatter_v.push_back(vCache_out);
     AddNodeScatter<T>(
@@ -702,19 +685,9 @@ class FusedMHABlockAttention : public HpuFusedOperator {
     AddNodeGemm(
         map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
 
-    std::vector<int64_t> reshape_attn_dims;
-    reshape_attn_dims.push_back(batch_size);
-    reshape_attn_dims.push_back(1);
-    reshape_attn_dims.push_back(hidden_size);
-    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
-    std::vector<synTensor> attn_out;
-    attn_out.push_back(attn);
-
-    AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
-
     std::vector<synTensor> proj_in;
     auto linear_weights = createTensorFromCT(&ct, linear_weights_index);
-    proj_in.push_back(attn);
+    proj_in.push_back(mapped_attn);
     proj_in.push_back(linear_weights);
 
     auto linear_out = createTensorFromCT(&ct, 0, false);
@@ -756,7 +729,6 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<int64_t> src_dims = std::vector<int64_t>(ins[src_index].dims);
 
     int64_t batch_size = src_dims[0];
-    int64_t seq_length = src_dims[1];
     int64_t hidden_size = ins[linear_weights_index].dims[0];
     int64_t block_size = ins[key_cache_index].dims[1];
     int64_t num_of_block = ins[block_list_index].dims[0];
@@ -789,7 +761,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     }
     auto tmp_dims = src_dims;
     auto wt_dims = ins[qkv_weights_index].dims;
-    tmp_dims[2] = wt_dims[0];
+    tmp_dims[1] = wt_dims[0];
 
     auto qkv_out = createTensorNoPresist("qkv_out", dtype_, tmp_dims);
     std::vector<synTensor> linear_outputs;
@@ -797,7 +769,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     AddNodeLinear<T>(linear_inputs, linear_outputs, guid_ + "linear");
 
     auto reshape_dims = src_dims;
-    reshape_dims[2] = num_head + 2 * num_kv_head;
+    reshape_dims[1] = num_head + 2 * num_kv_head;
     reshape_dims.push_back(head_dim);
 
     std::vector<synTensor> reshape_outputs;
@@ -808,12 +780,10 @@ class FusedGQABlockAttention : public HpuFusedOperator {
 
     std::vector<int64_t> q_dims;
     q_dims.push_back(batch_size);
-    q_dims.push_back(seq_length);
     q_dims.push_back(num_head);
     q_dims.push_back(head_dim);
     std::vector<int64_t> kv_dims;
     kv_dims.push_back(batch_size);
-    kv_dims.push_back(seq_length);
     kv_dims.push_back(num_kv_head);
     kv_dims.push_back(head_dim);
 
@@ -865,7 +835,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     sin_squeezed.push_back(sin_sq);
 
     synSqueezeParams squeezeParams;
-    squeezeParams.axis = 4;
+    squeezeParams.axis = 3;
     AddNodeSqueeze(
         sin_inputs, sin_squeezed, squeezeParams, guid_ + "squeeze_sin");
 
@@ -901,20 +871,6 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     AddNodeRope<T>(inputs_k, outputs_k, ropeParams, guid_ + "rope_k");
 
     //////////////////////////////////////////////////////////////////
-    kv_dims.erase(kv_dims.begin() + 1);
-
-    std::vector<synTensor> outputs_k_squeeze;
-    auto k_squeeze = createTensorNoPresist("k_squeeze", dtype_, kv_dims);
-    outputs_k_squeeze.push_back(k_squeeze);
-    AddNodeReshape(outputs_k, outputs_k_squeeze, guid_ + "squeeze_k");
-
-    std::vector<synTensor> inputs_v_squeeze;
-    inputs_v_squeeze.push_back(v_split);
-    std::vector<synTensor> outputs_v_squeeze;
-    auto v_squeeze = createTensorNoPresist("v_squeeze", dtype_, kv_dims);
-    outputs_v_squeeze.push_back(v_squeeze);
-    AddNodeReshape(inputs_v_squeeze, outputs_v_squeeze, guid_ + "squeeze_v");
-
     std::vector<int64_t> indices_concat_dims =
         std::vector<int64_t>(ins[block_indices_index].dims);
     indices_concat_dims.emplace_back(1);
@@ -952,7 +908,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_k;
     inputs_scatter_k.push_back(key_cache);
     inputs_scatter_k.push_back(indices_concat);
-    inputs_scatter_k.push_back(k_squeeze);
+    inputs_scatter_k.push_back(k_rope);
     std::vector<synTensor> outputs_scatter_k;
     outputs_scatter_k.push_back(kCache_out);
     AddNodeScatter<T>(
@@ -965,7 +921,7 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     std::vector<synTensor> inputs_scatter_v;
     inputs_scatter_v.push_back(value_cache);
     inputs_scatter_v.push_back(indices_concat);
-    inputs_scatter_v.push_back(v_squeeze);
+    inputs_scatter_v.push_back(v_split);
     std::vector<synTensor> outputs_scatter_v;
     outputs_scatter_v.push_back(vCache_out);
     AddNodeScatter<T>(
@@ -1443,19 +1399,9 @@ class FusedGQABlockAttention : public HpuFusedOperator {
     AddNodeGemm(
         map_attn_in, map_attn_out, gemm_params_t_f, guid_ + "gemm_map_attn");
 
-    std::vector<int64_t> reshape_attn_dims;
-    reshape_attn_dims.push_back(batch_size);
-    reshape_attn_dims.push_back(1);
-    reshape_attn_dims.push_back(hidden_size);
-    auto attn = createTensorNoPresist("attn", dtype_, reshape_attn_dims);
-    std::vector<synTensor> attn_out;
-    attn_out.push_back(attn);
-
-    AddNodeReshape(map_attn_out, attn_out, guid_ + "attn");
-
     std::vector<synTensor> proj_in;
     auto linear_weights = createTensorFromCT(&ct, linear_weights_index);
-    proj_in.push_back(attn);
+    proj_in.push_back(mapped_attn);
     proj_in.push_back(linear_weights);
 
     auto linear_out = createTensorFromCT(&ct, 0, false);
@@ -1696,7 +1642,7 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
 
   std::shared_ptr<phi::DenseTensor> out_linear =
       std::make_shared<phi::DenseTensor>();
-  out_linear->Resize(phi::make_ddim({batch_size, 1, out_features}));
+  out_linear->Resize(phi::make_ddim({batch_size, out_features}));
   dev_ctx->Alloc(out_linear.get(), src_tensor->dtype());
 
   CallFusedBlockAttentionKernel(*dev_ctx,

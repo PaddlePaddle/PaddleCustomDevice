@@ -246,8 +246,7 @@ class FusedSdpaProjBTMH : public HpuFusedOperator {
                      guid_ + "transpose_out");
 
     std::vector<int64_t> attn_reshape;
-    attn_reshape.push_back(q_dims[0]);
-    attn_reshape.push_back(q_dims[1]);
+    attn_reshape.push_back(q_dims[0] * q_dims[1]);
     attn_reshape.push_back(q_dims[2] * q_dims[3]);
 
     std::vector<synTensor> attn_out_reshape;
@@ -494,7 +493,7 @@ std::vector<paddle::Tensor> FusedBaseSdpaProjBTMH(
 
   std::shared_ptr<phi::DenseTensor> out_linear =
       std::make_shared<phi::DenseTensor>();
-  out_linear->Resize(phi::make_ddim({bsz, seq_len, hidden_size}));
+  out_linear->Resize(phi::make_ddim({bsz * seq_len, hidden_size}));
   if (query_states.dtype() == phi::DataType::FLOAT8_E4M3FN) {
     dev_ctx->Alloc(out_linear.get(), phi::DataType::BFLOAT16);
   } else {
@@ -614,7 +613,7 @@ std::vector<std::vector<int64_t>> FusedSdpaProjBTMHShape(
   int64_t bsz = query_states_shape[0];
   int64_t seq_len = query_states_shape[1];
   int hidden_size = linear_weights_shape[1];
-  return {{bsz, seq_len, hidden_size}};
+  return {{bsz * seq_len, hidden_size}};
 }
 
 std::vector<paddle::DataType> FusedSdpaProjBTMHDtype(

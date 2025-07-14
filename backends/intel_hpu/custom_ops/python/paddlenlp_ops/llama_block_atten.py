@@ -215,10 +215,11 @@ def rebuild_padding_v2(
     is_prompt=None,
 ):
     max_batch = seq_lens_encoder.shape[0]
-    dim_emb = tmp_out.shape[2]
+    dim_emb = tmp_out.shape[-1]
     output_data = paddle.zeros((max_batch, dim_emb))
 
     if is_prompt is True:  # context
+        tmp_out = tmp_out.reshape([max_batch, -1, dim_emb])
         j = 0
         for i in range(max_batch):
             if seq_lens_encoder[i].item() > 0:
@@ -227,7 +228,7 @@ def rebuild_padding_v2(
                 j = j + 1
     elif is_prompt is False:
         output_data = paddle.scatter(
-            output_data, batch_ids, tmp_out.squeeze(axis=1)[: batch_ids.shape[0], :]
+            output_data, batch_ids, tmp_out[: batch_ids.shape[0], :]
         )
 
     return output_data

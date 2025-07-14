@@ -35,15 +35,15 @@ class RMS : public HpuOperator {
       std::vector<synTensor> add_inputs;
       std::vector<synTensor> add_outputs;
 
-      auto x = createTensor(ins[2].size(), dtype_, ins[2], true, "x");
+      auto x = createTensor(ins[0].size(), dtype_, ins[0], true, "x");
       add_inputs.push_back(x);
 
       auto residual =
-          createTensor(ins[2].size(), dtype_, ins[2], true, "residual");
+          createTensor(ins[0].size(), dtype_, ins[0], true, "residual");
       add_inputs.push_back(residual);
 
       auto residual_out =
-          createTensor(ins[2].size(), dtype_, ins[2], true, "residual_out");
+          createTensor(ins[0].size(), dtype_, ins[0], true, "residual_out");
       add_outputs.push_back(residual_out);
 
       std::string add_guid_ = "add_fwd_" + SynDataTypeToStr(dtype_);

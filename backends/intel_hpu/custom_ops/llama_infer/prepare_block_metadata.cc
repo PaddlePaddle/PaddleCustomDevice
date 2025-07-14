@@ -190,7 +190,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
     int max_buckets = (max_enc_len + block_size - 1) / block_size;
     int max_prompt_len = max_buckets * block_size;
 
-    auto src_padded = paddle::full({total_batch, max_prompt_len},
+    auto src_padded = paddle::full({total_batch * max_prompt_len},
                                    0,
                                    paddle::DataType::INT64,
                                    paddle::CPUPlace());
@@ -229,6 +229,9 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
         rope_emb, {2}, {0}, {max_prompt_len}, {}, {});
     rope_emb_seg = paddle::experimental::cast(rope_emb_seg, device_dtype);
 
+    auto total_batch_cpu_tensor = paddle::full(
+        {1}, total_batch, paddle::DataType::INT32, paddle::CPUPlace());
+
     auto is_prompt_cpu_tensor =
         paddle::full({1}, 1, paddle::DataType::INT32, paddle::CPUPlace());
 
@@ -241,6 +244,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
             dummy_tensor,
             dummy_tensor,
             batch_ids,
+            total_batch_cpu_tensor,
             is_prompt_cpu_tensor};
 
   } else if (dec_count > 0) {
@@ -276,7 +280,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
         rope_emb, paddle::Tensor(seq_lens_padded_hpu), {2});
     rope_emb_seg = paddle::experimental::cast(rope_emb_seg, device_dtype);
     rope_emb_seg = paddle::experimental::squeeze_(rope_emb_seg, {1});
-    rope_emb_seg = paddle::experimental::unsqueeze_(rope_emb_seg, {2});
+    // rope_emb_seg = paddle::experimental::unsqueeze_(rope_emb_seg, {2});
 
     // get block_indices and block_offset
     auto block_indices_padded = paddle::full(
@@ -392,6 +396,8 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
     auto attention_mask_hpu = custom_kernel::copy_tensor_wrapper(
         dev_ctx, attention_mask_tensor, hpu_place);
 
+    auto total_batch_cpu_tensor = paddle::full(
+        {1}, total_batch, paddle::DataType::INT32, paddle::CPUPlace());
     auto is_prompt_cpu_tensor =
         paddle::full({1}, 2, paddle::DataType::INT32, paddle::CPUPlace());
 
@@ -404,10 +410,12 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
             block_mapping_hpu,
             attention_mask_hpu,
             batch_ids,
+            total_batch_cpu_tensor,
             is_prompt_cpu_tensor};
   }
 
   return {dummy_tensor,
+          dummy_tensor,
           dummy_tensor,
           dummy_tensor,
           dummy_tensor,
@@ -425,7 +433,7 @@ std::vector<std::vector<int64_t>> PrepareBlockMetadataShape(
     const std::vector<int64_t>& block_tables_shape,
     const std::vector<int64_t>& seq_lens_encoder_shape,
     const std::vector<int64_t>& seq_lens_decoder_shape) {
-  return {{-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {1}};
+  return {{-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {-1}, {1}};
 }
 
 std::vector<paddle::DataType> PrepareBlockMetadataDtype(
@@ -445,6 +453,7 @@ std::vector<paddle::DataType> PrepareBlockMetadataDtype(
           phi::StringToDataType(dtype),
           phi::StringToDataType(dtype),
           phi::DataType::INT32,
+          phi::DataType::INT32,
           phi::DataType::INT32};
 }
 
@@ -463,6 +472,7 @@ PD_BUILD_OP(prepare_block_metadata)
               "block_mapping",
               "attention_mask",
               "batch_ids",
+              "total_batch",
               "is_prompt"})
     .Attrs({"block_size: int", "device_dtype: std::string"})
     .SetKernelFn(PD_KERNEL(PrepareBlockMetadata))

@@ -34,3 +34,21 @@ PD_CUSTOM_KERNEL_REGISTER(shape,
   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);
 }
+
+PD_CUSTOM_KERNEL_REGISTER(shape64,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::Shape64Kernel,
+                          bool,
+                          int,
+                          int8_t,
+                          uint8_t,
+                          int64_t,
+                          float,
+                          phi::dtype::complex<float>,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
+  kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+  kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
+  kernel->OutputAt(0).SetDataType(phi::DataType::INT64);
+}

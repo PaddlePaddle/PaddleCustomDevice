@@ -1,7 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
-
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +13,7 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/compare_kernel.h"  // NOLINT
-// #include "paddle/phi/kernels/kps/compare_kernel.cu"  // NOLINT
+#include "paddle/phi/kernels/compare_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(equal_all,
                           metax_gpu,
@@ -26,10 +22,26 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                           bool,
                           int,
                           int64_t,
-                          float,
-                          double) {
+                          float) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
+
+#define PD_REGISTER_COMPARE_KERNEL(name, func)            \
+  PD_CUSTOM_KERNEL_REGISTER(name,                         \
+                            metax_gpu,                    \
+                            ALL_LAYOUT,                   \
+                            phi::func##Kernel,            \
+                            bool,                         \
+                            int,                          \
+                            uint8_t,                      \
+                            int8_t,                       \
+                            int16_t,                      \
+                            int64_t,                      \
+                            float,                        \
+                            phi::dtype::float16,          \
+                            phi::dtype::bfloat16) {       \
+    kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
+  }
 
 #define PD_REGISTER_COMPLEX_COMPARE_KERNEL(name, func)    \
   PD_CUSTOM_KERNEL_REGISTER(name,                         \
@@ -43,17 +55,16 @@ PD_CUSTOM_KERNEL_REGISTER(equal_all,
                             int16_t,                      \
                             int64_t,                      \
                             phi::dtype::complex<float>,   \
-                            phi::dtype::complex<double>,  \
                             float,                        \
-                            double,                       \
                             phi::dtype::float16,          \
                             phi::dtype::bfloat16) {       \
     kernel->OutputAt(0).SetDataType(phi::DataType::BOOL); \
   }
 
-PD_REGISTER_COMPLEX_COMPARE_KERNEL(less_than, LessThan)
-PD_REGISTER_COMPLEX_COMPARE_KERNEL(less_equal, LessEqual)
-PD_REGISTER_COMPLEX_COMPARE_KERNEL(greater_than, GreaterThan)
-PD_REGISTER_COMPLEX_COMPARE_KERNEL(greater_equal, GreaterEqual)
+PD_REGISTER_COMPARE_KERNEL(less_than, LessThan)
+PD_REGISTER_COMPARE_KERNEL(less_equal, LessEqual)
+PD_REGISTER_COMPARE_KERNEL(greater_than, GreaterThan)
+PD_REGISTER_COMPARE_KERNEL(greater_equal, GreaterEqual)
+
 PD_REGISTER_COMPLEX_COMPARE_KERNEL(equal, Equal)
 PD_REGISTER_COMPLEX_COMPARE_KERNEL(not_equal, NotEqual)

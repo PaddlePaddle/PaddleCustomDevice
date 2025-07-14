@@ -16,28 +16,6 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/gaussian_kernel.h"
 
-// PD_CUSTOM_KERNEL_REGISTER(gaussian,
-//                    metax_gpu,
-//                    ALL_LAYOUT,
-//                    phi::GaussianKernel,
-//                    phi::dtype::float16,
-//                    phi::dtype::bfloat16,
-//                    float,
-//                    double,
-//                    phi::dtype::complex<float>,
-//                    phi::dtype::complex<double>) {}
-
-// PD_CUSTOM_KERNEL_REGISTER(gaussian_inplace,
-//                    metax_gpu,
-//                    ALL_LAYOUT,
-//                    phi::GaussianInplaceKernel,
-//                    phi::dtype::float16,
-//                    phi::dtype::bfloat16,
-//                    float,
-//                    double,
-//                    phi::dtype::complex<float>,
-//                    phi::dtype::complex<double>) {}
-
 PD_CUSTOM_KERNEL_REGISTER(gaussian,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -45,13 +23,35 @@ PD_CUSTOM_KERNEL_REGISTER(gaussian,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
 
-PD_CUSTOM_KERNEL_REGISTER(gaussian_inpalce,
+PD_CUSTOM_KERNEL_REGISTER(gaussian_inplace,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::GaussianInplaceKernel,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
                           float,
-                          double) {}
+                          double,
+                          phi::dtype::complex<float>,
+                          phi::dtype::complex<double>) {}
+
+// PD_CUSTOM_KERNEL_REGISTER(gaussian,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::GaussianKernel,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16,
+//                           float,
+//                           double) {}
+
+// PD_CUSTOM_KERNEL_REGISTER(gaussian_inpalce,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::GaussianInplaceKernel,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16,
+//                           float,
+//                           double) {}

@@ -55,3 +55,21 @@ PHI_DEFINE_EXPORTED_bool(
 PHI_DEFINE_EXPORTED_bool(use_fast_math,
                          false,
                          "Whether to use fast math GPU functions.");
+
+#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+/**
+ * FlashAttention related FLAG
+ * Name: FLAGS_flash_attn_version
+ * Value Range: int32, default=2
+ * Example:
+ * Note: Specify the version of FlashAttention to use, options are 2 or 3.
+ *        Version 2 requires Ampere architecture or higher,
+ *        while version 3 requires Hopper architecture.
+ */
+PHI_DEFINE_EXPORTED_int32(
+    flash_attn_version,
+    2,
+    "Specify the version of FlashAttention to use, options are 2 or 3. "
+    "Version 2 requires Ampere architecture or higher, "
+    "while version 3 requires Hopper architecture.");
+#endif

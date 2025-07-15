@@ -1067,20 +1067,20 @@ C_Status Xccl_all_to_all(const void **send_buf,
   for (size_t i = 0; i < nranks; ++i) {
     if (send_count[i] != 0)
       NCCL_CHECK(
-          mcclSendExt(send_buf[i],
-                      send_count[i],
-                      phi::internal::PDDataTypeToMcclDataType(send_dtype[i]),
-                      i,
-                      reinterpret_cast<mcclComm_t>(comm),
-                      reinterpret_cast<mcStream_t>(stream)));
+          mcclSend(send_buf[i],
+                   send_count[i],
+                   phi::internal::PDDataTypeToMcclDataType(send_dtype[i]),
+                   i,
+                   reinterpret_cast<mcclComm_t>(comm),
+                   reinterpret_cast<mcStream_t>(stream)));
     if (recv_count[i] != 0)
       MCCL_CHECK(
-          mcclRecvExt(recv_buf[i],
-                      recv_count[i],
-                      phi::internal::PDDataTypeToMcclDataType(recv_dtype[i]),
-                      i,
-                      reinterpret_cast<mcclComm_t>(comm),
-                      reinterpret_cast<mcStream_t>(stream)));
+          mcclRecv(recv_buf[i],
+                   recv_count[i],
+                   phi::internal::PDDataTypeToMcclDataType(recv_dtype[i]),
+                   i,
+                   reinterpret_cast<mcclComm_t>(comm),
+                   reinterpret_cast<mcStream_t>(stream)));
   }
   MCCL_CHECK(mcclGroupEnd());
   return C_SUCCESS;

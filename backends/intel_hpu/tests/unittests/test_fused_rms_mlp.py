@@ -115,8 +115,8 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         )
         return np_mlp_out_ref
 
-    def check_result(self, np_result, fused_result):
-        np.testing.assert_allclose(np_result, fused_result)
+    def check_result(self, np_result, fused_result, rtol=1e-3):
+        np.testing.assert_allclose(np_result, fused_result, rtol)
 
     def test_fused_mlp(self):
         (

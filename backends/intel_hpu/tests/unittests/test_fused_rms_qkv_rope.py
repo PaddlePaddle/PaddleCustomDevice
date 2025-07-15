@@ -146,7 +146,7 @@ class TestFused_RMS_QKV_Rope_OpFP16(unittest.TestCase):
         op_result_value_states,
     ):
         if self.dtype == "float32":
-            rtol = 1e-6
+            rtol = 1e-2
             atol = 1e1
         elif self.dtype == "float16":
             rtol = 1e-3

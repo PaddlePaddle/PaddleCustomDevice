@@ -36,7 +36,6 @@ struct FusedMoEConfig {
   int32_t experts_min;
   int32_t experts_max;
   bool dynamic_scale;
-  bool blockwise_quantization;
   int32_t block_size;
 };
 
@@ -98,7 +97,12 @@ class FusedMixtureOfExperts : public HpuFusedOperator {
       auto scales_per_expert = config.fused_gemm ? 2 : 3;
       if (!config.dynamic_scale) scales_per_expert += 1;
       input_count += config.num_experts * scales_per_expert + 1;
+    } else if (config.block_size > 0) {
+      // blockwise fp8
+      auto scales_per_expert = config.fused_gemm ? 2 : 3;
+      input_count += config.num_experts * scales_per_expert;
     }
+
     for (int64_t i = 0; i < input_count; i++) {
       inputs.push_back(createTensorFromCT(ct, i));
     }
@@ -212,6 +216,7 @@ void CallFusedMoEKernel(
     const int block_size,
     phi::DenseTensor* final_hidden_states,
     phi::DenseTensor* amax_per_expert) {
+  // handle both bfloat16 and blockwise fp8
   if (hidden_states.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedMoEKernel<phi::dtype::bfloat16>(dev_ctx,
                                                         hidden_states,
@@ -285,13 +290,11 @@ std::vector<paddle::Tensor> MixtureOfExpertsForward(
   }
 
   // allocate memory on device.
-  int64_t num_tokens = hidden_states.dims()[0];
-  int64_t hidden_dims = hidden_states.dims()[1];
   int64_t num_experts = down_weights.size();
 
   std::shared_ptr<phi::DenseTensor> final_hidden_states =
       std::make_shared<phi::DenseTensor>();
-  final_hidden_states->Resize(phi::make_ddim({num_tokens, hidden_dims}));
+  final_hidden_states->Resize(hidden_states.dims());
   dev_ctx->Alloc(final_hidden_states.get(), hidden_states.dtype());
 
   std::shared_ptr<phi::DenseTensor> amax_per_expert =
@@ -334,9 +337,7 @@ std::vector<paddle::Tensor> MixtureOfExpertsFP8Forward(
     const std::string& activation,
     const int experts_min,
     const int experts_max,
-    // const bool measurement_mode,
-    const bool dynamic_scale,
-    const int block_size) {
+    const bool dynamic_scale) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(
           hidden_states.place()));
@@ -375,19 +376,10 @@ std::vector<paddle::Tensor> MixtureOfExpertsFP8Forward(
   }
 
   // allocate memory on device.
-  int64_t num_tokens = hidden_states.dims()[0];
-  int64_t hidden_dims = hidden_states.dims()[1];
-  int64_t num_experts = down_weights.size();
-
   std::shared_ptr<phi::DenseTensor> final_hidden_states =
       std::make_shared<phi::DenseTensor>();
-  final_hidden_states->Resize(phi::make_ddim({num_tokens, hidden_dims}));
+  final_hidden_states->Resize(hidden_states.dims());
   dev_ctx->Alloc(final_hidden_states.get(), router_weights.dtype());
-
-  // std::shared_ptr<phi::DenseTensor> amax_per_expert =
-  //     std::make_shared<phi::DenseTensor>();
-  // amax_per_expert->Resize(phi::make_ddim({num_experts}));
-  // dev_ctx->Alloc(amax_per_expert.get(), paddle::DataType::FLOAT32);
 
   CallFusedMoEKernel(*dev_ctx,
                      *hidden_states_tensor,
@@ -402,6 +394,74 @@ std::vector<paddle::Tensor> MixtureOfExpertsFP8Forward(
                      experts_max,
                      false,  // so far not supported on FP8
                      dynamic_scale,
+                     -1,
+                     final_hidden_states.get(),
+                     nullptr);
+
+  return {paddle::Tensor(final_hidden_states)};
+}
+
+std::vector<paddle::Tensor> MixtureOfExpertsBlockWiseFP8Forward(
+    const paddle::Tensor& hidden_states,
+    const paddle::Tensor& routing_table,
+    const paddle::Tensor& router_weights,
+    const std::vector<paddle::Tensor>& gate_up_weights,
+    const std::vector<paddle::Tensor>& down_weights,
+    const std::vector<paddle::Tensor>& gate_up_weights_scales,
+    const std::vector<paddle::Tensor>& down_weights_scales,
+    const bool permuted_weights,
+    const std::string& activation,
+    const int experts_min,
+    const int experts_max,
+    const int block_size) {
+  auto dev_ctx = static_cast<const phi::CustomContext*>(
+      paddle::experimental::DeviceContextPool::Instance().Get(
+          hidden_states.place()));
+  auto hidden_states_tensor =
+      static_cast<const phi::DenseTensor*>(hidden_states.impl().get());
+  auto routing_table_tensor =
+      static_cast<const phi::DenseTensor*>(routing_table.impl().get());
+  auto router_weights_tensor =
+      static_cast<const phi::DenseTensor*>(router_weights.impl().get());
+
+  std::vector<phi::DenseTensor> gate_up_weights_vec;
+  for (const auto& t : gate_up_weights) {
+    gate_up_weights_vec.push_back(
+        *static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+  std::vector<phi::DenseTensor> down_weights_vec;
+  for (const auto& t : down_weights) {
+    down_weights_vec.push_back(
+        *static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+
+  std::vector<phi::DenseTensor> scales_vec;
+  for (const auto& t : gate_up_weights_scales) {
+    scales_vec.push_back(*static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+  for (const auto& t : down_weights_scales) {
+    scales_vec.push_back(*static_cast<const phi::DenseTensor*>(t.impl().get()));
+  }
+
+  // allocate memory on device.
+  std::shared_ptr<phi::DenseTensor> final_hidden_states =
+      std::make_shared<phi::DenseTensor>();
+  final_hidden_states->Resize(hidden_states.dims());
+  dev_ctx->Alloc(final_hidden_states.get(), router_weights.dtype());
+
+  CallFusedMoEKernel(*dev_ctx,
+                     *hidden_states_tensor,
+                     *routing_table_tensor,
+                     *router_weights_tensor,
+                     gate_up_weights_vec,
+                     down_weights_vec,
+                     scales_vec,
+                     permuted_weights,
+                     activation,
+                     experts_min,
+                     experts_max,
+                     false,  // so far not supported on FP8
+                     false,
                      block_size,
                      final_hidden_states.get(),
                      nullptr);
@@ -415,10 +475,8 @@ std::vector<std::vector<int64_t>> MixtureOfExpertsInferShape(
     const std::vector<int64_t>& router_weights_shape,
     const std::vector<int64_t>& gate_up_weights_shape,
     const std::vector<int64_t>& down_weights_shape) {
-  int64_t num_tokens = hidden_states_shape[0];
-  int64_t hidden_dims = hidden_states_shape[1];
   int64_t num_experts = router_weights_shape[1];
-  return {{num_tokens, hidden_dims}, {num_experts}};
+  return {hidden_states_shape, {num_experts}};
 }
 
 std::vector<paddle::DataType> MixtureOfExpertsInferDtype(
@@ -436,10 +494,7 @@ std::vector<std::vector<int64_t>> MixtureOfExpertsFP8InferShape(
     const std::vector<int64_t>& router_weights_shape,
     const std::vector<int64_t>& gate_up_weights_shape,
     const std::vector<int64_t>& down_weights_shape) {
-  int64_t num_tokens = hidden_states_shape[0];
-  int64_t hidden_dims = hidden_states_shape[1];
-  // int64_t num_experts = router_weights_shape[1];
-  return {{num_tokens, hidden_dims}};
+  return {hidden_states_shape};
 }
 
 std::vector<paddle::DataType> MixtureOfExpertsFP8InferDtype(
@@ -482,9 +537,25 @@ PD_BUILD_OP(mixture_of_experts_fp8)
             "activation: std::string",
             "experts_min: int",
             "experts_max: int",
-            // "measurement_mode: bool",
-            "dynamic_scale: bool",
-            "block_size: int"})
+            "dynamic_scale: bool"})
     .SetKernelFn(PD_KERNEL(MixtureOfExpertsFP8Forward))
+    .SetInferShapeFn(PD_INFER_SHAPE(MixtureOfExpertsFP8InferShape))
+    .SetInferDtypeFn(PD_INFER_DTYPE(MixtureOfExpertsFP8InferDtype));
+
+PD_BUILD_OP(mixture_of_experts_blockwise_fp8)
+    .Inputs({"hidden_states",
+             "routing_table",
+             "router_weights",
+             paddle::Vec("gate_up_weights"),
+             paddle::Vec("down_weights"),
+             paddle::Vec("gate_up_weights_scales"),
+             paddle::Vec("down_weights_scales")})
+    .Outputs({"final_hidden_states"})
+    .Attrs({"permuted_weights: bool",
+            "activation: std::string",
+            "experts_min: int",
+            "experts_max: int",
+            "block_size: int"})
+    .SetKernelFn(PD_KERNEL(MixtureOfExpertsBlockWiseFP8Forward))
     .SetInferShapeFn(PD_INFER_SHAPE(MixtureOfExpertsFP8InferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(MixtureOfExpertsFP8InferDtype));

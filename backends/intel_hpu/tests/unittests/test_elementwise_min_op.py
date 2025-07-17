@@ -86,5 +86,28 @@ class TestFP16ElementwiseMinOp_1(TestElementwiseMinOp_broadcast):
         self.dtype = np.float16
 
 
+class TestFP8ElementwiseMinOp(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        self.x0 = np.random.random((256, 256)).astype(self.dtype)
+        self.x1 = np.random.random((256, 256)).astype(self.dtype)
+
+    def test_check_output(self):
+        x0_fp8 = paddle.to_tensor(self.x0, dtype="float16").to(dtype="float8_e4m3fn")
+        x1_fp8 = paddle.to_tensor(self.x1, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = np.minimum(
+            x0_fp8.to(dtype="float16").numpy(), x1_fp8.to(dtype="float16").numpy()
+        )
+
+        out = paddle.minimum(x0_fp8, x1_fp8).astype("float16")
+
+        np.testing.assert_allclose(ref, out.numpy(), rtol=1e-5)
+
+
 if __name__ == "__main__":
     unittest.main()

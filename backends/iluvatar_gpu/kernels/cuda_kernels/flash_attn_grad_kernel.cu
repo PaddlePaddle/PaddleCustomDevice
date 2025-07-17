@@ -29,6 +29,7 @@
 #include "paddle/phi/kernels/reduce_sum_kernel.h"
 #include "paddle/phi/kernels/slice_kernel.h"
 COMMON_DECLARE_int32(ixdnn_imp_mode);
+COMMON_DECLARE_int32(ixdnn_causal_mode);
 
 COMMON_DECLARE_bool(cudnn_deterministic);
 
@@ -253,7 +254,7 @@ void FlashAttnUnpaddedGradBaseKernel(
   bool is_mha = (num_heads == num_heads_k);
 
   int64_t total_q = dims[0];
-  bool is_unpad = (total_q == batch_size * max_seqlen_q) ? false : true;
+  bool is_unpad = true;
   const int64_t head_size_rounded = head_size + 32 - head_size % 32;
 
   DenseTensor q_padded, k_padded, v_padded, out_padded, dout_padded;
@@ -313,6 +314,7 @@ void FlashAttnUnpaddedGradBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = false;
@@ -718,6 +720,7 @@ void FlashAttnGradBaseKernel(
   flashAttnInfo.softmax_scale = softmax_scale;
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = false;

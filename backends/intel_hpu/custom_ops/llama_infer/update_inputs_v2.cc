@@ -79,7 +79,7 @@ void cpu_wrapper(bool* not_need_stop,
 #pragma omp parallel for num_threads(OMP_THREAD_NUM)
   for (int i = 0; i < bsz; i++) {
     bool stop_flags_now = stop_flags[i];
-    stop_flag_now_int[i] = is_block_step[i] ? 0 : stop_flags_now;
+    stop_flag_now_int[i] = is_block_step[i] ? 0 : (stop_flags_now ? 1 : 0);
     const int seq_len_encoder = seq_lens_encoder[i];
     const int seq_len_decoder = seq_lens_decoder[i];
 

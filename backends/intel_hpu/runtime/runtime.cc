@@ -45,6 +45,9 @@ FLAGS_DEFINE_uint32(
     intel_hpu_profiling_type,
     1,
     "set runtime profiling type, 1=all, 2 = host only, 3 = device only");
+FLAGS_DEFINE_bool(intel_hpu_runtime_dualcopy,
+                  true,
+                  "dual copy to walkaround synapse host memory map issue");
 
 inline hcclDataType_t PDDataTypeToHcclDataType(C_DataType type) {
   if (type == C_DataType::FLOAT32) {
@@ -241,6 +244,85 @@ class RuntimeManager {
     return C_SUCCESS;
   }
 
+  inline synStreamHandle GetBuiltinStream(size_t flag) {
+    synDmaDir dir = static_cast<synDmaDir>(flag);
+    synStreamHandle *stream;
+    switch (dir) {
+      case HOST_TO_DRAM:
+        stream = &stream_h2d;
+        break;
+      case DRAM_TO_HOST:
+        stream = &stream_d2d;
+        break;
+      case DRAM_TO_DRAM:
+        stream = &stream_d2d;
+        break;
+      default:
+        return nullptr;
+    }
+
+    if (*stream == nullptr) {
+      synStatus status = synStreamCreateGeneric(stream, deviceID, 0);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synStreamCreateGeneric(",
+               dir,
+               ") failed = ",
+               status);
+
+      LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
+          << "create builtin stream type " << flag << " stream " << *stream;
+    }
+
+    return *stream;
+  }
+
+  inline uint64_t PreDeviceCopy(const void *src, size_t size, size_t flag) {
+    if (FLAGS_intel_hpu_runtime_dualcopy) {
+      synDmaDir dir = static_cast<synDmaDir>(flag);
+      void *ptr = getCachedHostMem(nullptr, size);
+      if (dir == HOST_TO_DRAM) memcpy(ptr, src, size);
+      return reinterpret_cast<uint64_t>(ptr);
+    } else {
+      addCache(nullptr, src, size);
+      return reinterpret_cast<uint64_t>(src);
+    }
+  }
+
+  inline void PostDeviceCopy(void *dst,
+                             uint64_t block,
+                             size_t size,
+                             size_t flag) {
+    if (FLAGS_intel_hpu_runtime_dualcopy) {
+      synDmaDir dir = static_cast<synDmaDir>(flag);
+      void *ptr = reinterpret_cast<void *>(block);
+      if (dir == DRAM_TO_HOST) memcpy(dst, ptr, size);
+    }
+  }
+
+  inline void DeviceCopy(synStreamHandle stream,
+                         uint64_t src,
+                         uint64_t dst,
+                         size_t size,
+                         size_t flag,
+                         bool sync = true) {
+    synDmaDir dir = static_cast<synDmaDir>(flag);
+
+    synStatus status = synMemCopyAsync(stream, src, size, dst, dir);
+    PD_CHECK(status == synSuccess,
+             "[RUNTIME] synMemCopyAsync(",
+             dir,
+             ") failed = ",
+             status);
+    if (sync) {
+      status = synStreamSynchronize(stream);
+      PD_CHECK(status == synSuccess,
+               "[RUNTIME] synStreamSynchronize(",
+               stream,
+               ") failed = ",
+               status);
+    }
+  }
+
   C_Status Copy(const C_Device device,
                 void *dst,
                 const void *src,
@@ -250,83 +332,26 @@ class RuntimeManager {
         << "copy: flag = " << flag << ", size = " << size << ", src = " << src
         << ", dst = " << dst;
     synStatus status = synFail;
+
+    auto stream = GetBuiltinStream(flag);
+
     if (flag == 0) {
-      if (stream_h2d == nullptr) {
-        status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_h2d), deviceID, 0);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synStreamCreateGeneric() failed = ",
-                 status);
-
-        LOG_IF(INFO, FLAGS_intel_hpu_runtime_debug)
-            << "create builtin stream h2d" << stream_h2d;
-      }
-
-      // addCache(device, src, size);
-      void *ptr = getCachedHostMem(device, size);
-      memcpy(ptr, src, size);
-      status = synMemCopyAsync(stream_h2d,
-                               reinterpret_cast<uint64_t>(ptr),
-                               size,
-                               reinterpret_cast<uint64_t>(dst),
-                               HOST_TO_DRAM);
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync(HOST_TO_DRAM) failed = ",
-               status);
-      status = synStreamSynchronize(stream_h2d);
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize(stream_h2d) failed = ",
-               status);
-
+      auto block = PreDeviceCopy(src, size, flag);
+      DeviceCopy(stream, block, reinterpret_cast<uint64_t>(dst), size, flag);
     } else if (flag == 1) {
-      if (stream_d2h == nullptr) {
-        status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2h), deviceID, 0);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synStreamCreateGeneric() failed = ",
-                 status);
-      }
-
-      // addCache(device, dst, size);
-      void *ptr = getCachedHostMem(device, size);
-
-      status = synMemCopyAsync(stream_d2h,
-                               reinterpret_cast<uint64_t>(src),
-                               size,
-                               reinterpret_cast<uint64_t>(ptr),
-                               DRAM_TO_HOST);
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync() failed = ",
-               status);
-      status = synStreamSynchronize(stream_d2h);
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize() failed = ",
-               status);
-      memcpy(dst, ptr, size);
-
+      auto block = PreDeviceCopy(dst, size, flag);
+      DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                 reinterpret_cast<uint64_t>(src),
+                 block,
+                 size,
+                 flag);
+      PostDeviceCopy(dst, block, size, flag);
     } else if (flag == 2) {
-      if (stream_d2d == nullptr) {
-        status = synStreamCreateGeneric(
-            reinterpret_cast<synStreamHandle *>(&stream_d2d), deviceID, 0);
-        PD_CHECK(status == synSuccess,
-                 "[RUNTIME] synStreamCreateGeneric() failed = ",
-                 status);
-      }
-      status = synMemCopyAsync(stream_d2d,
-                               reinterpret_cast<uint64_t>(src),
-                               size,
-                               reinterpret_cast<uint64_t>(dst),
-                               DRAM_TO_DRAM);
-
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync() failed = ",
-               status);
-
-      status = synStreamSynchronize(stream_d2d);
-
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize() failed = ",
-               status);
+      DeviceCopy(stream,
+                 reinterpret_cast<uint64_t>(src),
+                 reinterpret_cast<uint64_t>(dst),
+                 size,
+                 flag);
     }
     return C_SUCCESS;
   }
@@ -342,48 +367,30 @@ class RuntimeManager {
         << ", stream = " << stream << ", src = " << src << ", dst = " << dst;
     synStatus status = synFail;
     if (flag == 0) {
-      // addCache(device, src, size);
-      void *ptr = getCachedHostMem(device, size);
-      memcpy(ptr, src, size);
-      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
-                               reinterpret_cast<uint64_t>(ptr),
-                               size,
-                               reinterpret_cast<uint64_t>(dst),
-                               HOST_TO_DRAM);
-
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync() failed = ",
-               status);
+      auto block = PreDeviceCopy(src, size, flag);
+      DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                 block,
+                 reinterpret_cast<uint64_t>(dst),
+                 size,
+                 flag,
+                 false);
 
     } else if (flag == 1) {
-      // addCache(device, dst, size);
-      void *ptr = getCachedHostMem(device, size);
-      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
-                               reinterpret_cast<uint64_t>(src),
-                               size,
-                               reinterpret_cast<uint64_t>(ptr),
-                               DRAM_TO_HOST);
-
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync() failed = ",
-               status);
-      // TO BE NOTICED, still sync mode copy due to memory map issue.
-      status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synStreamSynchronize() failed = ",
-               status);
-      memcpy(dst, ptr, size);
+      auto block = PreDeviceCopy(dst, size, flag);
+      DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                 reinterpret_cast<uint64_t>(src),
+                 block,
+                 size,
+                 flag);
+      PostDeviceCopy(dst, block, size, flag);
 
     } else if (flag == 2) {
-      status = synMemCopyAsync(reinterpret_cast<synStreamHandle>(stream),
-                               reinterpret_cast<uint64_t>(src),
-                               size,
-                               reinterpret_cast<uint64_t>(dst),
-                               DRAM_TO_DRAM);
-
-      PD_CHECK(status == synSuccess,
-               "[RUNTIME] synMemCopyAsync() failed = ",
-               status);
+      DeviceCopy(reinterpret_cast<synStreamHandle>(stream),
+                 reinterpret_cast<uint64_t>(src),
+                 reinterpret_cast<uint64_t>(dst),
+                 size,
+                 flag,
+                 false);
     }
     return C_SUCCESS;
   }

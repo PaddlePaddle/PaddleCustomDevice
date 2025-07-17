@@ -71,7 +71,16 @@ void ArgMinKernel(const Context& dev_ctx,
     } else if (axis_value < 0) {
       axis_value += rank;
     }
-    phi::Scalar reduce_axis(axis_value);
+
+    topsatenScalar_t reduce_axis;
+    if (axis_value == rank) {
+      reduce_axis.dtype = TOPSATEN_DATA_NONE;
+      reduce_axis.ival = 0;
+    } else {
+      reduce_axis.dtype = TOPSATEN_DATA_I64;
+      reduce_axis.ival = axis_value;
+    }
+
     LAUNCH_TOPSATENOP(
         topsatenArgmin, dev_ctx, output, x, reduce_axis, keepdims);
 
@@ -104,7 +113,16 @@ void ArgMaxKernel(const Context& dev_ctx,
     } else if (axis_value < 0) {
       axis_value += rank;
     }
-    phi::Scalar reduce_axis(axis_value);
+
+    topsatenScalar_t reduce_axis;
+    if (axis_value == rank) {
+      reduce_axis.dtype = TOPSATEN_DATA_NONE;
+      reduce_axis.ival = 0;
+    } else {
+      reduce_axis.dtype = TOPSATEN_DATA_I64;
+      reduce_axis.ival = axis_value;
+    }
+
     LAUNCH_TOPSATENOP(
         topsatenArgmax, dev_ctx, output, x, reduce_axis, keepdims);
 

@@ -220,7 +220,6 @@ class TestFusedMoeConsistency(unittest.TestCase):
             config,
             False,  # use_int4_w4a16
             None,  # block_shape
-            real_token_num=None,
         )
 
         intermediate_cache2 = paddle.empty(
@@ -252,9 +251,8 @@ class TestFusedMoeConsistency(unittest.TestCase):
             True,  # mul_routed_weight
             1,
             config,
-            False,  # use_int4_w4a16
+            None,  # use_int4_w4a16
             None,  # block_shape
-            real_token_num=None,
         )
 
         intermediate_cache3.reshape_([token_num, top_k, hidden_size])

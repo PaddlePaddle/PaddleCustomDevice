@@ -291,4 +291,10 @@ PHI_DEFINE_EXPORTED_int32(
     1,
     "Whether use the impMode of ixdnn for flash attention "
     ", default is CUDNN_FATTN_LEAST_MEM_MODE.");
+
+PHI_DEFINE_EXPORTED_int32(
+    ixdnn_causal_mode,
+    0,
+    "Whether use the causalMode of ixdnn for flash attention "
+    ", default is 0.");
 #endif

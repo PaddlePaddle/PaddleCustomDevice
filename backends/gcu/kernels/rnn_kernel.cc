@@ -467,12 +467,12 @@ void RnnKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-PD_REGISTER_PLUGIN_KERNEL(rnn,
-                          gcu,
-                          ALL_LAYOUT,
-                          custom_kernel::RnnKernel,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16,
-                          float) {
-  kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
-}
+// PD_REGISTER_PLUGIN_KERNEL(rnn,
+//                           gcu,
+//                           ALL_LAYOUT,
+//                           custom_kernel::RnnKernel,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16,
+//                           float) {
+//   kernel->OutputAt(1).SetDataType(phi::DataType::UINT8);
+// }

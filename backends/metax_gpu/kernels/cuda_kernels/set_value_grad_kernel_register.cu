@@ -1,7 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved.
-
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,21 +13,34 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/concat_grad_kernel.h"
+#include "paddle/phi/kernels/set_value_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(concat_grad,
+PD_CUSTOM_KERNEL_REGISTER(set_value_grad,
                           metax_gpu,
                           ALL_LAYOUT,
-                          phi::ConcatGradKernel,
+                          phi::SetValueGradKernel,
                           float,
-                          double,
-                          bool,
-                          int64_t,
                           int,
+                          int64_t,
+                          bool,
+                          int16_t,
                           uint8_t,
                           int8_t,
-                          int16_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+                          phi::dtype::complex<float>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(set_value_with_scalar_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::SetValueWithScalarGradKernel,
+                          float,
+                          int,
+                          int64_t,
+                          bool,
+                          int16_t,
+                          uint8_t,
+                          int8_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}

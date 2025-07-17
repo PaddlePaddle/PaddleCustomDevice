@@ -1,4 +1,4 @@
-// Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,21 +13,34 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/cast_kernel.h"
+#include "paddle/phi/kernels/squeeze_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(cast,
-                          iluvatar_gpu,
+PD_CUSTOM_KERNEL_REGISTER(squeeze,
+                          metax_gpu,
                           ALL_LAYOUT,
-                          phi::CastKernel,
+                          phi::SqueezeKernel,
+                          bool,
                           float,
                           int,
+                          int8_t,
                           int64_t,
                           int16_t,
-                          bool,
-                          int8_t,
                           uint8_t,
                           phi::dtype::float16,
-                          phi::dtype::complex<float>,
-                          phi::dtype::bfloat16) {
-  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
-}
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}
+
+PD_CUSTOM_KERNEL_REGISTER(squeeze_with_xshape,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::SqueezeWithXShapeKernel,
+                          bool,
+                          float,
+                          int,
+                          int8_t,
+                          int64_t,
+                          int16_t,
+                          uint8_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16,
+                          phi::dtype::complex<float>) {}

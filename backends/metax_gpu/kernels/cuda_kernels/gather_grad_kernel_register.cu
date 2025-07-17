@@ -13,10 +13,6 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/full_kernel.h"
-#include "paddle/phi/kernels/funcs/eigen/common.h"
-#include "paddle/phi/kernels/funcs/gather.cu.h"
-#include "paddle/phi/kernels/funcs/scatter.cu.h"
 #include "paddle/phi/kernels/gather_kernel.h"
 #include "paddle/phi/kernels/gpu/gather_grad_kernel.cu"  //NOLINT
 PD_CUSTOM_KERNEL_REGISTER(gather_grad,

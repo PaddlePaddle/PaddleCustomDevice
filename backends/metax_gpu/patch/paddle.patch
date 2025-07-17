@@ -59,142 +59,7 @@ index ef8f922ffd..8a835ea53d 100644
 +}  // namespace phi
 \ No newline at end of file
 
-diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
-index 0b60a78695..09ef60cb9b 100644
---- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
-+++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
-@@ -482,16 +482,45 @@ struct Bitfield<unsigned int> {
-                                                              int pos,
-                                                              int len) {
-     unsigned int ret;
--    asm("bfe.u32 %0, %1, %2, %3;" : "=r"(ret) : "r"(val), "r"(pos), "r"(len));
-+    
-+// >>>> PTX2CPP Success <<<<
-+{
-+{
-+int __msb=31;
-+unsigned int __pos=(pos)&0xff;
-+unsigned int __len=(len)&0xff;
-+int __sbit=0;
-+(ret)=0;
-+for(int i=0;i<=__msb;i++){
-+int __tempbit=(i<__len&&__pos+i<=__msb) ? ((val)>>(__pos+i)&1u) : __sbit;
-+(ret)+=__tempbit<<i;
-+}
-+}
-+}
-+
-     return ret;
-   }
- 
-   static __device__ __forceinline__ unsigned int SetBitfield(
-       unsigned int val, unsigned int to_insert, int pos, int len) {
-     unsigned int ret;
--    asm("bfi.b32 %0, %1, %2, %3, %4;"
--        : "=r"(ret)
--        : "r"(to_insert), "r"(val), "r"(pos), "r"(len));
-+    
-+// >>>> PTX2CPP Success <<<<
-+{
-+{
-+unsigned int __pos=(pos)&0xff;
-+unsigned int __len=(len)&0xff;
-+if(__pos>=32||__len==0)(ret)=(val);
-+else{
-+if(__len+__pos>=32)__len=32-__pos;
-+unsigned int __mask=((1u<<__len)-1u);
-+unsigned int __filed=((to_insert)&__mask)<<__pos;
-+__mask<<=__pos;
-+(ret)=((val) & ~__mask) | __filed;
-+}
-+}
-+}
-+
-     return ret;
-   }
- };
-@@ -502,7 +531,22 @@ struct Bitfield<uint64_t> {
-                                                          int pos,
-                                                          int len) {
-     uint64_t ret;
--    asm("bfe.u64 %0, %1, %2, %3;" : "=l"(ret) : "l"(val), "r"(pos), "r"(len));
-+    
-+// >>>> PTX2CPP Success <<<<
-+{
-+{
-+int __msb=63;
-+unsigned int __pos=(pos)&0xff;
-+unsigned int __len=(len)&0xff;
-+int __sbit=0;
-+(ret)=0;
-+for(int i=0;i<=__msb;i++){
-+int __tempbit=(i<__len&&__pos+i<=__msb) ? ((val)>>(__pos+i)&1u) : __sbit;
-+(ret)+=__tempbit<<i;
-+}
-+}
-+}
-+
-     return ret;
-   }
- 
-@@ -511,9 +555,23 @@ struct Bitfield<uint64_t> {
-                                                          int pos,
-                                                          int len) {
-     uint64_t ret;
--    asm("bfi.b64 %0, %1, %2, %3, %4;"
--        : "=l"(ret)
--        : "l"(to_insert), "l"(val), "r"(pos), "r"(len));
-+    
-+// >>>> PTX2CPP Success <<<<
-+{
-+{
-+unsigned int __pos=(pos)&0xff;
-+unsigned int __len=(len)&0xff;
-+if(__pos>=64||__len==0)(ret)=(val);
-+else{
-+if(__len+__pos>=64)__len=64-__pos;
-+unsigned long int __mask=((1ul<<__len)-1ul);
-+unsigned long int __filed=((to_insert)&__mask)<<__pos;
-+__mask<<=__pos;
-+(ret)=((val) & ~__mask) | __filed;
-+}
-+}
-+}
-+
-     return ret;
-   }
- };
-@@ -631,13 +689,23 @@ struct RadixTypeConfig<phi::dtype::bfloat16> {
- /*---------------------------Helper Functions------------------*/
- __device__ __forceinline__ int GetLaneId() {
-   int lane_id;
--  asm("mov.s32 %0, %%laneid;" : "=r"(lane_id));
-+  
-+// >>>> PTX2CPP Success <<<<
-+{
-+(lane_id)=(threadIdx.x&(warpSize-1));
-+}
-+
-   return lane_id;
- }
- 
- __device__ __forceinline__ unsigned GetLaneMaskLe() {
-   unsigned mask;
--  asm("mov.u32 %0, %%lanemask_le;" : "=r"(mask));
-+  
-+// >>>> PTX2CPP Success <<<<
-+{
-+(mask)=((((unsigned long long)(1)<<(threadIdx.x&(warpSize-1)))<<1)-1);
-+}
-+
-   return mask;
- }
- 
-@@ -1273,3 +1341,4 @@ bool SortTopk(const phi::GPUContext& ctx,
- }
- }  // namespace funcs
- }  // namespace phi
-+//
+
 diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
 index 29fa252e96..4ae72b0935 100644
 --- a/paddle/phi/kernels/gpu/gelu_funcs.h
@@ -500,3 +365,272 @@ index c5309e7e11..3328571380 100644
        return reinterpret_cast<nvjpegFunc>(p_##__name)(args...);    \
      }                                                              \
    };                                                               \
+diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
+index 8a9bc0fc2f..dc3917ce5c 100644
+--- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
++++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
+@@ -32,11 +32,11 @@ limitations under the License. */
+ #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
+ #include "paddle/phi/kernels/primitive/functor_primitives.h"
+ 
+-#define FINAL_MASK 0xffffffff
++#define FINAL_MASK 0xffffffffffffffffull
+ #ifdef PADDLE_WITH_HIP
+ #define WARP_SIZE 64
+ #else
+-#define WARP_SIZE 32
++#define WARP_SIZE 64
+ #endif
+ #define MAX_NUM_THREADS 1024
+ 
+@@ -200,21 +200,56 @@ __device__ __forceinline__ void AddTo(Pair<T> topk[],
+   for (int k = beam_size - 2; k >= 0; k--) {
+     if (largest) {
+       if (topk[k] < p) {
+-        topk[k + 1] = topk[k];
++        topk[k + 1].v = topk[k].v;
++        topk[k + 1].id = topk[k].id;
+       } else {
+-        topk[k + 1] = p;
++        topk[k + 1].v = p.v;
++        topk[k + 1].id = p.id;
+         return;
+       }
+     } else {
+       if (topk[k] > p) {
+-        topk[k + 1] = topk[k];
++        topk[k + 1].v = topk[k].v;
++        topk[k + 1].id = topk[k].id;
+       } else {
+-        topk[k + 1] = p;
++        topk[k + 1].v = p.v;
++        topk[k + 1].id = p.id;
+         return;
+       }
+     }
+   }
+-  topk[0] = p;
++  topk[0].v = p.v;
++  topk[0].id = p.id;
++}
++
++template <typename T>
++__device__ __forceinline__ void AddTo(Pair<T> topk[],
++                                      const Pair<T>& p,
++                                      int beam_size,
++                                      const bool& largest, const int offset) {
++  for (int k = beam_size - 2; k >= 0; k--) {
++    if (largest) {
++      if (topk[k + offset] < p) {
++        topk[k + 1 + offset].v = topk[k + offset].v;
++        topk[k + 1 + offset].id = topk[k + offset].id;
++      } else {
++        topk[k + 1 + offset].v = p.v;
++        topk[k + 1 + offset].id = p.id;
++        return;
++      }
++    } else {
++      if (topk[k + offset] > p) {
++        topk[k + 1 + offset].v = topk[k + offset].v;
++        topk[k + 1 + offset].id = topk[k + offset].id;
++      } else {
++        topk[k + 1 + offset].v = p.v;
++        topk[k + 1 + offset].id = p.id;
++        return;
++      }
++    }
++  }
++  topk[0 + offset].v = p.v;
++  topk[0 + offset].id = p.id;
+ }
+ 
+ template <typename T, int BlockSize>
+@@ -243,24 +278,24 @@ __device__ __forceinline__ void GetTopK(Pair<T> topk[],
+ template <typename T, int BlockSize>
+ __device__ __forceinline__ void GetTopK(Pair<T> topk[],
+                                         const T* src,
+-                                        int64_t idx,
+-                                        int64_t dim,
++                                        int idx,
++                                        int dim,
+                                         const Pair<T>& max,
+                                         int beam_size,
+-                                        const bool& largest) {
++                                        const bool& largest, const int offset) {
+   while (idx < dim) {
+     if (largest) {
+-      if (topk[beam_size - 1] < src[idx]) {
++      if (topk[beam_size - 1 + offset] < src[idx]) {
+         Pair<T> tmp(src[idx], idx);
+         if (tmp < max) {
+-          AddTo<T>(topk, tmp, beam_size, largest);
++          AddTo<T>(topk, tmp, beam_size, largest,offset);
+         }
+       }
+     } else {
+-      if (topk[beam_size - 1] > src[idx]) {
++      if (topk[beam_size - 1 + offset] > src[idx]) {
+         Pair<T> tmp(src[idx], idx);
+         if (tmp > max) {
+-          AddTo<T>(topk, tmp, beam_size, largest);
++          AddTo<T>(topk, tmp, beam_size, largest,offset);
+         }
+       }
+     }
+@@ -287,7 +322,9 @@ __device__ __forceinline__ void ThreadGetTopK(Pair<T> topk[],
+     } else {
+       for (int k = 0; k < MaxLength; k++) {
+         if (k < MaxLength - (*beam)) {
+-          topk[k] = topk[k + *beam];
++          topk[k].v = topk[k + *beam].v;
++          topk[k].id = topk[k + *beam].id;
++
+         } else {
+           if (largest) {
+             topk[k].set(-static_cast<T>(INFINITY), -1);
+@@ -297,8 +334,10 @@ __device__ __forceinline__ void ThreadGetTopK(Pair<T> topk[],
+         }
+       }
+       if (!(*is_empty)) {
++        const int offset =  MaxLength - *beam;
+         GetTopK<T, BlockSize>(
+-            topk + MaxLength - *beam, src, tid, dim, *max, length, largest);
++            topk, src, tid, dim, *max, length, largest, offset);
++            // topk + MaxLength - *beam, src, tid, dim, *max, length, largest);
+       }
+     }
+ 
+@@ -359,6 +398,8 @@ __device__ __forceinline__ void BlockReduce(Pair<T> shared_max[],
+       shared_max[wid] = input_now;
+     }
+     __syncthreads();
++    if(BlockSize > WARP_SIZE)
++    {
+     if (largest) {
+       input_now = (tid < BlockSize / WARP_SIZE)
+                       ? shared_max[lane]
+@@ -373,27 +414,32 @@ __device__ __forceinline__ void BlockReduce(Pair<T> shared_max[],
+       if (lane == 0) shared_max[0] = input_now;
+     }
+     __syncthreads();
+-
++    }
+     if (tid == 0) {
+       **topVal = input_now.v;
+       **topIds = input_now.id;
+       (*topVal)++;
+       (*topIds)++;
+     }
++    if (--(*k) == 0) break;
+     int tid_max = shared_max[0].id % BlockSize;
+     if (tid == tid_max) {
+       (*beam)++;
+       if (*beam < MaxLength) {
+-        topk[0] = topk[*beam];
++        topk[0].v = topk[*beam].v;
++        topk[0].id = topk[*beam].id;
+       }
+     }
+-    if (--(*k) == 0) break;
++    // if (--(*k) == 0) break;
++    unsigned long long mask = 0ull;
+ 
+-    unsigned mask = 0u;
++    // unsigned mask = 0u;
+     CREATE_SHFL_MASK(mask, true);
+     if (tid_max / WARP_SIZE == wid) {
+-      if (phi::backends::gpu::CudaShuffleSync(
+-              mask, *beam, tid_max % WARP_SIZE, WARP_SIZE) == MaxLength)
++      // if (phi::backends::gpu::CudaShuffleSync(
++      //         mask, *beam, tid_max % WARP_SIZE, WARP_SIZE) == MaxLength)
++    if (phi::backends::gpu::CudaShuffleSync(
++                 mask, *beam, tid_max % WARP_SIZE, WARP_SIZE) == MaxLength)
+         break;
+     }
+   }
+@@ -482,16 +528,17 @@ struct Bitfield<unsigned int> {
+                                                              int pos,
+                                                              int len) {
+     unsigned int ret;
+-    asm("bfe.u32 %0, %1, %2, %3;" : "=r"(ret) : "r"(val), "r"(pos), "r"(len));
++  ret = (static_cast<unsigned int>(val) << (32 - pos - len)) >> (32 - len);
++
++
+     return ret;
+   }
+ 
+   static __device__ __forceinline__ unsigned int SetBitfield(
+       unsigned int val, unsigned int to_insert, int pos, int len) {
+     unsigned int ret;
+-    asm("bfi.b32 %0, %1, %2, %3, %4;"
+-        : "=r"(ret)
+-        : "r"(to_insert), "r"(val), "r"(pos), "r"(len));
++    
++    ret = (static_cast<unsigned int>(val) << (32 - pos - len)) >> (32 - len);
+     return ret;
+   }
+ };
+@@ -502,7 +549,9 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-    asm("bfe.u64 %0, %1, %2, %3;" : "=l"(ret) : "l"(val), "r"(pos), "r"(len));
++    
++
++    ret = (static_cast<uint64_t>(val) << (64 - pos - len)) >> (64 - len);
+     return ret;
+   }
+ 
+@@ -511,9 +560,9 @@ struct Bitfield<uint64_t> {
+                                                          int pos,
+                                                          int len) {
+     uint64_t ret;
+-    asm("bfi.b64 %0, %1, %2, %3, %4;"
+-        : "=l"(ret)
+-        : "l"(to_insert), "l"(val), "r"(pos), "r"(len));
++    
++  ret = (static_cast<uint64_t>(val) << (64 - pos - len)) >> (64 - len);
++
+     return ret;
+   }
+ };
+@@ -631,14 +680,20 @@ struct RadixTypeConfig<phi::dtype::bfloat16> {
+ /*---------------------------Helper Functions------------------*/
+ __device__ __forceinline__ int GetLaneId() {
+   int lane_id;
+-  asm("mov.s32 %0, %%laneid;" : "=r"(lane_id));
+-  return lane_id;
++  
++// // >>>> PTX2CPP Success <<<<
++// {
++// (lane_id)=(threadIdx.x&(warpSize-1));
++// }
++  return ::__lane_id();
++  // return lane_id;
+ }
+ 
+ __device__ __forceinline__ unsigned GetLaneMaskLe() {
+   unsigned mask;
+-  asm("mov.u32 %0, %%lanemask_le;" : "=r"(mask));
+-  return mask;
++
++  return ((uint64_t(1) << ::__lane_id()) << 1) - 1;
++  // return mask;
+ }
+ 
+ template <typename T, bool KillDependency, class Function>
+@@ -885,7 +940,8 @@ __global__ void GatherKthValue(const T* input,
+ 
+   // 1. Find the k-th value
+   T kth_value = static_cast<T>(0);
+-  RadixSearch<T, RadixTypeConfig<T>::RadixType, IndexType, false>(
++  // RadixSearch<T, RadixTypeConfig<T>::RadixType, IndexType, false>(
++  RadixSearch<T, typename RadixTypeConfig<T>::RadixType, false>(
+       cur_input, k, num_cols, shared_mem, &kth_value);
+ 
+   __shared__ int64_t block_min_idx;
+@@ -1318,3 +1374,4 @@ bool SortTopk(const phi::GPUContext& dev_ctx,
+ }
+ }  // namespace funcs
+ }  // namespace phi
++//

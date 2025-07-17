@@ -13,8 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/fill_kernel.h"
+#include "paddle/phi/kernels/impl/fill_kernel_impl.h"
 
 PD_CUSTOM_KERNEL_REGISTER(fill,
                           metax_gpu,

@@ -14,13 +14,8 @@
 // limitations under the License.
 
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/reduce_amax_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_amin_grad_kernel.h"
+#include "paddle/phi/kernels/gpu/reduce_kernel.cu"  // NOLINT
 #include "paddle/phi/kernels/reduce_kernel.h"
-#include "paddle/phi/kernels/reduce_max_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_mean_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_min_grad_kernel.h"
-#include "paddle/phi/kernels/reduce_sum_grad_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(reduce,
                           metax_gpu,

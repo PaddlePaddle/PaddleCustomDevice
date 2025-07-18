@@ -30,7 +30,7 @@ class Test_Greater_Equal_Op_Fp16(unittest.TestCase):
             limit = paddle.to_tensor([3, 2], dtype="float16")
             out = paddle.greater_equal(x=label, y=limit)
             if core.is_compiled_with_cuda():
-                place = paddle.CustomPlace("iluvatar_gpu", 0)
+                place = paddle.CustomPlace("metax_gpu", 0)
                 exe = static.Executor(place)
                 (res,) = exe.run(fetch_list=[out])
                 self.assertEqual((res == np.array([True, True])).all(), True)

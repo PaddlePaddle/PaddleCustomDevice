@@ -23,6 +23,7 @@ PD_CUSTOM_KERNEL_REGISTER(c_embedding_grad,
                           phi::CEmbeddingGradKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16,
                           phi::dtype::complex<float>,
                           phi::dtype::complex<double>) {}

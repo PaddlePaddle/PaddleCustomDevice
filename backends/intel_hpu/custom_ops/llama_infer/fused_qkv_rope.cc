@@ -26,6 +26,7 @@ struct FusedQkvRopeParams {
   int num_head;
   int kv_num_head;
 
+  bool use_neox_style = true;
   bool transpose = true;
   bool with_qkv_biases = false;
   bool use_fp8 = false;
@@ -187,7 +188,9 @@ class FusedQkvRope : public HpuFusedOperator {
 
     ns_RoPESt2::ParamsV2 ropeParams;
     ropeParams.offset = 0;
-    ropeParams.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+    ropeParams.mode = params.use_neox_style
+                          ? ROTARY_POS_EMBEDDING_MODE_BLOCKWISE
+                          : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
     std::vector<synTensor> inputs_k;
@@ -239,7 +242,8 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
                         const phi::Scalar& head_dim,
                         const phi::Scalar& num_head,
                         const phi::Scalar& total_batch,
-                        const phi::Scalar& transpose) {
+                        const phi::Scalar& transpose,
+                        const phi::Scalar& use_neox_style) {
   int total_batch_ = total_batch.to<int>();
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
   int bsz_seqlen = src_dims[0];
@@ -255,6 +259,7 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
   int head_dim_ = head_dim.to<int>();
   int num_head_ = num_head.to<int>();
   bool transpose_ = transpose.to<bool>();
+  bool use_neox_style_ = use_neox_style.to<bool>();
   const int64_t fused_hidden_size =
       transpose_ ? qkv_weights_dims[0] : qkv_weights_dims[1];
   const int kv_num_head =
@@ -297,6 +302,8 @@ void FusedQkvRopeKernel(const Context& dev_ctx,
     params.num_head = num_head_;
     params.kv_num_head = kv_num_head;
     params.transpose = transpose_;
+    params.use_neox_style = use_neox_style_;
+
     if (qkv_biases) {
       params.with_qkv_biases = true;
     }
@@ -333,7 +340,8 @@ void CallFusedQkvRopeKernel(
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& total_batch,
-    const phi::Scalar& transpose) {
+    const phi::Scalar& transpose,
+    const phi::Scalar& use_neox_style) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedQkvRopeKernel<phi::dtype::float16>(dev_ctx,
                                                            src,
@@ -347,7 +355,8 @@ void CallFusedQkvRopeKernel(
                                                            head_dim,
                                                            num_head,
                                                            total_batch,
-                                                           transpose);
+                                                           transpose,
+                                                           use_neox_style);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedQkvRopeKernel<phi::dtype::bfloat16>(dev_ctx,
                                                             src,
@@ -361,7 +370,8 @@ void CallFusedQkvRopeKernel(
                                                             head_dim,
                                                             num_head,
                                                             total_batch,
-                                                            transpose);
+                                                            transpose,
+                                                            use_neox_style);
   } else {
     throw std::runtime_error("Unsupported data type for FusedQkvRopeKernel");
   }
@@ -375,7 +385,8 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
     int head_dim,
     int num_head,
     int total_batch,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -422,7 +433,8 @@ std::vector<paddle::Tensor> FusedQkvRopeImpl(
                          phi::Scalar(head_dim),
                          phi::Scalar(num_head),
                          phi::Scalar(total_batch),
-                         phi::Scalar(transpose));
+                         phi::Scalar(transpose),
+                         phi::Scalar(use_neox_style));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
 }
 
@@ -434,7 +446,8 @@ std::vector<std::vector<int64_t>> FusedQkvRopeShape(
     int head_dim,
     int num_head,
     int total_batch,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   int64_t bsz = src_shape[0];
   int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size =
@@ -459,7 +472,8 @@ PD_BUILD_OP(fused_qkv_rope)
     .Attrs({"head_dim: int",
             "num_head: int",
             "total_batch: int",
-            "transpose: bool"})
+            "transpose: bool",
+            "use_neox_style: bool"})
     .SetKernelFn(PD_KERNEL(FusedQkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedQkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedQkvRopeDtype));
@@ -474,7 +488,8 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
     int head_dim,
     int num_head,
     int total_batch,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -528,7 +543,8 @@ std::vector<paddle::Tensor> FusedFp8QkvRopeImpl(
                          phi::Scalar(head_dim),
                          phi::Scalar(num_head),
                          phi::Scalar(total_batch),
-                         phi::Scalar(transpose));
+                         phi::Scalar(transpose),
+                         phi::Scalar(use_neox_style));
   return {paddle::Tensor(query_states), paddle::Tensor(key_value_states)};
 }
 
@@ -542,7 +558,8 @@ std::vector<std::vector<int64_t>> FusedFp8QkvRopeShape(
     int head_dim,
     int num_head,
     int total_batch,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   int64_t bsz = src_shape[0];
   int64_t seq_len = bsz / total_batch;
   int64_t fused_hidden_size =
@@ -562,7 +579,7 @@ std::vector<paddle::DataType> FusedFp8QkvRopeDtype(
   return {src_dtype, src_dtype};
 }
 
-PD_BUILD_OP(fused_fp8_qkv_rope_t)
+PD_BUILD_OP(fused_fp8_qkv_rope)
     .Inputs({"src",
              "qkv_weights",
              paddle::Optional("qkv_biases"),
@@ -573,7 +590,8 @@ PD_BUILD_OP(fused_fp8_qkv_rope_t)
     .Attrs({"head_dim: int",
             "num_head: int",
             "total_batch: int",
-            "transpose: bool"})
+            "transpose: bool",
+            "use_neox_style: bool"})
     .SetKernelFn(PD_KERNEL(FusedFp8QkvRopeImpl))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedFp8QkvRopeShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedFp8QkvRopeDtype));

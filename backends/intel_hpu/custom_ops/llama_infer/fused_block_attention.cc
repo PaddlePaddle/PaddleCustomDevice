@@ -31,6 +31,7 @@ struct FusedBlockAttentionParams {
   int num_head;
   int num_kv_head;
 
+  bool use_neox_style = true;
   bool with_qkv_biases = false;
   bool transpose = true;
 };
@@ -218,7 +219,9 @@ class FusedMHABlockAttention : public HpuFusedOperator {
 
     ns_RoPESt2::ParamsV2 ropeParams;
     ropeParams.offset = 0;
-    ropeParams.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+    ropeParams.mode = params.use_neox_style
+                          ? ROTARY_POS_EMBEDDING_MODE_BLOCKWISE
+                          : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
     std::vector<synTensor> inputs_k;
@@ -916,7 +919,9 @@ class FusedGQABlockAttention : public HpuFusedOperator {
 
     ns_RoPESt2::ParamsV2 ropeParams;
     ropeParams.offset = 0;
-    ropeParams.mode = ROTARY_POS_EMBEDDING_MODE_BLOCKWISE;
+    ropeParams.mode = params.use_neox_style
+                          ? ROTARY_POS_EMBEDDING_MODE_BLOCKWISE
+                          : ROTARY_POS_EMBEDDING_MODE_PAIRWISE;
     AddNodeRope<T>(inputs_q, outputs_q, ropeParams, guid_ + "rope_q");
 
     std::vector<synTensor> inputs_k;
@@ -1495,7 +1500,8 @@ void FusedBlockAttentionKernel(
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
-    const phi::Scalar& transpose) {
+    const phi::Scalar& transpose,
+    const phi::Scalar& use_neox_style) {
   std::vector<int64_t> src_dims = phi::vectorize<int64_t>(src.dims());
   std::vector<int64_t> qkv_weights_dims =
       phi::vectorize<int64_t>(qkv_weights.dims());
@@ -1503,6 +1509,7 @@ void FusedBlockAttentionKernel(
   int head_dim_ = head_dim.to<int>();
   int num_head_ = num_head.to<int>();
   bool transpose_ = transpose.to<bool>();
+  bool use_neox_style_ = use_neox_style.to<bool>();
   const int64_t fused_hidden_size =
       transpose_ ? qkv_weights_dims[0] : qkv_weights_dims[1];
   const int num_kv_head =
@@ -1553,6 +1560,7 @@ void FusedBlockAttentionKernel(
     params.index_reduce_params.mode = INDEX_REDUCE_AMAX;
     params.index_reduce_params.include_self = true;
     params.index_reduce_params.axis = 0;
+    params.use_neox_style = use_neox_style_;
     params.transpose = transpose_;
     params.head_dim = head_dim_;
     params.num_head = num_head_;
@@ -1603,7 +1611,8 @@ void CallFusedBlockAttentionKernel(
     const phi::Scalar& head_dim,
     const phi::Scalar& num_head,
     const phi::Scalar& scaling_factor,
-    const phi::Scalar& transpose) {
+    const phi::Scalar& transpose,
+    const phi::Scalar& use_neox_style) {
   if (src.dtype() == phi::DataType::FLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::float16>(
         dev_ctx,
@@ -1624,7 +1633,8 @@ void CallFusedBlockAttentionKernel(
         head_dim,
         num_head,
         scaling_factor,
-        transpose);
+        transpose,
+        use_neox_style);
   } else if (src.dtype() == phi::DataType::BFLOAT16) {
     custom_kernel::FusedBlockAttentionKernel<phi::dtype::bfloat16>(
         dev_ctx,
@@ -1645,7 +1655,8 @@ void CallFusedBlockAttentionKernel(
         head_dim,
         num_head,
         scaling_factor,
-        transpose);
+        transpose,
+        use_neox_style);
   } else {
     throw std::runtime_error(
         "Unsupported data type for FusedBlockAttentionKernel");
@@ -1669,7 +1680,8 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
     int head_dim,
     int num_head,
     float scaling_factor,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   auto dev_ctx = static_cast<const phi::CustomContext*>(
       paddle::experimental::DeviceContextPool::Instance().Get(src.place()));
   auto src_tensor = static_cast<const phi::DenseTensor*>(src.impl().get());
@@ -1730,7 +1742,8 @@ std::vector<paddle::Tensor> FusedBlockAttentionForward(
                                 phi::Scalar(head_dim),
                                 phi::Scalar(num_head),
                                 phi::Scalar(scaling_factor),
-                                phi::Scalar(transpose));
+                                phi::Scalar(transpose),
+                                phi::Scalar(use_neox_style));
   return {paddle::Tensor(out_linear)};
 }
 
@@ -1751,7 +1764,8 @@ std::vector<std::vector<int64_t>> FusedBlockAttentionShape(
     int head_dim,
     int num_head,
     float scaling_factor,
-    bool transpose) {
+    bool transpose,
+    bool use_neox_style) {
   int64_t batch_size = src_shape[0];
   int64_t out_features = linear_weights_shape[1];
   return {{batch_size, 1, out_features}};
@@ -1792,7 +1806,8 @@ PD_BUILD_OP(fused_block_attention)
     .Attrs({"head_dim: int",
             "num_head: int",
             "scaling_factor: float",
-            "transpose: bool"})
+            "transpose: bool",
+            "use_neox_style: bool"})
     .SetKernelFn(PD_KERNEL(FusedBlockAttentionForward))
     .SetInferShapeFn(PD_INFER_SHAPE(FusedBlockAttentionShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(FusedBlockAttentionDtype));

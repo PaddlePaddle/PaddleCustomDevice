@@ -211,6 +211,7 @@ def prepare_block_metadata_ref(
 def rebuild_padding_v2(
     tmp_out,
     batch_ids,
+    total_batch,
     seq_lens_encoder,
     is_prompt=None,
 ):
@@ -219,7 +220,7 @@ def rebuild_padding_v2(
     output_data = paddle.zeros((max_batch, dim_emb))
 
     if is_prompt is True:  # context
-        tmp_out = tmp_out.reshape([max_batch, -1, dim_emb])
+        tmp_out = tmp_out.reshape([total_batch, -1, dim_emb])
         j = 0
         for i in range(max_batch):
             if seq_lens_encoder[i].item() > 0:

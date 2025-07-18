@@ -15,7 +15,7 @@
 #pragma once
 
 #include "kernels/funcs/quant_dequant.h"
-#include "kernels/metax_kerenl/mmha_util.cu.h"
+#include "kernels/metax_kernel/mmha_util.cu.h"
 #include "paddle/common/flags.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/memory_utils.h"

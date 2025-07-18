@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "kernels/flash_attn_utils.h"
-#include "kernels/metax_kerenl/block_attn.h"
+#include "kernels/metax_kernel/block_attn.h"
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"

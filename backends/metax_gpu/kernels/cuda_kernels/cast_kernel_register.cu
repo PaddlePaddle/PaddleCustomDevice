@@ -16,7 +16,7 @@
 #include "paddle/phi/kernels/cast_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(cast,
-                          iluvatar_gpu,
+                          metax_gpu,
                           ALL_LAYOUT,
                           phi::CastKernel,
                           float,

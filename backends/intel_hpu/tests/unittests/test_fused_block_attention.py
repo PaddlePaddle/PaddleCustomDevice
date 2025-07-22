@@ -269,10 +269,21 @@ class TestFusedBlockAttention:
             scaling_factor=self.head_dim**-0.5,
         )
 
-        out_linear_out = paddlenlp_ops.fused_block_attention(
+        src, self.residual_test = paddle.incubate.nn.functional.fused_rms_norm(
             self.src,
-            self.residual_test,
-            self.new_rope.transpose([0, 1, 3, 2, 4]),
+            norm_weight=self.ln_scales,
+            norm_bias=None,
+            epsilon=self.epsilon,
+            begin_norm_axis=2,
+            bias=None,
+            residual=self.residual_test,
+        )
+
+        b, s, h = src.shape
+        src = src.reshape([-1, h])
+        out_linear_out = paddlenlp_ops.fused_block_attention(
+            src,
+            self.new_rope.transpose([0, 1, 3, 2, 4]).squeeze(2),
             self.k_cache_test,
             self.v_cache_test,
             self.block_groups,
@@ -281,15 +292,15 @@ class TestFusedBlockAttention:
             self.block_bias,
             self.block_indices,
             self.block_offsets,
-            self.ln_scales,
             self.qkv_weights,
             self.qkv_biases,
             self.linear_weights,
-            self.epsilon,
             self.head_dim,
             self.num_head,
             scaling_factor=self.head_dim**-0.5,
-        )
+            transpose=True,
+            use_neox_style=True,
+        ).reshape([b, -1, h])
 
         assert paddle.allclose(
             out_linear_out_ref.to("cpu").to("float32"),

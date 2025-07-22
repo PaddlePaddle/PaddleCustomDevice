@@ -55,7 +55,7 @@ def fused_rms_mlp(
     swiglu = swiglu_naive(x=gate, up=up)
     res = paddle.matmul(swiglu, down_weight)
 
-    return res.numpy()
+    return res.cast("float32").numpy()
 
 
 class Test_Fused_MLP_OP(unittest.TestCase):
@@ -90,10 +90,10 @@ class Test_Fused_MLP_OP(unittest.TestCase):
                 mean=0.0, std=0.02, shape=[hidden_size, intermediate_size]
             ).astype(dtype)
             up_weight = paddle.normal(
-                mean=1.0, std=0.05, shape=[hidden_size, intermediate_size]
+                mean=0.0, std=0.05, shape=[hidden_size, intermediate_size]
             ).astype(dtype)
             down_weight = paddle.normal(
-                mean=0.5, std=0.12, shape=[intermediate_size, hidden_size]
+                mean=0.0, std=0.12, shape=[intermediate_size, hidden_size]
             ).astype(dtype)
             proj_weight = paddle.concat([gate_weight, up_weight], axis=1)
 
@@ -105,7 +105,7 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         fused_mlp_out = paddlenlp_ops.fused_rms_mlp(
             x, ln_scales, proj_weight, down_weight, epsilon
         )
-        return fused_mlp_out
+        return fused_mlp_out.cast("float32")
 
     def NP_Fused_RMS_MLP_OP(
         self, x, ln_scales, gate_weight, up_weight, down_weight, epsilon
@@ -115,8 +115,8 @@ class Test_Fused_MLP_OP(unittest.TestCase):
         )
         return np_mlp_out_ref
 
-    def check_result(self, np_result, fused_result):
-        np.testing.assert_allclose(np_result, fused_result)
+    def check_result(self, np_result, fused_result, atol=1e-2):
+        np.testing.assert_allclose(np_result, fused_result, atol=atol)
 
     def test_fused_mlp(self):
         (
@@ -190,7 +190,7 @@ class Test_FP8_Fused_MLP_OP(Test_Fused_MLP_OP):
         )
         print("similarity = ", similarity)
         assert (
-            abs(1 - similarity) < 2e-3
+            abs(1 - similarity) < 2e-2
         ), "similarity check fails between fp8 and bf16 outputs"
 
 

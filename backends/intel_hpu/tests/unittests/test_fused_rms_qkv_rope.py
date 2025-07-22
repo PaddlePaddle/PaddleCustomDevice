@@ -94,7 +94,7 @@ class TestFused_RMS_QKV_Rope_OpFP16(unittest.TestCase):
         hidden_size = num_heads * head_dim
 
         src = paddle.rand([batch_size, seq_length, hidden_size], dtype=paddle.bfloat16)
-        ln_scales = paddle.rand([hidden_size], dtype=paddle.bfloat16)
+        ln_scales = paddle.randn([hidden_size], dtype=paddle.bfloat16)
         qkv_weights = paddle.rand(
             [hidden_size * 3, hidden_size], dtype=paddle.float32
         ).to(paddle.bfloat16)

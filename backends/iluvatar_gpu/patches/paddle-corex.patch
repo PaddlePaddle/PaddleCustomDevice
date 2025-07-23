@@ -1,42 +1,41 @@
-From 23d11cd970ef7b9067edefcb979a4f298a44709a Mon Sep 17 00:00:00 2001
+From 76e456a8fe536f6095a236ebb27c0463f32a9e4b Mon Sep 17 00:00:00 2001
 From: "tianyu.zhou" <tianyu.zhou@iluvatar.com>
 Date: Mon, 26 May 2025 14:21:47 +0800
-Subject: [PATCH] Adapt for Iluvatar 0709.
+Subject: [PATCH] Adapt for Iluvatar 0723.
 
 ---
  CMakeLists.txt                                |  2 +-
  .../operators/collective/recv_v2_op.cu.cc     |  2 +-
  .../operators/collective/send_v2_op.cu.cc     |  2 +-
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
- paddle/phi/backends/dynload/cudnn.cc          |  4 ++++
+ paddle/phi/backends/dynload/cudnn.cc          |  4 +++
  paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
  paddle/phi/backends/dynload/cusolver.h        |  2 --
- .../backends/gpu/cuda/cuda_device_function.h  |  4 ++--
- paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 ++--
+ .../backends/gpu/cuda/cuda_device_function.h  |  4 +--
+ paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +--
  paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
  paddle/phi/backends/gpu/cuda/cuda_helper.h    |  2 +-
  paddle/phi/backends/gpu/cuda/cudnn_helper.h   |  2 +-
- paddle/phi/backends/gpu/gpu_launch_config.h   | 17 ++++++++++---
- paddle/phi/backends/gpu/gpu_primitives.h      | 24 +++++++++++++++++++
+ paddle/phi/backends/gpu/gpu_launch_config.h   | 16 +++++++++---
+ paddle/phi/backends/gpu/gpu_primitives.h      | 25 +++++++++++++++++++
  paddle/phi/backends/gpu/gpu_types.h           |  5 ++++
  paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
  paddle/phi/core/enforce.h                     |  6 ++++-
  paddle/phi/core/utils/data_type.h             |  2 +-
  paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 ++
- paddle/phi/kernels/funcs/segmented_array.h    |  8 +++++++
+ paddle/phi/kernels/funcs/segmented_array.h    |  8 ++++++
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
- paddle/phi/kernels/gpu/c_embedding_kernel.cu  |  2 +-
- paddle/phi/kernels/gpu/elementwise_grad.h     |  4 ++++
+ paddle/phi/kernels/gpu/elementwise_grad.h     |  4 +++
  .../phi/kernels/gpu/layer_norm_grad_kernel.cu |  2 +-
  paddle/phi/kernels/gpu/layer_norm_kernel.cu   |  2 +-
  .../phi/kernels/gpu/rms_norm_grad_kernel.cu   |  2 +-
- .../kernels/primitive/compute_primitives.h    | 24 +++++++++----------
+ .../kernels/primitive/compute_primitives.h    | 24 +++++++++---------
  paddle/phi/kernels/reduce_sum_kernel.cc       |  2 ++
  paddle/phi/kernels/shape_kernel.cc            |  2 ++
  paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
- 32 files changed, 115 insertions(+), 35 deletions(-)
+ 31 files changed, 114 insertions(+), 34 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index b2c4e6a650..c51f3df1f0 100755
@@ -106,7 +105,7 @@ index c474a1a417..749073ce38 100644
    std::call_once(cudnn_dso_flag,
                   []() { cudnn_dso_handle = GetCUDNNDsoHandle(); });
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
-index 7a5450c349..42975e11cf 100644
+index 7a5450c349..329fff1f73 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
 +++ b/paddle/phi/backends/dynload/cudnn.h
 @@ -229,6 +229,15 @@ CUDNN_DNN_ROUTINE_EACH_AFTER_TWO_R7_REMOVED_IN_E9(
@@ -114,19 +113,19 @@ index 7a5450c349..42975e11cf 100644
  CUDNN_DNN_ROUTINE_EACH_R9(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
  #endif
 +
-+#define CUDNN_DNN_ROUTINE_EACH_ATTN(__macro)               \
-+  __macro(cudnnFlashAttnForward);                          \
-+  __macro(cudnnCreateFlashAttnDescriptor);                 \
-+  __macro(cudnnGetFlashAttnBuffers);                       \
-+  __macro(cudnnDestroyFlashAttnDescriptor);                \
-+  __macro(cudnnFlashAttnBackward);                         \
++#define CUDNN_DNN_ROUTINE_EACH_ATTN(__macro) \
++  __macro(cudnnFlashAttnForward);            \
++  __macro(cudnnCreateFlashAttnDescriptor);   \
++  __macro(cudnnGetFlashAttnBuffers);         \
++  __macro(cudnnDestroyFlashAttnDescriptor);  \
++  __macro(cudnnFlashAttnBackward);           \
 +  __macro(cudnnSetTensorNdDescriptor_lowerbound_2);
 +CUDNN_DNN_ROUTINE_EACH_ATTN(DECLARE_DYNAMIC_LOAD_CUDNN_WRAP)
  }  // namespace dynload
  }  // namespace phi
  
 diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
-index eceea9495f..cbf8a843bb 100644
+index d580751fe4..42a261bdfd 100644
 --- a/paddle/phi/backends/dynload/cusolver.h
 +++ b/paddle/phi/backends/dynload/cusolver.h
 @@ -77,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
@@ -137,7 +136,7 @@ index eceea9495f..cbf8a843bb 100644
    __macro(cusolverDnSorgqr_bufferSize);   \
    __macro(cusolverDnDorgqr_bufferSize);   \
    __macro(cusolverDnSormqr_bufferSize);   \
-@@ -104,7 +103,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
+@@ -106,7 +105,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
    __macro(cusolverDnDgeqrf);              \
    __macro(cusolverDnCgeqrf);              \
    __macro(cusolverDnZgeqrf);              \
@@ -229,7 +228,7 @@ index 99b8fa120e..beba409fcc 100644
  class CudnnDataType<phi::dtype::bfloat16> {
   public:
 diff --git a/paddle/phi/backends/gpu/gpu_launch_config.h b/paddle/phi/backends/gpu/gpu_launch_config.h
-index 184f8444f0..7e12a31518 100644
+index 67b22088bc..11df733373 100644
 --- a/paddle/phi/backends/gpu/gpu_launch_config.h
 +++ b/paddle/phi/backends/gpu/gpu_launch_config.h
 @@ -37,6 +37,10 @@
@@ -243,7 +242,7 @@ index 184f8444f0..7e12a31518 100644
  namespace phi {
  namespace backends {
  namespace gpu {
-@@ -190,6 +194,9 @@ inline GpuLaunchConfig GetGpuLaunchConfig2D(const phi::GPUContext& context,
+@@ -190,6 +194,9 @@ inline GpuLaunchConfig GetGpuLaunchConfig2D(const phi::GPUContext& dev_ctx,
    int grid_x = std::min<int64_t>(DivUp<int64_t>(x_dim, block_cols), max_blocks);
    int grid_y = std::min<int64_t>(max_blocks / grid_x,
                                   std::max<int64_t>(y_dim / block_rows, 1));
@@ -253,42 +252,40 @@ index 184f8444f0..7e12a31518 100644
  
    config.block_per_grid = dim3(grid_x, grid_y, 1);
    return config;
-@@ -217,12 +224,16 @@ inline GpuLaunchConfig GetGpuLaunchConfig3D(const phi::GPUContext& context,
-   int block_z = std::min(num_img, max_threads / block_x / block_y);
- 
-   std::array<unsigned int, 3> max_grid_dim = context.GetCUDAMaxGridDimSize();
--  unsigned int grid_x =
-+  int grid_x =
+@@ -219,10 +226,13 @@ inline GpuLaunchConfig GetGpuLaunchConfig3D(const phi::GPUContext& dev_ctx,
+   std::array<unsigned int, 3> max_grid_dim = dev_ctx.GetCUDAMaxGridDimSize();
+   unsigned int grid_x =
        std::min(max_grid_dim[0], DivUp<unsigned int>(width, block_x));
 -  unsigned int grid_y =
-+  int grid_y =
-       std::min(max_grid_dim[1], DivUp<unsigned int>(height, block_y));
+-      std::min(max_grid_dim[1], DivUp<unsigned int>(height, block_y));
 -  unsigned int grid_z =
++  int grid_y = std::min(max_grid_dim[1], DivUp<unsigned int>(height, block_y));
 +  int grid_z =
        std::min(max_grid_dim[2], DivUp<unsigned int>(num_img, block_z * 4));
-+  #ifdef PADDLE_WITH_COREX
-+    grid_y = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_y, 1));
-+    grid_z = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_z, 1));
-+  #endif
++#ifdef PADDLE_WITH_COREX
++  grid_y = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_y, 1));
++  grid_z = std::min(grid_y, std::max(MAX_YZ_DIM_SIZE / block_z, 1));
++#endif
  
-   const int capability = context.GetComputeCapability();
+   const int capability = dev_ctx.GetComputeCapability();
    GpuLaunchConfig config;
 diff --git a/paddle/phi/backends/gpu/gpu_primitives.h b/paddle/phi/backends/gpu/gpu_primitives.h
-index 29c2566804..9604ce5b3b 100644
+index cb2f45db4b..71830f5450 100644
 --- a/paddle/phi/backends/gpu/gpu_primitives.h
 +++ b/paddle/phi/backends/gpu/gpu_primitives.h
-@@ -134,13 +134,37 @@ CUDA_ATOMIC_WRAPPER(Add, int16_t) {
+@@ -134,13 +134,38 @@ CUDA_ATOMIC_WRAPPER(Add, int16_t) {
  // It because unsigned long long int is not necessarily uint64_t
  USE_CUDA_ATOMIC(Add, unsigned long long int);  // NOLINT
  
 +__device__ int device_mutex = 1;
-+static inline __device__ unsigned long long int
-+atomicAdd64(unsigned long long int *address, unsigned long long int val) {
-+  unsigned long long int old = *address;
++static inline __device__ unsigned long long int atomicAdd64(  // NOLINT
++    unsigned long long int *address,                          // NOLINT
++    unsigned long long int val) {                             // NOLINT
++  unsigned long long int old = *address;                      // NOLINT
 +
 +  int waiting = 1;
 +  while (waiting) {
-+    if (atomicExch(&device_mutex, 0)) { // getting global mutex
++    if (atomicExch(&device_mutex, 0)) {  // getting global mutex
 +      waiting = 0;
 +      old = *address;
 +      *address += val;
@@ -316,7 +313,7 @@ index 29c2566804..9604ce5b3b 100644
  
  #if defined(__HIPCC__) || (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 600)
 diff --git a/paddle/phi/backends/gpu/gpu_types.h b/paddle/phi/backends/gpu/gpu_types.h
-index cce360be06..f396082850 100644
+index cce360be06..2370752705 100644
 --- a/paddle/phi/backends/gpu/gpu_types.h
 +++ b/paddle/phi/backends/gpu/gpu_types.h
 @@ -59,6 +59,9 @@ DECLARE_TYPE_FOR_GPU(dnnActivationMode_t,
@@ -324,7 +321,7 @@ index cce360be06..f396082850 100644
                       miopenActivationMode_t);
  #endif
 +#ifdef PADDLE_WITH_COREX
-+typedef CUfunc_st * cudaFunction_t;
++typedef CUfunc_st* cudaFunction_t;
 +#endif
  DECLARE_TYPE_FOR_GPU(gpuGraph_t, cudaGraph_t, hipGraph_t);
  DECLARE_TYPE_FOR_GPU(gpuFunction_t, cudaFunction_t, hipFunction_t);
@@ -357,7 +354,7 @@ index f4b268b14c..dec2e6ea8c 100644
  #endif
    PD_NCCL_DTYPE_TO_STR(ncclDouble, "float64");
 diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index 95f1d58c64..79a618a98f 100644
+index 95f1d58c64..83582ccf01 100644
 --- a/paddle/phi/core/enforce.h
 +++ b/paddle/phi/core/enforce.h
 @@ -97,7 +97,7 @@ inline bool is_error(bool stat) { return !stat; }
@@ -374,8 +371,8 @@ index 95f1d58c64..79a618a98f 100644
      }                                                              \
    } while (0)
 +#elif defined(PADDLE_WITH_COREX)
-+#define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...)               \
-+  do {                                                             \
++#define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...) \
++  do {                                               \
 +  } while (0)
  #elif defined(__HIPCC__)
  #define PADDLE_ENFORCE(_IS_NOT_ERROR, __FORMAT, ...)               \
@@ -408,7 +405,7 @@ index b973d75a9b..daeb4778c6 100644
  #include "paddle/phi/kernels/funcs/math_function.h"
  
 diff --git a/paddle/phi/kernels/funcs/segmented_array.h b/paddle/phi/kernels/funcs/segmented_array.h
-index dad852093e..8ebceb7074 100644
+index dad852093e..71adfaf3ed 100644
 --- a/paddle/phi/kernels/funcs/segmented_array.h
 +++ b/paddle/phi/kernels/funcs/segmented_array.h
 @@ -118,6 +118,13 @@ struct ArraySetterBase {
@@ -434,7 +431,7 @@ index dad852093e..8ebceb7074 100644
      auto ptr = allocation->ptr();
      allocations.emplace_back(std::move(allocation));
 diff --git a/paddle/phi/kernels/funcs/softmax_impl.h b/paddle/phi/kernels/funcs/softmax_impl.h
-index 8f6b0fdd32..b95ea07883 100644
+index 63031cc0c9..b7341bfc91 100644
 --- a/paddle/phi/kernels/funcs/softmax_impl.h
 +++ b/paddle/phi/kernels/funcs/softmax_impl.h
 @@ -23,6 +23,7 @@ limitations under the License. */
@@ -445,25 +442,12 @@ index 8f6b0fdd32..b95ea07883 100644
  
  namespace phi {
  namespace funcs {
-diff --git a/paddle/phi/kernels/gpu/c_embedding_kernel.cu b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
-index e36b053882..c781627fec 100644
---- a/paddle/phi/kernels/gpu/c_embedding_kernel.cu
-+++ b/paddle/phi/kernels/gpu/c_embedding_kernel.cu
-@@ -114,7 +114,7 @@ void CEmbeddingKernel(const Context& dev_ctx,
- }  // namespace phi
- 
- #if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
--    defined(PADDLE_WITH_HIP)
-+    defined(PADDLE_WITH_HIP) || defined(PADDLE_WITH_COREX)
- PD_REGISTER_KERNEL(c_embedding,
-                    GPU,
-                    ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/elementwise_grad.h b/paddle/phi/kernels/gpu/elementwise_grad.h
-index cd261c91a5..9132cbcd14 100644
+index f3a2874b92..47d2c0b4d7 100644
 --- a/paddle/phi/kernels/gpu/elementwise_grad.h
 +++ b/paddle/phi/kernels/gpu/elementwise_grad.h
-@@ -213,7 +213,11 @@ void ElementwiseAddGrad(const GPUContext &ctx,
-     phi::Copy(ctx, dout, ctx.GetPlace(), false, dx);
+@@ -213,7 +213,11 @@ void ElementwiseAddGrad(const GPUContext &dev_ctx,
+     phi::Copy(dev_ctx, dout, dev_ctx.GetPlace(), false, dx);
    } else if (dx_data != dout_data && dy_data != dout_data) {
      auto size = x.numel();
 +#ifdef PADDLE_WITH_COREX
@@ -475,10 +459,10 @@ index cd261c91a5..9132cbcd14 100644
      dim3 grid_size =
          dim3(((size + vec_size - 1) / vec_size + PREDEFINED_BLOCK_SIZE - 1) /
 diff --git a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
-index 1e10da8967..d3b0b90eae 100644
+index 9d0d474d90..b1a12276d9 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_grad_kernel.cu
-@@ -123,7 +123,7 @@ PD_REGISTER_KERNEL(layer_norm_grad,
+@@ -150,7 +150,7 @@ PD_REGISTER_KERNEL(layer_norm_grad,
      kernel->OutputAt(2).SetDataType(phi::DataType::FLOAT32);
    }
  }
@@ -488,10 +472,10 @@ index 1e10da8967..d3b0b90eae 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-index 34c9a64d50..a7e2dc7384 100644
+index 648bb6cee2..5b4cdd0505 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-@@ -680,7 +680,7 @@ PD_REGISTER_KERNEL(layer_norm,
+@@ -681,7 +681,7 @@ PD_REGISTER_KERNEL(layer_norm,
    kernel->OutputAt(1).SetDataType(phi::DataType::UNDEFINED);
    kernel->OutputAt(2).SetDataType(phi::DataType::UNDEFINED);
  }
@@ -501,10 +485,10 @@ index 34c9a64d50..a7e2dc7384 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-index 342737e9b2..86c4d1600c 100644
+index 9f5cc969f6..121ecebd38 100644
 --- a/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
 +++ b/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
-@@ -198,7 +198,7 @@ PD_REGISTER_KERNEL(rms_norm_grad,
+@@ -214,7 +214,7 @@ PD_REGISTER_KERNEL(rms_norm_grad,
                     float,
                     phi::dtype::float16) {}
  
@@ -674,4 +658,4 @@ index c30752337d..dc1ca3bdc5 100644
  PD_REGISTER_KERNEL(unsqueeze,
                     GPU,
 -- 
-2.34.1
+2.41.0

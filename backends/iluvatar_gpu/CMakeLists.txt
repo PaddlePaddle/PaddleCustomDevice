@@ -158,6 +158,10 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scale_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/scatter_nd_add_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/sign_kernel.cu.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_grad_kernel.cu.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/slice_kernel.cu.cc
@@ -165,6 +169,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stack_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_copy_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/strided_slice_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/swiglu_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/swiglu_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/set_value_grad_kernel.cu

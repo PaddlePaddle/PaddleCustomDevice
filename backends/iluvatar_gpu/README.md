@@ -13,9 +13,9 @@ Please refer to the following steps to compile, install and verify the custom de
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
 
 # Set environment variables
-export PATH=/usr/local/corex-4.3.0/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
+export PATH=/usr/local/corex/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/corex/lib
+export LIBRARY_PATH=/usr/local/corex/lib
 
 # Compile Paddle Custom Device
 cd backends/iluvatar_gpu

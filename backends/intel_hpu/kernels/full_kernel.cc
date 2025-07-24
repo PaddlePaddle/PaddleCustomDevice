@@ -75,7 +75,8 @@ void FullKernel(const Context& dev_ctx,
   FullParams params;
   params.dst_type = dtype;
   if (dtype == phi::DataType::FLOAT32 || dtype == phi::DataType::FLOAT16 ||
-      dtype == phi::DataType::BFLOAT16) {
+      dtype == phi::DataType::BFLOAT16 ||
+      dtype == phi::DataType::FLOAT8_E4M3FN) {
     params.params.constant.f = val.to<float>();
   } else if (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT8 ||
              dtype == phi::DataType::INT64 || dtype == phi::DataType::UINT8) {
@@ -144,4 +145,5 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           int64_t,
                           bool,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn) {}

@@ -1,5 +1,4 @@
-// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
-// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +12,90 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/backends/gpu/gpu_context.h"
+#include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/kernels/funcs/math_function.h"
+#include "paddle/phi/kernels/funcs/top_k_function_cuda.h"
 #include "paddle/phi/kernels/top_k_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(topk_grad,
+namespace phi {
+
+template <typename T, typename Context>
+void TopkGradKernel(const Context& dev_ctx,
+                    const DenseTensor& x,
+                    const DenseTensor& indices,
+                    const DenseTensor& out_grad,
+                    const Scalar& k_scalar,
+                    int axis,
+                    bool largest,
+                    bool sorted,
+                    DenseTensor* x_grad) {
+  if (x_grad && x_grad->numel() == 0) {
+    dev_ctx.template Alloc<T>(x_grad);
+    return;
+  }
+
+  const auto& in_dims = x.dims();
+  const auto& out_dims = indices.dims();
+
+  int k = k_scalar.to<int>();
+
+  // get the real the axis and the k
+  if (axis < 0) {
+    axis += in_dims.size();
+  }
+
+  // allocate the cuda memory for the x_grad
+  T* x_grad_data = dev_ctx.template Alloc<T>(x_grad);
+  const T* out_grad_data = out_grad.data<T>();
+  const int64_t* indices_data = indices.data<int64_t>();
+
+  if (in_dims.size() == 0) {
+    phi::Copy<Context>(dev_ctx, out_grad, dev_ctx.GetPlace(), false, x_grad);
+    return;
+  }
+
+  int64_t pre, n, post;
+  phi::funcs::GetDims(in_dims, axis, &pre, &n, &post);
+
+  // calculate the block and grid num
+  auto ComputeBlockSize = [](int64_t col) {
+    if (col > 512)
+      return 1024;
+    else if (col > 256 && col <= 512)
+      return 512;
+    else if (col > 128 && col <= 256)
+      return 256;
+    else if (col > 64 && col <= 128)
+      return 128;
+    else
+      return 64;
+  };
+  int block_size = ComputeBlockSize(post * k);
+  int max_threads = dev_ctx.GetMaxPhysicalThreadCount();
+  const int64_t max_blocks = std::max(((max_threads - 1) / block_size + 1), 1);
+  int grid_size = std::min(max_blocks, pre);
+
+  // launch the cuda kernel to assign the grad
+  phi::funcs::AssignGradWithAxis<T>
+      <<<grid_size, block_size, 64 * 4, dev_ctx.stream()>>>(
+          out_grad_data, indices_data, x_grad_data, pre, post, n, k);
+}
+
+template <typename T, typename Context>
+void TopkV1GradKernel(const Context& dev_ctx,
+                      const DenseTensor& x,
+                      const DenseTensor& indices,
+                      const DenseTensor& out_grad,
+                      const Scalar& k_scalar,
+                      DenseTensor* x_grad) {
+  TopkGradKernel<T, Context>(
+      dev_ctx, x, indices, out_grad, k_scalar, -1, true, true, x_grad);
+}
+}  // namespace phi
+
+PD_REGISTER_PLUGIN_KERNEL(topk_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::TopkGradKernel,
@@ -26,13 +105,14 @@ PD_CUSTOM_KERNEL_REGISTER(topk_grad,
                           int64_t,
                           phi::dtype::float16,
                           phi::dtype::bfloat16) {}
-// PD_CUSTOM_KERNEL_REGISTER(topk_v1_grad,
-//                    metax_gpu,
-//                    ALL_LAYOUT,
-//                    phi::TopkV1GradKernel,
-//                    float,
-//                    double,
-//                    int,
-//                    int64_t,
-//                    phi::dtype::float16,
-//                    phi::dtype::bfloat16) {}
+
+PD_REGISTER_PLUGIN_KERNEL(topk_v1_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::TopkV1GradKernel,
+                          float,
+                          double,
+                          int,
+                          int64_t,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

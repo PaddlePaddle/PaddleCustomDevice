@@ -39,7 +39,7 @@ void SoftmaxGPUDNNKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(softmax,
+PD_REGISTER_PLUGIN_KERNEL(softmax,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::SoftmaxGPUDNNKernel,

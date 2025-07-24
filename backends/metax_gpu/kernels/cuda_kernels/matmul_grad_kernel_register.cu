@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,10 +67,10 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten_double_grad,
                           phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
-// PD_CUSTOM_KERNEL_REGISTER(legacy_matmul_grad,
-//                    metax_gpu,
-//                    ALL_LAYOUT,
-//                    phi::LegacyMatmulGradKernel,
-//                    float,
-//                    double,
-//                    phi::dtype::float16) {}
+PD_CUSTOM_KERNEL_REGISTER(legacy_matmul_grad,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::LegacyMatmulGradKernel,
+                          float,
+                          double,
+                          phi::dtype::float16) {}

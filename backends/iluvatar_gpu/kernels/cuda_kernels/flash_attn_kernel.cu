@@ -26,6 +26,7 @@
 #include "paddle/phi/kernels/pad_kernel.h"
 #include "paddle/phi/kernels/slice_kernel.h"
 COMMON_DECLARE_int32(ixdnn_imp_mode);
+COMMON_DECLARE_int32(ixdnn_causal_mode);
 
 namespace phi {
 template <typename OutT>
@@ -100,7 +101,7 @@ void FlashAttnUnpaddedBaseKernel(
   // TODO(umiswing): add shape check
   // ixdnn
   int64_t total_q = dims[0];
-  bool is_unpad = (total_q == batch_size * max_seqlen_q) ? false : true;
+  bool is_unpad = true;
   const int64_t head_size_rounded = head_size + 32 - head_size % 32;
 
   DenseTensor q_padded, k_padded, v_padded;
@@ -152,6 +153,7 @@ void FlashAttnUnpaddedBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = is_test ? 0.0f : dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = true;
@@ -257,34 +259,32 @@ void FlashAttnUnpaddedBaseKernel(
                                              &size_tmpbuf,
                                              flashAttnInfo.imp_mode));
 
-  auto workspace_handle = ctx.cudnn_workspace_handle();
-  workspace_handle.RunFunc(
-      [&](void* workspace_ptr) {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
-            cudnn,
-            flashAttnDesc,
-            flashAttnInfo,
-            q_desc,
-            k_desc,
-            v_desc,
-            o_desc,
-            nullptr,
-            lse_desc,
-            q_padded.data(),
-            k_padded.data(),
-            v_padded.data(),
-            nullptr,
-            is_unpad ? cu_seqlens_q.data<int>() : nullptr,
-            is_unpad ? cu_seqlens_k.data<int>() : nullptr,
-            nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
-            nullptr,
-            workspace_ptr,
-            out->data(),
-            softmax_lse->data<float>()));
-      },
-      size_tmpbuf);
+  auto d_wkSpace =
+      phi::Empty<int8_t, Context>(ctx, {static_cast<int64_t>(size_tmpbuf)});
+  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
+      cudnn,
+      flashAttnDesc,
+      flashAttnInfo,
+      q_desc,
+      k_desc,
+      v_desc,
+      o_desc,
+      nullptr,
+      lse_desc,
+      q_padded.data(),
+      k_padded.data(),
+      v_padded.data(),
+      nullptr,
+      is_unpad ? cu_seqlens_q.data<int>() : nullptr,
+      is_unpad ? cu_seqlens_k.data<int>() : nullptr,
+      nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
+      nullptr,
+      d_wkSpace.data(),
+      out->data(),
+      softmax_lse->data<float>()));
 
+  cudaDeviceSynchronize();
   out->Resize({total_q, num_heads, head_size});
 
   phi::dynload::cudnnDestroyFlashAttnDescriptor(flashAttnDesc);
@@ -513,6 +513,7 @@ void FlashAttnBaseKernel(
   flashAttnInfo.softmax_scale = std::sqrt(1.f / head_size);
   flashAttnInfo.dropout_prob = dropout;
   flashAttnInfo.is_causal = causal;
+  flashAttnInfo.causal_mode = FLAGS_ixdnn_causal_mode;
   // flashAttnInfo.is_alibi              = use_alibi;
   // flashAttnInfo.alibi_mode            = alibi_mode;
   flashAttnInfo.return_softmax_lse = true;
@@ -619,34 +620,32 @@ void FlashAttnBaseKernel(
                                              &size_tmpbuf,
                                              flashAttnInfo.imp_mode));
 
-  auto workspace_handle = ctx.cudnn_workspace_handle();
-  workspace_handle.RunFunc(
-      [&](void* workspace_ptr) {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
-            cudnn,
-            flashAttnDesc,
-            flashAttnInfo,
-            q_desc,
-            k_desc,
-            v_desc,
-            o_desc,
-            attn_mask.get_ptr() ? m_desc : nullptr,
-            lse_desc,
-            q_padded.data(),
-            k_padded.data(),
-            v_padded.data(),
-            attn_mask.get_ptr() ? (attn_mask.get_ptr())->data() : nullptr,
-            nullptr,  // reinterpret_cast<int *>(cu_seqlens_q.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(cu_seqlens_k.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
-            nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
-            nullptr,
-            workspace_ptr,
-            out->data(),
-            softmax_lse->data<float>()));
-      },
-      size_tmpbuf);
+  auto d_wkSpace =
+      phi::Empty<int8_t, Context>(ctx, {static_cast<int64_t>(size_tmpbuf)});
+  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnFlashAttnForward(
+      cudnn,
+      flashAttnDesc,
+      flashAttnInfo,
+      q_desc,
+      k_desc,
+      v_desc,
+      o_desc,
+      attn_mask.get_ptr() ? m_desc : nullptr,
+      lse_desc,
+      q_padded.data(),
+      k_padded.data(),
+      v_padded.data(),
+      attn_mask.get_ptr() ? (attn_mask.get_ptr())->data() : nullptr,
+      nullptr,  // reinterpret_cast<int *>(cu_seqlens_q.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(cu_seqlens_k.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_loWinIdx.data_ptr()),
+      nullptr,  // reinterpret_cast<int *>(d_hiWinIdx.data_ptr()),
+      nullptr,
+      d_wkSpace.data(),
+      out->data(),
+      softmax_lse->data<float>()));
 
+  cudaDeviceSynchronize();
   phi::dynload::cudnnDestroyFlashAttnDescriptor(flashAttnDesc);
   PADDLE_ENFORCE_GPU_SUCCESS(
       phi::dynload::cudnnDestroyTensorDescriptor(q_desc));
@@ -700,7 +699,7 @@ void FlashAttnKernel(const Context& ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn_unpadded,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnUnpaddedKernel,
@@ -710,7 +709,7 @@ PD_CUSTOM_KERNEL_REGISTER(flash_attn_unpadded,
       phi::Backend::ALL_BACKEND);  // fixed_seed_offset
 }
 
-PD_CUSTOM_KERNEL_REGISTER(flash_attn,
+PD_REGISTER_PLUGIN_KERNEL(flash_attn,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::FlashAttnKernel,

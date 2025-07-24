@@ -1,4 +1,5 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +15,7 @@
 #include <cuda_runtime.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <nccl.h>
 #include <semaphore.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -32,6 +34,7 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
@@ -48,6 +51,81 @@ const char *const SubDeviceType = "v0.1";
 namespace phi {
 
 namespace internal {
+inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
+  if (type == C_DataType::FLOAT32) {
+    return ncclFloat32;
+  } else if (type == C_DataType::BFLOAT16) {
+    return ncclBfloat16;
+  } else if (type == C_DataType::UINT8) {
+    return ncclUint8;
+  } else if (type == C_DataType::UINT32) {
+    return ncclUint32;
+  } else if (type == C_DataType::UINT64) {
+    return ncclUint64;
+  } else if (type == C_DataType::INT8) {
+    return ncclInt8;
+  } else if (type == C_DataType::INT32) {
+    return ncclInt32;
+  } else if (type == C_DataType::INT64) {
+    return ncclInt64;
+  } else if (type == C_DataType::FLOAT16) {
+    return ncclFloat16;
+  } else if (type == C_DataType::FLOAT64) {
+    return ncclFloat64;
+  } else {
+    LOG(ERROR) << "Datatype " << type << " in nccl is not supported.";
+  }
+  return ncclFloat32;
+}
+
+inline mcclDataType_t PDDataTypeToMcclDataType(C_DataType type) {
+  if (type == C_DataType::FLOAT32) {
+    return mcclFloat32;
+  } else if (type == C_DataType::BFLOAT16) {
+    return mcclBfloat16;
+  } else if (type == C_DataType::UINT8) {
+    return mcclUint8;
+  } else if (type == C_DataType::UINT32) {
+    return mcclUint32;
+  } else if (type == C_DataType::UINT64) {
+    return mcclUint64;
+  } else if (type == C_DataType::INT8) {
+    return mcclInt8;
+  } else if (type == C_DataType::INT32) {
+    return mcclInt32;
+  } else if (type == C_DataType::INT64) {
+    return mcclInt64;
+  } else if (type == C_DataType::FLOAT16) {
+    return mcclFloat16;
+  } else if (type == C_DataType::FLOAT64) {
+    return mcclFloat64;
+  } else {
+    LOG(ERROR) << "Datatype " << type << " in nccl is not supported.";
+  }
+  return ncclFloat32;
+}
+
+#define NCCL_CHECK(cmd)                                                        \
+  do {                                                                         \
+    ncclResult_t r = cmd;                                                      \
+    if (r != ncclSuccess) {                                                    \
+      PADDLE_THROW(common::errors::External("Failed, NCCL error %s:%d '%s'\n", \
+                                            __FILE__,                          \
+                                            __LINE__,                          \
+                                            ncclGetErrorString(r)));           \
+    }                                                                          \
+  } while (0)
+
+#define MCCL_CHECK(cmd)                                                        \
+  do {                                                                         \
+    mcclResult_t r = cmd;                                                      \
+    if (r != ncclSuccess) {                                                    \
+      PADDLE_THROW(common::errors::External("Failed, MCCL error %s:%d '%s'\n", \
+                                            __FILE__,                          \
+                                            __LINE__,                          \
+                                            mcclGetErrorString(r)));           \
+    }                                                                          \
+  } while (0)
 
 class EigenGpuStreamDevice : public Eigen::StreamInterface {
  public:
@@ -196,6 +274,88 @@ C_Status GetComputeCapability(const C_Device device,
       cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, id);
 
   *compute_capability = major * 10 + minor;
+  VLOG(4) << "CUDA Device " << id
+          << " compute capability: " << *compute_capability;
+  return C_SUCCESS;
+}
+
+C_Status GetDevicesCount(size_t *count) {
+  int device_count = 0;
+  cudaError_t err = cudaGetDeviceCount(&device_count);
+  // *count = (size_t)device_count;
+  *count = static_cast<size_t>(device_count);
+  return C_SUCCESS;
+}
+
+C_Status GetDevicesList(size_t *devices) {
+  size_t count = 0;
+  C_Status status = GetDevicesCount(&count);
+  if (status != C_SUCCESS) {
+    return status;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    devices[i] = i;
+  }
+  return C_SUCCESS;
+}
+
+static std::once_flag g_device_props_size_init_flag;
+static std::vector<std::unique_ptr<std::once_flag>> g_device_props_init_flags;
+static std::vector<cudaDeviceProp> g_device_props;
+static std::vector<cudaError_t> g_device_props_init_errors;
+
+C_Status GetDeviceProperties(const C_Device device, void *device_properties) {
+  int id = device->id;
+  if (id == -1) {
+    cudaGetDevice(&id);
+  }
+
+  std::call_once(g_device_props_size_init_flag, [&] {
+    size_t count = 0;
+    C_Status status = GetDevicesCount(&count);
+    if (status != C_SUCCESS) {
+      return status;
+    }
+    int gpu_num = count;
+
+    g_device_props_init_flags.resize(gpu_num);
+    g_device_props.resize(gpu_num);
+    g_device_props_init_errors.resize(gpu_num, cudaSuccess);
+
+    for (int i = 0; i < gpu_num; ++i) {
+      g_device_props_init_flags[i] = std::make_unique<std::once_flag>();
+    }
+  });
+
+  if (id < 0 || id >= static_cast<int>(g_device_props.size())) {
+    VLOG(10) << "device id: " << id << " out of range";
+    return C_ERROR;
+  }
+
+  std::call_once(*(g_device_props_init_flags[id]), [&] {
+    cudaError_t ret = cudaGetDeviceProperties(&g_device_props[id], id);
+    g_device_props_init_errors[id] = ret;
+  });
+
+  if (g_device_props_init_errors[id] != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  phi::DeviceProp *prop = static_cast<phi::DeviceProp *>(device_properties);
+  const cudaDeviceProp &src = g_device_props[id];
+
+  using DeviceProp = phi::DeviceProp;
+  prop->~DeviceProp();
+  new (prop) DeviceProp();
+
+  prop->name = src.name;
+  prop->deviceMajor = src.major;
+  prop->deviceMinor = src.minor;
+  prop->totalGlobalMem = src.totalGlobalMem;
+  prop->multiProcessorCount = src.multiProcessorCount;
+  prop->isMultiGpuBoard = src.isMultiGpuBoard;
+  prop->integrated = (src.integrated != 0);
+
   return C_SUCCESS;
 }
 
@@ -306,19 +466,6 @@ C_Status DestroyDevice(const C_Device device) {
 
 C_Status Finalize() { return C_SUCCESS; }
 
-C_Status GetDevicesCount(size_t *count) {
-  *count = 4;
-  return C_SUCCESS;
-}
-
-C_Status GetDevicesList(size_t *devices) {
-  devices[0] = 0;
-  devices[1] = 1;
-  devices[2] = 2;
-  devices[3] = 3;
-  return C_SUCCESS;
-}
-
 C_Status MemCpyH2D(const C_Device device,
                    void *dst,
                    const void *src,
@@ -329,14 +476,14 @@ C_Status MemCpyH2D(const C_Device device,
   }
   cudaError_t cudaErr = cudaSetDevice(device->id);
   if (cudaErr != cudaSuccess) {
-    VLOG(0) << "Failed to set device: " << device->id
+    VLOG(2) << "Failed to set device: " << device->id
             << ", Error: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
   VLOG(2) << "setdevice: " << device->id;
   cudaErr = cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice);
   if (cudaErr != cudaSuccess) {
-    VLOG(0) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
+    VLOG(2) << "cudaMemcpy failed: " << cudaGetErrorString(cudaErr);
     return C_ERROR;
   }
   VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
@@ -403,14 +550,37 @@ C_Status AsyncMemCpyH2D(const C_Device device,
                         void *dst,
                         const void *src,
                         size_t size) {
+  if (size == 0) {
+    return C_SUCCESS;
+  }
+
   if (dst == NULL || src == NULL) {
     return C_ERROR;
   }
+  cudaError_t cudaErr = cudaSetDevice(device->id);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
 
+  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyD2H(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
   if (size == 0) {
-    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
-            << size;  // NOLINT
     return C_SUCCESS;
+  }
+
+  if (dst == NULL || src == NULL) {
+    return C_ERROR;
   }
 
   cudaError_t cudaErr = cudaSetDevice(device->id);
@@ -418,7 +588,35 @@ C_Status AsyncMemCpyH2D(const C_Device device,
     return C_ERROR;
   }
 
-  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyHostToDevice);
+  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToHost);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
+}
+
+C_Status AsyncMemCpyD2D(const C_Device device,
+                        C_Stream stream,
+                        void *dst,
+                        const void *src,
+                        size_t size) {
+  if (size == 0) {
+    VLOG(2) << "cudamemcpy successful: " << dst << " " << src << " "
+            << size;  // NOLINT
+    return C_SUCCESS;
+  }
+
+  if (dst == NULL || src == NULL) {
+    return C_ERROR;
+  }
+
+  cudaError_t cudaErr = cudaSetDevice(device->id);
+  if (cudaErr != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  cudaErr = cudaMemcpyAsync(dst, src, size, cudaMemcpyDeviceToDevice);
   if (cudaErr != cudaSuccess) {
     return C_ERROR;
   }
@@ -461,10 +659,32 @@ C_Status Allocate(const C_Device device, void **ptr, size_t size) {
 
   return C_SUCCESS;
 }
+C_Status AllocateHost(const C_Device device, void **ptr, size_t size) {
+  cudaError_t err;
+  *ptr = NULL;
+
+  err = cudaSetDevice(device->id);
+  if (err != cudaSuccess) {
+    return C_ERROR;
+  }
+
+  err = cudaMallocHost(ptr, size);
+  if (err != cudaSuccess) {
+    *ptr = NULL;
+    return C_ERROR;
+  }
+
+  return C_SUCCESS;
+}
 
 C_Status Deallocate(const C_Device device, void *ptr, size_t size) {
   cudaSetDevice(device->id);
   cudaFree(ptr);
+  return C_SUCCESS;
+}
+C_Status DeallocateHost(const C_Device device, void *ptr, size_t size) {
+  cudaSetDevice(device->id);
+  cudaFreeHost(ptr);
   return C_SUCCESS;
 }
 
@@ -659,7 +879,212 @@ C_Status DeviceMinChunkSize(const C_Device device, size_t *size) {
 C_Status DeviceMaxChunkSize(const C_Device device, size_t *size) {
   return C_ERROR;
 }
+ncclRedOp_t PDReduceOpToNcclReduceOp(C_CCLReduceOp op) {
+  if (op == C_CCLReduceOp::MIN) {
+    return ncclMin;
+  } else if (op == C_CCLReduceOp::MAX) {
+    return ncclMax;
+  } else if (op == C_CCLReduceOp::SUM) {
+    return ncclSum;
+  } else if (op == C_CCLReduceOp::PRODUCT) {
+    return ncclProd;
+  } else if (op == C_CCLReduceOp::AVG) {
+    return ncclAvg;
+  } else {
+    LOG(ERROR) << "Reduceop " << op << " in nccl is not supported.";
+  }
+}
 
+C_Status XcclGetUniqueIdSize(size_t *size) {
+  *size = sizeof(ncclUniqueId);
+  return C_SUCCESS;
+}
+
+C_Status XcclGetUniqueId(C_CCLRootId *unique_id) {
+  if (unique_id->sz != sizeof(ncclUniqueId)) {
+    LOG(ERROR) << "unique_id->sz must be equal sizeof(ncclUniqueId)";
+    return C_FAILED;
+  }
+  NCCL_CHECK(
+      ncclGetUniqueId(reinterpret_cast<ncclUniqueId *>(unique_id->data)));
+
+  return C_SUCCESS;
+}
+
+C_Status XcclCommInitRank(size_t nranks,
+                          C_CCLRootId *unique_id,
+                          size_t rank,
+                          C_CCLComm *comm) {
+  NCCL_CHECK(
+      ncclCommInitRank(reinterpret_cast<ncclComm_t *>(comm),
+                       nranks,
+                       *(reinterpret_cast<ncclUniqueId *>(unique_id->data)),
+                       rank));
+  VLOG(4) << "[NCCL] comm inited: " << reinterpret_cast<ncclComm_t>(*comm);
+  return C_SUCCESS;
+}
+
+C_Status XcclDestroyComm(C_CCLComm comm) {
+  NCCL_CHECK(ncclCommDestroy(reinterpret_cast<ncclComm_t>(comm)));
+  return C_SUCCESS;
+}
+
+C_Status XcclAllReduce(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLReduceOp op,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  NCCL_CHECK(ncclAllReduce(send_buf,
+                           recv_buf,
+                           count,
+                           phi::internal::PDDataTypeToNcclDataType(data_type),
+                           PDReduceOpToNcclReduceOp(op),
+                           reinterpret_cast<ncclComm_t>(comm),
+                           reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclBroadcast(void *buf,
+                       size_t count,
+                       C_DataType data_type,
+                       size_t root,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  NCCL_CHECK(ncclBroadcast(static_cast<const void *>(buf),
+                           buf,
+                           count,
+                           phi::internal::PDDataTypeToNcclDataType(data_type),
+                           root,
+                           reinterpret_cast<ncclComm_t>(comm),
+                           reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclReduce(void *send_buf,
+                    void *recv_buf,
+                    size_t count,
+                    C_DataType data_type,
+                    C_CCLReduceOp op,
+                    size_t root,
+                    C_CCLComm comm,
+                    C_Stream stream) {
+  NCCL_CHECK(ncclReduce(send_buf,
+                        recv_buf,
+                        count,
+                        phi::internal::PDDataTypeToNcclDataType(data_type),
+                        PDReduceOpToNcclReduceOp(op),
+                        root,
+                        reinterpret_cast<ncclComm_t>(comm),
+                        reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclAllGather(void *send_buf,
+                       void *recv_buf,
+                       size_t count,
+                       C_DataType data_type,
+                       C_CCLComm comm,
+                       C_Stream stream) {
+  NCCL_CHECK(ncclAllGather(send_buf,
+                           recv_buf,
+                           count,
+                           phi::internal::PDDataTypeToNcclDataType(data_type),
+                           reinterpret_cast<ncclComm_t>(comm),
+                           reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclReduceScatter(void *send_buf,
+                           void *recv_buf,
+                           size_t count,
+                           C_DataType data_type,
+                           C_CCLReduceOp op,
+                           C_CCLComm comm,
+                           C_Stream stream) {
+  NCCL_CHECK(
+      ncclReduceScatter(send_buf,
+                        recv_buf,
+                        count,
+                        phi::internal::PDDataTypeToNcclDataType(data_type),
+                        PDReduceOpToNcclReduceOp(op),
+                        reinterpret_cast<ncclComm_t>(comm),
+                        reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclGroupStart() {
+  NCCL_CHECK(ncclGroupStart());
+  return C_SUCCESS;
+}
+
+C_Status XcclGroupEnd() {
+  NCCL_CHECK(ncclGroupEnd());
+  return C_SUCCESS;
+}
+
+C_Status XcclSend(void *send_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t dest_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  NCCL_CHECK(ncclSend(send_buf,
+                      count,
+                      phi::internal::PDDataTypeToNcclDataType(data_type),
+                      dest_rank,
+                      reinterpret_cast<ncclComm_t>(comm),
+                      reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+
+C_Status XcclRecv(void *recv_buf,
+                  size_t count,
+                  C_DataType data_type,
+                  size_t src_rank,
+                  C_CCLComm comm,
+                  C_Stream stream) {
+  NCCL_CHECK(ncclRecv(recv_buf,
+                      count,
+                      phi::internal::PDDataTypeToNcclDataType(data_type),
+                      src_rank,
+                      reinterpret_cast<ncclComm_t>(comm),
+                      reinterpret_cast<cudaStream_t>(stream)));
+  return C_SUCCESS;
+}
+C_Status Xccl_all_to_all(const void **send_buf,
+                         const size_t *send_count,
+                         const C_DataType *send_dtype,
+                         void **recv_buf,
+                         const size_t *recv_count,
+                         const C_DataType *recv_dtype,
+                         size_t rank,
+                         size_t nranks,
+                         C_CCLComm comm,
+                         C_Stream stream) {
+  NCCL_CHECK(ncclGroupStart());
+  for (size_t i = 0; i < nranks; ++i) {
+    if (send_count[i] != 0)
+      NCCL_CHECK(
+          ncclSend(send_buf[i],
+                   send_count[i],
+                   phi::internal::PDDataTypeToNcclDataType(send_dtype[i]),
+                   i,
+                   reinterpret_cast<ncclComm_t>(comm),
+                   reinterpret_cast<cudaStream_t>(stream)));
+    if (recv_count[i] != 0)
+      NCCL_CHECK(
+          ncclRecv(recv_buf[i],
+                   recv_count[i],
+                   phi::internal::PDDataTypeToNcclDataType(recv_dtype[i]),
+                   i,
+                   reinterpret_cast<ncclComm_t>(comm),
+                   reinterpret_cast<cudaStream_t>(stream)));
+  }
+  NCCL_CHECK(ncclGroupEnd());
+  return C_SUCCESS;
+}
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -670,6 +1095,7 @@ void InitPlugin(CustomRuntimeParams *params) {
          sizeof(C_DeviceInterface));
 
   params->interface->get_compute_capability = GetComputeCapability;
+  params->interface->get_device_properties = GetDeviceProperties;
   params->interface->get_runtime_version = GetRuntimeVersion;
   params->interface->get_driver_version = GetDriverVersion;
   params->interface->get_multi_process = GetMultiProcessors;
@@ -699,14 +1125,14 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->memory_copy_d2h = MemCpyD2H;
   params->interface->memory_copy_p2p = MemCpyP2P;
   params->interface->async_memory_copy_h2d = AsyncMemCpyH2D;
-  params->interface->async_memory_copy_d2d = nullptr;
-  params->interface->async_memory_copy_d2h = nullptr;
+  params->interface->async_memory_copy_d2d = AsyncMemCpyD2D;
+  params->interface->async_memory_copy_d2h = AsyncMemCpyD2H;
   params->interface->async_memory_copy_p2p = nullptr;
   params->interface->device_memory_allocate = Allocate;
-  params->interface->host_memory_allocate = nullptr;
+  params->interface->host_memory_allocate = AllocateHost;
   params->interface->unified_memory_allocate = nullptr;
   params->interface->device_memory_deallocate = Deallocate;
-  params->interface->host_memory_deallocate = nullptr;
+  params->interface->host_memory_deallocate = DeallocateHost;
   params->interface->unified_memory_deallocate = nullptr;
 
   params->interface->get_device_count = GetDevicesCount;
@@ -719,12 +1145,20 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
-  params->interface->xccl_get_unique_id_size = nullptr;
-  params->interface->xccl_get_unique_id = nullptr;
-  params->interface->xccl_comm_init_rank = nullptr;
-  params->interface->xccl_destroy_comm = nullptr;
-  params->interface->xccl_all_reduce = nullptr;
-  params->interface->xccl_broadcast = nullptr;
+  params->interface->xccl_all_gather = XcclAllGather;
+  params->interface->xccl_all_reduce = XcclAllReduce;
+  params->interface->xccl_broadcast = XcclBroadcast;
+  params->interface->xccl_comm_init_rank = XcclCommInitRank;
+  params->interface->xccl_destroy_comm = XcclDestroyComm;
+  params->interface->xccl_get_unique_id = XcclGetUniqueId;
+  params->interface->xccl_get_unique_id_size = XcclGetUniqueIdSize;
+  params->interface->xccl_group_end = XcclGroupEnd;
+  params->interface->xccl_group_start = XcclGroupStart;
+  params->interface->xccl_recv = XcclRecv;
+  params->interface->xccl_reduce = XcclReduce;
+  params->interface->xccl_reduce_scatter = XcclReduceScatter;
+  params->interface->xccl_send = XcclSend;
+  params->interface->xccl_all_to_all = Xccl_all_to_all;
 
   params->interface->profiler_collect_trace_data = nullptr;
   params->interface->profiler_initialize = nullptr;

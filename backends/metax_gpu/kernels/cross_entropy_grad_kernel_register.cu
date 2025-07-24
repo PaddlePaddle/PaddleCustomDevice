@@ -22,7 +22,7 @@ limitations under the License. */
 namespace cub = hipcub;
 #endif
 
-// clang-format off
+#include "gpudnn/softmax_gpudnn.h"
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -33,8 +33,7 @@ namespace cub = hipcub;
 #include "paddle/phi/kernels/funcs/for_range.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/funcs/softmax.h"
-#include "gpudnn/softmax_gpudnn.h"
-// clang-format on
+
 namespace phi {
 
 template <typename T>
@@ -150,11 +149,6 @@ void CrossEntropyWithSoftmaxGradGPUKernel(const GPUContext& dev_ctx,
                                           int ignore_index,
                                           int axis,
                                           DenseTensor* logits_grad) {
-  PADDLE_ENFORCE_EQ(
-      dev_ctx.GetPlace().GetType(),
-      phi::AllocationType::GPU,
-      common::errors::Unavailable("softmax_with_cross_entropy operator's "
-                                  "CUDA kernel only runs on GPU device."));
   const T* loss_grad_data = loss_grad.data<T>();
   DenseTensor* logit_grad = logits_grad;
 
@@ -278,9 +272,10 @@ void CrossEntropyWithSoftmaxGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(cross_entropy_with_softmax_grad,
+PD_REGISTER_PLUGIN_KERNEL(cross_entropy_with_softmax_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::CrossEntropyWithSoftmaxGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

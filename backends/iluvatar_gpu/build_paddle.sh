@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source /opt/rh/devtoolset-9/enable
-
 PYTHON_VERSION=${PYTHON_VERSION:-$(python3 -V 2>&1|awk '{print $2}')}
 COREX_VERSION=${COREX_VERSION:-latest}
 if [[ "${COREX_VERSION}" == "latest" ]]; then
@@ -24,7 +22,6 @@ fi
 BUILD_TEST=${BUILD_TEST:-1}
 COREX_ARCH=${COREX_ARCH:-ivcore11}
 export CMAKE_CUDA_ARCHITECTURES=${COREX_ARCH}
-export PADDLE_VERSION=${PADDLE_VERSION:-3.0.0}
 
 CURRENT_DIR=$(pwd)
 PADDLE_SOURCE_DIR="${CURRENT_DIR}/../../Paddle"
@@ -54,7 +51,7 @@ if [[ ! -d "build" ]]; then
 fi
 pushd build
 
-cmake -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+cmake -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON \
 -DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
 -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime' \

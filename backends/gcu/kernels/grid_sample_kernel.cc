@@ -109,4 +109,5 @@ void GridSampleKernel(const Context& dev_ctx,
 //                           custom_kernel::GridSampleKernel,
 //                           float,
 //                           double,
+//                           phi::dtype::bfloat16,
 //                           phi::dtype::float16) {}

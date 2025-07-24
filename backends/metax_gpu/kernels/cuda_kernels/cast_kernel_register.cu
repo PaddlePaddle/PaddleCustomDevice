@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,24 +15,19 @@
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/cast_kernel.h"
 
-#define PTEN_REGISTER_CAST_CUDA_BASE_TYPE(op_name, ...)        \
-  PD_CUSTOM_KERNEL_REGISTER(cast,                              \
-                            metax_gpu,                         \
-                            ALL_LAYOUT,                        \
-                            phi::CastKernel,                   \
-                            float,                             \
-                            double,                            \
-                            int,                               \
-                            int64_t,                           \
-                            int16_t,                           \
-                            bool,                              \
-                            int8_t,                            \
-                            uint8_t,                           \
-                            phi::dtype::float16,               \
-                            phi::dtype::complex<float>,        \
-                            phi::dtype::complex<double>,       \
-                            ##__VA_ARGS__) {                   \
-    kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED); \
-  }
-
-PTEN_REGISTER_CAST_CUDA_BASE_TYPE(cast, phi::dtype::bfloat16)
+PD_CUSTOM_KERNEL_REGISTER(cast,
+                          metax_gpu,
+                          ALL_LAYOUT,
+                          phi::CastKernel,
+                          float,
+                          int,
+                          int64_t,
+                          int16_t,
+                          bool,
+                          int8_t,
+                          uint8_t,
+                          phi::dtype::float16,
+                          phi::dtype::complex<float>,
+                          phi::dtype::bfloat16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
+}

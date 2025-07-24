@@ -1,19 +1,18 @@
-// clang-format off
 // 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
 // Reserved.
-/* Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License. */
+// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #pragma once
 #include "paddle/phi/backends/gpu/gpu_info.h"
@@ -41,8 +40,7 @@ inline static cudnnHandle_t dnn_handle_ = nullptr;
 
 inline std::once_flag flag_dnn_;
 
-inline void InitDnnHandle(cudnnHandle_t*
-                          handle,
+inline void InitDnnHandle(cudnnHandle_t* handle,
                           gpuStream_t stream,
                           Place place) {
   if (phi::dynload::HasCUDNN()) {
@@ -52,14 +50,7 @@ inline void InitDnnHandle(cudnnHandle_t*
     auto local_cudnn_minor =
         (version < 9000) ? (version % 1000) / 100 : (version % 10000) / 100;
     if (version < static_cast<size_t>(CUDNN_VERSION)) {
-      LOG_FIRST_N(WARNING, 1)
-          << "WARNING: device: " << static_cast<int>(place.device)
-          << ". The installed Paddle is compiled with CUDNN " << CUDNN_MAJOR
-          << "." << CUDNN_MINOR << ", but CUDNN version in your machine is "
-          << local_cudnn_major << "." << local_cudnn_minor
-          << ", which may cause serious incompatible bug. "
-          << "Please recompile or reinstall Paddle with compatible CUDNN "
-             "version.";
+      std::cout << "ERROR." << std::endl;
     }
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(handle));
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(*handle, stream));
@@ -155,9 +146,8 @@ __device__ __forceinline__ void WarpReduceSum(T* sum) {
   for (int offset = WarpSize / 2; offset > 0; offset /= 2) {
 #pragma unroll
     for (int i = 0; i < BatchSize; ++i) {
-      T sum_val =
-          phi::backends::gpu::CudaShuffleXorSync(
-            0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+      T sum_val = phi::backends::gpu::CudaShuffleXorSync(
+          0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
       sum[i] = sum[i] + sum_val;
     }
   }
@@ -169,9 +159,8 @@ __device__ __forceinline__ void WarpReduceMax(T* sum) {
   for (int offset = WarpSize / 2; offset > 0; offset /= 2) {
 #pragma unroll
     for (int i = 0; i < BatchSize; ++i) {
-      T max_val =
-          phi::backends::gpu::CudaShuffleXorSync(
-            0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
+      T max_val = phi::backends::gpu::CudaShuffleXorSync(
+          0xFFFFFFFFFFFFFFFFULL, sum[i], offset);
       sum[i] = max(sum[i], max_val);
     }
   }
@@ -1079,7 +1068,7 @@ void SoftmaxForwardCudnnKernel(const GPUContext& dev_ctx,
                                const bool log_mode,
                                const std::vector<int>& tensor_dims,
                                T* out_data) {
-//   auto handle = dev_ctx.cudnn_handle();
+  //   auto handle = dev_ctx.cudnn_handle();
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
   GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
 
@@ -1152,7 +1141,7 @@ void SoftmaxBackwardCudnnKernel(const GPUContext& dev_ctx,
                                 const bool log_mode,
                                 const std::vector<int>& tensor_dims,
                                 T* dx_data) {
-//   auto handle = dev_ctx.cudnn_handle();
+  //   auto handle = dev_ctx.cudnn_handle();
   auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
   GPUDNNDataLayout layout = GPUDNNDataLayout::kNCHW;
 
@@ -1270,9 +1259,9 @@ template <typename T>
 bool UseCudnnSoftmax(const GPUContext& ctx,
                      int64_t softmax_dim,
                      bool last_dim) {
-//   bool cudnn_available = ctx.cudnn_handle();
+  //   bool cudnn_available = ctx.cudnn_handle();
   bool cudnn_available = GetDnnHandle(ctx.stream(), ctx.GetPlace());
-//   if (!ctx.cudnn_handle()) {
+  //   if (!ctx.cudnn_handle()) {
   if (!cudnn_available) {
     if (std::is_same<T, phi::dtype::bfloat16>::value) {
 #if CUDNN_VERSION < 8100

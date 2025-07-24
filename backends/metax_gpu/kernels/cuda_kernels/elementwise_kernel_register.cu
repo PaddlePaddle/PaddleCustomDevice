@@ -1,4 +1,5 @@
-// Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights
+// Reserved. Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,20 +15,6 @@
 
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/kps/elementwise_kernel.cu"  // NOLINT
-// #include "paddle/phi/kernels/elementwise_kernel.h"
-// #include "paddle/phi/kernels/elementwise_add_kernel.h"
-// #include "paddle/phi/kernels/elementwise_divide_kernel.h"
-// #include "paddle/phi/kernels/elementwise_multiply_kernel.h"
-// #include "paddle/phi/kernels/elementwise_subtract_kernel.h"
-// #include "paddle/phi/kernels/elementwise_add_grad_kernel.h"
-// #include "paddle/phi/kernels/elementwise_divide_grad_kernel.h"
-// #include "paddle/phi/kernels/elementwise_multiply_grad_kernel.h"
-// #include "paddle/phi/kernels/elementwise_subtract_grad_kernel.h"
-// #include "paddle/phi/kernels/legacy/elementwise_add_kernel.h"
-// #include "paddle/phi/kernels/legacy/elementwise_divide_kernel.h"
-// #include "paddle/phi/kernels/legacy/elementwise_kernel.h"
-// #include "paddle/phi/kernels/legacy/elementwise_multiply_kernel.h"
-// #include "paddle/phi/kernels/legacy/elementwise_subtract_kernel.h"
 
 PD_CUSTOM_KERNEL_REGISTER(maximum,
                           metax,

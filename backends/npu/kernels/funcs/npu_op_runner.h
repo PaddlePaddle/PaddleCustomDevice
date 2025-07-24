@@ -419,6 +419,11 @@ inline aclIntArray* ConvertType(const std::vector<int64_t>& at_array) {
   return array;
 }
 
+inline aclIntArray* ConvertType(const std::vector<int>& at_array) {
+  std::vector<int64_t> temp_array(at_array.begin(), at_array.end());
+  return ConvertType(temp_array);
+}
+
 inline aclIntArray *ConvertType(const phi::IntArray &phi_array) {
   static const auto aclCreateIntArray = GET_OP_API_FUNC(aclCreateIntArray);
   if (aclCreateIntArray == nullptr) {
@@ -750,3 +755,9 @@ template <>
 struct cpp_type_to_acl_dtype<double> {
   static const aclDataType value() { return ACL_DOUBLE; }
 };
+
+void InitJitCompileOpt();
+
+void SetJitCompileOpt(bool new_value);
+
+bool ForceJitCompile(const std::string& op_name);

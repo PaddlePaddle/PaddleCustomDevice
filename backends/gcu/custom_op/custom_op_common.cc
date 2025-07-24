@@ -482,7 +482,7 @@ std::vector<paddle::Tensor> FusedTransformerLayer(
 std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor &probs,
                                          const paddle::Tensor &top_p) {
   //   PADDLE_GCU_KERNEL_TRACE("common_TopPSampling");
-  auto sort_out = paddle::experimental::argsort(probs, -1, true);
+  auto sort_out = paddle::experimental::argsort(probs, -1, true, false);
   paddle::Tensor sorted_probs = std::get<0>(sort_out);
   paddle::Tensor sorted_indices = std::get<1>(sort_out);
 
@@ -527,6 +527,7 @@ std::vector<paddle::Tensor> TopPSampling(const paddle::Tensor &probs,
                                       flatten_sorted_indices_to_remove,
                                       false);
   condition = paddle::experimental::reshape_(condition, {bsz, vocab_size});
+  condition = paddle::experimental::cast(condition, paddle::DataType::BOOL);
 
   auto zero_probs =
       paddle::experimental::full_like(probs, 0.0, probs.dtype(), probs.place());

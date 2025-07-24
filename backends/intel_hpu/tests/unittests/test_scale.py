@@ -112,5 +112,27 @@ class TestBiasAfterScale(OpTest):
         self.check_output_with_place(self.place)
 
 
+class TestFP8ScaleOp(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        np.random.seed(1024)
+        self.x = np.random.random((2, 3, 4)).astype(self.dtype)
+        self.scale = 2.8
+        self.bias = 3.2
+
+    def test_check_output(self):
+        x_fp8 = paddle.to_tensor(self.x, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = x_fp8.to(dtype="float16").cpu().numpy() * self.scale + self.bias
+
+        out = paddle.scale(x_fp8, self.scale, self.bias).astype("float16")
+
+        np.testing.assert_allclose(ref, out.numpy(), rtol=0.05)
+
+
 if __name__ == "__main__":
     unittest.main()

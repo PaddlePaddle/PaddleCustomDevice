@@ -7,6 +7,7 @@ package_data = {}
 
 def write_custom_op_api_py(init_file='python/paddle_custom_device/gcu/ops/__init__.py',
                            op_file='python/paddle_custom_device/gcu/ops/custom_ops.py',
+                           api_file='python/paddle_custom_device/gcu/ops/custom_ops_api.py',
                            lib_name='python/paddle_custom_device/libpaddle-custom-gcu.so'):
     import os
     os.environ['CUSTOM_DEVICE_ROOT']=''
@@ -20,11 +21,16 @@ def write_custom_op_api_py(init_file='python/paddle_custom_device/gcu/ops/__init
     op_name_strs = '\n\n__all__ = [\n'
     for op_name in op_names:
         op_name_strs += '    \'' + op_name + '\',\n'
+        if op_name.endswith("_gcu"):
+            op_name_new = op_name.removesuffix("_gcu")
+            op_name_strs += '    \'' + op_name_new + '\',\n'
+
     op_name_strs += ']\n'
     with open(init_file, 'w') as f_init:
         f_init.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
-        f_init.write('''from .custom_ops import *  # noqa: F403''')
-        f_init.write(op_name_strs)
+        f_init.write('''from .custom_ops import *  # noqa: F403\n''')
+        f_init.write('''from .custom_ops_api import *  # noqa: F403''')
+        # f_init.write(op_name_strs)
         f_init.write('''
 
 def run_once(f):
@@ -53,6 +59,13 @@ load_lib()
         f.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY\n\n''')
         f.write('\n\n'.join(api_content))
         f.write('# ====== End of file ======\n')
+
+    api_file_src  = '@CUSTOM_OP_API@'
+    with open(api_file, 'w') as f:
+        with open(api_file_src, 'r') as f_src:
+            context = f_src.read()
+            f.write(context)
+
 
 def write_version_py(filename='python/paddle_custom_device/gcu/__init__.py'):
     cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY

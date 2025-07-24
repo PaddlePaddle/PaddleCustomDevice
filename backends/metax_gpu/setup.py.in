@@ -1,13 +1,93 @@
+import os
 from setuptools import setup, Distribution
+
 
 packages = []
 package_data = {}
+
+def write_custom_op_api_py(filename='python/paddle_custom_device/metax_gpu/ops.py', libname='python/paddle_custom_device/libpaddle-metax-gpu.so'):
+    import os
+    os.environ['CUSTOM_DEVICE_ROOT']=''
+    import sys
+    import paddle
+    op_names = paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(libname)
+    api_content = [paddle.utils.cpp_extension.extension_utils._custom_api_content(op_name) for op_name in op_names]
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    with open(filename, 'w') as f:
+        f.write('''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+import paddle
+import os
+for lib in os.listdir(os.getenv("CUSTOM_DEVICE_ROOT")):
+    if lib.endswith(".so"):
+        paddle.utils.cpp_extension.extension_utils.load_op_meta_info_and_register_op(
+            lib
+        )
+''')
+        f.write('\n\n'.join(api_content))
+
+
+def write_version_py(filename='python/paddle_custom_device/meatx_gpu/__init__.py'):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+from .ops import *
+
+full_version  = '@PADDLE_VERSION@'
+git_commit_id = '@GIT_HASH@'
+custom_op_git_commit_id = '@CUSTOM_OP_GIT_HASH@'
+
+__all__ = ['version']
+
+def version():
+    """Get the version info of paddle custom metax_gpu
+
+    Returns:
+        version: version of paddle custom metax_gpu
+
+
+    Examples:
+        .. code-block:: python
+
+    """
+'''
+
+    with open(filename, 'w') as f:
+        f.write(cnt)
+
+
+def write_init_py(filename='python/paddle_custom_device/__init__.py'):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    cnt = '''# THIS FILE IS GENERATED FROM PADDLEPADDLE SETUP.PY
+#
+from . import meatx_gpu # noqa: F401
+
+__all__ = [  # noqa
+    'meatx_gpu',
+]
+
+'''
+    with open(filename, 'w') as f:
+        f.write(cnt)
+
 
 class BinaryDistribution(Distribution):
     def has_ext_modules(self):
         return True
 
-setup(
+
+def main():
+    write_custom_op_api_py()
+    write_version_py()
+    write_init_py()
+
+    setup(
     name = '@CMAKE_PROJECT_NAME@',
     version='@PLUGIN_VERSION@',
     description='Paddle metax_gpu plugin',
@@ -38,3 +118,7 @@ setup(
     ],
     keywords='Paddle metax_gpu plugin',
 )
+
+
+if __name__ == '__main__':
+    main()

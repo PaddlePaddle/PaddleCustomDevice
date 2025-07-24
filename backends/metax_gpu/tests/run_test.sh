@@ -1,3 +1,4 @@
+# 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 #!/bin/bash
 
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
@@ -14,10 +15,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# export PATH=/usr/local/corex-4.3.0/bin:$PATH
-# export LD_LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-# export LIBRARY_PATH=/usr/local/corex-4.3.0/lib
-export PYTHONPATH=${PYTHONPATH}:${PADDLE_SOURCE_DIR}/test/legacy_test
+pip install scipy -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple some-package
+SCRIPT_DIR=$(dirname "$0")
+LEGACY_TEST_PATH="${SCRIPT_DIR}/../../../Paddle/test/legacy_test"
+TEST_PATH1="${SCRIPT_DIR}/../../../python"
+TEST_PATH2="${SCRIPT_DIR}/../../../python/tests"
+export PYTHONPATH="${LEGACY_TEST_PATH}:${PYTHONPATH}:${TEST_PATH1}:${TEST_PATH2}"
 
-mkdir -p build && cd build && cmake ..
-make run_tests
+
+rm -r build
+mkdir -p build && cd build
+
+cmake ..
+
+
+cmake --build .
+
+
+ctest -j1 --output-on-failure

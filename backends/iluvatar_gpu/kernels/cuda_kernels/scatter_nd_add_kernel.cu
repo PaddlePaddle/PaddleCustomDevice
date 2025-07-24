@@ -42,19 +42,13 @@ void ScatterNdAddKernel(const Context &ctx,
   if (index_type == phi::DataType::INT32) {
     phi::funcs::GPUScatterNdAdd<T, int32_t>(ctx, updates, index, out);
   } else {
-#ifdef PADDLE_WITH_COREX
-    PADDLE_THROW(common::errors::Unimplemented(
-        "Unsupported index type `%s` when scatter_nd_add on iluvatar_gpu.",
-        index_type));
-#else
     phi::funcs::GPUScatterNdAdd<T, int64_t>(ctx, updates, index, out);
-#endif
   }
 }
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(scatter_nd_add,
+PD_REGISTER_PLUGIN_KERNEL(scatter_nd_add,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::ScatterNdAddKernel,

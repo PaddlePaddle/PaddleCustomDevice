@@ -18,7 +18,7 @@ limitations under the License. */
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/matmul_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(matmul,
+PD_REGISTER_PLUGIN_KERNEL(matmul,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulKernel,
@@ -37,7 +37,7 @@ PD_CUSTOM_KERNEL_REGISTER(matmul,
   }
 }
 
-PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
+PD_REGISTER_PLUGIN_KERNEL(matmul_with_flatten,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::MatmulWithFlattenKernel,
@@ -50,7 +50,7 @@ PD_CUSTOM_KERNEL_REGISTER(matmul_with_flatten,
   }
 }
 
-PD_CUSTOM_KERNEL_REGISTER(legacy_matmul,
+PD_REGISTER_PLUGIN_KERNEL(legacy_matmul,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::LegacyMatmulKernel,

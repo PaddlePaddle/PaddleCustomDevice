@@ -165,6 +165,12 @@ struct topsaten_variable<std::pair<uint64_t, uint64_t>> {
 #define DEFINE_LAUNCH_TOPSATENOP_VLLM(topsatenop) \
   DEFINE_LAUNCH_TOPSATENOP_WITH_NAMESPACE(topsvllm, topsatenop)
 
+#define DEFINE_LAUNCH_TOPSATENOP_FA(topsatenop) \
+  DEFINE_LAUNCH_TOPSATENOP_WITH_NAMESPACE(topsfa, topsatenop)
+
+#define DEFINE_LAUNCH_TOPSATENOP_EXTS(topsatenop) \
+  DEFINE_LAUNCH_TOPSATENOP_WITH_NAMESPACE(topsexts, topsatenop)
+
 #define DEFINE_LAUNCH_TOPSATENOP_TNNC(topsatenop) \
   DEFINE_LAUNCH_TOPSATENOP_WITH_NAMESPACE(topstnnc, topsatenop)
 
@@ -528,12 +534,21 @@ DEFINE_LAUNCH_TOPSATENOP_VOUT(topsatenLstmCell)
 // DEFINE_LAUNCH_TOPSATENOP_XLA(topsxlaScatter)
 DEFINE_LAUNCH_TOPSATENOP_PADDLE(topsatenConvTransposeActivation)
 
-// vllm
+// llm
 DEFINE_LAUNCH_TOPSATENOP_OUT2_VLLM(topsvllmRotaryEmbedding)
 DEFINE_LAUNCH_TOPSATENOP_OUT2_VLLM(topsvllmFusedAddRmsNorm)
 DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmMemoryEfficientAttention)
 DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmRmsNorm)
 DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmSiluAndMul)
+DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmMemEfficientAttentionV1)
+DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmPagedAttentionV1)
+// DEFINE_LAUNCH_TOPSATENOP_OUT2_VLLM(topsvllmTopkSoftmax)
+// DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmMoeAlignBlockSize)
+// DEFINE_LAUNCH_TOPSATENOP_VLLM(topsvllmInvokeFusedMoeKernel)
+// DEFINE_LAUNCH_TOPSATENOP_FA(topsfaFlashAttnVarlenFwd)
+DEFINE_LAUNCH_TOPSATENOP_EXTS(topsextsSum)
+DEFINE_LAUNCH_TOPSATENOP(topsatenScaledDotProductAttention)
+DEFINE_LAUNCH_TOPSATENOP(topsatenLinearQuant)
 
 // others
 DEFINE_LAUNCH_TOPSATENOP(topsatenDiag)

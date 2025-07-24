@@ -16,7 +16,7 @@
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/common/exception.h"
 #include "paddle/phi/kernels/funcs/aligned_vector.h"
-#include "paddle/phi/kernels/moe_kernel_impl.h"
+#include "paddle/phi/kernels/legacy/gpu/moe_kernel_impl.h"
 
 namespace phi {
 

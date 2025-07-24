@@ -191,13 +191,14 @@ class FusedGateUpMlp : public HpuOperator {
         ins[0].dims.size(), dtype_, ins[0].dims, true, ins[0].name);
     synTensor proj_weight = createTensor(
         ins[1].dims.size(), dtype_, ins[1].dims, true, ins[1].name);
-    std::vector<int64_t> proj_dims = {
-        ins[0].dims[0], ins[0].dims[1], ins[1].dims[1]};
+    std::vector<int64_t> proj_dims = ins[0].dims;
+    proj_dims[ins[0].dims.size() - 1] = ins[1].dims[1];
     synTensor proj_out =
         createTensor(proj_dims.size(), dtype_, proj_dims, false, "proj_out");
 
-    std::vector<int64_t> split_out_dims = {
-        proj_dims[0], proj_dims[1], proj_dims[2] / 2};
+    std::vector<int64_t> split_out_dims = proj_dims;
+    split_out_dims[proj_dims.size() - 1] = proj_dims[proj_dims.size() - 1] / 2;
+
     synTensor gate_out = createTensor(
         split_out_dims.size(), dtype_, split_out_dims, false, "gate_out");
     synTensor up_out = createTensor(

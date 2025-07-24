@@ -23,6 +23,7 @@
 - [飞桨自定义接入硬件后端(壁仞GPU)](backends/biren_gpu/README_cn.md)
 - [飞桨自定义接入硬件后端(燧原GCU)](backends/gcu/README_cn.md)
 - [飞桨自定义接入硬件后端(太初SDAA)](backends/sdaa/README_cn.md)
+- [飞桨自定义接入硬件后端(沐曦METAX)](backends/metax_gpu/README_cn.md)
 
 ## 版权和许可证
 

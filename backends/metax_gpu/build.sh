@@ -1,3 +1,4 @@
+# 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.
 #!/bin/bash
 
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
@@ -15,6 +16,15 @@
 # limitations under the License.
 
 set -e
+# uninstall paddle
+pip  uninstall paddlepaddle -y
+
+
+export http_proxy=http://10.2.192.21:1080 https_proxy=http://10.2.192.21:1080
+# install paddle
+python -m pip install --pre paddlepaddle -i https://www.paddlepaddle.org.cn/packages/nightly/cpu/
+
+# exit 1
 # init paddle
 git submodule sync --recursive && git submodule update --init --recursive
 

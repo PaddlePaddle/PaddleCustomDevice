@@ -40,7 +40,7 @@ void SoftmaxGradGPUDNNKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(softmax_grad,
+PD_REGISTER_PLUGIN_KERNEL(softmax_grad,
                           iluvatar_gpu,
                           ALL_LAYOUT,
                           phi::SoftmaxGradGPUDNNKernel,

@@ -45,4 +45,5 @@ PD_REGISTER_PLUGIN_KERNEL(lerp,
                           ALL_LAYOUT,
                           custom_kernel::LerpKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

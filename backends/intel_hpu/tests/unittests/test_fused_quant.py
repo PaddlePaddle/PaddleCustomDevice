@@ -48,6 +48,18 @@ class TestFusedQuant(unittest.TestCase):
             mismatch_percentage <= 0.02
         ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.02}% threshold\n"
 
+        input = input.transpose([0, 1, 3, 2])
+        quant, scale = paddlenlp_ops.fused_quant(input)
+        quant = quant.to(dtype="float32")
+        dequant = paddle.multiply(quant, scale)
+
+        close_mask = np.isclose(dequant, input.to(dtype="float32"), rtol=1e-01)
+        mismatch_count = np.sum(~close_mask)
+        mismatch_percentage = mismatch_count / np.size(input) * 100.0
+        assert (
+            mismatch_percentage <= 0.02
+        ), f"Mismatched elements percentage: {mismatch_percentage:}% > {0.02}% threshold\n"
+
 
 if __name__ == "__main__":
     unittest.main()

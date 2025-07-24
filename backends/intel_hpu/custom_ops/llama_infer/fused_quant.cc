@@ -174,7 +174,7 @@ void fused_quant(const Context& dev_ctx,
     return;
   }
 
-  dev_ctx.template Alloc<float>(scale);
+  dev_ctx.template Alloc<phi::dtype::bfloat16>(scale);
   if (scale->numel() == 0) {
     return;
   }

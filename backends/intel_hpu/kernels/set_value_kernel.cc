@@ -233,53 +233,49 @@ void SetTensorValueKernel(const Context& dev_ctx,
   runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
 }
 
-// template <typename T, typename Context>
-// void SetValueKernel(const Context& dev_ctx,
-//                        const phi::DenseTensor& x,
-//                        const phi::IntArray& starts,
-//                        const phi::IntArray& ends,
-//                        const phi::IntArray& steps,
-//                        const std::vector<int64_t>& axes,
-//                        const std::vector<int64_t>& decrease_axes,
-//                        const std::vector<int64_t>& none_axes,
-//                        const std::vector<int64_t>& shape,
-//                        const std::vector<phi::Scalar>& values,
-//                        phi::DenseTensor* out) {
-//   std::vector<T> assgin_values;
-//   assgin_values.reserve(values.size());
-//   for (const auto& val : values) {
-//     assgin_values.push_back(val.to<T>());
-//   }
-//   phi::DenseTensor value_tensor;
-//   value_tensor.Resize(phi::make_ddim(shape));
-//   custom_kernel::TensorFromVector(
-//       dev_ctx, assgin_values, dev_ctx, &value_tensor);
-//   value_tensor.Resize(phi::make_ddim(shape));
+template <typename T, typename Context>
+void SetValueKernel(const Context& dev_ctx,
+                    const phi::DenseTensor& x,
+                    const phi::IntArray& starts,
+                    const phi::IntArray& ends,
+                    const phi::IntArray& steps,
+                    const std::vector<int64_t>& axes,
+                    const std::vector<int64_t>& decrease_axes,
+                    const std::vector<int64_t>& none_axes,
+                    const std::vector<int64_t>& shape,
+                    const std::vector<phi::Scalar>& values,
+                    phi::DenseTensor* out) {
+  std::vector<T> assign_values;
+  assign_values.reserve(values.size());
+  for (const auto& val : values) {
+    assign_values.push_back(val.to<T>());
+  }
+  phi::DenseTensor value_tensor;
+  value_tensor.Resize(phi::make_ddim(shape));
+  TensorFromVector(dev_ctx, assign_values, dev_ctx, &value_tensor);
+  value_tensor.Resize(phi::make_ddim(shape));
 
-//   custom_kernel::SetTensorValueKernel<T, Context>(dev_ctx,
-//                                                      x,
-//                                                      value_tensor,
-//                                                      starts,
-//                                                      ends,
-//                                                      steps,
-//                                                      axes,
-//                                                      decrease_axes,
-//                                                      none_axes,
-//                                                      out);
-// }
-
-//
+  custom_kernel::SetTensorValueKernel<T, Context>(dev_ctx,
+                                                  x,
+                                                  value_tensor,
+                                                  starts,
+                                                  ends,
+                                                  steps,
+                                                  axes,
+                                                  decrease_axes,
+                                                  none_axes,
+                                                  out);
+}
 
 }  // namespace custom_kernel
 
-// PD_REGISTER_PLUGIN_KERNEL(set_value,
-//                           intel_hpu,
-//                           ALL_LAYOUT,
-//                           custom_kernel::SetValueKernel,
-//                           float,
-//                           phi::dtype::float16,
-//                           phi::dtype::bfloat16) {
-// }
+PD_REGISTER_PLUGIN_KERNEL(set_value,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::SetValueKernel,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(set_value_with_tensor,
                           intel_hpu,

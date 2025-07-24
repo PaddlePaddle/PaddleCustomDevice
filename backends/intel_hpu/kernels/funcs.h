@@ -206,6 +206,34 @@ inline paddle::Tensor copy_tensor_wrapper(const phi::CustomContext* dev_ctx,
   return paddle::Tensor(dst_dt);
 }
 
+/**
+ * CPU -> INTEL_HPU
+ */
+template <typename T>
+inline void TensorFromVector(const phi::CustomContext& ctx,
+                             const std::vector<T>& src,
+                             const phi::CustomContext& dev_ctx,
+                             phi::DenseTensor* dst) {
+  auto dst_place = dev_ctx.GetPlace();
+  C_Device_st device{dst_place.GetDeviceId()};
+  auto src_ptr = static_cast<const void*>(src.data());
+  dst->Resize({static_cast<int64_t>(src.size())});
+  auto dst_ptr = static_cast<void*>(dev_ctx.template Alloc<T>(dst));
+  auto size = src.size() * sizeof(T);
+  if (UNLIKELY(size == 0)) return;
+
+  if (dst_place.GetType() == phi::AllocationType::CUSTOM) {
+    AsyncMemCpyH2D(&device,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   dst_ptr,
+                   src_ptr,
+                   size);
+  } else {
+    PADDLE_THROW(phi::errors::Unimplemented(
+        "TensorFromVector on %s is not supported.", dst_place));
+  }
+}
+
 inline int CanonicalAxis(const int axis, const int rank) {
   if (axis < 0) {
     return axis + rank;

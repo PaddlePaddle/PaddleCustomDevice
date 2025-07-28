@@ -55,7 +55,7 @@ class FusedQuantPerChannel : public HpuOperator {
                                 inputs[0].type,
                                 inputs[0].dims,
                                 false,
-                                inputs[0].name);
+                                "abs_out");
     std::vector<synTensor> abs_outputs;
     abs_outputs.push_back(abs_out);
     status = synNodeCreate(graphHandle_,
@@ -79,7 +79,7 @@ class FusedQuantPerChannel : public HpuOperator {
                                 outputs[0].type,
                                 outputs[0].dims,
                                 false,
-                                outputs[0].name);
+                                "max_out");
 
     std::vector<synTensor> max_outputs;
     max_outputs.push_back(max_out);

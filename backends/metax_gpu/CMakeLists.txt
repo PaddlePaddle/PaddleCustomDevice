@@ -165,6 +165,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/elementwise_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/decode_jpeg_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/nvjpeg.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/dynload/cupti.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/embedding_with_scaled_gradient_grad_kernel_register.cu
@@ -284,8 +285,6 @@ file(
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/cudnn.cc
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
-  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_kernel.cu
-  # ${CMAKE_SOURCE_DIR}/kernels/c_softmax_with_cross_entropy_grad_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/flash_attn_grad_kernel.cu
@@ -362,6 +361,7 @@ target_link_libraries(
   ${PADDLE_CORE_LIB})
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmccl.so)
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmcFlashAttn.so)
+target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmcpti.so)
 include_directories(BEFORE ${PADDLE_SOURCE_DIR})
 
 target_compile_definitions(

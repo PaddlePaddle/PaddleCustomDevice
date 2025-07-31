@@ -12,7 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include <cuda_runtime.h>
+#include <cupti.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <nccl.h>
@@ -34,13 +36,23 @@
 #include <unordered_map>
 
 #include "glog/logging.h"
+#include "paddle/fluid/platform/profiler/cuda_tracer.h"
+#include "paddle/fluid/platform/profiler/cupti_data_process.h"
+#include "paddle/phi/api/profiler/trace_event_collector.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/cupti.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
+#include "paddle/phi/core/os_info.cc"  //NOLINT
+#include "paddle/phi/core/os_info.h"
+#include "paddle/phi/core/platform/device/gpu/gpu_info.cc"  //NOLINT
+#include "paddle/phi/core/platform/device/gpu/gpu_info.h"
+#include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
+#include "paddle/phi/core/platform/profiler/utils.h"
+#include "runtime/process_cupti_data.cc"  //NOLINT
 #include "unsupported/Eigen/CXX11/Tensor"
-
 #define MEMORY_FRACTION 0.5f
 
 static int global_current_device = 0;
@@ -895,6 +907,88 @@ ncclRedOp_t PDReduceOpToNcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  // CUPTI_CALL(cuptiRelease());
+  return C_SUCCESS;
+}
+
+void BufferRequestedCallback(uint8_t **buffer,
+                             size_t *size,
+                             size_t *max_num_records) {
+  Tracer::Instance().AllocateBuffer(buffer, size);
+  *max_num_records = 0;
+}
+
+void BufferCompletedCallback(CUcontext ctx,
+                             uint32_t stream_id,
+                             uint8_t *buffer,
+                             size_t size,
+                             size_t valid_size) {
+  Tracer::Instance().ProduceBuffer(buffer, valid_size);
+  size_t dropped = 0;
+  CUPTI_CALL(cuptiActivityGetNumDroppedRecords(ctx, stream_id, &dropped));
+  if (dropped != 0) {
+    LOG(WARNING) << "Stream " << stream_id << " Dropped " << dropped
+                 << " activity records";
+  }
+}
+
+C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
+  CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
+                                            BufferCompletedCallback));
+
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DRIVER));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_RUNTIME));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
+  VLOG(3) << "enable cupti activity";
+  return C_SUCCESS;
+}
+
+std::vector<ActivityBuffer> Tracer::ConsumeBuffers() {
+  std::vector<ActivityBuffer> buffers;
+  {
+    std::lock_guard<std::mutex> guard(activity_buffer_lock_);
+    buffers.swap(activity_buffers_);
+  }
+  return buffers;
+}
+
+C_Status ProfilerStart(C_Profiler prof, void *user_data) {
+  CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
+                                            BufferCompletedCallback));
+
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DRIVER));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_RUNTIME));
+  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
+  VLOG(3) << "enable cupti activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerStop(C_Profiler prof, void *user_data) {
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMCPY));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_DRIVER));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_MEMSET));
+  CUPTI_CALL(cuptiActivityDisable(CUPTI_ACTIVITY_KIND_RUNTIME));
+  VLOG(3) << "disable cupti activity";
+  return C_SUCCESS;
+}
+
+C_Status ProfilerCollectData(C_Profiler prof,
+                             uint64_t tracing_start_ns_,
+                             void *user_data) {
+  ProcessCuptiActivity(prof, tracing_start_ns_);
+  return C_SUCCESS;
+}
+
 C_Status XcclGetUniqueIdSize(size_t *size) {
   *size = sizeof(ncclUniqueId);
   return C_SUCCESS;
@@ -1160,10 +1254,11 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->xccl_send = XcclSend;
   params->interface->xccl_all_to_all = Xccl_all_to_all;
 
-  params->interface->profiler_collect_trace_data = nullptr;
-  params->interface->profiler_initialize = nullptr;
-  params->interface->profiler_finalize = nullptr;
-  params->interface->profiler_start_tracing = nullptr;
-  params->interface->profiler_stop_tracing = nullptr;
-  params->interface->profiler_prepare_tracing = nullptr;
+  // profiler
+  params->interface->profiler_collect_trace_data = ProfilerCollectData;
+  params->interface->profiler_initialize = ProfilerInitialize;
+  params->interface->profiler_finalize = ProfilerFinalize;
+  params->interface->profiler_start_tracing = ProfilerStart;
+  params->interface->profiler_stop_tracing = ProfilerStop;
+  params->interface->profiler_prepare_tracing = ProfilerPrepare;
 }

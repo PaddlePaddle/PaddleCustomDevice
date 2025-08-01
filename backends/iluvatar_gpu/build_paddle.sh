@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,6 +26,15 @@ export CMAKE_CUDA_ARCHITECTURES=${COREX_ARCH}
 CURRENT_DIR=$(pwd)
 PADDLE_SOURCE_DIR="${CURRENT_DIR}/../../Paddle"
 PATCH_FILE="${CURRENT_DIR}/patches/paddle-corex.patch"
+# set BUILD_WITH_FLAGCX to 1 if we want to use flagcx as communication backend
+BUILD_WITH_FLAGCX=0
+FLAGCX_ROOT="/workspace/FlagCX"
+
+if [ "$BUILD_WITH_FLAGCX" == "1" ]; then
+    WITH_FLAGCX="ON"
+else
+    WITH_FLAGCX="OFF"
+fi
 
 bash clean_paddle.sh
 
@@ -51,9 +60,10 @@ if [[ ! -d "build" ]]; then
 fi
 pushd build
 
-cmake -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON \
--DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
+cmake -DPY_VERSION=${PYTHON_VERSION} -DWITH_COREX=ON -DPADDLE_SOURCE_DIR=${PADDLE_SOURCE_DIR} \
+-DWITH_DISTRIBUTE=ON -DWITH_NCCL=ON -DWITH_FLAGCX=${WITH_FLAGCX} -DWITH_RCCL=OFF -DCMAKE_BUILD_TYPE=Release \
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DON_INFER=ON -DCOREX_VERSION=${COREX_VERSION} -DCOREX_ARCH=${COREX_ARCH} \
+-DFLAGCX_ROOT=${FLAGCX_ROOT} \
 -DCMAKE_CXX_FLAGS='-Wno-error=pessimizing-move -Wno-error=deprecated-copy -Wno-error=init-list-lifetime' \
 -DCMAKE_CUDA_FLAGS='-Xclang -fcuda-allow-variadic-functions -mllvm --skip-double' \
 -DWITH_ARM=OFF -DWITH_DGC=OFF .. 2>&1 | tee compile.log

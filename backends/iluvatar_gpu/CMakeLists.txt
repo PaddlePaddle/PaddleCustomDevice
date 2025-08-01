@@ -70,7 +70,10 @@ target_include_directories(external_error_proto
 target_link_libraries(external_error_proto PUBLIC protobuf)
 set_target_properties(external_error_proto PROPERTIES POSITION_INDEPENDENT_CODE
                                                       ON)
-add_custom_target(external_deps DEPENDS eigen3 zlib protobuf flagcx)
+add_custom_target(external_deps DEPENDS eigen3 zlib protobuf)
+if(WITH_FLAGCX)
+  add_custom_target(external_deps DEPENDS flagcx)
+endif()
 
 if(WITH_COREX)
   add_definitions(-DPADDLE_WITH_COREX)

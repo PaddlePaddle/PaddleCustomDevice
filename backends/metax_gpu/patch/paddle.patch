@@ -699,3 +699,5 @@ index c646e487d0..424f22579f 100644
 +// DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
 
  #undef DECLARE_TYPE_FOR_GPU
+
+  //NOLINT

@@ -675,23 +675,23 @@ index 59e92955c9..d2f8c2da15 100644
 -#endif  // PADDLE_WITH_CUPTI
 +#endif  // PADDLE_WITH_CUPTI
 \ No newline at end of file
+
 diff --git a/paddle/phi/core/platform/device/gpu/gpu_types.h b/paddle/phi/core/platform/device/gpu/gpu_types.h
-index c646e487d0..325122175c 100644
+index c646e487d0..424f22579f 100644
 --- a/paddle/phi/core/platform/device/gpu/gpu_types.h
 +++ b/paddle/phi/core/platform/device/gpu/gpu_types.h
-@@ -25,8 +25,9 @@
+@@ -25,8 +25,8 @@
  #else
  #include <cuda_runtime.h>
 
 -#include "paddle/phi/backends/dynload/cublas.h"
 -#include "paddle/phi/backends/dynload/cublasLt.h"
-+// #include "paddle/phi/backends/dynload/cublas.h"
 +#include "kernels/funcs/blas/cublas.h"
 +// #include "paddle/phi/backends/dynload/cublasLt.h"
  #include "paddle/phi/backends/dynload/cudnn.h"
  #endif
 
-@@ -90,7 +91,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
+@@ -90,7 +90,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
 
  // TODO(Ming Huang): Since there is no blasLt handler,
  // use rocblas_handle for workaround.

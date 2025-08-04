@@ -57,6 +57,17 @@ bash tools/compile.sh
 
 # 5) 编译产出在 build/dist 路径下，使用 pip 安装
 pip install build/dist/paddle_custom_npu*.whl
+
+# 6) 执行环境变量设置
+source tools/set_env.sh
+
+# 7) 安装ops库
+cd opp/ascend_custom_ops/build
+bash build_ops.sh
+cd custom_project/build_out/
+./custom_opp*.run
+
+依照提示输入  export
 ```
 
 ### 基础功能检查

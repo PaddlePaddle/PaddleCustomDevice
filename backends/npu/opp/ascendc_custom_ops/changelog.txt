@@ -1,0 +1,23 @@
+【2023.10.25】
+    1. 优化 TokenPenaltyMultiScores算子的 Tiling策略 & 计算逻辑
+【2023.12.19】
+    1. 新增7个算子
+		GetMaxLen
+		GetPaddingOffset
+		RebuildPadding
+		UpdateInputs
+		SetValueByFlagsAndIdxV2
+		SetStopValueMultiEndsV2
+		TokenPenaltyMultiScoresV2
+	2. 算子TokenPenaltyMultiScores 适配新版本cann，
+【2024.01.17】
+	1. 新增1个算子
+		StepPaddle
+【2024.01.20】
+	1. TokenPenaltyMultiScores & TokenPenaltyMultiScoresV2
+		break分支异常处理
+		算子执行完不修改repeat_times入参
+	2. SetValueByFlagsAndIdxV2
+		性能优化
+	3. GetPaddingOffset & RebuildPadding
+		调整 MAX_BATCH_NUM 为256

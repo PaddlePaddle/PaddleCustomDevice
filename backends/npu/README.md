@@ -59,6 +59,17 @@ bash tools/compile.sh
 
 # 5. install the generated whl package, which is under build/dist directory
 pip install build/dist/paddle_custom_npu*.whl
+
+# 6) Set the execution environment variables
+source tools/set_env.sh
+
+# 7) Install the ops library
+cd opp/ascend_custom_ops/build
+bash build_ops.sh
+cd custom_project/build_out/
+./custom_opp*.run
+
+Follow the prompts to input  export
 ```
 
 ## Verification

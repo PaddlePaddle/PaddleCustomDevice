@@ -1,0 +1,40 @@
+[
+    {
+        "op": "GenSeqLen",
+        "language": "cpp",
+        "input_desc": [
+            {
+                "name": "attnMask",
+                "param_type": "required",
+                "format": [
+                        "ND"
+                ],
+                "type": [
+                        "int32"
+                ]
+            }
+        ],
+        "output_desc": [
+            {
+                "name": "seqLenAlign",
+                "param_type": "required",
+                "format": [
+                        "ND"
+                ],
+                "type": [
+                        "int32"
+                ]
+            },
+            {
+                "name": "seqLenOri",
+                "param_type": "required",
+                "format": [
+                        "ND"
+                ],
+                "type": [
+                        "int32"
+                ]
+            }
+        ]
+    }
+]

@@ -161,14 +161,10 @@ struct FlashAttnParamsBaseKVCache {
         head_size(_head_size) {
     softmax_scale = 1.0f / std::sqrt(head_size);
     p_dropout = _is_test ? 0.0f : _p_dropout;
-    printf("%s %d\n", __FILE__, __LINE__);
     q = DenseTensorToMcFlashAttnTensor(_q);
-    printf("%s %d\n", __FILE__, __LINE__);
     if (_k) k = DenseTensorToMcFlashAttnTensor(*_k);
     if (_v) v = DenseTensorToMcFlashAttnTensor(*_v);
-    printf("%s %d\n", __FILE__, __LINE__);
     out = DenseTensorToMcFlashAttnTensor(_out);
-    printf("%s %d\n", __FILE__, __LINE__);
   }
   ~FlashAttnParamsBaseKVCache() {
     phi::dynload::release_tensor(

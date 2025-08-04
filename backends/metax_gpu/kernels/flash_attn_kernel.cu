@@ -257,7 +257,6 @@ std::vector<paddle::Tensor> FlashAttnKernelKVCache(
     bool return_softmax) {
 #ifdef PADDLE_WITH_FLASHATTN
   auto ctx = getcontext(q_);
-  printf("%s %d\n", __FILE__, __LINE__);
   auto q = paddletensor2densortensor(q_);
   auto k_cache = paddletensor2densortensor(k_cache_);
   auto v_cache = paddletensor2densortensor(v_cache_);
@@ -286,7 +285,6 @@ std::vector<paddle::Tensor> FlashAttnKernelKVCache(
   std::vector<int64_t> out_dims = {batch_size, seqlen_q, num_heads, head_size};
   out->Resize(phi::make_ddim(out_dims));
   (*ctx).Alloc(out.get(), q.dtype());
-  printf("%s %d\n", __FILE__, __LINE__);
   std::shared_ptr<phi::DenseTensor> softmax_lse =
       std::make_shared<phi::DenseTensor>();
   FlashAttnParamsFwdKVCache<float> params(*ctx,

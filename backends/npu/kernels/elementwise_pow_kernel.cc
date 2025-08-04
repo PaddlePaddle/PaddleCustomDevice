@@ -284,7 +284,7 @@ void ElementwisePowGradKernel(const Context& dev_ctx,
   auto dout_dims = dout.dims();
   axis = (axis < 0 ? std::abs(x_dims.size() - y_dims.size()) + axis + 1 : axis);
   // const phi::DenseTensor& print_tensor = dout;
-  // paddle::funcs::TensorFormatter formatter;
+  // phi::funcs::TensorFormatter formatter;
   // formatter.Print(print_tensor);
   std::vector<int64_t> reduce_axes;
   std::vector<int64_t> dst_dims_vec;

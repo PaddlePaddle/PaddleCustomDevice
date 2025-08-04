@@ -114,5 +114,18 @@ class TestHPUIndexSelectDouble(TestHPUIndexSelect):
         self.index_type = np.int64
 
 
+class TestMixOfInt32andInt64(unittest.TestCase):
+    def test_mix_int32_int64(self):
+        paddle.disable_static()
+        x = paddle.to_tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        indices_32 = paddle.to_tensor([0, 2], dtype=paddle.int32)
+        result1 = paddle.index_select(x, axis=0, index=indices_32)
+
+        indices_64 = paddle.to_tensor([0, 2], dtype=paddle.int64)
+        result2 = paddle.index_select(x, axis=0, index=indices_64)
+        self.assertTrue(np.array_equal(result1.numpy(), result2.numpy()))
+        paddle.enable_static()
+
+
 if __name__ == "__main__":
     unittest.main()

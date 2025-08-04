@@ -21,6 +21,20 @@
 #include "paddle/extension.h"
 #include "utils/utils.h"
 
+namespace custom_kernel {
+template <typename T, typename Context>
+void SetTensorValueKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& x,
+                          const phi::DenseTensor& value,
+                          const phi::IntArray& starts,
+                          const phi::IntArray& ends,
+                          const phi::IntArray& steps,
+                          const std::vector<int64_t>& axes,
+                          const std::vector<int64_t>& decrease_axes,
+                          const std::vector<int64_t>& none_axes,
+                          phi::DenseTensor* out);
+}  // namespace custom_kernel
+
 bool is_in_end_v3(const int64_t id, const int64_t* end_ids, int length) {
   for (int i = 0; i < length; i++) {
     if (id == end_ids[i]) {
@@ -38,14 +52,12 @@ void cpu_wrapper(bool* not_need_stop,
                  int* seq_lens_decoder,
                  int64_t* next_tokens,
                  int64_t* kwargs_next_tokens,
-                 int64_t* input_ids,
                  const int64_t* end_ids,
                  const int64_t* stop_nums,
                  const bool* is_block_step,
                  const int64_t* max_dec_len,
                  int bsz,
                  int max_bsz,
-                 int input_ids_stride,
                  int end_length) {
 #pragma omp parallel for num_threads(OMP_THREAD_NUM)
   for (int i = 0; i < max_bsz; i++) {
@@ -91,8 +103,6 @@ void cpu_wrapper(bool* not_need_stop,
 
     seq_lens_this_time[i] = stop_flags[i] ? 0 : 1;
     seq_lens_encoder[i] = 0;
-    int64_t* input_ids_now = input_ids + i * input_ids_stride;
-    input_ids_now[0] = next_tokens[i];
   }
   int64_t stop_sum = 0;
   for (size_t i = 0; i < stop_flag_now_int.size(); i++) {
@@ -110,14 +120,12 @@ void update_inputs_v2(bool* not_need_stop,
                       int* seq_lens_decoder,
                       int64_t* next_tokens,
                       int64_t* kwargs_next_tokens,
-                      int64_t* input_ids,
                       const int64_t* end_ids,
                       const int64_t* stop_nums,
                       const bool* is_block_step,
                       const int64_t* max_dec_len,
                       int now_bsz,
                       int max_bsz,
-                      int input_ids_stride,
                       int end_length) {
   PD_CHECK(max_bsz <= 1024,
            "Max supported batch size is 1024. Now received ",
@@ -132,14 +140,12 @@ void update_inputs_v2(bool* not_need_stop,
               seq_lens_decoder,
               next_tokens,
               kwargs_next_tokens,
-              input_ids,
               end_ids,
               stop_nums,
               is_block_step,
               max_dec_len,
               now_bsz,
               max_bsz,
-              input_ids_stride,
               end_length);
 }
 
@@ -166,7 +172,6 @@ void UpdateInputesV2(const paddle::Tensor& stop_flags,
   auto seq_lens_decoder_cpu =
       seq_lens_decoder.copy_to(paddle::CPUPlace(), true);
   auto max_dec_len_cpu = max_dec_len.copy_to(paddle::CPUPlace(), true);
-  auto input_ids_cpu = input_ids.copy_to(paddle::CPUPlace(), true);
   auto stop_nums_cpu = stop_nums.copy_to(paddle::CPUPlace(), true);
   auto next_tokens_cpu = next_tokens.copy_to(paddle::CPUPlace(), true);
   auto is_block_step_cpu = is_block_step.copy_to(paddle::CPUPlace(), true);
@@ -180,7 +185,6 @@ void UpdateInputesV2(const paddle::Tensor& stop_flags,
 
   const int max_bsz = stop_flags.shape()[0];
   const int now_bsz = seq_lens_this_time.shape()[0];
-  const int input_ids_stride = input_ids.shape()[1];
   const int end_length = end_ids.shape()[0];
   update_inputs_v2(const_cast<bool*>(not_need_stop_cpu.data<bool>()),
                    const_cast<int64_t*>(step_idx_cpu.data<int64_t>()),
@@ -190,14 +194,12 @@ void UpdateInputesV2(const paddle::Tensor& stop_flags,
                    const_cast<int*>(seq_lens_decoder_cpu.data<int>()),
                    const_cast<int64_t*>(next_tokens_cpu.data<int64_t>()),
                    const_cast<int64_t*>(kwargs_next_tokens_cpu.data<int64_t>()),
-                   const_cast<int64_t*>(input_ids_cpu.data<int64_t>()),
                    end_ids_cpu.data<int64_t>(),
                    stop_nums_cpu.data<int64_t>(),
                    is_block_step_cpu.data<bool>(),
                    max_dec_len_cpu.data<int64_t>(),
                    now_bsz,
                    max_bsz,
-                   input_ids_stride,
                    end_length);
 
   custom_kernel::copy_tensor_wrapper(dev_ctx, not_need_stop_cpu, not_need_stop);
@@ -209,10 +211,32 @@ void UpdateInputesV2(const paddle::Tensor& stop_flags,
       dev_ctx, seq_lens_encoder_cpu, seq_lens_encoder);
   custom_kernel::copy_tensor_wrapper(
       dev_ctx, seq_lens_decoder_cpu, seq_lens_decoder);
-  custom_kernel::copy_tensor_wrapper(dev_ctx, input_ids_cpu, input_ids);
   custom_kernel::copy_tensor_wrapper(dev_ctx, next_tokens_cpu, next_tokens);
   custom_kernel::copy_tensor_wrapper(
       dev_ctx, kwargs_next_tokens_cpu, kwargs_next_tokens);
+
+  auto input_ids_tensor =
+      static_cast<phi::DenseTensor*>(input_ids.impl().get());
+  auto next_tokens_tensor =
+      static_cast<const phi::DenseTensor*>(next_tokens.impl().get());
+  auto starts = phi::IntArray(std::vector<int64_t>{0});
+  auto ends = phi::IntArray(std::vector<int64_t>{1});
+  auto steps = phi::IntArray(std::vector<int64_t>{1});
+  std::vector<int64_t> axes = {1};
+  std::vector<int64_t> decrease_axes;
+  std::vector<int64_t> none_axes;
+
+  custom_kernel::SetTensorValueKernel<int64_t, phi::CustomContext>(
+      *dev_ctx,
+      *input_ids_tensor,
+      *next_tokens_tensor,
+      starts,
+      ends,
+      steps,
+      axes,
+      decrease_axes,
+      none_axes,
+      input_ids_tensor);
 }
 
 std::vector<std::vector<int64_t>> UpdateInputsV2InferShape(

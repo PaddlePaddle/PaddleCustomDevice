@@ -246,23 +246,14 @@ def rebuild_padding_v3(
     dim_emb = tmp_out.shape[-1]
     output_data = None
 
+    output_data = paddle.zeros((batch_ids.shape[0], dim_emb))
     if is_prompt is True:  # context
         tmp_out = tmp_out.reshape([total_batch, -1, dim_emb])
-        seq_lens = []
-        for i in range(max_batch):
-            if seq_lens_encoder[i].item() > 0:
-                seq_len = seq_lens_encoder[i].item()
-                seq_lens.append(seq_len)
-        output_data = paddle.zeros((len(seq_lens), dim_emb))
-        for idx, seq_len in enumerate(seq_lens):
-            seq_len = seq_lens[idx]
-            output_data[idx] = tmp_out[idx, seq_len - 1]
+        for i in range(batch_ids.shape[0]):
+            seq_len = seq_lens_encoder[batch_ids[i]].item()
+            output_data[i] = tmp_out[i, seq_len - 1]
     elif is_prompt is False:
-        output_data = paddle.zeros((len(batch_ids), dim_emb))
-        fake_batch_ids = paddle.arange(len(batch_ids))
-        output_data = paddle.scatter(
-            output_data, fake_batch_ids, tmp_out[: batch_ids.shape[0], :]
-        )
+        output_data = tmp_out[: batch_ids.shape[0], :]
 
     return output_data
 

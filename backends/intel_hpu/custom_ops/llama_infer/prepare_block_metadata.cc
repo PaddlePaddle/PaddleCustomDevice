@@ -165,26 +165,37 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
   auto seq_lens_decoder_cpu =
       seq_lens_decoder.copy_to(paddle::CPUPlace(), true);
 
-  const int batch_step = 4;
-  const int block_step = 16;
-  const int max_batches = input_ids.shape()[0];
+  const char* env_prefill_batch_step = std::getenv("BATCH_STEP_PREFILL");
+  const int batch_step_prefill =
+      env_prefill_batch_step ? std::atoi(env_prefill_batch_step) : 1;
+  const char* env_decode_batch_step = std::getenv("BATCH_STEP_DECODE");
+  const int batch_step_decode =
+      env_decode_batch_step ? std::atoi(env_decode_batch_step) : 4;
+  const char* env_block_step = std::getenv("BLOCK_STEP_DECODE");
+  const int block_step = env_block_step ? std::atoi(env_block_step) : 16;
+  const char* env_max_batches = std::getenv("MAX_BATCHES_PREFILL");
+  const int max_batches_prefill =
+      env_max_batches ? std::atoi(env_max_batches) : 3;
+
+  const int max_batches_in = input_ids.shape()[0];
   const int max_seq_len = input_ids.shape()[1];
   const int max_blocks_each = block_tables.shape()[1];
   phi::DataType device_dtype = phi::StringToDataType(dtype);
 
   auto [max_enc_len, valid_batches_enc] = get_max_and_where_nonzero(
-      const_cast<int*>(seq_lens_encoder_cpu.data<int>()), max_batches);
+      const_cast<int*>(seq_lens_encoder_cpu.data<int>()), max_batches_in);
   int enc_count = valid_batches_enc.size();
 
   auto valid_batches_dec = where_nonzero(
-      const_cast<int*>(seq_lens_decoder_cpu.data<int>()), max_batches);
+      const_cast<int*>(seq_lens_decoder_cpu.data<int>()), max_batches_in);
   int dec_count = valid_batches_dec.size();
 
   auto dummy_tensor =
       paddle::full({1}, 0, phi::DataType::FLOAT32, paddle::CPUPlace());
 
   if (enc_count > 0) {
-    int total_batch = find_bucket(enc_count, batch_step, max_batches);
+    int total_batch =
+        find_bucket(enc_count, batch_step_prefill, max_batches_prefill);
     auto input_ids_cpu = input_ids.copy_to(paddle::CPUPlace(), true);
 
     int max_buckets = (max_enc_len + block_size - 1) / block_size;
@@ -248,7 +259,7 @@ std::vector<paddle::Tensor> PrepareBlockMetadata(
             is_prompt_cpu_tensor};
 
   } else if (dec_count > 0) {
-    int total_batch = find_bucket(dec_count, batch_step, max_batches);
+    int total_batch = find_bucket(dec_count, batch_step_decode, max_batches_in);
 
     auto input_ids_column_0 =
         paddle::experimental::slice(input_ids, {1}, {0}, {1}, {}, {});

@@ -50,6 +50,28 @@ inline synDataType PDDataTypeToSynDataType(phi::DataType type) {
   }
 }
 
+inline size_t DataTypeSize(phi::DataType type) {
+  switch (type) {
+    case phi::DataType::FLOAT32:
+    case phi::DataType::INT32:
+      return 4;
+    case phi::DataType::FLOAT16:
+    case phi::DataType::BFLOAT16:
+    case phi::DataType::INT16:
+      return 2;
+    case phi::DataType::INT8:
+    case phi::DataType::BOOL:
+    case phi::DataType::UINT8:
+    case phi::DataType::FLOAT8_E4M3FN:
+      return 1;
+    case phi::DataType::INT64:
+      return 8;
+    default:
+      PD_CHECK(false, "Unsupported DataType: ", type);
+      return 0;
+  }
+}
+
 inline std::string SynDataTypeToStr(synDataType s) {
   if (s == syn_type_int8 || s == syn_type_fixed) {
     return "i8";
@@ -310,6 +332,52 @@ class ConvertTensors {
 
   void Add(const phi::DenseTensor* x, bool is_input = true) {
     Add(*x, is_input);
+  }
+
+  void AddN(const phi::DenseTensor& x, bool is_input = true) {
+    phi::DenseTensorMeta meta = x.meta();
+    auto addr = x.data();
+
+    auto dims = phi::vectorize<int64_t>(x.dims());
+    int64_t num_list = dims.front();
+    dims.erase(dims.begin());
+    if (dims.size() == 0) {
+      dims.push_back({1});
+    }
+    int64_t num_elements = 1;
+    for (auto d : dims) {
+      num_elements *= d;
+    }
+    int64_t addr_offset = num_elements * DataTypeSize(x.dtype());
+
+    if (is_input) {
+      for (int64_t tensor_idx = 0; tensor_idx < num_list; tensor_idx++) {
+        auto addr_i = reinterpret_cast<const void*>(
+            reinterpret_cast<const char*>(addr) + addr_offset * tensor_idx);
+        auto it = x_tensors_.find(addr_i);
+        if (it == x_tensors_.end()) {
+          TensorInfo info;
+          info.name = "x_" + std::to_string(count_);
+          count_++;
+          info.dims = dims;
+          info.host_addr = addr_i;
+          info.device_addr = reinterpret_cast<uint64_t>(addr_i);
+          info.type = PDDataTypeToSynDataType(x.dtype());
+          info.num_elements = num_elements;
+          x_tensors_.insert({addr_i, info});
+          VLOG(6) << "add tensor " << info.name << ", " << addr_i
+                  << " dims=" << x.dims();
+        }
+        x_host_tensor_.push_back(addr_i);
+      }
+    } else {
+      PADDLE_THROW(phi::errors::Unimplemented(
+          "AddN with is_input = false is not supported."));
+    }
+  }
+
+  void AddN(const phi::DenseTensor* x, bool is_input = true) {
+    AddN(*x, is_input);
   }
 
   std::vector<DIMS> GetDims(bool is_input = true) {

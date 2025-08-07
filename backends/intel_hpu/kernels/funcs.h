@@ -15,6 +15,7 @@ limitations under the License. */
 #pragma once
 
 #include <cstdint>
+#include <numeric>
 
 #include "paddle/extension.h"
 #include "paddle/phi/backends/device_ext.h"
@@ -348,7 +349,19 @@ class ConvertTensors {
     for (auto d : dims) {
       num_elements *= d;
     }
-    int64_t addr_offset = num_elements * DataTypeSize(x.dtype());
+    int64_t element_bytes = num_elements * DataTypeSize(x.dtype());
+    auto addr_offset = element_bytes;
+
+    // Align addr_offset to the nearest multiple of 0x80 if it's not already
+    // aligned
+    if (element_bytes % 0x80 != 0) {
+      int64_t N = 1;
+      // 求 element_bytes 和 0x80 的最大公约数
+      int64_t gcd = std::gcd(element_bytes, 0x80);
+      N = 0x80 / gcd;
+      addr_offset = element_bytes * N;
+      num_list = num_list / N;
+    }
 
     if (is_input) {
       for (int64_t tensor_idx = 0; tensor_idx < num_list; tensor_idx++) {

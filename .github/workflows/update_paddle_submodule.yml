@@ -22,10 +22,12 @@ jobs:
           git config --global user.name "tianshuo78520a"
           git config --global user.email "tianshuo78520a@users.noreply.github.com"
           git submodule update --remote --init
-          cd Paddle
-          git add .
-          git commit -m "Update Paddle to latest commit"
+          cd Paddle && git checkout develop && git pull
+          cd ..
+          git add Paddle
+          git commit -m "Update submodule" || echo "No changes to commit"
           git status
+          
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:

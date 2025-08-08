@@ -29,7 +29,7 @@ def fill_any_like_wrapper(x, value, out_dtype=None, name=None):
         tmp_dtype = dtypes.dtype(out_dtype)
     else:
         tmp_dtype = out_dtype
-    return paddle.full_like(x, value, tmp_dtype, name)
+    return paddle.full_like(x, value, tmp_dtype, name=name)
 
 
 class TestFillAnyOp(OpTest):

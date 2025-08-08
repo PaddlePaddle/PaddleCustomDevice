@@ -24,7 +24,6 @@
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
-#include "utils/hpu_helper.h"
 
 #define TOTAL_NUMBER_OF_TENSORS 1024
 
@@ -36,6 +35,11 @@ static std::unordered_map<std::string, sectionWithFirstIndication> sectionMap;
 static uint64_t cached_workspaceSize = 0;
 static uint64_t cached_workspaceAddress = 0;
 static uint32_t recipe_count = 0;
+
+extern C_Status Allocate_device(const C_Device device, void** ptr, size_t size);
+extern C_Status Deallocate_device(const C_Device device,
+                                  void* ptr,
+                                  size_t size);
 
 void HpuOperator::Compile() {
   std::string recipe_name =
@@ -96,7 +100,8 @@ synTensor HpuOperator::createTensor(unsigned dims,
 
   for (unsigned i = 0; i < dims; ++i) {
     desc.m_sizes[i] = tensor_size[dims - 1 - i];
-    VLOG(6) << "name = " << name << ", " << tensor_size[dims - 1 - i];
+    VLOG(6) << "name = " << name << "[" << i << "], "
+            << tensor_size[dims - 1 - i];
   }
 
   synSectionHandle sectionHandle = section;
@@ -147,15 +152,16 @@ void RecipeRunner::Run(C_Stream stream,
       PD_CHECK(
           status == synSuccess, "synStreamSynchronize() failed = ", status);
 
-      status = synDeviceFree(0, cached_workspaceAddress, 0);
-      PD_CHECK(status == synSuccess, "synDeviceFree() failed = ", status);
+      C_Status c_status =
+          FreeDeviceMem(cached_workspaceAddress, cached_workspaceSize);
+      PD_CHECK(c_status == C_SUCCESS, "FreeDeviceMem() failed = ", c_status);
     }
 
+    VLOG(6) << "malloc device workspace " << request_workspace_size;
+    C_Status c_status =
+        MallocDeviceMem(&cached_workspaceAddress, request_workspace_size);
+    PD_CHECK(c_status == C_SUCCESS, "MallocDeviceMem() failed = ", c_status);
     cached_workspaceSize = request_workspace_size;
-    VLOG(6) << "malloc device workspace " << cached_workspaceSize;
-    status = synDeviceMalloc(
-        0, cached_workspaceSize, 0, 0, &cached_workspaceAddress);
-    PD_CHECK(status == synSuccess, "synDeviceMalloc() failed = ", status);
   }
 
   VLOG(6) << "workspace size = " << cached_workspaceSize
@@ -166,6 +172,7 @@ void RecipeRunner::Run(C_Stream stream,
     concatTensors.push_back({tensor.first.c_str(), tensor.second});
   }
   prepareTensorInfo(recipeHandle_, &concatTensors[0], concatTensors.size());
+
   status = synLaunch(reinterpret_cast<synStreamHandle>(stream),
                      concatTensors.data(),
                      concatTensors.size(),
@@ -175,8 +182,24 @@ void RecipeRunner::Run(C_Stream stream,
 
   PD_CHECK(status == synSuccess, "synLaunch() failed = ", status);
   VLOG(6) << "synLaunch called ";
+
   if (FLAGS_intel_hpu_sync_execute) {
     status = synStreamSynchronize(reinterpret_cast<synStreamHandle>(stream));
     PD_CHECK(status == synSuccess, "synStreamSynchronize() failed = ", status);
   }
+}
+
+C_Status RecipeRunner::MallocDeviceMem(uint64_t* buffer, const uint64_t size) {
+  C_Device_st device_struct{};
+  C_Device device = &device_struct;
+  void** ptr = reinterpret_cast<void**>(buffer);
+  return Allocate_device(device, ptr, size);
+}
+
+C_Status RecipeRunner::FreeDeviceMem(const uint64_t buffer,
+                                     const uint64_t size) {
+  C_Device_st device_struct{};
+  C_Device device = &device_struct;
+  void* ptr = reinterpret_cast<void*>(buffer);
+  return Deallocate_device(device, ptr, 0);
 }

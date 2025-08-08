@@ -37,8 +37,10 @@ template <typename T, typename Context>
 void ExpandAsKernel(const Context& dev_ctx,
                     const phi::DenseTensor& x,
                     const paddle::optional<phi::DenseTensor>& y,
-                    const std::vector<int>& target_shape,
+                    const std::vector<int64_t>& target_shape_64,
                     phi::DenseTensor* out) {
+  std::vector<int> target_shape =
+      std::vector<int>(target_shape_64.begin(), target_shape_64.end());
   VLOG(4) << "CALL SDAA ExpandAsKernel";
   auto rank = x.dims().size();
   auto target_rank = target_shape.size();
@@ -106,6 +108,7 @@ PD_REGISTER_PLUGIN_KERNEL(expand_as,
                           custom_kernel::ExpandAsKernel,
                           float,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           double,
                           int32_t,
                           int64_t,

@@ -49,7 +49,7 @@ class TestLinspaceOpCommonCase(OpTest):
 
     def _set_dtype(self):
         self.dtype = "float32"
-        self.attr_dtype = int(core.VarDesc.VarType.FP32)
+        self.attr_dtype = paddle.float32
 
     def _set_data(self):
         self.outputs = {"Out": np.arange(0, 11).astype(self.dtype)}
@@ -92,73 +92,73 @@ class TestLinspaceOpNumOneCase(TestLinspaceOpCommonCase):
 class TestLinspaceOpCommonCaseFP16(TestLinspaceOpCommonCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = int(core.VarDesc.VarType.FP16)
+        self.attr_dtype = paddle.float16
 
 
 class TestLinspaceOpReverseCaseFP16(TestLinspaceOpReverseCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = int(core.VarDesc.VarType.FP16)
+        self.attr_dtype = paddle.float16
 
 
 class TestLinspaceOpNumOneCaseFP16(TestLinspaceOpNumOneCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = int(core.VarDesc.VarType.FP16)
+        self.attr_dtype = paddle.float16
 
 
 class TestLinspaceOpCommonCaseDouble(TestLinspaceOpCommonCase):
     def _set_dtype(self):
         self.dtype = np.double
-        self.attr_dtype = int(core.VarDesc.VarType.FP64)
+        self.attr_dtype = paddle.float64
 
 
 class TestLinspaceOpReverseCaseDouble(TestLinspaceOpReverseCase):
     def _set_dtype(self):
         self.dtype = np.double
-        self.attr_dtype = int(core.VarDesc.VarType.FP64)
+        self.attr_dtype = paddle.float64
 
 
 class TestLinspaceOpNumOneCaseDouble(TestLinspaceOpNumOneCase):
     def _set_dtype(self):
         self.dtype = np.double
-        self.attr_dtype = int(core.VarDesc.VarType.FP64)
+        self.attr_dtype = paddle.float64
 
 
 class TestLinspaceOpCommonCaseInt32(TestLinspaceOpCommonCase):
     def _set_dtype(self):
         self.dtype = np.int32
-        self.attr_dtype = int(core.VarDesc.VarType.INT32)
+        self.attr_dtype = paddle.int32
 
 
 class TestLinspaceOpReverseCaseInt32(TestLinspaceOpReverseCase):
     def _set_dtype(self):
         self.dtype = np.int32
-        self.attr_dtype = int(core.VarDesc.VarType.INT32)
+        self.attr_dtype = paddle.int32
 
 
 class TestLinspaceOpNumOneCaseInt32(TestLinspaceOpNumOneCase):
     def _set_dtype(self):
         self.dtype = np.int32
-        self.attr_dtype = int(core.VarDesc.VarType.INT32)
+        self.attr_dtype = paddle.int32
 
 
 class TestLinspaceOpCommonCaseInt64(TestLinspaceOpCommonCase):
     def _set_dtype(self):
         self.dtype = np.int64
-        self.attr_dtype = int(core.VarDesc.VarType.INT64)
+        self.attr_dtype = paddle.int64
 
 
 class TestLinspaceOpReverseCaseInt64(TestLinspaceOpReverseCase):
     def _set_dtype(self):
         self.dtype = np.int64
-        self.attr_dtype = int(core.VarDesc.VarType.INT64)
+        self.attr_dtype = paddle.int64
 
 
 class TestLinspaceOpNumOneCaseInt32(TestLinspaceOpNumOneCase):
     def _set_dtype(self):
         self.dtype = np.int64
-        self.attr_dtype = int(core.VarDesc.VarType.INT64)
+        self.attr_dtype = paddle.int64
 
 
 class TestLinspaceAPI(unittest.TestCase):
@@ -217,10 +217,13 @@ class TestLinspaceAPI(unittest.TestCase):
 
     def test_name(self):
         paddle.device.set_device("sdaa")
-        with paddle_static_guard():
-            with paddle.static.program_guard(paddle.static.Program()):
-                out = paddle.linspace(0, 10, 5, dtype="float32", name="linspace_res")
-                assert "linspace_res" in out.name
+        with paddle.pir_utils.OldIrGuard():
+            with paddle_static_guard():
+                with paddle.static.program_guard(paddle.static.Program()):
+                    out = paddle.linspace(
+                        0, 10, 5, dtype="float32", name="linspace_res"
+                    )
+                    assert "linspace_res" in out.name
 
     def test_imperative(self):
         paddle.disable_static()

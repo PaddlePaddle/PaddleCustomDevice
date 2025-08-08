@@ -87,7 +87,7 @@ function main() {
     # skip paddlepaddle cpu install as mlu docker image already have cpu whl package installed
 
     # custom_mlu build and install
-    export MLU_VISIBLE_DEVICES=0,1
+    export MLU_VISIBLE_DEVICES=4,5
     export PADDLE_MLU_ALLOW_TF32=0
     export CNCL_MEM_POOL_MULTI_CLIQUE_ENABLE=1
     cd ${CODE_ROOT}
@@ -264,6 +264,7 @@ function main() {
     unset MLU_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
+    pip install pymupdf pypdfium2
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas
@@ -275,32 +276,34 @@ function main() {
     echo "End Download"
 
     echo "Start PaddleX ResNet50"
-    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    python main.py -c paddlex/configs/modules/image_classification/ResNet50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/cls_flowers_examples \
     -o Global.output=resnet50_output \
-    -o Global.device="mlu:0,1,2,3"
+    -o Global.device="mlu:4,5,6,7"
 
-    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    python main.py -c paddlex/configs/modules/image_classification/ResNet50.yaml \
     -o Global.mode=predict \
     -o Predict.model_dir="./resnet50_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_image_classification_001.jpg" \
-    -o Global.device="mlu:0"
+    -o Global.device="mlu:4"
     echo "End PaddleX ResNet50"
 
     echo "Start DeepLabv3"
-    python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
+    export PADDLE_PDX_DISABLE_DEV_MODEL_WL=True
+    python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/seg_optic_examples \
     -o Global.output=deeplabv3p_output \
-    -o Global.device="mlu:0,1,2,3"
+    -o Global.device="mlu:4,5,6,7"
 
-    python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
+    python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=predict \
     -o Predict.model_dir="./deeplabv3p_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_semantic_segmentation_001.jpg" \
-    -o Global.device="mlu:0"
+    -o Global.device="mlu:4"
     echo "End DeepLabv3"
+    export MLU_VISIBLE_DEVICES=4,5,6,7,8,9,10,11
 }
 
 main $@

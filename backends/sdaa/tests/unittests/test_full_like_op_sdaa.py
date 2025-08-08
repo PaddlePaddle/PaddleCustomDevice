@@ -17,7 +17,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 import paddle.framework.dtype as dtypes
 
@@ -46,6 +46,38 @@ class TestFillAnyOp(OpTest):
         self.inputs = {"X": np.random.random(self.shape).astype(self.dtype)}
         self.attrs = {"value": self.value}
         self.outputs = {"Out": np.full(self.shape, self.value, self.dtype)}
+
+    def init(self):
+        pass
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+
+class TestFillAnyOpBF16(TestFillAnyOp):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "fill_any_like"
+        self.python_api = fill_any_like_wrapper
+        self.dtype = np.uint16
+        self.shape = [2, 3, 4, 5]
+        self.value = 0.0
+
+        self.init()
+
+        self.inputs = {
+            "X": convert_float_to_uint16(
+                np.random.random(self.shape).astype(np.float32)
+            )
+        }
+        self.attrs = {"value": self.value}
+        self.outputs = {
+            "Out": convert_float_to_uint16(np.full(self.shape, self.value, np.float32))
+        }
 
     def init(self):
         pass

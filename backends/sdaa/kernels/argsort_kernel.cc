@@ -39,6 +39,7 @@ void ArgsortKernel(const Context& dev_ctx,
                    const phi::DenseTensor& in,
                    int axis,
                    bool descending,
+                   bool stable,
                    phi::DenseTensor* output,
                    phi::DenseTensor* indices) {
   VLOG(4) << "call sdaa ArgsortKernel";

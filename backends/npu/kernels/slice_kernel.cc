@@ -189,8 +189,7 @@ void SliceRawKernel(const Context& dev_ctx,
   }
 
   dev_ctx.template Alloc<T>(out);
-  EXEC_NPU_CMD(
-      aclnnSliceV2, dev_ctx, x, starts_array, ends_array, axes_t, steps, *out);
+  EXEC_NPU_CMD(aclnnSliceV2, dev_ctx, x, starts, ends, axes_t, steps, *out);
   if (out->dims().size() != out_dims.size()) {
     out->Resize(out_dims);
   }

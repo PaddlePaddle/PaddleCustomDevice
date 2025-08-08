@@ -35,7 +35,7 @@ class TestDygraphShardingStage2(TestMultipleCustomDevices):
     devices = ["0", "1"]
 
     def test_dygraph_sharding_stage2(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_stage2.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,
@@ -43,7 +43,7 @@ class TestDygraphShardingStage2(TestMultipleCustomDevices):
         )
 
     def test_dygraph_sharding_stage2_offload(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_stage2_offload.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,
@@ -51,7 +51,7 @@ class TestDygraphShardingStage2(TestMultipleCustomDevices):
         )
 
     def test_dygraph_sharding_api(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_api.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,
@@ -59,7 +59,7 @@ class TestDygraphShardingStage2(TestMultipleCustomDevices):
         )
 
     def test_dygraph_sharding_stage2_loss_stable(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_stage2_loss_stable.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,

@@ -39,6 +39,7 @@
 
 #define kSliceMaxNum 8
 #define StoragePropertiesCHWN 0
+
 using SDAAStorageProperties = phi::NPUStorageProperties;
 namespace custom_kernel {
 
@@ -89,6 +90,8 @@ enum class ActivationMode {
   relu6 = 8,
   silu = 9,
   gelu_approximate = 10,
+  logsigmoid = 11,
+  erf = 12,
 };
 
 enum class NanPropagation {
@@ -181,6 +184,9 @@ inline tecodnnDataType_t ToTecodnnDataType(const DataType& dtype) {
     case DataType::FLOAT16:
       dt = TECODNN_DATA_HALF;
       break;
+    case DataType::BFLOAT16:
+      dt = TECODNN_DATA_BFLOAT16;
+      break;
     case DataType::FLOAT32:
       dt = TECODNN_DATA_FLOAT;
       break;
@@ -204,6 +210,45 @@ inline tecodnnDataType_t ToTecodnnDataType(const DataType& dtype) {
       break;
     case DataType::UINT8:
       dt = TECODNN_DATA_UINT8;
+      break;
+    default:
+      break;
+  }
+  return dt;
+}
+
+inline tecocustomDataType_t ToTecocustomDataType(const DataType& dtype) {
+  tecocustomDataType_t dt = TECOCUSTOM_DATA_FLOAT;
+  switch (dtype) {
+    case DataType::FLOAT16:
+      dt = TECOCUSTOM_DATA_HALF;
+      break;
+    case DataType::BFLOAT16:
+      dt = TECOCUSTOM_DATA_BFLOAT16;
+      break;
+    case DataType::FLOAT32:
+      dt = TECOCUSTOM_DATA_FLOAT;
+      break;
+    case DataType::FLOAT64:
+      dt = TECOCUSTOM_DATA_DOUBLE;
+      break;
+    case DataType::INT8:
+      dt = TECOCUSTOM_DATA_INT8;
+      break;
+    case DataType::INT16:
+      dt = TECOCUSTOM_DATA_INT16;
+      break;
+    case DataType::INT32:
+      dt = TECOCUSTOM_DATA_INT32;
+      break;
+    case DataType::INT64:
+      dt = TECOCUSTOM_DATA_INT64;
+      break;
+    case DataType::BOOL:
+      dt = TECOCUSTOM_DATA_BOOL;
+      break;
+    case DataType::UINT8:
+      dt = TECOCUSTOM_DATA_UINT8;
       break;
     default:
       break;
@@ -277,7 +322,7 @@ inline tecodnnTensorFormat_t ToTecodnnTensorFormat(
 }
 
 inline tecodnnTensorFormat_t GetTecodnnTF(const TensorFormat TF) {
-  tecodnnTensorFormat_t tf = TECODNN_TENSOR_NHWC;
+  tecodnnTensorFormat_t tf;
   switch (TF) {
     case TensorFormat::NCHW:
       tf = TECODNN_TENSOR_NCHW;
@@ -292,6 +337,31 @@ inline tecodnnTensorFormat_t GetTecodnnTF(const TensorFormat TF) {
       tf = TECODNN_TENSOR_NWHC;
       break;
     default:
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "Invaild tensor format when use GetTecodnnTF!"));
+      break;
+  }
+  return tf;
+}
+
+inline tecocustomTensorFormat_t GetTecocustomTF(const TensorFormat TF) {
+  tecocustomTensorFormat_t tf;
+  switch (TF) {
+    case TensorFormat::NCHW:
+      tf = TECOCUSTOM_TENSOR_NCHW;
+      break;
+    case TensorFormat::NHWC:
+      tf = TECOCUSTOM_TENSOR_NHWC;
+      break;
+    case TensorFormat::CHWN:
+      tf = TECOCUSTOM_TENSOR_CHWN;
+      break;
+    case TensorFormat::NWHC:
+      tf = TECOCUSTOM_TENSOR_NWHC;
+      break;
+    default:
+      PADDLE_THROW(phi::errors::InvalidArgument(
+          "Invaild tensor format when use GetTecocustomTF!"));
       break;
   }
   return tf;
@@ -321,6 +391,8 @@ const std::map<ActivationMode, tecodnnActivationMode_t>
         {ActivationMode::relu6, TECODNN_ACTIVATION_RELU6},
         {ActivationMode::silu, TECODNN_ACTIVATION_SILU},
         {ActivationMode::gelu_approximate, TECODNN_ACTIVATION_GELU_APPROXIMATE},
+        {ActivationMode::logsigmoid, TECODNN_ACTIVATION_LOGSIGMOID},
+        {ActivationMode::erf, TECODNN_ACTIVATION_ERF},
 };
 
 const std::map<NanPropagation, tecodnnNanPropagation_t>
@@ -504,10 +576,23 @@ void doElementDiv(const Context& dev_ctx,
 tecodnnTensorDescriptor_t GetTecodnnTensorDesc(
     const std::vector<int>& dims,
     const DataType& dtype,
-    TensorFormat tf = TensorFormat::Undefined);
+    TensorFormat tf = TensorFormat::Undefined,
+    const std::vector<int>& strides = {});
 
-tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(const std::vector<int>& dims,
-                                                   TensorFormat tf);
+tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(
+    const std::vector<int>& dims,
+    TensorFormat tf,
+    const std::vector<int>& strides = {});
+
+tecocustomTensorDescriptor_t GetTecocustomTensorDesc(
+    const std::vector<int>& dims,
+    const DataType& dtype,
+    TensorFormat tf = TensorFormat::Undefined,
+    const std::vector<int>& strides = {});
+
+tecocustomTensorListDescriptor_t GetTecocustomTensorListDesc(
+    const std::vector<phi::DenseTensor*>& tensor_list,
+    bool merged_optimizer = false);
 
 void doReciprocalTensor(const Context& dev_ctx,
                         const phi::DenseTensor& x,
@@ -635,6 +720,11 @@ void swapTensorData(const Context& dev_ctx,
                     const phi::DenseTensor& in,
                     SDAAStorageProperties& storage_properties);  // NOLINT
 
+void swapTensorData(const Context& dev_ctx,
+                    const phi::DenseTensor& in,
+                    SDAAStorageProperties& storage_properties,  // NOLINT
+                    phi::DenseTensor* out);
+
 void doAtanTensor(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   phi::DenseTensor* out);
@@ -692,6 +782,20 @@ void doScatterNdAdd(const Context& ctx,
                     const phi::DenseTensor& index,
                     const phi::DenseTensor& updates,
                     phi::DenseTensor* out);
+
+void doStrideCopy(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const std::vector<int>& shape,
+                  const std::vector<int>& x_strides,
+                  const std::vector<int>& out_strides,
+                  phi::DenseTensor* out);
+
+template <typename T>
+void doClipTensor(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  T min,
+                  T max,
+                  phi::DenseTensor* out);
 
 }  // namespace sdaa_ops
 }  // namespace custom_kernel

@@ -57,7 +57,8 @@ void GaussianRandomAlign(const Context& dev_ctx,
           << ", seed=" << seed << ", offset=" << offset;
 
   phi::DenseTensor float_temp;
-  if (out->dtype() == phi::DataType::FLOAT16) {
+  if (out->dtype() == phi::DataType::FLOAT16 ||
+      out->dtype() == phi::DataType::BFLOAT16) {
     float_temp.Resize(out->dims());
     dev_ctx.template Alloc<float>(&float_temp);
   } else {
@@ -114,7 +115,8 @@ void GaussianRandomKernel(const Context& dev_ctx,
       data[i] = dist(rand);
     }
   }
-  if (out->dtype() == phi::DataType::FLOAT16) {
+  if (out->dtype() == phi::DataType::FLOAT16 ||
+      out->dtype() == phi::DataType::BFLOAT16) {
     phi::DenseTensor float_temp;
     float_temp.Resize(out->dims());
     dev_ctx.template Alloc<float>(&float_temp);
@@ -131,4 +133,5 @@ PD_REGISTER_PLUGIN_KERNEL(gaussian,
                           ALL_LAYOUT,
                           custom_kernel::GaussianRandomKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

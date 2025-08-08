@@ -85,4 +85,5 @@ PD_REGISTER_PLUGIN_KERNEL(prior_box,
                           ALL_LAYOUT,
                           custom_kernel::PriorBoxKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

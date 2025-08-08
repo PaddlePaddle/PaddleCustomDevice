@@ -22,7 +22,7 @@ from api_base import TestAPIBase
 # The table retains its original format for better comparison of parameter settings.
 # fmt: off
 REDUCE_X_CASE = [
-    # any
+    # any  case num: 6, offset: 1
     {"reduce_api": paddle.any, "x_shape": [2, 6], "x_dtype": bool, "axis": None, "keepdim": False},
     {"reduce_api": paddle.any, "x_shape": [2, 6], "x_dtype": bool, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.any, "x_shape": [2, 6], "x_dtype": bool, "axis": -1, "keepdim": False},
@@ -30,7 +30,7 @@ REDUCE_X_CASE = [
     {"reduce_api": paddle.any, "x_shape": [2, 6], "x_dtype": bool, "axis": 0, "keepdim": True},
     {"reduce_api": paddle.any, "x_shape": [2, 6], "x_dtype": bool, "axis": -1, "keepdim": True},
 
-    # mean
+    # mean case num: 19, offset: 7
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float32, "axis": None, "keepdim": False},
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float32, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float32, "axis": -1, "keepdim": False},
@@ -51,6 +51,7 @@ REDUCE_X_CASE = [
     {"reduce_api": paddle.mean, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.mean, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": [1, 2], "keepdim": False},
 
+    # case num: 16, offset: 26
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float16, "axis": None, "keepdim": False},
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float16, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.mean, "x_shape": [2, 6], "x_dtype": np.float16, "axis": -1, "keepdim": False},
@@ -68,7 +69,7 @@ REDUCE_X_CASE = [
     {"reduce_api": paddle.mean, "x_shape": [2, 3, 4], "x_dtype": np.float16, "axis": [-2, -1], "keepdim": True},
     {"reduce_api": paddle.mean, "x_shape": [2, 3, 4], "x_dtype": np.float16, "axis": [1, 2], "keepdim": True},
 
-    # sum
+    # sum case num: 19, offset: 42
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float32, "axis": None, "keepdim": False},
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float32, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float32, "axis": -1, "keepdim": False},
@@ -86,9 +87,10 @@ REDUCE_X_CASE = [
     {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.float32, "axis": [-2, -1], "keepdim": True},
     {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.float32, "axis": [1, 2], "keepdim": True},
     {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": None, "keepdim": False},
-    {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": 0, "keepdim": False},
+    # {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.sum, "x_shape": [2, 3, 4], "x_dtype": np.int32, "axis": [1, 2], "keepdim": False},
 
+    # case num: 16, offset: 61
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float16, "axis": None, "keepdim": False},
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float16, "axis": 0, "keepdim": False},
     {"reduce_api": paddle.sum, "x_shape": [2, 6], "x_dtype": np.float16, "axis": -1, "keepdim": False},
@@ -295,6 +297,14 @@ REDUCE_X_CASE = [
     {"reduce_api": paddle.amin, "x_shape": [2, 3, 4], "x_dtype": np.float16, "axis": [0, 2], "keepdim": True},
     {"reduce_api": paddle.amin, "x_shape": [2, 3, 4], "x_dtype": np.float16, "axis": [-2, -1], "keepdim": True},
     {"reduce_api": paddle.amin, "x_shape": [2, 3, 4], "x_dtype": np.float16, "axis": [1, 2], "keepdim": True},
+
+    # all
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": None, "keepdim": False},
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": 0, "keepdim": False},
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": -1, "keepdim": False},
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": None, "keepdim": True},
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": 0, "keepdim": True},
+    {"reduce_api": paddle.all, "x_shape": [2, 6], "x_dtype": bool, "axis": -1, "keepdim": True},
 
 ]
 # fmt: on

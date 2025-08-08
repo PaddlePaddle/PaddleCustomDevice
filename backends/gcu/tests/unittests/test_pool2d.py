@@ -61,6 +61,16 @@ POOL2D_CASE = [
     {"x_shape": [1, 128, 120, 84], "x_dtype": np.float16, "pooling_type": 'max', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NCHW'},
     {"x_shape": [1, 256, 60, 42], "x_dtype": np.float16, "pooling_type": 'max', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NCHW'},
     {"x_shape": [1, 256, 65, 55], "x_dtype": np.float32, "pooling_type": 'max', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NCHW'},
+
+    {"x_shape": [1, 128, 120, 84], "x_dtype": np.float32, "pooling_type": 'avg', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 256, 60, 42], "x_dtype": np.float32, "pooling_type": 'avg', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 64, 240, 168], "x_dtype": np.float16, "pooling_type": 'avg', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 128, 120, 84], "x_dtype": np.float16, "pooling_type": 'avg', "kernel_size": [2, 2], "stride": [2, 2], "padding": [0, 0], "ceil_mode": True, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 64, 480, 336], "x_dtype": np.float32, "pooling_type": 'max', "kernel_size": [3, 3], "stride": [2, 2], "padding": [1, 1], "ceil_mode": False, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 64, 480, 336], "x_dtype": np.float32, "pooling_type": 'max', "kernel_size": [3, 3], "stride": [2, 2], "padding": [1, 1], "ceil_mode": False, "exclusive": False, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 64, 480, 336], "x_dtype": np.float16, "pooling_type": 'max', "kernel_size": [3, 3], "stride": [2, 2], "padding": [1, 1], "ceil_mode": False, "exclusive": True, "divisor_override": None, "data_format": 'NHWC'},
+    {"x_shape": [1, 64, 480, 336], "x_dtype": np.float16, "pooling_type": 'max', "kernel_size": [3, 3], "stride": [2, 2], "padding": [1, 1], "ceil_mode": False, "exclusive": False, "divisor_override": None, "data_format": 'NHWC'},
+
 ]
 
 ADAPTIVE_POOL2D_CASE = [
@@ -73,6 +83,14 @@ ADAPTIVE_POOL2D_CASE = [
     {"x_shape": [126, 256, 12, 160], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NCHW'},
     {"x_shape": [126, 512, 12, 80], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NCHW'},
     {"x_shape": [126, 768, 6, 80], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NCHW'},
+
+    {"x_shape": [126, 256, 12, 160], "x_dtype": np.float32, "output_size": [1, 1], "data_format": 'NHWC'},
+    {"x_shape": [126, 512, 12, 80], "x_dtype": np.float32, "output_size": [1, 1], "data_format": 'NHWC'},
+    {"x_shape": [126, 768, 6, 80], "x_dtype": np.float32, "output_size": [1, 1], "data_format": 'NHWC'},
+
+    {"x_shape": [126, 256, 12, 160], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NHWC'},
+    {"x_shape": [126, 512, 12, 80], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NHWC'},
+    {"x_shape": [126, 768, 6, 80], "x_dtype": np.float16, "output_size": [1, 1], "data_format": 'NHWC'},
 
 ]
 # fmt: on

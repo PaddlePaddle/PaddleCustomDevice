@@ -42,4 +42,5 @@ PD_REGISTER_PLUGIN_KERNEL(increment,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

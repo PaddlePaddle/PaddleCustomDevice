@@ -65,5 +65,6 @@ PD_REGISTER_PLUGIN_KERNEL(remainder,
                           sdaa,
                           ALL_LAYOUT,
                           custom_kernel::RemainderKernel,
+                          int64_t,
                           float,
                           phi::dtype::float16) {}

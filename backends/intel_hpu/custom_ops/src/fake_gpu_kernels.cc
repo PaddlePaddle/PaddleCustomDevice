@@ -228,15 +228,3 @@ PD_BUILD_OP(speculate_get_output_padding_offset)
     .SetKernelFn(PD_KERNEL(SpeculateGetOutputPaddingOffset))
     .SetInferShapeFn(PD_INFER_SHAPE(SpeculateGetOutputPaddingOffsetInferShape))
     .SetInferDtypeFn(PD_INFER_DTYPE(SpeculateGetOutputPaddingOffsetInferDtype));
-
-void SaveOutMsg(const paddle::Tensor& x,
-                const paddle::Tensor& not_need_stop,
-                const paddle::optional<paddle::Tensor>& accept_num,
-                int64_t rank_id) {}
-
-PD_BUILD_OP(save_output)
-    .Inputs({"x", "not_need_stop", paddle::Optional("accept_num")})
-    .Attrs({"rank_id: int64_t"})
-    .Outputs({"x_out"})
-    .SetInplaceMap({{"x", "x_out"}})
-    .SetKernelFn(PD_KERNEL(SaveOutMsg));

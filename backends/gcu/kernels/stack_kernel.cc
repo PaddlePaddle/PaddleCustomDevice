@@ -42,6 +42,17 @@ void StackKernel(const Context& dev_ctx,
     }
     std::string abstract_info = custom_kernel::GetAbstractInfo(
         "topsatenStack", output, input_tensors, dim);
+    // for scalar input because of aten does not support scalar input
+    if (x[0]->dims().size() == 0) {
+      std::vector<int64_t> out_dims = phi::vectorize(output.dims());
+      std::vector<int64_t> out_strides = phi::vectorize(output.strides());
+      out_dims.push_back(1);
+      out_strides.push_back(1);
+      out_tensor.SetTensorShape(
+          {out_dims.data(), static_cast<int64_t>(out_dims.size())});
+      out_tensor.SetTensorStrides(
+          {out_strides.data(), static_cast<int64_t>(out_strides.size())});
+    }
     LAUNCH_TOPSATENOP_WITH_RAW_ATEN_DEF(
         topsatenStack, dev_ctx, abstract_info, out_tensor, in_tensors, dim);
     MaybeTransResult(dev_ctx, output, y);
@@ -276,6 +287,7 @@ PD_REGISTER_PLUGIN_KERNEL(stack,
                           int64_t,
                           double,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(stack_grad,
@@ -295,6 +307,7 @@ PD_REGISTER_PLUGIN_KERNEL(unstack,
                           int64_t,
                           double,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(unbind,
@@ -305,4 +318,5 @@ PD_REGISTER_PLUGIN_KERNEL(unbind,
                           int64_t,
                           double,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

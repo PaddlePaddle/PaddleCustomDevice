@@ -29,6 +29,9 @@ export CODE_ROOT
 # For paddle easy debugging
 export FLAGS_call_stack_level=2
 
+# Set Allocator strategy
+export FLAGS_allocator_strategy=auto_growth
+
 failed_test_lists=''
 tmp_dir=`mktemp -d`
 
@@ -167,6 +170,7 @@ function run_paddlex() {
     unset ASCEND_RT_VISIBLE_DEVICES
     echo "Start Download"
     git clone --depth 1000 https://gitee.com/PaddlePaddle/PaddleX.git
+    pip install pymupdf pypdfium2
     cd PaddleX
     pip install -e .
     paddlex --install PaddleClas
@@ -181,46 +185,70 @@ function run_paddlex() {
     tar -xf ./dataset/seg_optic_examples.tar -C ./dataset/
     echo "End Download"
 
+    retry() {
+        local n=1
+        local max=$2
+        local delay=60 
+        while true; do
+            echo "Attempt $n/$max: $1"
+            eval $1
+            exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                break
+            else
+                echo "Command failed with exit code $exit_code."
+                if [[ $n -lt $max ]]; then
+                    ((n++))
+                    echo "Retrying in $delay seconds..."
+                    sleep $delay
+                else
+                    echo "Failed after $max attempts."
+                    return $exit_code
+                fi
+            fi
+        done
+    }
+
     echo "Start PaddleX ResNet50"
-    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    retry "python main.py -c paddlex/configs/modules/image_classification/ResNet50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/cls_flowers_examples \
     -o Global.output=resnet50_output \
-    -o Global.device="npu:${DEVICE_LIST}"
+    -o Global.device="npu:${DEVICE_LIST}"" 3
 
-    python main.py -c paddlex/configs/image_classification/ResNet50.yaml \
+    retry "python main.py -c paddlex/configs/modules/image_classification/ResNet50.yaml \
     -o Global.mode=predict \
     -o Predict.model_dir="./resnet50_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_image_classification_001.jpg" \
-    -o Global.device="npu:${DEVICE}"
+    -o Global.device="npu:${DEVICE}"" 3
     echo "End PaddleX ResNet50"
 
     echo "Start PP-YOLOE+"
-    python main.py -c paddlex/configs/object_detection/PP-YOLOE_plus-S.yaml \
+    retry "python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/det_coco_examples \
     -o Global.output=ppyolo_plus_s_output \
-    -o Global.device="npu:${DEVICE_LIST}"
+    -o Global.device="npu:${DEVICE_LIST}"" 3
 
-    python main.py -c paddlex/configs/object_detection/PP-YOLOE_plus-S.yaml \
+    retry "python main.py -c paddlex/configs/modules/object_detection/PP-YOLOE_plus-S.yaml \
     -o Global.mode=predict \
     -o Predict.model_dir="./ppyolo_plus_s_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_object_detection_002.png" \
-    -o Global.device="npu:${DEVICE}"
+    -o Global.device="npu:${DEVICE}"" 3
     echo "End PP-YOLOE+"
 
     echo "Start DeepLabv3+"
-    python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
+    retry "python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=train \
     -o Global.dataset_dir=./dataset/seg_optic_examples \
     -o Global.output=deeplabv3p_output \
-    -o Global.device="npu:${DEVICE_LIST}"
+    -o Global.device="npu:${DEVICE_LIST}"" 3
 
-    python main.py -c paddlex/configs/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
+    retry "python main.py -c paddlex/configs/modules/semantic_segmentation/Deeplabv3_Plus-R50.yaml \
     -o Global.mode=predict \
     -o Predict.model_dir="./deeplabv3p_output/best_model/inference" \
     -o Predict.input="https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_semantic_segmentation_001.jpg" \
-    -o Global.device="npu:${DEVICE}"
+    -o Global.device="npu:${DEVICE}"" 3
     echo "End DeepLabv3+"
 }
 

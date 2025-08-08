@@ -35,7 +35,7 @@ class TestDygraphShardingStage3(TestMultipleCustomDevices):
     devices = ["0", "1"]
 
     def test_dygraph_sharding_stage3(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_stage3.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,
@@ -44,7 +44,7 @@ class TestDygraphShardingStage3(TestMultipleCustomDevices):
 
     @unittest.skip("stage3_offload is not currently supported")
     def test_dygraph_sharding_stage3_offload(self):
-        self.run_mnist_2_custom_devices(
+        self.run_mnist_custom_devices(
             "sdaa_dygraph_group_sharded_stage3_offload.py",
             self.backend,
             allocator_strategy=self.allocator_strategy,

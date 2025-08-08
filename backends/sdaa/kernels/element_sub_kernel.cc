@@ -78,6 +78,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_raw,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -91,6 +92,7 @@ PD_REGISTER_PLUGIN_KERNEL(subtract,
                           int8_t,
                           uint8_t,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -99,4 +101,5 @@ PD_REGISTER_PLUGIN_KERNEL(subtract_grad,
                           ALL_LAYOUT,
                           custom_kernel::SubtractGradKernel,
                           float,
-                          phi::dtype::float16) {}
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {}

@@ -37,7 +37,6 @@ void ConcatKernel(const Context& dev_ctx,
                   const phi::Scalar& axis_scalar,
                   phi::DenseTensor* out) {
   dev_ctx.template Alloc<T>(out);
-
   auto axis = axis_scalar.to<int>();
   auto ins_size = ins.size();
 
@@ -54,18 +53,20 @@ void ConcatKernel(const Context& dev_ctx,
   std::vector<MLUCnnlTensorDesc> input_descs;
   std::vector<cnnlTensorDescriptor_t> desc_vector;
   for (size_t i = 0; i < ins_size; i++) {
-    input_descs.emplace_back(MLUCnnlTensorDesc(
-        *ins[i], CNNL_LAYOUT_ARRAY, ToCnnlDataType(ins[i]->dtype())));
-    desc_vector.push_back(input_descs.back().get());
-    inputs.push_back(GetBasePtr(ins[i]));
+    if (ins[i]->numel() > 0) {
+      input_descs.emplace_back(MLUCnnlTensorDesc(
+          *ins[i], CNNL_LAYOUT_ARRAY, ToCnnlDataType(ins[i]->dtype())));
+      desc_vector.push_back(input_descs.back().get());
+      inputs.push_back(GetBasePtr(ins[i]));
+    }
   }
+
   // init out tensors
   MLUCnnlTensorDesc output_desc(
       *out, CNNL_LAYOUT_ARRAY, ToCnnlDataType(out->dtype()));
-
   // MLU should do sth
   MLUCnnl::Concat(dev_ctx,
-                  ins_size,
+                  inputs.size(),
                   axis,
                   desc_vector.data(),
                   inputs.data(),

@@ -46,6 +46,7 @@ class TestTruncatedNormal(unittest.TestCase):
                 linear = paddle.nn.Linear(
                     2, 2, weight_attr=weight_attr, bias_attr=False
                 )
+                weight = linear.parameters()[0]
 
             if run_npu:
                 place = paddle.CustomPlace("npu", 0)
@@ -53,7 +54,7 @@ class TestTruncatedNormal(unittest.TestCase):
                 place = paddle.CPUPlace()
 
             exe = paddle.static.Executor(place)
-            w = exe.run(startup_prog, fetch_list=["linear_weight"])
+            w = exe.run(startup_prog, fetch_list=[weight])
             return w
 
     def test_npu(self):

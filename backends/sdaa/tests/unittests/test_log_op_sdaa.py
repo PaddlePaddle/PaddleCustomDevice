@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 from op_test_dy import TestDygraphInplace
 
@@ -67,6 +67,38 @@ class TestLog(OpTest):
         self.place = paddle.CustomPlace("sdaa", 0)
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
+
+
+class TestLogBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "log"
+        self.python_api = paddle.log
+        self.init_dtype()
+
+        np.random.seed(1024)
+        x = np.random.uniform(0.1, 1, [11, 17]).astype(np.float32)
+        out = np.log(x)
+
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(self.place, ["X"], "Out")
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def init_kernel_type(self):
+        pass
+
+    def set_sdaa(self):
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = False
 
 
 class TestLogHalf(TestLog):

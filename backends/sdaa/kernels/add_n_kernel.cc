@@ -81,24 +81,31 @@ void AddNKernel(const Context& dev_ctx,
   }
 
   if (isEnvEnable("HIGH_PERFORMANCE_CONV")) {
-    // x[0].storage_properties is true, which means grad comes from conv_filter
-    // and is used in adam optimizer
-    if (x[0]->storage_properties_initialized() && (x.size() != 2)) {
-      PADDLE_THROW(phi::errors::InvalidArgument(
-          "grad tensor's storage propertiey only supported in optimizer.Adam "
-          "with weight_decay "));
+    bool is_init = true;
+    // in adam optimizer
+    if (x[0]->storage_properties_initialized() && x.size() == 2) {
+      // when add operator is performed in adam optimizer, grad tensor should be
+      // the first input parameter.
+      if ((!x[0]->storage_properties_initialized()) &&
+          x[1]->storage_properties_initialized()) {
+        PADDLE_THROW(phi::errors::InvalidArgument(
+            "grad tensor's storage propertiey only supported in "
+            "optimizer.Adam with weight_decay "));
+      }
+
+      is_init = x[0]->storage_properties_initialized();
+    } else {
+      // in RPNFeat layer, x.size() > 2 when inputs num > 2.
+      // in static graph, grads comes from conv_filer will be update by add_n,
+      // num of grads is x.size(), the states of storage properties are:
+      // | x0 | x1 | ... | xn | out |
+      // |  1 |  1 | ... |  1 |   0 |
+      for (const auto& i : x) {
+        is_init &= i->storage_properties_initialized();
+      }
     }
 
-    // when add operator is performed in adam optimizer, grad tensor should be
-    // the first input parameter.
-    if ((!x[0]->storage_properties_initialized()) &&
-        x[1]->storage_properties_initialized()) {
-      PADDLE_THROW(phi::errors::InvalidArgument(
-          "grad tensor's storage propertiey only supported in "
-          "optimizer.Adam with weight_decay "));
-    }
-
-    if (x[0]->storage_properties_initialized()) {
+    if (is_init && !out->storage_properties_initialized()) {
       SDAAStorageProperties grad_properties;
       grad_properties = x[0]->storage_properties<SDAAStorageProperties>();
       // for amp case

@@ -22,6 +22,14 @@ from tests.op_test import OpTest
 
 paddle.enable_static()
 
+import os
+from util import enable_paddle_static_mode
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+intel_hpus_static_mode = os.environ.get(
+    "FLAGS_static_mode_intel_hpus", 0
+)  # default is dynamic mode test FLAGS_static_mode_intel_hpus=0
+
 
 class TestElementwiseMulOp(OpTest):
     def setUp(self):
@@ -41,7 +49,8 @@ class TestElementwiseMulOp(OpTest):
     def set_hpu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("intel_hpu", 0)
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        enable_paddle_static_mode(int(intel_hpus_static_mode))
 
     def init_input(self):
         np.random.seed(1024)
@@ -75,6 +84,40 @@ class TestFP16ElementwiseMulOp(TestElementwiseMulOp):
 class TestFP16ElementwiseMulOp_1(TestElementwiseMulOp_broadcast):
     def init_dtype(self):
         self.dtype = np.float16
+
+
+class TestInt64ElementwiseMulOp(TestElementwiseMulOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+class TestInt64ElementwiseMulOp_1(TestElementwiseMulOp_broadcast):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+class TestFP8ElementwiseMulOp(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        np.random.seed(1024)
+        self.x0 = np.random.random((64, 64)).astype(self.dtype) * 10
+        self.x1 = np.random.random((64, 64)).astype(self.dtype) * 10
+
+    def test_check_output(self):
+        x0_fp8 = paddle.to_tensor(self.x0, dtype="float16").to(dtype="float8_e4m3fn")
+        x1_fp8 = paddle.to_tensor(self.x1, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = np.multiply(
+            x0_fp8.to(dtype="float16").numpy(), x1_fp8.to(dtype="float16").numpy()
+        )
+
+        out = paddle.multiply(x0_fp8, x1_fp8).astype("float16")
+
+        np.testing.assert_allclose(ref, out.numpy(), rtol=0.1, atol=0.1)
 
 
 if __name__ == "__main__":

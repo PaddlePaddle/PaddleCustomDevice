@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "kernels/funcs/mlu_baseop.h"
+#include "paddle/phi/core/kernel_registry.h"
 
 namespace custom_kernel {
 
@@ -106,6 +107,17 @@ void FullBatchSizeLikeKernel(const Context& dev_ctx,
   custom_kernel::FullLikeKernel<T, Context>(dev_ctx, x, val, dtype, out);
 }
 
+template <typename T, typename Context>
+void FullWithTensorKernel(const Context& dev_ctx,
+                          const phi::DenseTensor& value,
+                          const phi::IntArray& shape,
+                          DataType dtype,
+                          phi::DenseTensor* out) {
+  out->Resize(common::make_ddim(shape.GetData()));
+  custom_kernel::FullKernel<T, Context>(
+      dev_ctx, shape, phi::Scalar(value), dtype, out);
+}
+
 }  // namespace custom_kernel
 
 PD_REGISTER_PLUGIN_KERNEL(full,
@@ -139,4 +151,18 @@ PD_REGISTER_PLUGIN_KERNEL(full_batch_size_like,
                           float,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(full_with_tensor,
+                          mlu,
+                          ALL_LAYOUT,
+                          custom_kernel::FullWithTensorKernel,
+                          bool,
+                          uint8_t,
+                          int16_t,
+                          int,
+                          int64_t,
+                          float,
+                          phi::dtype::float16) {
+  kernel->InputAt(0).SetBackend(phi::Backend::CPU);
 }

@@ -29,7 +29,7 @@ from __future__ import print_function
 import numpy as np
 import unittest
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -56,6 +56,39 @@ class TestCosKernel(OpTest):
 
     def init_dtype(self):
         self.dtype = np.float16
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            max_relative_error=0.007,
+        )
+
+
+class TestCosKernelBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "cos"
+        self.python_api = paddle.cos
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+        self.init_dtype()
+        np.random.seed(SEED)
+
+        x = np.random.uniform(-1, 1, [11, 17]).astype(np.float32)
+        out = np.cos(x)
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.outputs = {"Out": convert_float_to_uint16(out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.uint16
 
     def test_check_output(self):
         self.check_output_with_place(self.place)

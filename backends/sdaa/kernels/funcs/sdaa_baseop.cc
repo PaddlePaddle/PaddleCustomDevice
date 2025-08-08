@@ -78,6 +78,40 @@ NCHWValue GetNCHWValue(const std::vector<int> dims, tecodnnTensorFormat_t tf) {
   return {N, C, H, W};
 }
 
+NCHWValue GetNCHWValue(const std::vector<int> dims,
+                       tecocustomTensorFormat_t tf) {
+  int N = dims[0], C = dims[1], H = dims[2], W = dims[3];
+  switch (tf) {
+    case TECOCUSTOM_TENSOR_NCHW:
+      N = dims[0];
+      C = dims[1];
+      H = dims[2];
+      W = dims[3];
+      break;
+    case TECOCUSTOM_TENSOR_NHWC:
+      N = dims[0];
+      C = dims[3];
+      H = dims[1];
+      W = dims[2];
+      break;
+    case TECOCUSTOM_TENSOR_CHWN:
+      N = dims[3];
+      C = dims[0];
+      H = dims[1];
+      W = dims[2];
+      break;
+    case TECOCUSTOM_TENSOR_NWHC:
+      N = dims[0];
+      C = dims[3];
+      H = dims[2];
+      W = dims[1];
+      break;
+    default:
+      break;
+  }
+  return {N, C, H, W};
+}
+
 std::pair<TensorFormat, TensorFormat> GetTecodnnConvertTensorFormat(
     const Convert_TF convert_tf) {
   auto iter = tecodnnTensorFormatMap.find(convert_tf);
@@ -136,9 +170,11 @@ Convert_TF GetTransposeTensorFormat(const std::vector<int>& dim_premute) {
       "Not support transpose mode %s of SDAA Device.", not_support_dim));
 }
 
-tecodnnTensorDescriptor_t GetTecodnnTensorDesc(const std::vector<int>& dims,
-                                               const DataType& dtype,
-                                               TensorFormat tf) {
+tecodnnTensorDescriptor_t GetTecodnnTensorDesc(
+    const std::vector<int>& dims,
+    const DataType& dtype,
+    TensorFormat tf,
+    const std::vector<int>& strides) {
   tecodnnDataType_t dt = ToTecodnnDataType(dtype);
   tecodnnTensorDescriptor_t Desc;
   TECODNN_CHECK(tecodnnCreateTensorDescriptor(&Desc));
@@ -149,6 +185,12 @@ tecodnnTensorDescriptor_t GetTecodnnTensorDesc(const std::vector<int>& dims,
   }
 
   if (tf != TensorFormat::Undefined && tmp_dims.size() <= 4) {
+    PADDLE_ENFORCE_EQ(
+        strides.empty(),
+        true,
+        phi::errors::InvalidArgument(
+            "strides is not supported to set when tensor format is not "
+            "TensorFormat::Undefined and rank is less than 5!"));
     tecodnnTensorFormat_t t_f = GetTecodnnTF(tf);
 
     std::vector<int> dimensions(4, 1);
@@ -174,13 +216,15 @@ tecodnnTensorDescriptor_t GetTecodnnTensorDesc(const std::vector<int>& dims,
                           tmp_dims.size()));
     std::copy(tmp_dims.begin(), tmp_dims.end(), dims_arr);
     TECODNN_CHECK(tecodnnSetTensorNdDescriptor(
-        Desc, dt, tmp_dims.size(), dims_arr, NULL));
+        Desc, dt, tmp_dims.size(), dims_arr, strides.data()));
   }
   return Desc;
 }
 
-tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(const std::vector<int>& dims,
-                                                   TensorFormat tf) {
+tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(
+    const std::vector<int>& dims,
+    TensorFormat tf,
+    const std::vector<int>& strides) {
   tecodnnDataType_t dt = TECODNN_DATA_BOOL;
   tecodnnTensorDescriptor_t Desc;
   TECODNN_CHECK(tecodnnCreateTensorDescriptor(&Desc));
@@ -191,6 +235,12 @@ tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(const std::vector<int>& dims,
   }
 
   if (tf != TensorFormat::Undefined && tmp_dims.size() <= 4) {
+    PADDLE_ENFORCE_EQ(
+        strides.empty(),
+        true,
+        phi::errors::InvalidArgument(
+            "strides is not supported to set when tensor format is not "
+            "TensorFormat::Undefined and rank is less than 5!"));
     tecodnnTensorFormat_t t_f = GetTecodnnTF(tf);
 
     std::vector<int> dimensions(4, 1);
@@ -217,9 +267,99 @@ tecodnnTensorDescriptor_t GetTecodnnBoolTensorDesc(const std::vector<int>& dims,
                           tmp_dims.size()));
     std::copy(tmp_dims.begin(), tmp_dims.end(), dims_arr);
     TECODNN_CHECK(tecodnnSetTensorNdDescriptor(
-        Desc, dt, tmp_dims.size(), dims_arr, NULL));
+        Desc, dt, tmp_dims.size(), dims_arr, strides.data()));
   }
   return Desc;
+}
+
+tecocustomTensorDescriptor_t GetTecocustomTensorDesc(
+    const std::vector<int>& dims,
+    const DataType& dtype,
+    TensorFormat tf,
+    const std::vector<int>& strides) {
+  tecocustomDataType_t dt = ToTecocustomDataType(dtype);
+  tecocustomTensorDescriptor_t CustomDesc;
+  TECOCUSTOM_CHECK(tecocustomCreateTensorDescriptor(&CustomDesc));
+
+  auto tmp_dims = dims;
+  if (dims.empty()) {
+    tmp_dims.push_back(1);
+  }
+
+  if (tf != TensorFormat::Undefined && tmp_dims.size() <= 4) {
+    PADDLE_ENFORCE_EQ(
+        strides.empty(),
+        true,
+        phi::errors::InvalidArgument(
+            "strides is not supported to set when tensor format is not "
+            "TensorFormat::Undefined and rank is less than 5!"));
+    tecocustomTensorFormat_t t_f = GetTecocustomTF(tf);
+
+    std::vector<int> dimensions(4, 1);
+    int index = 3;
+    for (int i = tmp_dims.size() - 1; i >= 0; i--) {
+      dimensions[index--] = tmp_dims[i];
+    }
+
+    int N, C, H, W;
+    NCHWValue getNCHWvalue = GetNCHWValue(dimensions, t_f);
+    N = getNCHWvalue.N;
+    C = getNCHWvalue.C;
+    H = getNCHWvalue.H;
+    W = getNCHWvalue.W;
+
+    TECOCUSTOM_CHECK(
+        tecocustomSetTensor4dDescriptor(CustomDesc, t_f, dt, N, C, H, W));
+  } else {
+    int dims_arr[kSliceMaxNum];
+    PADDLE_ENFORCE_LE(tmp_dims.size(),
+                      kSliceMaxNum,
+                      phi::errors::InvalidArgument(
+                          "The max ND Descriptor dims size is %d, but got %d.",
+                          kSliceMaxNum,
+                          tmp_dims.size()));
+    std::copy(tmp_dims.begin(), tmp_dims.end(), dims_arr);
+
+    TECOCUSTOM_CHECK(tecocustomSetTensorNdDescriptor(
+        CustomDesc, dt, tmp_dims.size(), dims_arr, strides.data()));
+  }
+  return CustomDesc;
+}
+
+// 当 merged_optimizer 为 true 时：
+// tecocustomSetTensorListNdDescriptor 中的参数 nbdims 被限制为 1。
+// 参数 int ndims[] 需要进行扁平化处理，具体为：
+//  - 将 ndims 的大小设置为 1。
+//  - ndims[0] 的值应为当前张量的 numel()，即张量的总元素数量。
+// 这种处理方式将多维张量的形状简化为一个一维数组，其中数组的长度等于张量的总元素数。
+tecocustomTensorListDescriptor_t GetTecocustomTensorListDesc(
+    const std::vector<phi::DenseTensor*>& tensor_list, bool merged_optimizer) {
+  int M = tensor_list.size();
+  tecocustomDataType_t dt = ToTecocustomDataType(tensor_list[0]->dtype());
+  tecocustomTensorListDescriptor_t CustomListDesc;
+  TECOCUSTOM_CHECK(tecocustomCreateTensorListDescriptor(&CustomListDesc, M));
+  std::vector<int> input_dim(M);
+  for (size_t i = 0; i < M; ++i) {
+    const auto* tensor = tensor_list[i];
+    if (!tensor) {
+      continue;
+    }
+    int* dims_data = nullptr;
+    int ndims = 0;
+    if (merged_optimizer) {
+      input_dim[i] = tensor->numel();
+      dims_data = &input_dim[i];
+      ndims = 1;
+    } else {
+      auto dims_vector = phi::vectorize<int>(tensor->dims());
+      dims_data = dims_vector.data();
+      ndims = dims_vector.size();
+    }
+    auto strides_vector = phi::vectorize<int>(tensor->strides());
+    TECOCUSTOM_CHECK(tecocustomSetTensorListNdDescriptor(
+        CustomListDesc, i, dt, ndims, dims_data, strides_vector.data()));
+  }
+  return CustomListDesc;
 }
 
 void doTransformTensor(const Context& dev_ctx,
@@ -228,7 +368,8 @@ void doTransformTensor(const Context& dev_ctx,
                        phi::DenseTensor* y) {
   VLOG(4) << "call tecodnn transform tensor";
   phi::DDim x_d;
-  if (x.storage_properties_initialized()) {
+  if (x.storage_properties_initialized() &&
+      !y->storage_properties_initialized()) {
     auto storages = x.storage_properties<SDAAStorageProperties>();
     x_d = storages.storage_dims;  // CHWN
   } else {
@@ -267,7 +408,8 @@ void doCastTensor(const Context& dev_ctx,
                   phi::DenseTensor* y) {
   VLOG(4) << "call tecodnn cast tensor";
   phi::DDim x_d;
-  if (x.storage_properties_initialized()) {
+  if (x.storage_properties_initialized() &&
+      !y->storage_properties_initialized()) {
     auto storages = x.storage_properties<SDAAStorageProperties>();
     x_d = storages.storage_dims;  // CHWN
     doAddStorageProperties(dev_ctx, y, storages);
@@ -1394,11 +1536,12 @@ template decltype(doSliceTensor<int64_t>) doSliceTensor<int64_t>;
 template decltype(doSliceTensor<int>) doSliceTensor<int>;
 
 void Padding(const Context& dev_ctx,
-             const phi::DenseTensor& x,
+             const phi::DataType& dtype,
+             const void* x_data,
              const std::vector<std::vector<int>>& paddings,
              const std::vector<int>& x_dims,
              const std::vector<int>& out_dims,
-             phi::DenseTensor* out) {
+             void* out_data) {
   tecodnnTensorTransformDescriptor_t tensorTranDesc;
   tecodnnFoldingDirection_t direction = TECODNN_TRANSFORM_FOLD;
   TECODNN_CHECK(tecodnnCreateTensorTransformDescriptor(&tensorTranDesc));
@@ -1421,18 +1564,18 @@ void Padding(const Context& dev_ctx,
 
   tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
   tecodnnTensorDescriptor_t x_Desc =
-      GetTecodnnTensorDesc(x_dims, x.dtype(), TensorFormat::NHWC);
+      GetTecodnnTensorDesc(x_dims, dtype, TensorFormat::NHWC);
   tecodnnTensorDescriptor_t out_Desc =
-      GetTecodnnTensorDesc(out_dims, out->dtype(), TensorFormat::NHWC);
+      GetTecodnnTensorDesc(out_dims, dtype, TensorFormat::NHWC);
 
   TECODNN_CHECK(tecodnnTransformTensorEx(tecodnnHandle,
                                          tensorTranDesc,
                                          &alpha,
                                          x_Desc,
-                                         x.data(),
+                                         x_data,
                                          &beta,
                                          out_Desc,
-                                         out->data()));
+                                         out_data));
 
   TECODNN_CHECK(tecodnnDestroyTensorTransformDescriptor(tensorTranDesc));
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
@@ -1488,31 +1631,108 @@ void doPaddingTensor(const Context& dev_ctx,
       paddings[1].insert(paddings[1].begin(), 0);
     }
 
-    Padding(dev_ctx, x, paddings, x_dims, out_dims, out);
+    Padding(
+        dev_ctx, x.dtype(), x.data(), paddings, x_dims, out_dims, out->data());
   } else {
+    // calculation the number of times padding.
+    int padding_count = 0;
+    int dim_idx = 0;
+    std::vector<int> need_padding_dim;
     for (int i = 0; i < Dims; i++) {
-      if (!(paddings[0][i] == 0 && paddings[1][i] == 0)) {
-        int x_dim_before_axis = std::accumulate(
-            x_dims.begin(), x_dims.begin() + i, 1, std::multiplies<int>());
-        int x_dim_after_axis = std::accumulate(
-            x_dims.begin() + i + 1, x_dims.end(), 1, std::multiplies<int>());
-        std::vector<int> x_dim_tmp = {
-            1, x_dim_before_axis, x_dims[i], x_dim_after_axis};
-
-        int out_dim_before_axis = std::accumulate(
-            out_dims.begin(), out_dims.begin() + i, 1, std::multiplies<int>());
-        int out_dim_after_axis = std::accumulate(
-            x_dims.begin() + i + 1, x_dims.end(), 1, std::multiplies<int>());
-        std::vector<int> out_dim_tmp = {
-            1, out_dim_before_axis, out_dims[i], out_dim_after_axis};
-
-        std::vector<int> PadBefore = {0, 0, paddings[0][i], 0};
-        std::vector<int> PadAfter = {0, 0, paddings[1][i], 0};
-        std::vector<std::vector<int>> paddings_tmp = {std::move(PadBefore),
-                                                      std::move(PadAfter)};
-
-        Padding(dev_ctx, x, paddings_tmp, x_dim_tmp, out_dim_tmp, out);
+      if (paddings[0][i] != 0 || paddings[1][i] != 0) {
+        padding_count++;
+        need_padding_dim.push_back(i);
       }
+    }
+
+    if (padding_count == 1) {
+      dim_idx = need_padding_dim[0];
+      int x_dim_before_axis = std::accumulate(
+          x_dims.begin(), x_dims.begin() + dim_idx, 1, std::multiplies<int>());
+      int x_dim_after_axis = std::accumulate(x_dims.begin() + dim_idx + 1,
+                                             x_dims.end(),
+                                             1,
+                                             std::multiplies<int>());
+      std::vector<int> x_dim_tmp = {
+          1, x_dim_before_axis, x_dims[dim_idx], x_dim_after_axis};
+
+      int out_dim_before_axis = std::accumulate(out_dims.begin(),
+                                                out_dims.begin() + dim_idx,
+                                                1,
+                                                std::multiplies<int>());
+      int out_dim_after_axis = std::accumulate(x_dims.begin() + dim_idx + 1,
+                                               x_dims.end(),
+                                               1,
+                                               std::multiplies<int>());
+      std::vector<int> out_dim_tmp = {
+          1, out_dim_before_axis, out_dims[dim_idx], out_dim_after_axis};
+
+      std::vector<int> PadBefore = {0, 0, paddings[0][dim_idx], 0};
+      std::vector<int> PadAfter = {0, 0, paddings[1][dim_idx], 0};
+      std::vector<std::vector<int>> paddings_tmp = {std::move(PadBefore),
+                                                    std::move(PadAfter)};
+
+      Padding(dev_ctx,
+              x.dtype(),
+              x.data(),
+              paddings_tmp,
+              x_dim_tmp,
+              out_dim_tmp,
+              out->data());
+      return;
+    }
+
+    phi::DenseTensor out_temp;
+    out_temp.Resize(out->dims());
+    dev_ctx.Alloc(&out_temp, out->dtype());
+    phi::Copy(dev_ctx, x, x.place(), false, &out_temp);
+    out_temp.Resize(out->dims());
+
+    auto input_data_ptr = out_temp.data();
+    auto output_data_ptr = out->data();
+
+    for (int i = 0; i < padding_count; i++) {
+      dim_idx = need_padding_dim[i];
+      int x_dim_before_axis = std::accumulate(
+          x_dims.begin(), x_dims.begin() + dim_idx, 1, std::multiplies<int>());
+      int x_dim_after_axis = std::accumulate(x_dims.begin() + dim_idx + 1,
+                                             x_dims.end(),
+                                             1,
+                                             std::multiplies<int>());
+      std::vector<int> x_dim_tmp = {
+          1, x_dim_before_axis, x_dims[dim_idx], x_dim_after_axis};
+
+      int out_dim_before_axis = std::accumulate(out_dims.begin(),
+                                                out_dims.begin() + dim_idx,
+                                                1,
+                                                std::multiplies<int>());
+      int out_dim_after_axis = std::accumulate(x_dims.begin() + dim_idx + 1,
+                                               x_dims.end(),
+                                               1,
+                                               std::multiplies<int>());
+      std::vector<int> out_dim_tmp = {
+          1, out_dim_before_axis, out_dims[dim_idx], out_dim_after_axis};
+
+      std::vector<int> PadBefore = {0, 0, paddings[0][dim_idx], 0};
+      std::vector<int> PadAfter = {0, 0, paddings[1][dim_idx], 0};
+      std::vector<std::vector<int>> paddings_tmp = {std::move(PadBefore),
+                                                    std::move(PadAfter)};
+
+      Padding(dev_ctx,
+              x.dtype(),
+              input_data_ptr,
+              paddings_tmp,
+              x_dim_tmp,
+              out_dim_tmp,
+              output_data_ptr);
+
+      // update x_dims[i] value after padding.
+      x_dims[dim_idx] = out_dims[dim_idx];
+      std::swap(input_data_ptr, output_data_ptr);
+    }
+    if (padding_count % 2 == 0) {
+      phi::Copy(dev_ctx, out_temp, out->place(), false, out);
+      out->Resize(phi::make_ddim(out_dims));
     }
   }
 }
@@ -1639,7 +1859,8 @@ void doTransposeTensor(const Context& dev_ctx,
 
   auto x_out_dims = TryDDimFusion(x.dims(), out->dims(), axis);
 
-  if (x_out_dims) {
+  // tecodnnTransformTensor do not support transpose when input dtype is bf16
+  if (x.dtype() != phi::DataType::BFLOAT16 && x_out_dims) {
     phi::DDim& fused_x_dims = std::get<0>(x_out_dims.get());
     phi::DDim& fused_out_dimension = std::get<1>(x_out_dims.get());
     Convert_TF convert_tf = GetTransposeTensorFormat(axis);
@@ -1661,25 +1882,25 @@ void doTransposeTensor(const Context& dev_ctx,
 
     TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
     TECODNN_CHECK(tecodnnDestroyTensorDescriptor(y_Desc));
+  } else {
+    tecodnnTensorDescriptor_t input_desc = GetTecodnnTensorDesc(
+        phi::vectorize<int>(x.dims()), x.dtype(), TensorFormat::Undefined);
+    tecodnnTensorDescriptor_t output_desc =
+        GetTecodnnTensorDesc(phi::vectorize<int>(out->dims()),
+                             out->dtype(),
+                             TensorFormat::Undefined);
 
-    return;
+    tecodnnHandle_t tecodnn_handler = GetHandleFromCTX(dev_ctx);
+    TECODNN_CHECK(tecodnnTranspose(tecodnn_handler,
+                                   axis.data(),
+                                   input_desc,
+                                   x.data(),
+                                   output_desc,
+                                   out->data()));
+
+    TECODNN_CHECK(tecodnnDestroyTensorDescriptor(input_desc));
+    TECODNN_CHECK(tecodnnDestroyTensorDescriptor(output_desc));
   }
-
-  tecodnnTensorDescriptor_t input_desc = GetTecodnnTensorDesc(
-      phi::vectorize<int>(x.dims()), x.dtype(), TensorFormat::Undefined);
-  tecodnnTensorDescriptor_t output_desc = GetTecodnnTensorDesc(
-      phi::vectorize<int>(out->dims()), out->dtype(), TensorFormat::Undefined);
-
-  tecodnnHandle_t tecodnn_handler = GetHandleFromCTX(dev_ctx);
-  TECODNN_CHECK(tecodnnTranspose(tecodnn_handler,
-                                 axis.data(),
-                                 input_desc,
-                                 x.data(),
-                                 output_desc,
-                                 out->data()));
-
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(input_desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(output_desc));
 }
 
 void doLogicTensor(const Context& dev_ctx,
@@ -1782,48 +2003,58 @@ void doConcatTensor(const Context& dev_ctx,
         every_x_dims, x[i]->dtype(), TensorFormat::Undefined);
     Desc.push_back(every_x_Desc);
   }
-
-  size_t extra_input_size;
-  TECODNN_CHECK(
-      tecodnnGetConcatExtraInputSize(Desc.data(), x.size(), &extra_input_size));
-
-  int sizeworkspaceInBytes = input_ptr.size() * sizeof(void*);
-  int kPaddingSize = 128;
-  int64_t paddingSize =
-      (static_cast<int64_t>(extra_input_size) + kPaddingSize * 2) /
-      kPaddingSize * kPaddingSize;
-  int64_t hostInputSize = paddingSize + sizeworkspaceInBytes;
-
-  std::vector<int8_t> host_input(hostInputSize);
-
-  TECODNN_CHECK(
-      tecodnnConcatInitExtraInput(Desc.data(), x.size(), host_input.data()));
-  memcpy(
-      host_input.data() + paddingSize, input_ptr.data(), sizeworkspaceInBytes);
-
   tecodnnTensorDescriptor_t out_Desc = sdaa_ops::GetTecodnnTensorDesc(
       out_dims, out->dtype(), TensorFormat::Undefined);
 
-  phi::DenseTensor tmp;
-  tmp.Resize({hostInputSize});
-  dev_ctx.Alloc(&tmp, phi::DataType::INT8);
-  AsyncMemCpyH2D(nullptr,
-                 static_cast<C_Stream>(dev_ctx.stream()),
-                 tmp.data(),
-                 host_input.data(),
-                 hostInputSize);
+  if (x.size() > 8) {
+    size_t extra_input_size;
+    TECODNN_CHECK(tecodnnGetConcatExtraInputSize(
+        Desc.data(), x.size(), &extra_input_size));
 
-  TECODNN_CHECK(
-      tecodnnConcat(tecodnnHandle,
-                    axis,
-                    x.size(),
-                    Desc.data(),
-                    reinterpret_cast<void**>(tmp.data<int8_t>() + paddingSize),
-                    out_Desc,
-                    out->data(),
-                    tmp.data(),
-                    extra_input_size));
+    int sizeworkspaceInBytes = input_ptr.size() * sizeof(void*);
+    int kPaddingSize = 128;
+    int64_t paddingSize =
+        (static_cast<int64_t>(extra_input_size) + kPaddingSize * 2) /
+        kPaddingSize * kPaddingSize;
+    int64_t hostInputSize = paddingSize + sizeworkspaceInBytes;
 
+    std::vector<int8_t> host_input(hostInputSize);
+
+    TECODNN_CHECK(
+        tecodnnConcatInitExtraInput(Desc.data(), x.size(), host_input.data()));
+    memcpy(host_input.data() + paddingSize,
+           input_ptr.data(),
+           sizeworkspaceInBytes);
+
+    phi::DenseTensor tmp;
+    tmp.Resize({hostInputSize});
+    dev_ctx.Alloc(&tmp, phi::DataType::INT8);
+    AsyncMemCpyH2D(nullptr,
+                   static_cast<C_Stream>(dev_ctx.stream()),
+                   tmp.data(),
+                   host_input.data(),
+                   hostInputSize);
+
+    TECODNN_CHECK(tecodnnConcat(
+        tecodnnHandle,
+        axis,
+        x.size(),
+        Desc.data(),
+        reinterpret_cast<void**>(tmp.data<int8_t>() + paddingSize),
+        out_Desc,
+        out->data(),
+        tmp.data(),
+        extra_input_size));
+
+  } else if (x.size() <= 8 && x.size() > 1) {
+    TECODNN_CHECK(tecodnnConcatEx(tecodnnHandle,
+                                  axis,
+                                  x.size(),
+                                  Desc.data(),
+                                  input_ptr.data(),
+                                  out_Desc,
+                                  out->data()));
+  }
   for (int i = 0; i < Desc.size(); i++) {
     TECODNN_CHECK(tecodnnDestroyTensorDescriptor(Desc[i]));
   }
@@ -1946,43 +2177,54 @@ void doSplitTensor(const Context& dev_ctx,
     outs_Desc.push_back(every_out_Desc);
   }
 
-  size_t extra_out_size;
-  TECODNN_CHECK(tecodnnGetSplitExtraInputSize(
-      outs_Desc.data(), outs.size(), &extra_out_size));
+  if (outs.size() > 8) {
+    size_t extra_out_size;
+    TECODNN_CHECK(tecodnnGetSplitExtraInputSize(
+        outs_Desc.data(), outs.size(), &extra_out_size));
 
-  int sizeworkspaceInBytes = outs_ptr.size() * sizeof(void*);
-  int kPaddingSize = 128;
-  int64_t paddingSize =
-      (static_cast<int64_t>(extra_out_size) + kPaddingSize * 2) / kPaddingSize *
-      kPaddingSize;
-  int64_t hostOutputSize = paddingSize + sizeworkspaceInBytes;
+    int sizeworkspaceInBytes = outs_ptr.size() * sizeof(void*);
+    int kPaddingSize = 128;
+    int64_t paddingSize =
+        (static_cast<int64_t>(extra_out_size) + kPaddingSize * 2) /
+        kPaddingSize * kPaddingSize;
+    int64_t hostOutputSize = paddingSize + sizeworkspaceInBytes;
 
-  std::vector<int8_t> host_output(hostOutputSize);
+    std::vector<int8_t> host_output(hostOutputSize);
 
-  TECODNN_CHECK(tecodnnSplitInitExtraInput(
-      outs_Desc.data(), outs.size(), host_output.data()));
-  memcpy(
-      host_output.data() + paddingSize, outs_ptr.data(), sizeworkspaceInBytes);
+    TECODNN_CHECK(tecodnnSplitInitExtraInput(
+        outs_Desc.data(), outs.size(), host_output.data()));
+    memcpy(host_output.data() + paddingSize,
+           outs_ptr.data(),
+           sizeworkspaceInBytes);
 
-  phi::DenseTensor tmp;
-  tmp.Resize(phi::make_ddim({hostOutputSize}));
-  dev_ctx.Alloc(&tmp, phi::DataType::INT8);
-  AsyncMemCpyH2D(nullptr,
-                 static_cast<C_Stream>(dev_ctx.stream()),
-                 tmp.data(),
-                 host_output.data(),
-                 hostOutputSize);
-
-  TECODNN_CHECK(
-      tecodnnSplit(tecodnnHandle,
-                   axis,
-                   outs.size(),
-                   x_Desc,
-                   const_cast<void*>(x.data()),
-                   outs_Desc.data(),
-                   reinterpret_cast<void**>(tmp.data<int8_t>() + paddingSize),
+    phi::DenseTensor tmp;
+    tmp.Resize(phi::make_ddim({hostOutputSize}));
+    dev_ctx.Alloc(&tmp, phi::DataType::INT8);
+    AsyncMemCpyH2D(nullptr,
+                   static_cast<C_Stream>(dev_ctx.stream()),
                    tmp.data(),
-                   extra_out_size));
+                   host_output.data(),
+                   hostOutputSize);
+
+    TECODNN_CHECK(
+        tecodnnSplit(tecodnnHandle,
+                     axis,
+                     outs.size(),
+                     x_Desc,
+                     const_cast<void*>(x.data()),
+                     outs_Desc.data(),
+                     reinterpret_cast<void**>(tmp.data<int8_t>() + paddingSize),
+                     tmp.data(),
+                     extra_out_size));
+  } else if (outs.size() <= 8 && outs.size() > 1) {
+    TECODNN_CHECK(tecodnnSplitEx(tecodnnHandle,
+                                 axis,
+                                 outs.size(),
+                                 x_Desc,
+                                 const_cast<void*>(x.data()),
+                                 outs_Desc.data(),
+                                 outs_ptr.data()));
+  }
 
   TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
   for (int i = 0; i < outs_Desc.size(); i++) {
@@ -2287,6 +2529,24 @@ void doLogicalNotOpTensor(const Context& dev_ctx,
                           phi::DenseTensor* out) {
   VLOG(4) << "tecodnn Logical Notop tensor called.";
 
+  if (DataType::BOOL == x.dtype()) {
+    std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+    std::vector<int> out_dims = phi::vectorize<int>(out->dims());
+
+    tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+    tecodnnTensorDescriptor_t x_Desc =
+        GetTecodnnBoolTensorDesc(x_dims, TensorFormat::NHWC);
+    tecodnnTensorDescriptor_t out_Desc =
+        GetTecodnnBoolTensorDesc(out_dims, TensorFormat::NHWC);
+
+    TECODNN_CHECK(tecodnnLogicalNotTensor(
+        tecodnnHandle, x_Desc, x.data(), out_Desc, out->data()));
+
+    TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
+    TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
+    return;
+  }
+
   std::vector<int> x_dims = phi::vectorize<int>(x.dims());
   std::vector<int> out_dims = phi::vectorize<int>(out->dims());
 
@@ -2379,6 +2639,23 @@ void swapTensorData(const Context& dev_ctx,
                  trans_in.data(),
                  phi::SizeOf(in.dtype()) * trans_in.numel());
   doAddStorageProperties(dev_ctx, temp_in, storage_properties);
+}
+
+void swapTensorData(const Context& dev_ctx,
+                    const phi::DenseTensor& in,
+                    SDAAStorageProperties& storage_properties,  // NOLINT
+                    phi::DenseTensor* out) {
+  Convert_TF tf = Convert_TF::NCHW2CHWN;
+  PADDLE_ENFORCE_EQ(storage_properties.storage_format,
+                    StoragePropertiesCHWN,
+                    phi::errors::InvalidArgument("invaild storage format!"));
+
+  phi::DenseTensorMeta meta_in = {in.dtype(), doDimPermute(in, tf)};
+  out->set_meta(meta_in);
+  dev_ctx.Alloc(out, in.dtype());
+  doTransformTensor(dev_ctx, in, tf, out);  // CHWN
+  doAddStorageProperties(dev_ctx, out, storage_properties);
+  out->set_meta(in.meta());
 }
 
 std::vector<int64_t> GetReduceDimAxis(const phi::DDim& in,
@@ -2627,6 +2904,99 @@ void GetReduceDimReduceAll(const std::vector<int>& axis_dims,
     }
   }
 }
+
+void doStrideCopy(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  const std::vector<int>& shape,
+                  const std::vector<int>& x_strides,
+                  const std::vector<int>& out_strides,
+                  phi::DenseTensor* out) {
+  VLOG(4) << "tecodnn CopyStride op called";
+
+  // basic settings
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  tecodnnTensorDescriptor_t x_Desc, out_Desc;
+
+  if (x.dtype() == phi::DataType::BOOL) {
+    x_Desc = sdaa_ops::GetTecodnnBoolTensorDesc(
+        shape, TensorFormat::Undefined, x_strides);
+  } else {
+    x_Desc = sdaa_ops::GetTecodnnTensorDesc(
+        shape, x.dtype(), TensorFormat::Undefined, x_strides);
+  }
+
+  if (out->dtype() == phi::DataType::BOOL) {
+    out_Desc = sdaa_ops::GetTecodnnBoolTensorDesc(
+        shape, TensorFormat::Undefined, out_strides);
+  } else {
+    out_Desc = sdaa_ops::GetTecodnnTensorDesc(
+        shape, out->dtype(), TensorFormat::Undefined, out_strides);
+  }
+
+  TECODNN_CHECK(tecodnnCopyStride(
+      tecodnnHandle, x_Desc, x.data(), out_Desc, out->data()));
+
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
+}
+
+template <typename T>
+void doClipTensor(const Context& dev_ctx,
+                  const phi::DenseTensor& x,
+                  T min,
+                  T max,
+                  phi::DenseTensor* out) {
+  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
+  std::vector<int> x_dims = phi::vectorize<int>(x.dims());
+  std::vector<int> out_dims = phi::vectorize<int>(out->dims());
+  tecodnnTensorDescriptor_t x_Desc = sdaa_ops::GetTecodnnTensorDesc(
+      x_dims, x.dtype(), TensorFormat::Undefined);
+  tecodnnTensorDescriptor_t out_Desc = sdaa_ops::GetTecodnnTensorDesc(
+      out_dims, out->dtype(), TensorFormat::Undefined);
+
+  phi::DenseTensor x_temp(x);
+
+  TECODNN_CHECK(tecodnnClampTensor(
+      tecodnnHandle, &min, &max, x_Desc, x_temp.data(), out_Desc, out->data()));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
+  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(out_Desc));
+}
+
+template void doClipTensor<int>(const Context& dev_ctx,
+                                const phi::DenseTensor& x,
+                                int min,
+                                int max,
+                                phi::DenseTensor* out);
+
+template void doClipTensor<int64_t>(const Context& dev_ctx,
+                                    const phi::DenseTensor& x,
+                                    int64_t min,
+                                    int64_t max,
+                                    phi::DenseTensor* out);
+
+template void doClipTensor<float>(const Context& dev_ctx,
+                                  const phi::DenseTensor& x,
+                                  float min,
+                                  float max,
+                                  phi::DenseTensor* out);
+
+template void doClipTensor<double>(const Context& dev_ctx,
+                                   const phi::DenseTensor& x,
+                                   double min,
+                                   double max,
+                                   phi::DenseTensor* out);
+
+template void doClipTensor<phi::dtype::float16>(const Context& dev_ctx,
+                                                const phi::DenseTensor& x,
+                                                phi::dtype::float16 min,
+                                                phi::dtype::float16 max,
+                                                phi::DenseTensor* out);
+
+template void doClipTensor<phi::dtype::bfloat16>(const Context& dev_ctx,
+                                                 const phi::DenseTensor& x,
+                                                 phi::dtype::bfloat16 min,
+                                                 phi::dtype::bfloat16 max,
+                                                 phi::DenseTensor* out);
 
 }  // namespace sdaa_ops
 }  // namespace custom_kernel

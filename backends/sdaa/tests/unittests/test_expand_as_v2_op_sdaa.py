@@ -27,7 +27,7 @@
 from __future__ import print_function
 import unittest
 import numpy as np
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle.base as base
 import paddle
 
@@ -167,6 +167,33 @@ for _typename in {"float16", "float32", "float64", "int64", "int32", "bool"}:
     test_class2("expand_as_v2", _typename)
     test_class3("expand_as_v2", _typename)
     test_class4("expand_as_v2", _typename)
+
+
+class TestExpandAsBasicBFP16OP(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "expand_as_v2"
+        self.dtype = np.uint16
+        self.python_api = paddle.expand_as
+        x = np.random.rand(100).astype(np.float32)
+        target_tensor = np.random.rand(2, 100).astype(np.float32)
+        self.inputs = {
+            "X": convert_float_to_uint16(x),
+            "Y": convert_float_to_uint16(target_tensor),
+        }
+        self.attrs = {"target_shape": target_tensor.shape}
+        bcast_dims = [2, 1]
+        output = np.tile(x, bcast_dims)
+        self.outputs = {"Out": convert_float_to_uint16(output)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
 
 if __name__ == "__main__":
     unittest.main()

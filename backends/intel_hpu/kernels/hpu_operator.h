@@ -26,7 +26,6 @@
 #include "paddle/phi/backends/device_ext.h"
 #include "paddle/phi/common/type_traits.h"
 #include "paddle/phi/extension.h"
-#include "utils/hpu_helper.h"
 
 class HpuOperator {
  public:
@@ -85,6 +84,10 @@ class RecipeRunner {
 
  protected:
   synRecipeHandle recipeHandle_;
+
+ private:
+  C_Status MallocDeviceMem(uint64_t* buffer, const uint64_t size);
+  C_Status FreeDeviceMem(const uint64_t buffer, const uint64_t size);
 };
 
 #endif  // BACKENDS_INTEL_HPU_KERNELS_HPU_OPERATOR_H_

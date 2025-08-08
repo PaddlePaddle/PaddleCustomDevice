@@ -499,7 +499,6 @@ class TestLog2(TestActivation):
 
                 out1 = paddle.log2(data_x)
                 exe = paddle.static.Executor(place=self.place)
-                exe.run(paddle.static.default_startup_program())
                 (res1,) = exe.run(
                     paddle.static.default_main_program(),
                     feed={"data_x": input_x},

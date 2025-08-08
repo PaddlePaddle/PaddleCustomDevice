@@ -22,6 +22,14 @@ from tests.op_test import OpTest
 
 paddle.enable_static()
 
+import os
+from util import enable_paddle_static_mode
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+intel_hpus_static_mode = os.environ.get(
+    "FLAGS_static_mode_intel_hpus", 0
+)  # default is dynamic mode test FLAGS_static_mode_intel_hpus=0
+
 
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
@@ -40,7 +48,8 @@ class TestElementwiseAddOp(OpTest):
     def set_hpu(self):
         self.__class__.use_custom_device = True
         self.__class__.no_need_check_grad = True
-        self.place = paddle.CustomPlace("intel_hpu", 0)
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        enable_paddle_static_mode(int(intel_hpus_static_mode))
 
     def init_input_output(self):
         np.random.seed(1024)
@@ -99,6 +108,29 @@ class TestElementwiseAddOp_scalar(TestElementwiseAddOp):
         self.x = np.random.rand(2, 3, 4).astype(self.dtype)
         self.y = np.random.rand(1).astype(self.dtype)
         self.out = self.x + self.y
+
+
+class TestFP8ElementwiseAddOp(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        self.x0 = np.random.random((256, 256)).astype(self.dtype)
+        self.x1 = np.random.random((256, 256)).astype(self.dtype)
+
+    def test_check_output(self):
+        x0_fp8 = paddle.to_tensor(self.x0, dtype="float16").to(dtype="float8_e4m3fn")
+        x1_fp8 = paddle.to_tensor(self.x1, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = np.add(
+            x0_fp8.to(dtype="float16").numpy(), x1_fp8.to(dtype="float16").numpy()
+        )
+
+        out = paddle.add(x0_fp8, x1_fp8).astype("float16")
+
+        np.testing.assert_allclose(ref, out.numpy(), rtol=0.1)
 
 
 if __name__ == "__main__":

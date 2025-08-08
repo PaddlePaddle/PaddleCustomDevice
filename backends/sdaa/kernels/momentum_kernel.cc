@@ -37,19 +37,23 @@ void MomentumKernel(const Context& dev_ctx,
                     phi::DenseTensor* velocity_out,
                     phi::DenseTensor* master_param_out) {
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
-      (!param.storage_properties_initialized()) &&
       (grad.storage_properties_initialized())) {
     SDAAStorageProperties grad_properties =
         grad.storage_properties<SDAAStorageProperties>();
 
-    sdaa_ops::swapTensorData(dev_ctx, param, grad_properties);
-    sdaa_ops::swapTensorData(dev_ctx, velocity, grad_properties);
-    if (&param != param_out) {
-      sdaa_ops::doAddStorageProperties(dev_ctx, param_out, grad_properties);
+    if ((!param.storage_properties_initialized())) {
+      sdaa_ops::swapTensorData(dev_ctx, param, grad_properties);
+      if (&param != param_out) {
+        sdaa_ops::doAddStorageProperties(dev_ctx, param_out, grad_properties);
+      }
     }
 
-    if (&velocity != velocity_out) {
-      sdaa_ops::doAddStorageProperties(dev_ctx, velocity_out, grad_properties);
+    if (!velocity.storage_properties_initialized()) {
+      sdaa_ops::swapTensorData(dev_ctx, velocity, grad_properties);
+      if (&velocity != velocity_out) {
+        sdaa_ops::doAddStorageProperties(
+            dev_ctx, velocity_out, grad_properties);
+      }
     }
   }
   VLOG(4) << "Call SDAA MomentumKernel";

@@ -23,20 +23,24 @@ namespace custom_kernel {
 
 class SoftmaxOperator : public HpuOperator {
  public:
-  SoftmaxOperator(std::string guid_prefix, std::string node_name)
-      : HpuOperator(guid_prefix), pName_(node_name) {}
-  void AddNode(const std::vector<DIMS>& ins,
-               const std::vector<DIMS>& outs,
+  SoftmaxOperator() : HpuOperator("softmax_fwd_") {}
+  void AddNode(ConvertTensors& ct,
                synDataType datatype,
-               ns_Softmax::Params params) {
+               ns_Softmax::Params params,
+               bool in_place = false) {
+    auto ins = ct.GetTensors();
+    auto outs = ct.GetTensors(false);
     assert(ins.size() == 1 && "input size should be 1");
     assert(outs.size() == 1 && "output size should be 1");
 
-    synTensor inputs[ins.size()] = {
-        createTensor(ins[0].size(), datatype, ins[0], true, "input")};
-    synTensor outputs[outs.size()] = {
-        createTensor(outs[0].size(), datatype, outs[0], true, "output")};
+    synSectionHandle section = in_place ? createSection() : nullptr;
 
+    synTensor inputs[ins.size()] = {createTensor(
+        ins[0].dims.size(), datatype, ins[0].dims, true, "input", section)};
+    synTensor outputs[outs.size()] = {createTensor(
+        outs[0].dims.size(), datatype, outs[0].dims, true, "output", section)};
+
+    guid_ = guid_ + SynDataTypeToStr(datatype);
     synStatus status = synNodeCreate(graphHandle_,
                                      inputs,
                                      outputs,
@@ -45,13 +49,12 @@ class SoftmaxOperator : public HpuOperator {
                                      &params,
                                      sizeof(params),
                                      guid_.c_str(),
-                                     pName_.c_str(),
+                                     "softmax",
                                      nullptr,
                                      nullptr);
     PD_CHECK(
         status == synSuccess, "[RUNTIME] synNodeCreate () failed = %d", status);
   }
-  std::string pName_;
 };
 
 template <typename T, typename Context>
@@ -67,20 +70,27 @@ void SoftmaxKernel(const Context& dev_ctx,
   if (out->numel() == 0) {
     return;
   }
+
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(out, false);
+
   std::vector<int64_t> inputs_dim = phi::vectorize<int64_t>(x.dims());
   std::vector<int64_t> outputs_dim = phi::vectorize<int64_t>(out->dims());
   ns_Softmax::Params params{static_cast<int>(inputs_dim.size()) - 1 -
                             calc_axis};
 
+  bool in_place = (x.data() == out->data());
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, ns_Softmax::Params>(
-      "softmax_fwd", {inputs_dim}, &params);
+      in_place ? "SoftmaxKernel_" : "SoftmaxKernel", {inputs_dim}, &params);
 
   auto recipe = op_info.GetRecipe();
   if (recipe == nullptr) {
     // compile
-    SoftmaxOperator op(op_info.guid_, "softmax_op");
-    op.AddNode({inputs_dim}, {outputs_dim}, op_info.datatype_, params);
+    SoftmaxOperator op;
+    op.AddNode(ct, op_info.datatype_, params, in_place);
+
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();

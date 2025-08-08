@@ -17,7 +17,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 
 paddle.enable_static()
@@ -207,6 +207,39 @@ class TestSoftmaxHighPrecision(OpTest):
                 "Out",
                 numeric_place=paddle.CPUPlace(),
             )
+
+
+class TestSoftmaxBF16(OpTest):
+    def setUp(self):
+        self.set_sdaa()
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.op_type = "softmax"
+        self.python_api = paddle.nn.functional.softmax
+        self.init_dtype()
+
+        x = np.random.random(self.shape).astype(np.float32)
+        np_out = np.exp(x) / np.sum(np.exp(x), axis=self.axis, keepdims=True)
+        self.inputs = {"X": OpTest.np_dtype_to_base_dtype(convert_float_to_uint16(x))}
+        self.attrs = {"axis": self.axis}
+        self.outputs = {"Out": convert_float_to_uint16(np_out)}
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = False
+
+    def init_dtype(self):
+        self.dtype = np.uint16
+        self.shape = [3, 3]
+        self.axis = -1
+
+    def test_check_output(self):
+        self.check_output_with_place(
+            self.place,
+            atol=1e-3 if self.dtype == np.float16 else 1e-5,
+        )
+
+    def test_check_grad_no_input(self):
+        self.check_grad_with_place(paddle.CustomPlace("sdaa", 0), ["X"], "Out")
 
 
 if __name__ == "__main__":

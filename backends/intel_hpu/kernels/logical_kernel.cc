@@ -17,23 +17,29 @@
 
 namespace custom_kernel {
 struct LogicalParams {
-  std::string op;
+  char op[MAX_OPNAME_LEN];
 };
 
 class Logical : public HpuOperator {
  public:
   Logical() : HpuOperator("logical") {}
-  void AddNode(ConvertTensors& ct, LogicalParams& params) {
+  void AddNode(ConvertTensors& ct,
+               LogicalParams& params,
+               bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
+    synSectionHandle section = in_place ? createSection() : nullptr;
+
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
+      bool use_section = (i == 0 && section != nullptr);
       syn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                         inputs[i].type,
                                         inputs[i].dims,
                                         true,
-                                        inputs[i].name));
+                                        inputs[i].name,
+                                        use_section ? section : nullptr));
     }
 
     std::vector<synTensor> syn_outputs;
@@ -42,10 +48,12 @@ class Logical : public HpuOperator {
                                          outputs[i].type,
                                          outputs[i].dims,
                                          true,
-                                         outputs[i].name));
+                                         outputs[i].name,
+                                         section));
     }
 
-    std::string guid = params.op + "_" + SynDataTypeToStr(inputs[0].type);
+    std::string guid =
+        std::string(params.op) + "_" + SynDataTypeToStr(inputs[0].type);
 
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
@@ -55,7 +63,7 @@ class Logical : public HpuOperator {
                                      nullptr,
                                      0,
                                      guid.c_str(),
-                                     params.op.c_str(),
+                                     params.op,
                                      nullptr,
                                      nullptr);
     PD_CHECK(
@@ -73,8 +81,8 @@ void LogicalNotKernel(const Context& dev_ctx,
   ct.Add(x);
   ct.Add(out, false);
 
-  LogicalParams params;
-  params.op = "not";
+  LogicalParams params = {};
+  snprintf(params.op, MAX_OPNAME_LEN, "%s", "not");
   std::vector<DIMS> inputs_dims = ct.GetDims();
   OpCacheOperator op_info;
   op_info.prepareOpInfo<T, nullptr_t>("LogicalNotKernel", inputs_dims, nullptr);
@@ -101,23 +109,27 @@ void LogicalOrKernel(const Context& dev_ctx,
                      const phi::DenseTensor& y,
                      phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  OpCacheOperator op_info;
   ConvertTensors ct;
   ct.Add(x);
   ct.Add(y);
 
   ct.Add(out, false);
 
-  LogicalParams params;
-  params.op = "or";
+  LogicalParams params = {};
+  snprintf(params.op, MAX_OPNAME_LEN, "%s", "or");
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  op_info.prepareOpInfo<T, nullptr_t>("LogicalOrKernel", inputs_dims, nullptr);
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalOrKernel_" : "LogicalOrKernel", inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Logical op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 
@@ -135,22 +147,67 @@ void LogicalAndKernel(const Context& dev_ctx,
                       const phi::DenseTensor& y,
                       phi::DenseTensor* out) {
   dev_ctx.template Alloc<bool>(out);
-  OpCacheOperator op_info;
   ConvertTensors ct;
   ct.Add(x);
   ct.Add(y);
   ct.Add(out, false);
 
-  LogicalParams params;
-  params.op = "and";
+  LogicalParams params = {};
+  snprintf(params.op, MAX_OPNAME_LEN, "%s", "and");
   std::vector<DIMS> inputs_dims = ct.GetDims();
-  op_info.prepareOpInfo<T, nullptr_t>("LogicalAndKernel", inputs_dims, nullptr);
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalAndKernel_" : "LogicalAndKernel",
+      inputs_dims,
+      nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Logical op;
 
-    op.AddNode(ct, params);
+    op.AddNode(ct, params, in_place);
+    op.Compile();
+    op_info.setOp(op);
+
+    recipe = op_info.GetRecipe();
+  }
+
+  std::map<std::string, uint64_t> tensors = ct.GetDeviceAddr();
+  RecipeRunner runner(recipe);
+  runner.Run(reinterpret_cast<C_Stream>(dev_ctx.stream()), tensors);
+}
+
+template <typename T, typename Context>
+void LogicalXorKernel(const Context& dev_ctx,
+                      const phi::DenseTensor& x,
+                      const phi::DenseTensor& y,
+                      phi::DenseTensor* out) {
+  dev_ctx.template Alloc<bool>(out);
+  ConvertTensors ct;
+  ct.Add(x);
+  ct.Add(y);
+  ct.Add(out, false);
+
+  LogicalParams params = {};
+  snprintf(params.op, MAX_OPNAME_LEN, "%s", "xor");
+  std::vector<DIMS> inputs_dims = ct.GetDims();
+
+  bool in_place = (x.data() == out->data());
+
+  OpCacheOperator op_info;
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "LogicalXorKernel_" : "LogicalXorKernel",
+      inputs_dims,
+      nullptr);
+  auto recipe = op_info.GetRecipe();
+
+  if (recipe == nullptr) {
+    Logical op;
+
+    op.AddNode(ct, params, in_place);
     op.Compile();
     op_info.setOp(op);
 
@@ -169,10 +226,8 @@ PD_REGISTER_PLUGIN_KERNEL(logical_not,
                           ALL_LAYOUT,
                           custom_kernel::LogicalNotKernel,
                           bool,
-                          int,
-                          int64_t,
-                          float,
-                          double,
+                          int8_t,
+                          uint8_t,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -182,11 +237,11 @@ PD_REGISTER_PLUGIN_KERNEL(logical_or,
                           ALL_LAYOUT,
                           custom_kernel::LogicalOrKernel,
                           bool,
-                          int,
-                          int64_t,
+                          int8_t,
+                          uint8_t,
                           float,
-                          double,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
 
@@ -195,10 +250,23 @@ PD_REGISTER_PLUGIN_KERNEL(logical_and,
                           ALL_LAYOUT,
                           custom_kernel::LogicalAndKernel,
                           bool,
-                          int,
-                          int64_t,
+                          int8_t,
+                          uint8_t,
                           float,
-                          double,
-                          phi::dtype::float16) {
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(logical_xor,
+                          intel_hpu,
+                          ALL_LAYOUT,
+                          custom_kernel::LogicalXorKernel,
+                          bool,
+                          int8_t,
+                          uint8_t,
+                          float,
+                          phi::dtype::float16,
+                          phi::dtype::bfloat16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }

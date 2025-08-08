@@ -64,4 +64,5 @@ PD_REGISTER_PLUGIN_KERNEL(swiglu,
                           ALL_LAYOUT,
                           custom_kernel::SwiGLUKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

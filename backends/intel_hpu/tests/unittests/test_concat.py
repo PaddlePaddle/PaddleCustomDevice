@@ -23,6 +23,10 @@ from tests.op_test import skip_check_grad_ci
 
 SEED = 2021
 
+import os
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+
 
 @skip_check_grad_ci(
     reason="reduce_max is discontinuous non-derivable function,"
@@ -32,7 +36,7 @@ class TestConcatOp(OpTest):
     def setUp(self):
         self.set_npu()
         self.op_type = "concat"
-        self.place = paddle.CustomPlace("intel_hpu", 0)
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
         self.init_dtype()
         self.init_test_data()
 
@@ -123,6 +127,36 @@ create_test_fp16(TestConcatOp)
 create_test_fp16(TestConcatOp2)
 create_test_fp16(TestConcatOp3)
 create_test_fp16(TestConcatOp5)
+
+
+@skip_check_grad_ci(reason="concat ops not support gradient calculation.")
+class TestConcatFp8Op(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        self.x0 = np.random.random((1, 4, 50)).astype(self.dtype)
+        self.x1 = np.random.random((2, 4, 50)).astype(self.dtype)
+        self.x2 = np.random.random((3, 4, 50)).astype(self.dtype)
+        self.axis = 0
+
+    def test_check_output(self):
+        x0_fp8 = paddle.to_tensor(self.x0, dtype="float16").to(dtype="float8_e4m3fn")
+        x1_fp8 = paddle.to_tensor(self.x1, dtype="float16").to(dtype="float8_e4m3fn")
+        x2_fp8 = paddle.to_tensor(self.x2, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = np.concatenate(
+            (
+                x0_fp8.to(dtype="float16").numpy(),
+                x1_fp8.to(dtype="float16").numpy(),
+                x2_fp8.to(dtype="float16").numpy(),
+            ),
+            axis=self.axis,
+        )
+        out = paddle.concat([x0_fp8, x1_fp8, x2_fp8], axis=self.axis).astype("float16")
+        np.testing.assert_allclose(ref, out.numpy(), rtol=1e-05)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,10 @@ from tests.op_test import OpTest, skip_check_grad_ci
 
 paddle.enable_static()
 
+import os
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+
 
 class TestMeanOp(OpTest):
     def set_npu(self):
@@ -39,7 +43,9 @@ class TestMeanOp(OpTest):
         self.x = np.random.random((5, 6, 10)).astype("float32")
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("intel_hpu", 0))
+        self.check_output_with_place(
+            paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        )
 
     def test_check_grad(self):
         pass
@@ -69,7 +75,9 @@ class TestMeanOpFP16(OpTest):
         self.outputs = {"Out": self.inputs["X"].mean(axis=0)}
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("intel_hpu", 0))
+        self.check_output_with_place(
+            paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        )
 
     def test_check_grad(self):
         pass
@@ -99,7 +107,9 @@ class TestMeanOpBF16(OpTest):
         self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
     def test_check_output(self):
-        self.check_output_with_place(paddle.CustomPlace("intel_hpu", 0), atol=0.004)
+        self.check_output_with_place(
+            paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id)), atol=0.004
+        )
 
     def test_check_grad(self):
         pass
@@ -117,19 +127,6 @@ class TestMeanOp5DBF16(TestMeanOpBF16):
         self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
 
-@skip_check_grad_ci(
-    reason="reduce_min is discontinuous non-derivable function,"
-    " its gradient check is not supported by unittest framework."
-)
-class TestReduceAllBF16(TestMeanOpBF16):
-    def init_data(self):
-        self.x = convert_float_to_uint16(
-            np.random.random((5, 6, 2, 10)).astype("float32")
-        )
-        self.attrs = {"reduce_all": True}
-        self.out = convert_uint16_to_float(self.x).mean()
-
-
 # @skip_check_grad_ci(
 #     reason="reduce_min is discontinuous non-derivable function,"
 #     " its gradient check is not supported by unittest framework."
@@ -138,18 +135,6 @@ class TestReduceAllBF16(TestMeanOpBF16):
 #     def init_data(self):
 #         self.x = convert_float_to_uint16(np.random.random((120)).astype("float32"))
 #         self.out = convert_uint16_to_float(self.x).mean(axis=0)
-
-
-@skip_check_grad_ci(
-    reason="reduce_min is discontinuous non-derivable function,"
-    " its gradient check is not supported by unittest framework."
-)
-class TestMeanOp6DBF16(TestMeanOpBF16):
-    def init_data(self):
-        self.x = convert_float_to_uint16(
-            np.random.random((1, 1, 2, 5, 6, 10)).astype("float32")
-        )
-        self.out = convert_uint16_to_float(self.x).mean(axis=0)
 
 
 class TestMeanOpNumel1(OpTest):

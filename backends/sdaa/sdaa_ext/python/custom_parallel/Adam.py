@@ -27,7 +27,7 @@ import warnings
 from paddle_sdaa.sdaa_ext import *  # noqa
 import paddle
 from paddle.optimizer import Adam
-from paddle.base import framework
+from paddle.base import framework, core
 import numpy as np
 import paddle.profiler as profiler
 from paddle.base.layer_helper import LayerHelper
@@ -71,6 +71,10 @@ class DistributeAdam(Adam, DistributeOptimizer):
             or isinstance(self._grad_clip, paddle.nn.ClipGradByNorm)
         ):
             self.need_append_all_param = False
+
+        # Do not support AMSGrad
+        self._amsgrad = False
+
         if paddle.in_dynamic_mode():
             # The strategy only supports in_card sharding
             self.re_distribution()
@@ -143,6 +147,9 @@ class DistributeAdam(Adam, DistributeOptimizer):
                 total_num = total_num_
 
             self.flat_accum[k] = paddle.empty(shape=[total_num], dtype=paddle.float32)
+            dtype = flatacc_list[0].dtype
+            if isinstance(dtype, core.DataType):
+                dtype = paddle.base.framework.paddle_type_to_proto_type[dtype]
             paddle._legacy_C_ops.coalesce_tensor(
                 flatacc_list,
                 flatacc_list,
@@ -154,7 +161,7 @@ class DistributeAdam(Adam, DistributeOptimizer):
                 "align_size",
                 128,
                 "dtype",
-                flatacc_list[0].dtype,
+                dtype,
             )
 
     def _update_beta(self, name, param):
@@ -208,6 +215,11 @@ class DistributeAdam(Adam, DistributeOptimizer):
 
         moment1 = self._get_accumulator_master(self._moment1_acc_str, param)
         moment2 = self._get_accumulator_master(self._moment2_acc_str, param)
+        moment2_max = (
+            self._get_accumulator_master(self._moment2_acc_max_str, param)
+            if self._amsgrad
+            else None
+        )
         beta1_pow_acc = self._get_accumulator_master(self._beta1_pow_acc_str, param)
         beta2_pow_acc = self._get_accumulator_master(self._beta2_pow_acc_str, param)
         find_master = self._multi_precision and self._is_dtype_fp16_or_bf16(param.dtype)
@@ -292,12 +304,13 @@ class DistributeAdam(Adam, DistributeOptimizer):
             moment1_ = moment1
             moment2_ = moment2
 
-        _, _, _, _, _, *_ = paddle._C_ops.adam_(
+        _, _, _, _, _, _, _ = paddle._C_ops.adam_(
             param_,
             grad_,
             lr,
             moment1_,
             moment2_,
+            moment2_max,
             beta1_pow_acc,
             beta2_pow_acc,
             master_weight,
@@ -309,6 +322,7 @@ class DistributeAdam(Adam, DistributeOptimizer):
             1000,
             find_master,
             False,
+            self._amsgrad,
         )
 
         return None

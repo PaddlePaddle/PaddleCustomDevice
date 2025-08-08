@@ -855,6 +855,7 @@ PD_REGISTER_PLUGIN_KERNEL(abs,
                           double,
                           int64_t,
                           int32_t,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->InputAt(0).SetDataType(phi::dtype::ToReal(kernel_key.dtype()));
 }
@@ -876,6 +877,7 @@ PD_REGISTER_PLUGIN_KERNEL(abs_grad,
                             ALL_LAYOUT,                      \
                             custom_kernel::func,             \
                             float,                           \
+                            phi::dtype::bfloat16,            \
                             phi::dtype::float16,             \
                             double) {}
 

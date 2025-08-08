@@ -24,7 +24,7 @@ inline void UpdatePadding(std::vector<T>* paddings,
                           const std::string padding_algorithm,
                           const phi::DDim data_dims,
                           const std::vector<T>& strides,
-                          const std::vector<T>& kernel_size) {
+                          const std::vector<int>& kernel_size) {
   // set padding size == data_dims.size() * 2
   auto data_shape = phi::vectorize<T>(data_dims);
   if (static_cast<int>(paddings->size()) == data_dims.size()) {
@@ -72,8 +72,8 @@ template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
                   const phi::DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
+                  const std::vector<int64_t>& strides_t,
+                  const std::vector<int64_t>& paddings_t,
                   bool ceil_mode,
                   bool exclusive,
                   const std::string& data_format,
@@ -93,6 +93,19 @@ void Pool2dKernel(const Context& dev_ctx,
   auto out_dims = out->dims();
   phi::DDim data_dims;
   phi::DDim out_data_dims;
+
+  VLOG(6) << "Enter Pool2dKernel, pooling_type:" << pooling_type
+          << ", out dims:"
+          << custom_kernel::VectorToStr<int64_t>(phi::vectorize(out_dims))
+          << ", in_x dims:"
+          << custom_kernel::VectorToStr<int64_t>(phi::vectorize(in_x_dims))
+          << ", kernel_size:" << custom_kernel::VectorToStr<int>(ksize)
+          << ", strides:" << custom_kernel::VectorToStr<int64_t>(strides)
+          << ", paddings:" << custom_kernel::VectorToStr<int64_t>(paddings)
+          << ", ceil_mode:" << ceil_mode << ", exclusive:" << exclusive
+          << ", data_format:" << data_format
+          << ", padding_algorithm:" << padding_algorithm
+          << ", global_pooling:" << global_pooling << ", adaptive:" << adaptive;
 
   phi::DenseTensor in_x_tensor(in_x), out_tensor(*out);
   std::vector<int> ksize_vec(4, 1);
@@ -151,6 +164,9 @@ void Pool2dKernel(const Context& dev_ctx,
     if (DataPdCustomNHWC(in_x)) {
       PdCustomNHWCRepresentAsAtenNHWC(input_x);
       PdCustomNHWCRepresentAsAtenNHWC(output, true);
+    } else if (data_format == "NHWC") {
+      OriginNHWCRepresentAsAtenNHWC(input_x);
+      OriginNHWCRepresentAsAtenNHWC(output);
     }
 
     if (pooling_type == "avg") {
@@ -185,20 +201,31 @@ void Pool2dKernel(const Context& dev_ctx,
         LAUNCH_TOPSATENOP(
             topsatenMean, dev_ctx, output, input_x, dims, true, out->dtype());
       } else {
-        auto divisor_override_none =
-            topsatenScalar_t({TOPSATEN_DATA_NONE, {.ival = 0}});
-        LAUNCH_TOPSATENOP(topsatenAvgPool2d,
-                          dev_ctx,
-                          output,
-                          input_x,
-                          kernel_size_v,
-                          strides_v,
-                          paddings_v,
-                          ceil_mode,
-                          !exclusive,
-                          divisor_override_none);
+        // for adaptive pooling
+        if (adaptive) {
+          std::vector<int64_t> target_size = {out_dims[2], out_dims[3]};
+          LAUNCH_TOPSATENOP(
+              topsatenAdaptiveAvgPool2d, dev_ctx, output, input_x, target_size);
+        } else {
+          auto divisor_override_none =
+              topsatenScalar_t({TOPSATEN_DATA_NONE, {.ival = 0}});
+          LAUNCH_TOPSATENOP(topsatenAvgPool2d,
+                            dev_ctx,
+                            output,
+                            input_x,
+                            kernel_size_v,
+                            strides_v,
+                            paddings_v,
+                            ceil_mode,
+                            !exclusive,
+                            divisor_override_none);
+        }
       }
     } else if (pooling_type == "max") {
+      if (adaptive) {
+        PADDLE_THROW(phi::errors::Unimplemented(
+            "Unsupported adaptive pooling_type string: %s.", pooling_type));
+      }
       std::vector<int64_t> dilation = {1};
       LAUNCH_TOPSATENOP(topsatenMaxPool2d,
                         dev_ctx,
@@ -217,6 +244,8 @@ void Pool2dKernel(const Context& dev_ctx,
     if (DataPdCustomNHWC(in_x)) {
       AtenNHWCRepresentAsPdCustomNHWC(output);
       AtenNHWCRepresentAsPdCustomNHWC(*out, true);
+    } else if (data_format == "NHWC") {
+      AtenNHWCRepresentAsOriginNHWC(output);
     }
     MaybeTransResult(dev_ctx, output, out);
   } else {  // kernel impl base on JIT
@@ -258,8 +287,8 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& out,
                       const phi::DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
-                      const std::vector<int>& strides_t,
-                      const std::vector<int>& paddings_t,
+                      const std::vector<int64_t>& strides_t,
+                      const std::vector<int64_t>& paddings_t,
                       bool ceil_mode,
                       bool exclusive,
                       const std::string& data_format,
@@ -322,6 +351,7 @@ PD_REGISTER_PLUGIN_KERNEL(pool2d,
                           ALL_LAYOUT,
                           custom_kernel::Pool2dKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(pool2d_grad,

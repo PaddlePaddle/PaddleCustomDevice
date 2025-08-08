@@ -28,6 +28,7 @@ def adam_wrapper(
     LearningRate,
     moment1,
     moment2,
+    moment2_max,
     beta1_pow,
     beta2_pow,
     master_weight=None,
@@ -36,13 +37,15 @@ def adam_wrapper(
     beta2=0.836,
     epsilon=1e-4,
     lazy_mode=False,
+    amsgrad=False,
 ):
-    _, _, _, _, _, *_ = paddle._C_ops.adam_(
+    _, _, _, _, _, _, _ = paddle._C_ops.adam_(
         param,
         grad,
         LearningRate,
         moment1,
         moment2,
+        moment2_max,
         beta1_pow,
         beta2_pow,
         master_weight,
@@ -54,6 +57,7 @@ def adam_wrapper(
         1000,
         False,
         False,
+        amsgrad,
     )
 
 
@@ -63,6 +67,7 @@ def adamw_wrapper(
     lr,
     moment1,
     moment2,
+    moment2_max,
     beta1_pow,
     beta2_pow,
     master_weight=None,
@@ -74,13 +79,15 @@ def adamw_wrapper(
     weight_decay=0.01,
     with_decay=True,
     lazy_mode=False,
+    amsgrad=False,
 ):
-    _, _, _, _, _, _ = paddle._C_ops.adamw_(
+    _, _, _, _, _, _, _ = paddle._C_ops.adamw_(
         param,
         grad,
         lr,
         moment1,
         moment2,
+        moment2_max,
         beta1_pow,
         beta2_pow,
         master_weight,
@@ -95,22 +102,28 @@ def adamw_wrapper(
         1000,
         False,
         False,
+        amsgrad,
     )
 
 
 def adam_step(inputs, attributes):
+    """
+    Simulate one step of the adam optimizer
+    :param inputs: dict of inputs
+    :param attributes: dict of attributes
+    :return tuple: tuple of output param, moment1, moment2, moment2_max
+    beta1 power accumulator and beta2 power accumulator
+    """
     param = inputs["Param"]
     grad = inputs["Grad"]
     moment1 = inputs["Moment1"]
     moment2 = inputs["Moment2"]
+    moment2_max = inputs["Moment2Max"]
     lr = inputs["LearningRate"]
     beta1_pow = inputs["Beta1Pow"]
     beta2_pow = inputs["Beta2Pow"]
 
     epsilon = attributes["epsilon"]
-
-    if "lr_ratio" in attributes:
-        lr = lr * attributes["lr_ratio"]
 
     if "beta1" in attributes:
         beta1 = attributes["beta1"]
@@ -121,11 +134,21 @@ def adam_step(inputs, attributes):
     else:
         beta2 = inputs["Beta2Tensor"][0]
 
+    amsgrad = attributes["amsgrad"]
+
     moment1_out = beta1 * moment1 + (1 - beta1) * grad
     moment2_out = beta2 * moment2 + (1 - beta2) * np.square(grad)
-    denom = (np.sqrt(moment2_out) / np.sqrt(1.0 - beta2_pow)) + epsilon
-    param_out = param + ((moment1_out / denom) * (-(lr / (1.0 - beta1_pow))))
-    return param_out, moment1_out, moment2_out
+
+    lr_t = lr * np.sqrt(1 - beta2_pow) / (1 - beta1_pow)
+
+    if amsgrad:
+        moment2_max_out = np.maximum(moment2_out, moment2_max)
+        param_out = param - lr_t * (moment1_out / (np.sqrt(moment2_max_out) + epsilon))
+    else:
+        moment2_max_out = np.empty_like(moment2_out)
+        param_out = param - lr_t * (moment1_out / (np.sqrt(moment2_out) + epsilon))
+
+    return param_out, moment1_out, moment2_out, moment2_max_out
 
 
 def adamw_step(inputs, attributes):
@@ -133,6 +156,7 @@ def adamw_step(inputs, attributes):
     grad = inputs["Grad"]
     moment1 = inputs["Moment1"]
     moment2 = inputs["Moment2"]
+    moment2_max = inputs["Moment2Max"]
     lr = inputs["LearningRate"]
     beta1_pow = inputs["Beta1Pow"]
     beta2_pow = inputs["Beta2Pow"]
@@ -157,14 +181,28 @@ def adamw_step(inputs, attributes):
     else:
         beta2 = inputs["Beta2Tensor"][0]
 
+    amsgrad = attributes["amsgrad"]
+
     moment1_out = beta1 * moment1 + (1 - beta1) * grad
     moment2_out = beta2 * moment2 + (1 - beta2) * np.square(grad)
-    denom = (np.sqrt(moment2_out) / np.sqrt(1.0 - beta2_pow)) + epsilon
+
+    if amsgrad:
+        moment2_max_out = np.maximum(moment2_out, moment2_max)
+        denom = (np.sqrt(moment2_max_out) / np.sqrt(1.0 - beta2_pow)) + epsilon
+    else:
+        moment2_max_out = np.empty_like(moment2_out)
+        denom = (np.sqrt(moment2_out) / np.sqrt(1.0 - beta2_pow)) + epsilon
+
     param_out = param + ((moment1_out / denom) * (-(lr / (1.0 - beta1_pow))))
-    return param_out, moment1_out, moment2_out
+    return param_out, moment1_out, moment2_out, moment2_max_out
 
 
 class TestAdamW(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        # no check `Moment2MaxOut` with amsgrad is False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -176,6 +214,7 @@ class TestAdamW(OpTest):
         moment1 = np.random.uniform(-1, 1, (105, 102)).astype("float32")
         # The second moment is positive
         moment2 = np.random.random((105, 102)).astype("float32")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.5
         beta1 = 0.78
@@ -184,11 +223,14 @@ class TestAdamW(OpTest):
         beta1_pow = beta1**10
         beta2_pow = beta2**10
 
+        self.set_amsgrad()
+
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -200,13 +242,17 @@ class TestAdamW(OpTest):
             "beta2": beta2,
             "coeff": 0.9,
             "with_decay": True,
+            "amsgrad": self.amsgrad,
         }
 
-        param_out, moment1_out, moment2_out = adamw_step(self.inputs, self.attrs)
+        param_out, moment1_out, moment2_out, moment2_max_out = adamw_step(
+            self.inputs, self.attrs
+        )
 
         self.outputs = {
             "Moment1Out": moment1_out,
             "Moment2Out": moment2_out,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param_out,
             "Beta1PowOut": np.array([beta1_pow]).astype("float32") * beta1,
             "Beta2PowOut": np.array([beta2_pow]).astype("float32") * beta2,
@@ -219,10 +265,17 @@ class TestAdamW(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        self.check_output_with_place(
+            self.place, atol=1e-5, no_check_set=self.no_check_set
+        )
 
 
 class TestAdamOpWithSkipUpdate(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        # no check `Moment2MaxOut` with amsgrad is False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -234,6 +287,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
         moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         # The second moment is positive
         moment2 = np.random.random((102, 105)).astype("float32")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -242,11 +296,14 @@ class TestAdamOpWithSkipUpdate(OpTest):
         beta1_pow = beta1**10
         beta2_pow = beta2**10
 
+        self.set_amsgrad()
+
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -256,11 +313,21 @@ class TestAdamOpWithSkipUpdate(OpTest):
             "SkipUpdate": np.array([True]).astype("bool"),
         }
 
-        self.attrs = {"epsilon": epsilon, "coeff": 0.02, "with_decay": True}
+        self.attrs = {
+            "epsilon": epsilon,
+            "coeff": 0.02,
+            "with_decay": True,
+            "amsgrad": self.amsgrad,
+        }
+
+        param_out, moment1_out, moment2_out, moment2_max_out = adamw_step(
+            self.inputs, self.attrs
+        )
 
         self.outputs = {
             "Moment1Out": moment1,
             "Moment2Out": moment2,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param,
             "Beta1PowOut": self.inputs["Beta1Pow"],
             "Beta2PowOut": self.inputs["Beta2Pow"],
@@ -273,10 +340,17 @@ class TestAdamOpWithSkipUpdate(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        self.check_output_with_place(
+            self.place, atol=1e-5, no_check_set=self.no_check_set
+        )
 
 
 class TestAdamOpWithoutDecay(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        # no check `Moment2MaxOut` with amsgrad is False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -288,6 +362,7 @@ class TestAdamOpWithoutDecay(OpTest):
         moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         # The second moment is positive
         moment2 = np.random.random((102, 105)).astype("float32")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -295,12 +370,14 @@ class TestAdamOpWithoutDecay(OpTest):
         epsilon = 1e-4
         beta1_pow = beta1**10
         beta2_pow = beta2**10
+        self.set_amsgrad()
 
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -310,11 +387,21 @@ class TestAdamOpWithoutDecay(OpTest):
             "SkipUpdate": np.array([True]).astype("bool"),
         }
 
-        self.attrs = {"epsilon": epsilon, "coeff": 0.02, "with_decay": False}
+        self.attrs = {
+            "epsilon": epsilon,
+            "coeff": 0.02,
+            "with_decay": False,
+            "amsgrad": self.amsgrad,
+        }
+
+        param_out, moment1_out, moment2_out, moment2_max_out = adamw_step(
+            self.inputs, self.attrs
+        )
 
         self.outputs = {
             "Moment1Out": moment1,
             "Moment2Out": moment2,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param,
             "Beta1PowOut": self.inputs["Beta1Pow"],
             "Beta2PowOut": self.inputs["Beta2Pow"],
@@ -327,7 +414,9 @@ class TestAdamOpWithoutDecay(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        self.check_output_with_place(
+            self.place, atol=1e-5, no_check_set=self.no_check_set
+        )
 
 
 class TestadamwNet(unittest.TestCase):
@@ -392,6 +481,11 @@ class TestadamwNet(unittest.TestCase):
 
 
 class TestAdamOpWithSkipUpdate(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        # no check `Moment2MaxOut` with amsgrad is False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -403,6 +497,7 @@ class TestAdamOpWithSkipUpdate(OpTest):
         moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         # The second moment is positive
         moment2 = np.random.random((102, 105)).astype("float32")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -411,11 +506,14 @@ class TestAdamOpWithSkipUpdate(OpTest):
         beta1_pow = beta1**10
         beta2_pow = beta2**10
 
+        self.set_amsgrad()
+
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -425,11 +523,19 @@ class TestAdamOpWithSkipUpdate(OpTest):
             "SkipUpdate": np.array([True]).astype("bool"),
         }
 
-        self.attrs = {"epsilon": epsilon}
+        self.attrs = {
+            "epsilon": epsilon,
+            "amsgrad": self.amsgrad,
+        }
+
+        param_out, moment1_out, moment2_out, moment2_max_out = adam_step(
+            self.inputs, self.attrs
+        )
 
         self.outputs = {
             "Moment1Out": moment1,
             "Moment2Out": moment2,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param,
             "Beta1PowOut": self.inputs["Beta1Pow"],
             "Beta2PowOut": self.inputs["Beta2Pow"],
@@ -442,10 +548,16 @@ class TestAdamOpWithSkipUpdate(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        self.check_output_with_place(
+            self.place, atol=1e-5, no_check_set=self.no_check_set
+        )
 
 
 class TestAdamOpWithGlobalBetaPow(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -457,6 +569,7 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float32")
         # The second moment is positive
         moment2 = np.random.random((102, 105)).astype("float32")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -464,12 +577,14 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         epsilon = 1e-4
         beta1_pow = beta1**10
         beta2_pow = beta2**10
+        self.set_amsgrad()
 
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -478,16 +593,21 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
             "EpsilonTensor": np.array([epsilon]).astype("float32"),
         }
 
-        attributes = {"epsilon": epsilon}
+        self.attrs = {
+            "epsilon": epsilon,
+            "amsgrad": self.amsgrad,
+            "use_global_beta_pow": True,
+        }
 
-        param_out, moment1_out, moment2_out = adam_step(self.inputs, attributes)
-
-        self.attrs = {"use_global_beta_pow": True}
+        param_out, moment1_out, moment2_out, moment2_max_out = adam_step(
+            self.inputs, self.attrs
+        )
 
         # use_global_beta_pow=True, Beta1PowOut and Beta2PowOut are empty.
         self.outputs = {
             "Moment1Out": moment1_out,
             "Moment2Out": moment2_out,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param_out,
             "Beta1PowOut": np.array([]),
             "Beta2PowOut": np.array([]),
@@ -500,11 +620,17 @@ class TestAdamOpWithGlobalBetaPow(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-5)
+        self.check_output_with_place(
+            self.place, atol=1e-5, no_check_set=self.no_check_set
+        )
 
 
 @unittest.skip("AMP is only supported on dygraph")
 class TestAdamOpWithGlobalBetaPow_fp16(OpTest):
+    def set_amsgrad(self):
+        self.amsgrad = False
+        self.no_check_set = ["Moment2MaxOut"]
+
     def setUp(self):
         self.set_sdaa()
         self.place = paddle.CustomPlace("sdaa", 0)
@@ -516,6 +642,7 @@ class TestAdamOpWithGlobalBetaPow_fp16(OpTest):
         moment1 = np.random.uniform(-1, 1, (102, 105)).astype("float16")
         # The second moment is positive
         moment2 = np.random.random((102, 105)).astype("float16")
+        moment2_max = np.zeros((102, 105)).astype("float32")
 
         learning_rate = 0.004
         beta1 = 0.78
@@ -523,12 +650,14 @@ class TestAdamOpWithGlobalBetaPow_fp16(OpTest):
         epsilon = 1e-4
         beta1_pow = beta1**10
         beta2_pow = beta2**10
+        self.set_amsgrad()
 
         self.inputs = {
             "Param": param,
             "Grad": grad,
             "Moment1": moment1,
             "Moment2": moment2,
+            "Moment2Max": moment2_max,
             "LearningRate": np.array([learning_rate]).astype("float32"),
             "Beta1Pow": np.array([beta1_pow]).astype("float32"),
             "Beta2Pow": np.array([beta2_pow]).astype("float32"),
@@ -537,16 +666,21 @@ class TestAdamOpWithGlobalBetaPow_fp16(OpTest):
             "EpsilonTensor": np.array([epsilon]).astype("float32"),
         }
 
-        attributes = {"epsilon": epsilon}
+        self.attrs = {
+            "epsilon": epsilon,
+            "use_global_beta_pow": True,
+            "amsgrad": self.amsgrad,
+        }
 
-        param_out, moment1_out, moment2_out = adam_step(self.inputs, attributes)
-
-        self.attrs = {"use_global_beta_pow": True}
+        param_out, moment1_out, moment2_out, moment2_max_out = adam_step(
+            self.inputs, self.attrs
+        )
 
         # use_global_beta_pow=True, Beta1PowOut and Beta2PowOut are empty.
         self.outputs = {
             "Moment1Out": moment1_out,
             "Moment2Out": moment2_out,
+            "Moment2MaxOut": moment2_max_out,
             "ParamOut": param_out,
             "Beta1PowOut": np.array([]),
             "Beta2PowOut": np.array([]),
@@ -559,7 +693,9 @@ class TestAdamOpWithGlobalBetaPow_fp16(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output_with_place(self.place, atol=1e-3)
+        self.check_output_with_place(
+            self.place, atol=1e-3, no_check_set=self.no_check_set
+        )
 
 
 class TestadamNet(unittest.TestCase):
@@ -630,108 +766,113 @@ class TestadamNet(unittest.TestCase):
 class TestNetWithEpsilonTensor(unittest.TestCase):
     def _test(self, place, use_tensor=True):
         paddle.enable_static()
-        main_prog = paddle.static.Program()
-        startup_prog = paddle.static.Program()
-        SEED = 2021
-        paddle.seed(SEED)
-        np.random.seed(SEED)
+        with paddle.pir_utils.OldIrGuard():
+            main_prog = paddle.static.Program()
+            startup_prog = paddle.static.Program()
+            SEED = 2021
+            paddle.seed(SEED)
+            np.random.seed(SEED)
 
-        a_np = np.random.random(size=(2, 2)).astype("float32")
-        b_np = np.random.random(size=(2, 2)).astype("float32")
-        label_np = np.random.randint(2, size=(2, 1)).astype("int64")
-        weight_attr1 = paddle.ParamAttr(
-            name="weight1",
-            initializer=paddle.nn.initializer.Constant(value=1.0),
-            trainable=True,
-        )
-        weight_attr2 = paddle.ParamAttr(
-            name="weight2",
-            initializer=paddle.nn.initializer.Constant(value=2.0),
-            trainable=True,
-        )
-        clip = paddle.nn.ClipGradByGlobalNorm(clip_norm=1.0)
+            a_np = np.random.random(size=(2, 2)).astype("float32")
+            b_np = np.random.random(size=(2, 2)).astype("float32")
+            label_np = np.random.randint(2, size=(2, 1)).astype("int64")
+            weight_attr1 = paddle.ParamAttr(
+                name="weight1",
+                initializer=paddle.nn.initializer.Constant(value=1.0),
+                trainable=True,
+            )
+            weight_attr2 = paddle.ParamAttr(
+                name="weight2",
+                initializer=paddle.nn.initializer.Constant(value=2.0),
+                trainable=True,
+            )
+            clip = paddle.nn.ClipGradByGlobalNorm(clip_norm=1.0)
 
-        with paddle.static.program_guard(main_prog, startup_prog):
-            with paddle.utils.unique_name.guard():
+            with paddle.static.program_guard(main_prog, startup_prog):
+                with paddle.utils.unique_name.guard():
 
-                a = paddle.static.data(name="a", shape=[2, 2], dtype="float32")
-                b = paddle.static.data(name="b", shape=[2, 2], dtype="float32")
-                label = paddle.static.data(name="label", shape=[2, 1], dtype="int64")
-
-                sum = paddle.add(a, b)
-                z = paddle.pow(sum, 2.0)
-
-                fc_1 = paddle.static.nn.fc(x=z, size=2, weight_attr=weight_attr1)
-                prediction = paddle.static.nn.fc(
-                    x=fc_1, size=2, weight_attr=weight_attr2, activation="softmax"
-                )
-
-                cost = paddle.nn.functional.cross_entropy(input=prediction, label=label)
-                loss = paddle.mean(cost)
-                beta1_init = 0.9
-                beta2_init = 0.999
-                epsilon_init = 1e-8
-                if use_tensor:
-                    beta1 = paddle.static.create_global_var(
-                        shape=[1],
-                        value=float(beta1_init),
-                        dtype="float32",
-                        persistable=True,
-                        name="beta1",
-                    )
-                    beta2 = paddle.static.create_global_var(
-                        shape=[1],
-                        value=float(beta2_init),
-                        dtype="float32",
-                        persistable=True,
-                        name="beta2",
-                    )
-                    epsilon = paddle.static.create_global_var(
-                        shape=[1],
-                        value=float(epsilon_init),
-                        dtype="float32",
-                        persistable=True,
-                        name="epsilon",
+                    a = paddle.static.data(name="a", shape=[2, 2], dtype="float32")
+                    b = paddle.static.data(name="b", shape=[2, 2], dtype="float32")
+                    label = paddle.static.data(
+                        name="label", shape=[2, 1], dtype="int64"
                     )
 
-                    adam = paddle.optimizer.Adam(
-                        learning_rate=0.01,
-                        beta1=beta1,
-                        beta2=beta2,
-                        epsilon=epsilon,
-                        grad_clip=clip,
-                    )
-                else:
-                    adam = paddle.optimizer.Adam(
-                        learning_rate=0.01,
-                        beta1=beta1_init,
-                        beta2=beta2_init,
-                        epsilon=epsilon_init,
-                        grad_clip=clip,
+                    sum = paddle.add(a, b)
+                    z = paddle.pow(sum, 2.0)
+
+                    fc_1 = paddle.static.nn.fc(x=z, size=2, weight_attr=weight_attr1)
+                    prediction = paddle.static.nn.fc(
+                        x=fc_1, size=2, weight_attr=weight_attr2, activation="softmax"
                     )
 
-                adam.minimize(loss)
-
-        scope = base.Scope()
-        with base.scope_guard(scope):
-            exe = paddle.static.Executor(place)
-            exe.run(startup_prog)
-
-            print("Start run on {}".format(place))
-            print("use_tensor " + str(use_tensor))
-            for epoch in range(10):
-                pred_res, loss_res = exe.run(
-                    main_prog,
-                    feed={"a": a_np, "b": b_np, "label": label_np},
-                    fetch_list=[prediction, loss],
-                )
-                print(
-                    "Epoch {} | Prediction[0]: {}, Loss: {}".format(
-                        epoch, pred_res[0], loss_res
+                    cost = paddle.nn.functional.cross_entropy(
+                        input=prediction, label=label
                     )
-                )
-            paddle.disable_static()
-            return pred_res, loss_res
+                    loss = paddle.mean(cost)
+                    beta1_init = 0.9
+                    beta2_init = 0.999
+                    epsilon_init = 1e-8
+                    if use_tensor:
+                        beta1 = paddle.static.create_global_var(
+                            shape=[1],
+                            value=float(beta1_init),
+                            dtype="float32",
+                            persistable=True,
+                            name="beta1",
+                        )
+                        beta2 = paddle.static.create_global_var(
+                            shape=[1],
+                            value=float(beta2_init),
+                            dtype="float32",
+                            persistable=True,
+                            name="beta2",
+                        )
+                        epsilon = paddle.static.create_global_var(
+                            shape=[1],
+                            value=float(epsilon_init),
+                            dtype="float32",
+                            persistable=True,
+                            name="epsilon",
+                        )
+
+                        adam = paddle.optimizer.Adam(
+                            learning_rate=0.01,
+                            beta1=beta1,
+                            beta2=beta2,
+                            epsilon=epsilon,
+                            grad_clip=clip,
+                        )
+                    else:
+                        adam = paddle.optimizer.Adam(
+                            learning_rate=0.01,
+                            beta1=beta1_init,
+                            beta2=beta2_init,
+                            epsilon=epsilon_init,
+                            grad_clip=clip,
+                        )
+
+                    adam.minimize(loss)
+
+            scope = base.Scope()
+            with base.scope_guard(scope):
+                exe = paddle.static.Executor(place)
+                exe.run(startup_prog)
+
+                print("Start run on {}".format(place))
+                print("use_tensor " + str(use_tensor))
+                for epoch in range(10):
+                    pred_res, loss_res = exe.run(
+                        main_prog,
+                        feed={"a": a_np, "b": b_np, "label": label_np},
+                        fetch_list=[prediction, loss],
+                    )
+                    print(
+                        "Epoch {} | Prediction[0]: {}, Loss: {}".format(
+                            epoch, pred_res[0], loss_res
+                        )
+                    )
+                paddle.disable_static()
+                return pred_res, loss_res
 
     def _test_with_place(self, place):
         preds = []

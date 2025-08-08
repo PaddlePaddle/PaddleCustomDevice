@@ -34,6 +34,9 @@ void SwiGluKernel(const Context& dev_ctx,
                   const phi::DenseTensor& x,
                   const paddle::optional<phi::DenseTensor>& y,
                   phi::DenseTensor* out) {
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
   dev_ctx.template Alloc<T>(out);
   const auto& dims = x.dims();
   int64_t axis = -1;
@@ -73,6 +76,9 @@ void SwiGluKernel(const Context& dev_ctx,
                           n));
     EXEC_NPU_CMD(aclnnSwiGlu, dev_ctx, x, axis, *out);
   }
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
+  }
 }
 
 template <typename T, typename Context>
@@ -82,6 +88,9 @@ void SwiGluGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& dout,
                       phi::DenseTensor* dx,
                       phi::DenseTensor* dy) {
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
   const auto& dims = x.dims();
   int64_t axis = -1;
   if (y) {
@@ -150,6 +159,9 @@ void SwiGluGradKernel(const Context& dev_ctx,
                           "by 2 when Input(Y) is None, but got %d",
                           n));
     EXEC_NPU_CMD(aclnnSwiGluGrad, dev_ctx, dout, x, axis, *dx);
+  }
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
   }
 }
 

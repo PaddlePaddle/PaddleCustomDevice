@@ -99,11 +99,9 @@ tecodnnPoolingMode_t GetTecodnnPoolingMode(const std::string& pooling_type,
         true,
         phi::errors::InvalidArgument(
             "MaxPool only support exclusive==false, but got true"));
-    PADDLE_ENFORCE_EQ(
-        ceil_mode,
-        false,
-        phi::errors::InvalidArgument(
-            "MaxPool in sdaa only support ceil_mode==False, but got true."));
+    if (ceil_mode) {
+      return TECODNN_POOLING_MAX_CEIL_TRUE;
+    }
     return TECODNN_POOLING_MAX;
   } else if (pooling_type == "avg") {
     tecodnnPoolingMode_t pooling_mode;
@@ -293,8 +291,8 @@ template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
                   const phi::DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
+                  const std::vector<int64_t>& strides_t_64,
+                  const std::vector<int64_t>& paddings_t_64,
                   bool ceil_mode,
                   bool exclusive,
                   const std::string& data_format,
@@ -304,7 +302,10 @@ void Pool2dKernel(const Context& dev_ctx,
                   const std::string& padding_algorithm,
                   phi::DenseTensor* out) {
   VLOG(4) << "CALL SDAA Pool2dKernel";
-
+  std::vector<int> strides_t =
+      std::vector<int>(strides_t_64.begin(), strides_t_64.end());
+  std::vector<int> paddings_t =
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
   dev_ctx.template Alloc<T>(out);
 
   if (ceil_mode && !exclusive) {

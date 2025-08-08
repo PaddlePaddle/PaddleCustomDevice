@@ -129,6 +129,34 @@ void AnyKernel(const Context& dev_ctx,
 }
 
 template <typename T, typename Context>
+void AllKernel(const Context& dev_ctx,
+               const phi::DenseTensor& x,
+               const std::vector<int64_t>& dims,
+               bool keep_dim,
+               phi::DenseTensor* out) {
+  PADDLE_GCU_KERNEL_TRACE("all");
+  if (LaunchAOTKernel()) {
+    dev_ctx.template Alloc<T>(out);
+    int64_t rank = x.dims().size();
+    std::vector<int64_t> reduce_axis(dims);
+    if (reduce_axis.empty()) {
+      reduce_axis.assign(rank, 0);
+      std::iota(reduce_axis.begin(), reduce_axis.end(), 0);
+    } else {
+      for (size_t i = 0; i < reduce_axis.size(); ++i) {
+        if (reduce_axis[i] < 0) {
+          reduce_axis[i] += rank;
+        }
+      }
+    }
+    LAUNCH_TOPSATENOP(topsatenAll, dev_ctx, *out, x, reduce_axis, keep_dim);
+
+  } else {  // kernel impl base on JIT
+    THROW_JIT_UNIMPLEMENTED();
+  }
+}
+
+template <typename T, typename Context>
 void MaxKernel(const Context& dev_ctx,
                const phi::DenseTensor& x,
                const phi::IntArray& dims,
@@ -442,6 +470,19 @@ PD_REGISTER_PLUGIN_KERNEL(any,
                           float,
                           int,
                           bool,
+                          phi::dtype::bfloat16,
+                          phi::dtype::float16) {
+  kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
+}
+
+PD_REGISTER_PLUGIN_KERNEL(all,
+                          gcu,
+                          ALL_LAYOUT,
+                          custom_kernel::AllKernel,
+                          float,
+                          int,
+                          bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
@@ -452,6 +493,7 @@ PD_REGISTER_PLUGIN_KERNEL(max,
                           custom_kernel::MaxKernel,
                           int32_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(min,
@@ -460,6 +502,7 @@ PD_REGISTER_PLUGIN_KERNEL(min,
                           custom_kernel::MinKernel,
                           int32_t,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(prod,
@@ -467,6 +510,7 @@ PD_REGISTER_PLUGIN_KERNEL(prod,
                           ALL_LAYOUT,
                           custom_kernel::ProdKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(sum,
@@ -477,6 +521,7 @@ PD_REGISTER_PLUGIN_KERNEL(sum,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   kernel->OutputAt(0).SetDataType(phi::DataType::UNDEFINED);
 }
@@ -495,6 +540,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean,
                           ALL_LAYOUT,
                           custom_kernel::MeanKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(mean_grad,
@@ -502,6 +548,7 @@ PD_REGISTER_PLUGIN_KERNEL(mean_grad,
                           ALL_LAYOUT,
                           custom_kernel::MeanGradKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amax,
@@ -512,6 +559,7 @@ PD_REGISTER_PLUGIN_KERNEL(amax,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}
 
 PD_REGISTER_PLUGIN_KERNEL(amin,
@@ -522,4 +570,5 @@ PD_REGISTER_PLUGIN_KERNEL(amin,
                           int64_t,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

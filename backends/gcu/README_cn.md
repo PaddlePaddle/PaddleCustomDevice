@@ -9,12 +9,10 @@
 ```bash
 # 1) 拉取镜像，注意此镜像仅为开发环境，镜像中不包含预编译的飞桨安装包
 #    此镜像的构建脚本与dockerfile位于tools/dockerfile目录下
-ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.2.109-ubuntu20-x86_64-gcc84 /bin/bash
+docker pull ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84
 
 # 2) 参考如下命令启动容器
-docker run --name paddle-gcu-dev -v /home:/home \
-    --network=host --ipc=host -it --privileged \
-    ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.2.109-ubuntu20-x86_64-gcc84 /bin/bash
+docker run --name paddle-gcu-dev -v /home:/home -v /work:/work --network=host --ipc=host -it --privileged ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84 /bin/bash
 
 # 3) 克隆PaddleCustomDevice源码
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -30,7 +28,7 @@ lspci | grep S60
 
 # 4c) 安装驱动
 cd /home/workspace/deps/
-bash TopsRider_i3x_*_deb_amd64.run --driver --no-auto-load
+bash TopsRider_i3x_*_deb_amd64.run --driver --no-auto-load -y
 
 # 4d) 驱动安装完成后重新进入docker，参考如下命令
 docker start paddle-gcu-dev

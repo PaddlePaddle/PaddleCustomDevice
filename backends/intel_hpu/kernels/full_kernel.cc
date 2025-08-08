@@ -65,11 +65,7 @@ void FullKernel(const Context& dev_ctx,
                 phi::DataType dtype,
                 phi::DenseTensor* out) {
   VLOG(6) << "HPU FullKernel with val = " << val;
-  auto int_shape = shape.GetData();
-  out->Resize(phi::make_ddim(int_shape));
-  if (out->dims().size() == 0) {
-    out->Resize({1});
-  }
+
   dev_ctx.template Alloc<T>(out);
 
   ConvertTensors ct;
@@ -79,7 +75,8 @@ void FullKernel(const Context& dev_ctx,
   FullParams params;
   params.dst_type = dtype;
   if (dtype == phi::DataType::FLOAT32 || dtype == phi::DataType::FLOAT16 ||
-      dtype == phi::DataType::BFLOAT16) {
+      dtype == phi::DataType::BFLOAT16 ||
+      dtype == phi::DataType::FLOAT8_E4M3FN) {
     params.params.constant.f = val.to<float>();
   } else if (dtype == phi::DataType::INT32 || dtype == phi::DataType::INT8 ||
              dtype == phi::DataType::INT64 || dtype == phi::DataType::UINT8) {
@@ -128,6 +125,7 @@ PD_REGISTER_PLUGIN_KERNEL(full,
                           custom_kernel::FullKernel,
                           float,
                           uint8_t,
+                          int8_t,
                           int16_t,
                           int32_t,
                           int64_t,
@@ -141,9 +139,11 @@ PD_REGISTER_PLUGIN_KERNEL(full_like,
                           custom_kernel::FullLikeKernel,
                           float,
                           uint8_t,
+                          int8_t,
                           int16_t,
                           int32_t,
                           int64_t,
                           bool,
                           phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+                          phi::dtype::bfloat16,
+                          phi::dtype::float8_e4m3fn) {}

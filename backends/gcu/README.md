@@ -10,12 +10,10 @@ Please refer to the following steps to compile, install and verify the hardware 
 # 1) Pull the image. Note that this image is only for development environment
 #    and does not contain precompiled PaddlePaddle installation package.
 #    The build script and dockerfile of this image are located in the tools/dockerfile directory.
-ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.2.109-ubuntu20-x86_64-gcc84 /bin/bash
+docker pull ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84
 
 # 2) Refer to the following command to start the container.
-docker run --name paddle-gcu-dev -v /home:/home \
-    --network=host --ipc=host -it --privileged \
-    ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.2.109-ubuntu20-x86_64-gcc84 /bin/bash
+docker run --name paddle-gcu-dev -v /home:/home -v /work:/work --network=host --ipc=host -it --privileged ccr-2vdh3abv-pub.cnc.bj.baidubce.com/device/paddle-gcu:topsrider3.5.102-ubuntu20-x86_64-gcc84 /bin/bash
 
 # 3) Clone the source code.
 git clone https://github.com/PaddlePaddle/PaddleCustomDevice
@@ -34,7 +32,7 @@ lspci | grep S60
 
 # 4c) Install the driver.
 cd /home/workspace/deps/
-bash TopsRider_i3x_*_deb_amd64.run --driver --no-auto-load
+bash TopsRider_i3x_*_deb_amd64.run --driver --no-auto-load -y
 
 # 4d) After the driver is installed, refer to the following command to re-enter docker.
 docker start paddle-gcu-dev

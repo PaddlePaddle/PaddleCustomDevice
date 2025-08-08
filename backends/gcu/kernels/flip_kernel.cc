@@ -47,4 +47,5 @@ PD_REGISTER_PLUGIN_KERNEL(flip,
                           custom_kernel::FlipKernel,
                           int,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

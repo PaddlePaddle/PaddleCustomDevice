@@ -21,27 +21,31 @@ class Where : public HpuOperator {
  public:
   Where() : HpuOperator("where_fwd_") {}
 
-  void AddNode(ConvertTensors& ct) {
+  void AddNode(ConvertTensors& ct, bool in_place = false) {
     auto inputs = ct.GetTensors();
     auto outputs = ct.GetTensors(false);
 
+    synSectionHandle section = in_place ? createSection() : nullptr;
+
     std::vector<synTensor> syn_inputs;
     for (size_t i = 0; i < inputs.size(); i++) {
+      bool use_section = (i == 1 && section != nullptr);
       syn_inputs.push_back(createTensor(inputs[i].dims.size(),
                                         inputs[i].type,
                                         inputs[i].dims,
                                         true,
-                                        inputs[i].name));
+                                        inputs[i].name,
+                                        use_section ? section : nullptr));
     }
 
     std::vector<synTensor> syn_outputs;
-    for (size_t i = 0; i < outputs.size(); i++) {
-      syn_outputs.push_back(createTensor(outputs[i].dims.size(),
-                                         outputs[i].type,
-                                         outputs[i].dims,
-                                         true,
-                                         outputs[i].name));
-    }
+    syn_outputs.push_back(createTensor(outputs[0].dims.size(),
+                                       outputs[0].type,
+                                       outputs[0].dims,
+                                       true,
+                                       outputs[0].name,
+                                       section));
+
     guid_ = guid_ + SynDataTypeToStr(inputs[1].type);
     synStatus status = synNodeCreate(graphHandle_,
                                      syn_inputs.data(),
@@ -77,13 +81,15 @@ void WhereKernel(const Context& dev_ctx,
   ct.Add(out, false);
 
   std::vector<DIMS> inputs_dims = ct.GetDims();
+  bool in_place = (x.data() == out->data());
   OpCacheOperator op_info;
-  op_info.prepareOpInfo<T, nullptr_t>("WhereKernel", inputs_dims, nullptr);
+  op_info.prepareOpInfo<T, nullptr_t>(
+      in_place ? "WhereKernel_" : "WhereKernel", inputs_dims, nullptr);
   auto recipe = op_info.GetRecipe();
 
   if (recipe == nullptr) {
     Where op;
-    op.AddNode(ct);
+    op.AddNode(ct, in_place);
     op.Compile();
     op_info.setOp(op);
     recipe = op_info.GetRecipe();

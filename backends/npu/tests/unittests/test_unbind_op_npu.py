@@ -51,6 +51,7 @@ class TestUnbind(unittest.TestCase):
             y = paddle.unbind(x)
 
             exe = paddle.static.Executor(place)
+
             res = exe.run(
                 paddle.static.default_main_program(),
                 feed={

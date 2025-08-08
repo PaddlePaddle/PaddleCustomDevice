@@ -29,20 +29,7 @@ from __future__ import print_function, division
 import paddle
 import paddle_sdaa
 
-from .conv_bn_fused_pass import custom_conv_bn_fuse_pass  # noqa
-
 from paddle.incubate.passes import ir
-
-
-@ir.RegisterPass
-def custom_add_n():
-    def pattern(x, y, z):
-        return paddle.add(paddle.add(x, y), z)
-
-    def replace(x, y, z):
-        return paddle_sdaa.custom_add_n(x, y, z)
-
-    return pattern, replace
 
 
 @ir.RegisterPass

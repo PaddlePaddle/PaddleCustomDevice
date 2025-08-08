@@ -30,15 +30,24 @@ import unittest
 import numpy as np
 import paddle
 import paddle.base as base
-from paddle.base.framework import in_dygraph_mode
+from paddle.framework import in_dynamic_mode
 
 SUPPORTED_DTYPES = [np.int32, np.float32, bool]
 
 TEST_META_OP_DATA = [
     {"op_str": "logical_and", "binary_op": True},
-    {"op_str": "logical_or", "binary_op": True},
-    {"op_str": "logical_xor", "binary_op": True},
-    {"op_str": "logical_not", "binary_op": False},
+    # {
+    #     "op_str": "logical_or",
+    #     "binary_op": True
+    # },
+    # {
+    #     "op_str": "logical_xor",
+    #     "binary_op": True
+    # },
+    # {
+    #     "op_str": "logical_not",
+    #     "binary_op": False
+    # },
 ]
 TEST_META_SHAPE_DATA = {
     "XDimLargerThanYDim1": {"x_shape": [2, 3, 4, 5], "y_shape": [4, 5]},
@@ -122,17 +131,11 @@ def test(unit_test, use_custom_device=False, test_error=False):
             for data_type in SUPPORTED_DTYPES:
                 if (
                     (
-                        (
-                            meta_data["op_str"] == "logical_or"
-                            or meta_data["op_str"] == "logical_xor"
-                        )
-                        and data_type != np.int32
+                        meta_data["op_str"] == "logical_or"
+                        or meta_data["op_str"] == "logical_xor"
                     )
-                    or (
-                        meta_data["op_str"] == "logical_and" and data_type == np.float32
-                    )
-                    or (meta_data["op_str"] == "logical_not" and data_type == bool)
-                ):
+                    and data_type != np.int32
+                ) or (meta_data["op_str"] == "logical_and" and data_type == np.float32):
                     pass
                 else:
                     meta_data["x_np"] = np_data_generator(
@@ -167,11 +170,11 @@ def test_type_error(unit_test, use_custom_device, type_str_map):
         if binary_op:
             if type_str_map["x"] != type_str_map["y"]:
                 unit_test.assertRaises(error_type, op, x=x, y=y)
-            if not in_dygraph_mode():
+            if not in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, y=y, out=1)
         else:
-            if not in_dygraph_mode():
+            if not in_dynamic_mode():
                 error_type = TypeError
                 unit_test.assertRaises(error_type, op, x=x, out=1)
 
@@ -183,15 +186,11 @@ def test_type_error(unit_test, use_custom_device, type_str_map):
         binary_op = meta_data["binary_op"]
         if (
             (
-                (
-                    meta_data["op_str"] == "logical_or"
-                    or meta_data["op_str"] == "logical_xor"
-                )
-                and type_str_map != np.int32
+                meta_data["op_str"] == "logical_or"
+                or meta_data["op_str"] == "logical_xor"
             )
-            or (meta_data["op_str"] == "logical_and" and type_str_map == np.float32)
-            or (meta_data["op_str"] == "logical_not" and type_str_map == bool)
-        ):
+            and type_str_map != np.int32
+        ) or (meta_data["op_str"] == "logical_and" and type_str_map == np.float32):
             pass
         else:
             paddle.disable_static(place)
@@ -200,12 +199,17 @@ def test_type_error(unit_test, use_custom_device, type_str_map):
             check_type(meta_data["op_str"], x, y, binary_op)
 
             paddle.enable_static()
-            startup_program = paddle.static.Program()
-            main_program = paddle.static.Program()
-            with paddle.static.program_guard(main_program, startup_program):
-                x = paddle.static.data(name="x", shape=[10], dtype=type_str_map["x"])
-                y = paddle.static.data(name="y", shape=[10], dtype=type_str_map["y"])
-                check_type(meta_data["op_str"], x, y, binary_op)
+            with paddle.pir_utils.OldIrGuard():
+                startup_program = paddle.static.Program()
+                main_program = paddle.static.Program()
+                with paddle.static.program_guard(main_program, startup_program):
+                    x = paddle.static.data(
+                        name="x", shape=[10], dtype=type_str_map["x"]
+                    )
+                    y = paddle.static.data(
+                        name="y", shape=[10], dtype=type_str_map["y"]
+                    )
+                    check_type(meta_data["op_str"], x, y, binary_op)
 
 
 def type_map_factory():

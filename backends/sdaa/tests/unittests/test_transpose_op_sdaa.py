@@ -28,7 +28,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 import sys
 import inspect
@@ -311,6 +311,40 @@ class TestTransposeOpFP16(OpTest):
 
     def test_check_grad(self):
         self.check_grad(self.place, ["X"], "Out")
+
+    def initTestCase(self):
+        self.shape = (3, 40)
+        self.axis = (1, 0)
+
+
+class TestTransposeOpBF16(OpTest):
+    def setUp(self):
+        self.init_op_type()
+        self.initTestCase()
+        self.dtype = np.uint16
+        self.python_api = paddle.transpose
+        self.public_python_api = paddle.transpose
+        self.place = paddle.CustomPlace("sdaa", 0)
+        x = np.random.random(self.shape).astype(np.float32)
+
+        self.inputs = {"X": convert_float_to_uint16(x)}
+        self.attrs = {
+            "axis": list(self.axis),
+        }
+        self.outputs = {
+            "XShape": np.random.random(self.shape).astype(self.dtype),
+            "Out": self.inputs["X"].transpose(self.axis),
+        }
+
+    def init_op_type(self):
+        self.op_type = "transpose2"
+
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.__class__.no_need_check_grad = True
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place, no_check_set=["XShape"])
 
     def initTestCase(self):
         self.shape = (3, 40)

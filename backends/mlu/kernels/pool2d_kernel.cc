@@ -19,7 +19,6 @@
 namespace custom_kernel {
 
 namespace {
-
 cnnlPoolingMode_t ToCnnlPoolingMode(const std::string& pooling_type,
                                     bool exclusive,
                                     bool adaptive) {
@@ -104,8 +103,8 @@ template <typename T, typename Context>
 void Pool2dKernel(const Context& dev_ctx,
                   const phi::DenseTensor& in_x,
                   const phi::IntArray& kernel_size,
-                  const std::vector<int>& strides_t,
-                  const std::vector<int>& paddings_t,
+                  const std::vector<int64_t>& strides_t_64,
+                  const std::vector<int64_t>& paddings_t_64,
                   bool ceil_mode,
                   bool exclusive,
                   const std::string& data_format,
@@ -114,6 +113,11 @@ void Pool2dKernel(const Context& dev_ctx,
                   bool adaptive,
                   const std::string& padding_algorithm,
                   phi::DenseTensor* out) {
+  std::vector<int> strides_t =
+      std::vector<int>(strides_t_64.begin(), strides_t_64.end());
+  std::vector<int> paddings_t =
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
+
   dev_ctx.template Alloc<T>(out);
 
   std::vector<int> ksize(kernel_size.GetData().begin(),
@@ -264,8 +268,8 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       const phi::DenseTensor& out,
                       const phi::DenseTensor& out_grad,
                       const phi::IntArray& kernel_size,
-                      const std::vector<int>& strides_t,
-                      const std::vector<int>& paddings_t,
+                      const std::vector<int64_t>& strides_t_64,
+                      const std::vector<int64_t>& paddings_t_64,
                       bool ceil_mode,
                       bool exclusive,
                       const std::string& data_format,
@@ -274,6 +278,10 @@ void Pool2dGradKernel(const Context& dev_ctx,
                       bool adaptive,
                       const std::string& padding_algorithm,
                       phi::DenseTensor* in_x_grad) {
+  std::vector<int> strides_t =
+      std::vector<int>(strides_t_64.begin(), strides_t_64.end());
+  std::vector<int> paddings_t =
+      std::vector<int>(paddings_t_64.begin(), paddings_t_64.end());
   dev_ctx.template Alloc<T>(in_x_grad);
 
   std::vector<int> ksize(kernel_size.GetData().begin(),

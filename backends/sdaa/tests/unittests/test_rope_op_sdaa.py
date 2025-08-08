@@ -98,19 +98,11 @@ class RoPE_test(unittest.TestCase):
 
         for i in range(200):
             rope_t0 = time.time()
-            query_states_trans = paddle.transpose(query_states_rope, [1, 0, 2, 3])
-            key_states_trans = paddle.transpose(key_states_rope, [1, 0, 2, 3])
             (
                 query_states_out_device,
                 key_states_out_device,
             ) = paddle_sdaa.ops.fused_rotary_position_embedding(
-                query_states_trans, key_states_trans, cos, sin
-            )
-            query_states_out_device = paddle.transpose(
-                query_states_out_device, [1, 0, 2, 3]
-            )
-            key_states_out_device = paddle.transpose(
-                key_states_out_device, [1, 0, 2, 3]
+                query_states_rope, key_states_rope, cos, sin
             )
             rope_t1 = time.time()
             rope_forward_time.append(rope_t1 - rope_t0)

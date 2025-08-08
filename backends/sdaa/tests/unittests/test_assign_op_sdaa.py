@@ -17,7 +17,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-from op_test import OpTest
+from op_test import OpTest, convert_float_to_uint16
 import paddle
 import paddle.base as base
 from paddle import static
@@ -51,6 +51,26 @@ class TestAssign(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(self.place)
+
+
+class TestAssignBF16Op(TestAssign):
+    def init_dtype(self):
+        self.dtype = np.uint16
+
+    def setUp(self):
+        self.set_sdaa()
+        self.place = paddle.CustomPlace("sdaa", 0)
+        self.op_type = "assign"
+        self.python_api = paddle.assign
+        self.init_dtype()
+        self.init_shape()
+
+        x = np.random.random(self.input_shape).astype(np.float32)
+        x = convert_float_to_uint16(x)
+        self.inputs = {"X": x}
+
+        self.attrs = {}
+        self.outputs = {"Out": x}
 
 
 class TestAssignShape1(TestAssign):

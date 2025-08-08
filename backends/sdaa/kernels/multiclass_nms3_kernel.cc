@@ -251,7 +251,9 @@ void MultiClassNMSKernel(const Context& dev_ctx,
 
 }  // namespace custom_kernel
 
-// fix(zhanggq): unregister this OP due to its poor performance
+// fix(zhanggq): due to the poor performance of this OP,
+// it is temporarily unregistered in order not to affect
+// the training of PPyoloe model.
 // PD_REGISTER_PLUGIN_KERNEL(multiclass_nms3,
 //                           sdaa,
 //                           ALL_LAYOUT,

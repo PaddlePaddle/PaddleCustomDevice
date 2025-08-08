@@ -52,10 +52,6 @@ std::vector<paddle::DataType> SwigluInferDtype(
 std::vector<paddle::Tensor> SwigluForward(const paddle::Tensor& x) {
   CHECK_CUSTOM_INPUT(x);
   VLOG(4) << "Call SwigluForward";
-  auto dev_ctx =
-      paddle::experimental::DeviceContextPool::Instance().Get(x.place());
-  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
-  sdaaStream_t custom_stream = custom_kernel::GetStreamFromCTX(*custom_ctx);
   auto x_dims = x.dims();
   int64_t seq_len = x_dims[0];
   int64_t bs = x_dims[1];
@@ -63,13 +59,30 @@ std::vector<paddle::Tensor> SwigluForward(const paddle::Tensor& x) {
   int64_t output_hidden_size = hidden_size / 2;
   auto x_out = paddle::empty(
       {seq_len, bs, output_hidden_size}, phi::DataType::FLOAT32, x.place());
-  TCUS_CHECK(sdcops::swiglu_activate_forward(x_out.data(),
-                                             const_cast<void*>(x.data()),
-                                             seq_len,
-                                             bs,
-                                             output_hidden_size,
-                                             custom_stream,
-                                             DATA_FLOAT));
+
+  auto dev_ctx =
+      paddle::experimental::DeviceContextPool::Instance().Get(x.place());
+  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
+  tecocustomHandle_t tecocustomHandle =
+      custom_kernel::GetTecoCustomHandleFromCTX(*custom_ctx);
+
+  tecocustomTensorDescriptor_t x_Desc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(x.dims()),
+          x.dtype(),
+          custom_kernel::TensorFormat::NCHW);
+
+  tecocustomTensorDescriptor_t dstDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(x_out.dims()),
+          x_out.dtype(),
+          custom_kernel::TensorFormat::NCHW);
+
+  TECOCUSTOM_CHECK(tecocustomSwigluActivateForward(
+      tecocustomHandle, x_Desc, x.data(), dstDesc, x_out.data()));
+
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(x_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(dstDesc));
   return {x_out};
 }
 
@@ -78,26 +91,42 @@ std::vector<paddle::Tensor> SwigluBackward(const paddle::Tensor& x,
   CHECK_CUSTOM_INPUT(x);
   CHECK_CUSTOM_INPUT(grad_out);
   VLOG(4) << "Call SwigluBackward";
-  auto dev_ctx =
-      paddle::experimental::DeviceContextPool::Instance().Get(x.place());
-  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
-  sdaaStream_t custom_stream = custom_kernel::GetStreamFromCTX(*custom_ctx);
   auto x_dims = x.dims();
   int64_t seq_len = x_dims[0];
   int64_t bs = x_dims[1];
   int64_t hidden_size = x_dims[2];
   int64_t output_hidden_size = hidden_size / 2;
+
+  auto dev_ctx =
+      paddle::experimental::DeviceContextPool::Instance().Get(x.place());
+  auto custom_ctx = static_cast<const phi::CustomContext*>(dev_ctx);
+
   auto dx = paddle::empty(
       {seq_len, bs, hidden_size}, phi::DataType::FLOAT32, x.place());
-  TCUS_CHECK(
-      sdcops::swiglu_activate_backward(dx.data(),
-                                       const_cast<void*>(grad_out.data()),
-                                       const_cast<void*>(x.data()),
-                                       seq_len,
-                                       bs,
-                                       output_hidden_size,
-                                       custom_stream,
-                                       DATA_FLOAT));
+  tecocustomHandle_t tecocustomHandle =
+      custom_kernel::GetTecoCustomHandleFromCTX(*custom_ctx);
+
+  tecocustomTensorDescriptor_t srcDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(x.dims()),
+          x.dtype(),
+          custom_kernel::TensorFormat::NCHW);
+
+  tecocustomTensorDescriptor_t gradDstDesc =
+      custom_kernel::sdaa_ops::GetTecocustomTensorDesc(
+          phi::vectorize<int>(grad_out.dims()),
+          grad_out.dtype(),
+          custom_kernel::TensorFormat::NCHW);
+
+  TECOCUSTOM_CHECK(tecocustomSwigluActivateBackward(tecocustomHandle,
+                                                    gradDstDesc,
+                                                    grad_out.data(),
+                                                    srcDesc,
+                                                    x.data(),
+                                                    srcDesc,
+                                                    dx.data()));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(srcDesc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(gradDstDesc));
   return {dx};
 }
 

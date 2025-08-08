@@ -25,6 +25,9 @@ void ScatterKernel(const Context& dev_ctx,
                    const phi::DenseTensor& updates,
                    bool overwrite,
                    phi::DenseTensor* out) {
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "enable");
+  }
   dev_ctx.template Alloc<T>(out);
 
   phi::DenseTensor tmp_tensor(index);
@@ -82,6 +85,9 @@ void ScatterKernel(const Context& dev_ctx,
           NpuOpRunner("TensorScatterAdd", {x, tmp_tensor, updates}, {*out}, {});
       runner_add.Run(dev_ctx.stream());
     }
+  }
+  if (!FLAGS_npu_jit_compile) {
+    aclSetCompileopt(ACL_OP_JIT_COMPILE, "disable");
   }
 }
 

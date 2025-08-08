@@ -54,28 +54,28 @@ class TestTrunctedGaussianRandomOp(unittest.TestCase):
             )
 
     def gaussian_random_test(self, place, dtype):
+        with paddle.pir_utils.OldIrGuard():
+            program = base.Program()
+            block = program.global_block()
+            vout = block.create_var(name="Out")
+            op = block.append_op(
+                type=self.op_type,
+                outputs={"Out": vout},
+                attrs={**self.attrs, "dtype": dtype},
+            )
 
-        program = base.Program()
-        block = program.global_block()
-        vout = block.create_var(name="Out")
-        op = block.append_op(
-            type=self.op_type,
-            outputs={"Out": vout},
-            attrs={**self.attrs, "dtype": dtype},
-        )
+            op.desc.infer_var_type(block.desc)
+            op.desc.infer_shape(block.desc)
 
-        op.desc.infer_var_type(block.desc)
-        op.desc.infer_shape(block.desc)
+            fetch_list = []
+            for var_name in self.outputs:
+                fetch_list.append(block.var(var_name))
 
-        fetch_list = []
-        for var_name in self.outputs:
-            fetch_list.append(block.var(var_name))
-
-        exe = Executor(place)
-        outs = exe.run(program, fetch_list=fetch_list)
-        tensor = outs[0]
-        self.assertAlmostEqual(numpy.mean(tensor), 0.0, delta=0.1)
-        self.assertAlmostEqual(numpy.var(tensor), 0.773, delta=0.1)
+            exe = Executor(place)
+            outs = exe.run(program, fetch_list=fetch_list)
+            tensor = outs[0]
+            self.assertAlmostEqual(numpy.mean(tensor), 0.0, delta=0.1)
+            self.assertAlmostEqual(numpy.var(tensor), 0.773, delta=0.1)
 
     # TruncatedNormal.__call__ has no return value, so here call _C_ops api
     # directly

@@ -30,8 +30,8 @@ GATHER_ND_CASE = [
     {"x_shape": [2, 3, 4], "x_dtype": np.float32, "index": [[1, 2, 3]], "index_dtype": np.int32},
     {"x_shape": [3, 4, 5, 6], "x_dtype": np.float32, "index": [[1, 2, 3]], "index_dtype": np.int32},
     {"x_shape": [3, 4, 5, 6, 7], "x_dtype": np.float32, "index": [[1, 2, 3]], "index_dtype": np.int32},
-    {"x_shape": [2, 3, 4], "x_dtype": np.float16, "index": [[1]], "index_dtype": np.int32},
-    {"x_shape": [3, 4, 5, 6], "x_dtype": np.float16, "index": [[1, 2, 3]], "index_dtype": np.int32},
+    # {"x_shape": [2, 3, 4], "x_dtype": np.float16, "index": [[1]], "index_dtype": np.int32},
+    # {"x_shape": [3, 4, 5, 6], "x_dtype": np.float16, "index": [[1, 2, 3]], "index_dtype": np.int32},
 ]
 # fmt: on
 

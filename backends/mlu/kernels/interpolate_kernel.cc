@@ -23,14 +23,24 @@ inline std::vector<int> get_new_shape_mlu(
   std::vector<int> vec_new_shape;
   for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {
     auto tensor = list_new_shape_tensor[i];
-    PADDLE_ENFORCE_EQ(
-        tensor->dims(),
-        phi::make_ddim({1}),
-        phi::errors::InvalidArgument("shape of dim tensor should be [1]"));
-    std::vector<int32_t> temp_vec(1);
-    dev_ctx.Wait();
-    TensorToVector(dev_ctx, *tensor, dev_ctx, &temp_vec);
-    vec_new_shape.push_back(temp_vec[0]);
+    PADDLE_ENFORCE_EQ(tensor->dims() == phi::make_ddim({1}) ||
+                          tensor->dims() == phi::make_ddim({}),
+                      true,
+                      phi::errors::InvalidArgument(
+                          "The shape of dimension tensor should be [1] or [],"
+                          "but received d%.",
+                          tensor->dims()));
+    if (tensor->dtype() == phi::DataType::INT64) {
+      std::vector<int64_t> temp_vec(1);
+      dev_ctx.Wait();
+      TensorToVector(dev_ctx, *tensor, dev_ctx, &temp_vec);
+      vec_new_shape.push_back(temp_vec[0]);
+    } else if (tensor->dtype() == phi::DataType::INT32) {
+      std::vector<int32_t> temp_vec(1);
+      dev_ctx.Wait();
+      TensorToVector(dev_ctx, *tensor, dev_ctx, &temp_vec);
+      vec_new_shape.push_back(temp_vec[0]);
+    }
   }
 
   return vec_new_shape;
@@ -75,25 +85,14 @@ void InterpolateKernel(
   if (size_tensor && size_tensor->size() > 0) {
     // have SizeTensor
     VLOG(5) << "[Interp] get out_w and out_w from SizeTensor";
-    auto list_new_shape_tensor = size_tensor.get();
-
-    if (list_new_shape_tensor.size() <= 2) {
-      auto output_h =
-          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
-      auto output_w =
-          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
-      out_h = output_h[0];
-      out_w = output_w[0];
+    auto output_get = get_new_shape_mlu(dev_ctx, size_tensor.get());
+    if (output_get.size() <= 2) {
+      out_h = output_get[0];
+      out_w = output_get[1];
     } else {
-      auto output_d =
-          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
-      auto output_h =
-          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
-      auto output_w =
-          get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[2]);
-      out_h = output_h[0];
-      out_w = output_w[0];
-      out_d = output_d[0];
+      out_h = output_get[0];
+      out_w = output_get[1];
+      out_d = output_get[2];
     }
   } else if (out_size) {
     VLOG(5) << "[Interp] get out_w and out_w from OutSize";

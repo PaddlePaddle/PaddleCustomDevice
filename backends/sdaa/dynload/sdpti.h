@@ -70,6 +70,7 @@ extern void *sdpti_dso_handle;
   __macro(sdptiGetCallbackName);           \
   __macro(sdptiActivityGetNextRecord);     \
   __macro(sdptiGetVersion);                \
+  __macro(sdptiGetResultString);           \
   __macro(sdptiActivityFlushAll);          \
   __macro(sdptiFinalize);                  \
   __macro(sdptiActivitySetAttribute);      \

@@ -16,7 +16,7 @@ from __future__ import print_function
 
 import numpy as np
 import unittest
-from op_test import OpTest, skip_check_grad_ci
+from op_test import OpTest, skip_check_grad_ci, convert_float_to_uint16
 import paddle
 import paddle.base as base
 
@@ -109,6 +109,55 @@ class TestElementwiseSubOp(OpTest):
             ["X"],
             "Out",
             no_grad_set=set("Y"),
+        )
+
+
+class TestElementwiseBF16OP(OpTest):
+    def set_sdaa(self):
+        self.__class__.use_custom_device = True
+        self.place = paddle.CustomPlace("sdaa", 0)
+
+    def setUp(self):
+        self.set_sdaa()
+        self.op_type = "elementwise_sub"
+        self.dtype = np.uint16
+        self.python_api = paddle.subtract
+        self.public_python_api = paddle.subtract
+        self.inputs = {
+            "X": np.random.uniform(0.1, 1, [2, 3, 4, 5]).astype(np.float32),
+            "Y": np.random.uniform(0.1, 1, [2, 3, 4, 5]).astype(np.float32),
+        }
+        self.outputs = {"Out": self.inputs["X"] - self.inputs["Y"]}
+        self.inputs = {
+            "X": convert_float_to_uint16(self.inputs["X"]),
+            "Y": convert_float_to_uint16(self.inputs["Y"]),
+        }
+        self.outputs = {"Out": convert_float_to_uint16(self.outputs["Out"])}
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+    def test_check_grad_normal(self):
+        self.check_grad_with_place(
+            self.place, ["X", "Y"], "Out", max_relative_error=0.1
+        )
+
+    def test_check_grad_ingore_x(self):
+        self.check_grad_with_place(
+            self.place,
+            ["Y"],
+            "Out",
+            no_grad_set=set("X"),
+            max_relative_error=0.1,
+        )
+
+    def test_check_grad_ingore_y(self):
+        self.check_grad_with_place(
+            self.place,
+            ["X"],
+            "Out",
+            no_grad_set=set("Y"),
+            max_relative_error=0.1,
         )
 
 
@@ -242,12 +291,13 @@ class TestElementwiseSubOpInt64(TestElementwiseSubOp):
 
 class TestSubtractAPI(unittest.TestCase):
     def test_name(self):
-        with paddle.static.program_guard(paddle.static.Program()):
-            x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
-            y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
+        with paddle.pir_utils.OldIrGuard():
+            with paddle.static.program_guard(paddle.static.Program()):
+                x = paddle.static.data(name="x", shape=[2, 3], dtype="float32")
+                y = paddle.static.data(name="y", shape=[2, 3], dtype="float32")
 
-            y_1 = paddle.subtract(x, y, name="add_res")
-            self.assertEqual(("add_res" in y_1.name), True)
+                y_1 = paddle.subtract(x, y, name="add_res")
+                self.assertEqual(("add_res" in y_1.name), True)
 
     def test_static(self):
         with paddle.static.program_guard(paddle.static.Program()):
@@ -298,11 +348,6 @@ class TestSubtractError(unittest.TestCase):
                 np.array([-1, 3, 5, 5]), [[1, 1, 1, 1]], paddle.CustomPlace("sdaa", 0)
             )
             self.assertRaises(TypeError, paddle.subtract, x1, y1)
-
-            # the input dtype must be float16 or float32 or float64 or int32 or int64
-            x2 = paddle.static.data(name="x2", shape=[3, 4, 5, 6], dtype="uint8")
-            y2 = paddle.static.data(name="y2", shape=[3, 4, 5, 6], dtype="uint8")
-            self.assertRaises(TypeError, paddle.subtract, x2, y2)
 
 
 class TestSubtractNet(unittest.TestCase):

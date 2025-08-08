@@ -133,20 +133,21 @@ void SyncBatchNormKernel(const Context& dev_ctx,
   auto local_square_mean = custom_kernel::Slice(
       status, static_cast<int64_t>(C_temp), static_cast<int64_t>(C_temp + C));
 
-  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  tecodnnsyncBatchNormMode_t syncBNMode = TECODNN_BATCHNORM_SPATIAL_SBN;
-  tecodnnTensorDescriptor_t x_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomHandle_t tecocustomHandle = GetTecoCustomHandleFromCTX(dev_ctx);
+  tecocustomSyncBatchNormMode_t syncBNMode = TECOCUSTOM_BATCHNORM_SPATIAL_SBN;
+  tecocustomTensorDescriptor_t x_Desc = sdaa_ops::GetTecocustomTensorDesc(
       phi::vectorize<int>(trans_x.dims()), trans_x.dtype(), TensorFormat::NHWC);
-  tecodnnTensorDescriptor_t meanvar_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomTensorDescriptor_t meanvar_Desc = sdaa_ops::GetTecocustomTensorDesc(
       mean_dims, DataType::FLOAT32, TensorFormat::NHWC);
-  TECODNN_CHECK(tecodnnCustomSyncBNMeanVar(tecodnnHandle,
+  TECOCUSTOM_CHECK(tecocustomSyncBNMeanVar(tecocustomHandle,
                                            syncBNMode,
                                            x_Desc,
                                            trans_x.data(),
-                                           static_cast<double>(epsilon_f),
                                            meanvar_Desc,
                                            local_mean.data(),
-                                           local_square_mean.data()));
+                                           meanvar_Desc,
+                                           local_square_mean.data(),
+                                           static_cast<double>(epsilon_f)));
 
   auto comm =
       static_cast<tcclComm_t>(phi::detail::GetCCLComm(dev_ctx.GetPlace(), 0));
@@ -229,36 +230,41 @@ void SyncBatchNormKernel(const Context& dev_ctx,
   // apply batch normalization for each channel and calculate mean_out,
   // variance_out
   const float alpha = 1.0f, beta = 0.0f;
-  tecodnnTensorDescriptor_t y_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomTensorDescriptor_t y_Desc = sdaa_ops::GetTecocustomTensorDesc(
       phi::vectorize<int>(trans_y.dims()), y->dtype(), TensorFormat::NHWC);
-  TECODNN_CHECK(
-      tecodnnCustomSyncBatchNormalizationForward(tecodnnHandle,
-                                                 syncBNMode,
-                                                 &alpha,
-                                                 &beta,
-                                                 x_Desc,
-                                                 trans_x.data(),
-                                                 y_Desc,
-                                                 trans_y.data(),
-                                                 meanvar_Desc,
-                                                 scale.data(),
-                                                 bias.data(),
-                                                 static_cast<double>(momentum),
-                                                 mean_out->data(),
-                                                 variance_out->data(),
-                                                 static_cast<double>(epsilon_f),
-                                                 meanvar_Desc,
-                                                 saved_mean->data(),
-                                                 var.data(),
-                                                 saved_variance->data()));
+  TECOCUSTOM_CHECK(
+      tecocustomSyncBatchNormalizationForward(tecocustomHandle,
+                                              syncBNMode,
+                                              &alpha,
+                                              &beta,
+                                              x_Desc,
+                                              trans_x.data(),
+                                              y_Desc,
+                                              trans_y.data(),
+                                              meanvar_Desc,
+                                              scale.data(),
+                                              meanvar_Desc,
+                                              bias.data(),
+                                              meanvar_Desc,
+                                              mean_out->data(),
+                                              meanvar_Desc,
+                                              variance_out->data(),
+                                              meanvar_Desc,
+                                              saved_mean->data(),
+                                              meanvar_Desc,
+                                              var.data(),
+                                              meanvar_Desc,
+                                              saved_variance->data(),
+                                              static_cast<double>(epsilon_f),
+                                              static_cast<double>(momentum)));
 
   if (need_transpose) {
     sdaa_ops::doTransformTensor(dev_ctx, trans_y, Convert_TF::NHWC2NCHW, y);
   }
 
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(meanvar_Desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(y_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(x_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(meanvar_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(y_Desc));
 }
 
 template <typename T, typename Context>
@@ -366,35 +372,38 @@ void SyncBatchNormGradKernel(
 
   // calculate scale_grad, bias_grad, local_sum_dy and local_sum_dy_xmu
   std::vector<int> meanVar_dims = {1, 1, 1, C};
-  tecodnnHandle_t tecodnnHandle = GetHandleFromCTX(dev_ctx);
-  tecodnnsyncBatchNormMode_t syncBNMode = TECODNN_BATCHNORM_SPATIAL_SBN;
+  tecocustomHandle_t tecocustomHandle = GetTecoCustomHandleFromCTX(dev_ctx);
+  tecocustomSyncBatchNormMode_t syncBNMode = TECOCUSTOM_BATCHNORM_SPATIAL_SBN;
 
-  tecodnnTensorDescriptor_t x_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomTensorDescriptor_t x_Desc = sdaa_ops::GetTecocustomTensorDesc(
       phi::vectorize<int>(trans_x.dims()), trans_x.dtype(), TensorFormat::NHWC);
 
-  tecodnnTensorDescriptor_t dy_Desc =
-      sdaa_ops::GetTecodnnTensorDesc(phi::vectorize<int>(trans_dy.dims()),
-                                     trans_dy.dtype(),
-                                     TensorFormat::NHWC);
-  tecodnnTensorDescriptor_t meanVar_Desc = sdaa_ops::GetTecodnnTensorDesc(
+  tecocustomTensorDescriptor_t dy_Desc =
+      sdaa_ops::GetTecocustomTensorDesc(phi::vectorize<int>(trans_dy.dims()),
+                                        trans_dy.dtype(),
+                                        TensorFormat::NHWC);
+  tecocustomTensorDescriptor_t meanVar_Desc = sdaa_ops::GetTecocustomTensorDesc(
       meanVar_dims, saved_mean.dtype(), TensorFormat::NHWC);
-  TECODNN_CHECK(
-      tecodnnCustomSyncBNScaleBiasBackward_1(tecodnnHandle,
-                                             syncBNMode,
-                                             x_Desc,
-                                             trans_x.data(),
-                                             dy_Desc,
-                                             trans_dy.data(),
-                                             static_cast<double>(epsilon_f),
-                                             meanVar_Desc,
-                                             saved_mean.data(),
-                                             saved_variance.data(),
-                                             meanVar_Desc,
-                                             scale_grad_ptr,
-                                             bias_grad_ptr,
-                                             meanVar_Desc,
-                                             sum_dy.data(),
-                                             sum_dy_xmu.data()));
+  TECOCUSTOM_CHECK(
+      tecocustomSyncBNScaleBiasBackward_1(tecocustomHandle,
+                                          syncBNMode,
+                                          x_Desc,
+                                          trans_x.data(),
+                                          dy_Desc,
+                                          trans_dy.data(),
+                                          meanVar_Desc,
+                                          saved_mean.data(),
+                                          meanVar_Desc,
+                                          saved_variance.data(),
+                                          meanVar_Desc,
+                                          scale_grad_ptr,
+                                          meanVar_Desc,
+                                          bias_grad_ptr,
+                                          meanVar_Desc,
+                                          sum_dy.data(),
+                                          meanVar_Desc,
+                                          sum_dy_xmu.data(),
+                                          static_cast<double>(epsilon_f)));
 
   auto comm =
       static_cast<tcclComm_t>(phi::detail::GetCCLComm(dev_ctx.GetPlace(), 0));
@@ -434,9 +443,8 @@ void SyncBatchNormGradKernel(
     // calculate the gradient of x
     const float alphaDataDiff = 1.0f, betaDataDiff = 0.0f;
     const float alphaParamDiff = 1.0f, betaParamDiff = 0.0f;
-
-    TECODNN_CHECK(tecodnnCustomSyncBatchNormalizationBackward(
-        tecodnnHandle,
+    TECOCUSTOM_CHECK(tecocustomSyncBatchNormalizationBackward(
+        tecocustomHandle,
         syncBNMode,
         &alphaDataDiff,
         &betaDataDiff,
@@ -448,15 +456,17 @@ void SyncBatchNormGradKernel(
         trans_dy.data(),
         x_Desc,
         trans_dx.data(),
-        static_cast<double>(epsilon_f),
         meanVar_Desc,
         saved_mean.data(),
+        meanVar_Desc,
         saved_variance.data(),
         meanVar_Desc,
         scale.data(),
         meanVar_Desc,
         sum_dy.data(),
-        sum_dy_xmu.data()));
+        meanVar_Desc,
+        sum_dy_xmu.data(),
+        static_cast<double>(epsilon_f)));
 
     if (need_transpose) {
       sdaa_ops::doTransformTensor(
@@ -464,9 +474,9 @@ void SyncBatchNormGradKernel(
     }
   }
 
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(x_Desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(dy_Desc));
-  TECODNN_CHECK(tecodnnDestroyTensorDescriptor(meanVar_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(x_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(dy_Desc));
+  TECOCUSTOM_CHECK(tecocustomDestroyTensorDescriptor(meanVar_Desc));
 }
 
 }  // namespace custom_kernel

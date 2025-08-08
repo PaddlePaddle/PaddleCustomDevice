@@ -14,3 +14,5 @@
 
 from paddle_custom_device.intel_hpu.ops import *  # noqa
 from .layers import *  # noqa
+from .llama_block_atten import *  # noqa
+from .blockwise_quant import *  # noqa

@@ -21,6 +21,14 @@ import paddle
 
 paddle.enable_static()
 
+import os
+from util import enable_paddle_static_mode
+
+intel_hpus_module_id = os.environ.get("FLAGS_selected_intel_hpus", 0)
+intel_hpus_static_mode = os.environ.get(
+    "FLAGS_static_mode_intel_hpus", 0
+)  # default is dynamic mode test FLAGS_static_mode_intel_hpus=0
+
 
 class TestHpuScaleOp(OpTest):
     def setUp(self):
@@ -41,7 +49,8 @@ class TestHpuScaleOp(OpTest):
 
     def set_hpu(self):
         self.__class__.use_custom_device = True
-        self.place = paddle.CustomPlace("intel_hpu", 0)
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        enable_paddle_static_mode(int(intel_hpus_static_mode))
 
     def init_dtype(self):
         self.dtype = np.float16
@@ -49,12 +58,80 @@ class TestHpuScaleOp(OpTest):
     def init_input(self):
         self.scale = 2.8
         self.bias = 3.2
-        self.bias_after_scale = False
+        self.bias_after_scale = True
         np.random.seed(1024)
         self.x = np.random.random((2, 3, 4)).astype(self.dtype)
-        self.out = self.x * self.scale + (
-            self.bias if self.bias_after_scale else self.scale * self.bias
-        )
+        self.out = (
+            self.x * self.scale
+            + (self.bias if self.bias_after_scale else self.scale * self.bias)
+        ).astype(self.dtype)
+
+
+class TestFP16Scale(TestHpuScaleOp):
+    def init_dtype(self):
+        self.dtype = np.float32
+
+
+class TestScaleInt32(TestHpuScaleOp):
+    def init_dtype(self):
+        self.dtype = np.int32
+
+
+class TestScaleInt64(TestHpuScaleOp):
+    def init_dtype(self):
+        self.dtype = np.int64
+
+
+class TestScaleDouble(TestHpuScaleOp):
+    def init_dtype(self):
+        self.dtype = np.double
+
+
+class TestBiasAfterScale(OpTest):
+    def setUp(self):
+        self.set_npu()
+        self.op_type = "scale"
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.init_dtype()
+
+        self.inputs = {
+            "X": OpTest.np_dtype_to_base_dtype(
+                np.random.random((10, 10)).astype(self.dtype)
+            )
+        }
+        self.attrs = {"scale": -2.3, "bias": 0, "bias_after_scale": False}
+        self.outputs = {"Out": self.inputs["X"] * self.dtype(self.attrs["scale"])}
+
+    def set_npu(self):
+        self.__class__.use_custom_device = True
+
+    def init_dtype(self):
+        self.dtype = np.float32
+
+    def test_check_output(self):
+        self.check_output_with_place(self.place)
+
+
+class TestFP8ScaleOp(unittest.TestCase):
+    def setUp(self):
+        self.place = paddle.CustomPlace("intel_hpu", int(intel_hpus_module_id))
+        self.dtype = np.float16
+        self.prepare_input()
+
+    def prepare_input(self):
+        np.random.seed(1024)
+        self.x = np.random.random((2, 3, 4)).astype(self.dtype)
+        self.scale = 2.8
+        self.bias = 3.2
+
+    def test_check_output(self):
+        x_fp8 = paddle.to_tensor(self.x, dtype="float16").to(dtype="float8_e4m3fn")
+
+        ref = x_fp8.to(dtype="float16").cpu().numpy() * self.scale + self.bias
+
+        out = paddle.scale(x_fp8, self.scale, self.bias).astype("float16")
+
+        np.testing.assert_allclose(ref, out.numpy(), rtol=0.05)
 
 
 if __name__ == "__main__":

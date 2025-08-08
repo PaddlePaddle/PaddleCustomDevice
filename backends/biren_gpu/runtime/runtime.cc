@@ -79,21 +79,22 @@ C_Status get_device_list(size_t *device) {
   return C_SUCCESS;
 }
 
-C_Status get_compute_capability(size_t *compute_capability) {
+C_Status get_compute_capability(const C_Device device,
+                                size_t *compute_capability) {
   VLOG(10) << "enter " << __FUNCTION__;
   PARAM_CHECK_PTR(compute_capability, C_ERROR);
   *compute_capability = br_compute_capability;
   return C_SUCCESS;
 }
 
-C_Status get_runtime_version(size_t *version) {
+C_Status get_runtime_version(const C_Device device, size_t *version) {
   VLOG(10) << "enter " << __FUNCTION__;
   PARAM_CHECK_PTR(version, C_ERROR);
   EXCEPTION_CHECK(*version = br_device::sucl::Runtime::GetRuntimeVersion();)
   return C_SUCCESS;
 }
 
-C_Status get_driver_version(size_t *version) {
+C_Status get_driver_version(const C_Device device, size_t *version) {
   VLOG(10) << "enter " << __FUNCTION__;
   PARAM_CHECK_PTR(version, C_ERROR);
   EXCEPTION_CHECK(*version = br_device::sucl::Runtime::GetDriverVersion();)

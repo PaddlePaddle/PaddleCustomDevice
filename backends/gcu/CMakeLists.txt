@@ -14,6 +14,9 @@
 
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
 project(paddle-custom-gcu CXX C)
 set(CUSTOM_GCU_NAME "paddle-custom-gcu")
 
@@ -37,6 +40,7 @@ include(external/topscc)
 
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(/opt/tops/include)
+include_directories(${PADDLE_INC_DIR}/build)
 
 option(WITH_KERNELS "compile with custom kernels" ON)
 option(WITH_TESTING "compile with unit testing" OFF)
@@ -75,6 +79,11 @@ if(WITH_KERNELS)
   add_library(${GCU_DEPENDS_NAME} STATIC ${GCU_KERNEL_DEPENDS})
   set_target_properties(${GCU_DEPENDS_NAME} PROPERTIES CXX_VISIBILITY_PRESET
                                                        hidden)
+  find_package(OpenMP REQUIRED)
+  if(OpenMP_CXX_FOUND)
+    target_link_libraries(${GCU_DEPENDS_NAME} PUBLIC OpenMP::OpenMP_CXX)
+    target_compile_options(${GCU_DEPENDS_NAME} PUBLIC ${OpenMP_CXX_FLAGS})
+  endif()
   target_compile_options(${GCU_DEPENDS_NAME} PUBLIC -fPIC)
   add_dependencies(${GCU_DEPENDS_NAME} third_party)
 
@@ -85,6 +94,18 @@ if(WITH_KERNELS)
     custom_op/*.cc)
   list(APPEND CUSTOM_GCU_SRCS ${CUSTOM_CUSTOM_OP_SRCS})
 endif()
+
+file(
+  GLOB_RECURSE CUSTOM_PASSES_SRCS
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  passes/*.cc)
+list(APPEND CUSTOM_GCU_SRCS ${CUSTOM_PASSES_SRCS})
+
+file(
+  GLOB_RECURSE CUSTOM_ENGINE_SRCS
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  custom_engine/*.cc)
+list(APPEND CUSTOM_GCU_SRCS ${CUSTOM_ENGINE_SRCS})
 
 if(ON_INFER)
   link_directories(${PADDLE_INFERENCE_LIB_DIR})
@@ -221,8 +242,15 @@ add_custom_command(
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes
   COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/passes/*
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/passes/*.py
           ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes
+  COMMAND
+    ${CMAKE_COMMAND} -E make_directory
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes/legacy_ir_passes
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_SOURCE_DIR}/passes/legacy_ir_passes/*.py
+    ${CMAKE_CURRENT_BINARY_DIR}/python/paddle_custom_device/gcu/passes/legacy_ir_passes
   COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py bdist_wheel
   DEPENDS ${CUSTOM_GCU_NAME}
   COMMENT "Packing whl packages------>>>")

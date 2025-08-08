@@ -35,7 +35,8 @@ void MultiplyKernel(const Context& dev_ctx,
                     const phi::DenseTensor& y,
                     phi::DenseTensor* out) {
   if (isEnvEnable("HIGH_PERFORMANCE_CONV") &&
-      (&x != out && x.storage_properties_initialized())) {
+      (&x != out && x.storage_properties_initialized() &&
+       !out->storage_properties_initialized())) {
     VLOG(1) << "Multiply spread conv's filter at " << &x;
     // only open to adamw optimzer with ClipGradByGlobalNorm
     // called by: new_grad = paddle.multiply(g, clip_input)
@@ -117,6 +118,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_raw,
                           uint8_t,
                           bool,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -131,6 +133,7 @@ PD_REGISTER_PLUGIN_KERNEL(multiply,
                           uint8_t,
                           bool,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           float,
                           double) {}
 
@@ -141,5 +144,6 @@ PD_REGISTER_PLUGIN_KERNEL(multiply_grad,
                           float,
                           double,
                           phi::dtype::float16,
+                          phi::dtype::bfloat16,
                           int,
                           int64_t) {}

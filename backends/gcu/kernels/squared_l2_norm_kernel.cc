@@ -67,4 +67,5 @@ PD_REGISTER_PLUGIN_KERNEL(squared_l2_norm,
                           ALL_LAYOUT,
                           custom_kernel::SquaredL2NormKernel,
                           float,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

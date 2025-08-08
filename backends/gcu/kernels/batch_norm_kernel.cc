@@ -410,6 +410,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm,
                           custom_kernel::BatchNormKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->InputAt(1).SetDataType(phi::DataType::FLOAT32);   // mean
@@ -429,6 +430,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm_grad,
                           custom_kernel::BatchNormGradKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(0).SetDataType(phi::DataType::FLOAT32);  // x_grad
@@ -443,6 +445,7 @@ PD_REGISTER_PLUGIN_KERNEL(batch_norm_infer,
                           custom_kernel::BatchNormInferKernel,
                           float,
                           double,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {
   if (kernel_key.dtype() == phi::DataType::FLOAT16) {
     kernel->OutputAt(1).SetDataType(phi::DataType::FLOAT32);  // mean_out

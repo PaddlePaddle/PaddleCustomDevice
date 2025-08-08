@@ -17,6 +17,37 @@
 #include "kernels/funcs/slice_utils.h"
 
 namespace custom_kernel {
+
+inline std::vector<int> get_new_shape_npu(
+    const phi::CustomContext& dev_ctx,
+    const std::vector<const phi::DenseTensor*>& list_new_shape_tensor) {
+  // get tensor from
+  std::vector<int> vec_new_shape;
+  for (size_t i = 0; i < list_new_shape_tensor.size(); ++i) {
+    auto tensor = list_new_shape_tensor[i];
+    PADDLE_ENFORCE_EQ(tensor->dims() == phi::make_ddim({1}) ||
+                          tensor->dims() == phi::make_ddim({}),
+                      true,
+                      phi::errors::InvalidArgument(
+                          "The shape of dimension tensor should be [1] or [],"
+                          "but received d%.",
+                          tensor->dims()));
+    if (tensor->dtype() == phi::DataType::INT64) {
+      std::vector<int64_t> temp_vec(1);
+      dev_ctx.Wait();
+      TensorToVector(dev_ctx, *tensor, dev_ctx, &temp_vec);
+      vec_new_shape.push_back(temp_vec[0]);
+    } else if (tensor->dtype() == phi::DataType::INT32) {
+      std::vector<int32_t> temp_vec(1);
+      dev_ctx.Wait();
+      TensorToVector(dev_ctx, *tensor, dev_ctx, &temp_vec);
+      vec_new_shape.push_back(temp_vec[0]);
+    }
+  }
+
+  return vec_new_shape;
+}
+
 template <typename T, typename Context>
 void TransposeKernel(const Context& dev_ctx,
                      const phi::DenseTensor& x,
@@ -798,13 +829,15 @@ void InterpolateKernel(
 
   // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
-    auto list_new_shape_tensor = size_tensor.get();
-    auto output_h =
-        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[0]);
-    auto output_w =
-        get_new_data_from_tensor<int>(dev_ctx, list_new_shape_tensor[1]);
-    out_h = output_h[0];
-    out_w = output_w[0];
+    auto output_get = get_new_shape_npu(dev_ctx, size_tensor.get());
+    if (output_get.size() <= 2) {
+      out_h = output_get[0];
+      out_w = output_get[1];
+    } else {
+      out_h = output_get[0];
+      out_w = output_get[1];
+      out_d = output_get[2];
+    }
   } else {
     if (scale_tensor) {
       auto scale_data =
@@ -983,13 +1016,9 @@ void InterpolateGradKernel(
 
   // Priority: SizeTensor > OutSize > Scale > scale > out_h & out_w
   if (size_tensor && size_tensor->size() > 0) {
-    auto list_new_size_tensor = size_tensor.get();
-    std::vector<int32_t> output_h(1);
-    std::vector<int32_t> output_w(1);
-    TensorToVector(dev_ctx, *(list_new_size_tensor[0]), dev_ctx, &output_h);
-    TensorToVector(dev_ctx, *(list_new_size_tensor[1]), dev_ctx, &output_w);
-    out_h = output_h[0];
-    out_w = output_w[0];
+    auto output_get = get_new_shape_npu(dev_ctx, size_tensor.get());
+    out_h = output_get[0];
+    out_w = output_get[1];
   } else if (out_size) {
     auto out_size_data =
         get_new_data_from_tensor<int>(dev_ctx, out_size.get_ptr());

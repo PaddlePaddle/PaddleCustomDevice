@@ -67,4 +67,5 @@ PD_REGISTER_PLUGIN_KERNEL(diagonal,
                           int,
                           int64_t,
                           bool,
+                          phi::dtype::bfloat16,
                           phi::dtype::float16) {}

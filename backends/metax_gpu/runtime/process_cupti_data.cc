@@ -14,6 +14,9 @@
 
 // #include "runtime/process_cupti_data.h"
 
+#include "runtime/process_cupti_data.h"
+
+#include <cupti.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -21,6 +24,9 @@
 #include <cstdio>
 #include <sstream>
 #include <thread>
+
+#include "paddle/phi/backends/dynload/cupti.h"
+// #include "paddle/fluid/platform/profiler/cuda_tracer.cc"
 
 pid_t gettid() { return syscall(SYS_gettid); }
 
@@ -45,137 +51,6 @@ inline uint64_t PosixInNsec() {
 //   }();
 //   return time_gap;
 // }
-
-struct ActivityBuffer {
-  ActivityBuffer(uint8_t* addr, size_t size) : addr(addr), valid_size(size) {}
-  uint8_t* addr;
-  size_t valid_size;
-};
-
-void* AlignedMalloc(size_t size, size_t alignment) {
-  assert(alignment >= sizeof(void*) && (alignment & (alignment - 1)) == 0);
-  size = (size + alignment - 1) / alignment * alignment;
-#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
-  void* aligned_mem = nullptr;
-  if (posix_memalign(&aligned_mem, alignment, size) != 0) {
-    aligned_mem = nullptr;
-  }
-  return aligned_mem;
-#elif defined(_WIN32)
-  return _aligned_malloc(size, alignment);
-#else
-  void* mem = malloc(size + alignment);  // NOLINT
-  if (mem == nullptr) {
-    return nullptr;
-  }
-  size_t adjust = alignment - reinterpret_cast<uint64_t>(mem) % alignment;
-  void* aligned_mem = reinterpret_cast<char*>(mem) + adjust;
-  *(reinterpret_cast<void**>(aligned_mem) - 1) = mem;
-  assert(reinterpret_cast<uint64_t>(aligned_mem) % alignment == 0);
-  return aligned_mem;
-#endif
-}
-
-class Tracer {
- public:
-  static Tracer& Instance() {
-    static Tracer instance;
-    return instance;
-  }
-
-  void AllocateBuffer(uint8_t** buffer, size_t* size) {
-    constexpr size_t kBufSize = 1 << 23;  // 8 MB
-    constexpr size_t kBufAlign = 8;       // 8 B
-    *buffer = reinterpret_cast<uint8_t*>(AlignedMalloc(kBufSize, kBufAlign));
-    *size = kBufSize;
-  }
-  void ProduceBuffer(uint8_t* buffer, size_t valid_size) {
-    std::lock_guard<std::mutex> guard(activity_buffer_lock_);
-    activity_buffers_.emplace_back(buffer, valid_size);
-  }
-  std::vector<ActivityBuffer> ConsumeBuffers();
-  void ReleaseBuffer(uint8_t* buffer);
-
- private:
-  Tracer() {}
-
-  std::mutex activity_buffer_lock_;
-  std::vector<ActivityBuffer> activity_buffers_;
-};
-
-class CuptiRuntimeCbidStr {
- public:
-  static const CuptiRuntimeCbidStr& GetInstance() {
-    static CuptiRuntimeCbidStr inst;
-    return inst;
-  }
-
-  std::string RuntimeKind(CUpti_CallbackId cbid) const {
-    auto iter = cbid_str_.find(cbid);
-    if (iter == cbid_str_.end()) {
-      return "metax Runtime API " + std::to_string(cbid);
-    }
-    return iter->second;
-  }
-
- private:
-  CuptiRuntimeCbidStr();
-
-  std::unordered_map<CUpti_CallbackId, std::string> cbid_str_;
-};
-
-CuptiRuntimeCbidStr::CuptiRuntimeCbidStr() {
-#define REGISTER_RUNTIME_CBID_STR(cbid) \
-  cbid_str_[CUPTI_RUNTIME_TRACE_CBID_##cbid] = #cbid
-  REGISTER_RUNTIME_CBID_STR(cudaBindTexture_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaConfigureCall_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetAttribute_v5000);
-  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetStreamPriorityRange_v5050);
-  REGISTER_RUNTIME_CBID_STR(cudaDeviceSynchronize_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaDriverGetVersion_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaEventCreateWithFlags_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaEventDestroy_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaEventDestroy_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaEventQuery_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaEventRecord_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaFreeHost_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaFree_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaFuncGetAttributes_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaGetDeviceCount_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaGetDeviceProperties_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaGetDevice_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaGetErrorString_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaGetLastError_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaHostAlloc_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaHostGetDevicePointer_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaLaunchKernel_v7000);
-  REGISTER_RUNTIME_CBID_STR(cudaMallocHost_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaMalloc_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaMemcpyAsync_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaMemcpy_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaMemsetAsync_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaMemset_v3020);
-  REGISTER_RUNTIME_CBID_STR(
-      cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags_v7000);
-  REGISTER_RUNTIME_CBID_STR(cudaPeekAtLastError_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaRuntimeGetVersion_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaSetDevice_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamCreate_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamCreateWithFlags_v5000);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamCreateWithPriority_v5050);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamDestroy_v5050);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamSynchronize_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaStreamWaitEvent_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaUnbindTexture_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaSetupArgument_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaLaunch_v3020);
-  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetPCIBusId_v4010);
-#if CUDA_VERSION >= 9000
-  REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernel_v9000);
-  REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernelMultiDevice_v9000);
-#endif
-#undef REGISTER_RUNTIME_CBID_STR
-}
 
 inline std::string demangle(std::string name) { return name; }
 
@@ -302,28 +177,6 @@ void AddMemcpy2Record(const CUpti_ActivityMemcpy2* memcpy2,
   profiler_add_device_trace_event(collector, &event);
 }
 
-const char* MemoryKind(uint16_t kind) {
-  switch (kind) {
-    case CUPTI_ACTIVITY_MEMORY_KIND_UNKNOWN:
-      return "Unknown";
-    case CUPTI_ACTIVITY_MEMORY_KIND_PAGEABLE:
-      return "Pageable";
-    case CUPTI_ACTIVITY_MEMORY_KIND_PINNED:
-      return "Pinned";
-    case CUPTI_ACTIVITY_MEMORY_KIND_DEVICE:
-      return "Device";
-    case CUPTI_ACTIVITY_MEMORY_KIND_ARRAY:
-      return "Array";
-    case CUPTI_ACTIVITY_MEMORY_KIND_MANAGED:
-      return "Managed";
-    case CUPTI_ACTIVITY_MEMORY_KIND_DEVICE_STATIC:
-      return "Device Static";
-    case CUPTI_ACTIVITY_MEMORY_KIND_MANAGED_STATIC:
-      return "Managed Static";
-    default:
-      return "Unknown";
-  }
-}
 void AddMemsetRecord(const CUpti_ActivityMemset* memset,
                      uint64_t start_ns,
                      C_Profiler collector) {
@@ -341,15 +194,91 @@ void AddMemsetRecord(const CUpti_ActivityMemset* memset,
   event.stream_id = memset->streamId;
   event.correlation_id = memset->correlationId;
   event.memset_info.num_bytes = memset->bytes;
-  snprintf(event.memset_info.memory_kind,
-           phi::kMemKindMaxLen,
-           "%s",
-           MemoryKind(memset->memoryKind));
+
+  // snprintf(event.memset_info.memory_kind,
+  //          phi::kMemKindMaxLen,
+  //          "%s",
+  //          MemoryKind(memset->memoryKind));
+
   event.memset_info.value = memset->value;
 
   // collector->AddDeviceEvent(std::move(event));
 
   profiler_add_device_trace_event(collector, &event);
+}
+
+class CuptiRuntimeCbidStr {
+ public:
+  static const CuptiRuntimeCbidStr& GetInstance() {
+    static CuptiRuntimeCbidStr inst;
+    return inst;
+  }
+
+  std::string RuntimeKind(CUpti_CallbackId cbid) const {
+    auto iter = cbid_str_.find(cbid);
+    if (iter == cbid_str_.end()) {
+      return "metax Runtime API " + std::to_string(cbid);
+    }
+    return iter->second;
+  }
+
+ private:
+  CuptiRuntimeCbidStr();
+
+  std::unordered_map<CUpti_CallbackId, std::string> cbid_str_;
+};
+
+CuptiRuntimeCbidStr::CuptiRuntimeCbidStr() {
+#define REGISTER_RUNTIME_CBID_STR(cbid) \
+  cbid_str_[CUPTI_RUNTIME_TRACE_CBID_##cbid] = #cbid
+  REGISTER_RUNTIME_CBID_STR(cudaBindTexture_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaConfigureCall_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetAttribute_v5000);
+  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetStreamPriorityRange_v5050);
+  REGISTER_RUNTIME_CBID_STR(cudaDeviceSynchronize_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaDriverGetVersion_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaEventCreateWithFlags_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaEventDestroy_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaEventDestroy_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaEventQuery_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaEventRecord_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaFreeHost_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaFree_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaFuncGetAttributes_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaGetDeviceCount_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaGetDeviceProperties_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaGetDevice_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaGetErrorString_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaGetLastError_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaHostAlloc_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaHostGetDevicePointer_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaLaunchKernel_v7000);
+  REGISTER_RUNTIME_CBID_STR(cudaMallocHost_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaMalloc_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaMemcpyAsync_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaMemcpy_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaMemsetAsync_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaMemset_v3020);
+  REGISTER_RUNTIME_CBID_STR(
+      cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags_v7000);
+  REGISTER_RUNTIME_CBID_STR(cudaPeekAtLastError_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaRuntimeGetVersion_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaSetDevice_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamCreate_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamCreateWithFlags_v5000);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamCreateWithPriority_v5050);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamDestroy_v5050);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamSynchronize_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaStreamWaitEvent_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaUnbindTexture_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaSetupArgument_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaLaunch_v3020);
+  REGISTER_RUNTIME_CBID_STR(cudaDeviceGetPCIBusId_v4010);
+#if CUDA_VERSION >= 9000
+  REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernel_v9000);
+  REGISTER_RUNTIME_CBID_STR(cudaLaunchCooperativeKernelMultiDevice_v9000);
+#endif
+#undef REGISTER_RUNTIME_CBID_STR
 }
 
 void AddApiRecord(const CUpti_ActivityAPI* api,
@@ -387,7 +316,7 @@ void ProcessCuptiActivityRecord(
     uint64_t start_ns,
     const std::unordered_map<uint32_t, uint64_t> tid_mapping,
     C_Profiler collector) {
-  switch (record->kind) {
+  switch (record->kind) {  // 差异
     case CUPTI_ACTIVITY_KIND_KERNEL:
     case CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL:
       AddKernelRecord(reinterpret_cast<const CUpti_ActivityKernel4*>(record),
@@ -421,6 +350,30 @@ void ProcessCuptiActivityRecord(
   }
 }
 
+void* AlignedMalloc(size_t size, size_t alignment) {
+  assert(alignment >= sizeof(void*) && (alignment & (alignment - 1)) == 0);
+  size = (size + alignment - 1) / alignment * alignment;
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
+  void* aligned_mem = nullptr;
+  if (posix_memalign(&aligned_mem, alignment, size) != 0) {
+    aligned_mem = nullptr;
+  }
+  return aligned_mem;
+#elif defined(_WIN32)
+  return _aligned_malloc(size, alignment);
+#else
+  void* mem = malloc(size + alignment);  // NOLINT
+  if (mem == nullptr) {
+    return nullptr;
+  }
+  size_t adjust = alignment - reinterpret_cast<uint64_t>(mem) % alignment;
+  void* aligned_mem = reinterpret_cast<char*>(mem) + adjust;
+  *(reinterpret_cast<void**>(aligned_mem) - 1) = mem;
+  assert(reinterpret_cast<uint64_t>(aligned_mem) % alignment == 0);
+  return aligned_mem;
+#endif
+}
+
 void AlignedFree(void* mem_ptr) {
 #if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
   free(mem_ptr);
@@ -431,6 +384,104 @@ void AlignedFree(void* mem_ptr) {
     free(*(reinterpret_cast<void**>(mem_ptr) - 1));
   }
 #endif
+}
+
+void Tracer::AllocateBuffer(uint8_t** buffer, size_t* size) {
+  constexpr size_t kBufferSize = 1 << 23;  // 8 MB
+  constexpr size_t kBufferAlignSize = 8;
+  *buffer =
+      reinterpret_cast<uint8_t*>(AlignedMalloc(kBufferSize, kBufferAlignSize));
+  *size = kBufferSize;
+}
+
+void Tracer::ProduceBuffer(uint8_t* buffer, size_t valid_size) {
+  std::lock_guard<std::mutex> guard(activity_buffer_lock_);
+  activity_buffers_.emplace_back(buffer, valid_size);
+}
+
+std::vector<ActivityBuffer> Tracer::ConsumeBuffers() {
+  std::vector<ActivityBuffer> buffers;
+  {
+    std::lock_guard<std::mutex> guard(activity_buffer_lock_);
+    buffers.swap(activity_buffers_);
+  }
+  return buffers;
+}
+
+void Tracer::ReleaseBuffer(uint8_t* buffer) { AlignedFree(buffer); }
+
+// struct ActivityBuffer {
+//   ActivityBuffer(uint8_t* addr, size_t size) : addr(addr), valid_size(size)
+//   {} uint8_t* addr; size_t valid_size;
+// };
+
+// class Tracer {
+//  public:
+//   static Tracer& Instance() {
+//     static Tracer instance;
+//     return instance;
+//   }
+
+//   void AllocateBuffer(uint8_t** buffer, size_t* size) {
+//     constexpr size_t kBufSize = 1 << 23;  // 8 MB
+//     constexpr size_t kBufAlign = 8;       // 8 B
+//     *buffer = reinterpret_cast<uint8_t*>(AlignedMalloc(kBufSize, kBufAlign));
+//     *size = kBufSize;
+//   }
+//   void ProduceBuffer(uint8_t* buffer, size_t valid_size) {
+//     std::lock_guard<std::mutex> guard(activity_buffer_lock_);
+//     activity_buffers_.emplace_back(buffer, valid_size);
+//   }
+//   std::vector<ActivityBuffer> ConsumeBuffers();
+//   void ReleaseBuffer(uint8_t* buffer);
+
+//  private:
+//   Tracer() {}
+
+//   std::mutex activity_buffer_lock_;
+//   std::vector<ActivityBuffer> activity_buffers_;
+// };
+
+// class Tracer {
+//  public:
+//   static Tracer& Instance() {
+//     static Tracer instance;
+//     return instance;
+//   }
+
+//   void AllocateBuffer(uint8_t** buffer, size_t* size);
+//   void ProduceBuffer(uint8_t* buffer, size_t valid_size);
+//   std::vector<ActivityBuffer> ConsumeBuffers();
+//   void ReleaseBuffer(uint8_t* buffer);
+
+//  private:
+//   Tracer() {}
+
+//   std::mutex activity_buffer_lock_;
+//   std::vector<ActivityBuffer> activity_buffers_;
+// };
+
+const char* MemoryKind(uint16_t kind) {
+  switch (kind) {
+    case CUPTI_ACTIVITY_MEMORY_KIND_UNKNOWN:
+      return "Unknown";
+    case CUPTI_ACTIVITY_MEMORY_KIND_PAGEABLE:
+      return "Pageable";
+    case CUPTI_ACTIVITY_MEMORY_KIND_PINNED:
+      return "Pinned";
+    case CUPTI_ACTIVITY_MEMORY_KIND_DEVICE:
+      return "Device";
+    case CUPTI_ACTIVITY_MEMORY_KIND_ARRAY:
+      return "Array";
+    case CUPTI_ACTIVITY_MEMORY_KIND_MANAGED:
+      return "Managed";
+    case CUPTI_ACTIVITY_MEMORY_KIND_DEVICE_STATIC:
+      return "Device Static";
+    case CUPTI_ACTIVITY_MEMORY_KIND_MANAGED_STATIC:
+      return "Managed Static";
+    default:
+      return "Unknown";
+  }
 }
 
 void profiler_add_device_trace_event(C_Profiler prof, void* event) {
@@ -462,34 +513,34 @@ std::unordered_map<uint32_t, uint64_t> CreateThreadIdMapping() {
 }
 }  // namespace details
 
-void Tracer::ReleaseBuffer(uint8_t* buffer) { AlignedFree(buffer); }
 // void Tracer::ReleaseBuffer(void* buffer) { AlignedFree(buffer); }
 
-int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
-  int record_cnt = 0;
-  CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
-  auto mapping = details::CreateThreadIdMapping();
-  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
-  for (auto& buffer : buffers) {
-    if (buffer.addr == nullptr || buffer.valid_size == 0) {
-      continue;
-    }
-    CUpti_Activity* record = nullptr;
-    while (true) {
-      CUptiResult status =
-          cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
-      if (status == CUPTI_SUCCESS) {
-        ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
-        ++record_cnt;
-      } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
-        break;
-      } else {
-        CUPTI_CALL(status);
-      }
-    }
+// int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+//   int record_cnt = 0;
+//   CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
+//   auto mapping = details::CreateThreadIdMapping();
+//   std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+//   for (auto& buffer : buffers) {
+//     if (buffer.addr == nullptr || buffer.valid_size == 0) {
+//       continue;
+//     }
+//     CUpti_Activity* record = nullptr;
+//     while (true) {
+//       CUptiResult status =
+//           cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size,
+//           &record);
+//       if (status == CUPTI_SUCCESS) {
+//         ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
+//         ++record_cnt;
+//       } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
+//         break;
+//       } else {
+//         CUPTI_CALL(status);
+//       }
+//     }
 
-    Tracer::Instance().ReleaseBuffer(buffer.addr);
-    // ReleaseBuffer(buffer.addr);
-  }
-  return record_cnt;
-}
+//     Tracer::Instance().ReleaseBuffer(buffer.addr);
+//     // ReleaseBuffer(buffer.addr);
+//   }
+//   return record_cnt;
+// }

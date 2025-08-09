@@ -677,27 +677,126 @@ index 59e92955c9..d2f8c2da15 100644
 \ No newline at end of file
 
 diff --git a/paddle/phi/core/platform/device/gpu/gpu_types.h b/paddle/phi/core/platform/device/gpu/gpu_types.h
-index c646e487d0..424f22579f 100644
+index c646e487d0..325122175c 100644
 --- a/paddle/phi/core/platform/device/gpu/gpu_types.h
 +++ b/paddle/phi/core/platform/device/gpu/gpu_types.h
-@@ -25,8 +25,8 @@
+@@ -25,8 +25,9 @@
  #else
  #include <cuda_runtime.h>
-
+ 
 -#include "paddle/phi/backends/dynload/cublas.h"
 -#include "paddle/phi/backends/dynload/cublasLt.h"
++// #include "paddle/phi/backends/dynload/cublas.h"
 +#include "kernels/funcs/blas/cublas.h"
 +// #include "paddle/phi/backends/dynload/cublasLt.h"
  #include "paddle/phi/backends/dynload/cudnn.h"
  #endif
-
-@@ -90,7 +90,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
-
+ 
+@@ -90,7 +91,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
+ 
  // TODO(Ming Huang): Since there is no blasLt handler,
  // use rocblas_handle for workaround.
 -DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
 +// DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
-
+ 
  #undef DECLARE_TYPE_FOR_GPU
+ 
+diff --git a/paddle/phi/kernels/funcs/sparse/convolution.h b/paddle/phi/kernels/funcs/sparse/convolution.h
+index a0ec750f5a..c28e35135e 100644
+--- a/paddle/phi/kernels/funcs/sparse/convolution.h
++++ b/paddle/phi/kernels/funcs/sparse/convolution.h
+@@ -18,7 +18,7 @@ limitations under the License. */
+ #include "paddle/phi/core/kmap_cache.h"
+ #include "paddle/phi/core/tensor_utils.h"
+ #include "paddle/phi/kernels/empty_kernel.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
 
-  //NOLINT
+ namespace phi {
+ namespace funcs {
+ss
+diff --git a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
+index 45a29b4cff..8449e3d309 100644
+--- a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
++++ b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
+@@ -15,7 +15,7 @@
+ #pragma once
+
+ #if defined(PADDLE_WITH_CUDA)
+-#include "paddle/phi/backends/dynload/cublasLt.h"
++// #include "paddle/phi/backends/dynload/cublasLt.h"
+ #endif
+
+ #include "glog/logging.h"
+diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
+index 7d05bcb654..c79cdadabc 100644
+--- a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
++++ b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
+@@ -638,9 +638,7 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
+         RandVec<VecSize>(&state, rand);
+ #pragma unroll
+         for (int jt = 0; jt < VecSize; jt++) {
+-#ifndef PADDLE_WITH_HIP
+-#pragma unroll
+-#endif
++// #pragma unroll
+           mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
+         }
+       }
+diff --git a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
+index ad04265bd6..59481d0e6a 100644
+--- a/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
++++ b/paddle/phi/kernels/fusion/gpu/masked_multihead_attention_kernel.cu
+@@ -15,7 +15,7 @@
+ #include "paddle/phi/common/bfloat16.h"
+ #include "paddle/phi/core/kernel_registry.h"
+ #include "paddle/phi/kernels/funcs/aligned_vector.h"
+-#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
++#include "kernels/metax_kernel/mmha_util.cu.h"
+
+ namespace phi {
+ namespace fusion {
+diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
+index 148d72ca9c..5da3461ebf 100644
+--- a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
++++ b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
+@@ -15,7 +15,7 @@
+ #include "paddle/phi/common/bfloat16.h"
+ #include "paddle/phi/core/kernel_registry.h"
+ #include "paddle/phi/kernels/funcs/aligned_vector.h"
+-#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
++#include "kernels/metax_kernel/mmha_util.cu.h"
+
+ namespace phi {
+ namespace fusion {
+diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
+index d580751fe4..712ea3bfc0 100644
+--- a/paddle/phi/backends/dynload/cusolver.h
++++ b/paddle/phi/backends/dynload/cusolver.h
+@@ -34,7 +34,9 @@ extern void *cusolver_dso_handle;
+       std::call_once(cusolver_dso_flag, []() {                       \
+         cusolver_dso_handle = phi::dynload::GetCusolverDsoHandle();  \
+       });                                                            \
+-      static void *p_##__name = dlsym(cusolver_dso_handle, #__name); \
++      std::string replaced_name = #__name;                                  \
++      replaced_name =  replaced_name.replace(0,2,"mc");          \
++      static void* p_##__name = dlsym(cusolver_dso_handle, replaced_name.c_str());    \
+       return reinterpret_cast<cusolverFunc>(p_##__name)(args...);    \
+     }                                                                \
+   };                                                                 \
+
+diff --git a/paddle/phi/backends/dynload/cusparse.h b/paddle/phi/backends/dynload/cusparse.h
+index 8ec3cf2792..6f5460df00 100644
+--- a/paddle/phi/backends/dynload/cusparse.h
++++ b/paddle/phi/backends/dynload/cusparse.h
+@@ -34,7 +34,9 @@ extern void *cusparse_dso_handle;
+       std::call_once(cusparse_dso_flag, []() {                       \
+         cusparse_dso_handle = phi::dynload::GetCusparseDsoHandle();  \
+       });                                                            \
+-      static void *p_##__name = dlsym(cusparse_dso_handle, #__name); \
++      std::string replaced_name = #__name;                                  \
++      replaced_name =  replaced_name.replace(0,2,"mc");          \
++      static void* p_##__name = dlsym(cusparse_dso_handle, replaced_name.c_str());    \
+       return reinterpret_cast<Func>(p_##__name)(args...);            \
+     }                                                                \
+   };                                                                 \

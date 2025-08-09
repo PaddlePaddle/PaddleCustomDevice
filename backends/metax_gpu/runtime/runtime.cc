@@ -907,15 +907,6 @@ ncclRedOp_t PDReduceOpToNcclReduceOp(C_CCLReduceOp op) {
   }
 }
 
-C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
-  return C_SUCCESS;
-}
-
-C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
-  // CUPTI_CALL(cuptiRelease());
-  return C_SUCCESS;
-}
-
 void BufferRequestedCallback(uint8_t **buffer,
                              size_t *size,
                              size_t *max_num_records) {
@@ -937,6 +928,44 @@ void BufferCompletedCallback(CUcontext ctx,
   }
 }
 
+int ProcessCuptiActivity(C_Profiler prof, uint64_t tracing_start_ns_) {
+  int record_cnt = 0;
+  CUPTI_CALL(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
+  auto mapping = details::CreateThreadIdMapping();
+  std::vector<ActivityBuffer> buffers = Tracer::Instance().ConsumeBuffers();
+  for (auto &buffer : buffers) {
+    if (buffer.addr == nullptr || buffer.valid_size == 0) {
+      continue;
+    }
+    CUpti_Activity *record = nullptr;
+    while (true) {
+      CUptiResult status =
+          cuptiActivityGetNextRecord(buffer.addr, buffer.valid_size, &record);
+      if (status == CUPTI_SUCCESS) {
+        ProcessCuptiActivityRecord(record, tracing_start_ns_, mapping, prof);
+        ++record_cnt;
+      } else if (status == CUPTI_ERROR_MAX_LIMIT_REACHED) {
+        break;
+      } else {
+        CUPTI_CALL(status);
+      }
+    }
+
+    Tracer::Instance().ReleaseBuffer(buffer.addr);
+    // ReleaseBuffer(buffer.addr);
+  }
+  return record_cnt;
+}
+
+C_Status ProfilerInitialize(C_Profiler prof, void **user_data) {
+  return C_SUCCESS;
+}
+
+C_Status ProfilerFinalize(C_Profiler prof, void *user_data) {
+  // CUPTI_CALL(cuptiRelease());
+  return C_SUCCESS;
+}
+
 C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
   CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
                                             BufferCompletedCallback));
@@ -950,25 +979,8 @@ C_Status ProfilerPrepare(C_Profiler prof, void *user_data) {
   return C_SUCCESS;
 }
 
-std::vector<ActivityBuffer> Tracer::ConsumeBuffers() {
-  std::vector<ActivityBuffer> buffers;
-  {
-    std::lock_guard<std::mutex> guard(activity_buffer_lock_);
-    buffers.swap(activity_buffers_);
-  }
-  return buffers;
-}
-
 C_Status ProfilerStart(C_Profiler prof, void *user_data) {
-  CUPTI_CALL(cuptiActivityRegisterCallbacks(BufferRequestedCallback,
-                                            BufferCompletedCallback));
-
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMCPY));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_DRIVER));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_RUNTIME));
-  CUPTI_CALL(cuptiActivityEnable(CUPTI_ACTIVITY_KIND_MEMSET));
-  VLOG(3) << "enable cupti activity";
+  Tracer::Instance().ConsumeBuffers();
   return C_SUCCESS;
 }
 
@@ -1179,6 +1191,17 @@ C_Status Xccl_all_to_all(const void **send_buf,
   NCCL_CHECK(ncclGroupEnd());
   return C_SUCCESS;
 }
+
+C_Status IsFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
+C_Status IsBFloat16Supported(const C_Device device, bool *supported) {
+  *supported = true;
+  return C_SUCCESS;
+}
+
 void InitPlugin(CustomRuntimeParams *params) {
   PADDLE_CUSTOM_RUNTIME_CHECK_VERSION(params);
   params->device_type = const_cast<char *>(DeviceType);
@@ -1238,6 +1261,10 @@ void InitPlugin(CustomRuntimeParams *params) {
 
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
+
+  // params->interface->is_float16_supported = IsFloat16Supported;
+
+  // params->interface->is_bfloat16_supported = IsBFloat16Supported;
 
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;

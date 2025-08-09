@@ -15,6 +15,7 @@ limitations under the License. */
 #pragma once
 
 #include "glog/logging.h"
+#include "kernels/funcs/handle_utils.h"
 #include "paddle/phi/backends/gpu/cuda/cuda_graph_with_memory_pool.h"
 #include "paddle/phi/kernels/autotune/switch_autotune.h"
 #include "paddle/phi/kernels/gpudnn/conv_gpudnn_base.h"
@@ -224,7 +225,10 @@ struct SearchAlgorithmBase<ConvKind::kForward> {
     };
 
     // auto workspace_handle = dev_ctx.cudnn_workspace_handle();
-    auto workspace_handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+    // auto workspace_handle = GetDnnHandle(dev_ctx.stream(),
+    // dev_ctx.GetPlace());
+    auto workspace_handle = GetDnnWorkspaceHandle(
+        dev_ctx.stream(), &dev_ctx.GetAllocator(), dev_ctx.GetPlace());
 
     // auto handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
 
@@ -412,7 +416,10 @@ struct SearchAlgorithmBase<ConvKind::kBackwardData> {
     };
 
     // auto workspace_handle = dev_ctx.cudnn_workspace_handle();
-    auto workspace_handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+    // auto workspace_handle = GetDnnHandle(dev_ctx.stream(),
+    // dev_ctx.GetPlace());
+    auto workspace_handle = GetDnnWorkspaceHandle(
+        dev_ctx.stream(), &dev_ctx.GetAllocator(), dev_ctx.GetPlace());
     workspace_handle.RunFuncSync(
         cudnn_find_func, max_workspace_size, UseFixedWorkspace());
 
@@ -564,7 +571,11 @@ struct SearchAlgorithmBase<ConvKind::kBackwardFilter> {
     size_t workspace_size_limit =
         CalcWorkspaceLimitInBytes(UseFixedWorkspace());
     // auto workspace_handle = dev_ctx.cudnn_workspace_handle();
-    auto workspace_handle = GetDnnHandle(dev_ctx.stream(), dev_ctx.GetPlace());
+    // auto workspace_handle = GetDnnHandle(dev_ctx.stream(),
+    // dev_ctx.GetPlace());
+    auto workspace_handle = GetDnnWorkspaceHandle(
+        dev_ctx.stream(), &dev_ctx.GetAllocator(), dev_ctx.GetPlace());
+
     if (phi::backends::gpu::CudnnDataType<T>::type != CUDNN_DATA_HALF) {
       size_t max_workspace_size =
           GetMaxWorkspaceSize(args, workspace_size_limit);

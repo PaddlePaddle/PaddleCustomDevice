@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/lu_solve_grad_kernel_impl.h"
-#include "paddle/phi/backends/gpu/gpu_context.h"
-#include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/lu_solve_grad_kernel.h"
+// #include "kernels/impl/lu_solve_grad_kernel_impl.h"
+// #include "paddle/phi/backends/gpu/gpu_context.h"
+// #include "paddle/phi/core/kernel_registry.h"
+// #include "paddle/phi/kernels/lu_solve_grad_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(lu_solve_grad,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::LuSolveGradKernel,
-                          float,
-                          double,
-                          phi::dtype::complex<float>,
-                          phi::dtype::complex<double>) {}
+// PD_REGISTER_PLUGIN_KERNEL(lu_solve_grad,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::LuSolveGradKernel,
+//                           float,
+//                           double,
+//                           phi::dtype::complex<float>,
+//                           phi::dtype::complex<double>) {}

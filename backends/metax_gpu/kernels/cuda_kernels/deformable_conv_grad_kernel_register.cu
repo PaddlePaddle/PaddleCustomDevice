@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "kernels/impl/deformable_conv_grad_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_primitives.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/deformable_conv_grad_kernel.h"
+#include "paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h"
 
 namespace phi {
 
@@ -353,7 +353,7 @@ void FilterGradAddup(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_CUSTOM_KERNEL_REGISTER(deformable_conv_grad,
+PD_REGISTER_PLUGIN_KERNEL(deformable_conv_grad,
                           metax_gpu,
                           ALL_LAYOUT,
                           phi::DeformableConvGradKernel,

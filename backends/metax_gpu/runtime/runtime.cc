@@ -1262,9 +1262,9 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->init_eigen_device = InitEigenDevice;
   params->interface->destroy_eigen_device = DestroyEigenDevice;
 
-  // params->interface->is_float16_supported = IsFloat16Supported;
+  params->interface->is_float16_supported = IsFloat16Supported;
 
-  // params->interface->is_bfloat16_supported = IsBFloat16Supported;
+  params->interface->is_bfloat16_supported = IsBFloat16Supported;
 
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;

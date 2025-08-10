@@ -701,20 +701,7 @@ index c646e487d0..325122175c 100644
  
  #undef DECLARE_TYPE_FOR_GPU
  
-diff --git a/paddle/phi/kernels/funcs/sparse/convolution.h b/paddle/phi/kernels/funcs/sparse/convolution.h
-index a0ec750f5a..c28e35135e 100644
---- a/paddle/phi/kernels/funcs/sparse/convolution.h
-+++ b/paddle/phi/kernels/funcs/sparse/convolution.h
-@@ -18,7 +18,7 @@ limitations under the License. */
- #include "paddle/phi/core/kmap_cache.h"
- #include "paddle/phi/core/tensor_utils.h"
- #include "paddle/phi/kernels/empty_kernel.h"
--#include "paddle/phi/kernels/funcs/blas/blas.h"
-+#include "kernels/funcs/blas/blas.h"
 
- namespace phi {
- namespace funcs {
-ss
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
 index 45a29b4cff..8449e3d309 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h

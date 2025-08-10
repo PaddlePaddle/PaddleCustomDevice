@@ -16,14 +16,14 @@
 #include "paddle/phi/kernels/impl/pool_kernel_impl.h"
 #include "paddle/phi/kernels/pool_kernel.h"
 
-PD_CUSTOM_KERNEL_REGISTER(pool2d,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::Pool2dKernel,
-                          float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+// PD_CUSTOM_KERNEL_REGISTER(pool2d,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::Pool2dKernel,
+//                           float,
+//                           double,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(lp_pool2d,
                           metax_gpu,
                           ALL_LAYOUT,
@@ -43,14 +43,14 @@ PD_CUSTOM_KERNEL_REGISTER(max_pool2d_with_index,
   kernel->OutputAt(1).SetDataType(phi::CppTypeToDataType<int>::Type());
 }
 
-PD_CUSTOM_KERNEL_REGISTER(pool3d,
-                          metax_gpu,
-                          ALL_LAYOUT,
-                          phi::Pool3dKernel,
-                          float,
-                          double,
-                          phi::dtype::float16,
-                          phi::dtype::bfloat16) {}
+// PD_CUSTOM_KERNEL_REGISTER(pool3d,
+//                           metax_gpu,
+//                           ALL_LAYOUT,
+//                           phi::Pool3dKernel,
+//                           float,
+//                           double,
+//                           phi::dtype::float16,
+//                           phi::dtype::bfloat16) {}
 PD_CUSTOM_KERNEL_REGISTER(max_pool3d_with_index,
                           metax_gpu,
                           ALL_LAYOUT,

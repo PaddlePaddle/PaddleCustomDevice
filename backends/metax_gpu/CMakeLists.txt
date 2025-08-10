@@ -684,6 +684,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_rope_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_act_dequant_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/block_multi_head_attention_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_weighted_swiglu_act_quant_kernel.cu
@@ -716,6 +717,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_kernel.cc
   ${CMAKE_SOURCE_DIR}/kernels/funcs/blas/cublas.cc
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/cudnn.cc
+  ${CMAKE_SOURCE_DIR}/kernels/metax_context.cc
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/cross_entropy_grad_kernel_register.cu
   ${CMAKE_SOURCE_DIR}/kernels/layer_norm_kernel_register.cu
@@ -755,6 +757,8 @@ file(
   runtime/runtime.cc
   kernels/*.cc
   kernels/*.cu
+  kernels/gpudnn/*.cc
+  kernels/gpudnn/*.cu
   kernels/cuda_kernels/*.cc
   kernels/cuda_kernels/*.cu
   kernels/ernie_core/*.cu

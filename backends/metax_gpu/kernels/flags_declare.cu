@@ -35,6 +35,9 @@
  *       layer specification. Once you change the layer specifications
  *       (such as batch size, feature map size), it will search again.
  */
+
+static constexpr int kDefaultConvWorkspaceSizeLimitMB = 512;
+
 PHI_DEFINE_EXPORTED_bool(
     cudnn_exhaustive_search,
     false,

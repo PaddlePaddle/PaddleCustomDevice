@@ -31,7 +31,7 @@ fi
 echo "make_maca"
 cd build
 cmake_maca .. -DPython3_EXECUTABLE=$(which python3) -DWITH_GPU=ON
-make_maca -j8
+make_maca -j15
 
 echo "install whl"
 pip install dist/paddle_metax_gpu*.whl --force-reinstall

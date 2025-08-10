@@ -20,9 +20,7 @@
 #ifdef PADDLE_WITH_HIP
 #include "paddle/phi/kernels/gpudnn/conv_miopen_helper.h"
 #else
-// #include "paddle/phi/kernels/gpudnn/conv_cudnn_v7.h"
-#include "kernels/gpudnn/conv_cudnn_v7.h"
-
+#include "gpudnn/conv_cudnn_v7.h"
 #endif
 
 #include "paddle/phi/backends/dynload/cudnn.h"

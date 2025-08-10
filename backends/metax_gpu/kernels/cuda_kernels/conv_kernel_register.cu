@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if 0
 #include "kernels/impl/conv_kernel_impl.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -72,3 +72,4 @@ PD_REGISTER_PLUGIN_KERNEL(
 
 PD_REGISTER_PLUGIN_KERNEL(
     conv3d, metax_gpu, ALL_LAYOUT, phi::Conv3DKernel, float, double) {}
+#endif

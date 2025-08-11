@@ -787,3 +787,22 @@ index 8ec3cf2792..6f5460df00 100644
        return reinterpret_cast<Func>(p_##__name)(args...);            \
      }                                                                \
    };                                                                 \
+diff --git a/paddle/phi/kernels/funcs/fc_functor.cu b/paddle/phi/kernels/funcs/fc_functor.cu
+index bdfd7313af..546bd07d5e 100644
+--- a/paddle/phi/kernels/funcs/fc_functor.cu
++++ b/paddle/phi/kernels/funcs/fc_functor.cu
+@@ -16,12 +16,12 @@ limitations under the License. */
+ 
+ #include "paddle/phi/backends/all_context.h"
+ #include "paddle/phi/kernels/funcs/aligned_vector.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/fc_functor.h"
+ 
+ #include "paddle/phi/backends/gpu/gpu_launch_config.h"
+ #include "paddle/phi/core/dense_tensor.h"
+-#include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
++// #include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
+ #include "paddle/phi/kernels/funcs/quant_dequant.h"
+ #include "paddle/phi/kernels/matmul_kernel.h"
+ 

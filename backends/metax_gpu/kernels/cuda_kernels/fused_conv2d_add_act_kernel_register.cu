@@ -308,8 +308,7 @@ class CudnnConvDescManager {
       int groups,
       cudnnDataType_t dtype) {
     auto* desc = new phi::backends::gpu::ConvolutionDescriptor();
-    desc->set(
-        dtype, paddings, strides, dilations, phi::AllowTF32Cudnn(), groups);
+    desc->set(dtype, paddings, strides, dilations, true, groups);
     return desc;
   }
 
@@ -372,7 +371,6 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<T>(output);
   auto workspace_handle = GetDnnWorkspace(
       const_cast<Allocator*>(&(dev_ctx.GetAllocator())), dev_ctx.stream());
-
   exhaustive_search = FLAGS_cudnn_exhaustive_search || exhaustive_search;
   bool deterministic = FLAGS_cudnn_deterministic;
   PADDLE_ENFORCE_EQ(exhaustive_search && deterministic,
@@ -388,7 +386,6 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
                  static_cast<int64_t>(workspace_size_MB));
     workspace_size_limit = max_user_size * 1024 * 1024;
   }
-
   const bool channel_last = (data_format == "NHWC" || data_format == "NDHWC");
   // Choose NHWC or NCHW by data_format attr.
   auto compute_format = channel_last ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW;
@@ -404,7 +401,6 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
       common::vectorize<int>(filter.dims()),
       strides,
       compute_format);
-
   DenseTensor transformed_input;
   const int input_rank = input.dims().size();
   auto unsys_pad_process = [&](const std::vector<int>& new_input_shape_vec,
@@ -534,7 +530,6 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
               wks_bytes)));
     }
   };
-
   auto cudnn_cache_info = CudnnConvDescManager::Instance()->GetCudnnCacheInfo(
       common::vectorize<int>(transformed_input.dims()),
       common::vectorize<int>(filter.dims()),
@@ -549,7 +544,6 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
       compute_format,
       search_func,
       activation);
-
   auto x_desc = cudnn_cache_info->x_desc->desc();
   auto w_desc = cudnn_cache_info->w_desc->desc();
   auto b_desc = cudnn_cache_info->b_desc->desc();
@@ -559,66 +553,65 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
   auto algo = cudnn_cache_info->algo;
   auto workspace_size = cudnn_cache_info->workspace_size;
 
-  if ((activation == "identity") && (!residual.get_ptr())) {
-    // Only the CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM algo is
-    // enabled with CUDNN_ACTIVATION_IDENTITY in cuDNN lib.
-    // But test in some case, the speed is slower, change to use
-    // cudnnConvolutionForward and cudnnAddTensor
-    // ------------- cudnn conv forward and bias add ---------------------
-    ScalingParamType<T> alpha = 1.0f, beta = 0.0f;
-    auto cudnn_func = [&](void* cudnn_workspace) {
-      PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(
-          phi::dynload::cudnnConvolutionForward(handle,
-                                                &alpha,
-                                                x_desc,
-                                                transformed_input.data(),
-                                                w_desc,
-                                                filter.data(),
-                                                cudnn_conv_desc,
-                                                algo,
-                                                cudnn_workspace,
-                                                workspace_size,
-                                                &beta,
-                                                o_desc,
-                                                output->data())));
-    };
-    workspace_handle.RunFunc(cudnn_func, workspace_size);
-    PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<
-                                         C_Status>(phi::dynload::cudnnAddTensor(
-        handle, &alpha, b_desc, bias.data(), &alpha, o_desc, output->data())));
-  } else {
-    // Only the CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_​PRECOMP_GEMM algo is
-    // enabled with CUDNN_ACTIVATION_IDENTITY.
-    if (activation == "identity") {
-      algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-    }
-
-    ScalingParamType<T> alpha = 1.0f;
-    ScalingParamType<T> beta = residual.get_ptr() ? 1.0f : 0.0f;
-    auto cudnn_func = [&](void* cudnn_workspace) {
-      PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(
-          phi::dynload::cudnnConvolutionBiasActivationForward(
-              handle,
-              &alpha,
-              x_desc,
-              transformed_input.data(),
-              w_desc,
-              filter.data(),
-              cudnn_conv_desc,
-              algo,
-              cudnn_workspace,
-              workspace_size,
-              &beta,
-              o_desc,
-              residual.get_ptr() ? residual->data() : output->data(),
-              b_desc,
-              bias.data(),
-              act_desc,
-              o_desc,
-              output->data())));
-    };
-    workspace_handle.RunFunc(cudnn_func, workspace_size);
+  // if ((activation == "identity") && (!residual.get_ptr())) {
+  //   // Only the CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM algo is
+  //   // enabled with CUDNN_ACTIVATION_IDENTITY in cuDNN lib.
+  //   // But test in some case, the speed is slower, change to use
+  //   // cudnnConvolutionForward and cudnnAddTensor
+  //   // ------------- cudnn conv forward and bias add ---------------------
+  //   ScalingParamType<T> alpha = 1.0f, beta = 0.0f;
+  //   auto cudnn_func = [&](void* cudnn_workspace) {
+  //     PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(phi::dynload::cudnnConvolutionForward(handle,
+  //                                               &alpha,
+  //                                               x_desc,
+  //                                               transformed_input.data(),
+  //                                               w_desc,
+  //                                               filter.data(),
+  //                                               cudnn_conv_desc,
+  //                                               algo,
+  //                                               cudnn_workspace,
+  //                                               workspace_size,
+  //                                               &beta,
+  //                                               o_desc,
+  //                                               output->data()))
+  //         );
+  //   };
+  //   workspace_handle.RunFunc(cudnn_func, workspace_size);
+  //   PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(phi::dynload::cudnnAddTensor(
+  //       handle, &alpha, b_desc, bias.data(), &alpha, o_desc,
+  //       output->data())));
+  // } else {
+  // Only the CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_​PRECOMP_GEMM algo is
+  // enabled with CUDNN_ACTIVATION_IDENTITY.
+  if (activation == "identity") {
+    algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
   }
+  ScalingParamType<T> alpha = 1.0f;
+  ScalingParamType<T> beta = residual.get_ptr() ? 1.0f : 0.0f;
+  auto cudnn_func = [&](void* cudnn_workspace) {
+    PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(
+        phi::dynload::cudnnConvolutionBiasActivationForward(
+            handle,
+            &alpha,
+            x_desc,
+            transformed_input.data(),
+            w_desc,
+            filter.data(),
+            cudnn_conv_desc,
+            algo,
+            cudnn_workspace,
+            workspace_size,
+            &beta,
+            o_desc,
+            residual.get_ptr() ? residual->data() : output->data(),
+            b_desc,
+            bias.data(),
+            act_desc,
+            o_desc,
+            output->data())));
+  };
+  workspace_handle.RunFunc(cudnn_func, workspace_size);
+  // }
 
   if (!split_channels.empty()) {
     if (transformed_input.dims()[0] == 1 &&

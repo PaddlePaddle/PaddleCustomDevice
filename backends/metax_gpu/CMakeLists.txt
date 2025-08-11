@@ -267,6 +267,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rms_norm_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fc_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fc_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_layernorm_kernel.cu
   ${CMAKE_SOURCE_DIR}/kernels/gpudnn/soft.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/squared_l2_norm_kernel.cu
@@ -685,6 +686,8 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/context_pool.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/repeat_tensor2index_tensor.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_act_dequant_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/block_multi_head_attention_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_weighted_swiglu_act_quant_kernel.cu
@@ -730,15 +733,13 @@ list(
   REMOVE_ITEM
   CUDA_SRCS
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/gru_compute.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fc_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/matrix_solve.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/matrix_inverse.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/multihead_matmul_functor.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/softmax.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/weight_only_gemv.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/math/context_project.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fft.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/repeat_tensor2index_tensor.cu)
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/fft.cu)
 
 file(
   GLOB

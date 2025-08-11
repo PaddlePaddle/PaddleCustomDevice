@@ -1,7 +1,7 @@
-From 76e456a8fe536f6095a236ebb27c0463f32a9e4b Mon Sep 17 00:00:00 2001
+From ed3e134049155029178bfb612c7d221345bd8f89 Mon Sep 17 00:00:00 2001
 From: "tianyu.zhou" <tianyu.zhou@iluvatar.com>
 Date: Mon, 26 May 2025 14:21:47 +0800
-Subject: [PATCH] Adapt for Iluvatar 0723.
+Subject: [PATCH] Adapt for Iluvatar 0811.
 
 ---
  CMakeLists.txt                                |  2 +-
@@ -10,7 +10,7 @@ Subject: [PATCH] Adapt for Iluvatar 0723.
  .../fluid/platform/device/gpu/nccl_helper.h   |  2 +-
  paddle/phi/backends/dynload/cudnn.cc          |  4 +++
  paddle/phi/backends/dynload/cudnn.h           |  9 +++++++
- paddle/phi/backends/dynload/cusolver.h        |  2 --
+ paddle/phi/backends/dynload/cusolver.h        |  6 -----
  .../backends/gpu/cuda/cuda_device_function.h  |  4 +--
  paddle/phi/backends/gpu/cuda/cuda_graph.cc    |  4 +--
  paddle/phi/backends/gpu/cuda/cuda_graph.h     |  2 +-
@@ -22,6 +22,7 @@ Subject: [PATCH] Adapt for Iluvatar 0723.
  paddle/phi/core/distributed/nccl_tools.cc     |  2 +-
  paddle/phi/core/enforce.h                     |  6 ++++-
  paddle/phi/core/utils/data_type.h             |  2 +-
+ paddle/phi/kernels/funcs/activation_functor.h |  2 ++
  paddle/phi/kernels/funcs/affine_grid_utils.h  |  2 ++
  paddle/phi/kernels/funcs/segmented_array.h    |  8 ++++++
  paddle/phi/kernels/funcs/softmax_impl.h       |  1 +
@@ -35,10 +36,10 @@ Subject: [PATCH] Adapt for Iluvatar 0723.
  paddle/phi/kernels/squeeze_kernel.cc          |  2 ++
  paddle/phi/kernels/strided_slice_kernel.cc    |  2 ++
  paddle/phi/kernels/unsqueeze_kernel.cc        |  2 ++
- 31 files changed, 114 insertions(+), 34 deletions(-)
+ 32 files changed, 116 insertions(+), 38 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b2c4e6a650..c51f3df1f0 100755
+index 9c2a59d879..9dac2ecbf9 100755
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -63,7 +63,7 @@ option(WITH_IPU "Compile PaddlePaddle with Graphcore IPU" OFF)
@@ -125,10 +126,21 @@ index 7a5450c349..329fff1f73 100644
  }  // namespace phi
  
 diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
-index d580751fe4..42a261bdfd 100644
+index 86651fc8f1..42a261bdfd 100644
 --- a/paddle/phi/backends/dynload/cusolver.h
 +++ b/paddle/phi/backends/dynload/cusolver.h
-@@ -77,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
+@@ -46,10 +46,8 @@ extern void *cusolver_dso_handle;
+   __macro(cusolverDnSetStream);         \
+   __macro(cusolverDnSpotrf_bufferSize); \
+   __macro(cusolverDnDpotrf_bufferSize); \
+-  __macro(cusolverDnXpotrf_bufferSize); \
+   __macro(cusolverDnSpotrf);            \
+   __macro(cusolverDnDpotrf);            \
+-  __macro(cusolverDnXpotrf);            \
+   __macro(cusolverDnSpotrs);            \
+   __macro(cusolverDnDpotrs);            \
+   __macro(cusolverDnCpotrs);            \
+@@ -79,7 +77,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
    __macro(cusolverDnDgeqrf_bufferSize);   \
    __macro(cusolverDnCgeqrf_bufferSize);   \
    __macro(cusolverDnZgeqrf_bufferSize);   \
@@ -136,7 +148,7 @@ index d580751fe4..42a261bdfd 100644
    __macro(cusolverDnSorgqr_bufferSize);   \
    __macro(cusolverDnDorgqr_bufferSize);   \
    __macro(cusolverDnSormqr_bufferSize);   \
-@@ -106,7 +105,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
+@@ -108,7 +105,6 @@ CUSOLVER_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP);
    __macro(cusolverDnDgeqrf);              \
    __macro(cusolverDnCgeqrf);              \
    __macro(cusolverDnZgeqrf);              \
@@ -144,6 +156,15 @@ index d580751fe4..42a261bdfd 100644
    __macro(cusolverDnSorgqr);              \
    __macro(cusolverDnDorgqr);              \
    __macro(cusolverDnSormqr);              \
+@@ -122,8 +118,6 @@ CUSOLVER_ROUTINE_EACH_R1(DECLARE_DYNAMIC_LOAD_CUSOLVER_WRAP)
+ #if CUDA_VERSION >= 9020
+ #define CUSOLVER_ROUTINE_EACH_R2(__macro)      \
+   __macro(cusolverDnCreateSyevjInfo);          \
+-  __macro(cusolverDnCreateParams);             \
+-  __macro(cusolverDnDestroyParams);            \
+   __macro(cusolverDnSsyevj_bufferSize);        \
+   __macro(cusolverDnDsyevj_bufferSize);        \
+   __macro(cusolverDnCheevj_bufferSize);        \
 diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
 index 4ff2e528a9..956bac0c64 100644
 --- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
@@ -215,7 +236,7 @@ index 02753c0333..bcf435dfae 100644
      return CUDA_R_16BF;
  #endif
 diff --git a/paddle/phi/backends/gpu/cuda/cudnn_helper.h b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
-index 99b8fa120e..beba409fcc 100644
+index 28c3d14d37..5dc5f79178 100644
 --- a/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 +++ b/paddle/phi/backends/gpu/cuda/cudnn_helper.h
 @@ -125,7 +125,7 @@ class CudnnDataType<phi::dtype::float8_e4m3fn> {
@@ -390,6 +411,25 @@ index 1d20fa3173..fab2b90ed2 100644
    } else if (type == DataType::BFLOAT16) {
      return ncclBfloat16;
  #endif
+diff --git a/paddle/phi/kernels/funcs/activation_functor.h b/paddle/phi/kernels/funcs/activation_functor.h
+index fa55cd725f..f0e3f5b49c 100644
+--- a/paddle/phi/kernels/funcs/activation_functor.h
++++ b/paddle/phi/kernels/funcs/activation_functor.h
+@@ -3659,12 +3659,14 @@ struct CudaReciprocalFunctor<ComplexType<T>>
+       return ::isnan(real) || ::isnan(imag);
+     };
+     if (either_nan(x.real, x.imag) || both_inf(x.real, x.imag)) {
++#ifndef PADDLE_WITH_COREX
+       // If either is Nan or both are infinite, return {nan, nan}
+       if constexpr (std::is_same<T, float>::value) {
+         return ComplexType<T>(nanf(""), nanf(""));
+       } else if constexpr (std::is_same<T, double>::value) {
+         return ComplexType<T>(nan(""), nan(""));
+       }
++#endif
+     } else if (either_inf(x.real, x.imag)) {
+       // If either is Inf, return {0, 0}
+       return ComplexType<T>(static_cast<T>(0), static_cast<T>(0));
 diff --git a/paddle/phi/kernels/funcs/affine_grid_utils.h b/paddle/phi/kernels/funcs/affine_grid_utils.h
 index b973d75a9b..daeb4778c6 100644
 --- a/paddle/phi/kernels/funcs/affine_grid_utils.h
@@ -472,7 +512,7 @@ index 9d0d474d90..b1a12276d9 100644
                     GPU,
                     ALL_LAYOUT,
 diff --git a/paddle/phi/kernels/gpu/layer_norm_kernel.cu b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
-index 648bb6cee2..5b4cdd0505 100644
+index f621d5ed5b..909d28b62f 100644
 --- a/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 +++ b/paddle/phi/kernels/gpu/layer_norm_kernel.cu
 @@ -681,7 +681,7 @@ PD_REGISTER_KERNEL(layer_norm,

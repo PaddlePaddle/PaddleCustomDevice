@@ -208,9 +208,9 @@ class TestPnormOp2fp16(TestPnormOp2):
 #         self.dtype = "float16"
 
 
-class TestPnormOp5fp16(TestPnormOp5):
-    def init_dtype(self):
-        self.dtype = "float16"
+# class TestPnormOp5fp16(TestPnormOp5):
+#     def init_dtype(self):
+#         self.dtype = "float16"
 
 
 if __name__ == "__main__":

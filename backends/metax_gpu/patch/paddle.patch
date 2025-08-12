@@ -18,207 +18,19 @@ index cfada544d4..a690e97d74 100644
  endif()
  
  set(EIGEN_INCLUDE_DIR ${SOURCE_DIR})
-diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
-index ef8f922ffd..8a835ea53d 100644
---- a/paddle/phi/core/enforce.h
-+++ b/paddle/phi/core/enforce.h
-@@ -45,7 +45,9 @@ limitations under the License. */
- #endif
+diff --git a/paddle/fluid/platform/profiler/cupti_data_process.cc b/paddle/fluid/platform/profiler/cupti_data_process.cc
+index bff0f2bf70..9376b5781f 100644
+--- a/paddle/fluid/platform/profiler/cupti_data_process.cc
++++ b/paddle/fluid/platform/profiler/cupti_data_process.cc
+@@ -16,7 +16,7 @@
  
- #ifdef PADDLE_WITH_CUDA
--#include "paddle/phi/backends/dynload/cublas.h"
-+// #include "paddle/phi/backends/dynload/../../../../../cublas.h"
-+#include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
-+// #include "paddle/phi/backends/dynload/cublas.h"
- #include "paddle/phi/backends/dynload/cudnn.h"
- #include "paddle/phi/backends/dynload/curand.h"
- #include "paddle/phi/backends/dynload/cusolver.h"
-@@ -97,7 +99,7 @@ inline bool is_error(bool stat) { return !stat; }
+ #include <cstdio>
  
- void ThrowWarnInternal(const std::string& message);
- 
--#if defined(__CUDA_ARCH__)
-+#if defined(__CUDACC__)
- // For cuda, the assertions can affect performance and it is therefore
- // recommended to disable them in production code
- // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
-@@ -109,7 +111,7 @@ void ThrowWarnInternal(const std::string& message);
-              __LINE__,                                             \
-              #_IS_NOT_ERROR,                                       \
-              ##__VA_ARGS__);                                       \
--      asm("trap;");                                                \
-+      __builtin_trap();                                             \
-     }                                                              \
-   } while (0)
- #elif defined(__HIPCC__)
-@@ -749,4 +751,4 @@ inline void retry_sleep(unsigned millisecond) {
- 
- }  // namespace enforce
- using namespace enforce;  // NOLINT
--}  // namespace phi
-+}  // namespace phi
-\ No newline at end of file
-
-
-diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
-index 29fa252e96..4ae72b0935 100644
---- a/paddle/phi/kernels/gpu/gelu_funcs.h
-+++ b/paddle/phi/kernels/gpu/gelu_funcs.h
-@@ -29,13 +29,13 @@ namespace phi {
- #if defined(__NVCC__) || defined(__HIPCC__)
- template <bool FastMode>
- static __device__ __forceinline__ float FP32FastTanh(float x) {
--#if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
--  if (FastMode) {
--    float y;
--    asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
--    return y;
--  }
--#endif
-+// #if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
-+//   if (FastMode) {
-+//     float y;
-+//     asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
-+//     return y;
-+//   }
-+// #endif
-   return tanhf(x);
- }
- 
-diff --git a/third_party/openblas b/third_party/openblas
-index 5ef8b19646..5f36f18148 160000
---- a/third_party/openblas
-+++ b/third_party/openblas
-@@ -1 +1 @@
--Subproject commit 5ef8b1964658f9cb6a6324a06f6a1a022609b0c5
-+Subproject commit 5f36f18148603facb6c3540e673610d6b24cbfbb
-diff --git a/third_party/yaml-cpp b/third_party/yaml-cpp
---- a/third_party/yaml-cpp
-+++ b/third_party/yaml-cpp
-@@ -1 +1 @@
--Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91
-+Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91-dirty
-
-diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-index 4ff2e528a9..81421c8ca1 100644
---- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-+++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
-@@ -1,3 +1,4 @@
-+// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.   
- /* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
- 
- Licensed under the Apache License, Version 2.0 (the "License");
-@@ -25,7 +26,7 @@ namespace phi {
- namespace backends {
- namespace gpu {
- 
--#define FULL_WARP_MASK 0xFFFFFFFF
-+#define FULL_WARP_MASK 0xFFFFFFFFFFFFFFFFULL
- #define CREATE_SHFL_MASK(mask, predicate) \
-   mask = __ballot_sync(FULL_WARP_MASK, (predicate))
- 
-@@ -45,12 +46,12 @@ namespace gpu {
- 
- template <typename T>
- __forceinline__ __device__ T
--CudaShuffleDownSync(unsigned mask, T val, int delta, int width = warpSize) {
-+CudaShuffleDownSync(unsigned long long mask, T val, int delta, int width = warpSize) {
-   return __shfl_down_sync(mask, val, static_cast<unsigned>(delta), width);
- }
- 
- template <typename T>
--__forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
-+__forceinline__ __device__ T CudaShuffleXorSync(unsigned long long mask,
-                                                 T val,
-                                                 int width = warpSize) {
-   return __shfl_xor_sync(mask, val, width);
-@@ -58,14 +59,14 @@ __forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
- 
- template <>
- __forceinline__ __device__ phi::dtype::float16 CudaShuffleDownSync(
--    unsigned mask, phi::dtype::float16 val, int delta, int width) {
-+    unsigned long long mask, phi::dtype::float16 val, int delta, int width) {
-   return phi::dtype::float16(__shfl_down_sync(
-       mask, val.to_half(), static_cast<unsigned>(delta), width));
- }
- 
- template <>
- __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
--    unsigned mask, phi::dtype::bfloat16 val, int delta, int width) {
-+    unsigned long long mask, phi::dtype::bfloat16 val, int delta, int width) {
- #if defined(PADDLE_CUDA_BF16)
-   return phi::dtype::bfloat16(__shfl_down_sync(
-       mask, val.to_nv_bfloat16(), static_cast<unsigned>(delta), width));
-@@ -77,7 +78,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
- 
- template <>
- __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
--    unsigned mask, phi::dtype::complex<float> val, int delta, int width) {
-+    unsigned long long mask, phi::dtype::complex<float> val, int delta, int width) {
-   float real = static_cast<float>(__shfl_down_sync(
-       mask, static_cast<float>(val.real), static_cast<unsigned>(delta), width));
-   float imag = static_cast<float>(__shfl_down_sync(
-@@ -87,7 +88,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
- 
- template <>
- __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
--    unsigned mask, phi::dtype::complex<double> val, int delta, int width) {
-+    unsigned long long mask, phi::dtype::complex<double> val, int delta, int width) {
-   double real =
-       static_cast<double>(__shfl_down_sync(mask,
-                                            static_cast<double>(val.real),
-@@ -103,13 +104,13 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
- 
- template <>
- __forceinline__ __device__ phi::dtype::float16 CudaShuffleXorSync(
--    unsigned mask, phi::dtype::float16 val, int width) {
-+    unsigned long long mask, phi::dtype::float16 val, int width) {
-   return phi::dtype::float16(__shfl_xor_sync(mask, val.to_half(), width));
- }
- 
- template <>
- __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
--    unsigned mask, phi::dtype::bfloat16 val, int width) {
-+    unsigned long long mask, phi::dtype::bfloat16 val, int width) {
- #if defined(PADDLE_CUDA_BF16)
-   return phi::dtype::bfloat16(
-       __shfl_xor_sync(mask, val.to_nv_bfloat16(), width));
-@@ -121,7 +122,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
- 
- template <>
- __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
--    unsigned mask, phi::dtype::complex<float> val, int width) {
-+    unsigned long long mask, phi::dtype::complex<float> val, int width) {
-   float real = static_cast<float>(
-       __shfl_xor_sync(mask, static_cast<float>(val.real), width));
-   float imag = static_cast<float>(
-@@ -131,7 +132,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
- 
- template <>
- __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
--    unsigned mask, phi::dtype::complex<double> val, int width) {
-+    unsigned long long mask, phi::dtype::complex<double> val, int width) {
-   double real = static_cast<double>(
-       __shfl_xor_sync(mask, static_cast<double>(val.real), width));
-   double imag = static_cast<double>(
-@@ -141,7 +142,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
- 
- template <typename T>
- __forceinline__ __device__ T
--CudaShuffleSync(unsigned mask, T val, int src_line, int width = 32) {
-+CudaShuffleSync(unsigned long long mask, T val, int src_line, int width = 32) {
-   return __shfl_sync(mask, val, src_line, width);
- }
- 
-@@ -160,7 +161,7 @@ __device__ T reduceSum(T val, int tid, int len) {
-   // but most card's warp size is 32.
-   const int warpSize = 32;
-   __shared__ T shm[warpSize];
--  unsigned mask = 0u;
-+  unsigned long long mask = 0ull;
-   CREATE_SHFL_MASK(mask, tid < len);
- 
-   for (int offset = warpSize / 2; offset > 0; offset /= 2)
+-#include "paddle/fluid/platform/enforce.h"
++// #include "paddle/fluid/platform/enforce.h"
+ #include "paddle/phi/core/os_info.h"
+ #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
+ #include "paddle/phi/core/platform/profiler/utils.h"
 diff --git a/paddle/phi/backends/dynload/cudnn.h b/paddle/phi/backends/dynload/cudnn.h
 index 7a5450c349..95de89ced2 100644
 --- a/paddle/phi/backends/dynload/cudnn.h
@@ -348,8 +160,64 @@ index 7a5450c349..95de89ced2 100644
 -#endif
  }  // namespace dynload
  }  // namespace phi
-
-
+ 
+diff --git a/paddle/phi/backends/dynload/cupti.h b/paddle/phi/backends/dynload/cupti.h
+index 59e92955c9..d2f8c2da15 100644
+--- a/paddle/phi/backends/dynload/cupti.h
++++ b/paddle/phi/backends/dynload/cupti.h
+@@ -24,8 +24,8 @@ limitations under the License. */
+ #include "paddle/phi/backends/dynload/dynamic_loader.h"
+ #include "paddle/phi/common/port.h"
+ 
+-namespace phi {
+-namespace dynload {
++// namespace phi {
++// namespace dynload {
+ 
+ extern std::once_flag cupti_dso_flag;
+ extern void *cupti_dso_handle;
+@@ -71,7 +71,7 @@ extern void *cupti_dso_handle;
+ CUPTI_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUPTI_WRAP);
+ 
+ #undef DECLARE_DYNAMIC_LOAD_CUPTI_WRAP
+-}  // namespace dynload
+-}  // namespace phi
++// }  // namespace dynload
++// }  // namespace phi
+ 
+-#endif  // PADDLE_WITH_CUPTI
++#endif  // PADDLE_WITH_CUPTI
+\ No newline at end of file
+diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
+index 86651fc8f1..7c9b122a17 100644
+--- a/paddle/phi/backends/dynload/cusolver.h
++++ b/paddle/phi/backends/dynload/cusolver.h
+@@ -34,7 +34,9 @@ extern void *cusolver_dso_handle;
+       std::call_once(cusolver_dso_flag, []() {                       \
+         cusolver_dso_handle = phi::dynload::GetCusolverDsoHandle();  \
+       });                                                            \
+-      static void *p_##__name = dlsym(cusolver_dso_handle, #__name); \
++      std::string replaced_name = #__name;                                  \
++      replaced_name =  replaced_name.replace(0,2,"mc");          \
++      static void* p_##__name = dlsym(cusolver_dso_handle, replaced_name.c_str());    \
+       return reinterpret_cast<cusolverFunc>(p_##__name)(args...);    \
+     }                                                                \
+   };                                                                 \
+diff --git a/paddle/phi/backends/dynload/cusparse.h b/paddle/phi/backends/dynload/cusparse.h
+index 8ec3cf2792..6f5460df00 100644
+--- a/paddle/phi/backends/dynload/cusparse.h
++++ b/paddle/phi/backends/dynload/cusparse.h
+@@ -34,7 +34,9 @@ extern void *cusparse_dso_handle;
+       std::call_once(cusparse_dso_flag, []() {                       \
+         cusparse_dso_handle = phi::dynload::GetCusparseDsoHandle();  \
+       });                                                            \
+-      static void *p_##__name = dlsym(cusparse_dso_handle, #__name); \
++      std::string replaced_name = #__name;                                  \
++      replaced_name =  replaced_name.replace(0,2,"mc");          \
++      static void* p_##__name = dlsym(cusparse_dso_handle, replaced_name.c_str());    \
+       return reinterpret_cast<Func>(p_##__name)(args...);            \
+     }                                                                \
+   };                                                                 \
 diff --git a/paddle/phi/backends/dynload/nvjpeg.h b/paddle/phi/backends/dynload/nvjpeg.h
 index c5309e7e11..3328571380 100644
 --- a/paddle/phi/backends/dynload/nvjpeg.h
@@ -365,8 +233,227 @@ index c5309e7e11..3328571380 100644
        return reinterpret_cast<nvjpegFunc>(p_##__name)(args...);    \
      }                                                              \
    };                                                               \
+diff --git a/paddle/phi/backends/gpu/cuda/cuda_device_function.h b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
+index 4ff2e528a9..81421c8ca1 100644
+--- a/paddle/phi/backends/gpu/cuda/cuda_device_function.h
++++ b/paddle/phi/backends/gpu/cuda/cuda_device_function.h
+@@ -1,3 +1,4 @@
++// 2024 - Modified by MetaX Integrated Circuits (Shanghai) Co., Ltd. All Rights Reserved.   
+ /* Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+@@ -25,7 +26,7 @@ namespace phi {
+ namespace backends {
+ namespace gpu {
+ 
+-#define FULL_WARP_MASK 0xFFFFFFFF
++#define FULL_WARP_MASK 0xFFFFFFFFFFFFFFFFULL
+ #define CREATE_SHFL_MASK(mask, predicate) \
+   mask = __ballot_sync(FULL_WARP_MASK, (predicate))
+ 
+@@ -45,12 +46,12 @@ namespace gpu {
+ 
+ template <typename T>
+ __forceinline__ __device__ T
+-CudaShuffleDownSync(unsigned mask, T val, int delta, int width = warpSize) {
++CudaShuffleDownSync(unsigned long long mask, T val, int delta, int width = warpSize) {
+   return __shfl_down_sync(mask, val, static_cast<unsigned>(delta), width);
+ }
+ 
+ template <typename T>
+-__forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
++__forceinline__ __device__ T CudaShuffleXorSync(unsigned long long mask,
+                                                 T val,
+                                                 int width = warpSize) {
+   return __shfl_xor_sync(mask, val, width);
+@@ -58,14 +59,14 @@ __forceinline__ __device__ T CudaShuffleXorSync(unsigned mask,
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::float16 CudaShuffleDownSync(
+-    unsigned mask, phi::dtype::float16 val, int delta, int width) {
++    unsigned long long mask, phi::dtype::float16 val, int delta, int width) {
+   return phi::dtype::float16(__shfl_down_sync(
+       mask, val.to_half(), static_cast<unsigned>(delta), width));
+ }
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
+-    unsigned mask, phi::dtype::bfloat16 val, int delta, int width) {
++    unsigned long long mask, phi::dtype::bfloat16 val, int delta, int width) {
+ #if defined(PADDLE_CUDA_BF16)
+   return phi::dtype::bfloat16(__shfl_down_sync(
+       mask, val.to_nv_bfloat16(), static_cast<unsigned>(delta), width));
+@@ -77,7 +78,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleDownSync(
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
+-    unsigned mask, phi::dtype::complex<float> val, int delta, int width) {
++    unsigned long long mask, phi::dtype::complex<float> val, int delta, int width) {
+   float real = static_cast<float>(__shfl_down_sync(
+       mask, static_cast<float>(val.real), static_cast<unsigned>(delta), width));
+   float imag = static_cast<float>(__shfl_down_sync(
+@@ -87,7 +88,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleDownSync(
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
+-    unsigned mask, phi::dtype::complex<double> val, int delta, int width) {
++    unsigned long long mask, phi::dtype::complex<double> val, int delta, int width) {
+   double real =
+       static_cast<double>(__shfl_down_sync(mask,
+                                            static_cast<double>(val.real),
+@@ -103,13 +104,13 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleDownSync(
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::float16 CudaShuffleXorSync(
+-    unsigned mask, phi::dtype::float16 val, int width) {
++    unsigned long long mask, phi::dtype::float16 val, int width) {
+   return phi::dtype::float16(__shfl_xor_sync(mask, val.to_half(), width));
+ }
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
+-    unsigned mask, phi::dtype::bfloat16 val, int width) {
++    unsigned long long mask, phi::dtype::bfloat16 val, int width) {
+ #if defined(PADDLE_CUDA_BF16)
+   return phi::dtype::bfloat16(
+       __shfl_xor_sync(mask, val.to_nv_bfloat16(), width));
+@@ -121,7 +122,7 @@ __forceinline__ __device__ phi::dtype::bfloat16 CudaShuffleXorSync(
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
+-    unsigned mask, phi::dtype::complex<float> val, int width) {
++    unsigned long long mask, phi::dtype::complex<float> val, int width) {
+   float real = static_cast<float>(
+       __shfl_xor_sync(mask, static_cast<float>(val.real), width));
+   float imag = static_cast<float>(
+@@ -131,7 +132,7 @@ __forceinline__ __device__ phi::dtype::complex<float> CudaShuffleXorSync(
+ 
+ template <>
+ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
+-    unsigned mask, phi::dtype::complex<double> val, int width) {
++    unsigned long long mask, phi::dtype::complex<double> val, int width) {
+   double real = static_cast<double>(
+       __shfl_xor_sync(mask, static_cast<double>(val.real), width));
+   double imag = static_cast<double>(
+@@ -141,7 +142,7 @@ __forceinline__ __device__ phi::dtype::complex<double> CudaShuffleXorSync(
+ 
+ template <typename T>
+ __forceinline__ __device__ T
+-CudaShuffleSync(unsigned mask, T val, int src_line, int width = 32) {
++CudaShuffleSync(unsigned long long mask, T val, int src_line, int width = 32) {
+   return __shfl_sync(mask, val, src_line, width);
+ }
+ 
+@@ -160,7 +161,7 @@ __device__ T reduceSum(T val, int tid, int len) {
+   // but most card's warp size is 32.
+   const int warpSize = 32;
+   __shared__ T shm[warpSize];
+-  unsigned mask = 0u;
++  unsigned long long mask = 0ull;
+   CREATE_SHFL_MASK(mask, tid < len);
+ 
+   for (int offset = warpSize / 2; offset > 0; offset /= 2)
+diff --git a/paddle/phi/core/enforce.h b/paddle/phi/core/enforce.h
+index 95f1d58c64..c4c66edc08 100644
+--- a/paddle/phi/core/enforce.h
++++ b/paddle/phi/core/enforce.h
+@@ -45,7 +45,9 @@ limitations under the License. */
+ #endif
+ 
+ #ifdef PADDLE_WITH_CUDA
+-#include "paddle/phi/backends/dynload/cublas.h"
++// #include "paddle/phi/backends/dynload/../../../../../cublas.h"
++#include "../backends/metax_gpu/kernels/funcs/blas/cublas.h"
++// #include "paddle/phi/backends/dynload/cublas.h"
+ #include "paddle/phi/backends/dynload/cudnn.h"
+ #include "paddle/phi/backends/dynload/curand.h"
+ #include "paddle/phi/backends/dynload/cusolver.h"
+@@ -97,7 +99,7 @@ inline bool is_error(bool stat) { return !stat; }
+ 
+ void ThrowWarnInternal(const std::string& message);
+ 
+-#if defined(__CUDA_ARCH__)
++#if defined(__CUDACC__)
+ // For cuda, the assertions can affect performance and it is therefore
+ // recommended to disable them in production code
+ // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#assertion
+@@ -109,7 +111,7 @@ void ThrowWarnInternal(const std::string& message);
+              __LINE__,                                             \
+              #_IS_NOT_ERROR,                                       \
+              ##__VA_ARGS__);                                       \
+-      asm("trap;");                                                \
++      __builtin_trap();                                             \
+     }                                                              \
+   } while (0)
+ #elif defined(__HIPCC__)
+@@ -757,4 +759,4 @@ inline void retry_sleep(unsigned millisecond) {
+ 
+ }  // namespace enforce
+ using namespace enforce;  // NOLINT
+-}  // namespace phi
++}  // namespace phi
+\ No newline at end of file
+diff --git a/paddle/phi/core/platform/device/gpu/gpu_types.h b/paddle/phi/core/platform/device/gpu/gpu_types.h
+index c646e487d0..325122175c 100644
+--- a/paddle/phi/core/platform/device/gpu/gpu_types.h
++++ b/paddle/phi/core/platform/device/gpu/gpu_types.h
+@@ -25,8 +25,9 @@
+ #else
+ #include <cuda_runtime.h>
+ 
+-#include "paddle/phi/backends/dynload/cublas.h"
+-#include "paddle/phi/backends/dynload/cublasLt.h"
++// #include "paddle/phi/backends/dynload/cublas.h"
++#include "kernels/funcs/blas/cublas.h"
++// #include "paddle/phi/backends/dynload/cublasLt.h"
+ #include "paddle/phi/backends/dynload/cudnn.h"
+ #endif
+ 
+@@ -90,7 +91,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
+ 
+ // TODO(Ming Huang): Since there is no blasLt handler,
+ // use rocblas_handle for workaround.
+-DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
++// DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
+ 
+ #undef DECLARE_TYPE_FOR_GPU
+ 
+diff --git a/paddle/phi/core/platform/device_context.h b/paddle/phi/core/platform/device_context.h
+index d0526a99bd..f2db6354da 100644
+--- a/paddle/phi/core/platform/device_context.h
++++ b/paddle/phi/core/platform/device_context.h
+@@ -25,8 +25,8 @@ limitations under the License. */
+ #include "paddle/phi/core/platform/device/gpu/gpu_types.h"
+ #include "paddle/phi/core/platform/device_type.h"
+ #ifdef PADDLE_WITH_CUDA
+-#include "paddle/phi/backends/dynload/cublas.h"
+-#include "paddle/phi/backends/dynload/cublasLt.h"
++#include "kernels/funcs/blas/cublas.h"
++#include "kernels/funcs/blas/cublasLt.h"
+ #include "paddle/phi/backends/dynload/cudnn.h"
+ #include "paddle/phi/backends/dynload/cusolver.h"
+ #include "paddle/phi/backends/dynload/cusparse.h"
+diff --git a/paddle/phi/kernels/funcs/fc_functor.cu b/paddle/phi/kernels/funcs/fc_functor.cu
+index bdfd7313af..546bd07d5e 100644
+--- a/paddle/phi/kernels/funcs/fc_functor.cu
++++ b/paddle/phi/kernels/funcs/fc_functor.cu
+@@ -16,12 +16,12 @@ limitations under the License. */
+ 
+ #include "paddle/phi/backends/all_context.h"
+ #include "paddle/phi/kernels/funcs/aligned_vector.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/fc_functor.h"
+ 
+ #include "paddle/phi/backends/gpu/gpu_launch_config.h"
+ #include "paddle/phi/core/dense_tensor.h"
+-#include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
++// #include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
+ #include "paddle/phi/kernels/funcs/quant_dequant.h"
+ #include "paddle/phi/kernels/matmul_kernel.h"
+ 
 diff --git a/paddle/phi/kernels/funcs/top_k_function_cuda.h b/paddle/phi/kernels/funcs/top_k_function_cuda.h
-index 8a9bc0fc2f..dc3917ce5c 100644
+index dc7935423c..84896c2214 100644
 --- a/paddle/phi/kernels/funcs/top_k_function_cuda.h
 +++ b/paddle/phi/kernels/funcs/top_k_function_cuda.h
 @@ -32,11 +32,11 @@ limitations under the License. */
@@ -625,7 +712,7 @@ index 8a9bc0fc2f..dc3917ce5c 100644
    T kth_value = static_cast<T>(0);
 -  RadixSearch<T, RadixTypeConfig<T>::RadixType, IndexType, false>(
 +  // RadixSearch<T, RadixTypeConfig<T>::RadixType, IndexType, false>(
-+  RadixSearch<T, typename RadixTypeConfig<T>::RadixType, false>(
++  RadixSearch<T, typename RadixTypeConfig<T>::RadixType, IndexType, false>(
        cur_input, k, num_cols, shared_mem, &kth_value);
  
    __shared__ int64_t block_min_idx;
@@ -634,86 +721,18 @@ index 8a9bc0fc2f..dc3917ce5c 100644
  }  // namespace funcs
  }  // namespace phi
 +//
-diff --git a/paddle/fluid/platform/profiler/cupti_data_process.cc b/paddle/fluid/platform/profiler/cupti_data_process.cc
-index bff0f2bf70..9376b5781f 100644
---- a/paddle/fluid/platform/profiler/cupti_data_process.cc
-+++ b/paddle/fluid/platform/profiler/cupti_data_process.cc
-@@ -16,7 +16,7 @@
-
- #include <cstdio>
-
--#include "paddle/fluid/platform/enforce.h"
-+// #include "paddle/fluid/platform/enforce.h"
- #include "paddle/phi/core/os_info.h"
- #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
- #include "paddle/phi/core/platform/profiler/utils.h"
-
-diff --git a/paddle/phi/backends/dynload/cupti.h b/paddle/phi/backends/dynload/cupti.h
-index 59e92955c9..d2f8c2da15 100644
---- a/paddle/phi/backends/dynload/cupti.h
-+++ b/paddle/phi/backends/dynload/cupti.h
-@@ -24,8 +24,8 @@ limitations under the License. */
- #include "paddle/phi/backends/dynload/dynamic_loader.h"
- #include "paddle/phi/common/port.h"
-
--namespace phi {
--namespace dynload {
-+// namespace phi {
-+// namespace dynload {
-
- extern std::once_flag cupti_dso_flag;
- extern void *cupti_dso_handle;
-@@ -71,7 +71,7 @@ extern void *cupti_dso_handle;
- CUPTI_ROUTINE_EACH(DECLARE_DYNAMIC_LOAD_CUPTI_WRAP);
-
- #undef DECLARE_DYNAMIC_LOAD_CUPTI_WRAP
--}  // namespace dynload
--}  // namespace phi
-+// }  // namespace dynload
-+// }  // namespace phi
-
--#endif  // PADDLE_WITH_CUPTI
-+#endif  // PADDLE_WITH_CUPTI
-\ No newline at end of file
-
-diff --git a/paddle/phi/core/platform/device/gpu/gpu_types.h b/paddle/phi/core/platform/device/gpu/gpu_types.h
-index c646e487d0..325122175c 100644
---- a/paddle/phi/core/platform/device/gpu/gpu_types.h
-+++ b/paddle/phi/core/platform/device/gpu/gpu_types.h
-@@ -25,8 +25,9 @@
- #else
- #include <cuda_runtime.h>
- 
--#include "paddle/phi/backends/dynload/cublas.h"
--#include "paddle/phi/backends/dynload/cublasLt.h"
-+// #include "paddle/phi/backends/dynload/cublas.h"
-+#include "kernels/funcs/blas/cublas.h"
-+// #include "paddle/phi/backends/dynload/cublasLt.h"
- #include "paddle/phi/backends/dynload/cudnn.h"
- #endif
- 
-@@ -90,7 +91,7 @@ DECLARE_TYPE_FOR_GPU(gpuStreamCaptureMode,
- 
- // TODO(Ming Huang): Since there is no blasLt handler,
- // use rocblas_handle for workaround.
--DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
-+// DECLARE_TYPE_FOR_GPU(blasLtHandle_t, cublasLtHandle_t, rocblas_handle);
- 
- #undef DECLARE_TYPE_FOR_GPU
- 
-
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
 index 45a29b4cff..8449e3d309 100644
 --- a/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
 +++ b/paddle/phi/kernels/fusion/gpu/fused_dropout_helper.h
 @@ -15,7 +15,7 @@
  #pragma once
-
+ 
  #if defined(PADDLE_WITH_CUDA)
 -#include "paddle/phi/backends/dynload/cublasLt.h"
 +// #include "paddle/phi/backends/dynload/cublasLt.h"
  #endif
-
+ 
  #include "glog/logging.h"
 diff --git a/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h b/paddle/phi/kernels/fusion/gpu/fused_layernorm_residual_dropout_bias.h
 index 7d05bcb654..c79cdadabc 100644
@@ -740,7 +759,7 @@ index ad04265bd6..59481d0e6a 100644
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
 +#include "kernels/metax_kernel/mmha_util.cu.h"
-
+ 
  namespace phi {
  namespace fusion {
 diff --git a/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu b/paddle/phi/kernels/fusion/gpu/qkv_unpack_mha_kernel.cu
@@ -753,56 +772,123 @@ index 148d72ca9c..5da3461ebf 100644
  #include "paddle/phi/kernels/funcs/aligned_vector.h"
 -#include "paddle/phi/kernels/fusion/gpu/mmha_util.cu.h"
 +#include "kernels/metax_kernel/mmha_util.cu.h"
-
+ 
  namespace phi {
  namespace fusion {
-diff --git a/paddle/phi/backends/dynload/cusolver.h b/paddle/phi/backends/dynload/cusolver.h
-index d580751fe4..712ea3bfc0 100644
---- a/paddle/phi/backends/dynload/cusolver.h
-+++ b/paddle/phi/backends/dynload/cusolver.h
-@@ -34,7 +34,9 @@ extern void *cusolver_dso_handle;
-       std::call_once(cusolver_dso_flag, []() {                       \
-         cusolver_dso_handle = phi::dynload::GetCusolverDsoHandle();  \
-       });                                                            \
--      static void *p_##__name = dlsym(cusolver_dso_handle, #__name); \
-+      std::string replaced_name = #__name;                                  \
-+      replaced_name =  replaced_name.replace(0,2,"mc");          \
-+      static void* p_##__name = dlsym(cusolver_dso_handle, replaced_name.c_str());    \
-       return reinterpret_cast<cusolverFunc>(p_##__name)(args...);    \
-     }                                                                \
-   };                                                                 \
-
-diff --git a/paddle/phi/backends/dynload/cusparse.h b/paddle/phi/backends/dynload/cusparse.h
-index 8ec3cf2792..6f5460df00 100644
---- a/paddle/phi/backends/dynload/cusparse.h
-+++ b/paddle/phi/backends/dynload/cusparse.h
-@@ -34,7 +34,9 @@ extern void *cusparse_dso_handle;
-       std::call_once(cusparse_dso_flag, []() {                       \
-         cusparse_dso_handle = phi::dynload::GetCusparseDsoHandle();  \
-       });                                                            \
--      static void *p_##__name = dlsym(cusparse_dso_handle, #__name); \
-+      std::string replaced_name = #__name;                                  \
-+      replaced_name =  replaced_name.replace(0,2,"mc");          \
-+      static void* p_##__name = dlsym(cusparse_dso_handle, replaced_name.c_str());    \
-       return reinterpret_cast<Func>(p_##__name)(args...);            \
-     }                                                                \
-   };                                                                 \
-diff --git a/paddle/phi/kernels/funcs/fc_functor.cu b/paddle/phi/kernels/funcs/fc_functor.cu
-index bdfd7313af..546bd07d5e 100644
---- a/paddle/phi/kernels/funcs/fc_functor.cu
-+++ b/paddle/phi/kernels/funcs/fc_functor.cu
-@@ -16,12 +16,12 @@ limitations under the License. */
+diff --git a/paddle/phi/kernels/gpu/gelu_funcs.h b/paddle/phi/kernels/gpu/gelu_funcs.h
+index 29fa252e96..4ae72b0935 100644
+--- a/paddle/phi/kernels/gpu/gelu_funcs.h
++++ b/paddle/phi/kernels/gpu/gelu_funcs.h
+@@ -29,13 +29,13 @@ namespace phi {
+ #if defined(__NVCC__) || defined(__HIPCC__)
+ template <bool FastMode>
+ static __device__ __forceinline__ float FP32FastTanh(float x) {
+-#if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
+-  if (FastMode) {
+-    float y;
+-    asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
+-    return y;
+-  }
+-#endif
++// #if __CUDA_ARCH__ >= 750 && CUDA_VERSION >= 11000
++//   if (FastMode) {
++//     float y;
++//     asm("tanh.approx.f32 %0,%1; \n\t" : "=f"(y) : "f"(x));
++//     return y;
++//   }
++// #endif
+   return tanhf(x);
+ }
  
- #include "paddle/phi/backends/all_context.h"
- #include "paddle/phi/kernels/funcs/aligned_vector.h"
+diff --git a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h b/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
+index 06fff0dd58..973049105f 100644
+--- a/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
++++ b/paddle/phi/kernels/impl/baddbmm_grad_kernel_impl.h
+@@ -19,7 +19,7 @@ limitations under the License. */
+ 
+ #include "paddle/phi/common/amp_type_traits.h"
+ #include "paddle/phi/kernels/baddbmm_grad_kernel.h"
 -#include "paddle/phi/kernels/funcs/blas/blas.h"
 +#include "kernels/funcs/blas/blas.h"
- #include "paddle/phi/kernels/funcs/fc_functor.h"
- 
- #include "paddle/phi/backends/gpu/gpu_launch_config.h"
+ #include "paddle/phi/kernels/funcs/eigen/common.h"
+ #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
+ #include "paddle/phi/kernels/funcs/for_range.h"
+diff --git a/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h b/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
+index 4459a931da..837c8682b8 100644
+--- a/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
++++ b/paddle/phi/kernels/impl/deformable_conv_grad_kernel_impl.h
+@@ -18,7 +18,7 @@
  #include "paddle/phi/core/dense_tensor.h"
--#include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
-+// #include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
- #include "paddle/phi/kernels/funcs/quant_dequant.h"
- #include "paddle/phi/kernels/matmul_kernel.h"
+ #include "paddle/phi/kernels/empty_kernel.h"
+ #include "paddle/phi/kernels/full_kernel.h"
+-#include "paddle/phi/kernels/funcs/blas/blas.h"
++#include "kernels/funcs/blas/blas.h"
+ #include "paddle/phi/kernels/funcs/deformable_conv_functor.h"
  
+ namespace phi {
+diff --git a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
+index e6b3960f6d..564125f1f6 100644
+--- a/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
++++ b/paddle/phi/kernels/impl/gammaincc_kernel_impl.h
+@@ -56,8 +56,8 @@ HOSTDEVICE T igam(const T a, const T x) {
+ 
+ template <typename T>
+ HOSTDEVICE T igamc(const T a, const T x) {
+-  static T big = 4.503599627370496e15;
+-  static T biginv = 2.22044604925031308085e-16;
++  const static T big = 4.503599627370496e15;
++  const static T biginv = 2.22044604925031308085e-16;
+ 
+   if ((x <= T{0}) || (a <= T{0})) return (T{1.0});
+ 
+diff --git a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
+index 410fb3c560..009ce03440 100644
+--- a/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
++++ b/paddle/phi/kernels/impl/gammaln_grad_kernel_impl.h
+@@ -54,7 +54,7 @@ HOSTDEVICE T digamma_positive_domain(T x) {
+ 
+ template <typename T>
+ HOSTDEVICE T digamma(T x) {
+-  static T pi = T{3.14159265358979323846};
++  const static T pi = T{3.14159265358979323846};
+ 
+   if (x == T{0.0}) {
+     T inf = std::numeric_limits<T>::infinity();
+diff --git a/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h b/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
+index 5ebbc8d2db..48acf8d0cd 100644
+--- a/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
++++ b/paddle/phi/kernels/impl/llm_int8_matmul_kernel_impl.h
+@@ -15,8 +15,9 @@ limitations under the License. */
+ #include <iostream>
+ #include <vector>
+ #include "paddle/phi/common/datatype_traits.h"
+-#include "paddle/phi/kernels/funcs/cublaslt.h"
+-#include "paddle/phi/kernels/funcs/quant_dequant.h"
++#include "kernels/funcs/blas/cublaslt.h"
++#include "kernels/funcs/quant_dequant.h"
++#include "kernels/metax_context.h"
+ 
+ #pragma once
+ 
+@@ -668,7 +669,7 @@ void LLMGemm(const phi::GPUContext& dev_ctx,
+ 
+   {
+     auto helper =
+-        std::make_unique<CublasLtHelper>(m, k, n, dev_ctx.cublaslt_handle());
++        std::make_unique<CublasLtHelper>(m, k, n, GetBlasLtHandle());
+     helper->GEMM(quant_input.data<int8_t>(),
+                  weight->data<int8_t>(),
+                  int_out.data<int32_t>(),
+diff --git a/third_party/cutlass b/third_party/cutlass
+index eefa171318..66d9cddc83 160000
+--- a/third_party/cutlass
++++ b/third_party/cutlass
+@@ -1 +1 @@
+-Subproject commit eefa171318b79cbe2e78514d4cce5cd0fe919d0c
++Subproject commit 66d9cddc832c1cdc2b30a8755274f7f74640cfe6
+diff --git a/third_party/yaml-cpp b/third_party/yaml-cpp
+--- a/third_party/yaml-cpp
++++ b/third_party/yaml-cpp
+@@ -1 +1 @@
+-Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91
++Subproject commit 1d8ca1f35eb3a9c9142462b28282a848e5d29a91-dirty

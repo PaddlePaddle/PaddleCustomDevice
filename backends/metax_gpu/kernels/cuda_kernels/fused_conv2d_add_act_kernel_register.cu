@@ -308,7 +308,7 @@ class CudnnConvDescManager {
       int groups,
       cudnnDataType_t dtype) {
     auto* desc = new phi::backends::gpu::ConvolutionDescriptor();
-    desc->set(dtype, paddings, strides, dilations, true, groups);
+    desc->set(dtype, paddings, strides, dilations, false, groups);
     return desc;
   }
 
@@ -589,6 +589,9 @@ void FusedConv2dAddActKernel(const Context& dev_ctx,
   ScalingParamType<T> alpha = 1.0f;
   ScalingParamType<T> beta = residual.get_ptr() ? 1.0f : 0.0f;
   auto cudnn_func = [&](void* cudnn_workspace) {
+    // PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(
+    // phi::dynload::cudnnSetConvolutionMathType(cudnn_conv_desc,
+    // CUDNN_FMA_MATH)));
     PADDLE_ENFORCE_CUSTOM_DEVICE_SUCCESS(static_cast<C_Status>(
         phi::dynload::cudnnConvolutionBiasActivationForward(
             handle,

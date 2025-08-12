@@ -32,6 +32,7 @@ include(generic)
 include(cblas)
 include(flashattn)
 include(cutlass)
+include(dgc)
 
 set(PLUGIN_VERSION ${PADDLE_VERSION})
 
@@ -67,6 +68,7 @@ include(eigen)
 include(xxhash)
 include(zlib)
 include(protobuf)
+include(generate_pb)
 
 set(PROTO_FILE "${PADDLE_SOURCE_DIR}/paddle/phi/core/external_error.proto")
 get_filename_component(PROTO_WE "${PROTO_FILE}" NAME_WE)
@@ -542,7 +544,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/temporal_shift_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/temporal_shift_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trace_kernel.cu
-  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trace_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels./gpu/trace_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trunc_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/trunc_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/truncated_gaussian_random_kernel.cu
@@ -555,6 +557,17 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/viterbi_decode_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/warprnnt_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/kthvalue_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/dgc_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/gammaincc_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/llm_int8_linear_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/baddbmm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/load_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/load_combine_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/c_softmax_with_multi_label_cross_entropy_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/save_combine_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/save_kernel.cu
   # ############################################################################
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/array_grad_kernel.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/set_kernel.cc
@@ -686,7 +699,7 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_swiglu_weighted_bwd_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/kps/elementwise_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/core/flags.cc
-  ${PADDLE_SOURCE_DIR}/paddle/phi/backends/context_pool.cc
+  # ${PADDLE_SOURCE_DIR}/paddle/phi/backends/context_pool.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/funcs/repeat_tensor2index_tensor.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/fused_act_dequant_kernel.cu
   # ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/fusion/gpu/block_multi_head_attention_kernel.cu
@@ -796,6 +809,7 @@ target_link_libraries(
   xxhash
   protobuf
   external_error_proto
+  dgc
   ${PADDLE_CORE_LIB})
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmccl.so)
 target_link_libraries(${TARGET_NAME} /opt/maca/lib/libmcFlashAttn.so)

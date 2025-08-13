@@ -93,12 +93,7 @@ void ConvTransposeCudnnKernelImplV7(const DenseTensor* transformed_x,
   args.idesc.set(*transformed_out, iwo_groups);
   args.wdesc.set(*filter, layout_tensor, iwo_groups);
   args.odesc.set(*transformed_x, iwo_groups);
-  args.cdesc.set(dtype,
-                 padding_common,
-                 strides,
-                 dilations_,
-                 phi::AllowTF32Cudnn(),
-                 c_groups);
+  args.cdesc.set(dtype, padding_common, strides, dilations_, false, c_groups);
 
 #ifdef PADDLE_WITH_HIP
   SearchResult<miopenConvBwdDataAlgorithm_t> bwd_result;

@@ -51,6 +51,7 @@
 #include "paddle/phi/core/platform/device/gpu/gpu_info.h"
 #include "paddle/phi/core/platform/profiler/utils.cc"  //NOLINT
 #include "paddle/phi/core/platform/profiler/utils.h"
+#include "passes/pattern_passes.h"
 #include "runtime/process_cupti_data.cc"  //NOLINT
 #include "unsupported/Eigen/CXX11/Tensor"
 #define MEMORY_FRACTION 0.5f
@@ -1288,4 +1289,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->profiler_start_tracing = ProfilerStart;
   params->interface->profiler_stop_tracing = ProfilerStop;
   params->interface->profiler_prepare_tracing = ProfilerPrepare;
+
+  // PIR pass pipeline
+  params->pir_default_passes = reinterpret_cast<void *>(
+      const_cast<std::vector<std::string> *>(GetPirMetaxGpuPasses()));
 }

@@ -91,9 +91,9 @@ inline void InitDnnHandle(cudnnHandle_t* handle,
         (version < 9000) ? version / 1000 : version / 10000;
     auto local_cudnn_minor =
         (version < 9000) ? (version % 1000) / 100 : (version % 10000) / 100;
-    if (version < static_cast<size_t>(CUDNN_VERSION)) {
-      std::cout << "ERROR." << std::endl;
-    }
+    // if (version < static_cast<size_t>(CUDNN_VERSION)) {
+    //   std::cout << "ERROR." << std::endl;
+    // }
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(handle));
     PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(*handle, stream));
   } else {

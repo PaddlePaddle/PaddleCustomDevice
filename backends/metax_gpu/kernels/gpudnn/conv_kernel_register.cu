@@ -234,8 +234,10 @@ void ConvCudnnKernel(const Context& dev_ctx,
   //     has_exhaustive_search
   //         ? PADDLE_GET_CONST(bool, dev_ctx.GetDnnAttr("exhaustive_search"))
   //         : false;
+
   bool exhaustive_search = FLAGS_cudnn_exhaustive_search;
   bool deterministic = FLAGS_cudnn_deterministic;
+
   PADDLE_ENFORCE_EQ(exhaustive_search && deterministic,
                     false,
                     common::errors::InvalidArgument(

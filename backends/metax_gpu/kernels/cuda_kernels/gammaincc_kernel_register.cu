@@ -1,4 +1,4 @@
-// Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/impl/load_kernel_impl.h"
+#include "paddle/phi/kernels/gammaincc_kernel.h"
+#include "paddle/phi/kernels/impl/gammaincc_kernel_impl.h"
 
-PD_CUSTOM_KERNEL_REGISTER(load, metax_gpu, ALL_LAYOUT, phi::LoadKernel, float) {
-}
+PD_CUSTOM_KERNEL_REGISTER(
+    gammaincc, metax_gpu, ALL_LAYOUT, phi::GammainccKernel, float, double) {}
